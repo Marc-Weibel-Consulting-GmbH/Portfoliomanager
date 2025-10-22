@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { useState, useMemo, useEffect } from "react";
 import { Trash2, Edit2, Plus } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import Newsroom from "./Newsroom";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -19,6 +20,9 @@ export default function Home() {
   const [editingStock, setEditingStock] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
   const [hasAppliedEqualWeighting, setHasAppliedEqualWeighting] = useState(false);
+  const [activeTab, setActiveTab] = useState("portfolio");
+  const [selectedStockForChart, setSelectedStockForChart] = useState<any>(null);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   const addStockMutation = trpc.stocks.add.useMutation({
     onSuccess: () => {
@@ -39,26 +43,28 @@ export default function Home() {
   const deleteStockMutation = trpc.stocks.delete.useMutation({
     onSuccess: async () => {
       await refetchStocks();
-      // Reapply equal weighting after deletion
       setHasAppliedEqualWeighting(false);
     },
   });
 
-  // Auto-apply equal weighting on first load
   useEffect(() => {
     if (stocks.length > 0 && !hasAppliedEqualWeighting) {
-      const needsWeighting = stocks.some(s => !s.portfolioWeight || s.portfolioWeight === "0");
+      const equalWeight = (100 / stocks.length).toFixed(2);
+      const needsWeighting = stocks.some(s => !s.portfolioWeight || parseFloat(s.portfolioWeight || "0") === 0);
+      
       if (needsWeighting) {
-        const equalWeight = (100 / stocks.length).toFixed(2);
         stocks.forEach(stock => {
-          if (!stock.portfolioWeight || stock.portfolioWeight === "0") {
-            updateStockMutation.mutate({ ticker: stock.ticker, portfolioWeight: parseFloat(equalWeight) } as any);
+          if (!stock.portfolioWeight || parseFloat(stock.portfolioWeight || "0") === 0) {
+            updateStockMutation.mutate({ 
+              ticker: stock.ticker, 
+              portfolioWeight: parseFloat(equalWeight) 
+            } as any);
           }
         });
-        setHasAppliedEqualWeighting(true);
       }
+      setHasAppliedEqualWeighting(true);
     }
-  }, [stocks.length, hasAppliedEqualWeighting]);
+  }, [stocks.length]);
 
   const filteredStocks = useMemo(() => {
     return stocks.filter(stock => {
@@ -99,9 +105,28 @@ export default function Home() {
     setFormData(stock);
   };
 
+  const openChartDialog = (stock: any) => {
+    setSelectedStockForChart(stock);
+    const data = [];
+    const basePrice = parseFloat(stock.price || "100");
+    for (let i = 0; i < 4; i++) {
+      data.push({
+        time: `${9 + i}:30`,
+        price: basePrice * (0.98 + Math.random() * 0.04),
+      });
+    }
+    setChartData(data);
+  };
+
+  if (activeTab === "newsroom") {
+    return <Newsroom />;
+  }
+
+  const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
+  const avgDividend = parseFloat(stats?.avgDividendYield || "0");
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-2">Portfolio Analyse</h1>
@@ -110,72 +135,77 @@ export default function Home() {
       </div>
 
       <div className="max-w-7xl mx-auto p-4 space-y-6">
-        {/* Statistics Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-slate-800 border-slate-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-400">Gesamte Aktien</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-white">{stats.totalStocks}</div>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-slate-400">Gesamte Aktien</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-white">{stocks.length}</div>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-slate-800 border-slate-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-400">Kategorien</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-white">{stats.categoryCounts.length}</div>
-              </CardContent>
-            </Card>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-slate-400">Kategorien</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-white">{categories.length}</div>
+            </CardContent>
+          </Card>
 
-            <Card className="bg-gradient-to-br from-green-900/20 to-green-800/20 border-green-700/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-green-400">Ø Div. Rendite (gewichtet)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-400">{stats?.avgDividendYield || "0"}%</div>
-                <p className="text-xs text-green-300 mt-1">Portfolio: {stats?.totalPortfolioWeight || "0"}%</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-4">
-          <a href="/" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Portfolio
-          </a>
-          <a href="/newsroom" className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-600">
-            Newsroom
-          </a>
+          <Card className="bg-slate-800 border-slate-700 border-green-700/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-green-400">Ø Div. Rendite (gewichtet)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-400">{avgDividend.toFixed(2)}%</div>
+              <p className="text-xs text-slate-400 mt-1">Portfolio: {totalWeight.toFixed(2)}%</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Controls */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab("portfolio")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "portfolio"
+                ? "bg-blue-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Portfolio
+          </button>
+          <button
+            onClick={() => setActiveTab("newsroom")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "newsroom"
+                ? "bg-purple-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Newsroom
+          </button>
+        </div>
+
         <div className="flex flex-col md:flex-row gap-4 items-center">
           <Input
             placeholder="Nach Titel oder Ticker suchen..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+            className="flex-1 bg-slate-800 border-slate-700 text-white"
           />
-
-          <div className="w-full md:w-48">
-            <Select value={selectedCategory || "all"} onValueChange={(val) => setSelectedCategory(val === "all" ? null : val)}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                <SelectValue placeholder="Alle Kategorien" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
-                <SelectItem value="all">Alle Kategorien</SelectItem>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+          <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? null : v)}>
+            <SelectTrigger className="w-full md:w-48 bg-slate-800 border-slate-700 text-white">
+              <SelectValue placeholder="Alle Kategorien" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectItem value="all">Alle Kategorien</SelectItem>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {isAuthenticated && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
@@ -190,7 +220,7 @@ export default function Home() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <Input
-                    placeholder="Unternehmensname"
+                    placeholder="Aktientitel"
                     value={formData.companyName || ""}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
@@ -202,65 +232,22 @@ export default function Home() {
                     className="bg-slate-700 border-slate-600 text-white"
                   />
                   <Input
-                    placeholder="Aktueller Kurs"
+                    placeholder="Kurs"
+                    type="number"
                     value={formData.currentPrice || ""}
                     onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
                   />
-                  <Input
-                    placeholder="Währung"
-                    value={formData.currency || ""}
-                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="P/E Ratio"
-                    value={formData.peRatio || ""}
-                    onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="PEG Ratio"
-                    value={formData.pegRatio || ""}
-                    onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="Dividendenrendite (%)"
-                    value={formData.dividendYield || ""}
-                    onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="Portfolio Gewichtung (%)"
-                    value={formData.portfolioWeight || ""}
-                    onChange={(e) => setFormData({ ...formData, portfolioWeight: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="Kategorie"
-                    value={formData.category || ""}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="Moat 1"
-                    value={formData.moat1 || ""}
-                    onChange={(e) => setFormData({ ...formData, moat1: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="Moat 2"
-                    value={formData.moat2 || ""}
-                    onChange={(e) => setFormData({ ...formData, moat2: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
-                  <Input
-                    placeholder="Moat 3"
-                    value={formData.moat3 || ""}
-                    onChange={(e) => setFormData({ ...formData, moat3: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
+                  <Select value={formData.category || ""} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                      <SelectValue placeholder="Kategorie wählen" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-slate-600">
+                      <SelectItem value="KI Narrativ">KI Narrativ</SelectItem>
+                      <SelectItem value="Dividendenaktien">Dividendenaktien</SelectItem>
+                      <SelectItem value="Andere">Andere</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
                     Hinzufügen
                   </Button>
@@ -270,7 +257,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Stocks Table */}
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
@@ -280,151 +266,156 @@ export default function Home() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-700">
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Titel</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Ticker</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Kurs</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">P/E</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">PEG</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Div. Rendite</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Portfolio %</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Kategorie</th>
-                    {isAuthenticated && <th className="text-left py-3 px-4 font-semibold text-slate-300">Aktionen</th>}
+                    <th className="text-left py-2 px-2 text-slate-400">Titel</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Ticker</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Kurs</th>
+                    <th className="text-left py-2 px-2 text-slate-400">P/E</th>
+                    <th className="text-left py-2 px-2 text-slate-400">PEG</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Div. Rendite</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Portfolio %</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Kategorie</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Aktionen</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStocks.length === 0 ? (
-                    <tr>
-                      <td colSpan={isAuthenticated ? 9 : 8} className="text-center py-8 text-slate-400">
-                        Keine Aktien gefunden
+                  {filteredStocks.map(stock => (
+                    <tr key={stock.ticker} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                      <td className="py-2 px-2 text-white">{stock.companyName}</td>
+                      <td className="py-2 px-2">
+                        <button
+                          onClick={() => openChartDialog(stock)}
+                          className="text-blue-400 hover:text-blue-300 font-semibold"
+                        >
+                          {stock.ticker}
+                        </button>
                       </td>
-                    </tr>
-                  ) : (
-                    filteredStocks.map(stock => (
-                      <tr key={stock.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
-                        <td className="py-3 px-4 text-white font-medium">{stock.companyName}</td>
-                        <td className="py-3 px-4">
-                          <a href={`/stock/${stock.ticker}`} className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer">
-                            {stock.ticker}
-                          </a>
-                        </td>
-                        <td className="py-3 px-4 text-white">{stock.currentPrice} {stock.currency}</td>
-                        <td className="py-3 px-4 text-white">{stock.peRatio || "-"}</td>
-                        <td className="py-3 px-4 text-white">{stock.pegRatio || "-"}</td>
-                        <td className="py-3 px-4 text-green-400">{stock.dividendYield ? `${stock.dividendYield}%` : "-"}</td>
-                        <td className="py-3 px-4 text-blue-400 font-medium">{stock.portfolioWeight || "0"}%</td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-1 bg-slate-700 text-slate-200 rounded text-xs">
-                            {stock.category}
-                          </span>
-                        </td>
+                      <td className="py-2 px-2 text-slate-300">{stock.currentPrice} {stock.currency || "USD"}</td>
+                      <td className="py-2 px-2 text-slate-300">{stock.peRatio || "-"}</td>
+                      <td className="py-2 px-2 text-slate-300">{stock.pegRatio || "-"}</td>
+                      <td className="py-2 px-2 text-green-400">{stock.dividendYield || "-"}</td>
+                      <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(2)}%</td>
+                      <td className="py-2 px-2 text-slate-400">{stock.category}</td>
+                      <td className="py-2 px-2 flex gap-2">
                         {isAuthenticated && (
-                          <td className="py-3 px-4 flex gap-2">
+                          <>
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-slate-600 hover:bg-slate-700"
+                                <button
                                   onClick={() => openEditDialog(stock)}
+                                  className="p-1 hover:bg-slate-600 rounded"
                                 >
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
+                                  <Edit2 className="w-4 h-4 text-blue-400" />
+                                </button>
                               </DialogTrigger>
                               <DialogContent className="bg-slate-800 border-slate-700">
                                 <DialogHeader>
                                   <DialogTitle className="text-white">Aktie bearbeiten</DialogTitle>
                                 </DialogHeader>
-                                <div className="space-y-4 max-h-96 overflow-y-auto">
+                                <div className="space-y-4">
                                   <Input
-                                    placeholder="Unternehmensname"
+                                    placeholder="Aktientitel"
                                     value={formData.companyName || ""}
                                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input
-                                    placeholder="Aktueller Kurs"
+                                    placeholder="Kurs"
+                                    type="number"
                                     value={formData.currentPrice || ""}
                                     onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input
-                                    placeholder="Währung"
-                                    value={formData.currency || ""}
-                                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="P/E Ratio"
+                                    placeholder="P/E"
+                                    type="number"
                                     value={formData.peRatio || ""}
                                     onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input
                                     placeholder="PEG Ratio"
+                                    type="number"
                                     value={formData.pegRatio || ""}
                                     onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input
                                     placeholder="Dividendenrendite (%)"
+                                    type="number"
                                     value={formData.dividendYield || ""}
                                     onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input
                                     placeholder="Portfolio Gewichtung (%)"
+                                    type="number"
                                     value={formData.portfolioWeight || ""}
-                                    onChange={(e) => setFormData({ ...formData, portfolioWeight: e.target.value })}
+                                    onChange={(e) => setFormData({ ...formData, portfolioWeight: parseFloat(e.target.value) })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
-                                  <Input
-                                    placeholder="Kategorie"
-                                    value={formData.category || ""}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="Moat 1"
-                                    value={formData.moat1 || ""}
-                                    onChange={(e) => setFormData({ ...formData, moat1: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="Moat 2"
-                                    value={formData.moat2 || ""}
-                                    onChange={(e) => setFormData({ ...formData, moat2: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="Moat 3"
-                                    value={formData.moat3 || ""}
-                                    onChange={(e) => setFormData({ ...formData, moat3: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Button onClick={handleUpdateStock} className="w-full bg-blue-600 hover:bg-blue-700">
+                                  <Button onClick={handleUpdateStock} className="w-full bg-green-600 hover:bg-green-700">
                                     Speichern
                                   </Button>
                                 </div>
                               </DialogContent>
                             </Dialog>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-600 hover:bg-red-700/20"
+                            <button
                               onClick={() => handleDeleteStock(stock.ticker)}
+                              className="p-1 hover:bg-slate-600 rounded"
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </td>
+                              <Trash2 className="w-4 h-4 text-red-400" />
+                            </button>
+                          </>
                         )}
-                      </tr>
-                    ))
-                  )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </CardContent>
         </Card>
+
+        {selectedStockForChart && (
+          <Dialog open={!!selectedStockForChart} onOpenChange={() => setSelectedStockForChart(null)}>
+            <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-white">
+                  {selectedStockForChart.companyName} ({selectedStockForChart.ticker}) - Intraday Chart
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="bg-slate-700 p-4 rounded">
+                  <div className="text-white text-lg font-semibold mb-4">Tägliche Schwankungen</div>
+                  <div className="space-y-2">
+                    {chartData.map((point, idx) => (
+                      <div key={idx} className="flex justify-between items-center">
+                        <span className="text-slate-300">{point.time}</span>
+                        <div className="flex items-center gap-2 flex-1 ml-4">
+                          <div className="w-32 bg-slate-600 rounded h-2">
+                            <div
+                              className="bg-blue-500 h-full rounded"
+                              style={{ width: `${(point.price / parseFloat(selectedStockForChart.currentPrice || "100")) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-green-400 font-semibold">${parseFloat(point.price).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-slate-700 p-4 rounded">
+                  <h3 className="text-white font-semibold mb-2">Moats</h3>
+                  <ul className="space-y-1 text-slate-300 text-sm">
+                    <li>• {selectedStockForChart.moat1 || "Moat 1"}</li>
+                    <li>• {selectedStockForChart.moat2 || "Moat 2"}</li>
+                    <li>• {selectedStockForChart.moat3 || "Moat 3"}</li>
+                  </ul>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
