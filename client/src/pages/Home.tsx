@@ -189,6 +189,12 @@ export default function Home() {
                     className="bg-slate-700 border-slate-600 text-white"
                   />
                   <Input
+                    placeholder="PEG Ratio"
+                    value={formData.pegRatio || ""}
+                    onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
+                  <Input
                     placeholder="Dividendenrendite (%)"
                     value={formData.dividendYield || ""}
                     onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
@@ -245,6 +251,7 @@ export default function Home() {
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">Ticker</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">Kurs</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">P/E</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-300">PEG</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">Div. Rendite</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">Kategorie</th>
                     {isAuthenticated && <th className="text-left py-3 px-4 font-semibold text-slate-300">Aktionen</th>}
@@ -261,9 +268,14 @@ export default function Home() {
                     filteredStocks.map(stock => (
                       <tr key={stock.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
                         <td className="py-3 px-4 text-white font-medium">{stock.companyName}</td>
-                        <td className="py-3 px-4 text-blue-400">{stock.ticker}</td>
+                        <td className="py-3 px-4">
+                          <a href={`/stock/${stock.ticker}`} className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer">
+                            {stock.ticker}
+                          </a>
+                        </td>
                         <td className="py-3 px-4 text-white">{stock.currentPrice} {stock.currency}</td>
                         <td className="py-3 px-4 text-white">{stock.peRatio || "-"}</td>
+                        <td className="py-3 px-4 text-white">{stock.pegRatio || "-"}</td>
                         <td className="py-3 px-4 text-green-400">{stock.dividendYield ? `${stock.dividendYield}%` : "-"}</td>
                         <td className="py-3 px-4">
                           <span className="px-2 py-1 bg-slate-700 text-slate-200 rounded text-xs">
@@ -304,6 +316,12 @@ export default function Home() {
                                     placeholder="P/E Ratio"
                                     value={formData.peRatio || ""}
                                     onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
+                                    className="bg-slate-700 border-slate-600 text-white"
+                                  />
+                                  <Input
+                                    placeholder="PEG Ratio"
+                                    value={formData.pegRatio || ""}
+                                    onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input
