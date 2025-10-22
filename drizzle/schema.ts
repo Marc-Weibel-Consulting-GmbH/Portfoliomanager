@@ -28,4 +28,24 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// Portfolio stocks table
+export const stocks = mysqlTable("stocks", {
+  id: int("id").autoincrement().primaryKey(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  ticker: varchar("ticker", { length: 50 }).notNull().unique(),
+  currentPrice: varchar("currentPrice", { length: 50 }),
+  currency: varchar("currency", { length: 10 }),
+  peRatio: varchar("peRatio", { length: 50 }),
+  pegRatio: varchar("pegRatio", { length: 50 }),
+  dividendYield: varchar("dividendYield", { length: 50 }),
+  exchangeRateToChf: varchar("exchangeRateToChf", { length: 50 }),
+  category: varchar("category", { length: 100 }),
+  moat1: text("moat1"),
+  moat2: text("moat2"),
+  moat3: text("moat3"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Stock = typeof stocks.$inferSelect;
+export type InsertStock = typeof stocks.$inferInsert;

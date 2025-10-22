@@ -1,7 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
 
 export const appRouter = router({
   system: systemRouter,
@@ -17,12 +17,84 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  stocks: router({
+    list: publicProcedure.query(async () => {
+      const { getAllStocks } = await import("./db");
+      return await getAllStocks();
+    }),
+    byCategory: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid category");
+      })
+      .query(async ({ input }) => {
+        const { getStocksByCategory } = await import("./db");
+        return await getStocksByCategory(input);
+      }),
+    byTicker: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid ticker");
+      })
+      .query(async ({ input }) => {
+        const { getStockByTicker } = await import("./db");
+        return await getStockByTicker(input);
+      }),
+    stats: publicProcedure.query(async () => {
+      const { getAllStocks } = await import("./db");
+      const stocks = await getAllStocks();
+      
+      const categories = stocks.reduce((acc, stock) => {
+        const cat = stock.category || "Andere";
+        acc[cat] = (acc[cat] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const dividendStocks = stocks.filter(s => s.category === "Dividendenaktien" && s.dividendYield);
+      const avgDividendYield = dividendStocks.length > 0
+        ? dividendStocks.reduce((sum, s) => sum + parseFloat(s.dividendYield || "0"), 0) / dividendStocks.length
+        : 0;
+
+      return {
+        totalStocks: stocks.length,
+        categories,
+        avgDividendYield: avgDividendYield.toFixed(2),
+        categoryCounts: Object.entries(categories).map(([name, count]) => ({ name, count })),
+      };
+    }),
+    add: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input }) => {
+        const { insertStock } = await import("./db");
+        await insertStock(input as any);
+        return { success: true };
+      }),
+    update: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "ticker" in val) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input }) => {
+        const { updateStock } = await import("./db");
+        const { ticker, ...updates } = input as any;
+        await updateStock(ticker, updates);
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid ticker");
+      })
+      .mutation(async ({ input }) => {
+        const { deleteStock } = await import("./db");
+        await deleteStock(input);
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
+
