@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Trash2, Edit2, Plus } from "lucide-react";
 
 export default function Home() {
@@ -18,6 +18,7 @@ export default function Home() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingStock, setEditingStock] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
+  const [hasAppliedEqualWeighting, setHasAppliedEqualWeighting] = useState(false);
 
   const addStockMutation = trpc.stocks.add.useMutation({
     onSuccess: () => {
@@ -40,6 +41,22 @@ export default function Home() {
       refetchStocks();
     },
   });
+
+  // Auto-apply equal weighting on first load
+  useEffect(() => {
+    if (stocks.length > 0 && !hasAppliedEqualWeighting) {
+      const needsWeighting = stocks.some(s => !s.portfolioWeight || s.portfolioWeight === "0");
+      if (needsWeighting) {
+        const equalWeight = (100 / stocks.length).toFixed(2);
+        stocks.forEach(stock => {
+          if (!stock.portfolioWeight || stock.portfolioWeight === "0") {
+            updateStockMutation.mutate({ ticker: stock.ticker, portfolioWeight: parseFloat(equalWeight) } as any);
+          }
+        });
+        setHasAppliedEqualWeighting(true);
+      }
+    }
+  }, [stocks.length, hasAppliedEqualWeighting]);
 
   const filteredStocks = useMemo(() => {
     return stocks.filter(stock => {
@@ -124,6 +141,16 @@ export default function Home() {
           </div>
         )}
 
+        {/* Navigation Tabs */}
+        <div className="flex gap-2 mb-4">
+          <a href="/" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Portfolio
+          </a>
+          <a href="/newsroom" className="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-600">
+            Newsroom
+          </a>
+        </div>
+
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center">
           <Input
@@ -134,22 +161,23 @@ export default function Home() {
           />
 
           <div className="w-full md:w-48">
-            <select
-              value={selectedCategory || ""}
-              onChange={(e) => setSelectedCategory(e.target.value || null)}
-              className="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded"
-            >
-              <option value="">Alle Kategorien</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+            <Select value={selectedCategory || "all"} onValueChange={(val) => setSelectedCategory(val === "all" ? null : val)}>
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue placeholder="Alle Kategorien" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectItem value="all">Alle Kategorien</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {isAuthenticated && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="w-4 h-4 mr-2" />
                   Neue Aktie
                 </Button>
@@ -231,12 +259,8 @@ export default function Home() {
                     onChange={(e) => setFormData({ ...formData, moat3: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
                   />
-                  <Button
-                    onClick={handleAddStock}
-                    disabled={addStockMutation.isPending}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    {addStockMutation.isPending ? "Wird hinzugefügt..." : "Hinzufügen"}
+                  <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
+                    Hinzufügen
                   </Button>
                 </div>
               </DialogContent>
@@ -268,7 +292,7 @@ export default function Home() {
                 <tbody>
                   {filteredStocks.length === 0 ? (
                     <tr>
-                      <td colSpan={isAuthenticated ? 7 : 6} className="text-center py-8 text-slate-400">
+                      <td colSpan={isAuthenticated ? 9 : 8} className="text-center py-8 text-slate-400">
                         Keine Aktien gefunden
                       </td>
                     </tr>
@@ -298,8 +322,8 @@ export default function Home() {
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  className="border-slate-600 hover:bg-slate-700"
                                   onClick={() => openEditDialog(stock)}
-                                  className="bg-slate-700 border-slate-600 hover:bg-slate-600"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </Button>
@@ -308,7 +332,7 @@ export default function Home() {
                                 <DialogHeader>
                                   <DialogTitle className="text-white">Aktie bearbeiten</DialogTitle>
                                 </DialogHeader>
-                                <div className="space-y-4">
+                                <div className="space-y-4 max-h-96 overflow-y-auto">
                                   <Input
                                     placeholder="Unternehmensname"
                                     value={formData.companyName || ""}
@@ -319,6 +343,12 @@ export default function Home() {
                                     placeholder="Aktueller Kurs"
                                     value={formData.currentPrice || ""}
                                     onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
+                                    className="bg-slate-700 border-slate-600 text-white"
+                                  />
+                                  <Input
+                                    placeholder="Währung"
+                                    value={formData.currency || ""}
+                                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input
@@ -369,22 +399,17 @@ export default function Home() {
                                     onChange={(e) => setFormData({ ...formData, moat3: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
-                                  <Button
-                                    onClick={handleUpdateStock}
-                                    disabled={updateStockMutation.isPending}
-                                    className="w-full bg-blue-600 hover:bg-blue-700"
-                                  >
-                                    {updateStockMutation.isPending ? "Wird aktualisiert..." : "Speichern"}
+                                  <Button onClick={handleUpdateStock} className="w-full bg-blue-600 hover:bg-blue-700">
+                                    Speichern
                                   </Button>
                                 </div>
                               </DialogContent>
                             </Dialog>
                             <Button
                               size="sm"
-                              variant="destructive"
+                              variant="outline"
+                              className="border-red-600 hover:bg-red-700/20"
                               onClick={() => handleDeleteStock(stock.ticker)}
-                              disabled={deleteStockMutation.isPending}
-                              className="bg-red-600 hover:bg-red-700"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -402,4 +427,3 @@ export default function Home() {
     </div>
   );
 }
-

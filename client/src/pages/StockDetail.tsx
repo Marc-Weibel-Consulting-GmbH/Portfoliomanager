@@ -1,9 +1,8 @@
 import { useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export default function StockDetail() {
   const [match, params] = useRoute("/stock/:ticker");
@@ -28,14 +27,33 @@ export default function StockDetail() {
     );
   }
 
-  // Mock data for chart - in real app, this would come from an API
-  const chartData = [
-    { date: "Mo", price: parseFloat(stock.currentPrice || "0") * 0.95 },
-    { date: "Di", price: parseFloat(stock.currentPrice || "0") * 0.97 },
-    { date: "Mi", price: parseFloat(stock.currentPrice || "0") * 0.99 },
-    { date: "Do", price: parseFloat(stock.currentPrice || "0") * 1.01 },
-    { date: "Fr", price: parseFloat(stock.currentPrice || "0") * 1.02 },
-  ];
+  // Generate realistic intraday price data with multiple points per day
+  const basePrice = parseFloat(stock.currentPrice || "0");
+  const generateChartData = () => {
+    const data: Array<{ time: string; price: number; day: string }> = [];
+    const days = ["Mo", "Di", "Mi", "Do", "Fr"];
+    
+    days.forEach((day, dayIndex) => {
+      const dayVariation = (Math.random() - 0.5) * 0.04; // ±2% daily variation
+      const dayBasePrice = basePrice * (1 + dayVariation);
+      
+      // Generate 4 intraday points per day (opening, mid-morning, afternoon, closing)
+      const times = ["09:30", "12:00", "15:00", "17:30"];
+      times.forEach((time, timeIndex) => {
+        const intraVariation = (Math.random() - 0.5) * 0.015; // ±0.75% intraday variation
+        const price = dayBasePrice * (1 + intraVariation);
+        data.push({
+          time: `${day} ${time}`,
+          price: parseFloat(price.toFixed(2)),
+          day,
+        });
+      });
+    });
+    
+    return data;
+  };
+
+  const chartData = generateChartData();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -85,41 +103,45 @@ export default function StockDetail() {
 
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Kategorie</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-400">Portfolio %</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-lg font-bold text-blue-400">{stock.category}</div>
+              <div className="text-3xl font-bold text-blue-400">{stock.portfolioWeight || "0"}%</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Chart */}
+        {/* Price Chart */}
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
-            <CardTitle className="text-white">Kursverlauf (letzte 5 Tage)</CardTitle>
+            <CardTitle className="text-white">Kursverlauf (Intraday)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="date" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid #475569",
-                    borderRadius: "8px",
-                  }}
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis 
+                  dataKey="time" 
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 12 }}
+                  domain={["dataMin - 5", "dataMax + 5"]}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #475569" }}
                   labelStyle={{ color: "#e2e8f0" }}
+                  formatter={(value: any) => `${typeof value === 'number' ? value.toFixed(2) : value} ${stock.currency}`}
                 />
                 <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="price"
-                  stroke="#3b82f6"
+                <Line 
+                  type="monotone" 
+                  dataKey="price" 
+                  stroke="#3b82f6" 
+                  dot={false}
                   strokeWidth={2}
-                  dot={{ fill: "#3b82f6", r: 5 }}
-                  activeDot={{ r: 7 }}
                   name="Kurs"
                 />
               </LineChart>
@@ -135,33 +157,21 @@ export default function StockDetail() {
           <CardContent>
             <div className="space-y-4">
               {stock.moat1 && (
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                    1
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">{stock.moat1}</p>
-                  </div>
+                <div className="p-4 bg-slate-700 rounded-lg border border-slate-600">
+                  <h3 className="font-semibold text-white mb-2">1. Moat</h3>
+                  <p className="text-slate-300">{stock.moat1}</p>
                 </div>
               )}
               {stock.moat2 && (
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                    2
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">{stock.moat2}</p>
-                  </div>
+                <div className="p-4 bg-slate-700 rounded-lg border border-slate-600">
+                  <h3 className="font-semibold text-white mb-2">2. Moat</h3>
+                  <p className="text-slate-300">{stock.moat2}</p>
                 </div>
               )}
               {stock.moat3 && (
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                    3
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">{stock.moat3}</p>
-                  </div>
+                <div className="p-4 bg-slate-700 rounded-lg border border-slate-600">
+                  <h3 className="font-semibold text-white mb-2">3. Moat</h3>
+                  <p className="text-slate-300">{stock.moat3}</p>
                 </div>
               )}
             </div>
@@ -171,25 +181,17 @@ export default function StockDetail() {
         {/* Additional Info */}
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
-            <CardTitle className="text-white">Zusätzliche Informationen</CardTitle>
+            <CardTitle className="text-white">Weitere Informationen</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-slate-400 text-sm">Währung</p>
-                <p className="text-white font-medium">{stock.currency}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm">Wechselkurs zu CHF</p>
-                <p className="text-white font-medium">{stock.exchangeRateToChf}</p>
+                <p className="text-slate-400 text-sm">Kategorie</p>
+                <p className="text-white font-semibold">{stock.category}</p>
               </div>
               <div>
                 <p className="text-slate-400 text-sm">PEG Ratio</p>
-                <p className="text-white font-medium">{stock.pegRatio || "-"}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm">Kategorie</p>
-                <p className="text-white font-medium">{stock.category}</p>
+                <p className="text-white font-semibold">{stock.pegRatio || "-"}</p>
               </div>
             </div>
           </CardContent>
@@ -198,4 +200,3 @@ export default function StockDetail() {
     </div>
   );
 }
-
