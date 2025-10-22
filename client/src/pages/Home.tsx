@@ -112,12 +112,13 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-800 border-slate-700">
+            <Card className="bg-gradient-to-br from-green-900/20 to-green-800/20 border-green-700/50">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-400">Ø Dividendenrendite</CardTitle>
+                <CardTitle className="text-sm font-medium text-green-400">Ø Div. Rendite (gewichtet)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-400">{stats.avgDividendYield}%</div>
+                <div className="text-3xl font-bold text-green-400">{stats?.avgDividendYield || "0"}%</div>
+                <p className="text-xs text-green-300 mt-1">Portfolio: {stats?.totalPortfolioWeight || "0"}%</p>
               </CardContent>
             </Card>
           </div>
@@ -201,6 +202,12 @@ export default function Home() {
                     className="bg-slate-700 border-slate-600 text-white"
                   />
                   <Input
+                    placeholder="Portfolio Gewichtung (%)"
+                    value={formData.portfolioWeight || ""}
+                    onChange={(e) => setFormData({ ...formData, portfolioWeight: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
+                  <Input
                     placeholder="Kategorie"
                     value={formData.category || ""}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -253,6 +260,7 @@ export default function Home() {
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">P/E</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">PEG</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">Div. Rendite</th>
+                    <th className="text-left py-3 px-4 font-semibold text-slate-300">Portfolio %</th>
                     <th className="text-left py-3 px-4 font-semibold text-slate-300">Kategorie</th>
                     {isAuthenticated && <th className="text-left py-3 px-4 font-semibold text-slate-300">Aktionen</th>}
                   </tr>
@@ -277,6 +285,7 @@ export default function Home() {
                         <td className="py-3 px-4 text-white">{stock.peRatio || "-"}</td>
                         <td className="py-3 px-4 text-white">{stock.pegRatio || "-"}</td>
                         <td className="py-3 px-4 text-green-400">{stock.dividendYield ? `${stock.dividendYield}%` : "-"}</td>
+                        <td className="py-3 px-4 text-blue-400 font-medium">{stock.portfolioWeight || "0"}%</td>
                         <td className="py-3 px-4">
                           <span className="px-2 py-1 bg-slate-700 text-slate-200 rounded text-xs">
                             {stock.category}
@@ -328,6 +337,12 @@ export default function Home() {
                                     placeholder="Dividendenrendite (%)"
                                     value={formData.dividendYield || ""}
                                     onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
+                                    className="bg-slate-700 border-slate-600 text-white"
+                                  />
+                                  <Input
+                                    placeholder="Portfolio Gewichtung (%)"
+                                    value={formData.portfolioWeight || ""}
+                                    onChange={(e) => setFormData({ ...formData, portfolioWeight: e.target.value })}
                                     className="bg-slate-700 border-slate-600 text-white"
                                   />
                                   <Input

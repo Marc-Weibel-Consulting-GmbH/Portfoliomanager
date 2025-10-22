@@ -50,15 +50,25 @@ export const appRouter = router({
         return acc;
       }, {} as Record<string, number>);
 
-      const dividendStocks = stocks.filter(s => s.category === "Dividendenaktien" && s.dividendYield);
-      const avgDividendYield = dividendStocks.length > 0
-        ? dividendStocks.reduce((sum, s) => sum + parseFloat(s.dividendYield || "0"), 0) / dividendStocks.length
-        : 0;
+      // Calculate weighted dividend yield based on portfolio weight
+      const dividendStocks = stocks.filter(s => s.dividendYield && s.portfolioWeight);
+      let totalWeight = 0;
+      let weightedYield = 0;
+
+      dividendStocks.forEach(s => {
+        const weight = parseFloat(s.portfolioWeight || "0");
+        const yield_ = parseFloat(s.dividendYield || "0");
+        totalWeight += weight;
+        weightedYield += (weight * yield_) / 100;
+      });
+
+      const avgDividendYield = totalWeight > 0 ? weightedYield : 0;
 
       return {
         totalStocks: stocks.length,
         categories,
         avgDividendYield: avgDividendYield.toFixed(2),
+        totalPortfolioWeight: totalWeight.toFixed(2),
         categoryCounts: Object.entries(categories).map(([name, count]) => ({ name, count })),
       };
     }),

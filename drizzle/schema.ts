@@ -43,6 +43,7 @@ export const stocks = mysqlTable("stocks", {
   moat1: text("moat1"),
   moat2: text("moat2"),
   moat3: text("moat3"),
+  portfolioWeight: varchar("portfolioWeight", { length: 50 }).default("0"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
