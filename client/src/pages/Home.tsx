@@ -132,17 +132,18 @@ export default function Home() {
             className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
           />
 
-          <Select value={selectedCategory || ""} onValueChange={(val) => setSelectedCategory(val || null)}>
-            <SelectTrigger className="w-full md:w-48 bg-slate-800 border-slate-700 text-white">
-              <SelectValue placeholder="Alle Kategorien" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700">
-              <SelectItem value="">Alle Kategorien</SelectItem>
+          <div className="w-full md:w-48">
+            <select
+              value={selectedCategory || ""}
+              onChange={(e) => setSelectedCategory(e.target.value || null)}
+              className="w-full bg-slate-800 border border-slate-700 text-white px-3 py-2 rounded"
+            >
+              <option value="">Alle Kategorien</option>
               {categories.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                <option key={cat} value={cat}>{cat}</option>
               ))}
-            </SelectContent>
-          </Select>
+            </select>
+          </div>
 
           {isAuthenticated && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
