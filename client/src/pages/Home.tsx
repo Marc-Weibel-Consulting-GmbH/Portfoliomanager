@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo, useEffect } from "react";
 import { Trash2, Edit2, Plus } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -37,8 +37,10 @@ export default function Home() {
   });
 
   const deleteStockMutation = trpc.stocks.delete.useMutation({
-    onSuccess: () => {
-      refetchStocks();
+    onSuccess: async () => {
+      await refetchStocks();
+      // Reapply equal weighting after deletion
+      setHasAppliedEqualWeighting(false);
     },
   });
 
