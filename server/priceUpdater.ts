@@ -1,18 +1,47 @@
 import cron, { ScheduledTask } from "node-cron";
 import { getAllStocks, updateStock } from "./db";
 
-// Mock function to simulate fetching real-time prices
-// In production, you would use a real API like yfinance, Alpha Vantage, etc.
+const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY || "J2PHNBNIR5TX1T7V";
+const ALPHAVANTAGE_URL = "https://www.alphavantage.co/query";
+
+// Fetch real-time prices from Alpha Vantage API
 async function fetchRealTimePrice(ticker: string): Promise<string | null> {
   try {
-    // Simulate API call with random price variation
-    // In production, replace this with actual API call
-    const basePrice = Math.random() * 500 + 50;
-    const variation = (Math.random() - 0.5) * 10; // ±5 variation
-    const newPrice = (basePrice + variation).toFixed(2);
-    return newPrice;
+    // Remove exchange suffix for API call (e.g., NVDA:US -> NVDA)
+    const cleanTicker = ticker.split(":")[0];
+    
+    const response = await fetch(
+      `${ALPHAVANTAGE_URL}?function=GLOBAL_QUOTE&symbol=${cleanTicker}&apikey=${ALPHAVANTAGE_API_KEY}`
+    );
+
+    if (!response.ok) {
+      console.warn(`[Price Updater] Failed to fetch ${ticker}: HTTP ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json() as any;
+
+    // Check for API errors or rate limiting
+    if (data["Error Message"]) {
+      console.warn(`[Price Updater] API Error for ${ticker}: ${data["Error Message"]}`);
+      return null;
+    }
+
+    if (data["Note"]) {
+      console.warn(`[Price Updater] API Rate Limit: ${data["Note"]}`);
+      return null;
+    }
+
+    const globalQuote = data["Global Quote"];
+    if (!globalQuote || !globalQuote["05. price"]) {
+      console.warn(`[Price Updater] No price data for ${ticker}`);
+      return null;
+    }
+
+    const price = globalQuote["05. price"];
+    return price;
   } catch (error) {
-    console.error(`Failed to fetch price for ${ticker}:`, error);
+    console.error(`[Price Updater] Failed to fetch price for ${ticker}:`, error);
     return null;
   }
 }
@@ -53,8 +82,8 @@ export async function startPriceUpdater() {
           console.error(`Error updating ${stock.ticker}:`, error);
         }
 
-        // Add small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Add delay to respect Alpha Vantage rate limits (5 requests per minute for free tier)
+        await new Promise(resolve => setTimeout(resolve, 12000)); // 12 seconds between requests
       }
 
       console.log(

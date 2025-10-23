@@ -59,6 +59,7 @@ export const news = mysqlTable("news", {
   url: varchar("url", { length: 500 }),
   imageUrl: varchar("imageUrl", { length: 500 }),
   source: varchar("source", { length: 100 }),
+  priority: mysqlEnum("priority", ["Wichtig", "Mittel", "Niedrig"]).default("Mittel"),
   publishedAt: timestamp("publishedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

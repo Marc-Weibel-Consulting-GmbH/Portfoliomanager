@@ -1,14 +1,62 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ExternalLink } from "lucide-react";
 
 export default function Newsroom() {
   const { user, isAuthenticated } = useAuth();
   const { data: allNews = [] } = trpc.news.getAll.useQuery();
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTicker, setSelectedTicker] = useState<string>("all");
+
+  // Get unique tickers
+  const uniqueTickers = useMemo(() => {
+    const tickers = new Set(allNews.map(n => n.ticker));
+    return Array.from(tickers).sort();
+  }, [allNews]);
+
+  // Filter news by selected ticker
+  const filteredNews = useMemo(() => {
+    if (selectedTicker === "all") {
+      return allNews;
+    }
+    return allNews.filter(n => n.ticker === selectedTicker);
+  }, [allNews, selectedTicker]);
+
+  // Sort by date descending
+  const sortedNews = useMemo(() => {
+    return [...filteredNews].sort((a, b) => {
+      const dateA = new Date(a.publishedAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [filteredNews]);
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "Wichtig":
+        return "border-red-500 bg-red-950";
+      case "Mittel":
+        return "border-orange-500 bg-orange-950";
+      case "Niedrig":
+        return "border-green-500 bg-green-950";
+      default:
+        return "border-slate-500 bg-slate-800";
+    }
+  };
+
+  const getPriorityBadgeColor = (priority: string) => {
+    switch (priority) {
+      case "Wichtig":
+        return "bg-red-600 text-white";
+      case "Mittel":
+        return "bg-orange-600 text-white";
+      case "Niedrig":
+        return "bg-green-600 text-white";
+      default:
+        return "bg-slate-600 text-white";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -19,44 +67,63 @@ export default function Newsroom() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
-        {allNews.length === 0 ? (
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Filter Dropdown */}
+        <div className="flex gap-4">
+          <select
+            value={selectedTicker}
+            onChange={(e) => setSelectedTicker(e.target.value)}
+            className="px-4 py-2 bg-slate-700 text-white border border-slate-600 rounded hover:border-purple-500 focus:outline-none focus:border-purple-500"
+          >
+            <option value="all">Alle Aktien</option>
+            {uniqueTickers.map(ticker => (
+              <option key={ticker} value={ticker}>{ticker}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* News Items */}
+        {sortedNews.length === 0 ? (
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="pt-6">
-              <p className="text-slate-300 text-center">Nachrichten werden geladen... Die NewsAPI-Integration wird täglich aktualisiert.</p>
+              <p className="text-slate-300 text-center">Keine Nachrichten verfügbar. Die NewsAPI-Integration wird täglich aktualisiert.</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-white">Aktuelle Nachrichten ({allNews.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {allNews.map((newsItem, idx) => (
-                <Card key={idx} className="bg-slate-800 border-slate-700 hover:border-purple-500 transition-colors overflow-hidden">
-                  {newsItem.imageUrl && (
-                    <div className="w-full h-40 bg-slate-700 overflow-hidden">
-                      <img src={newsItem.imageUrl} alt={newsItem.title} className="w-full h-full object-cover" />
+            {sortedNews.map((newsItem, idx) => (
+              <div
+                key={idx}
+                className={`border-l-4 rounded-lg p-6 ${getPriorityColor(newsItem.priority || "Mittel")} hover:border-l-8 transition-all cursor-pointer`}
+              >
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded">
+                        {newsItem.ticker}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded ${getPriorityBadgeColor(newsItem.priority || "Mittel")}`}>
+                        {newsItem.priority || "Mittel"}
+                      </span>
                     </div>
+                    <h3 className="text-xl font-bold text-white mb-2">{newsItem.title}</h3>
+                    <p className="text-slate-300 mb-3">{newsItem.publishedAt ? new Date(newsItem.publishedAt).toLocaleDateString("de-CH") : ""}</p>
+                    <p className="text-slate-200 leading-relaxed">{newsItem.description}</p>
+                  </div>
+                  {newsItem.url && (
+                    <a
+                      href={newsItem.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 flex-shrink-0 mt-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                    </a>
                   )}
-                  <CardHeader>
-                    <CardTitle className="text-sm font-medium text-white line-clamp-2">{newsItem.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-slate-300 line-clamp-3">{newsItem.description}</p>
-                    <div className="flex justify-between items-center">
-                      <div className="text-xs space-y-1">
-                        <p className="text-slate-400">Ticker: <span className="text-blue-400 font-semibold">{newsItem.ticker}</span></p>
-                        <p className="text-slate-500">{newsItem.source} • {new Date(newsItem.publishedAt || "").toLocaleDateString()}</p>
-                      </div>
-                      {newsItem.url && (
-                        <a href={newsItem.url} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300">
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
