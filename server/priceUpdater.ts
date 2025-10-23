@@ -1,17 +1,14 @@
 import cron, { ScheduledTask } from "node-cron";
 import { getAllStocks, updateStock } from "./db";
 
-const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY || "J2PHNBNIR5TX1T7V";
-const ALPHAVANTAGE_URL = "https://www.alphavantage.co/query";
+const MARKETSTACK_API_KEY = process.env.MARKETSTACK_API_KEY || "59fa6788029f8094ee4eee81cea9700f";
+const MARKETSTACK_URL = "http://api.marketstack.com/v1/eod";
 
-// Fetch real-time prices from Alpha Vantage API
+// Fetch real-time prices from Marketstack API
 async function fetchRealTimePrice(ticker: string): Promise<string | null> {
   try {
-    // Remove exchange suffix for API call (e.g., NVDA:US -> NVDA)
-    const cleanTicker = ticker.split(":")[0];
-    
     const response = await fetch(
-      `${ALPHAVANTAGE_URL}?function=GLOBAL_QUOTE&symbol=${cleanTicker}&apikey=${ALPHAVANTAGE_API_KEY}`
+      `${MARKETSTACK_URL}?symbols=${ticker}&access_key=${MARKETSTACK_API_KEY}&limit=1`
     );
 
     if (!response.ok) {
@@ -21,24 +18,23 @@ async function fetchRealTimePrice(ticker: string): Promise<string | null> {
 
     const data = await response.json() as any;
 
-    // Check for API errors or rate limiting
-    if (data["Error Message"]) {
-      console.warn(`[Price Updater] API Error for ${ticker}: ${data["Error Message"]}`);
+    // Check for API errors
+    if (data.error) {
+      console.warn(`[Price Updater] API Error for ${ticker}: ${data.error.info}`);
       return null;
     }
 
-    if (data["Note"]) {
-      console.warn(`[Price Updater] API Rate Limit: ${data["Note"]}`);
-      return null;
-    }
-
-    const globalQuote = data["Global Quote"];
-    if (!globalQuote || !globalQuote["05. price"]) {
+    if (!data.data || data.data.length === 0) {
       console.warn(`[Price Updater] No price data for ${ticker}`);
       return null;
     }
 
-    const price = globalQuote["05. price"];
+    const price = data.data[0].close?.toString();
+    if (!price) {
+      console.warn(`[Price Updater] No close price for ${ticker}`);
+      return null;
+    }
+
     return price;
   } catch (error) {
     console.error(`[Price Updater] Failed to fetch price for ${ticker}:`, error);
@@ -82,8 +78,8 @@ export async function startPriceUpdater() {
           console.error(`Error updating ${stock.ticker}:`, error);
         }
 
-        // Add delay to respect Alpha Vantage rate limits (5 requests per minute for free tier)
-        await new Promise(resolve => setTimeout(resolve, 12000)); // 12 seconds between requests
+        // Add small delay to respect Marketstack rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second between requests
       }
 
       console.log(

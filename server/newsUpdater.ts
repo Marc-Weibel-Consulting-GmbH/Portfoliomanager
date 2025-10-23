@@ -1,18 +1,24 @@
-import { addNews, deleteOldNews, getAllStocks } from "./db";
+import { addNews, deleteOldNews, getAllStocks, getDb } from "./db";
+import { news } from "../drizzle/schema";
+import { eq, and } from "drizzle-orm";
 
 const NEWSAPI_KEY = process.env.NEWSAPI_KEY || "1ffc14ccb23748ed948ed406da52bf5c";
 const NEWSAPI_URL = "https://newsapi.org/v2/everything";
+
+// Track processed articles to avoid duplicates
+const processedArticles = new Set<string>();
 
 export async function updateNewsForAllStocks() {
   console.log("[News Updater] Starting news update...");
   
   try {
     const stocks = await getAllStocks();
+    processedArticles.clear();
     
     for (const stock of stocks) {
       await updateNewsForStock(stock.ticker, stock.companyName);
-      // Rate limiting: wait 100ms between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Rate limiting: wait 200ms between requests
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
     
     // Clean up old news (older than 30 days)
@@ -24,9 +30,44 @@ export async function updateNewsForAllStocks() {
   }
 }
 
+// Check if news article already exists
+async function newsExists(ticker: string, title: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  
+  try {
+    const existing = await db
+      .select()
+      .from(news)
+      .where(and(eq(news.ticker, ticker), eq(news.title, title)))
+      .limit(1);
+    return existing.length > 0;
+  } catch (error) {
+    console.error("[News Updater] Error checking if news exists:", error);
+    return false;
+  }
+}
+
+// Check if article is relevant to the ticker
+function isRelevantArticle(article: any, ticker: string, companyName: string): boolean {
+  const content = `${article.title} ${article.description || ""}`.toLowerCase();
+  const cleanTicker = ticker.split(":")[0].toLowerCase();
+  const cleanCompanyName = companyName.toLowerCase();
+  
+  // Must contain either the ticker or company name
+  const hasRelevantKeyword = content.includes(cleanTicker) || content.includes(cleanCompanyName);
+  
+  // Exclude generic tech news that's not about the specific company
+  const excludedKeywords = ["web browser", "web3", "crypto", "nft", "metaverse"];
+  const hasExcludedKeyword = excludedKeywords.some(keyword => content.includes(keyword));
+  
+  return hasRelevantKeyword && !hasExcludedKeyword;
+}
+
 async function updateNewsForStock(ticker: string, companyName: string) {
   try {
-    const query = `${ticker} OR "${companyName}"`;
+    // Search specifically for the ticker first
+    const query = ticker.split(":")[0]; // Remove exchange suffix
     const response = await fetch(
       `${NEWSAPI_URL}?q=${encodeURIComponent(query)}&sortBy=publishedAt&language=en&apiKey=${NEWSAPI_KEY}`
     );
@@ -39,7 +80,26 @@ async function updateNewsForStock(ticker: string, companyName: string) {
     const data = await response.json() as any;
     
     if (data.articles && Array.isArray(data.articles)) {
-      for (const article of data.articles.slice(0, 5)) {
+      let addedCount = 0;
+      
+      for (const article of data.articles.slice(0, 10)) {
+        // Skip if already processed in this run
+        const articleKey = `${article.title}|${article.url}`;
+        if (processedArticles.has(articleKey)) {
+          continue;
+        }
+        processedArticles.add(articleKey);
+        
+        // Check if article is relevant
+        if (!isRelevantArticle(article, ticker, companyName)) {
+          continue;
+        }
+        
+        // Check if already in database
+        if (await newsExists(ticker, article.title)) {
+          continue;
+        }
+        
         // Add news to database
         await addNews({
           ticker,
@@ -49,9 +109,14 @@ async function updateNewsForStock(ticker: string, companyName: string) {
           imageUrl: article.urlToImage,
           source: article.source?.name,
           publishedAt: new Date(article.publishedAt),
+          priority: "Mittel",
         });
+        addedCount++;
       }
-      console.log(`[News Updater] Updated ${Math.min(5, data.articles.length)} news items for ${ticker}`);
+      
+      if (addedCount > 0) {
+        console.log(`[News Updater] Added ${addedCount} new relevant news items for ${ticker}`);
+      }
     }
   } catch (error) {
     console.error(`[News Updater] Error fetching news for ${ticker}:`, error);
