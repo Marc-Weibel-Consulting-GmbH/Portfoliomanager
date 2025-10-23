@@ -10,6 +10,7 @@ import { serveStatic, setupVite } from "./vite";
 import { startPriceUpdater } from "../priceUpdater";
 import { initializeNewsUpdater } from "../newsUpdater";
 import { startChartDataUpdater } from "../chartDataUpdater";
+import { initializePEGRatioUpdater } from "../pegRatioUpdater";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -68,6 +69,8 @@ async function startServer() {
     startChartDataUpdater().catch(console.error);
     // Start news updater
     initializeNewsUpdater();
+    // Start PEG ratio updater
+    initializePEGRatioUpdater().catch(console.error);
   });
 }
 
