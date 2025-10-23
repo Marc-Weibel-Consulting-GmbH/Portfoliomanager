@@ -7,8 +7,10 @@ const MARKETSTACK_URL = "http://api.marketstack.com/v1/eod";
 // Fetch real-time prices from Marketstack API
 async function fetchRealTimePrice(ticker: string): Promise<string | null> {
   try {
+    // Remove exchange suffix (e.g., NVDA:US -> NVDA) as Marketstack only accepts base ticker
+    const cleanTicker = ticker.split(':')[0];
     const response = await fetch(
-      `${MARKETSTACK_URL}?symbols=${ticker}&access_key=${MARKETSTACK_API_KEY}&limit=1`
+      `${MARKETSTACK_URL}?symbols=${cleanTicker}&access_key=${MARKETSTACK_API_KEY}&limit=1`
     );
 
     if (!response.ok) {
