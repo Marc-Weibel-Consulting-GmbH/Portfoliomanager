@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStock, InsertUser, stocks, users } from "../drizzle/schema";
+import { InsertStock, InsertUser, InsertNews, stocks, users, news } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -143,4 +143,69 @@ export async function deleteStock(ticker: string) {
     return;
   }
   await db.delete(stocks).where(eq(stocks.ticker, ticker));
+}
+
+// News queries
+export async function getNewsByTicker(ticker: string, limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  try {
+    const result = await db
+      .select()
+      .from(news)
+      .where(eq(news.ticker, ticker))
+      .orderBy(desc(news.publishedAt))
+      .limit(limit);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get news:", error);
+    return [];
+  }
+}
+
+export async function getAllNews(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  try {
+    const result = await db
+      .select()
+      .from(news)
+      .orderBy(desc(news.publishedAt))
+      .limit(limit);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get all news:", error);
+    return [];
+  }
+}
+
+export async function addNews(newsItem: InsertNews) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  try {
+    await db.insert(news).values(newsItem);
+    return newsItem;
+  } catch (error) {
+    console.error("[Database] Failed to add news:", error);
+    return null;
+  }
+}
+
+export async function deleteOldNews(daysOld = 30) {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    await db.delete(news).where(lt(news.publishedAt, cutoffDate));
+    return 1;
+  } catch (error) {
+    console.error("[Database] Failed to delete old news:", error);
+    return 0;
+  }
 }

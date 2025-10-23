@@ -106,16 +106,8 @@ export default function Home() {
   };
 
   const openChartDialog = (stock: any) => {
-    setSelectedStockForChart(stock);
-    const data = [];
-    const basePrice = parseFloat(stock.price || "100");
-    for (let i = 0; i < 4; i++) {
-      data.push({
-        time: `${9 + i}:30`,
-        price: basePrice * (0.98 + Math.random() * 0.04),
-      });
-    }
-    setChartData(data);
+    // Open TradingView in new tab
+    window.open(`https://www.tradingview.com/symbols/${stock.ticker}/`, '_blank');
   };
 
   if (activeTab === "newsroom") {
@@ -376,46 +368,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {selectedStockForChart && (
-          <Dialog open={!!selectedStockForChart} onOpenChange={() => setSelectedStockForChart(null)}>
-            <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-white">
-                  {selectedStockForChart.companyName} ({selectedStockForChart.ticker}) - Intraday Chart
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="bg-slate-700 p-4 rounded">
-                  <div className="text-white text-lg font-semibold mb-4">Tägliche Schwankungen</div>
-                  <div className="space-y-2">
-                    {chartData.map((point, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="text-slate-300">{point.time}</span>
-                        <div className="flex items-center gap-2 flex-1 ml-4">
-                          <div className="w-32 bg-slate-600 rounded h-2">
-                            <div
-                              className="bg-blue-500 h-full rounded"
-                              style={{ width: `${(point.price / parseFloat(selectedStockForChart.currentPrice || "100")) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-green-400 font-semibold">${parseFloat(point.price).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-slate-700 p-4 rounded">
-                  <h3 className="text-white font-semibold mb-2">Moats</h3>
-                  <ul className="space-y-1 text-slate-300 text-sm">
-                    <li>• {selectedStockForChart.moat1 || "Moat 1"}</li>
-                    <li>• {selectedStockForChart.moat2 || "Moat 2"}</li>
-                    <li>• {selectedStockForChart.moat3 || "Moat 3"}</li>
-                  </ul>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+
       </div>
     </div>
   );

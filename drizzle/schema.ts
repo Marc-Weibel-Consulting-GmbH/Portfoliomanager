@@ -50,3 +50,19 @@ export const stocks = mysqlTable("stocks", {
 
 export type Stock = typeof stocks.$inferSelect;
 export type InsertStock = typeof stocks.$inferInsert;
+
+export const news = mysqlTable("news", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 20 }).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  url: varchar("url", { length: 500 }),
+  imageUrl: varchar("imageUrl", { length: 500 }),
+  source: varchar("source", { length: 100 }),
+  publishedAt: timestamp("publishedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type News = typeof news.$inferSelect;
+export type InsertNews = typeof news.$inferInsert;

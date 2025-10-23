@@ -104,6 +104,22 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  news: router({
+    getByTicker: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid ticker");
+      })
+      .query(async ({ input }) => {
+        const { getNewsByTicker } = await import("./db");
+        return await getNewsByTicker(input, 10);
+      }),
+    getAll: publicProcedure.query(async () => {
+      const { getAllNews } = await import("./db");
+      return await getAllNews(50);
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
