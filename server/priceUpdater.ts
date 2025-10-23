@@ -45,9 +45,12 @@ async function fetchRealTimePrice(ticker: string): Promise<string | null> {
 }
 
 export async function startPriceUpdater() {
+  // DISABLED: Marketstack API calls to save costs
   // Schedule task to run every 15 minutes
   // Cron expression: "*/15 * * * *" means every 15 minutes
   const task = cron.schedule("*/15 * * * *", async () => {
+    console.log(`[${new Date().toISOString()}] Price update DISABLED to save API costs`);
+    return; // Early return to skip API calls
     console.log(`[${new Date().toISOString()}] Starting price update...`);
 
     try {

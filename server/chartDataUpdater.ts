@@ -47,8 +47,11 @@ async function fetchChartData(ticker: string): Promise<any[] | null> {
 }
 
 export async function startChartDataUpdater() {
+  // DISABLED: Marketstack API calls to save costs
   // Schedule task to run every 4 hours
   const task = cron.schedule("0 */4 * * *", async () => {
+    console.log(`[${new Date().toISOString()}] Chart data update DISABLED to save API costs`);
+    return; // Early return to skip API calls
     console.log(`[${new Date().toISOString()}] Starting chart data update...`);
 
     try {
