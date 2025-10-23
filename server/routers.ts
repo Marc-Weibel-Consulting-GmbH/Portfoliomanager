@@ -3,6 +3,57 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
+// Helper function to calculate equal weight for remaining stocks
+async function recalculateWeights(excludeTicker?: string) {
+  const { getAllStocks, updateStock } = await import("./db");
+  const stocks = await getAllStocks();
+  
+  // Filter out the excluded ticker (if deleting)
+  const activeStocks = excludeTicker 
+    ? stocks.filter(s => s.ticker !== excludeTicker)
+    : stocks;
+  
+  if (activeStocks.length === 0) return;
+  
+  // Calculate total weight of manually weighted stocks
+  let manualWeight = 0;
+  const manualStocks: string[] = [];
+  
+  activeStocks.forEach(stock => {
+    const weight = parseFloat(stock.portfolioWeight || "0");
+    // Consider a stock "manually weighted" if it differs from equal weight
+    const equalWeight = 100 / activeStocks.length;
+    if (Math.abs(weight - equalWeight) > 0.01) {
+      manualWeight += weight;
+      manualStocks.push(stock.ticker);
+    }
+  });
+  
+  // Calculate remaining weight for auto-weighted stocks
+  const remainingWeight = 100 - manualWeight;
+  const autoWeightedStocks = activeStocks.filter(s => !manualStocks.includes(s.ticker));
+  const autoWeight = autoWeightedStocks.length > 0 
+    ? remainingWeight / autoWeightedStocks.length
+    : 0;
+  
+  // Update all stocks
+  for (const stock of activeStocks) {
+    let newWeight: number;
+    
+    if (manualStocks.includes(stock.ticker)) {
+      // Keep manually weighted stocks as they are
+      newWeight = parseFloat(stock.portfolioWeight || "0");
+    } else {
+      // Auto-weighted stocks get equal share of remaining weight
+      newWeight = autoWeight;
+    }
+    
+    await updateStock(stock.ticker, {
+      portfolioWeight: newWeight.toFixed(4),
+    });
+  }
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -78,8 +129,12 @@ export const appRouter = router({
         throw new Error("Invalid input");
       })
       .mutation(async ({ input }) => {
-        const { insertStock } = await import("./db");
+        const { insertStock, getAllStocks } = await import("./db");
         await insertStock(input as any);
+        
+        // Recalculate weights for all stocks after adding a new one
+        await recalculateWeights();
+        
         return { success: true };
       }),
     update: protectedProcedure
@@ -90,7 +145,17 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { updateStock } = await import("./db");
         const { ticker, ...updates } = input as any;
+        
+        // Check if portfolioWeight is being updated
+        const hasWeightUpdate = "portfolioWeight" in updates;
+        
         await updateStock(ticker, updates);
+        
+        // If weight was manually updated, recalculate other weights
+        if (hasWeightUpdate) {
+          await recalculateWeights();
+        }
+        
         return { success: true };
       }),
     delete: protectedProcedure
@@ -101,6 +166,10 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { deleteStock } = await import("./db");
         await deleteStock(input);
+        
+        // Recalculate weights for remaining stocks after deletion
+        await recalculateWeights();
+        
         return { success: true };
       }),
   }),
