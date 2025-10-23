@@ -23,6 +23,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("portfolio");
   const [selectedStockForChart, setSelectedStockForChart] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const addStockMutation = trpc.stocks.add.useMutation({
     onSuccess: () => {
@@ -37,6 +38,7 @@ export default function Home() {
       refetchStocks();
       setEditingStock(null);
       setFormData({});
+      setIsEditDialogOpen(false);
     },
   });
 
@@ -103,6 +105,7 @@ export default function Home() {
   const openEditDialog = (stock: any) => {
     setEditingStock(stock);
     setFormData(stock);
+    setIsEditDialogOpen(true);
   };
 
   const openChartDialog = (stock: any) => {
@@ -292,7 +295,7 @@ export default function Home() {
                         <td className="py-2 px-2 flex gap-2">
                           {isAuthenticated && (
                             <>
-                              <Dialog>
+                              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                                 <DialogTrigger asChild>
                                   <button
                                     onClick={() => openEditDialog(stock)}
@@ -347,8 +350,12 @@ export default function Home() {
                                       onChange={(e) => setFormData({ ...formData, portfolioWeight: parseFloat(e.target.value) })}
                                       className="bg-slate-700 border-slate-600 text-white"
                                     />
-                                    <Button onClick={handleUpdateStock} className="w-full bg-green-600 hover:bg-green-700">
-                                      Speichern
+                                    <Button 
+                                      onClick={handleUpdateStock} 
+                                      disabled={updateStockMutation.isPending}
+                                      className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                      {updateStockMutation.isPending ? "Speichern..." : "Speichern"}
                                     </Button>
                                   </div>
                                 </DialogContent>

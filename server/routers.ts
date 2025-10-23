@@ -4,7 +4,7 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
 // Helper function to calculate equal weight for remaining stocks
-async function recalculateWeights(excludeTicker?: string) {
+async function recalculateWeights(excludeTicker?: string, excludeUpdateTicker?: string) {
   const { getAllStocks, updateStock } = await import("./db");
   let stocks = await getAllStocks();
   
@@ -15,14 +15,31 @@ async function recalculateWeights(excludeTicker?: string) {
   
   if (stocks.length === 0) return;
   
-  // Simple approach: all stocks get equal weight
-  const equalWeight = 100 / stocks.length;
-  
-  // Update all stocks with equal weight
-  for (const stock of stocks) {
-    await updateStock(stock.ticker, {
-      portfolioWeight: equalWeight.toFixed(4),
-    });
+  // If a ticker was manually updated, calculate weight for remaining stocks
+  // Otherwise, distribute equal weight to all stocks
+  if (excludeUpdateTicker) {
+    // Manual update: recalculate weight for other stocks
+    const manualStock = stocks.find(s => s.ticker === excludeUpdateTicker);
+    const manualWeight = manualStock ? parseFloat(manualStock.portfolioWeight || "0") : 0;
+    const remainingWeight = 100 - manualWeight;
+    const otherStocks = stocks.filter(s => s.ticker !== excludeUpdateTicker);
+    
+    if (otherStocks.length > 0) {
+      const newWeight = remainingWeight / otherStocks.length;
+      for (const stock of otherStocks) {
+        await updateStock(stock.ticker, {
+          portfolioWeight: newWeight.toFixed(4),
+        });
+      }
+    }
+  } else {
+    // Equal weight for all stocks
+    const equalWeight = 100 / stocks.length;
+    for (const stock of stocks) {
+      await updateStock(stock.ticker, {
+        portfolioWeight: equalWeight.toFixed(4),
+      });
+    }
   }
 }
 
@@ -125,7 +142,7 @@ export const appRouter = router({
         
         // If weight was manually updated, recalculate other weights
         if (hasWeightUpdate) {
-          await recalculateWeights();
+          await recalculateWeights(undefined, ticker);
         }
         
         return { success: true };

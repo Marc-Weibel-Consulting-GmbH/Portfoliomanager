@@ -74,14 +74,25 @@ export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) 
             <p className="text-purple-100">Aktuelle Nachrichten zu deinen Aktien</p>
           </div>
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               if (onBackClick) {
                 onBackClick();
               } else {
-                setLocation("/");
+                // Try to find and click the Portfolio tab button
+                const portfolioBtn = Array.from(document.querySelectorAll('button')).find(
+                  btn => btn.textContent.trim() === 'Portfolio'
+                );
+                if (portfolioBtn) {
+                  portfolioBtn.click();
+                } else {
+                  setLocation("/");
+                }
               }
             }}
-            className="px-4 py-2 bg-purple-500 hover:bg-purple-700 text-white rounded font-medium transition-colors"
+            className="px-4 py-2 bg-purple-500 hover:bg-purple-700 text-white rounded font-medium transition-colors cursor-pointer"
+            type="button"
           >
             ← Zurück
           </button>
