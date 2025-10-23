@@ -6,50 +6,22 @@ import { systemRouter } from "./_core/systemRouter";
 // Helper function to calculate equal weight for remaining stocks
 async function recalculateWeights(excludeTicker?: string) {
   const { getAllStocks, updateStock } = await import("./db");
-  const stocks = await getAllStocks();
+  let stocks = await getAllStocks();
   
   // Filter out the excluded ticker (if deleting)
-  const activeStocks = excludeTicker 
-    ? stocks.filter(s => s.ticker !== excludeTicker)
-    : stocks;
+  if (excludeTicker) {
+    stocks = stocks.filter(s => s.ticker !== excludeTicker);
+  }
   
-  if (activeStocks.length === 0) return;
+  if (stocks.length === 0) return;
   
-  // Calculate total weight of manually weighted stocks
-  let manualWeight = 0;
-  const manualStocks: string[] = [];
+  // Simple approach: all stocks get equal weight
+  const equalWeight = 100 / stocks.length;
   
-  activeStocks.forEach(stock => {
-    const weight = parseFloat(stock.portfolioWeight || "0");
-    // Consider a stock "manually weighted" if it differs from equal weight
-    const equalWeight = 100 / activeStocks.length;
-    if (Math.abs(weight - equalWeight) > 0.01) {
-      manualWeight += weight;
-      manualStocks.push(stock.ticker);
-    }
-  });
-  
-  // Calculate remaining weight for auto-weighted stocks
-  const remainingWeight = 100 - manualWeight;
-  const autoWeightedStocks = activeStocks.filter(s => !manualStocks.includes(s.ticker));
-  const autoWeight = autoWeightedStocks.length > 0 
-    ? remainingWeight / autoWeightedStocks.length
-    : 0;
-  
-  // Update all stocks
-  for (const stock of activeStocks) {
-    let newWeight: number;
-    
-    if (manualStocks.includes(stock.ticker)) {
-      // Keep manually weighted stocks as they are
-      newWeight = parseFloat(stock.portfolioWeight || "0");
-    } else {
-      // Auto-weighted stocks get equal share of remaining weight
-      newWeight = autoWeight;
-    }
-    
+  // Update all stocks with equal weight
+  for (const stock of stocks) {
     await updateStock(stock.ticker, {
-      portfolioWeight: newWeight.toFixed(4),
+      portfolioWeight: equalWeight.toFixed(4),
     });
   }
 }
@@ -168,7 +140,7 @@ export const appRouter = router({
         await deleteStock(input);
         
         // Recalculate weights for remaining stocks after deletion
-        await recalculateWeights();
+        await recalculateWeights(input);
         
         return { success: true };
       }),
