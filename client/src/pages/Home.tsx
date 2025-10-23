@@ -49,7 +49,7 @@ export default function Home() {
 
   useEffect(() => {
     if (stocks.length > 0 && !hasAppliedEqualWeighting) {
-      const equalWeight = (100 / stocks.length).toFixed(2);
+      const equalWeight = (100 / stocks.length).toFixed(4);
       const needsWeighting = stocks.some(s => !s.portfolioWeight || parseFloat(s.portfolioWeight || "0") === 0);
       
       if (needsWeighting) {
@@ -64,7 +64,7 @@ export default function Home() {
       }
       setHasAppliedEqualWeighting(true);
     }
-  }, [stocks.length]);
+  }, [stocks.length, stocks]);
 
   const filteredStocks = useMemo(() => {
     return stocks.filter(stock => {
@@ -106,8 +106,9 @@ export default function Home() {
   };
 
   const openChartDialog = (stock: any) => {
-    // Open TradingView in new tab
-    window.open(`https://www.tradingview.com/symbols/${stock.ticker}/`, '_blank');
+    // Open Yahoo Finance in new tab
+    const cleanTicker = stock.ticker.split(':')[0];
+    window.open(`https://finance.yahoo.com/quote/${cleanTicker}`, '_blank');
   };
 
   if (activeTab === "newsroom") {
@@ -285,7 +286,7 @@ export default function Home() {
                       <td className="py-2 px-2 text-slate-300">{stock.peRatio || "-"}</td>
                       <td className="py-2 px-2 text-slate-300">{stock.pegRatio || "-"}</td>
                       <td className="py-2 px-2 text-green-400">{stock.dividendYield || "-"}</td>
-                      <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(2)}%</td>
+                      <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(4)}%</td>
                       <td className="py-2 px-2 text-slate-400">{stock.category}</td>
                       <td className="py-2 px-2 flex gap-2">
                         {isAuthenticated && (
