@@ -191,7 +191,7 @@ export default function StockDetail() {
               </div>
               <div>
                 <p className="text-slate-400 text-sm">PEG Ratio</p>
-                <p className="text-white font-semibold">{stock.pegRatio || "-"}</p>
+                <p className="text-white font-semibold">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : "-"}</p>
               </div>
             </div>
           </CardContent>
