@@ -30,17 +30,16 @@ export async function updateNewsForAllStocks() {
   }
 }
 
-// Check if news article already exists globally (not just for this ticker)
+// Check if news article already exists
 async function newsExists(ticker: string, title: string): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
   
   try {
-    // Check if the exact title already exists for ANY ticker
     const existing = await db
       .select()
       .from(news)
-      .where(eq(news.title, title))
+      .where(and(eq(news.ticker, ticker), eq(news.title, title)))
       .limit(1);
     return existing.length > 0;
   } catch (error) {
@@ -51,25 +50,18 @@ async function newsExists(ticker: string, title: string): Promise<boolean> {
 
 // Check if article is relevant to the ticker
 function isRelevantArticle(article: any, ticker: string, companyName: string): boolean {
-  const title = article.title.toLowerCase();
-  const description = (article.description || "").toLowerCase();
+  const content = `${article.title} ${article.description || ""}`.toLowerCase();
   const cleanTicker = ticker.split(":")[0].toLowerCase();
   const cleanCompanyName = companyName.toLowerCase();
   
-  // Title MUST contain ticker or company name (stricter requirement)
-  const tickerInTitle = title.includes(cleanTicker);
-  const companyInTitle = title.includes(cleanCompanyName);
-  const hasRelevantInTitle = tickerInTitle || companyInTitle;
+  // Must contain either the ticker or company name
+  const hasRelevantKeyword = content.includes(cleanTicker) || content.includes(cleanCompanyName);
   
   // Exclude generic tech news that's not about the specific company
-  const excludedKeywords = ["web browser", "web3", "crypto", "nft", "metaverse", "openai", "chatgpt", "google", "microsoft", "apple", "amazon"];
-  const hasExcludedKeyword = excludedKeywords.some(keyword => {
-    // Only exclude if it's a different company
-    if (keyword === cleanCompanyName) return false;
-    return title.includes(keyword);
-  });
+  const excludedKeywords = ["web browser", "web3", "crypto", "nft", "metaverse"];
+  const hasExcludedKeyword = excludedKeywords.some(keyword => content.includes(keyword));
   
-  return hasRelevantInTitle && !hasExcludedKeyword;
+  return hasRelevantKeyword && !hasExcludedKeyword;
 }
 
 async function updateNewsForStock(ticker: string, companyName: string) {
