@@ -250,124 +250,128 @@ export default function Home() {
           )}
         </div>
 
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left py-2 px-2 text-slate-400">Titel</th>
-                    <th className="text-left py-2 px-2 text-slate-400">Ticker</th>
-                    <th className="text-left py-2 px-2 text-slate-400">Kurs</th>
-                    <th className="text-left py-2 px-2 text-slate-400">P/E</th>
-                    <th className="text-left py-2 px-2 text-slate-400">PEG</th>
-                    <th className="text-left py-2 px-2 text-slate-400">Div. Rendite</th>
-                    <th className="text-left py-2 px-2 text-slate-400">Portfolio %</th>
-                    <th className="text-left py-2 px-2 text-slate-400">Kategorie</th>
-                    <th className="text-left py-2 px-2 text-slate-400">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStocks.map(stock => (
-                    <tr key={stock.ticker} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                      <td className="py-2 px-2 text-white">{stock.companyName}</td>
-                      <td className="py-2 px-2">
-                        <button
-                          onClick={() => openChartDialog(stock)}
-                          className="text-blue-400 hover:text-blue-300 font-semibold"
-                        >
-                          {stock.ticker}
-                        </button>
-                      </td>
-                      <td className="py-2 px-2 text-slate-300">{stock.currentPrice} {stock.currency || "USD"}</td>
-                      <td className="py-2 px-2 text-slate-300">{stock.peRatio || "-"}</td>
-                      <td className="py-2 px-2 text-slate-300">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : "-"}</td>
-                      <td className="py-2 px-2 text-green-400">{stock.dividendYield || "-"}</td>
-                      <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(4)}%</td>
-                      <td className="py-2 px-2 text-slate-400">{stock.category}</td>
-                      <td className="py-2 px-2 flex gap-2">
-                        {isAuthenticated && (
-                          <>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <button
-                                  onClick={() => openEditDialog(stock)}
-                                  className="p-1 hover:bg-slate-600 rounded"
-                                >
-                                  <Edit2 className="w-4 h-4 text-blue-400" />
-                                </button>
-                              </DialogTrigger>
-                              <DialogContent className="bg-slate-800 border-slate-700">
-                                <DialogHeader>
-                                  <DialogTitle className="text-white">Aktie bearbeiten</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <Input
-                                    placeholder="Aktientitel"
-                                    value={formData.companyName || ""}
-                                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="Kurs"
-                                    type="number"
-                                    value={formData.currentPrice || ""}
-                                    onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="P/E"
-                                    type="number"
-                                    value={formData.peRatio || ""}
-                                    onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="PEG Ratio"
-                                    type="number"
-                                    value={formData.pegRatio || ""}
-                                    onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="Dividendenrendite (%)"
-                                    type="number"
-                                    value={formData.dividendYield || ""}
-                                    onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Input
-                                    placeholder="Portfolio Gewichtung (%)"
-                                    type="number"
-                                    value={formData.portfolioWeight || ""}
-                                    onChange={(e) => setFormData({ ...formData, portfolioWeight: parseFloat(e.target.value) })}
-                                    className="bg-slate-700 border-slate-600 text-white"
-                                  />
-                                  <Button onClick={handleUpdateStock} className="w-full bg-green-600 hover:bg-green-700">
-                                    Speichern
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                            <button
-                              onClick={() => handleDeleteStock(stock.ticker)}
-                              className="p-1 hover:bg-slate-600 rounded"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-400" />
-                            </button>
-                          </>
-                        )}
-                      </td>
+        {activeTab === "portfolio" ? (
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-2 px-2 text-slate-400">Titel</th>
+                      <th className="text-left py-2 px-2 text-slate-400">Ticker</th>
+                      <th className="text-left py-2 px-2 text-slate-400">Kurs</th>
+                      <th className="text-left py-2 px-2 text-slate-400">P/E</th>
+                      <th className="text-left py-2 px-2 text-slate-400">PEG</th>
+                      <th className="text-left py-2 px-2 text-slate-400">Div. Rendite</th>
+                      <th className="text-left py-2 px-2 text-slate-400">Portfolio %</th>
+                      <th className="text-left py-2 px-2 text-slate-400">Kategorie</th>
+                      <th className="text-left py-2 px-2 text-slate-400">Aktionen</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  </thead>
+                  <tbody>
+                    {filteredStocks.map(stock => (
+                      <tr key={stock.ticker} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="py-2 px-2 text-white">{stock.companyName}</td>
+                        <td className="py-2 px-2">
+                          <button
+                            onClick={() => openChartDialog(stock)}
+                            className="text-blue-400 hover:text-blue-300 font-semibold"
+                          >
+                            {stock.ticker}
+                          </button>
+                        </td>
+                        <td className="py-2 px-2 text-slate-300">{stock.currentPrice} {stock.currency || "USD"}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.peRatio || "-"}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : "-"}</td>
+                        <td className="py-2 px-2 text-green-400">{stock.dividendYield || "-"}</td>
+                        <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(4)}%</td>
+                        <td className="py-2 px-2 text-slate-400">{stock.category}</td>
+                        <td className="py-2 px-2 flex gap-2">
+                          {isAuthenticated && (
+                            <>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <button
+                                    onClick={() => openEditDialog(stock)}
+                                    className="p-1 hover:bg-slate-600 rounded"
+                                  >
+                                    <Edit2 className="w-4 h-4 text-blue-400" />
+                                  </button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-slate-800 border-slate-700">
+                                  <DialogHeader>
+                                    <DialogTitle className="text-white">Aktie bearbeiten</DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <Input
+                                      placeholder="Aktientitel"
+                                      value={formData.companyName || ""}
+                                      onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                                      className="bg-slate-700 border-slate-600 text-white"
+                                    />
+                                    <Input
+                                      placeholder="Kurs"
+                                      type="number"
+                                      value={formData.currentPrice || ""}
+                                      onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
+                                      className="bg-slate-700 border-slate-600 text-white"
+                                    />
+                                    <Input
+                                      placeholder="P/E"
+                                      type="number"
+                                      value={formData.peRatio || ""}
+                                      onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
+                                      className="bg-slate-700 border-slate-600 text-white"
+                                    />
+                                    <Input
+                                      placeholder="PEG Ratio"
+                                      type="number"
+                                      value={formData.pegRatio || ""}
+                                      onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
+                                      className="bg-slate-700 border-slate-600 text-white"
+                                    />
+                                    <Input
+                                      placeholder="Dividendenrendite (%)"
+                                      type="number"
+                                      value={formData.dividendYield || ""}
+                                      onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
+                                      className="bg-slate-700 border-slate-600 text-white"
+                                    />
+                                    <Input
+                                      placeholder="Portfolio Gewichtung (%)"
+                                      type="number"
+                                      value={formData.portfolioWeight || ""}
+                                      onChange={(e) => setFormData({ ...formData, portfolioWeight: parseFloat(e.target.value) })}
+                                      className="bg-slate-700 border-slate-600 text-white"
+                                    />
+                                    <Button onClick={handleUpdateStock} className="w-full bg-green-600 hover:bg-green-700">
+                                      Speichern
+                                    </Button>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                              <button
+                                onClick={() => handleDeleteStock(stock.ticker)}
+                                className="p-1 hover:bg-slate-600 rounded"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-400" />
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Newsroom onBackClick={() => setActiveTab("portfolio")} />
+        )}
 
 
       </div>

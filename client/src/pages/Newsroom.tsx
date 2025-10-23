@@ -3,8 +3,15 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
 import { ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
 
-export default function Newsroom() {
+interface NewsroomProps {
+  onBackClick?: () => void;
+  [key: string]: any; // For wouter route compatibility
+}
+
+export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) {
+  const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { data: allNews = [] } = trpc.news.getAll.useQuery();
   const [selectedTicker, setSelectedTicker] = useState<string>("all");
@@ -61,9 +68,23 @@ export default function Newsroom() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">Newsroom</h1>
-          <p className="text-purple-100">Aktuelle Nachrichten zu deinen Aktien</p>
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Newsroom</h1>
+            <p className="text-purple-100">Aktuelle Nachrichten zu deinen Aktien</p>
+          </div>
+          <button
+            onClick={() => {
+              if (onBackClick) {
+                onBackClick();
+              } else {
+                setLocation("/");
+              }
+            }}
+            className="px-4 py-2 bg-purple-500 hover:bg-purple-700 text-white rounded font-medium transition-colors"
+          >
+            ← Zurück
+          </button>
         </div>
       </div>
 
