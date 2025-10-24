@@ -41,6 +41,8 @@ export default function Home() {
       setEditingStock(null);
       setFormData({});
       setIsEditDialogOpen(false);
+      // Reload page to refresh all calculated values
+      setTimeout(() => window.location.reload(), 500);
     },
   });
 
@@ -150,7 +152,7 @@ export default function Home() {
   };
 
   if (activeTab === "newsroom") {
-    return <Newsroom />;
+    return <Newsroom onBackClick={() => setActiveTab("portfolio")} />;
   }
 
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
