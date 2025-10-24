@@ -1,42 +1,61 @@
 import cron, { ScheduledTask } from "node-cron";
 import { getAllStocks, updateStock } from "./db";
+import { callDataApi } from "./_core/dataApi";
 
-const MARKETSTACK_API_KEY = process.env.MARKETSTACK_API_KEY || "59fa6788029f8094ee4eee81cea9700f";
-const MARKETSTACK_URL = "http://api.marketstack.com/v1/eod";
-
-// Fetch historical chart data from Marketstack
+// Fetch historical chart data from Yahoo Finance
 async function fetchChartData(ticker: string): Promise<any[] | null> {
   try {
+    // Remove exchange suffix (e.g., NVDA:US -> NVDA)
+    const cleanTicker = ticker.split(':')[0];
+    
+    // Determine region based on ticker suffix or default to US
+    let region = "US";
+    if (ticker.includes(":")) {
+      const suffix = ticker.split(':')[1];
+      const regionMap: Record<string, string> = {
+        "US": "US",
+        "SW": "CH", // Switzerland
+        "DE": "DE", // Germany
+        "UK": "GB", // United Kingdom
+        "CA": "CA", // Canada
+        "AU": "AU", // Australia
+      };
+      region = regionMap[suffix] || "US";
+    }
+
     // Get last 30 days of data for better chart visualization
-    const response = await fetch(
-      `${MARKETSTACK_URL}?symbols=${ticker}&access_key=${MARKETSTACK_API_KEY}&limit=30&sort=ASC`
-    );
+    const response = await callDataApi("YahooFinance/get_stock_chart", {
+      query: {
+        symbol: cleanTicker,
+        region: region,
+        interval: "1d",
+        range: "1mo", // Last 1 month
+        includeAdjustedClose: true
+      }
+    }) as any;
 
-    if (!response.ok) {
-      console.warn(`[Chart Updater] Failed to fetch chart data for ${ticker}: HTTP ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json() as any;
-
-    if (data.error) {
-      console.warn(`[Chart Updater] API Error for ${ticker}: ${data.error.info}`);
-      return null;
-    }
-
-    if (!data.data || data.data.length === 0) {
+    if (!response || !response.chart || !response.chart.result || response.chart.result.length === 0) {
       console.warn(`[Chart Updater] No chart data for ${ticker}`);
       return null;
     }
 
+    const result = response.chart.result[0];
+    const timestamps = result.timestamp;
+    const quotes = result.indicators.quote[0];
+
+    if (!timestamps || !quotes || timestamps.length === 0) {
+      console.warn(`[Chart Updater] No valid chart data for ${ticker}`);
+      return null;
+    }
+
     // Transform data for chart display
-    const chartData = data.data.map((item: any) => ({
-      date: item.date,
-      open: item.open,
-      high: item.high,
-      low: item.low,
-      close: item.close,
-      volume: item.volume,
+    const chartData = timestamps.map((timestamp: number, index: number) => ({
+      date: new Date(timestamp * 1000).toISOString().split('T')[0], // Convert to YYYY-MM-DD
+      open: quotes.open[index] || 0,
+      high: quotes.high[index] || 0,
+      low: quotes.low[index] || 0,
+      close: quotes.close[index] || 0,
+      volume: quotes.volume[index] || 0,
     }));
 
     return chartData;
@@ -82,7 +101,7 @@ export async function startChartDataUpdater() {
           console.error(`Error updating chart data for ${stock.ticker}:`, error);
         }
 
-        // Add small delay to respect Marketstack rate limits
+        // Add small delay to avoid overwhelming the API
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
@@ -94,10 +113,9 @@ export async function startChartDataUpdater() {
     }
   });
 
-  // DISABLED to save Marketstack API costs
-  console.log("[Chart Data Updater] DISABLED - Marketstack API calls turned off to save costs");
-  console.log("[Chart Data Updater] Cron schedule: Every 4 hours (but skipped)");
-  task.stop(); // Stop the cron task
+  console.log("[Chart Data Updater] ENABLED - Using Yahoo Finance API (free)");
+  console.log("[Chart Data Updater] Cron schedule: Every 4 hours");
+  task.start();
 
   return task;
 }
@@ -106,3 +124,4 @@ export function stopChartDataUpdater(task: ScheduledTask) {
   task.stop();
   console.log("[Chart Data Updater] Stopped");
 }
+

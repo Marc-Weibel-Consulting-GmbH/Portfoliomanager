@@ -1,43 +1,56 @@
 import cron, { ScheduledTask } from "node-cron";
 import { getAllStocks, updateStock } from "./db";
+import { callDataApi } from "./_core/dataApi";
 
-const MARKETSTACK_API_KEY = process.env.MARKETSTACK_API_KEY || "59fa6788029f8094ee4eee81cea9700f";
-const MARKETSTACK_URL = "http://api.marketstack.com/v1/eod";
-
-// Fetch real-time prices from Marketstack API
+// Fetch real-time prices from Yahoo Finance API
 async function fetchRealTimePrice(ticker: string): Promise<string | null> {
   try {
-    // Remove exchange suffix (e.g., NVDA:US -> NVDA) as Marketstack only accepts base ticker
+    // Remove exchange suffix (e.g., NVDA:US -> NVDA) as Yahoo Finance accepts base ticker
     const cleanTicker = ticker.split(':')[0];
-    const response = await fetch(
-      `${MARKETSTACK_URL}?symbols=${cleanTicker}&access_key=${MARKETSTACK_API_KEY}&limit=1`
-    );
+    
+    // Determine region based on ticker suffix or default to US
+    let region = "US";
+    if (ticker.includes(":")) {
+      const suffix = ticker.split(':')[1];
+      // Map common suffixes to Yahoo Finance regions
+      const regionMap: Record<string, string> = {
+        "US": "US",
+        "SW": "CH", // Switzerland
+        "DE": "DE", // Germany
+        "UK": "GB", // United Kingdom
+        "CA": "CA", // Canada
+        "AU": "AU", // Australia
+      };
+      region = regionMap[suffix] || "US";
+    }
 
-    if (!response.ok) {
-      console.warn(`[Price Updater] Failed to fetch ${ticker}: HTTP ${response.status}`);
+    const response = await callDataApi("YahooFinance/get_stock_chart", {
+      query: {
+        symbol: cleanTicker,
+        region: region,
+        interval: "1d",
+        range: "1d",
+        includeAdjustedClose: true
+      }
+    }) as any;
+
+    if (!response || !response.chart || !response.chart.result || response.chart.result.length === 0) {
+      console.warn(`[Price Updater] No data returned for ${ticker}`);
       return null;
     }
 
-    const data = await response.json() as any;
+    const result = response.chart.result[0];
+    const meta = result.meta;
 
-    // Check for API errors
-    if (data.error) {
-      console.warn(`[Price Updater] API Error for ${ticker}: ${data.error.info}`);
+    // Get the current price from meta (most recent price)
+    const currentPrice = meta.regularMarketPrice;
+
+    if (!currentPrice) {
+      console.warn(`[Price Updater] No current price for ${ticker}`);
       return null;
     }
 
-    if (!data.data || data.data.length === 0) {
-      console.warn(`[Price Updater] No price data for ${ticker}`);
-      return null;
-    }
-
-    const price = data.data[0].close?.toString();
-    if (!price) {
-      console.warn(`[Price Updater] No close price for ${ticker}`);
-      return null;
-    }
-
-    return price;
+    return currentPrice.toString();
   } catch (error) {
     console.error(`[Price Updater] Failed to fetch price for ${ticker}:`, error);
     return null;
@@ -80,8 +93,8 @@ export async function startPriceUpdater() {
           console.error(`Error updating ${stock.ticker}:`, error);
         }
 
-        // Add small delay to respect Marketstack rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second between requests
+        // Add small delay to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 500)); // 0.5 second between requests
       }
 
       console.log(
@@ -92,10 +105,9 @@ export async function startPriceUpdater() {
     }
   });
 
-  // DISABLED to save Marketstack API costs
-  console.log("[Price Updater] DISABLED - Marketstack API calls turned off to save costs");
-  console.log("[Price Updater] Cron schedule: Every 15 minutes (but skipped)");
-  task.stop(); // Stop the cron task
+  console.log("[Price Updater] ENABLED - Using Yahoo Finance API (free)");
+  console.log("[Price Updater] Cron schedule: Every 15 minutes");
+  task.start();
 
   return task;
 }
