@@ -439,14 +439,26 @@ export default function Home() {
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div className="flex items-center gap-4 pb-4 border-b border-slate-700">
-                                    <img 
-                                      src={`https://logo.clearbit.com/${stock.companyName.toLowerCase().replace(/\s+/g, '')}.com`}
-                                      alt={stock.companyName}
-                                      className="w-16 h-16 rounded-lg object-contain bg-white p-2"
-                                      onError={(e) => {
-                                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(stock.companyName)}&size=64&background=3b82f6&color=fff`;
-                                      }}
-                                    />
+                                    <div className="w-16 h-16 rounded-lg bg-white p-2 flex items-center justify-center">
+                                      <img 
+                                        src={`https://financialmodelingprep.com/image-stock/${stock.ticker.replace(/\.(SW|PA|MI|CO|DE|AS)$/, '')}.png`}
+                                        alt={stock.companyName}
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => {
+                                          // Fallback to logo.dev
+                                          const domain = stock.companyName.toLowerCase()
+                                            .replace(/\s+(inc|corp|ltd|ag|sa|spa|group|holding|technologies|enterprise|healthcare|energy|networks|semiconductor|therapeutics|platforms|solutions).*$/i, '')
+                                            .replace(/[^a-z0-9]/g, '');
+                                          e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                          e.currentTarget.onerror = () => {
+                                            // Final fallback to letter avatar
+                                            if (e.currentTarget.parentElement) {
+                                              e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                            }
+                                          };
+                                        }}
+                                      />
+                                    </div>
                                     <div>
                                       <h3 className="text-lg font-semibold text-white">{stock.companyName}</h3>
                                       <p className="text-sm text-slate-400">{stock.ticker}</p>
