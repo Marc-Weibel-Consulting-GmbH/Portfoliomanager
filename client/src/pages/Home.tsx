@@ -390,10 +390,10 @@ export default function Home() {
                     <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                       <SelectValue placeholder="Kategorie wählen" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-700 border-slate-600">
-                      <SelectItem value="KI Narrativ">KI Narrativ</SelectItem>
-                      <SelectItem value="Dividendenaktien">Dividendenaktien</SelectItem>
-                      <SelectItem value="Andere">Andere</SelectItem>
+                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat} className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">{cat}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
