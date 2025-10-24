@@ -117,28 +117,41 @@ export default function Home() {
 
   // Check portfolio weight and show notification
   useEffect(() => {
+    // Check if Notification API is supported
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return;
+    }
+    
     if (stocks.length > 0 && portfolioTotalWeight !== 0) {
       const roundedWeight = Math.round(portfolioTotalWeight * 100) / 100;
       if (roundedWeight > 100) {
         // Request notification permission if not granted
         if (Notification.permission === 'default') {
-          Notification.requestPermission();
+          Notification.requestPermission().catch(() => {});
         }
         if (Notification.permission === 'granted') {
-          new Notification('Portfolio Gewichtung zu hoch!', {
-            body: `Gesamtgewichtung: ${roundedWeight.toFixed(2)}% (${(roundedWeight - 100).toFixed(2)}% über 100%)`,
-            icon: '/favicon.png'
-          });
+          try {
+            new Notification('Portfolio Gewichtung zu hoch!', {
+              body: `Gesamtgewichtung: ${roundedWeight.toFixed(2)}% (${(roundedWeight - 100).toFixed(2)}% über 100%)`,
+              icon: '/favicon.png'
+            });
+          } catch (e) {
+            console.warn('Notification failed:', e);
+          }
         }
       } else if (roundedWeight < 100 && roundedWeight > 50) {
         if (Notification.permission === 'default') {
-          Notification.requestPermission();
+          Notification.requestPermission().catch(() => {});
         }
         if (Notification.permission === 'granted') {
-          new Notification('Portfolio Gewichtung zu niedrig!', {
-            body: `Gesamtgewichtung: ${roundedWeight.toFixed(2)}% (${(100 - roundedWeight).toFixed(2)}% unter 100%)`,
-            icon: '/favicon.png'
-          });
+          try {
+            new Notification('Portfolio Gewichtung zu niedrig!', {
+              body: `Gesamtgewichtung: ${roundedWeight.toFixed(2)}% (${(100 - roundedWeight).toFixed(2)}% unter 100%)`,
+              icon: '/favicon.png'
+            });
+          } catch (e) {
+            console.warn('Notification failed:', e);
+          }
         }
       }
     }
