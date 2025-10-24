@@ -24,6 +24,8 @@ export default function Home() {
   const [selectedStockForChart, setSelectedStockForChart] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const addStockMutation = trpc.stocks.add.useMutation({
     onSuccess: () => {
@@ -68,15 +70,48 @@ export default function Home() {
     }
   }, [stocks.length, stocks]);
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredStocks = useMemo(() => {
-    return stocks.filter(stock => {
+    let filtered = stocks.filter(stock => {
       const matchesCategory = !selectedCategory || stock.category === selectedCategory;
       const matchesSearch = !searchTerm || 
         stock.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         stock.ticker?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [stocks, selectedCategory, searchTerm]);
+
+    // Apply sorting
+    if (sortField) {
+      filtered = [...filtered].sort((a, b) => {
+        let aVal: any = a[sortField as keyof typeof a];
+        let bVal: any = b[sortField as keyof typeof b];
+
+        // Handle numeric fields
+        if (['currentPrice', 'peRatio', 'pegRatio', 'dividendYield', 'portfolioWeight'].includes(sortField)) {
+          aVal = parseFloat(aVal || '0');
+          bVal = parseFloat(bVal || '0');
+        }
+
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [stocks, selectedCategory, searchTerm, sortField, sortDirection]);
+
+  const portfolioTotalWeight = useMemo(() => {
+    return stocks.reduce((sum, stock) => sum + parseFloat(stock.portfolioWeight || '0'), 0);
+  }, [stocks]);
 
   const categories = useMemo(() => {
     const cats = new Set<string>();
@@ -263,14 +298,30 @@ export default function Home() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-700">
-                      <th className="text-left py-2 px-2 text-slate-400">Titel</th>
-                      <th className="text-left py-2 px-2 text-slate-400">Ticker</th>
-                      <th className="text-left py-2 px-2 text-slate-400">Kurs</th>
-                      <th className="text-left py-2 px-2 text-slate-400">P/E</th>
-                      <th className="text-left py-2 px-2 text-slate-400">PEG</th>
-                      <th className="text-left py-2 px-2 text-slate-400">Div. Rendite</th>
-                      <th className="text-left py-2 px-2 text-slate-400">Portfolio %</th>
-                      <th className="text-left py-2 px-2 text-slate-400">Kategorie</th>
+                      <th onClick={() => handleSort('companyName')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Titel {sortField === 'companyName' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => handleSort('ticker')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Ticker {sortField === 'ticker' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => handleSort('currentPrice')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Kurs {sortField === 'currentPrice' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => handleSort('peRatio')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        P/E {sortField === 'peRatio' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => handleSort('pegRatio')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        PEG {sortField === 'pegRatio' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => handleSort('dividendYield')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Div. Rendite {sortField === 'dividendYield' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => handleSort('portfolioWeight')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Portfolio % {sortField === 'portfolioWeight' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th onClick={() => handleSort('category')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Kategorie {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th className="text-left py-2 px-2 text-slate-400">Aktionen</th>
                     </tr>
                   </thead>
@@ -371,6 +422,15 @@ export default function Home() {
                         </td>
                       </tr>
                     ))}
+                    <tr className="border-t-2 border-slate-600 bg-slate-700/50 font-bold">
+                      <td colSpan={6} className="py-2 px-2 text-white text-right">Total Portfolio Gewichtung:</td>
+                      <td className="py-2 px-2 text-white">
+                        <span className={portfolioTotalWeight > 100 ? "text-red-400" : portfolioTotalWeight < 100 ? "text-yellow-400" : "text-green-400"}>
+                          {portfolioTotalWeight.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
