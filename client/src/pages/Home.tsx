@@ -449,8 +449,8 @@ export default function Home() {
                         </td>
                         <td className="py-2 px-2 text-slate-300">{stock.currentPrice} {stock.currency || "USD"}</td>
                         <td className="py-2 px-2 text-slate-300">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "-"}</td>
-                        <td className="py-2 px-2 text-slate-300">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : "-"}</td>
-                        <td className="py-2 px-2 text-green-400">{stock.dividendYield || "-"}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(1) : "-"}</td>
+                        <td className="py-2 px-2 text-green-400">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : "-"}</td>
                         <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(1)}%</td>
                         <td className="py-2 px-2 text-slate-400">{stock.category}</td>
                         <td className="py-2 px-2 text-center">
