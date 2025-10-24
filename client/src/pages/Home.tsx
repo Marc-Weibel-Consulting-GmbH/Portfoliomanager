@@ -250,12 +250,20 @@ export default function Home() {
                   }, {});
                   
                   const sortedCategories = Object.entries(categoryWeights)
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 5);
+                    .sort(([,a], [,b]) => b - a);
                   
-                  const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500'];
+                  const top7 = sortedCategories.slice(0, 7);
+                  const others = sortedCategories.slice(7);
+                  const othersTotal = others.reduce((sum, [, weight]) => sum + weight, 0);
                   
-                  return sortedCategories.map(([cat, weight], idx) => (
+                  const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 'bg-orange-500', 'bg-pink-500', 'bg-slate-500'];
+                  
+                  const displayCategories = [...top7];
+                  if (othersTotal > 0) {
+                    displayCategories.push(['Andere', othersTotal]);
+                  }
+                  
+                  return displayCategories.map(([cat, weight], idx) => (
                     <div key={cat} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${colors[idx]}`}></div>
