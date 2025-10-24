@@ -190,9 +190,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">Portfolio BIG (Balanced Income Growth)</h1>
-          <p className="text-blue-100">Verwalte und analysiere dein Aktienportfolio</p>
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Portfolio BIG (Balanced Income Growth)</h1>
+            <p className="text-blue-100">Verwalte und analysiere dein Aktienportfolio</p>
+          </div>
+          <img 
+            src="/portrait.jpg" 
+            alt="Portfolio Manager" 
+            className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
+          />
         </div>
       </div>
 
@@ -264,11 +271,36 @@ export default function Home() {
 
           <Card className="bg-slate-800 border-slate-700 border-green-700/30">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-green-400">Ø Div. Rendite (gewichtet)</CardTitle>
+              <CardTitle className="text-sm font-medium text-green-400">Performance & Dividende</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-400">{avgDividend.toFixed(2)}%</div>
-              <p className="text-xs text-slate-400 mt-1">Portfolio: {totalWeight.toFixed(2)}%</p>
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-slate-400 mb-1">YTD Performance (gewichtet)</div>
+                  <div className={`text-2xl font-bold ${(() => {
+                    const ytdPerf = stocks.reduce((sum, stock) => {
+                      const ytd = parseFloat(stock.ytdPerformance || "0");
+                      const weight = parseFloat(stock.portfolioWeight || "0");
+                      return sum + (ytd * weight / 100);
+                    }, 0);
+                    return ytdPerf >= 0 ? 'text-green-400' : 'text-red-400';
+                  })()}`}>
+                    {(() => {
+                      const ytdPerf = stocks.reduce((sum, stock) => {
+                        const ytd = parseFloat(stock.ytdPerformance || "0");
+                        const weight = parseFloat(stock.portfolioWeight || "0");
+                        return sum + (ytd * weight / 100);
+                      }, 0);
+                      return ytdPerf >= 0 ? `+${ytdPerf.toFixed(2)}%` : `${ytdPerf.toFixed(2)}%`;
+                    })()}
+                  </div>
+                </div>
+                <div className="border-t border-slate-700 pt-3">
+                  <div className="text-xs text-slate-400 mb-1">Ø Div. Rendite (gewichtet)</div>
+                  <div className="text-2xl font-bold text-green-400">{avgDividend.toFixed(2)}%</div>
+                </div>
+                <p className="text-xs text-slate-400">Portfolio: {totalWeight.toFixed(2)}%</p>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -307,10 +339,10 @@ export default function Home() {
             <SelectTrigger className="w-full md:w-48 bg-slate-800 border-slate-700 text-white">
               <SelectValue placeholder="Alle Kategorien" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700">
-              <SelectItem value="all">Alle Kategorien</SelectItem>
+            <SelectContent className="bg-slate-800 border-slate-700 text-white">
+              <SelectItem value="all" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Alle Kategorien</SelectItem>
               {categories.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                <SelectItem key={cat} value={cat} className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">{cat}</SelectItem>
               ))}
             </SelectContent>
           </Select>

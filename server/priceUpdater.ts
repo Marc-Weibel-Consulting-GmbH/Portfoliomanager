@@ -76,9 +76,24 @@ export async function startPriceUpdater() {
           const newPrice = await fetchRealTimePrice(stock.ticker);
 
           if (newPrice) {
-            await updateStock(stock.ticker, {
+            const updateData: any = {
               currentPrice: newPrice,
-            });
+            };
+
+            // If ytdStartPrice is not set (first time or new year), set it
+            if (!stock.ytdStartPrice || parseFloat(stock.ytdStartPrice) === 0) {
+              updateData.ytdStartPrice = newPrice;
+              console.log(`→ Set YTD start price for ${stock.ticker}: ${newPrice}`);
+            }
+
+            // Calculate YTD performance if ytdStartPrice exists
+            const ytdStart = parseFloat(stock.ytdStartPrice || "0");
+            if (ytdStart > 0) {
+              const ytdPerformance = ((parseFloat(newPrice) - ytdStart) / ytdStart) * 100;
+              updateData.ytdPerformance = ytdPerformance.toFixed(2);
+            }
+
+            await updateStock(stock.ticker, updateData);
             updatedCount++;
             console.log(`✓ Updated ${stock.ticker}: ${newPrice} ${stock.currency}`);
           } else {

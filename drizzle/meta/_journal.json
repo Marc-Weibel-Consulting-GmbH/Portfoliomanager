@@ -43,6 +43,13 @@
       "when": 1761208197893,
       "tag": "0005_lazy_thunderbolt_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1761302971008,
+      "tag": "0006_black_oracle",
+      "breakpoints": true
     }
   ]
 }
