@@ -191,7 +191,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-8 px-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">Portfolio Analyse</h1>
+          <h1 className="text-4xl font-bold mb-2">Portfolio BIG (Balanced Income Growth)</h1>
           <p className="text-blue-100">Verwalte und analysiere dein Aktienportfolio</p>
         </div>
       </div>
@@ -200,10 +200,31 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Gesamte Aktien</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-400">Fokus</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white">{stocks.length}</div>
+              <ul className="space-y-2 text-sm text-slate-300">
+                <li className="flex items-start">
+                  <span className="text-blue-400 mr-2">•</span>
+                  <span>Diversifikation über {categories.length} Sektoren</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-400 mr-2">•</span>
+                  <span>Fokus auf Wachstum & Dividenden ({avgDividend.toFixed(2)}% Ø)</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-400 mr-2">•</span>
+                  <span>Global diversifiziert ({stocks.length} Positionen)</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-400 mr-2">•</span>
+                  <span>Ausgewogen: Tech, Industrie & Defensive</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-400 mr-2">•</span>
+                  <span>Langfristiger Vermögensaufbau</span>
+                </li>
+              </ul>
             </CardContent>
           </Card>
 
@@ -212,7 +233,32 @@ export default function Home() {
               <CardTitle className="text-sm font-medium text-slate-400">Kategorien</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white">{categories.length}</div>
+              <div className="space-y-2">
+                {(() => {
+                  const categoryWeights = stocks.reduce((acc: Record<string, number>, stock) => {
+                    const category = stock.category || 'Andere';
+                    const weight = parseFloat(stock.portfolioWeight || '0');
+                    acc[category] = (acc[category] || 0) + weight;
+                    return acc;
+                  }, {});
+                  
+                  const sortedCategories = Object.entries(categoryWeights)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 5);
+                  
+                  const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500'];
+                  
+                  return sortedCategories.map(([cat, weight], idx) => (
+                    <div key={cat} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${colors[idx]}`}></div>
+                        <span className="text-slate-300">{cat}</span>
+                      </div>
+                      <span className="text-white font-medium">{weight.toFixed(1)}%</span>
+                    </div>
+                  ));
+                })()}
+              </div>
             </CardContent>
           </Card>
 
@@ -353,6 +399,7 @@ export default function Home() {
                       <th onClick={() => handleSort('category')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Kategorie {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th className="text-center py-2 px-2 text-slate-400">Info</th>
                       <th className="text-left py-2 px-2 text-slate-400">Aktionen</th>
                     </tr>
                   </thead>
@@ -374,6 +421,65 @@ export default function Home() {
                         <td className="py-2 px-2 text-green-400">{stock.dividendYield || "-"}</td>
                         <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(1)}%</td>
                         <td className="py-2 px-2 text-slate-400">{stock.category}</td>
+                        <td className="py-2 px-2 text-center">
+                          {(stock.moat1 || stock.moat2 || stock.moat3) && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <button className="p-1 hover:bg-slate-600 rounded text-blue-400 hover:text-blue-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="16" x2="12" y2="12"/>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                  </svg>
+                                </button>
+                              </DialogTrigger>
+                              <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle className="text-white text-xl">{stock.companyName}</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-4 pb-4 border-b border-slate-700">
+                                    <img 
+                                      src={`https://logo.clearbit.com/${stock.companyName.toLowerCase().replace(/\s+/g, '')}.com`}
+                                      alt={stock.companyName}
+                                      className="w-16 h-16 rounded-lg object-contain bg-white p-2"
+                                      onError={(e) => {
+                                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(stock.companyName)}&size=64&background=3b82f6&color=fff`;
+                                      }}
+                                    />
+                                    <div>
+                                      <h3 className="text-lg font-semibold text-white">{stock.companyName}</h3>
+                                      <p className="text-sm text-slate-400">{stock.ticker}</p>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Wettbewerbsvorteile (Moats)</h4>
+                                    <ul className="space-y-2">
+                                      {stock.moat1 && (
+                                        <li className="flex items-start gap-2 text-slate-300">
+                                          <span className="text-green-400 mt-1">✓</span>
+                                          <span>{stock.moat1}</span>
+                                        </li>
+                                      )}
+                                      {stock.moat2 && (
+                                        <li className="flex items-start gap-2 text-slate-300">
+                                          <span className="text-green-400 mt-1">✓</span>
+                                          <span>{stock.moat2}</span>
+                                        </li>
+                                      )}
+                                      {stock.moat3 && (
+                                        <li className="flex items-start gap-2 text-slate-300">
+                                          <span className="text-green-400 mt-1">✓</span>
+                                          <span>{stock.moat3}</span>
+                                        </li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                        </td>
                         <td className="py-2 px-2 flex gap-2">
                           {isAuthenticated && (
                             <>
