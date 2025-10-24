@@ -92,9 +92,10 @@ export async function startPriceUpdater() {
     }
   });
 
-  // Run immediately on startup
-  console.log("[Price Updater] Initialized. First update will run in 15 minutes.");
-  console.log("[Price Updater] Cron schedule: Every 15 minutes");
+  // DISABLED to save Marketstack API costs
+  console.log("[Price Updater] DISABLED - Marketstack API calls turned off to save costs");
+  console.log("[Price Updater] Cron schedule: Every 15 minutes (but skipped)");
+  task.stop(); // Stop the cron task
 
   return task;
 }

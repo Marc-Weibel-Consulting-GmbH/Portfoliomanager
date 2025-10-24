@@ -94,8 +94,10 @@ export async function startChartDataUpdater() {
     }
   });
 
-  console.log("[Chart Data Updater] Initialized. First update will run in 4 hours.");
-  console.log("[Chart Data Updater] Cron schedule: Every 4 hours");
+  // DISABLED to save Marketstack API costs
+  console.log("[Chart Data Updater] DISABLED - Marketstack API calls turned off to save costs");
+  console.log("[Chart Data Updater] Cron schedule: Every 4 hours (but skipped)");
+  task.stop(); // Stop the cron task
 
   return task;
 }

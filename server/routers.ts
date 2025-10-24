@@ -3,39 +3,88 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
-// Helper function to calculate equal weight for remaining stocks
-async function recalculateWeights(excludeTicker?: string, excludeUpdateTicker?: string) {
+// Helper function with minimum 1% position logic
+async function recalculateWeights(excludeTicker?: string, manuallyUpdatedTicker?: string) {
   const { getAllStocks, updateStock } = await import("./db");
-  let stocks = await getAllStocks();
+  let allStocks = await getAllStocks();
   
   // Filter out the excluded ticker (if deleting)
   if (excludeTicker) {
-    stocks = stocks.filter(s => s.ticker !== excludeTicker);
+    allStocks = allStocks.filter(s => s.ticker !== excludeTicker);
   }
   
-  if (stocks.length === 0) return;
+  if (allStocks.length === 0) return;
   
-  // If a ticker was manually updated, calculate weight for remaining stocks
-  // Otherwise, distribute equal weight to all stocks
-  if (excludeUpdateTicker) {
-    // Manual update: recalculate weight for other stocks
-    const manualStock = stocks.find(s => s.ticker === excludeUpdateTicker);
-    const manualWeight = manualStock ? parseFloat(manualStock.portfolioWeight || "0") : 0;
-    const remainingWeight = 100 - manualWeight;
-    const otherStocks = stocks.filter(s => s.ticker !== excludeUpdateTicker);
+  const MIN_POSITION = 1.0; // Minimum 1% per position
+  
+  if (manuallyUpdatedTicker) {
+    // Manual weight update: identify manual vs auto stocks
+    const manualStocks: typeof allStocks = [];
+    const autoStocks: typeof allStocks = [];
     
-    if (otherStocks.length > 0) {
-      const newWeight = remainingWeight / otherStocks.length;
-      for (const stock of otherStocks) {
-        await updateStock(stock.ticker, {
-          portfolioWeight: newWeight.toFixed(4),
-        });
+    for (const stock of allStocks) {
+      const weight = parseFloat(stock.portfolioWeight || "0");
+      // Consider stocks > 1% OR the just-updated stock as "manual"
+      if (weight > MIN_POSITION || stock.ticker === manuallyUpdatedTicker) {
+        manualStocks.push(stock);
+      } else {
+        autoStocks.push(stock);
+      }
+    }
+    
+    // Calculate total manual weight
+    const totalManualWeight = manualStocks.reduce((sum, s) => 
+      sum + parseFloat(s.portfolioWeight || "0"), 0);
+    
+    // Remaining weight for auto stocks
+    const remainingWeight = 100 - totalManualWeight;
+    
+    if (autoStocks.length > 0) {
+      const equalWeight = remainingWeight / autoStocks.length;
+      
+      if (equalWeight >= MIN_POSITION) {
+        // All auto stocks get equal share
+        for (const stock of autoStocks) {
+          await updateStock(stock.ticker, {
+            portfolioWeight: equalWeight.toFixed(4),
+          });
+        }
+      } else {
+        // Equal weight below minimum: set auto to 1%, scale down manual
+        const totalMinPositions = autoStocks.length * MIN_POSITION;
+        const availableForManual = 100 - totalMinPositions;
+        
+        if (availableForManual >= manualStocks.length * MIN_POSITION) {
+          // Set auto stocks to 1%
+          for (const stock of autoStocks) {
+            await updateStock(stock.ticker, {
+              portfolioWeight: MIN_POSITION.toFixed(4),
+            });
+          }
+          
+          // Scale down manual weights proportionally
+          for (const stock of manualStocks) {
+            const currentWeight = parseFloat(stock.portfolioWeight || "0");
+            const scaledWeight = (currentWeight / totalManualWeight) * availableForManual;
+            await updateStock(stock.ticker, {
+              portfolioWeight: Math.max(scaledWeight, MIN_POSITION).toFixed(4),
+            });
+          }
+        } else {
+          // Not enough space: equal weight for all
+          const equalWeight = 100 / allStocks.length;
+          for (const stock of allStocks) {
+            await updateStock(stock.ticker, {
+              portfolioWeight: equalWeight.toFixed(4),
+            });
+          }
+        }
       }
     }
   } else {
-    // Equal weight for all stocks
-    const equalWeight = 100 / stocks.length;
-    for (const stock of stocks) {
+    // Equal weight for all stocks (delete or add scenario)
+    const equalWeight = 100 / allStocks.length;
+    for (const stock of allStocks) {
       await updateStock(stock.ticker, {
         portfolioWeight: equalWeight.toFixed(4),
       });
