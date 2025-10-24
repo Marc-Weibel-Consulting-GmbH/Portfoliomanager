@@ -5,20 +5,18 @@ import { callDataApi } from "./_core/dataApi";
 // Fetch historical chart data from Yahoo Finance
 async function fetchChartData(ticker: string): Promise<any[] | null> {
   try {
-    // Remove exchange suffix (e.g., NVDA:US -> NVDA)
-    const cleanTicker = ticker.split(':')[0];
-    
-    // Determine region based on ticker suffix or default to US
+    // Determine region based on ticker suffix
     let region = "US";
-    if (ticker.includes(":")) {
-      const suffix = ticker.split(':')[1];
+    
+    if (ticker.includes(".")) {
+      const suffix = ticker.split('.')[1];
       const regionMap: Record<string, string> = {
-        "US": "US",
-        "SW": "CH", // Switzerland
-        "DE": "DE", // Germany
-        "UK": "GB", // United Kingdom
-        "CA": "CA", // Canada
-        "AU": "AU", // Australia
+        "SW": "CH",  // Switzerland
+        "DE": "DE",  // Germany
+        "L": "GB",   // London/UK
+        "PA": "FR",  // Paris/France
+        "CO": "DK",  // Copenhagen/Denmark
+        "MI": "IT",  // Milan/Italy
       };
       region = regionMap[suffix] || "US";
     }
@@ -26,11 +24,10 @@ async function fetchChartData(ticker: string): Promise<any[] | null> {
     // Get last 30 days of data for better chart visualization
     const response = await callDataApi("YahooFinance/get_stock_chart", {
       query: {
-        symbol: cleanTicker,
+        symbol: ticker,
         region: region,
         interval: "1d",
-        range: "1mo", // Last 1 month
-        includeAdjustedClose: true
+        range: "1mo" // Last 1 month
       }
     }) as any;
 

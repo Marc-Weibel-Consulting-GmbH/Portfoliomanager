@@ -5,32 +5,29 @@ import { callDataApi } from "./_core/dataApi";
 // Fetch real-time prices from Yahoo Finance API
 async function fetchRealTimePrice(ticker: string): Promise<string | null> {
   try {
-    // Remove exchange suffix (e.g., NVDA:US -> NVDA) as Yahoo Finance accepts base ticker
-    const cleanTicker = ticker.split(':')[0];
-    
-    // Determine region based on ticker suffix or default to US
+    // Determine region based on ticker suffix
     let region = "US";
-    if (ticker.includes(":")) {
-      const suffix = ticker.split(':')[1];
-      // Map common suffixes to Yahoo Finance regions
+    
+    if (ticker.includes(".")) {
+      const suffix = ticker.split('.')[1];
+      // Map Yahoo Finance suffixes to regions
       const regionMap: Record<string, string> = {
-        "US": "US",
-        "SW": "CH", // Switzerland
-        "DE": "DE", // Germany
-        "UK": "GB", // United Kingdom
-        "CA": "CA", // Canada
-        "AU": "AU", // Australia
+        "SW": "CH",  // Switzerland
+        "DE": "DE",  // Germany
+        "L": "GB",   // London/UK
+        "PA": "FR",  // Paris/France
+        "CO": "DK",  // Copenhagen/Denmark
+        "MI": "IT",  // Milan/Italy
       };
       region = regionMap[suffix] || "US";
     }
 
     const response = await callDataApi("YahooFinance/get_stock_chart", {
       query: {
-        symbol: cleanTicker,
+        symbol: ticker,
         region: region,
         interval: "1d",
-        range: "1d",
-        includeAdjustedClose: true
+        range: "1d"
       }
     }) as any;
 
