@@ -115,6 +115,35 @@ export default function Home() {
     return stocks.reduce((sum, stock) => sum + parseFloat(stock.portfolioWeight || '0'), 0);
   }, [stocks]);
 
+  // Check portfolio weight and show notification
+  useEffect(() => {
+    if (stocks.length > 0 && portfolioTotalWeight !== 0) {
+      const roundedWeight = Math.round(portfolioTotalWeight * 100) / 100;
+      if (roundedWeight > 100) {
+        // Request notification permission if not granted
+        if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+        if (Notification.permission === 'granted') {
+          new Notification('Portfolio Gewichtung zu hoch!', {
+            body: `Gesamtgewichtung: ${roundedWeight.toFixed(2)}% (${(roundedWeight - 100).toFixed(2)}% über 100%)`,
+            icon: '/favicon.png'
+          });
+        }
+      } else if (roundedWeight < 100 && roundedWeight > 50) {
+        if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+        if (Notification.permission === 'granted') {
+          new Notification('Portfolio Gewichtung zu niedrig!', {
+            body: `Gesamtgewichtung: ${roundedWeight.toFixed(2)}% (${(100 - roundedWeight).toFixed(2)}% unter 100%)`,
+            icon: '/favicon.png'
+          });
+        }
+      }
+    }
+  }, [portfolioTotalWeight, stocks.length]);
+
   const categories = useMemo(() => {
     const cats = new Set<string>();
     stocks.forEach(s => {
