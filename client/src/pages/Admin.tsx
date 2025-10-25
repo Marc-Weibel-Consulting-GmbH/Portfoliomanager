@@ -3,9 +3,13 @@ import { trpc } from "../lib/trpc";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Download, Upload, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft } from "lucide-react";
 
-export function Admin() {
+interface AdminProps {
+  onBackClick?: () => void;
+}
+
+export function Admin({ onBackClick }: AdminProps) {
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -93,9 +97,21 @@ export function Admin() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Admin Panel</h2>
-        <p className="text-slate-400">Daten exportieren und importieren</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">Admin Panel</h2>
+          <p className="text-slate-400">Daten exportieren und importieren</p>
+        </div>
+        {onBackClick && (
+          <Button
+            onClick={onBackClick}
+            variant="outline"
+            className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Zurück
+          </Button>
+        )}
       </div>
 
       {message && (

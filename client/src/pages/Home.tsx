@@ -297,7 +297,7 @@ export default function Home() {
   }
 
   if (activeTab === "admin") {
-    return <Admin />;
+    return <Admin onBackClick={() => setActiveTab("portfolio")} />;
   }
 
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
@@ -797,8 +797,17 @@ export default function Home() {
                                       className="bg-slate-700 border-slate-600 text-white"
                                     />
                                     <Input
-                                      placeholder="Kurs"
+                                      placeholder="Kurs per 31.12. Vorjahr"
                                       type="number"
+                                      step="0.01"
+                                      value={formData.ytdStartPrice || ""}
+                                      onChange={(e) => setFormData({ ...formData, ytdStartPrice: e.target.value })}
+                                      className="bg-slate-700 border-slate-600 text-white"
+                                    />
+                                    <Input
+                                      placeholder="Aktueller Kurs"
+                                      type="number"
+                                      step="0.01"
                                       value={formData.currentPrice || ""}
                                       onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
                                       className="bg-slate-700 border-slate-600 text-white"

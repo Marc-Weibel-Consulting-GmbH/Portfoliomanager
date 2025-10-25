@@ -254,6 +254,30 @@ export const appRouter = router({
         // Check if portfolioWeight is being updated
         const hasWeightUpdate = "portfolioWeight" in updates;
         
+        // Calculate YTD performance if both prices are provided
+        if (updates.ytdStartPrice && updates.currentPrice) {
+          const ytdStart = parseFloat(updates.ytdStartPrice);
+          const current = parseFloat(updates.currentPrice);
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            updates.ytdPerformance = ytdPerf.toFixed(2);
+          }
+        } else if (updates.ytdStartPrice && oldStock?.currentPrice) {
+          const ytdStart = parseFloat(updates.ytdStartPrice);
+          const current = parseFloat(oldStock.currentPrice);
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            updates.ytdPerformance = ytdPerf.toFixed(2);
+          }
+        } else if (updates.currentPrice && oldStock?.ytdStartPrice) {
+          const ytdStart = parseFloat(oldStock.ytdStartPrice);
+          const current = parseFloat(updates.currentPrice);
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            updates.ytdPerformance = ytdPerf.toFixed(2);
+          }
+        }
+        
         await updateStock(ticker, updates);
         
         // Log transaction
