@@ -1,6 +1,6 @@
 import { eq, desc, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStock, InsertUser, InsertNews, stocks, users, news } from "../drizzle/schema";
+import { InsertStock, InsertUser, InsertNews, InsertTransaction, stocks, users, news, transactions } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -209,3 +209,49 @@ export async function deleteOldNews(daysOld = 30) {
     return 0;
   }
 }
+
+
+// Transaction logging functions
+export async function logTransaction(transaction: InsertTransaction) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  try {
+    await db.insert(transactions).values(transaction);
+    return transaction;
+  } catch (error) {
+    console.error("[Database] Failed to log transaction:", error);
+    return null;
+  }
+}
+
+export async function getAllTransactions(limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  try {
+    const result = await db
+      .select()
+      .from(transactions)
+      .orderBy(desc(transactions.createdAt))
+      .limit(limit);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get transactions:", error);
+    return [];
+  }
+}
+
+export async function deleteAllTransactions() {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  try {
+    await db.delete(transactions);
+    return 1;
+  } catch (error) {
+    console.error("[Database] Failed to delete transactions:", error);
+    return 0;
+  }
+}
+

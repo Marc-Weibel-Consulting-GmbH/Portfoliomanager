@@ -107,6 +107,21 @@ export const appRouter = router({
   }),
 
   stocks: router({
+    searchTicker: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid search query");
+      })
+      .query(async ({ input }) => {
+        const { callDataApi } = await import("./_core/dataApi");
+        try {
+          const result = await callDataApi("yahoo-finance/search", { query: { q: input } }) as any;
+          return result.quotes?.slice(0, 10) || [];
+        } catch (error) {
+          console.error("[Ticker Search] Failed:", error);
+          return [];
+        }
+      }),
     list: publicProcedure.query(async () => {
       const { getAllStocks } = await import("./db");
       return await getAllStocks();
@@ -167,8 +182,41 @@ export const appRouter = router({
         throw new Error("Invalid input");
       })
       .mutation(async ({ input }) => {
-        const { insertStock, getAllStocks } = await import("./db");
-        await insertStock(input as any);
+        const { insertStock, getAllStocks, logTransaction, updateStock } = await import("./db");
+        const { invokeLLM } = await import("./_core/llm");
+        const stockData = input as any;
+        
+        // Generate AI moats if not provided
+        if (!stockData.moat1 || !stockData.moat2 || !stockData.moat3) {
+          try {
+            const prompt = `Generate 3 concise investment reasons (moats/competitive advantages) for ${stockData.companyName} (${stockData.ticker}). Each reason should be 1-2 sentences explaining a key competitive advantage. Format as JSON: {"moat1": "...", "moat2": "...", "moat3": "..."}`;
+            
+            const response = await invokeLLM({
+              messages: [{ role: "user", content: prompt }],
+              responseFormat: { type: "json_object" },
+            });
+            
+            const content = response.choices[0]?.message?.content || "{}";
+            const moats = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+            stockData.moat1 = moats.moat1;
+            stockData.moat2 = moats.moat2;
+            stockData.moat3 = moats.moat3;
+          } catch (error) {
+            console.error("[AI Moats] Failed to generate moats:", error);
+            // Continue without moats if generation fails
+          }
+        }
+        
+        await insertStock(stockData);
+        
+        // Log transaction
+        await logTransaction({
+          action: "add",
+          ticker: stockData.ticker,
+          companyName: stockData.companyName,
+          details: JSON.stringify({ category: stockData.category, price: stockData.currentPrice }),
+          newValue: stockData.portfolioWeight || "0",
+        });
         
         // Recalculate weights for all stocks after adding a new one
         await recalculateWeights();
@@ -181,13 +229,35 @@ export const appRouter = router({
         throw new Error("Invalid input");
       })
       .mutation(async ({ input }) => {
-        const { updateStock } = await import("./db");
+        const { updateStock, getStockByTicker, logTransaction } = await import("./db");
         const { ticker, ...updates } = input as any;
+        
+        // Get old values before update
+        const oldStock = await getStockByTicker(ticker);
         
         // Check if portfolioWeight is being updated
         const hasWeightUpdate = "portfolioWeight" in updates;
         
         await updateStock(ticker, updates);
+        
+        // Log transaction
+        if (hasWeightUpdate) {
+          await logTransaction({
+            action: "update_weight",
+            ticker,
+            companyName: oldStock?.companyName || ticker,
+            details: "Portfolio weight updated",
+            oldValue: oldStock?.portfolioWeight || "0",
+            newValue: updates.portfolioWeight,
+          });
+        } else {
+          await logTransaction({
+            action: "update_data",
+            ticker,
+            companyName: oldStock?.companyName || ticker,
+            details: JSON.stringify(updates),
+          });
+        }
         
         // If weight was manually updated, recalculate other weights
         if (hasWeightUpdate) {
@@ -202,8 +272,23 @@ export const appRouter = router({
         throw new Error("Invalid ticker");
       })
       .mutation(async ({ input }) => {
-        const { deleteStock } = await import("./db");
+        const { deleteStock, getStockByTicker, logTransaction } = await import("./db");
+        
+        // Get stock data before deletion
+        const stock = await getStockByTicker(input);
+        
         await deleteStock(input);
+        
+        // Log transaction
+        if (stock) {
+          await logTransaction({
+            action: "delete",
+            ticker: input,
+            companyName: stock.companyName,
+            details: JSON.stringify({ category: stock.category, weight: stock.portfolioWeight }),
+            oldValue: stock.portfolioWeight || "0",
+          });
+        }
         
         // Recalculate weights for remaining stocks after deletion
         await recalculateWeights(input);
@@ -225,6 +310,18 @@ export const appRouter = router({
     getAll: publicProcedure.query(async () => {
       const { getAllNews } = await import("./db");
       return await getAllNews(50);
+    }),
+  }),
+
+  transactions: router({
+    list: publicProcedure.query(async () => {
+      const { getAllTransactions } = await import("./db");
+      return await getAllTransactions();
+    }),
+    deleteAll: protectedProcedure.mutation(async () => {
+      const { deleteAllTransactions } = await import("./db");
+      await deleteAllTransactions();
+      return { success: true };
     }),
   }),
 });

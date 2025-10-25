@@ -8,6 +8,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Trash2, Edit2, Plus, Download } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
+import Transactions from "./Transactions";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -28,6 +29,13 @@ export default function Home() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [tickerSearchQuery, setTickerSearchQuery] = useState("");
+  const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
+  
+  const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
+    tickerSearchQuery,
+    { enabled: tickerSearchQuery.length >= 2 }
+  );
 
   const addStockMutation = trpc.stocks.add.useMutation({
     onSuccess: () => {
@@ -247,6 +255,10 @@ export default function Home() {
     return <Newsroom onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "transactions") {
+    return <Transactions onBackClick={() => setActiveTab("portfolio")} />;
+  }
+
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
   const avgDividend = parseFloat(stats?.avgDividendYield || "0");
 
@@ -401,6 +413,16 @@ export default function Home() {
           >
             Newsroom
           </button>
+          <button
+            onClick={() => setActiveTab("transactions")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "transactions"
+                ? "bg-orange-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Transactions
+          </button>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -438,17 +460,56 @@ export default function Home() {
                   <DialogTitle className="text-white">Neue Aktie hinzufügen</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
+                  <div className="relative">
+                    <Input
+                      placeholder="Firmenname oder Ticker suchen..."
+                      value={tickerSearchQuery}
+                      onChange={(e) => {
+                        setTickerSearchQuery(e.target.value);
+                        setShowTickerSuggestions(true);
+                      }}
+                      onFocus={() => setShowTickerSuggestions(true)}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    {showTickerSuggestions && tickerSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-slate-700 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {tickerSuggestions.map((suggestion: any) => (
+                          <button
+                            key={suggestion.symbol}
+                            type="button"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                companyName: suggestion.shortname || suggestion.longname,
+                                ticker: suggestion.symbol,
+                              });
+                              setTickerSearchQuery(suggestion.symbol);
+                              setShowTickerSuggestions(false);
+                            }}
+                            className="w-full px-4 py-2 text-left hover:bg-slate-600 text-white"
+                          >
+                            <div className="font-medium">{suggestion.shortname || suggestion.longname}</div>
+                            <div className="text-sm text-slate-400">
+                              {suggestion.symbol} • {suggestion.exchDisp || suggestion.exchange}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <Input
                     placeholder="Aktientitel"
                     value={formData.companyName || ""}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
+                    disabled
                   />
                   <Input
                     placeholder="Ticker"
                     value={formData.ticker || ""}
                     onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
+                    disabled
                   />
                   <Input
                     placeholder="Kurs"

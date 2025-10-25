@@ -70,3 +70,18 @@ export const news = mysqlTable("news", {
 
 export type News = typeof news.$inferSelect;
 export type InsertNews = typeof news.$inferInsert;
+
+// Transaction log table
+export const transactions = mysqlTable("transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  action: mysqlEnum("action", ["add", "delete", "update_weight", "update_data"]).notNull(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  companyName: varchar("companyName", { length: 255 }),
+  details: text("details"), // JSON string with change details
+  oldValue: text("oldValue"),
+  newValue: text("newValue"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = typeof transactions.$inferInsert;
