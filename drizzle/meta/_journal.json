@@ -71,6 +71,13 @@
       "when": 1761386446664,
       "tag": "0009_majestic_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1761391890371,
+      "tag": "0010_wide_infant_terrible",
+      "breakpoints": true
     }
   ]
 }

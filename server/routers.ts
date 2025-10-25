@@ -4,10 +4,11 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
 /**
- * Portfolio weighting logic:
- * - When adding a stock with weight X%: redistribute all OTHER stocks equally to (100% - X%)
- * - When updating a stock weight: redistribute all OTHER stocks equally to remaining %
- * - When deleting a stock: redistribute all REMAINING stocks equally to 100%
+ * Portfolio weighting logic with manual weight preservation:
+ * - Manual weights (isManualWeight = 1) are NEVER changed automatically
+ * - Only automatic weights (isManualWeight = 0) are redistributed
+ * - When adding/updating: mark as manual, redistribute only automatic stocks
+ * - When deleting: redistribute only automatic stocks to fill the gap
  */
 async function recalculateWeights(changedTicker?: string, isDelete: boolean = false) {
   const { getAllStocks, updateStock } = await import("./db");
@@ -16,29 +17,59 @@ async function recalculateWeights(changedTicker?: string, isDelete: boolean = fa
   if (allStocks.length === 0) return;
   
   if (isDelete) {
-    // Delete: redistribute all remaining stocks equally to 100%
-    const equalWeight = 100 / allStocks.length;
+    // Delete: redistribute only AUTOMATIC stocks equally to 100%
+    const manualStocks = allStocks.filter(s => s.isManualWeight === 1);
+    const autoStocks = allStocks.filter(s => s.isManualWeight === 0);
     
-    for (const stock of allStocks) {
+    if (autoStocks.length === 0) return; // All stocks are manual, can't redistribute
+    
+    // Calculate total manual weight
+    const totalManualWeight = manualStocks.reduce((sum, s) => {
+      return sum + parseFloat(s.portfolioWeight || "0");
+    }, 0);
+    
+    // Distribute remaining weight equally among automatic stocks
+    const remainingWeight = 100 - totalManualWeight;
+    const equalWeight = remainingWeight / autoStocks.length;
+    
+    for (const stock of autoStocks) {
       await updateStock(stock.ticker, {
         portfolioWeight: equalWeight.toFixed(4),
       });
     }
   } else if (changedTicker) {
-    // Add or Update: redistribute all OTHER stocks equally
+    // Add or Update: mark as manual, redistribute only OTHER automatic stocks
     const changedStock = allStocks.find(s => s.ticker === changedTicker);
     if (!changedStock) return;
     
+    // Mark the changed stock as manual
+    await updateStock(changedTicker, {
+      isManualWeight: 1,
+    });
+    
     const changedWeight = parseFloat(changedStock.portfolioWeight || "0");
-    const otherStocks = allStocks.filter(s => s.ticker !== changedTicker);
     
-    if (otherStocks.length === 0) return;
+    // Get all manual stocks (including the one just changed)
+    const manualStocks = allStocks.filter(s => 
+      s.ticker === changedTicker || s.isManualWeight === 1
+    );
+    const autoStocks = allStocks.filter(s => 
+      s.ticker !== changedTicker && s.isManualWeight === 0
+    );
     
-    // Distribute remaining weight equally among other stocks
-    const remainingWeight = 100 - changedWeight;
-    const equalWeight = remainingWeight / otherStocks.length;
+    if (autoStocks.length === 0) return; // All stocks are manual, can't redistribute
     
-    for (const stock of otherStocks) {
+    // Calculate total manual weight
+    const totalManualWeight = manualStocks.reduce((sum, s) => {
+      const weight = s.ticker === changedTicker ? changedWeight : parseFloat(s.portfolioWeight || "0");
+      return sum + weight;
+    }, 0);
+    
+    // Distribute remaining weight equally among automatic stocks
+    const remainingWeight = 100 - totalManualWeight;
+    const equalWeight = remainingWeight / autoStocks.length;
+    
+    for (const stock of autoStocks) {
       await updateStock(stock.ticker, {
         portfolioWeight: equalWeight.toFixed(4),
       });
@@ -151,6 +182,16 @@ export const appRouter = router({
         stockData.pegRatio = stockData.pegRatio || "0";
         stockData.peRatio = stockData.peRatio || "0";
         stockData.portfolioWeight = stockData.portfolioWeight || "0";
+        
+        // Calculate YTD performance if both prices are provided
+        if (stockData.ytdStartPrice && stockData.currentPrice) {
+          const ytdStart = parseFloat(stockData.ytdStartPrice);
+          const current = parseFloat(stockData.currentPrice);
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            stockData.ytdPerformance = ytdPerf.toFixed(2);
+          }
+        }
         
         // Generate AI moats if not provided (with timeout)
         if (!stockData.moat1 || !stockData.moat2 || !stockData.moat3) {

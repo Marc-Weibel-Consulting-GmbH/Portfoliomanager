@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -44,6 +44,7 @@ export const stocks = mysqlTable("stocks", {
   moat2: text("moat2"),
   moat3: text("moat3"),
   portfolioWeight: varchar("portfolioWeight", { length: 50 }).default("0"),
+  isManualWeight: tinyint("isManualWeight").notNull().default(0),
   chartData: text("chartData"),
   ytdStartPrice: varchar("ytdStartPrice", { length: 50 }),
   ytdPerformance: varchar("ytdPerformance", { length: 50 }),
