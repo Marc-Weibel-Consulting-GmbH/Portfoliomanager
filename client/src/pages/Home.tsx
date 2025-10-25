@@ -11,6 +11,7 @@ import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
 import Performance from "./Performance";
 import Research from "./Research";
+import Import from "./Import";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
@@ -294,6 +295,10 @@ export default function Home() {
     return <Research onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "import") {
+    return <Import onBackClick={() => setActiveTab("portfolio")} />;
+  }
+
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
   const avgDividend = parseFloat(stats?.avgDividendYield || "0");
 
@@ -482,6 +487,16 @@ export default function Home() {
             }`}
           >
             Research
+          </button>
+          <button
+            onClick={() => setActiveTab("import")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "import"
+                ? "bg-teal-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Import
           </button>
         </div>
 

@@ -3,93 +3,38 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
-// Helper function with minimum 1% position logic
-async function recalculateWeights(excludeTicker?: string, manuallyUpdatedTicker?: string) {
+/**
+ * New portfolio weighting logic:
+ * - Manual weight change: redistribute remaining stocks equally to reach 100%
+ * - Add/Delete: preserve all existing weights (no automatic rebalancing)
+ */
+async function recalculateWeights(manuallyUpdatedTicker?: string) {
   const { getAllStocks, updateStock } = await import("./db");
-  let allStocks = await getAllStocks();
-  
-  // Filter out the excluded ticker (if deleting)
-  if (excludeTicker) {
-    allStocks = allStocks.filter(s => s.ticker !== excludeTicker);
-  }
+  const allStocks = await getAllStocks();
   
   if (allStocks.length === 0) return;
   
-  const MIN_POSITION = 1.0; // Minimum 1% per position
-  
   if (manuallyUpdatedTicker) {
-    // Manual weight update: identify manual vs auto stocks
-    const manualStocks: typeof allStocks = [];
-    const autoStocks: typeof allStocks = [];
+    // Manual weight update: redistribute all OTHER stocks equally
+    const manualStock = allStocks.find(s => s.ticker === manuallyUpdatedTicker);
+    if (!manualStock) return;
     
-    for (const stock of allStocks) {
-      const weight = parseFloat(stock.portfolioWeight || "0");
-      // Consider stocks > 1% OR the just-updated stock as "manual"
-      if (weight > MIN_POSITION || stock.ticker === manuallyUpdatedTicker) {
-        manualStocks.push(stock);
-      } else {
-        autoStocks.push(stock);
-      }
-    }
+    const manualWeight = parseFloat(manualStock.portfolioWeight || "0");
+    const otherStocks = allStocks.filter(s => s.ticker !== manuallyUpdatedTicker);
     
-    // Calculate total manual weight
-    const totalManualWeight = manualStocks.reduce((sum, s) => 
-      sum + parseFloat(s.portfolioWeight || "0"), 0);
+    if (otherStocks.length === 0) return;
     
-    // Remaining weight for auto stocks
-    const remainingWeight = 100 - totalManualWeight;
+    // Distribute remaining weight equally among other stocks
+    const remainingWeight = 100 - manualWeight;
+    const equalWeight = remainingWeight / otherStocks.length;
     
-    if (autoStocks.length > 0) {
-      const equalWeight = remainingWeight / autoStocks.length;
-      
-      if (equalWeight >= MIN_POSITION) {
-        // All auto stocks get equal share
-        for (const stock of autoStocks) {
-          await updateStock(stock.ticker, {
-            portfolioWeight: equalWeight.toFixed(4),
-          });
-        }
-      } else {
-        // Equal weight below minimum: set auto to 1%, scale down manual
-        const totalMinPositions = autoStocks.length * MIN_POSITION;
-        const availableForManual = 100 - totalMinPositions;
-        
-        if (availableForManual >= manualStocks.length * MIN_POSITION) {
-          // Set auto stocks to 1%
-          for (const stock of autoStocks) {
-            await updateStock(stock.ticker, {
-              portfolioWeight: MIN_POSITION.toFixed(4),
-            });
-          }
-          
-          // Scale down manual weights proportionally
-          for (const stock of manualStocks) {
-            const currentWeight = parseFloat(stock.portfolioWeight || "0");
-            const scaledWeight = (currentWeight / totalManualWeight) * availableForManual;
-            await updateStock(stock.ticker, {
-              portfolioWeight: Math.max(scaledWeight, MIN_POSITION).toFixed(4),
-            });
-          }
-        } else {
-          // Not enough space: equal weight for all
-          const equalWeight = 100 / allStocks.length;
-          for (const stock of allStocks) {
-            await updateStock(stock.ticker, {
-              portfolioWeight: equalWeight.toFixed(4),
-            });
-          }
-        }
-      }
-    }
-  } else {
-    // Equal weight for all stocks (delete or add scenario)
-    const equalWeight = 100 / allStocks.length;
-    for (const stock of allStocks) {
+    for (const stock of otherStocks) {
       await updateStock(stock.ticker, {
         portfolioWeight: equalWeight.toFixed(4),
       });
     }
   }
+  // No automatic rebalancing on add/delete - weights are preserved
 }
 
 export const appRouter = router({
@@ -238,8 +183,7 @@ export const appRouter = router({
           newValue: stockData.portfolioWeight || "0",
         });
         
-        // Recalculate weights for all stocks after adding a new one
-        await recalculateWeights();
+        // No automatic rebalancing on add - new stock gets 0% weight
         
         return { success: true };
       }),
@@ -281,7 +225,7 @@ export const appRouter = router({
         
         // If weight was manually updated, recalculate other weights
         if (hasWeightUpdate) {
-          await recalculateWeights(undefined, ticker);
+          await recalculateWeights(ticker);
         }
         
         return { success: true };
@@ -310,8 +254,7 @@ export const appRouter = router({
           });
         }
         
-        // Recalculate weights for remaining stocks after deletion
-        await recalculateWeights(input);
+        // No automatic rebalancing on delete - weights are preserved
         
         return { success: true };
       }),
@@ -369,6 +312,163 @@ export const appRouter = router({
         failCount
       };
     }),
+    importPrices: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input }) => {
+        const { getAllStocks, updateStock, getStockByTicker } = await import("./db");
+        const data = input as any;
+        
+        // Parse Excel/CSV file from base64
+        const base64Data = data.fileData.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        let parsedData: any[] = [];
+        
+        try {
+          // Check if it's CSV or Excel
+          if (data.fileName.endsWith('.csv')) {
+            // Parse CSV
+            const csvText = buffer.toString('utf-8');
+            const lines = csvText.split('\n').filter(line => line.trim());
+            const headers = lines[0].split(/[,;\t]/).map(h => h.trim().toLowerCase());
+            
+            const tickerIdx = headers.findIndex(h => h.includes('ticker') || h.includes('symbol'));
+            const priceIdx = headers.findIndex(h => h.includes('price') || h.includes('kurs') || h.includes('close'));
+            const companyIdx = headers.findIndex(h => h.includes('company') || h.includes('firma') || h.includes('name'));
+            
+            if (tickerIdx === -1 || priceIdx === -1) {
+              throw new Error("CSV muss 'Ticker' und 'Price' Spalten enthalten");
+            }
+            
+            for (let i = 1; i < lines.length; i++) {
+              const values = lines[i].split(/[,;\t]/).map(v => v.trim());
+              if (values.length > Math.max(tickerIdx, priceIdx)) {
+                parsedData.push({
+                  ticker: values[tickerIdx],
+                  price: values[priceIdx],
+                  company: companyIdx >= 0 ? values[companyIdx] : '',
+                });
+              }
+            }
+          } else {
+            // Parse Excel using xlsx package
+            const XLSX = await import('xlsx');
+            const workbook = XLSX.read(buffer, { type: 'buffer' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(sheet);
+            
+            // Find ticker and price columns (case-insensitive)
+            parsedData = jsonData.map((row: any) => {
+              const keys = Object.keys(row).map(k => k.toLowerCase());
+              const tickerKey = Object.keys(row).find(k => 
+                k.toLowerCase().includes('ticker') || k.toLowerCase().includes('symbol')
+              );
+              const priceKey = Object.keys(row).find(k => 
+                k.toLowerCase().includes('price') || k.toLowerCase().includes('kurs') || k.toLowerCase().includes('close')
+              );
+              const companyKey = Object.keys(row).find(k => 
+                k.toLowerCase().includes('company') || k.toLowerCase().includes('firma') || k.toLowerCase().includes('name')
+              );
+              
+              return {
+                ticker: tickerKey ? row[tickerKey] : '',
+                price: priceKey ? row[priceKey] : '',
+                company: companyKey ? row[companyKey] : '',
+              };
+            }).filter((item: any) => item.ticker && item.price);
+          }
+        } catch (error: any) {
+          throw new Error(`Fehler beim Parsen der Datei: ${error.message}`);
+        }
+        
+        const results: any[] = [];
+        let successCount = 0;
+        
+        // Update stocks
+        for (const item of parsedData) {
+          try {
+            const stock = await getStockByTicker(item.ticker);
+            
+            if (!stock) {
+              results.push({
+                ticker: item.ticker,
+                companyName: item.company,
+                status: 'not_found',
+                message: 'Aktie nicht im Portfolio gefunden',
+              });
+              continue;
+            }
+            
+            const newPrice = parseFloat(item.price.toString().replace(/[^0-9.-]/g, ''));
+            if (isNaN(newPrice)) {
+              results.push({
+                ticker: item.ticker,
+                companyName: stock.companyName,
+                status: 'error',
+                message: 'Ungültiger Preis',
+              });
+              continue;
+            }
+            
+            // Update based on import type
+            if (data.importType === 'ytd') {
+              await updateStock(item.ticker, {
+                ytdStartPrice: newPrice.toString(),
+              });
+              
+              // Calculate YTD performance if current price exists
+              if (stock.currentPrice) {
+                const currentPrice = parseFloat(stock.currentPrice);
+                const ytdPerf = ((currentPrice - newPrice) / newPrice) * 100;
+                await updateStock(item.ticker, {
+                  ytdPerformance: ytdPerf.toFixed(2),
+                });
+              }
+            } else {
+              await updateStock(item.ticker, {
+                currentPrice: newPrice.toString(),
+              });
+              
+              // Calculate YTD performance if ytdStartPrice exists
+              if (stock.ytdStartPrice) {
+                const ytdStart = parseFloat(stock.ytdStartPrice);
+                const ytdPerf = ((newPrice - ytdStart) / ytdStart) * 100;
+                await updateStock(item.ticker, {
+                  ytdPerformance: ytdPerf.toFixed(2),
+                });
+              }
+            }
+            
+            results.push({
+              ticker: item.ticker,
+              companyName: stock.companyName,
+              status: 'success',
+              message: `${data.importType === 'ytd' ? 'YTD Start-Preis' : 'Aktueller Kurs'} aktualisiert`,
+              oldPrice: data.importType === 'ytd' ? stock.ytdStartPrice : stock.currentPrice,
+              newPrice: newPrice.toString(),
+            });
+            successCount++;
+          } catch (error: any) {
+            results.push({
+              ticker: item.ticker,
+              companyName: item.company,
+              status: 'error',
+              message: error.message,
+            });
+          }
+        }
+        
+        return {
+          success: true,
+          totalCount: parsedData.length,
+          successCount,
+          results,
+        };
+      }),
   }),
 
   news: router({
@@ -402,10 +502,12 @@ export const appRouter = router({
   research: router({
     list: publicProcedure.query(async () => {
       const { getDb } = await import("./db");
+      const { research } = await import("../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
       const db = await getDb();
       if (!db) return [];
-      const result: any = await db.execute("SELECT * FROM research ORDER BY createdAt DESC");
-      return result.rows || result;
+      const results = await db.select().from(research).orderBy(desc(research.createdAt));
+      return results;
     }),
     add: protectedProcedure
       .input((val: unknown) => {
