@@ -64,23 +64,19 @@ export default function Home() {
     onSuccess: async () => {
       await refetchStocks();
       setHasAppliedEqualWeighting(false);
+      // Reload page to refresh all calculated values (weights, stats, etc.)
+      setTimeout(() => window.location.reload(), 500);
     },
   });
 
-  const refreshPricesMutation = trpc.stocks.refreshPrices.useMutation({
+  const refreshDataMutation = trpc.stocks.refreshData.useMutation({
     onSuccess: (data: any) => {
-      if (data.success) {
-        toast.success("Kurse aktualisiert", {
-          description: data.message || `${data.successCount} Kurse erfolgreich aktualisiert`,
-        });
-      } else {
-        toast.warning("Teilweise aktualisiert", {
-          description: data.message || "Einige Kurse konnten nicht aktualisiert werden",
-        });
-      }
+      toast.success("Daten aktualisiert", {
+        description: data.message || `YTD Performance und News aktualisiert`,
+      });
       setTimeout(() => refetchStocks(), 2000);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Fehler bei der Aktualisierung", {
         description: error.message,
       });
@@ -519,7 +515,7 @@ export default function Home() {
             </SelectContent>
           </Select>
           {isAuthenticated && (
-            <Button onClick={() => refreshPricesMutation.mutate()} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={() => refreshDataMutation.mutate()} className="bg-blue-600 hover:bg-blue-700 text-white">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>

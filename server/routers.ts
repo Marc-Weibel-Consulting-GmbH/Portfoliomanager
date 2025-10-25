@@ -258,58 +258,43 @@ export const appRouter = router({
         
         return { success: true };
       }),
-    refreshPrices: protectedProcedure.mutation(async () => {
+    refreshData: protectedProcedure.mutation(async () => {
       const { getAllStocks, updateStock } = await import("./db");
-      const { callDataApi } = await import("./_core/dataApi");
       
       const stocks = await getAllStocks();
-      let successCount = 0;
-      let failCount = 0;
-      let rateLimitHit = false;
+      let ytdUpdated = 0;
       
-      // Update prices with delay to avoid rate limiting
+      // Recalculate YTD performance for all stocks
       for (const stock of stocks) {
-        try {
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay between requests
+        if (stock.ytdStartPrice && stock.currentPrice) {
+          const ytdStart = parseFloat(stock.ytdStartPrice);
+          const current = parseFloat(stock.currentPrice);
           
-          const response: any = await callDataApi("YahooFinance/quote", {
-            query: { symbols: stock.ticker },
-          });
-          
-          if (response?.quoteResponse?.result?.[0]) {
-            const quote = response.quoteResponse.result[0];
-            const newPrice = quote.regularMarketPrice;
-            
-            if (newPrice) {
-              await updateStock(stock.ticker, {
-                currentPrice: newPrice.toString(),
-              });
-              successCount++;
-            }
-          }
-        } catch (error: any) {
-          failCount++;
-          if (error.message?.includes("429") || error.message?.includes("rate limit")) {
-            rateLimitHit = true;
-            break; // Stop if rate limit hit
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            await updateStock(stock.ticker, {
+              ytdPerformance: ytdPerf.toFixed(2),
+            });
+            ytdUpdated++;
           }
         }
       }
       
-      if (rateLimitHit) {
-        return { 
-          success: false, 
-          message: `Rate limit erreicht. ${successCount} Kurse aktualisiert, ${failCount} fehlgeschlagen. Bitte später erneut versuchen.`,
-          successCount,
-          failCount
-        };
+      // Trigger news update (the news updater runs in background)
+      try {
+        const { updateNewsForAllStocks } = await import("./newsUpdater");
+        // Run news update in background without waiting
+        updateNewsForAllStocks().catch((error: any) => {
+          console.error("[Refresh] News update failed:", error);
+        });
+      } catch (error) {
+        console.error("[Refresh] Failed to trigger news update:", error);
       }
       
       return { 
         success: true, 
-        message: `${successCount} Kurse erfolgreich aktualisiert${failCount > 0 ? `, ${failCount} fehlgeschlagen` : ''}`,
-        successCount,
-        failCount
+        message: `YTD Performance für ${ytdUpdated} Aktien aktualisiert. News werden im Hintergrund aktualisiert.`,
+        ytdUpdated,
       };
     }),
     importPrices: protectedProcedure
@@ -537,9 +522,11 @@ export const appRouter = router({
       })
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
+        const { research } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-        await db.execute(`DELETE FROM research WHERE id = ${input}`);
+        await db.delete(research).where(eq(research.id, input));
         return { success: true };
       }),
   }),
