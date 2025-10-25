@@ -93,10 +93,10 @@ export const research = mysqlTable("research", {
   id: int("id").autoincrement().primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   content: text("content"),
-  fileUrl: varchar("file_url", { length: 500 }),
-  fileType: varchar("file_type", { length: 50 }),
-  fileName: varchar("file_name", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  fileUrl: varchar("fileUrl", { length: 500 }),
+  fileType: varchar("fileType", { length: 50 }),
+  fileName: varchar("fileName", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type Research = typeof research.$inferSelect;

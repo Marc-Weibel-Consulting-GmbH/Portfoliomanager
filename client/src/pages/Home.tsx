@@ -267,7 +267,7 @@ export default function Home() {
         stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : '-',
         stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(1) : '-',
         stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : '-',
-        parseFloat(stock.portfolioWeight || '0').toFixed(1),
+        parseFloat(stock.portfolioWeight || '0').toFixed(2),
         stock.category || '-'
       ]),
       styles: { fontSize: 8 },
@@ -381,7 +381,7 @@ export default function Home() {
                         <div className={`w-3 h-3 rounded-full ${colors[idx]}`}></div>
                         <span className="text-slate-300">{cat}</span>
                       </div>
-                      <span className="text-white font-medium">{weight.toFixed(1)}%</span>
+                      <span className="text-white font-medium">{weight.toFixed(2)}%</span>
                     </div>
                   ));
                 })()}
@@ -424,7 +424,7 @@ export default function Home() {
                   <div className={`text-2xl font-bold ${
                     Math.abs(totalWeight - 100) < 0.1 ? 'text-green-400' : 'text-red-400'
                   }`}>
-                    {totalWeight.toFixed(1)}%
+                    {totalWeight.toFixed(2)}%
                   </div>
                 </div>
               </div>
@@ -657,7 +657,7 @@ export default function Home() {
                         <td className="py-2 px-2 text-slate-300">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "-"}</td>
                         <td className="py-2 px-2 text-slate-300">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(1) : "-"}</td>
                         <td className="py-2 px-2 text-green-400">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : "-"}</td>
-                        <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(1)}%</td>
+                        <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(2)}%</td>
                         <td className="py-2 px-2 text-slate-400">{stock.category}</td>
                         <td className="py-2 px-2 text-center">
                           {(stock.moat1 || stock.moat2 || stock.moat3) && (
