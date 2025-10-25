@@ -20,10 +20,13 @@ export default function Research({ onBackClick }: ResearchButtonProps) {
 
   const addResearchMutation = trpc.research.add.useMutation({
     onSuccess: () => {
-      refetch();
       setTitle("");
       setContent("");
       setSelectedFile(null);
+      setTimeout(() => refetch(), 500);
+    },
+    onError: (error) => {
+      alert(`Fehler beim Hinzufügen: ${error.message}`);
     },
   });
 
@@ -121,8 +124,12 @@ export default function Research({ onBackClick }: ResearchButtonProps) {
                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                     />
                   </label>
-                  <Button onClick={handleSubmit} className="bg-indigo-600 hover:bg-indigo-700">
-                    Hinzufügen
+                  <Button 
+                    onClick={handleSubmit} 
+                    disabled={addResearchMutation.isPending || !title}
+                    className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {addResearchMutation.isPending ? "Wird hinzugefügt..." : "Hinzufügen"}
                   </Button>
                 </div>
               </div>

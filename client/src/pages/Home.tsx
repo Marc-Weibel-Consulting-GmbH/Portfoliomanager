@@ -13,6 +13,7 @@ import Performance from "./Performance";
 import Research from "./Research";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { toast, Toaster } from 'sonner';
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -67,8 +68,15 @@ export default function Home() {
 
   const refreshPricesMutation = trpc.stocks.refreshPrices.useMutation({
     onSuccess: () => {
-      refetchStocks();
-      alert('Kurse werden aktualisiert. Dies kann einige Minuten dauern.');
+      toast.success("Kurse werden aktualisiert", {
+        description: "Die Aktualisierung läuft im Hintergrund. Bitte warten Sie einen Moment.",
+      });
+      setTimeout(() => refetchStocks(), 2000);
+    },
+    onError: (error) => {
+      toast.error("Fehler bei der Aktualisierung", {
+        description: error.message,
+      });
     },
   });
 
@@ -237,8 +245,7 @@ export default function Home() {
       const weight = parseFloat(stock.portfolioWeight || "0");
       return sum + (ytd * weight / 100);
     }, 0);
-    const displayPerf = ytdPerf === 0 ? 45.3 : ytdPerf;
-    doc.text(`YTD Performance: ${displayPerf >= 0 ? '+' : ''}${displayPerf.toFixed(1)}%`, 14, 44);
+    doc.text(`YTD Performance: ${ytdPerf >= 0 ? '+' : ''}${ytdPerf.toFixed(1)}%`, 14, 44);
     doc.text(`Ø Dividendenrendite: ${avgDividend.toFixed(2)}%`, 14, 50);
     doc.text(`Portfolio Gewichtung: ${totalWeight.toFixed(2)}%`, 14, 56);
     doc.text(`Anzahl Aktien: ${filteredStocks.length}`, 14, 62);
@@ -274,7 +281,7 @@ export default function Home() {
   }
 
   if (activeTab === "performance") {
-    return <Performance />;
+    return <Performance onBackClick={() => setActiveTab("portfolio")} />;
   }
 
   if (activeTab === "research") {
@@ -285,7 +292,9 @@ export default function Home() {
   const avgDividend = parseFloat(stats?.avgDividendYield || "0");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <>
+      <Toaster richColors position="top-right" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-8 px-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
@@ -388,9 +397,7 @@ export default function Home() {
                       const weight = parseFloat(stock.portfolioWeight || "0");
                       return sum + (ytd * weight / 100);
                     }, 0);
-                    // Use mockup value if no real data available
-                    const displayPerf = ytdPerf === 0 ? 45.3 : ytdPerf;
-                    return displayPerf >= 0 ? 'text-green-400' : 'text-red-400';
+                    return ytdPerf >= 0 ? 'text-green-400' : 'text-red-400';
                   })()}`}>
                     {(() => {
                       const ytdPerf = stocks.reduce((sum, stock) => {
@@ -398,9 +405,7 @@ export default function Home() {
                         const weight = parseFloat(stock.portfolioWeight || "0");
                         return sum + (ytd * weight / 100);
                       }, 0);
-                      // Use mockup value if no real data available
-                      const displayPerf = ytdPerf === 0 ? 45.3 : ytdPerf;
-                      return displayPerf >= 0 ? `+${displayPerf.toFixed(1)}%` : `${displayPerf.toFixed(1)}%`;
+                      return ytdPerf >= 0 ? `+${ytdPerf.toFixed(1)}%` : `${ytdPerf.toFixed(1)}%`;
                     })()}
                   </div>
                 </div>
@@ -819,5 +824,6 @@ export default function Home() {
 
       </div>
     </div>
+    </>
   );
 }

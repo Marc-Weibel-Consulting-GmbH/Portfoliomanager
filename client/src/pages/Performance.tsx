@@ -1,8 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
-export default function Performance() {
+interface PerformanceProps {
+  onBackClick: () => void;
+}
+
+export default function Performance({ onBackClick }: PerformanceProps) {
   const { data: stocks = [] } = trpc.stocks.list.useQuery();
 
   // Calculate YTD performance for each stock and sort by performance
@@ -18,9 +23,14 @@ export default function Performance() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Top 10 YTD Performers</h1>
-          <p className="text-slate-300">Die besten Aktien nach Year-to-Date Performance</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Top 10 YTD Performers</h1>
+            <p className="text-slate-300">Die besten Aktien nach Year-to-Date Performance</p>
+          </div>
+          <Button onClick={onBackClick} variant="outline" className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700">
+            Zurück
+          </Button>
         </div>
 
         <div className="grid gap-4">
