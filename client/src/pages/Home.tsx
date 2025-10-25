@@ -595,6 +595,14 @@ export default function Home() {
                     onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
                   />
+                  <Input
+                    placeholder="Portfolio-Gewicht (%)"
+                    type="number"
+                    step="0.01"
+                    value={formData.portfolioWeight || ""}
+                    onChange={(e) => setFormData({ ...formData, portfolioWeight: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
                   <Select value={formData.category || ""} onValueChange={(v) => setFormData({ ...formData, category: v })}>
                     <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                       <SelectValue placeholder="Kategorie wählen" />

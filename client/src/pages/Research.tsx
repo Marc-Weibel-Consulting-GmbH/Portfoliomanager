@@ -23,15 +23,25 @@ export default function Research({ onBackClick }: ResearchButtonProps) {
       setTitle("");
       setContent("");
       setSelectedFile(null);
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
       setTimeout(() => refetch(), 500);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error("Research add error:", error);
       alert(`Fehler beim Hinzufügen: ${error.message}`);
     },
   });
 
   const deleteResearchMutation = trpc.research.delete.useMutation({
-    onSuccess: () => refetch(),
+    onSuccess: () => {
+      setTimeout(() => refetch(), 500);
+    },
+    onError: (error: any) => {
+      console.error("Research delete error:", error);
+      alert(`Fehler beim Löschen: ${error.message}`);
+    },
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

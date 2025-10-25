@@ -4,28 +4,38 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 
 /**
- * New portfolio weighting logic:
- * - Manual weight change: redistribute remaining stocks equally to reach 100%
- * - Add/Delete: preserve all existing weights (no automatic rebalancing)
+ * Portfolio weighting logic:
+ * - When adding a stock with weight X%: redistribute all OTHER stocks equally to (100% - X%)
+ * - When updating a stock weight: redistribute all OTHER stocks equally to remaining %
+ * - When deleting a stock: redistribute all REMAINING stocks equally to 100%
  */
-async function recalculateWeights(manuallyUpdatedTicker?: string) {
+async function recalculateWeights(changedTicker?: string, isDelete: boolean = false) {
   const { getAllStocks, updateStock } = await import("./db");
   const allStocks = await getAllStocks();
   
   if (allStocks.length === 0) return;
   
-  if (manuallyUpdatedTicker) {
-    // Manual weight update: redistribute all OTHER stocks equally
-    const manualStock = allStocks.find(s => s.ticker === manuallyUpdatedTicker);
-    if (!manualStock) return;
+  if (isDelete) {
+    // Delete: redistribute all remaining stocks equally to 100%
+    const equalWeight = 100 / allStocks.length;
     
-    const manualWeight = parseFloat(manualStock.portfolioWeight || "0");
-    const otherStocks = allStocks.filter(s => s.ticker !== manuallyUpdatedTicker);
+    for (const stock of allStocks) {
+      await updateStock(stock.ticker, {
+        portfolioWeight: equalWeight.toFixed(4),
+      });
+    }
+  } else if (changedTicker) {
+    // Add or Update: redistribute all OTHER stocks equally
+    const changedStock = allStocks.find(s => s.ticker === changedTicker);
+    if (!changedStock) return;
+    
+    const changedWeight = parseFloat(changedStock.portfolioWeight || "0");
+    const otherStocks = allStocks.filter(s => s.ticker !== changedTicker);
     
     if (otherStocks.length === 0) return;
     
     // Distribute remaining weight equally among other stocks
-    const remainingWeight = 100 - manualWeight;
+    const remainingWeight = 100 - changedWeight;
     const equalWeight = remainingWeight / otherStocks.length;
     
     for (const stock of otherStocks) {
@@ -34,7 +44,6 @@ async function recalculateWeights(manuallyUpdatedTicker?: string) {
       });
     }
   }
-  // No automatic rebalancing on add/delete - weights are preserved
 }
 
 export const appRouter = router({
@@ -141,6 +150,7 @@ export const appRouter = router({
         stockData.dividendYield = stockData.dividendYield || "0";
         stockData.pegRatio = stockData.pegRatio || "0";
         stockData.peRatio = stockData.peRatio || "0";
+        stockData.portfolioWeight = stockData.portfolioWeight || "0";
         
         // Generate AI moats if not provided (with timeout)
         if (!stockData.moat1 || !stockData.moat2 || !stockData.moat3) {
@@ -183,7 +193,8 @@ export const appRouter = router({
           newValue: stockData.portfolioWeight || "0",
         });
         
-        // No automatic rebalancing on add - new stock gets 0% weight
+        // Recalculate weights: redistribute other stocks
+        await recalculateWeights(stockData.ticker, false);
         
         return { success: true };
       }),
@@ -225,7 +236,7 @@ export const appRouter = router({
         
         // If weight was manually updated, recalculate other weights
         if (hasWeightUpdate) {
-          await recalculateWeights(ticker);
+          await recalculateWeights(ticker, false);
         }
         
         return { success: true };
@@ -254,7 +265,8 @@ export const appRouter = router({
           });
         }
         
-        // No automatic rebalancing on delete - weights are preserved
+        // Recalculate weights: redistribute all remaining stocks equally to 100%
+        await recalculateWeights(undefined, true);
         
         return { success: true };
       }),
@@ -502,14 +514,42 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
         const { research } = await import("../drizzle/schema");
+        const { storagePut } = await import("./storage");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const data = input as any;
         
+        let fileUrl = "";
+        
+        // If file data is provided, upload to S3
+        if (data.fileUrl && data.fileUrl.startsWith("data:")) {
+          try {
+            // Extract base64 data
+            const matches = data.fileUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (matches) {
+              const contentType = matches[1];
+              const base64Data = matches[2];
+              const buffer = Buffer.from(base64Data, 'base64');
+              
+              // Generate unique filename
+              const timestamp = Date.now();
+              const ext = data.fileName.split('.').pop() || 'bin';
+              const key = `research/${timestamp}-${data.fileName}`;
+              
+              // Upload to S3
+              const result = await storagePut(key, buffer, contentType);
+              fileUrl = result.url;
+            }
+          } catch (error: any) {
+            console.error("[Research] File upload failed:", error);
+            throw new Error(`Datei-Upload fehlgeschlagen: ${error.message}`);
+          }
+        }
+        
         await db.insert(research).values({
           title: data.title,
           content: data.content || "",
-          fileUrl: data.fileUrl || "",
+          fileUrl: fileUrl,
           fileType: data.fileType || "text",
           fileName: data.fileName || "",
         });
