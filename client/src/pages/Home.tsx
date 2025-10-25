@@ -9,6 +9,8 @@ import { Trash2, Edit2, Plus, Download } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
+import Performance from "./Performance";
+import Research from "./Research";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -60,6 +62,13 @@ export default function Home() {
     onSuccess: async () => {
       await refetchStocks();
       setHasAppliedEqualWeighting(false);
+    },
+  });
+
+  const refreshPricesMutation = trpc.stocks.refreshPrices.useMutation({
+    onSuccess: () => {
+      refetchStocks();
+      alert('Kurse werden aktualisiert. Dies kann einige Minuten dauern.');
     },
   });
 
@@ -176,7 +185,12 @@ export default function Home() {
   }, [stocks]);
 
   const handleAddStock = () => {
-    addStockMutation.mutate(formData);
+    const equalWeight = (100 / (stocks.length + 1)).toFixed(4);
+    addStockMutation.mutate({
+      ...formData,
+      portfolioWeight: parseFloat(equalWeight),
+      currentPrice: parseFloat(formData.currentPrice || "0")
+    });
   };
 
   const handleUpdateStock = () => {
@@ -257,6 +271,14 @@ export default function Home() {
 
   if (activeTab === "transactions") {
     return <Transactions onBackClick={() => setActiveTab("portfolio")} />;
+  }
+
+  if (activeTab === "performance") {
+    return <Performance />;
+  }
+
+  if (activeTab === "research") {
+    return <Research onBackClick={() => setActiveTab("portfolio")} />;
   }
 
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
@@ -386,7 +408,14 @@ export default function Home() {
                   <div className="text-xs text-slate-400 mb-1">Ø Div. Rendite (gewichtet)</div>
                   <div className="text-2xl font-bold text-green-400">{avgDividend.toFixed(2)}%</div>
                 </div>
-                <p className="text-xs text-slate-400">Portfolio: {totalWeight.toFixed(2)}%</p>
+                <div className="border-t border-slate-700 pt-3">
+                  <div className="text-xs text-slate-400 mb-1">Total Portfolio</div>
+                  <div className={`text-2xl font-bold ${
+                    Math.abs(totalWeight - 100) < 0.1 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {totalWeight.toFixed(1)}%
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -423,6 +452,26 @@ export default function Home() {
           >
             Transactions
           </button>
+          <button
+            onClick={() => setActiveTab("performance")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "performance"
+                ? "bg-green-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Performance
+          </button>
+          <button
+            onClick={() => setActiveTab("research")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "research"
+                ? "bg-indigo-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Research
+          </button>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -443,6 +492,14 @@ export default function Home() {
               ))}
             </SelectContent>
           </Select>
+          {isAuthenticated && (
+            <Button onClick={() => refreshPricesMutation.mutate()} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </Button>
+          )}
           <Button onClick={exportToPDF} className="bg-green-600 hover:bg-green-700 text-white">
             <Download className="w-4 h-4 mr-2" />
             PDF Export
@@ -502,14 +559,12 @@ export default function Home() {
                     value={formData.companyName || ""}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
-                    disabled
                   />
                   <Input
                     placeholder="Ticker"
                     value={formData.ticker || ""}
                     onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
-                    disabled
                   />
                   <Input
                     placeholder="Kurs"

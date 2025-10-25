@@ -154,25 +154,30 @@ export const appRouter = router({
         return acc;
       }, {} as Record<string, number>);
 
+      // Calculate total portfolio weight (ALL stocks)
+      const totalPortfolioWeight = stocks.reduce((sum, s) => {
+        return sum + parseFloat(s.portfolioWeight || "0");
+      }, 0);
+
       // Calculate weighted dividend yield based on portfolio weight
       const dividendStocks = stocks.filter(s => s.dividendYield && s.portfolioWeight);
-      let totalWeight = 0;
+      let totalDividendWeight = 0;
       let weightedYield = 0;
 
       dividendStocks.forEach(s => {
         const weight = parseFloat(s.portfolioWeight || "0");
         const yield_ = parseFloat(s.dividendYield || "0");
-        totalWeight += weight;
+        totalDividendWeight += weight;
         weightedYield += (weight * yield_) / 100;
       });
 
-      const avgDividendYield = totalWeight > 0 ? weightedYield : 0;
+      const avgDividendYield = totalDividendWeight > 0 ? weightedYield : 0;
 
       return {
         totalStocks: stocks.length,
         categories,
         avgDividendYield: avgDividendYield.toFixed(2),
-        totalPortfolioWeight: totalWeight.toFixed(2),
+        totalPortfolioWeight: totalPortfolioWeight.toFixed(2),
         categoryCounts: Object.entries(categories).map(([name, count]) => ({ name, count })),
       };
     }),
@@ -295,6 +300,20 @@ export const appRouter = router({
         
         return { success: true };
       }),
+    refreshPrices: protectedProcedure.mutation(async () => {
+      // Trigger manual price update by importing and running the price updater
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      
+      try {
+        // Run price update script in background
+        execAsync('cd /home/ubuntu/portfolio_analysis_website && npx tsx server/priceUpdater.ts').catch(() => {});
+        return { success: true, message: 'Price update triggered' };
+      } catch (error) {
+        return { success: false, message: 'Failed to trigger price update' };
+      }
+    }),
   }),
 
   news: router({
@@ -323,6 +342,41 @@ export const appRouter = router({
       await deleteAllTransactions();
       return { success: true };
     }),
+  }),
+
+  research: router({
+    list: publicProcedure.query(async () => {
+      const { getDb } = await import("./db");
+      const db = await getDb();
+      if (!db) return [];
+      const result: any = await db.execute("SELECT * FROM research ORDER BY created_at DESC");
+      return result.rows || result;
+    }),
+    add: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const data = input as any;
+        const query = `INSERT INTO research (title, content, file_url, file_type, file_name) VALUES ('${data.title.replace(/'/g, "''")}', '${(data.content || "").replace(/'/g, "''")}', '${(data.fileUrl || "").replace(/'/g, "''")}', '${data.fileType || "text"}', '${(data.fileName || "").replace(/'/g, "''")}')`;        await db.execute(query);
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "number") return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.execute(`DELETE FROM research WHERE id = ${input}`);
+        return { success: true };
+      }),
   }),
 });
 
