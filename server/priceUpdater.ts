@@ -55,9 +55,9 @@ async function fetchRealTimePrice(ticker: string): Promise<string | null> {
 }
 
 export async function startPriceUpdater() {
-  // Schedule task to run every 15 minutes
-  // Cron expression: "*/15 * * * *" means every 15 minutes
-  const task = cron.schedule("*/15 * * * *", async () => {
+  // Schedule task to run once daily at 18:00 (after market close)
+  // Cron expression: "0 18 * * *" means every day at 18:00
+  const task = cron.schedule("0 18 * * *", async () => {
     console.log(`[${new Date().toISOString()}] Starting price update...`);
 
     try {

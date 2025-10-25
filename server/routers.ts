@@ -327,7 +327,7 @@ export const appRouter = router({
       // Update prices with delay to avoid rate limiting
       for (const stock of stocks) {
         try {
-          await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay between requests
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay between requests
           
           const response: any = await callDataApi("YahooFinance/quote", {
             query: { symbols: stock.ticker },
@@ -404,7 +404,7 @@ export const appRouter = router({
       const { getDb } = await import("./db");
       const db = await getDb();
       if (!db) return [];
-      const result: any = await db.execute("SELECT * FROM research ORDER BY created_at DESC");
+      const result: any = await db.execute("SELECT * FROM research ORDER BY createdAt DESC");
       return result.rows || result;
     }),
     add: protectedProcedure
