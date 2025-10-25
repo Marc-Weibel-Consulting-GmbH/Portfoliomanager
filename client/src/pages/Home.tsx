@@ -67,10 +67,16 @@ export default function Home() {
   });
 
   const refreshPricesMutation = trpc.stocks.refreshPrices.useMutation({
-    onSuccess: () => {
-      toast.success("Kurse werden aktualisiert", {
-        description: "Die Aktualisierung läuft im Hintergrund. Bitte warten Sie einen Moment.",
-      });
+    onSuccess: (data: any) => {
+      if (data.success) {
+        toast.success("Kurse aktualisiert", {
+          description: data.message || `${data.successCount} Kurse erfolgreich aktualisiert`,
+        });
+      } else {
+        toast.warning("Teilweise aktualisiert", {
+          description: data.message || "Einige Kurse konnten nicht aktualisiert werden",
+        });
+      }
       setTimeout(() => refetchStocks(), 2000);
     },
     onError: (error) => {

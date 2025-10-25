@@ -87,3 +87,18 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 
 
+
+// Research content table
+export const research = mysqlTable("research", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content"),
+  fileUrl: varchar("file_url", { length: 500 }),
+  fileType: varchar("file_type", { length: 50 }),
+  fileName: varchar("file_name", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Research = typeof research.$inferSelect;
+export type InsertResearch = typeof research.$inferInsert;
+

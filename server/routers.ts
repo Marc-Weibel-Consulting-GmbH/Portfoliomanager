@@ -191,24 +191,39 @@ export const appRouter = router({
         const { invokeLLM } = await import("./_core/llm");
         const stockData = input as any;
         
-        // Generate AI moats if not provided
+        // Set default values for required fields
+        stockData.currency = stockData.currency || "USD";
+        stockData.dividendYield = stockData.dividendYield || "0";
+        stockData.pegRatio = stockData.pegRatio || "0";
+        stockData.peRatio = stockData.peRatio || "0";
+        
+        // Generate AI moats if not provided (with timeout)
         if (!stockData.moat1 || !stockData.moat2 || !stockData.moat3) {
           try {
             const prompt = `Generate 3 concise investment reasons (moats/competitive advantages) for ${stockData.companyName} (${stockData.ticker}). Each reason should be 1-2 sentences explaining a key competitive advantage. Format as JSON: {"moat1": "...", "moat2": "...", "moat3": "..."}`;
             
-            const response = await invokeLLM({
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error("AI timeout")), 5000)
+            );
+            
+            const llmPromise = invokeLLM({
               messages: [{ role: "user", content: prompt }],
               responseFormat: { type: "json_object" },
             });
             
+            const response = await Promise.race([llmPromise, timeoutPromise]) as any;
+            
             const content = response.choices[0]?.message?.content || "{}";
             const moats = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
-            stockData.moat1 = moats.moat1;
-            stockData.moat2 = moats.moat2;
-            stockData.moat3 = moats.moat3;
+            stockData.moat1 = moats.moat1 || "Competitive advantage 1";
+            stockData.moat2 = moats.moat2 || "Competitive advantage 2";
+            stockData.moat3 = moats.moat3 || "Competitive advantage 3";
           } catch (error) {
             console.error("[AI Moats] Failed to generate moats:", error);
-            // Continue without moats if generation fails
+            // Use default moats if generation fails
+            stockData.moat1 = "Competitive advantage 1";
+            stockData.moat2 = "Competitive advantage 2";
+            stockData.moat3 = "Competitive advantage 3";
           }
         }
         
@@ -301,18 +316,58 @@ export const appRouter = router({
         return { success: true };
       }),
     refreshPrices: protectedProcedure.mutation(async () => {
-      // Trigger manual price update by importing and running the price updater
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(exec);
+      const { getAllStocks, updateStock } = await import("./db");
+      const { callDataApi } = await import("./_core/dataApi");
       
-      try {
-        // Run price update script in background
-        execAsync('cd /home/ubuntu/portfolio_analysis_website && npx tsx server/priceUpdater.ts').catch(() => {});
-        return { success: true, message: 'Price update triggered' };
-      } catch (error) {
-        return { success: false, message: 'Failed to trigger price update' };
+      const stocks = await getAllStocks();
+      let successCount = 0;
+      let failCount = 0;
+      let rateLimitHit = false;
+      
+      // Update prices with delay to avoid rate limiting
+      for (const stock of stocks) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay between requests
+          
+          const response: any = await callDataApi("YahooFinance/quote", {
+            query: { symbols: stock.ticker },
+          });
+          
+          if (response?.quoteResponse?.result?.[0]) {
+            const quote = response.quoteResponse.result[0];
+            const newPrice = quote.regularMarketPrice;
+            
+            if (newPrice) {
+              await updateStock(stock.ticker, {
+                currentPrice: newPrice.toString(),
+              });
+              successCount++;
+            }
+          }
+        } catch (error: any) {
+          failCount++;
+          if (error.message?.includes("429") || error.message?.includes("rate limit")) {
+            rateLimitHit = true;
+            break; // Stop if rate limit hit
+          }
+        }
       }
+      
+      if (rateLimitHit) {
+        return { 
+          success: false, 
+          message: `Rate limit erreicht. ${successCount} Kurse aktualisiert, ${failCount} fehlgeschlagen. Bitte später erneut versuchen.`,
+          successCount,
+          failCount
+        };
+      }
+      
+      return { 
+        success: true, 
+        message: `${successCount} Kurse erfolgreich aktualisiert${failCount > 0 ? `, ${failCount} fehlgeschlagen` : ''}`,
+        successCount,
+        failCount
+      };
     }),
   }),
 
@@ -359,13 +414,21 @@ export const appRouter = router({
       })
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
+        const { research } = await import("../drizzle/schema");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         const data = input as any;
-        const query = `INSERT INTO research (title, content, file_url, file_type, file_name) VALUES ('${data.title.replace(/'/g, "''")}', '${(data.content || "").replace(/'/g, "''")}', '${(data.fileUrl || "").replace(/'/g, "''")}', '${data.fileType || "text"}', '${(data.fileName || "").replace(/'/g, "''")}')`;        await db.execute(query);
+        
+        await db.insert(research).values({
+          title: data.title,
+          content: data.content || "",
+          fileUrl: data.fileUrl || "",
+          fileType: data.fileType || "text",
+          fileName: data.fileName || "",
+        });
+        
         return { success: true };
-      }),
-    delete: protectedProcedure
+      }),    delete: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "number") return val;
         throw new Error("Invalid input");
