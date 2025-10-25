@@ -790,56 +790,77 @@ export default function Home() {
                                     <DialogTitle className="text-white">Aktie bearbeiten</DialogTitle>
                                   </DialogHeader>
                                   <div className="space-y-4">
-                                    <Input
-                                      placeholder="Aktientitel"
-                                      value={formData.companyName || ""}
-                                      onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                                      className="bg-slate-700 border-slate-600 text-white"
-                                    />
-                                    <Input
-                                      placeholder="Kurs per 31.12. Vorjahr"
-                                      type="number"
-                                      step="0.01"
-                                      value={formData.ytdStartPrice || ""}
-                                      onChange={(e) => setFormData({ ...formData, ytdStartPrice: e.target.value })}
-                                      className="bg-slate-700 border-slate-600 text-white"
-                                    />
-                                    <Input
-                                      placeholder="Aktueller Kurs"
-                                      type="number"
-                                      step="0.01"
-                                      value={formData.currentPrice || ""}
-                                      onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
-                                      className="bg-slate-700 border-slate-600 text-white"
-                                    />
-                                    <Input
-                                      placeholder="P/E"
-                                      type="number"
-                                      value={formData.peRatio || ""}
-                                      onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
-                                      className="bg-slate-700 border-slate-600 text-white"
-                                    />
-                                    <Input
-                                      placeholder="PEG Ratio"
-                                      type="number"
-                                      value={formData.pegRatio || ""}
-                                      onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
-                                      className="bg-slate-700 border-slate-600 text-white"
-                                    />
-                                    <Input
-                                      placeholder="Dividendenrendite (%)"
-                                      type="number"
-                                      value={formData.dividendYield || ""}
-                                      onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
-                                      className="bg-slate-700 border-slate-600 text-white"
-                                    />
-                                    <Input
-                                      placeholder="Portfolio Gewichtung (%)"
-                                      type="number"
-                                      value={formData.portfolioWeight || ""}
-                                      onChange={(e) => setFormData({ ...formData, portfolioWeight: parseFloat(e.target.value) })}
-                                      className="bg-slate-700 border-slate-600 text-white"
-                                    />
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Aktientitel</label>
+                                      <Input
+                                        placeholder="Aktientitel"
+                                        value={formData.companyName || ""}
+                                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Kurs per 31.12. Vorjahr</label>
+                                      <Input
+                                        placeholder="0.00"
+                                        type="number"
+                                        step="0.01"
+                                        value={formData.ytdStartPrice || ""}
+                                        onChange={(e) => setFormData({ ...formData, ytdStartPrice: e.target.value })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Aktueller Kurs</label>
+                                      <Input
+                                        placeholder="0.00"
+                                        type="number"
+                                        step="0.01"
+                                        value={formData.currentPrice || ""}
+                                        onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">P/E Ratio</label>
+                                      <Input
+                                        placeholder="0.0"
+                                        type="number"
+                                        value={formData.peRatio || ""}
+                                        onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">PEG Ratio</label>
+                                      <Input
+                                        placeholder="0.0"
+                                        type="number"
+                                        value={formData.pegRatio || ""}
+                                        onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Dividendenrendite (%)</label>
+                                      <Input
+                                        placeholder="0.0"
+                                        type="number"
+                                        value={formData.dividendYield || ""}
+                                        onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Portfolio Gewichtung (%)</label>
+                                      <Input
+                                        placeholder="0.0"
+                                        type="number"
+                                        value={formData.portfolioWeight || ""}
+                                        onChange={(e) => setFormData({ ...formData, portfolioWeight: parseFloat(e.target.value) })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
                                     <Button 
                                       onClick={handleUpdateStock} 
                                       disabled={updateStockMutation.isPending}
