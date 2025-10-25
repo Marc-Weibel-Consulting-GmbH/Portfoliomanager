@@ -12,6 +12,7 @@ import Transactions from "./Transactions";
 import Performance from "./Performance";
 import Research from "./Research";
 import Import from "./Import";
+import { Admin } from "./Admin";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
@@ -295,6 +296,10 @@ export default function Home() {
     return <Import onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "admin") {
+    return <Admin />;
+  }
+
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
   const avgDividend = parseFloat(stats?.avgDividendYield || "0");
 
@@ -493,6 +498,16 @@ export default function Home() {
             }`}
           >
             Import
+          </button>
+          <button
+            onClick={() => setActiveTab("admin")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "admin"
+                ? "bg-purple-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Admin
           </button>
         </div>
 

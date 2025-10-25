@@ -611,6 +611,89 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  admin: router({
+    exportData: protectedProcedure.query(async () => {
+      const { getAllStocks, getDb } = await import("./db");
+      const { research, transactions } = await import("../drizzle/schema");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const stocks = await getAllStocks();
+      const researchData = await db.select().from(research);
+      const transactionsData = await db.select().from(transactions);
+      
+      return {
+        exportDate: new Date().toISOString(),
+        version: "1.0",
+        data: {
+          stocks,
+          research: researchData,
+          transactions: transactionsData,
+        },
+      };
+    }),
+    importData: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const { stocks, research, transactions } = await import("../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        const importData = input as any;
+        const { stocks: stocksData, research: researchData, transactions: transactionsData } = importData.data;
+        
+        // Delete existing data
+        await db.delete(transactions);
+        await db.delete(research);
+        await db.delete(stocks);
+        
+        // Import new data
+        let importedStocks = 0;
+        let importedResearch = 0;
+        let importedTransactions = 0;
+        
+        if (stocksData && stocksData.length > 0) {
+          const stocksToInsert = stocksData.map((s: any) => {
+            const { id, createdAt, updatedAt, ...rest } = s;
+            return rest;
+          });
+          await db.insert(stocks).values(stocksToInsert);
+          importedStocks = stocksData.length;
+        }
+        
+        if (researchData && researchData.length > 0) {
+          const researchToInsert = researchData.map((r: any) => {
+            const { id, createdAt, updatedAt, ...rest } = r;
+            return rest;
+          });
+          await db.insert(research).values(researchToInsert);
+          importedResearch = researchData.length;
+        }
+        
+        if (transactionsData && transactionsData.length > 0) {
+          const transactionsToInsert = transactionsData.map((t: any) => {
+            const { id, createdAt, ...rest } = t;
+            return rest;
+          });
+          await db.insert(transactions).values(transactionsToInsert);
+          importedTransactions = transactionsData.length;
+        }
+        
+        return {
+          success: true,
+          imported: {
+            stocks: importedStocks,
+            research: importedResearch,
+            transactions: importedTransactions,
+          },
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
