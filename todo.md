@@ -22,4 +22,8 @@
 - [x] Excel-Import-Funktion für Bulk-Preis-Updates
 - [x] Import-Script für finanzielle Highlights aus CSV
 - [x] 62 von 64 Aktien mit finanziellen Highlights befüllt
+- [x] Bearbeitungs-Button in Info Pop-up zum Ändern der Wettbewerbsvorteile (Moats)
+- [x] Bearbeitungs-Button in Finanzen Pop-up zum Ändern der 3 finanziellen Highlights
+- [x] Inline-Bearbeitung in Pop-ups mit Speichern/Abbrechen Buttons
+- [x] Toast-Benachrichtigungen für erfolgreiche Updates
 

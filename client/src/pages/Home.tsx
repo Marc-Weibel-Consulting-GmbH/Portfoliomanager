@@ -37,6 +37,10 @@ export default function Home() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");
   const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
+  const [editingInfoStock, setEditingInfoStock] = useState<any>(null);
+  const [editingFinanzenStock, setEditingFinanzenStock] = useState<any>(null);
+  const [infoFormData, setInfoFormData] = useState<any>({});
+  const [finanzenFormData, setFinanzenFormData] = useState<any>({});
   
   const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
     tickerSearchQuery,
@@ -222,6 +226,64 @@ export default function Home() {
     setEditingStock(stock);
     setFormData(stock);
     setIsEditDialogOpen(true);
+  };
+
+  const startEditingInfo = (stock: any) => {
+    setEditingInfoStock(stock);
+    setInfoFormData({
+      moat1: stock.moat1 || '',
+      moat2: stock.moat2 || '',
+      moat3: stock.moat3 || '',
+    });
+  };
+
+  const startEditingFinanzen = (stock: any) => {
+    setEditingFinanzenStock(stock);
+    setFinanzenFormData({
+      financialHighlight1: stock.financialHighlight1 || '',
+      financialHighlight2: stock.financialHighlight2 || '',
+      financialHighlight3: stock.financialHighlight3 || '',
+    });
+  };
+
+  const saveInfoMutation = trpc.stocks.update.useMutation({
+    onSuccess: () => {
+      refetchStocks();
+      setEditingInfoStock(null);
+      toast.success('Wettbewerbsvorteile aktualisiert');
+    },
+    onError: (error) => {
+      toast.error('Fehler beim Aktualisieren: ' + error.message);
+    },
+  });
+
+  const saveFinanzenMutation = trpc.stocks.update.useMutation({
+    onSuccess: () => {
+      refetchStocks();
+      setEditingFinanzenStock(null);
+      toast.success('Finanzielle Highlights aktualisiert');
+    },
+    onError: (error) => {
+      toast.error('Fehler beim Aktualisieren: ' + error.message);
+    },
+  });
+
+  const saveInfo = () => {
+    if (editingInfoStock) {
+      saveInfoMutation.mutate({
+        ticker: editingInfoStock.ticker,
+        ...infoFormData,
+      });
+    }
+  };
+
+  const saveFinanzen = () => {
+    if (editingFinanzenStock) {
+      saveFinanzenMutation.mutate({
+        ticker: editingFinanzenStock.ticker,
+        ...finanzenFormData,
+      });
+    }
   };
 
   const openChartDialog = (stock: any) => {
@@ -762,27 +824,81 @@ export default function Home() {
                                     </div>
                                   </div>
                                   <div>
-                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Wettbewerbsvorteile (Moats)</h4>
-                                    <ul className="space-y-2">
-                                      {stock.moat1 && (
-                                        <li className="flex items-start gap-2 text-slate-300">
-                                          <span className="text-green-400 mt-1">✓</span>
-                                          <span>{stock.moat1}</span>
-                                        </li>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h4 className="text-md font-semibold text-blue-400">Wettbewerbsvorteile (Moats)</h4>
+                                      {isAuthenticated && editingInfoStock?.ticker !== stock.ticker && (
+                                        <button
+                                          onClick={() => startEditingInfo(stock)}
+                                          className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                                        >
+                                          <Edit2 className="w-4 h-4" />
+                                          Bearbeiten
+                                        </button>
                                       )}
-                                      {stock.moat2 && (
-                                        <li className="flex items-start gap-2 text-slate-300">
-                                          <span className="text-green-400 mt-1">✓</span>
-                                          <span>{stock.moat2}</span>
-                                        </li>
-                                      )}
-                                      {stock.moat3 && (
-                                        <li className="flex items-start gap-2 text-slate-300">
-                                          <span className="text-green-400 mt-1">✓</span>
-                                          <span>{stock.moat3}</span>
-                                        </li>
-                                      )}
-                                    </ul>
+                                    </div>
+                                    {editingInfoStock?.ticker === stock.ticker ? (
+                                      <div className="space-y-3">
+                                        <div>
+                                          <label className="text-sm text-slate-400">Moat 1</label>
+                                          <Input
+                                            value={infoFormData.moat1}
+                                            onChange={(e) => setInfoFormData({...infoFormData, moat1: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            placeholder="Erster Wettbewerbsvorteil"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-sm text-slate-400">Moat 2</label>
+                                          <Input
+                                            value={infoFormData.moat2}
+                                            onChange={(e) => setInfoFormData({...infoFormData, moat2: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            placeholder="Zweiter Wettbewerbsvorteil"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-sm text-slate-400">Moat 3</label>
+                                          <Input
+                                            value={infoFormData.moat3}
+                                            onChange={(e) => setInfoFormData({...infoFormData, moat3: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            placeholder="Dritter Wettbewerbsvorteil"
+                                          />
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                          <Button onClick={saveInfo} className="bg-blue-600 hover:bg-blue-700">
+                                            Speichern
+                                          </Button>
+                                          <Button onClick={() => setEditingInfoStock(null)} variant="outline" className="border-slate-600">
+                                            Abbrechen
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <ul className="space-y-2">
+                                        {stock.moat1 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">✓</span>
+                                            <span>{stock.moat1}</span>
+                                          </li>
+                                        )}
+                                        {stock.moat2 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">✓</span>
+                                            <span>{stock.moat2}</span>
+                                          </li>
+                                        )}
+                                        {stock.moat3 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">✓</span>
+                                            <span>{stock.moat3}</span>
+                                          </li>
+                                        )}
+                                        {!stock.moat1 && !stock.moat2 && !stock.moat3 && (
+                                          <p className="text-slate-400 italic">Keine Wettbewerbsvorteile definiert</p>
+                                        )}
+                                      </ul>
+                                    )}
                                   </div>
                                 </div>
                               </DialogContent>
@@ -829,27 +945,81 @@ export default function Home() {
                                     </div>
                                   </div>
                                   <div>
-                                    <h4 className="text-md font-semibold text-green-400 mb-3">Finanzielle Highlights</h4>
-                                    <ul className="space-y-2">
-                                      {stock.financialHighlight1 && (
-                                        <li className="flex items-start gap-2 text-slate-300">
-                                          <span className="text-green-400 mt-1">$</span>
-                                          <span>{stock.financialHighlight1}</span>
-                                        </li>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h4 className="text-md font-semibold text-green-400">Finanzielle Highlights</h4>
+                                      {isAuthenticated && editingFinanzenStock?.ticker !== stock.ticker && (
+                                        <button
+                                          onClick={() => startEditingFinanzen(stock)}
+                                          className="text-sm text-green-400 hover:text-green-300 flex items-center gap-1"
+                                        >
+                                          <Edit2 className="w-4 h-4" />
+                                          Bearbeiten
+                                        </button>
                                       )}
-                                      {stock.financialHighlight2 && (
-                                        <li className="flex items-start gap-2 text-slate-300">
-                                          <span className="text-green-400 mt-1">$</span>
-                                          <span>{stock.financialHighlight2}</span>
-                                        </li>
-                                      )}
-                                      {stock.financialHighlight3 && (
-                                        <li className="flex items-start gap-2 text-slate-300">
-                                          <span className="text-green-400 mt-1">$</span>
-                                          <span>{stock.financialHighlight3}</span>
-                                        </li>
-                                      )}
-                                    </ul>
+                                    </div>
+                                    {editingFinanzenStock?.ticker === stock.ticker ? (
+                                      <div className="space-y-3">
+                                        <div>
+                                          <label className="text-sm text-slate-400">Highlight 1</label>
+                                          <Input
+                                            value={finanzenFormData.financialHighlight1}
+                                            onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight1: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            placeholder="Erstes finanzielles Highlight"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-sm text-slate-400">Highlight 2</label>
+                                          <Input
+                                            value={finanzenFormData.financialHighlight2}
+                                            onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight2: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            placeholder="Zweites finanzielles Highlight"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-sm text-slate-400">Highlight 3</label>
+                                          <Input
+                                            value={finanzenFormData.financialHighlight3}
+                                            onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight3: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            placeholder="Drittes finanzielles Highlight"
+                                          />
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                          <Button onClick={saveFinanzen} className="bg-green-600 hover:bg-green-700">
+                                            Speichern
+                                          </Button>
+                                          <Button onClick={() => setEditingFinanzenStock(null)} variant="outline" className="border-slate-600">
+                                            Abbrechen
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <ul className="space-y-2">
+                                        {stock.financialHighlight1 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">$</span>
+                                            <span>{stock.financialHighlight1}</span>
+                                          </li>
+                                        )}
+                                        {stock.financialHighlight2 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">$</span>
+                                            <span>{stock.financialHighlight2}</span>
+                                          </li>
+                                        )}
+                                        {stock.financialHighlight3 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">$</span>
+                                            <span>{stock.financialHighlight3}</span>
+                                          </li>
+                                        )}
+                                        {!stock.financialHighlight1 && !stock.financialHighlight2 && !stock.financialHighlight3 && (
+                                          <p className="text-slate-400 italic">Keine finanziellen Highlights definiert</p>
+                                        )}
+                                      </ul>
+                                    )}
                                   </div>
                                 </div>
                               </DialogContent>

@@ -35,8 +35,7 @@ export default function About({ onBackClick }: AboutProps) {
   };
 
   const handleWhatsApp = () => {
-    // Replace with your WhatsApp number (format: country code + number without + or spaces)
-    const phoneNumber = "41791234567"; // Example: Swiss number
+    const phoneNumber = import.meta.env.VITE_WHATSAPP_NUMBER || "41791234567";
     const message = encodeURIComponent("Hallo, ich möchte mehr über Ihre Portfolio-Analyse erfahren.");
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, "_blank");
   };
