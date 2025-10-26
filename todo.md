@@ -1,9 +1,10 @@
 # Portfolio BIG - TODO
 
-## Neue Features
-- [ ] Phase 3: Frontend (Newsletter-Formular, Payment-Button, Login-Hinweis)
-- [ ] Phase 4: Zugriffskontrolle (Filter für Free Users, Admin-Funktionen)
-- [ ] Stripe API-Keys konfigurieren
+## In Arbeit
+
+## Später
+- [ ] Stripe API-Keys konfigurieren (erfordert Stripe-Account)
+- [ ] TWINT als Zahlungsmethode aktivieren
 - [ ] Email-Service für Verifizierung konfigurieren
 
 ## Bugs
@@ -45,4 +46,9 @@
 - [x] Phase 2: Payment-Router implementiert (createCheckout, verifyPayment Platzhalter)
 - [x] Newsletter-Formular auf "Über mich" Seite hinzugefügt
 - [x] Newsletter-Export-Button im Admin-Panel (CSV-Download)
+- [x] Zugriffskontrolle: Free Users sehen nur 1 Aktie pro Kategorie
+- [x] Upgrade-Banner für Free Users im Portfolio
+- [x] Payment-Button auf "Über mich" Seite (CHF 10.- einmalig)
+- [x] PaymentButton-Komponente mit Stripe-Integration vorbereitet
+- [x] Anzeige des Zahlungsstatus (bereits bezahlt / noch nicht bezahlt)
 

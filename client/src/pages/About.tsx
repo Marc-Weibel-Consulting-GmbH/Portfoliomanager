@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { NewsletterForm } from "@/components/NewsletterForm";
+import { PaymentButton } from "@/components/PaymentButton";
 
 interface AboutProps {
   onBackClick: () => void;
@@ -117,6 +118,15 @@ export default function About({ onBackClick }: AboutProps) {
             </div>
           </div>
         </div>
+      </Card>
+
+      {/* Payment Section */}
+      <Card className="bg-slate-800 border-slate-700 p-6">
+        <h3 className="text-xl font-bold text-white mb-4">🔓 Vollzugriff freischalten</h3>
+        <p className="text-slate-300 mb-4">
+          Erhalten Sie Zugriff auf alle {import.meta.env.VITE_APP_TITLE || 'Portfolio'} Aktien und Analysen für eine einmalige Gebühr von <strong className="text-white">CHF 10.-</strong>
+        </p>
+        <PaymentButton />
       </Card>
 
       {/* Newsletter Section */}

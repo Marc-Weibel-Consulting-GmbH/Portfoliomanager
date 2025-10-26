@@ -118,6 +118,9 @@ export default function Home() {
     }
   };
 
+  // Check if user has paid access
+  const hasPaidAccess = user?.hasPaid === 1;
+  
   const filteredStocks = useMemo(() => {
     let filtered = stocks.filter(stock => {
       const matchesCategory = !selectedCategory || stock.category === selectedCategory;
@@ -145,8 +148,19 @@ export default function Home() {
       });
     }
 
+    // Access control: Free users see only 1 stock per category
+    if (!hasPaidAccess) {
+      const categorySeen = new Set<string>();
+      filtered = filtered.filter(stock => {
+        if (!stock.category) return true;
+        if (categorySeen.has(stock.category)) return false;
+        categorySeen.add(stock.category);
+        return true;
+      });
+    }
+
     return filtered;
-  }, [stocks, selectedCategory, searchTerm, sortField, sortDirection]);
+  }, [stocks, selectedCategory, searchTerm, sortField, sortDirection, hasPaidAccess]);
 
   const portfolioTotalWeight = useMemo(() => {
     return stocks.reduce((sum, stock) => sum + parseFloat(stock.portfolioWeight || '0'), 0);
@@ -730,6 +744,24 @@ export default function Home() {
               <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
             </CardHeader>
             <CardContent>
+              {!hasPaidAccess && (
+                <div className="mb-4 p-4 bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-700 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-white font-semibold mb-1">🔒 Eingeschränkter Zugriff</h3>
+                      <p className="text-slate-300 text-sm">
+                        Du siehst nur 1 Aktie pro Kategorie. Upgrade für CHF 10.- für Vollzugriff auf alle {stocks.length} Aktien.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => setActiveTab("about")}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
+                    >
+                      Jetzt upgraden
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
