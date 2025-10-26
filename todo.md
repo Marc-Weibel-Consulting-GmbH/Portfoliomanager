@@ -52,3 +52,11 @@
 - [x] PaymentButton-Komponente mit Stripe-Integration vorbereitet
 - [x] Anzeige des Zahlungsstatus (bereits bezahlt / noch nicht bezahlt)
 
+
+- [x] Stripe Webhook Endpoint in server/index.ts registriert
+- [x] Webhook Handler implementiert (checkout.session.completed)
+- [x] User Payment Status Update nach erfolgreicher Zahlung
+- [x] Payment Recording in Datenbank
+- [ ] Stripe Webhook URL im Stripe Dashboard konfigurieren (Produktion)
+- [ ] Live Stripe Keys für Produktion konfigurieren
+

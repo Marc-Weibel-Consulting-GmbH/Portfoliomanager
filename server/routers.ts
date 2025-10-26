@@ -782,13 +782,47 @@ export const appRouter = router({
           throw new Error("Sie haben bereits bezahlt.");
         }
         
-        // TODO: Implement Stripe checkout session creation
-        // For now, return a placeholder
-        return {
-          success: true,
-          message: "Stripe-Integration wird in Kürze verfügbar sein. Bitte kontaktieren Sie uns für manuelle Zahlungen.",
-          checkoutUrl: null,
-        };
+        try {
+          const Stripe = (await import("stripe")).default;
+          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+            apiVersion: "2025-09-30.clover",
+          });
+          
+          // Create Stripe checkout session
+          const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            line_items: [
+              {
+                price_data: {
+                  currency: "chf",
+                  product_data: {
+                    name: "Portfolio BIG Vollzugriff",
+                    description: "Einmaliger Zugriff auf alle Aktien und Analysen",
+                  },
+                  unit_amount: 1000, // CHF 10.00 in cents
+                },
+                quantity: 1,
+              },
+            ],
+            mode: "payment",
+            success_url: `${process.env.VITE_APP_URL || "http://localhost:3000"}?payment=success`,
+            cancel_url: `${process.env.VITE_APP_URL || "http://localhost:3000"}?payment=cancelled`,
+            client_reference_id: user.openId,
+            metadata: {
+              userId: user.openId,
+              userEmail: user.email || "",
+            },
+          });
+          
+          return {
+            success: true,
+            message: "Checkout-Sitzung erstellt",
+            checkoutUrl: session.url,
+          };
+        } catch (error: any) {
+          console.error("Stripe checkout error:", error);
+          throw new Error(`Fehler beim Erstellen der Zahlungssitzung: ${error.message}`);
+        }
       }),
     
     verifyPayment: protectedProcedure
