@@ -54,11 +54,11 @@ export default function About({ onBackClick }: AboutProps) {
       <Card className="bg-slate-800 border-slate-700 p-6">
         <div className="space-y-4">
           <div className="flex items-center gap-4 pb-4 border-b border-slate-700">
-            <div className="w-24 h-24 rounded-full overflow-hidden bg-white flex items-center justify-center">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-white flex items-center justify-center p-2">
               <img 
                 src={import.meta.env.VITE_APP_LOGO || '/logo.png'}
                 alt="Marc Weibel"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 onError={(e) => {
                   // Fallback to initials if logo fails to load
                   if (e.currentTarget.parentElement) {

@@ -96,7 +96,7 @@ export function Admin({ onBackClick }: AdminProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 px-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Admin Panel</h2>

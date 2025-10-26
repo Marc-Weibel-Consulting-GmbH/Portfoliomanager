@@ -1,6 +1,9 @@
 # Portfolio BIG - TODO
 
 ## Neue Features
+- [ ] Benutzer-Registration (Email/Passwort)
+- [ ] Payment-Integration (Stripe für einmalige Gebühr)
+- [ ] Newsletter-Registration (mit Double Opt-In)
 
 ## Bugs
 
@@ -32,4 +35,6 @@
 - [x] Name auf "Über mich" Seite zu Marc Weibel geändert
 - [x] Profilbild verwendet jetzt VITE_APP_LOGO (gleiches Logo wie im Titel)
 - [x] Fallback zu Initialen MW wenn Logo nicht lädt
+- [x] Admin-Bereich zentriert (max-w-4xl wie "Über mich")
+- [x] Logo-Display auf "Über mich" verbessert (object-contain mit Padding)
 
