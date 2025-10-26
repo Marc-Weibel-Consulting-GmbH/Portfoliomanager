@@ -42,7 +42,7 @@ export default function About({ onBackClick }: AboutProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 px-4">
       {/* Header with Back Button */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Über mich</h2>

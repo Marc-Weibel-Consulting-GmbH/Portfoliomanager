@@ -2,6 +2,8 @@
 
 ## Neue Features
 
+## Bugs
+
 ## Abgeschlossen
 - [x] Admin-Panel mit Export/Import-Funktionalität
 - [x] Bearbeiten-Dialog mit Labels für alle Input-Felder
@@ -14,5 +16,8 @@
 - [x] YTD-Preis-Felder beim Hinzufügen und Bearbeiten
 - [x] Research File-Upload zu S3
 - [x] Automatische Portfolio-Neugewichtung
+- [x] Finanzen-Symbol wird immer angezeigt (auch ohne Daten)
+- [x] Duplikate Finanzen-Spalte entfernt
+- [x] "Über mich" Seite zentriert und schmaler (max-w-4xl)
 - [x] Excel-Import-Funktion für Bulk-Preis-Updates
 
