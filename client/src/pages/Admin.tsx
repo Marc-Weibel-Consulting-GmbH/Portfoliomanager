@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft } from "lucide-react";
+import { NewsletterExport } from "../components/NewsletterExport";
 
 interface AdminProps {
   onBackClick?: () => void;
@@ -128,6 +129,21 @@ export function Admin({ onBackClick }: AdminProps) {
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Newsletter Export Card */}
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              📬 Newsletter-Liste exportieren
+            </CardTitle>
+            <CardDescription className="text-slate-400">
+              Exportiert alle Newsletter-Abonnenten als CSV-Datei für Email-Versand
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NewsletterExport />
+          </CardContent>
+        </Card>
+
         {/* Export Card */}
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>

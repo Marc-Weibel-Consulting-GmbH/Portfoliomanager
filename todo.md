@@ -43,4 +43,6 @@
 - [x] Payments-Tabelle erstellt (userId, stripePaymentId, amount, status)
 - [x] Phase 2: Newsletter-Router implementiert (subscribe, exportList)
 - [x] Phase 2: Payment-Router implementiert (createCheckout, verifyPayment Platzhalter)
+- [x] Newsletter-Formular auf "Über mich" Seite hinzugefügt
+- [x] Newsletter-Export-Button im Admin-Panel (CSV-Download)
 

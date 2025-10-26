@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
+import { NewsletterForm } from "@/components/NewsletterForm";
 
 interface AboutProps {
   onBackClick: () => void;
@@ -116,6 +117,15 @@ export default function About({ onBackClick }: AboutProps) {
             </div>
           </div>
         </div>
+      </Card>
+
+      {/* Newsletter Section */}
+      <Card className="bg-slate-800 border-slate-700 p-6">
+        <h3 className="text-xl font-bold text-white mb-4">📬 Newsletter abonnieren</h3>
+        <p className="text-slate-300 mb-4">
+          Erhalten Sie regelmäßig Updates zu meinem Portfolio, Marktanalysen und Investment-Insights direkt in Ihr Postfach.
+        </p>
+        <NewsletterForm />
       </Card>
 
       {/* Contact Section */}
