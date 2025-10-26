@@ -48,6 +48,9 @@ export const stocks = mysqlTable("stocks", {
   chartData: text("chartData"),
   ytdStartPrice: varchar("ytdStartPrice", { length: 50 }),
   ytdPerformance: varchar("ytdPerformance", { length: 50 }),
+  financialHighlight1: text("financialHighlight1"),
+  financialHighlight2: text("financialHighlight2"),
+  financialHighlight3: text("financialHighlight3"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

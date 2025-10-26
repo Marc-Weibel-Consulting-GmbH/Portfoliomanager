@@ -718,6 +718,35 @@ export const appRouter = router({
         };
       }),
   }),
+
+  contact: router({
+    send: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "name" in val && "email" in val && "message" in val) {
+          return val as { name: string; email: string; message: string };
+        }
+        throw new Error("Invalid contact form data");
+      })
+      .mutation(async ({ input }) => {
+        // TODO: Implement email sending logic here
+        // For now, just log the contact form submission
+        console.log("Contact form submission:", input);
+        
+        // You can integrate with an email service like SendGrid, Mailgun, or AWS SES
+        // Example:
+        // await sendEmail({
+        //   to: "your-email@example.com",
+        //   from: input.email,
+        //   subject: `Contact from ${input.name}`,
+        //   text: input.message,
+        // });
+        
+        return {
+          success: true,
+          message: "Thank you for your message!",
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
