@@ -57,6 +57,7 @@
 - [x] Webhook Handler implementiert (checkout.session.completed)
 - [x] User Payment Status Update nach erfolgreicher Zahlung
 - [x] Payment Recording in Datenbank
-- [ ] Stripe Webhook URL im Stripe Dashboard konfigurieren (Produktion)
-- [ ] Live Stripe Keys für Produktion konfigurieren
+- [x] Stripe Webhook URL im Stripe Dashboard konfiguriert
+- [x] STRIPE_WEBHOOK_SECRET in Secrets Panel hinzugefügt
+- [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 
