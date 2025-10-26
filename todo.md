@@ -1,9 +1,10 @@
 # Portfolio BIG - TODO
 
 ## Neue Features
-- [ ] Benutzer-Registration (Email/Passwort)
-- [ ] Payment-Integration (Stripe für einmalige Gebühr)
-- [ ] Newsletter-Registration (mit Double Opt-In)
+- [ ] Phase 3: Frontend (Newsletter-Formular, Payment-Button, Login-Hinweis)
+- [ ] Phase 4: Zugriffskontrolle (Filter für Free Users, Admin-Funktionen)
+- [ ] Stripe API-Keys konfigurieren
+- [ ] Email-Service für Verifizierung konfigurieren
 
 ## Bugs
 
@@ -37,4 +38,9 @@
 - [x] Fallback zu Initialen MW wenn Logo nicht lädt
 - [x] Admin-Bereich zentriert (max-w-4xl wie "Über mich")
 - [x] Logo-Display auf "Über mich" verbessert (object-contain mit Padding)
+- [x] Phase 1: Datenbank erweitert (hasPaid, paymentDate, stripeCustomerId zu Users)
+- [x] Newsletter-Tabelle erstellt (email, subscribedAt, isActive)
+- [x] Payments-Tabelle erstellt (userId, stripePaymentId, amount, status)
+- [x] Phase 2: Newsletter-Router implementiert (subscribe, exportList)
+- [x] Phase 2: Payment-Router implementiert (createCheckout, verifyPayment Platzhalter)
 

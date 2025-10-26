@@ -20,6 +20,9 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  hasPaid: tinyint("hasPaid").notNull().default(0),
+  paymentDate: timestamp("paymentDate"),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -105,4 +108,33 @@ export const research = mysqlTable("research", {
 
 export type Research = typeof research.$inferSelect;
 export type InsertResearch = typeof research.$inferInsert;
+
+
+
+// Newsletter subscribers table
+export const newsletter = mysqlTable("newsletter", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  subscribedAt: timestamp("subscribedAt").defaultNow().notNull(),
+  isActive: tinyint("isActive").notNull().default(1),
+});
+
+export type Newsletter = typeof newsletter.$inferSelect;
+export type InsertNewsletter = typeof newsletter.$inferInsert;
+
+// Payments table
+export const payments = mysqlTable("payments", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  stripePaymentId: varchar("stripePaymentId", { length: 255 }),
+  amount: int("amount").notNull(), // Amount in cents (CHF 10.00 = 1000)
+  currency: varchar("currency", { length: 3 }).notNull().default("CHF"),
+  status: mysqlEnum("status", ["pending", "completed", "failed", "refunded"]).notNull().default("pending"),
+  paymentMethod: varchar("paymentMethod", { length: 50 }), // e.g., "twint", "card"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = typeof payments.$inferInsert;
 

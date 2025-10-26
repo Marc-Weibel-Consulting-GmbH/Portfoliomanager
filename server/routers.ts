@@ -719,6 +719,95 @@ export const appRouter = router({
       }),
   }),
 
+  newsletter: router({
+    subscribe: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "email" in val) {
+          return val as { email: string };
+        }
+        throw new Error("Invalid email");
+      })
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const { newsletter } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const { email } = input;
+        
+        try {
+          // Check if already subscribed
+          const existing = await db.select().from(newsletter).where(eq(newsletter.email, email)).limit(1);
+          
+          if (existing.length > 0) {
+            if (existing[0].isActive) {
+              return { success: false, message: "Diese Email ist bereits registriert." };
+            } else {
+              // Reactivate subscription
+              await db.update(newsletter)
+                .set({ isActive: 1, subscribedAt: new Date() })
+                .where(eq(newsletter.email, email));
+              return { success: true, message: "Newsletter-Abonnement reaktiviert!" };
+            }
+          }
+          
+          // Insert new subscriber
+          await db.insert(newsletter).values({ email });
+          return { success: true, message: "Erfolgreich für den Newsletter registriert!" };
+        } catch (error) {
+          console.error("Newsletter subscription error:", error);
+          return { success: false, message: "Fehler bei der Registrierung. Bitte versuchen Sie es später erneut." };
+        }
+      }),
+    
+    exportList: protectedProcedure
+      .query(async () => {
+        const { getDb } = await import("./db");
+        const { newsletter } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const subscribers = await db.select().from(newsletter).where(eq(newsletter.isActive, 1));
+        return { subscribers };
+      }),
+  }),
+
+  payment: router({
+    createCheckout: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        const user = ctx.user;
+        
+        // Check if user has already paid
+        if (user.hasPaid) {
+          throw new Error("Sie haben bereits bezahlt.");
+        }
+        
+        // TODO: Implement Stripe checkout session creation
+        // For now, return a placeholder
+        return {
+          success: true,
+          message: "Stripe-Integration wird in Kürze verfügbar sein. Bitte kontaktieren Sie uns für manuelle Zahlungen.",
+          checkoutUrl: null,
+        };
+      }),
+    
+    verifyPayment: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "paymentId" in val) {
+          return val as { paymentId: string };
+        }
+        throw new Error("Invalid payment ID");
+      })
+      .mutation(async ({ input, ctx }) => {
+        // TODO: Verify payment with Stripe
+        // For now, return placeholder
+        return {
+          success: false,
+          message: "Payment verification not yet implemented",
+        };
+      }),
+  }),
+
   contact: router({
     send: publicProcedure
       .input((val: unknown) => {
