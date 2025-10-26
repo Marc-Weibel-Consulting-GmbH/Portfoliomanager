@@ -54,11 +54,21 @@ export default function About({ onBackClick }: AboutProps) {
       <Card className="bg-slate-800 border-slate-700 p-6">
         <div className="space-y-4">
           <div className="flex items-center gap-4 pb-4 border-b border-slate-700">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold">
-              JD
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-white flex items-center justify-center">
+              <img 
+                src={import.meta.env.VITE_APP_LOGO || '/logo.png'}
+                alt="Marc Weibel"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to initials if logo fails to load
+                  if (e.currentTarget.parentElement) {
+                    e.currentTarget.parentElement.innerHTML = '<div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold">MW</div>';
+                  }
+                }}
+              />
             </div>
             <div>
-              <h3 className="text-2xl font-bold text-white">John Doe</h3>
+              <h3 className="text-2xl font-bold text-white">Marc Weibel</h3>
               <p className="text-slate-400">Portfolio Manager & Investment Analyst</p>
             </div>
           </div>

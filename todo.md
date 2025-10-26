@@ -29,4 +29,7 @@
 - [x] Input-Felder in Info/Finanzen Pop-ups zu Textarea geändert für automatischen Zeilenumbruch
 - [x] Abbrechen-Button Text auf weiß geändert für besseren Kontrast
 - [x] WhatsApp-Nummer über VITE_WHATSAPP_NUMBER Umgebungsvariable konfigurierbar
+- [x] Name auf "Über mich" Seite zu Marc Weibel geändert
+- [x] Profilbild verwendet jetzt VITE_APP_LOGO (gleiches Logo wie im Titel)
+- [x] Fallback zu Initialen MW wenn Logo nicht lädt
 
