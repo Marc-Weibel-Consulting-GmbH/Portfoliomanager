@@ -20,4 +20,6 @@
 - [x] Duplikate Finanzen-Spalte entfernt
 - [x] "Über mich" Seite zentriert und schmaler (max-w-4xl)
 - [x] Excel-Import-Funktion für Bulk-Preis-Updates
+- [x] Import-Script für finanzielle Highlights aus CSV
+- [x] 62 von 64 Aktien mit finanziellen Highlights befüllt
 

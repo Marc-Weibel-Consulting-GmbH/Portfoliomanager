@@ -1,0 +1,65 @@
+Ticker,Aktie,Highlight 1,Highlight 2,Highlight 3
+KNIN.SW,Kuehne + Nagel International,Q3 2025: EBIT um 23% gesunken auf CHF 92 Mio. aufgrund von Yield-Druck und Währungseffekten.,"H1 2025: Umsatz um 15% gestiegen auf CHF 6,3 Mrd., EBIT um 7% auf CHF 402 Mio.",Erwartetes EPS-Aufhellen durch 100%ige Übernahme von Apex in Q4 2025.
+SGKN.SW,St. Galler Kantonalbank,"H1 2025: Konzerngewinn um 13,6% gestiegen auf CHF 114,1 Mio.","Marktkapitalisierung: CHF 3,67 Mrd. (Stand Juli 2025).",Erwarteter Konzerngewinn 2025 auf Vorjahresniveau.
+NVDA,NVIDIA Corp,"Q4 FY25: Umsatz $39,3 Mrd., +78% YoY; FY25 Umsatz $130,5 Mrd., +114% YoY.","Q2 FY26: Umsatz $46,7 Mrd., +56% YoY; Blackwell-Data-Center-Umsatz +17% QoQ.","Q1 FY26: Umsatz $44,1 Mrd., +69% YoY."
+NEE,NextEra Energy Inc,"Q2 2025: Adjusted EPS $1,05, +9,4% YoY; Nettoeinkommen $2,164 Mrd.","Q2 2025: GAAP Nettoeinkommen $2,028 Mrd., oder $0,98 pro Aktie.",Starke Performance in FPL und NextEra Energy Resources.
+JNJ,Johnson & Johnson,"Q2 2025: Umsatz $23,7 Mrd., +5,8% YoY; Adjusted EPS $2,77.","Q3 2025: Umsatz $24,0 Mrd., +6,8% YoY; Adjusted EPS $2,80.","Q1 2025: Umsatz $21,9 Mrd., +2,4% YoY; Adjusted EPS $2,77."
+TSLA,Tesla Inc,"Q3 2025: Umsatz $21,2 Mrd. Automotive, Energieumsatz +44% auf $3,42 Mrd.","Q3 2025: Record Free Cash Flow $4,0 Mrd.; Cash $41,6 Mrd.",Robotaxi-Service in Bay Area gestartet.
+NESN.SW,Nestlé SA,"H1 2025: Organisches Wachstum 2,9%; Pricing 2,7%.","Q1 2025: Organisches Umsatzwachstum 2,8%.","Umsatz H1 2025: CHF 46,2 Mrd. (geschätzt)."
+GOOGL,Alphabet Inc,"Q2 2025: Umsatz $96,4 Mrd., +14% YoY; EPS $2,31, +22% YoY.","Q1 2025: Umsatz $80,5 Mrd., +12% YoY.","CapEx 2025: $85 Mrd., +13% vs. Vorjahr."
+NOVO-B.CO,Novo Nordisk A/S,"H1 2025: Umsatz +18%, Operating Profit +29%.",Q2 2025: Wegovy-Umsatz +67% YoY.,Full-Year Guidance angepasst aufgrund niedrigerem GLP-1-Wachstum.
+SU.PA,Schneider Electric SE,H1 2025: Record Umsatz und Adjusted EBITA.,"Q1 2025: Umsatz +8,3% auf €9,2 Mrd.",Weltweit nachhaltigstes Unternehmen (TIME/Statista 2025).
+MELI,MercadoLibre Inc,"Q1 2025: Umsatz $5,9 Mrd., +37% YoY; Operating Income $763 Mio., +45% YoY.","Q2 2025: Umsatz $6,8 Mrd., +34% YoY.","Unique Buyers: 67 Mio., +31% YoY."
+META,Meta Platforms Inc,"Q2 2025: Umsatz $39,1 Mrd., +22% YoY.",Q1 2025: CapEx $64-72 Mrd. für FY25.,"Family DAP: 3,48 Mrd., +6% YoY."
+SQN.SW,Swissquote Group Holding,"H1 2025: Client Assets CHF 80,4 Mrd.; Net New Money CHF 5,2 Mrd.",Erhöhte Guidance für 2025.,Vollständige Übernahme von Yuh.
+NET,Cloudflare Inc,"Q1 2025: Umsatz $479,1 Mio., +27% YoY; Non-GAAP Operating Income $56 Mio.","Q2 2025: Umsatz $512,3 Mio., +28% YoY.","Cash: $3,96 Mrd. (Ende Q2)."
+STMN.SW,Straumann Holding,Q1 2025: Organisches Umsatzwachstum 11%.,"H1 2025: Umsatz CHF 1,3 Mrd.",Manufacturing-Netzwerk auf 19 Standorte erweitert.
+BRK-B,Berkshire Hathaway,"Q2 2025: Versicherungsfloat $174 Mrd., +$3 Mrd. QoQ.",Q1 2025: Cash-Position $182 Mrd.,"Pretax Earnings Manufacturing +4,7%."
+LISN.SW,Chocoladefabriken Lindt & Sprüngli,"H1 2025: Organisches Umsatzwachstum 11,2%.","Pricing +15,8% aufgrund Kakaopreisen.",World's most valuable chocolate brand 2025.
+SCMN.SW,Swisscom AG,Q2 2025: Umsatzsteigerung durch Vodafone Italia-Übernahme.,"Q1 2025: Guidance bestätigt: Umsatz CHF 15-15,2 Mrd.",SST-Ratio 256% (Ende Q1).
+GALD.SW,Galderma Group AG,"H1 2025: Umsatz $2,448 Mrd., +12,2% YoY; Core Net Income $329 Mio.","Q1 2025: Umsatz $1,129 Mrd., +8,3% YoY.",Guidance angehoben: 12-14% Umsatzwachstum 2025.
+TSM,Taiwan Semiconductor,"August 2025: Umsatz NT$335,77 Mrd., +33,8% YoY.","Juni 2025: Umsatz NT$263,71 Mrd., +26,9% YoY.","H1 2025: Kumulierter Umsatz NT$1,77 Bio., +40% YoY."
+AVGO,Broadcom Inc,"Q3 FY25: Umsatz $15,95 Mrd., +22% YoY; Adjusted EBITDA $10,7 Mrd., +30% YoY.","Q2 FY25: Free Cash Flow $6,4 Mrd., +44% YoY.","Q1 FY25: Umsatz $14,9 Mrd., +25% YoY."
+MONC.MI,Moncler SpA,"H1 2025: Umsatz €1,226 Mrd., +1% bei konstantem FX.",Stone Island: Umsatz -1% H1.,Net Cash Position: €981 Mio. (Ende Juni 2025).
+AMZN,Amazon.com Inc,"Q2 2025: Umsatz $167,7 Mrd., +13% YoY.","Q1 2025: Umsatz $165,7 Mrd., +10% YoY.",AWS: Annual Run Rate >$123 Mrd.
+FHZN.SW,Flughafen Zürich AG,"H1 2025: Passagiere 14,96 Mio., +3% YoY; Umsatz CHF 640,7 Mio.","Konzernergebnis: CHF 161,3 Mio.","Investitionen: CHF 422,9 Mio. H1."
+ZURN.SW,Zurich Insurance Group AG,"Q2 2025: Business Operating Profit $4,2 Mrd., +6% YoY.",Q1 2025: GWP +11% in Retail.,"Core ROE: 26,3% (Q2)."
+V,Visa Inc,"Q3 2025: Umsatz $10,2 Mrd., +14% YoY; GAAP Net Income $5,3 Mrd.","Q1 2025: Umsatz $9,5 Mrd., +10% YoY.",Cross-Border Volume +16% (ex. Intra-Europe).
+SREN.SW,Swiss Re AG,"H1 2025: Net Income $2,6 Mrd.; ROE 23,0%.","Q1 2025: Net Income $1,3 Mrd.; ROE 22,4%.","ROI 4,1% H1."
+GALE.SW,Galenica AG,"2024: Umsatz +4,7%; Guidance 2025: Umsatz +3-5%, EBIT +4-6%.",Adjusted EBIT 2024: Wachstum erwartet.,Dividend 2025: Mindestens Vorjahresniveau.
+MC.PA,LVMH Moët Hennessy Louis Vuitton SE,"H1 2025: Umsatz €39,8 Mrd., -4% YoY.","Q1 2025: Umsatz €20,3 Mrd., -9% organisch.","Profit Recurring Operations €9 Mrd., -15% YoY."
+SLHN.SW,Swiss Life Holding AG,"Q1 2025: Fee Income CHF 659 Mio., +3%.","H1 2025: Operating Profit CHF 903 Mio., +3%.",SST-Ratio ~200% (Ende Q1).
+HOLN.SW,Holcim Ltd,"H1 2025: Net Sales CHF 7,9 Mrd., +1,8% LC; Recurring EBIT CHF 1,4 Mrd., +10,8% LC.","Q3 2025: Recurring EBIT +9,8% LC.",ECOPact Share: 31% von Ready-Mix-Net Sales.
+MSFT,Microsoft Corp,"Q4 FY25: Umsatz $65,6 Mrd., +15% YoY.","Q3 FY25: Umsatz $64,7 Mrd., +15% YoY.",CapEx FY25: $64-72 Mrd.
+BKW.SW,BKW AG,"H1 2025: EBIT CHF 310,7 Mio.",Guidance 2025: Bestätigt.,"Equity Ratio 50,9%."
+CMBN.SW,Cembra Money Bank AG,"H1 2025: Net Income CHF 87,2 Mio., +11% YoY.","Cost/Income Ratio 47,6%.","ROE 13,8%."
+APP,AppLovin Corp,"Q1 2025: Advertising Revenue $1,159 Mio., +71% YoY.","Q2 2025: Umsatz $1,25 Mrd.",Stock Repurchases $341 Mio.
+BE,Bloom Energy Corp,"Q1 2025: Umsatz $326 Mio., +38,6% YoY.","Q2 2025: Umsatz $401,2 Mio., +19,5% YoY.",Factory Capacity: Verdopplung auf 2 GW bis Ende 2026.
+DELL,Dell Technologies Inc,"Q4 FY25: Umsatz $95,6 Mrd. (Full Year), + Wachstum.","Q3 FY25: Umsatz $24,4 Mrd., +10% YoY.","AI Server Pipeline: $3,6 Mrd. Orders."
+ALAB,Astera Labs Inc,"Q1 FY25: Umsatz $159,4 Mio., +144% YoY.","Q2 FY25: Umsatz $191,9 Mio., +150% YoY.","Cash Flow: $135,4 Mio. (Q2)."
+ANET,Arista Networks Inc,"Q1 2025: Umsatz $2,005 Mrd., +27,6% YoY.",Q2 2025: Non-GAAP Operating Income $1 Mrd.,Stock Repurchases: $787 Mio. (Q1).
+AMD,Advanced Micro Devices Inc,"Q1 2025: Umsatz $7,44 Mrd., +36% YoY; Non-GAAP Net Income $1,6 Mrd.","Q2 2025: Umsatz $7,7 Mrd., +32% YoY.",Client & Gaming: +69% YoY.
+MU,Micron Technology Inc,"Q3 FY25: Umsatz $9,30 Mrd., +36% YoY; HBM +50% QoQ.","Q4 FY25: Umsatz $11,32 Mrd., +46% YoY.",Data Center Revenue: Verdoppelt YoY.
+IREN,IREN Ltd,Q4 2025: Annual Revenue $187 Mio.; EBITDA x10 YoY.,AI Cloud: $200-250 Mio. Annualized Revenue bis Dez 2025.,GPU Financing: $200 Mio. gesichert.
+CIFR,Cipher Mining Inc,Juli 2025: BTC Mined 214; Deployed Rigs 115.000.,Mai 2025: BTC Mined 179; Held 2.966 BTC.,April 2025: BTC Mined 174; Held 855 BTC.
+MDB,MongoDB Inc,"Q4 FY25: Umsatz $548,4 Mio., +20% YoY; ARR $1,666 Mrd., +14% YoY.","Q1 FY26: Umsatz $549 Mio., +22% YoY.",Customers: >54.500 (Ende FY25).
+RMD,ResMed Inc,"Q4 FY25: Umsatz $1,2 Mrd., +10% YoY; Operating Profit +19%.","Q3 FY25: Umsatz $1,1 Mrd., +8% YoY.",Cash Flow: $539 Mio. (Q4).
+ARM,ARM Holdings plc,Q4 FY25: Umsatz >$1 Mrd. (erstmals); Profit before Tax $756 Mio.,"FY25: Umsatz $4,007 Mio., +24% YoY.",R&D-Investitionen: Rekordniveau.
+CRWV,CoreWeave Inc,"Q1 2025: Revenue Backlog $25,9 Mrd.","Q2 2025: Umsatz $5,05 Mrd. (geschätzt).","IPO: $1,5 Mrd. Erlös."
+MRVL,Marvell Technology Inc,"Q4 FY25: Umsatz $1,817 Mrd., +27% YoY.","Q3 FY25: Umsatz $1,516 Mrd., +7% YoY.","Non-GAAP EPS $0,43 (Q3)."
+NTLA,Intellia Therapeutics Inc,"Q1 2025: Cash $707,1 Mio.; Runway bis H1 2027.",Q2 2025: Phase 3 MAGNITUDE: 650 Patienten bis Jahresende.,NTLA-2002: Oral Presentation bei EAACI 2025.
+TEM,Tempus AI Inc,"Q1 2025: Umsatz $255,7 Mio., +75,4% YoY.","Q2 2025: Umsatz $314,6 Mio., +89,6% YoY.","Guidance 2025: Umsatz $1,4-1,5 Mrd."
+HIMS,Hims & Hers Health Inc,"Q1 2025: Umsatz $586 Mio., +111% YoY; Adjusted EBITDA $91,1 Mio.","Q2 2025: Umsatz $544,8 Mio., +73% YoY.","Subscribers: 2,4 Mio., +38% YoY."
+VST,Vistra Corp,"Q2 2025: Net Income $327 Mio.; Cash Flow $1,171 Mio.","Q1 2025: Adjusted EBITDA $1,240 Mio.","Liquidity: $2,618 Mio. (Ende Q2)."
+REMX,VanEck Rare Earth/Strategic Metals ETF,Performance 2025: + Wachstum in Rare Earth Sektor (genaue % nicht verfügbar).,Market Share: Fokus auf Strategic Metals.,ETF Assets: Wachstum durch Nachfrage.
+AXON,Axon Enterprise Inc,"Q1 2025: Umsatz $604 Mio., +31% YoY; ARR $1,1 Mrd., +34%.","Q2 2025: Umsatz $669 Mio., +33% YoY.","Guidance 2025: Umsatz $2,65-2,73 Mrd."
+PATH,UiPath Inc,"Q4 FY25: Umsatz $424 Mio., +5% YoY; ARR $1,666 Mrd., +14% YoY.","Q1 FY26: Umsatz $335 Mio., +16% YoY.",Cash Flow: $146 Mio. (Q4).
+CSL,Carlisle Companies Inc,"Q1 2025: Umsatz $1,1 Mrd. (flach YoY); Adjusted EBITDA Margin 21,8%.",Guidance 2025: Mid-Single-Digit Revenue Growth.,ROIC >25% FY25.
+TRMB,Trimble Inc,"Q1 2025: Umsatz $840,6 Mio., +2% organisch; ARR $2,18 Mrd., +15% organisch.","Q2 2025: Umsatz $875,7 Mio., +8% organisch.","Guidance 2025: Umsatz $3,48-3,56 Mrd."
+SNPS,Synopsys Inc,"Q3 FY25: Umsatz $1,74 Mrd., +14% YoY.","Q2 FY25: Umsatz $1,604 Mrd.","Backlog: $10,1 Mrd. (inkl. Ansys)."
+SOFI,SoFi Technologies Inc,"Q1 2025: Umsatz $772 Mio., +33% YoY; Net Income $71 Mio.","Q2 2025: Umsatz $855 Mio., +44% YoY.","Members: 10,9 Mio., +34% YoY."
+CRWD,CrowdStrike Holdings Inc,"Q3 FY25: ARR $4,02 Mrd., +27% YoY; Umsatz $1,01 Mrd., +29% YoY.","Q4 FY25: ARR $4,24 Mrd., +23% YoY.","Free Cash Flow FY25: $1,07 Mrd."
+PLTR,Palantir Technologies Inc,"Q1 2025: Umsatz $884 Mio., +39% YoY; EPS $0,13.","Q2 2025: U.S. Revenue $733 Mio., +68% YoY.","Guidance 2025: Umsatz $4,14-4,15 Mrd."
+MOH,Molina Healthcare Inc,"Q3 2025: EPS $1,84 (adjusted); Revenue Beat.","Q1 2025: EPS $6,08 (adjusted).","Members: 5,6 Mio. (Ende Q3)."
+KLAC,KLA Corp,"Q4 FY25: Umsatz $3,175 Mrd.; GAAP Net Income $1,20 Mrd.","Q3 FY25: Umsatz $3,06 Mrd., +30% YoY.",Advanced Packaging: >$850 Mio. 2025.
+EOSE,Eos Energy Enterprises Inc,"Q2 2025: Umsatz $15,2 Mio. (Rekord); Guidance $150-190 Mio. FY25.","Q1 2025: Umsatz $10,5 Mio.","Orders Backlog: $680,9 Mio."
