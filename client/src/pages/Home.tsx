@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
@@ -840,28 +841,28 @@ export default function Home() {
                                       <div className="space-y-3">
                                         <div>
                                           <label className="text-sm text-slate-400">Moat 1</label>
-                                          <Input
+                                          <Textarea
                                             value={infoFormData.moat1}
                                             onChange={(e) => setInfoFormData({...infoFormData, moat1: e.target.value})}
-                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
                                             placeholder="Erster Wettbewerbsvorteil"
                                           />
                                         </div>
                                         <div>
                                           <label className="text-sm text-slate-400">Moat 2</label>
-                                          <Input
+                                          <Textarea
                                             value={infoFormData.moat2}
                                             onChange={(e) => setInfoFormData({...infoFormData, moat2: e.target.value})}
-                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
                                             placeholder="Zweiter Wettbewerbsvorteil"
                                           />
                                         </div>
                                         <div>
                                           <label className="text-sm text-slate-400">Moat 3</label>
-                                          <Input
+                                          <Textarea
                                             value={infoFormData.moat3}
                                             onChange={(e) => setInfoFormData({...infoFormData, moat3: e.target.value})}
-                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
                                             placeholder="Dritter Wettbewerbsvorteil"
                                           />
                                         </div>
@@ -869,7 +870,7 @@ export default function Home() {
                                           <Button onClick={saveInfo} className="bg-blue-600 hover:bg-blue-700">
                                             Speichern
                                           </Button>
-                                          <Button onClick={() => setEditingInfoStock(null)} variant="outline" className="border-slate-600">
+                                          <Button onClick={() => setEditingInfoStock(null)} variant="outline" className="border-slate-600 text-white hover:text-white">
                                             Abbrechen
                                           </Button>
                                         </div>
@@ -961,28 +962,28 @@ export default function Home() {
                                       <div className="space-y-3">
                                         <div>
                                           <label className="text-sm text-slate-400">Highlight 1</label>
-                                          <Input
+                                          <Textarea
                                             value={finanzenFormData.financialHighlight1}
                                             onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight1: e.target.value})}
-                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
                                             placeholder="Erstes finanzielles Highlight"
                                           />
                                         </div>
                                         <div>
                                           <label className="text-sm text-slate-400">Highlight 2</label>
-                                          <Input
+                                          <Textarea
                                             value={finanzenFormData.financialHighlight2}
                                             onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight2: e.target.value})}
-                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
                                             placeholder="Zweites finanzielles Highlight"
                                           />
                                         </div>
                                         <div>
                                           <label className="text-sm text-slate-400">Highlight 3</label>
-                                          <Input
+                                          <Textarea
                                             value={finanzenFormData.financialHighlight3}
                                             onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight3: e.target.value})}
-                                            className="bg-slate-700 border-slate-600 text-white mt-1"
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
                                             placeholder="Drittes finanzielles Highlight"
                                           />
                                         </div>
@@ -990,7 +991,7 @@ export default function Home() {
                                           <Button onClick={saveFinanzen} className="bg-green-600 hover:bg-green-700">
                                             Speichern
                                           </Button>
-                                          <Button onClick={() => setEditingFinanzenStock(null)} variant="outline" className="border-slate-600">
+                                          <Button onClick={() => setEditingFinanzenStock(null)} variant="outline" className="border-slate-600 text-white hover:text-white">
                                             Abbrechen
                                           </Button>
                                         </div>

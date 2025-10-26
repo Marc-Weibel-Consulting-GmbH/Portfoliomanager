@@ -26,4 +26,7 @@
 - [x] Bearbeitungs-Button in Finanzen Pop-up zum Ändern der 3 finanziellen Highlights
 - [x] Inline-Bearbeitung in Pop-ups mit Speichern/Abbrechen Buttons
 - [x] Toast-Benachrichtigungen für erfolgreiche Updates
+- [x] Input-Felder in Info/Finanzen Pop-ups zu Textarea geändert für automatischen Zeilenumbruch
+- [x] Abbrechen-Button Text auf weiß geändert für besseren Kontrast
+- [x] WhatsApp-Nummer über VITE_WHATSAPP_NUMBER Umgebungsvariable konfigurierbar
 
