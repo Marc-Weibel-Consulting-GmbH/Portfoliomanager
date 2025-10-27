@@ -359,6 +359,47 @@ export default function Home() {
   }
 
   if (activeTab === "transactions") {
+    // Premium feature: Only paid users can access Transactions
+    if (!hasPaidAccess) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-8">
+          <div className="max-w-4xl mx-auto">
+            <button
+              onClick={() => setActiveTab("portfolio")}
+              className="mb-6 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+            >
+              ← Zurück
+            </button>
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-2xl text-white flex items-center gap-2">
+                  🔒 Premium-Funktion
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-slate-300 text-lg">
+                  Der Transactions-Bereich ist nur für Premium-Mitglieder verfügbar.
+                </p>
+                <p className="text-slate-400">
+                  Upgrade jetzt für CHF 10.- und erhalte Zugriff auf:
+                </p>
+                <ul className="list-disc list-inside text-slate-300 space-y-2 ml-4">
+                  <li>Vollständige Transaction-Historie</li>
+                  <li>Alle 63 Aktien (statt nur 13)</li>
+                  <li>Unbegrenzter Zugriff auf alle Features</li>
+                </ul>
+                <button
+                  onClick={() => setActiveTab("about")}
+                  className="mt-6 px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-semibold rounded-lg transition-all transform hover:scale-105"
+                >
+                  Jetzt upgraden
+                </button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
     return <Transactions onBackClick={() => setActiveTab("portfolio")} />;
   }
 

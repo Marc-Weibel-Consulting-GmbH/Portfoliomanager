@@ -59,5 +59,7 @@
 - [x] Payment Recording in Datenbank
 - [x] Stripe Webhook URL im Stripe Dashboard konfiguriert
 - [x] STRIPE_WEBHOOK_SECRET in Secrets Panel hinzugefügt
+- [x] Transactions Tab als Premium-Funktion implementiert (nur für bezahlte User)
+- [x] Premium-Sperre mit Upgrade-Button für Free Users
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 
