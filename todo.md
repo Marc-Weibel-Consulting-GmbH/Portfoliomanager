@@ -1,7 +1,6 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
-- [ ] Mobile Login funktioniert immer noch nicht (Cookie wird nicht erkannt nach Redirect)
 
 ## Später
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
@@ -88,4 +87,7 @@
 - [x] Traditional POST endpoints für Login/Register (statt tRPC) für bessere Mobile-Kompatibilität
 - [x] Fetch API mit credentials: "include" für Cookie-Handling auf Mobile
 - [x] Server-seitige Cookie-Setzung vor Redirect für zuverlässige Mobile-Authentifizierung
+- [x] Cookie SameSite auf "lax" geändert für Mobile-Browser-Kompatibilität
+- [x] Cookie Domain auf undefined gesetzt (Browser handhabt automatisch)
+- [x] refetchOnMount aktiviert für auth.me Query (lädt User-Daten nach Login neu)
 
