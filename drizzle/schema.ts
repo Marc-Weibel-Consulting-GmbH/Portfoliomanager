@@ -17,7 +17,10 @@ export const users = mysqlTable("users", {
    */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
+  firstName: varchar("firstName", { length: 255 }),
+  lastName: varchar("lastName", { length: 255 }),
   email: varchar("email", { length: 320 }),
+  mobile: varchar("mobile", { length: 50 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   hasPaid: tinyint("hasPaid").notNull().default(0),

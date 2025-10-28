@@ -61,5 +61,11 @@
 - [x] STRIPE_WEBHOOK_SECRET in Secrets Panel hinzugefügt
 - [x] Transactions Tab als Premium-Funktion implementiert (nur für bezahlte User)
 - [x] Premium-Sperre mit Upgrade-Button für Free Users
+- [x] Registrierungsformular für externe Besucher (Vorname, Nachname, Email, Mobile)
+- [x] Auto-Login nach erfolgreicher Registrierung (Session-Cookie)
+- [x] Zugriffskontrolle: Nicht-registrierte Besucher werden zu /register weitergeleitet
+- [x] Automatische Newsletter-Anmeldung bei Registrierung
+- [x] Datenbank-Schema erweitert: firstName, lastName, mobile in users Tabelle
+- [x] Owner hat automatisch Premium-Zugriff ohne Zahlung
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 

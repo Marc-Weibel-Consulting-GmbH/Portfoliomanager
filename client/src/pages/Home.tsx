@@ -24,6 +24,18 @@ export default function Home() {
   const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery();
   const { data: stats } = trpc.stocks.stats.useQuery();
   
+  // Redirect non-authenticated users to register page
+  useEffect(() => {
+    if (!isAuthenticated && !user) {
+      window.location.href = '/register';
+    }
+  }, [isAuthenticated, user]);
+  
+  // Don't render if not authenticated
+  if (!isAuthenticated && !user) {
+    return null;
+  }
+  
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

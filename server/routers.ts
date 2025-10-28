@@ -89,6 +89,72 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+    register: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { users, newsletter } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        
+        const data = input as any;
+        const db = await getDb();
+        
+        if (!db) {
+          throw new Error("Database not available");
+        }
+        
+        // Check if email already exists
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, data.email))
+          .limit(1);
+        
+        if (existingUser.length > 0) {
+          throw new Error("Diese E-Mail-Adresse ist bereits registriert");
+        }
+        
+        // Generate unique openId
+        const openId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        
+        // Create new user
+        await db.insert(users).values({
+          openId,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          name: `${data.firstName} ${data.lastName}`,
+          email: data.email,
+          mobile: data.mobile || null,
+          loginMethod: "email",
+          role: "user",
+          hasPaid: 0,
+        });
+        
+        // Add to newsletter
+        try {
+          await db.insert(newsletter).values({
+            email: data.email,
+            isActive: 1,
+          });
+        } catch (error) {
+          console.error("Failed to add to newsletter:", error);
+        }
+        
+        // Auto-login: Set session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, openId, {
+          ...cookieOptions,
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+        
+        return {
+          success: true,
+          message: "Registrierung erfolgreich!",
+        };
+      }),
   }),
 
   stocks: router({
