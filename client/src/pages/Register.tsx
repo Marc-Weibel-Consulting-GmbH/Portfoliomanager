@@ -2,11 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export default function Register() {
-  const utils = trpc.useUtils();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -15,22 +13,9 @@ export default function Register() {
     mobile: "",
   });
 
-  const registerMutation = trpc.auth.register.useMutation({
-    onSuccess: async () => {
-      toast.success("Registrierung erfolgreich!");
-      // Invalidate auth query to refresh user data
-      await utils.auth.me.invalidate();
-      // Navigate to home page after 2 seconds (allow welcome screen to be read)
-      setTimeout(() => {
-        window.location.replace("/");
-      }, 2000);
-    },
-    onError: (error: any) => {
-      toast.error("Registrierung fehlgeschlagen: " + error.message);
-    },
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
@@ -50,7 +35,30 @@ export default function Register() {
       return;
     }
 
-    registerMutation.mutate(formData);
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+        credentials: "include", // Important for cookies
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Registrierung fehlgeschlagen");
+      }
+      
+      // Success - redirect to home
+      window.location.href = "/";
+    } catch (error: any) {
+      setIsLoading(false);
+      toast.error("Registrierung fehlgeschlagen: " + error.message);
+    }
   };
 
   return (
@@ -139,10 +147,10 @@ export default function Register() {
             <div className="pt-4">
               <Button
                 type="submit"
-                disabled={registerMutation.isPending}
+                disabled={isLoading}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
               >
-                {registerMutation.isPending ? "Registriere..." : "Kostenlos registrieren"}
+                {isLoading ? "Registriere..." : "Kostenlos registrieren"}
               </Button>
             </div>
 

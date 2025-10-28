@@ -44,6 +44,136 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Traditional login endpoint with server-side redirect for mobile compatibility
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      const { getDb } = await import("../db");
+      const { users } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const bcrypt = await import("bcryptjs");
+      const { sdk } = await import("./sdk");
+      const { COOKIE_NAME } = await import("@shared/const");
+      const { getSessionCookieOptions } = await import("./cookies");
+      
+      const db = await getDb();
+      if (!db) {
+        return res.status(500).json({ error: "Database not available" });
+      }
+      
+      // Find user by email
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      
+      if (!user) {
+        return res.status(401).json({ error: "E-Mail oder Passwort falsch" });
+      }
+      
+      // Verify password
+      const isValid = await bcrypt.default.compare(password, user.password || "");
+      if (!isValid) {
+        return res.status(401).json({ error: "E-Mail oder Passwort falsch" });
+      }
+      
+      // Create session token and set cookie
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || `${user.firstName} ${user.lastName}`,
+        expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+      
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+      
+      // Return success - client will handle redirect
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: error.message || "Login failed" });
+    }
+  });
+  
+  // Traditional register endpoint with server-side redirect for mobile compatibility
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { firstName, lastName, email, password, mobile } = req.body;
+      const { getDb } = await import("../db");
+      const { users, newsletter } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const bcrypt = await import("bcryptjs");
+      const { sdk } = await import("./sdk");
+      const { COOKIE_NAME } = await import("@shared/const");
+      const { getSessionCookieOptions } = await import("./cookies");
+      
+      const db = await getDb();
+      if (!db) {
+        return res.status(500).json({ error: "Database not available" });
+      }
+      
+      // Check if email already exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      
+      if (existingUser) {
+        return res.status(400).json({ error: "E-Mail bereits registriert" });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.default.hash(password, 10);
+      
+      // Create unique openId for guest user
+      const openId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      
+      // Insert user
+      await db.insert(users).values({
+        openId,
+        firstName,
+        lastName,
+        email,
+        password: hashedPassword,
+        mobile: mobile || null,
+        name: `${firstName} ${lastName}`,
+        loginMethod: "email",
+      });
+      
+      // Add to newsletter
+      try {
+        await db.insert(newsletter).values({
+          email,
+          isActive: 1,
+        });
+      } catch (error) {
+        console.error("Failed to add to newsletter:", error);
+      }
+      
+      // Create session token and set cookie
+      const sessionToken = await sdk.createSessionToken(openId, {
+        name: `${firstName} ${lastName}`,
+        expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+      
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+      
+      // Return success - client will handle redirect
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Register error:", error);
+      res.status(500).json({ error: error.message || "Registration failed" });
+    }
+  });
+  
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API

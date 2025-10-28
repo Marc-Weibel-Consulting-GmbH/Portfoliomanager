@@ -161,7 +161,7 @@ export const appRouter = router({
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
         
-        return true;
+        return { success: true };
       }),
     login: publicProcedure
       .input((val: unknown) => {
@@ -212,7 +212,7 @@ export const appRouter = router({
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
         
-        return true;
+        return { success: true };
       }),
   }),
 

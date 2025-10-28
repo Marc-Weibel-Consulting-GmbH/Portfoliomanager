@@ -84,4 +84,7 @@
 - [x] Auth Query Invalidation vor Redirect (Cookie-Erkennung verbessert)
 - [x] Redirect-Loop behoben (Welcome-Screen statt automatische Weiterleitung)
 - [x] Mobile Redirect-Problem behoben (window.location.replace statt href)
+- [x] Traditional POST endpoints für Login/Register (statt tRPC) für bessere Mobile-Kompatibilität
+- [x] Fetch API mit credentials: "include" für Cookie-Handling auf Mobile
+- [x] Server-seitige Cookie-Setzung vor Redirect für zuverlässige Mobile-Authentifizierung
 

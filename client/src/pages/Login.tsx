@@ -2,32 +2,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export default function Login() {
-  const utils = trpc.useUtils();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: async () => {
-      toast.success("Login erfolgreich!");
-      // Invalidate auth query to refresh user data
-      await utils.auth.me.invalidate();
-      // Navigate to home page after 2 seconds (allow welcome screen to be read)
-      setTimeout(() => {
-        window.location.replace("/");
-      }, 2000);
-    },
-    onError: (error: any) => {
-      toast.error("Login fehlgeschlagen: " + error.message);
-    },
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
@@ -42,7 +27,30 @@ export default function Login() {
       return;
     }
 
-    loginMutation.mutate(formData);
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+        credentials: "include", // Important for cookies
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Login fehlgeschlagen");
+      }
+      
+      // Success - redirect to home
+      window.location.href = "/";
+    } catch (error: any) {
+      setIsLoading(false);
+      toast.error("Login fehlgeschlagen: " + error.message);
+    }
   };
 
   return (
@@ -89,10 +97,10 @@ export default function Login() {
             <div className="pt-4">
               <Button
                 type="submit"
-                disabled={loginMutation.isPending}
+                disabled={isLoading}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
               >
-                {loginMutation.isPending ? "Anmelden..." : "Anmelden"}
+                {isLoading ? "Anmelden..." : "Anmelden"}
               </Button>
             </div>
 
