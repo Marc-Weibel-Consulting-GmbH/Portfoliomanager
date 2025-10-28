@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo, useEffect } from "react";
-import { Trash2, Edit2, Plus, Download } from "lucide-react";
+import { Trash2, Edit2, Plus, Download, LogOut } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
@@ -448,11 +448,28 @@ export default function Home() {
             <h1 className="text-4xl font-bold mb-2">Portfolio BIG (Balanced Income Growth)</h1>
             <p className="text-blue-100">Verwalte und analysiere dein Aktienportfolio</p>
           </div>
-          <img 
-            src="/portrait.jpg" 
-            alt="Portfolio Manager" 
-            className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
-          />
+          <div className="flex items-center gap-3">
+            <img 
+              src="/portrait.jpg" 
+              alt="Portfolio Manager" 
+              className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
+            />
+            {(isAuthenticated || user) && (
+              <Button
+                onClick={() => {
+                  fetch('/api/trpc/auth.logout', { method: 'POST' })
+                    .then(() => window.location.href = '/register')
+                    .catch(console.error);
+                }}
+                variant="outline"
+                size="sm"
+                className="bg-red-600 border-red-500 text-white hover:bg-red-700 hover:border-red-600"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
