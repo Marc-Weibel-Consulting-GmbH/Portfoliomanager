@@ -24,18 +24,7 @@ export default function Home() {
   const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery();
   const { data: stats } = trpc.stocks.stats.useQuery();
   
-  // Redirect non-authenticated users to register page
-  useEffect(() => {
-    if (!isAuthenticated && !user) {
-      window.location.href = '/register';
-    }
-  }, [isAuthenticated, user]);
-  
-  // Don't render if not authenticated
-  if (!isAuthenticated && !user) {
-    return null;
-  }
-  
+  // All useState hooks MUST be called before any early returns
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -54,6 +43,13 @@ export default function Home() {
   const [editingFinanzenStock, setEditingFinanzenStock] = useState<any>(null);
   const [infoFormData, setInfoFormData] = useState<any>({});
   const [finanzenFormData, setFinanzenFormData] = useState<any>({});
+  
+  // Redirect non-authenticated users to register page (only if not already on /register)
+  useEffect(() => {
+    if (!isAuthenticated && !user && !window.location.pathname.includes('/register')) {
+      window.location.href = '/register';
+    }
+  }, [isAuthenticated, user]);
   
   const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
     tickerSearchQuery,
