@@ -3,7 +3,7 @@ import { trpc } from "../lib/trpc";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft, LogOut } from "lucide-react";
 import { NewsletterExport } from "../components/NewsletterExport";
 
 interface AdminProps {
@@ -103,16 +103,30 @@ export function Admin({ onBackClick }: AdminProps) {
           <h2 className="text-2xl font-bold text-white mb-2">Admin Panel</h2>
           <p className="text-slate-400">Daten exportieren und importieren</p>
         </div>
-        {onBackClick && (
+        <div className="flex gap-2">
+          {onBackClick && (
+            <Button
+              onClick={onBackClick}
+              variant="outline"
+              className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück
+            </Button>
+          )}
           <Button
-            onClick={onBackClick}
+            onClick={() => {
+              fetch('/api/trpc/auth.logout', { method: 'POST' })
+                .then(() => window.location.href = '/register')
+                .catch(console.error);
+            }}
             variant="outline"
-            className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+            className="bg-red-700 border-red-600 text-white hover:bg-red-600"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
           </Button>
-        )}
+        </div>
       </div>
 
       {message && (

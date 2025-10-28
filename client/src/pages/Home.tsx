@@ -21,8 +21,12 @@ import { toast, Toaster } from 'sonner';
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
-  const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery();
-  const { data: stats } = trpc.stocks.stats.useQuery();
+  const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery(undefined, {
+    enabled: isAuthenticated || !!user,
+  });
+  const { data: stats } = trpc.stocks.stats.useQuery(undefined, {
+    enabled: isAuthenticated || !!user,
+  });
   
   // All useState hooks MUST be called before any early returns
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -620,26 +624,30 @@ export default function Home() {
           >
             Research
           </button>
-          <button
-            onClick={() => setActiveTab("import")}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === "import"
-                ? "bg-teal-600 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
-          >
-            Import
-          </button>
-          <button
-            onClick={() => setActiveTab("admin")}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === "admin"
-                ? "bg-purple-600 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
-          >
-            Admin
-          </button>
+          {isAuthenticated && (
+            <>
+              <button
+                onClick={() => setActiveTab("import")}
+                className={`px-4 py-2 rounded font-medium transition-colors ${
+                  activeTab === "import"
+                    ? "bg-teal-600 text-white"
+                    : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                }`}
+              >
+                Import
+              </button>
+              <button
+                onClick={() => setActiveTab("admin")}
+                className={`px-4 py-2 rounded font-medium transition-colors ${
+                  activeTab === "admin"
+                    ? "bg-purple-600 text-white"
+                    : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                }`}
+              >
+                Admin
+              </button>
+            </>
+          )}
           <button
             onClick={() => setActiveTab("about")}
             className={`px-4 py-2 rounded font-medium transition-colors ${

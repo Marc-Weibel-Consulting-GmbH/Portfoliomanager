@@ -67,5 +67,9 @@
 - [x] Automatische Newsletter-Anmeldung bei Registrierung
 - [x] Datenbank-Schema erweitert: firstName, lastName, mobile in users Tabelle
 - [x] Owner hat automatisch Premium-Zugriff ohne Zahlung
+- [x] Logout-Button im Admin-Bereich hinzugefügt
+- [x] Admin-Tab nur für Owner sichtbar (isAuthenticated)
+- [x] Import-Tab nur für Owner sichtbar (isAuthenticated)
+- [x] tRPC-Queries nur bei Authentifizierung aktiviert (verhindert Fehler im Inkognito)
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 
