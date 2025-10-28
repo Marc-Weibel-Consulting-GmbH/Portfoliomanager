@@ -2,6 +2,8 @@
 
 ## In Arbeit
 
+## Bugs
+
 ## Später
 - [ ] Stripe API-Keys konfigurieren (erfordert Stripe-Account)
 - [ ] TWINT als Zahlungsmethode aktivieren
@@ -72,5 +74,6 @@
 - [x] Import-Tab nur für Owner sichtbar (isAuthenticated)
 - [x] tRPC-Queries nur bei Authentifizierung aktiviert (verhindert Fehler im Inkognito)
 - [x] Logout-Button neben Profilbild (oben rechts) für alle registrierten User
+- [x] Routing-Problem behoben: Registrierungsseite lädt jetzt korrekt (/register)
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 

@@ -13,11 +13,11 @@ function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={""} component={Home} />
-      <Route path={"register"} component={Register} />
-      <Route path={"newsroom"} component={Newsroom} />
-      <Route path={"stock/:ticker"} component={StockDetail} />
-      <Route path={"404"} component={NotFound} />
+      <Route path="/" component={Home} />
+      <Route path="/register" component={Register} />
+      <Route path="/newsroom" component={Newsroom} />
+      <Route path="/stock/:ticker" component={StockDetail} />
+      <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
