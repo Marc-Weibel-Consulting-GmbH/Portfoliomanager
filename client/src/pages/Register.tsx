@@ -10,6 +10,7 @@ export default function Register() {
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
     mobile: "",
   });
 
@@ -27,8 +28,13 @@ export default function Register() {
     e.preventDefault();
     
     // Validation
-    if (!formData.firstName || !formData.lastName || !formData.email) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
       toast.error("Bitte fülle alle Pflichtfelder aus");
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      toast.error("Passwort muss mindestens 6 Zeichen lang sein");
       return;
     }
 
@@ -98,6 +104,21 @@ export default function Register() {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">
+                Passwort *
+              </label>
+              <Input
+                type="password"
+                placeholder="Mindestens 6 Zeichen"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
                 Mobile (optional)
               </label>
               <Input
@@ -123,6 +144,13 @@ export default function Register() {
               Nach der Registrierung erhältst du Zugriff auf 1 Aktie pro Kategorie (13 von 63).
               <br />
               Für vollen Zugriff: <span className="text-blue-400 font-semibold">CHF 10.- einmalig</span>
+            </div>
+            
+            <div className="text-center text-sm text-slate-400 pt-2 border-t border-slate-700 mt-4 pt-4">
+              Bereits registriert?{" "}
+              <a href="/login" className="text-blue-400 hover:text-blue-300 font-semibold">
+                Jetzt anmelden
+              </a>
             </div>
           </form>
         </CardContent>

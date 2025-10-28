@@ -120,6 +120,10 @@ export const appRouter = router({
         // Generate unique openId
         const openId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         
+        // Hash password
+        const bcrypt = await import("bcryptjs");
+        const hashedPassword = await bcrypt.default.hash(data.password, 10);
+        
         // Create new user
         await db.insert(users).values({
           openId,
@@ -127,6 +131,7 @@ export const appRouter = router({
           lastName: data.lastName,
           name: `${data.firstName} ${data.lastName}`,
           email: data.email,
+          password: hashedPassword,
           mobile: data.mobile || null,
           loginMethod: "email",
           role: "user",
@@ -153,6 +158,54 @@ export const appRouter = router({
         return {
           success: true,
           message: "Registrierung erfolgreich!",
+        };
+      }),
+    login: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        
+        const data = input as any;
+        const db = await getDb();
+        
+        if (!db) {
+          throw new Error("Database not available");
+        }
+        
+        // Find user by email
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, data.email))
+          .limit(1);
+        
+        if (!user) {
+          throw new Error("E-Mail oder Passwort falsch");
+        }
+        
+        // Verify password
+        const bcrypt = await import("bcryptjs");
+        const isValid = await bcrypt.default.compare(data.password, user.password || "");
+        
+        if (!isValid) {
+          throw new Error("E-Mail oder Passwort falsch");
+        }
+        
+        // Set session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, user.openId, {
+          ...cookieOptions,
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+        
+        return {
+          success: true,
+          message: "Login erfolgreich!",
         };
       }),
   }),

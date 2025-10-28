@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Newsroom from "./pages/Newsroom";
 import StockDetail from "./pages/StockDetail";
 import Register from "./pages/Register";
+import Login from "./pages/Login";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -15,6 +16,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/register" component={Register} />
+      <Route path="/login" component={Login} />
       <Route path="/newsroom" component={Newsroom} />
       <Route path="/stock/:ticker" component={StockDetail} />
       <Route path="/404" component={NotFound} />

@@ -75,5 +75,13 @@
 - [x] tRPC-Queries nur bei Authentifizierung aktiviert (verhindert Fehler im Inkognito)
 - [x] Logout-Button neben Profilbild (oben rechts) für alle registrierten User
 - [x] Routing-Problem behoben: Registrierungsseite lädt jetzt korrekt (/register)
+- [x] Passwort-Feld zur Registrierung hinzugefügt (mindestens 6 Zeichen)
+- [x] Login-Seite mit Email + Passwort erstellt (/login)
+- [x] Passwort-Hashing mit bcrypt implementiert (10 Runden)
+- [x] Login-Router-Endpoint erstellt (auth.login)
+- [x] "Bereits registriert? → Jetzt anmelden" Link auf Registrierungsseite
+- [x] "Noch nicht registriert? → Jetzt registrieren" Link auf Login-Seite
+- [x] Auto-Login nach erfolgreicher Registrierung (30 Tage Session)
+- [x] Passwort-Feld in Datenbank-Schema hinzugefügt
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 

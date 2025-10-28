@@ -20,6 +20,7 @@ export const users = mysqlTable("users", {
   firstName: varchar("firstName", { length: 255 }),
   lastName: varchar("lastName", { length: 255 }),
   email: varchar("email", { length: 320 }),
+  password: varchar("password", { length: 255 }),
   mobile: varchar("mobile", { length: 50 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
