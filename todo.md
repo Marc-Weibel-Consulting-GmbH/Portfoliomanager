@@ -87,5 +87,6 @@
 - [x] Logout führt zu /login statt /register (für bereits registrierte User)
 - [x] Auth Query Invalidation vor Redirect (Cookie-Erkennung verbessert)
 - [x] Redirect-Loop behoben (Welcome-Screen statt automatische Weiterleitung)
+- [x] Mobile Redirect-Problem behoben (window.location.replace statt href)
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 

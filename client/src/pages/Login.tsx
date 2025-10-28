@@ -19,7 +19,7 @@ export default function Login() {
       await utils.auth.me.invalidate();
       // Navigate to home page after 2 seconds (allow welcome screen to be read)
       setTimeout(() => {
-        window.location.href = "/";
+        window.location.replace("/");
       }, 2000);
     },
     onError: (error: any) => {
