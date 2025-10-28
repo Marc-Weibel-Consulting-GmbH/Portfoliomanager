@@ -6,20 +6,19 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export default function Login() {
+  const utils = trpc.useUtils();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Login erfolgreich!");
+      // Invalidate auth query to refresh user data
+      await utils.auth.me.invalidate();
       // Navigate to home page
-      setTimeout(() => {
-        window.location.href = "/";
-        // Force reload after navigation
-        setTimeout(() => window.location.reload(), 100);
-      }, 500);
+      window.location.href = "/";
     },
     onError: (error: any) => {
       toast.error("Login fehlgeschlagen: " + error.message);

@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 export default function Register() {
+  const utils = trpc.useUtils();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -15,14 +16,12 @@ export default function Register() {
   });
 
   const registerMutation = trpc.auth.register.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Registrierung erfolgreich!");
+      // Invalidate auth query to refresh user data
+      await utils.auth.me.invalidate();
       // Navigate to home page
-      setTimeout(() => {
-        window.location.href = "/";
-        // Force reload after navigation
-        setTimeout(() => window.location.reload(), 100);
-      }, 500);
+      window.location.href = "/";
     },
     onError: (error: any) => {
       toast.error("Registrierung fehlgeschlagen: " + error.message);
