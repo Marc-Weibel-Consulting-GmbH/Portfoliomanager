@@ -1,7 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
-- [ ] Mobile Login funktioniert immer noch nicht (auch mit POST endpoints)
+- [ ] Mobile Login funktioniert immer noch nicht (Cookie wird nicht erkannt nach Redirect)
 
 ## Später
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
