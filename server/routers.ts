@@ -148,17 +148,20 @@ export const appRouter = router({
           console.error("Failed to add to newsletter:", error);
         }
         
-        // Auto-login: Set session cookie
+        // Auto-login: Create session token and set cookie
+        const { sdk } = await import("./_core/sdk");
+        const sessionToken = await sdk.createSessionToken(openId, {
+          name: `${data.firstName} ${data.lastName}`,
+          expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+        
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, openId, {
+        ctx.res.cookie(COOKIE_NAME, sessionToken, {
           ...cookieOptions,
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
         
-        return {
-          success: true,
-          message: "Registrierung erfolgreich!",
-        };
+        return true;
       }),
     login: publicProcedure
       .input((val: unknown) => {
@@ -196,17 +199,20 @@ export const appRouter = router({
           throw new Error("E-Mail oder Passwort falsch");
         }
         
-        // Set session cookie
+        // Create session token and set cookie
+        const { sdk } = await import("./_core/sdk");
+        const sessionToken = await sdk.createSessionToken(user.openId, {
+          name: user.name || `${user.firstName} ${user.lastName}`,
+          expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+        
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, user.openId, {
+        ctx.res.cookie(COOKIE_NAME, sessionToken, {
           ...cookieOptions,
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
         
-        return {
-          success: true,
-          message: "Login erfolgreich!",
-        };
+        return true;
       }),
   }),
 

@@ -14,7 +14,10 @@ export default function Login() {
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: () => {
       toast.success("Login erfolgreich!");
-      window.location.href = "/";
+      // Wait for cookie to be set before redirecting
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     },
     onError: (error: any) => {
       toast.error("Login fehlgeschlagen: " + error.message);
