@@ -13,11 +13,13 @@ export default function Login() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: () => {
-      toast.success("Login erfolgreich! Seite wird neu geladen...");
-      // Reload page to ensure cookie is recognized
+      toast.success("Login erfolgreich!");
+      // Navigate to home page
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        window.location.href = "/";
+        // Force reload after navigation
+        setTimeout(() => window.location.reload(), 100);
+      }, 500);
     },
     onError: (error: any) => {
       toast.error("Login fehlgeschlagen: " + error.message);

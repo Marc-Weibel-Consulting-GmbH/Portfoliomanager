@@ -16,11 +16,13 @@ export default function Register() {
 
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: () => {
-      toast.success("Registrierung erfolgreich! Seite wird neu geladen...");
-      // Reload page to ensure cookie is recognized
+      toast.success("Registrierung erfolgreich!");
+      // Navigate to home page
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        window.location.href = "/";
+        // Force reload after navigation
+        setTimeout(() => window.location.reload(), 100);
+      }, 500);
     },
     onError: (error: any) => {
       toast.error("Registrierung fehlgeschlagen: " + error.message);
