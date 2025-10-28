@@ -478,7 +478,7 @@ export default function Home() {
               <Button
                 onClick={() => {
                   fetch('/api/trpc/auth.logout', { method: 'POST' })
-                    .then(() => window.location.href = '/register')
+                    .then(() => window.location.href = '/login')
                     .catch(console.error);
                 }}
                 variant="outline"

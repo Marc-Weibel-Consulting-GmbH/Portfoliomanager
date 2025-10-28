@@ -83,5 +83,9 @@
 - [x] "Noch nicht registriert? → Jetzt registrieren" Link auf Login-Seite
 - [x] Auto-Login nach erfolgreicher Registrierung (30 Tage Session)
 - [x] Passwort-Feld in Datenbank-Schema hinzugefügt
+- [x] Welcome-Screen 2 Sekunden Delay nach Login/Registrierung (besser lesbar)
+- [x] Logout führt zu /login statt /register (für bereits registrierte User)
+- [x] Auth Query Invalidation vor Redirect (Cookie-Erkennung verbessert)
+- [x] Redirect-Loop behoben (Welcome-Screen statt automatische Weiterleitung)
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
 

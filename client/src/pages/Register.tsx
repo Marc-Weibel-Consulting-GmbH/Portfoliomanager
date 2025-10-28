@@ -20,8 +20,10 @@ export default function Register() {
       toast.success("Registrierung erfolgreich!");
       // Invalidate auth query to refresh user data
       await utils.auth.me.invalidate();
-      // Navigate to home page
-      window.location.href = "/";
+      // Navigate to home page after 2 seconds (allow welcome screen to be read)
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 2000);
     },
     onError: (error: any) => {
       toast.error("Registrierung fehlgeschlagen: " + error.message);
