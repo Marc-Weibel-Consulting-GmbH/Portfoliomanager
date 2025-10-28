@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [ ] Mobile Login funktioniert immer noch nicht (auch mit POST endpoints)
 
 ## Später
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)

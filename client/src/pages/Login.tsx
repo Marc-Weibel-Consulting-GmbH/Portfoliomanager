@@ -45,8 +45,14 @@ export default function Login() {
         throw new Error(data.error || "Login fehlgeschlagen");
       }
       
-      // Success - redirect to home
-      window.location.href = "/";
+      // Success - check if cookie was set
+      console.log("[Login] Success, cookies:", document.cookie);
+      
+      // Wait 500ms to ensure cookie is saved, then redirect
+      setTimeout(() => {
+        console.log("[Login] Before redirect, cookies:", document.cookie);
+        window.location.href = "/";
+      }, 500);
     } catch (error: any) {
       setIsLoading(false);
       toast.error("Login fehlgeschlagen: " + error.message);

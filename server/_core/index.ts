@@ -90,6 +90,12 @@ async function startServer() {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       });
       
+      console.log("[Auth] Cookie set:", {
+        cookieName: COOKIE_NAME,
+        cookieOptions,
+        userAgent: req.headers['user-agent'],
+      });
+      
       // Return success - client will handle redirect
       res.json({ success: true });
     } catch (error: any) {
@@ -164,6 +170,12 @@ async function startServer() {
       res.cookie(COOKIE_NAME, sessionToken, {
         ...cookieOptions,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+      
+      console.log("[Auth] Cookie set:", {
+        cookieName: COOKIE_NAME,
+        cookieOptions,
+        userAgent: req.headers['user-agent'],
       });
       
       // Return success - client will handle redirect

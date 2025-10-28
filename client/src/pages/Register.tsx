@@ -53,8 +53,10 @@ export default function Register() {
         throw new Error(data.error || "Registrierung fehlgeschlagen");
       }
       
-      // Success - redirect to home
-      window.location.href = "/";
+      // Success - wait 500ms to ensure cookie is saved, then redirect
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     } catch (error: any) {
       setIsLoading(false);
       toast.error("Registrierung fehlgeschlagen: " + error.message);
