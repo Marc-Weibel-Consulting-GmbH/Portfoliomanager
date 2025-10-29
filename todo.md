@@ -1,14 +1,15 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+
+## Später
+- [ ] "Finanzen" Tab in "Info" Tab integrieren
+- [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
+- [ ] TWINT als Zahlungsmethode aktivieren
 - [ ] Automatische E-Mail-Bestätigung nach erfolgreichem Kauf
 - [ ] Nodemailer SMTP Integration
 - [ ] E-Mail-Template für Kaufbestätigung erstellen
 - [ ] E-Mail-Versand im Stripe Webhook integrieren
-
-## Später
-- [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
-- [ ] TWINT als Zahlungsmethode aktivieren
 - [ ] Email-Service für Verifizierung konfigurieren
 
 ## Abgeschlossen
@@ -109,4 +110,16 @@
 - [x] VITE_APP_URL auf Production-URL gesetzt (Stripe Redirect funktioniert jetzt)
 - [x] Test-User erstellt (test@portfoliobig.ch / test1234) für Payment-Tests
 - [x] WhatsApp-Benachrichtigungen: User-Daten werden jetzt frisch aus DB geladen (nicht aus Session)
+- [x] Portfolio Optimizer Button neben "Portfolio" hinzugefügt
+- [x] Optimizer Fragebogen mit 4 Fragen erstellt
+- [x] Frage 1: Anlagebetrag in CHF (Eingabefeld)
+- [x] Frage 2: Erwartete Dividendenrendite in % (Eingabefeld)
+- [x] Frage 3: Anzahl Aktienpositionen (Slider 1-63)
+- [x] Frage 4: Anlegertyp (konservativ/ausgewogen/dynamisch)
+- [x] Optimizer-Logik implementiert (Dividendenfilter, Anlegertyp-Scoring, Diversifikation)
+- [x] Maximale Positionsgröße: 5% des Gesamtbetrags
+- [x] Optimizer-Ergebnis-Seite mit Stückzahl-Spalte
+- [x] Stückzahl-Berechnung basierend auf Anlagebetrag und Aktienkurs
+- [x] Total in CHF pro Position und Gesamt-Total anzeigen
+- [x] PDF-Export für Optimizer-Ergebnis
 

@@ -15,6 +15,8 @@ import Research from "./Research";
 import Import from "./Import";
 import { Admin } from "./Admin";
 import About from "./About";
+import Optimizer from "./Optimizer";
+import OptimizerResults from "./OptimizerResults";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
@@ -47,6 +49,8 @@ export default function Home() {
   const [editingFinanzenStock, setEditingFinanzenStock] = useState<any>(null);
   const [infoFormData, setInfoFormData] = useState<any>({});
   const [finanzenFormData, setFinanzenFormData] = useState<any>({});
+  const [optimizerInputs, setOptimizerInputs] = useState<any>(null);
+  const [showOptimizerResults, setShowOptimizerResults] = useState(false);
   
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;
@@ -432,6 +436,28 @@ export default function Home() {
     return <About onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "optimizer") {
+    if (showOptimizerResults && optimizerInputs) {
+      return (
+        <OptimizerResults
+          inputs={optimizerInputs}
+          onBack={() => {
+            setShowOptimizerResults(false);
+            setOptimizerInputs(null);
+          }}
+        />
+      );
+    }
+    return (
+      <Optimizer
+        onShowResults={(inputs) => {
+          setOptimizerInputs(inputs);
+          setShowOptimizerResults(true);
+        }}
+      />
+    );
+  }
+
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
   const avgDividend = parseFloat(stats?.avgDividendYield || "0");
 
@@ -621,6 +647,16 @@ export default function Home() {
             }`}
           >
             Portfolio
+          </button>
+          <button
+            onClick={() => setActiveTab("optimizer")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "optimizer"
+                ? "bg-cyan-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Optimizer
           </button>
           <button
             onClick={() => setActiveTab("newsroom")}
