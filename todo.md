@@ -1,10 +1,6 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
-- [ ] Sharpe Ratio Optimierung implementieren
-- [ ] Monte Carlo Simulation für optimale Gewichtung
-- [ ] Zwei Varianten anzeigen: Original vs. Sharpe-optimiert
-- [ ] User kann zwischen Varianten wählen
 
 ## Später
 - [ ] "Finanzen" Tab in "Info" Tab integrieren
@@ -153,4 +149,10 @@
 - [x] Optimizer: Garantiert gewünschte Anzahl Positionen
 - [x] Optimizer: Portfolio-Zusammensetzung angezeigt (Div./Wachstum/Cash)
 - [x] Optimizer: Durchschnittliche Dividendenrendite korrekt berechnet
+- [x] Sharpe Ratio Optimierung implementiert (Monte Carlo mit 5000 Iterationen)
+- [x] Sharpe Ratio Optimizer Utility erstellt (sharpeOptimizer.ts)
+- [x] Sharpe-optimiertes Portfolio wird automatisch berechnet
+- [x] Varianten-Switcher UI (Original vs. Sharpe-optimiert)
+- [x] Anzeige von Sharpe Ratio, Erwarteter Rendite und Volatilität
+- [x] User kann zwischen Varianten wählen
 

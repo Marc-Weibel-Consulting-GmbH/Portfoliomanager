@@ -2,9 +2,11 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp } from "lucide-react";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { optimizePortfolioSharpe, weightsToPositions } from "@/utils/sharpeOptimizer";
+import { useState } from "react";
 
 interface OptimizerInputs {
   investmentAmount: number;
@@ -36,6 +38,8 @@ interface OptimizedPosition {
 
 export default function OptimizerResults({ inputs, onBack }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
+  const [showSharpeOptimized, setShowSharpeOptimized] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   const optimizedPortfolio = useMemo((): {
     positions: OptimizedPosition[];
@@ -239,6 +243,126 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     };
   }, [allStocks, inputs]);
 
+  // Calculate Sharpe-optimized portfolio
+  const sharpeOptimizedPortfolio = useMemo(() => {
+    if (!optimizedPortfolio.positions.length) return null;
+
+    // Get the scored stocks from the original optimization
+    const scored = allStocks.map((stock: any) => {
+      let score = 0;
+      const divYield = parseFloat(stock.dividendYield || "0");
+      const ytdPerf = parseFloat(stock.ytdPerformance || "0");
+      const peRatio = parseFloat(stock.peRatio || "0");
+
+      const isDividendStock = divYield >= 2.5;
+      const isGrowthStock = ytdPerf > 10 || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category);
+
+      if (inputs.investorType === "conservative") {
+        if (isDividendStock) {
+          score += divYield * 20;
+          score += 50;
+        }
+        if (peRatio > 0 && peRatio < 20) score += 15;
+        if (["Healthcare", "Consumer Staples", "Utilities"].includes(stock.category)) {
+          score += 20;
+        }
+        if (isGrowthStock) score += ytdPerf * 0.3;
+        if (ytdPerf < -5) score -= Math.abs(ytdPerf) * 2;
+      } else if (inputs.investorType === "balanced") {
+        if (isDividendStock) {
+          score += divYield * 12;
+          score += 30;
+        }
+        if (isGrowthStock) {
+          score += ytdPerf * 1.2;
+          score += 30;
+        }
+        if (peRatio > 0 && peRatio < 30) score += 10;
+        if (isDividendStock && isGrowthStock) score += 20;
+      } else if (inputs.investorType === "dynamic") {
+        if (isGrowthStock) {
+          score += ytdPerf * 2;
+          score += 50;
+        }
+        if (["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category)) {
+          score += 30;
+        }
+        if (isDividendStock) score += divYield * 8;
+        if (ytdPerf > 20) score += 25;
+      }
+
+      if (divYield >= inputs.expectedDividendYield) {
+        score += 15;
+      }
+
+      return {
+        ...stock,
+        score,
+        isDividendStock,
+        isGrowthStock,
+      };
+    });
+
+    const sorted = scored.sort((a, b) => b.score - a.score);
+
+    // Run Sharpe optimization
+    const optimizationResult = optimizePortfolioSharpe(
+      sorted,
+      inputs.numberOfPositions,
+      5000 // 5000 iterations
+    );
+
+    // Convert weights to positions
+    const selectedStocks = sorted.slice(0, inputs.numberOfPositions);
+    const weightedPositions = weightsToPositions(
+      selectedStocks,
+      optimizationResult.weights,
+      inputs.investmentAmount,
+      0.10 // 10% max
+    );
+
+    // Build full position objects
+    const positions: OptimizedPosition[] = weightedPositions.map(wp => {
+      const stock = selectedStocks.find(s => s.ticker === wp.ticker)!;
+      return {
+        ticker: stock.ticker,
+        companyName: stock.companyName,
+        category: stock.category,
+        currentPrice: stock.currentPrice,
+        dividendYield: stock.dividendYield,
+        ytdPerformance: stock.ytdPerformance,
+        peRatio: stock.peRatio,
+        shares: wp.shares,
+        investmentAmount: wp.amount,
+        portfolioWeight: (wp.amount / inputs.investmentAmount) * 100,
+        score: stock.score,
+        isDividendStock: stock.isDividendStock,
+        isGrowthStock: stock.isGrowthStock,
+      };
+    });
+
+    const totalInvested = positions.reduce((sum, p) => sum + p.investmentAmount, 0);
+    const remainingCash = inputs.investmentAmount - totalInvested;
+
+    const avgDividendYield = positions.length > 0
+      ? positions.reduce((sum, p) => {
+          const divYield = parseFloat(p.dividendYield || "0");
+          return sum + (divYield * p.investmentAmount);
+        }, 0) / totalInvested
+      : 0;
+
+    return {
+      positions,
+      totalInvested,
+      remainingCash,
+      totalShares: positions.reduce((sum, p) => sum + p.shares, 0),
+      avgDividendYield,
+      sharpeRatio: optimizationResult.sharpeRatio,
+      expectedReturn: optimizationResult.expectedReturn * 100, // Convert to percentage
+      volatility: optimizationResult.volatility * 100, // Convert to percentage
+    };
+  }, [allStocks, inputs, optimizedPortfolio.positions]);
+
   const exportToPDF = () => {
     const doc = new jsPDF();
     
@@ -303,19 +427,79 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     );
   }
 
-  // Calculate portfolio composition
-  const dividendAmount = optimizedPortfolio.positions
+  // Select which portfolio to display
+  const displayPortfolio = showSharpeOptimized && sharpeOptimizedPortfolio 
+    ? sharpeOptimizedPortfolio 
+    : optimizedPortfolio;
+
+  // Calculate composition for display portfolio
+  const dividendAmount = displayPortfolio.positions
     .filter((p: any) => p.isDividendStock)
     .reduce((sum, p) => sum + p.investmentAmount, 0);
-  const growthAmount = optimizedPortfolio.positions
+  const growthAmount = displayPortfolio.positions
     .filter((p: any) => p.isGrowthStock && !p.isDividendStock)
     .reduce((sum, p) => sum + p.investmentAmount, 0);
   const dividendPercent = (dividendAmount / inputs.investmentAmount) * 100;
   const growthPercent = (growthAmount / inputs.investmentAmount) * 100;
-  const cashPercent = (optimizedPortfolio.remainingCash / inputs.investmentAmount) * 100;
+  const cashPercent = (displayPortfolio.remainingCash / inputs.investmentAmount) * 100;
 
   return (
     <div className="space-y-4">
+      {/* Variant Switcher */}
+      {sharpeOptimizedPortfolio && (
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-white font-bold mb-1">Portfolio-Varianten</h3>
+                <p className="text-slate-400 text-sm">
+                  Wählen Sie zwischen dem ursprünglichen Portfolio und der Sharpe-Ratio-optimierten Variante
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowSharpeOptimized(false)}
+                  variant={!showSharpeOptimized ? "default" : "outline"}
+                  className={!showSharpeOptimized ? "bg-cyan-600 hover:bg-cyan-700" : ""}
+                >
+                  Original
+                </Button>
+                <Button
+                  onClick={() => setShowSharpeOptimized(true)}
+                  variant={showSharpeOptimized ? "default" : "outline"}
+                  className={showSharpeOptimized ? "bg-green-600 hover:bg-green-700" : ""}
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Sharpe-optimiert
+                </Button>
+              </div>
+            </div>
+            {showSharpeOptimized && sharpeOptimizedPortfolio && (
+              <div className="mt-4 grid grid-cols-3 gap-4 pt-4 border-t border-slate-700">
+                <div>
+                  <p className="text-slate-400 text-xs">Sharpe Ratio</p>
+                  <p className="text-white font-bold text-lg">
+                    {sharpeOptimizedPortfolio.sharpeRatio.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs">Erwartete Rendite</p>
+                  <p className="text-green-400 font-bold text-lg">
+                    {sharpeOptimizedPortfolio.expectedReturn.toFixed(1)}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs">Volatilität</p>
+                  <p className="text-yellow-400 font-bold text-lg">
+                    {sharpeOptimizedPortfolio.volatility.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Portfolio Composition */}
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
@@ -356,7 +540,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-white">
-              CHF {optimizedPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+              CHF {displayPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
@@ -367,7 +551,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-white">
-              CHF {optimizedPortfolio.remainingCash.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+              CHF {displayPortfolio.remainingCash.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
@@ -378,7 +562,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-white">
-              {optimizedPortfolio.positions.length}
+              {displayPortfolio.positions.length}
             </p>
           </CardContent>
         </Card>
@@ -389,7 +573,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-white">
-              {optimizedPortfolio.avgDividendYield.toFixed(2)}%
+              {displayPortfolio.avgDividendYield.toFixed(2)}%
             </p>
           </CardContent>
         </Card>
@@ -427,7 +611,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 </tr>
               </thead>
               <tbody>
-                {optimizedPortfolio.positions.map((pos) => (
+                {displayPortfolio.positions.map((pos) => (
                   <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
                     <td className="p-3 text-blue-400 font-medium">{pos.ticker}</td>
                     <td className="p-3 text-white">{pos.companyName}</td>
@@ -457,10 +641,10 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 <tr className="border-t-2 border-slate-600 font-bold">
                   <td colSpan={5} className="p-3 text-white">Total</td>
                   <td className="p-3 text-right text-white">
-                    CHF {optimizedPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+                    CHF {displayPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="p-3 text-right text-white">
-                    {((optimizedPortfolio.totalInvested / inputs.investmentAmount) * 100).toFixed(2)}%
+                    {((displayPortfolio.totalInvested / inputs.investmentAmount) * 100).toFixed(2)}%
                   </td>
                   <td colSpan={2}></td>
                 </tr>
