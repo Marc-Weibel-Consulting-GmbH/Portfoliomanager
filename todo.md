@@ -1,7 +1,10 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
-- [ ] WhatsApp-Benachrichtigung wird nicht versendet bei Gewichtungsänderung
+- [ ] Automatische E-Mail-Bestätigung nach erfolgreichem Kauf
+- [ ] Nodemailer SMTP Integration
+- [ ] E-Mail-Template für Kaufbestätigung erstellen
+- [ ] E-Mail-Versand im Stripe Webhook integrieren
 
 ## Später
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
@@ -105,4 +108,5 @@
 - [x] Owner/Admin hat automatisch Vollzugriff (ohne Bezahlung)
 - [x] VITE_APP_URL auf Production-URL gesetzt (Stripe Redirect funktioniert jetzt)
 - [x] Test-User erstellt (test@portfoliobig.ch / test1234) für Payment-Tests
+- [x] WhatsApp-Benachrichtigungen: User-Daten werden jetzt frisch aus DB geladen (nicht aus Session)
 

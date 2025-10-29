@@ -363,17 +363,27 @@ export const appRouter = router({
         
         // Send WhatsApp notification if enabled
         if (ctx.user) {
-          await notifyTransaction(
-            ctx.user.mobile,
-            ctx.user.whatsappAlerts === 1,
-            "add",
-            stockData.ticker,
-            stockData.companyName,
-            {
-              newWeight: stockData.portfolioWeight,
-              comment: stockData.comment,
+          // Load fresh user data from DB
+          const { getDb } = await import("./db");
+          const { users } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          const db = await getDb();
+          if (db) {
+            const [freshUser] = await db.select().from(users).where(eq(users.openId, ctx.user.openId)).limit(1);
+            if (freshUser) {
+              await notifyTransaction(
+                freshUser.mobile,
+                freshUser.whatsappAlerts === 1,
+                "add",
+                stockData.ticker,
+                stockData.companyName,
+                {
+                  newWeight: stockData.portfolioWeight,
+                  comment: stockData.comment,
+                }
+              );
             }
-          );
+          }
         }
         
         // Recalculate weights: redistribute other stocks
@@ -437,18 +447,28 @@ export const appRouter = router({
           
           // Send WhatsApp notification for weight update
           if (ctx.user) {
-            await notifyTransaction(
-              ctx.user.mobile,
-              ctx.user.whatsappAlerts === 1,
-              "update_weight",
-              ticker,
-              oldStock?.companyName || ticker,
-              {
-                oldWeight: oldStock?.portfolioWeight || undefined,
-                newWeight: updates.portfolioWeight,
-                comment: updates.comment || undefined,
+            // Load fresh user data from DB to get latest mobile/whatsappAlerts
+            const { getDb } = await import("./db");
+            const { users } = await import("../drizzle/schema");
+            const { eq } = await import("drizzle-orm");
+            const db = await getDb();
+            if (db) {
+              const [freshUser] = await db.select().from(users).where(eq(users.openId, ctx.user.openId)).limit(1);
+              if (freshUser) {
+                await notifyTransaction(
+                  freshUser.mobile,
+                  freshUser.whatsappAlerts === 1,
+                  "update_weight",
+                  ticker,
+                  oldStock?.companyName || ticker,
+                  {
+                    oldWeight: oldStock?.portfolioWeight || undefined,
+                    newWeight: updates.portfolioWeight,
+                    comment: updates.comment || undefined,
+                  }
+                );
               }
-            );
+            }
           }
         } else {
           await logTransaction({
@@ -495,16 +515,26 @@ export const appRouter = router({
           
           // Send WhatsApp notification
           if (ctx.user) {
-            await notifyTransaction(
-              ctx.user.mobile,
-              ctx.user.whatsappAlerts === 1,
-              "delete",
-              ticker,
-              stock.companyName,
-              {
-                comment: comment || undefined,
+            // Load fresh user data from DB
+            const { getDb } = await import("./db");
+            const { users } = await import("../drizzle/schema");
+            const { eq } = await import("drizzle-orm");
+            const db = await getDb();
+            if (db) {
+              const [freshUser] = await db.select().from(users).where(eq(users.openId, ctx.user.openId)).limit(1);
+              if (freshUser) {
+                await notifyTransaction(
+                  freshUser.mobile,
+                  freshUser.whatsappAlerts === 1,
+                  "delete",
+                  ticker,
+                  stock.companyName,
+                  {
+                    comment: comment || undefined,
+                  }
+                );
               }
-            );
+            }
           }
         }
         
