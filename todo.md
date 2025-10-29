@@ -90,4 +90,15 @@
 - [x] Cookie SameSite auf "lax" geändert für Mobile-Browser-Kompatibilität
 - [x] Cookie Domain auf undefined gesetzt (Browser handhabt automatisch)
 - [x] refetchOnMount aktiviert für auth.me Query (lädt User-Daten nach Login neu)
+- [x] WhatsApp-Benachrichtigungen für Transaktionen implementiert
+- [x] Twilio WhatsApp Business API integriert
+- [x] Opt-in System für WhatsApp-Alerts in User-Einstellungen
+- [x] Benachrichtigung bei: Aktie hinzugefügt, gelöscht, Gewichtung erhöht/reduziert
+- [x] Kommentarfeld bei Transaktionen (Add/Delete/Update)
+- [x] Kommentar in Transaktions-Log gespeichert
+- [x] Kommentar in WhatsApp-Alerts angezeigt
+- [x] Kommentar in Transaktions-Historie angezeigt
+- [x] whatsappAlerts Feld in users Tabelle hinzugefügt
+- [x] comment Feld in transactions Tabelle hinzugefügt
+- [x] Twilio API-Keys konfiguriert (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER)
 

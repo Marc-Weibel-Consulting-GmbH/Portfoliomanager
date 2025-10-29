@@ -27,6 +27,7 @@ export const users = mysqlTable("users", {
   hasPaid: tinyint("hasPaid").notNull().default(0),
   paymentDate: timestamp("paymentDate"),
   stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
+  whatsappAlerts: tinyint("whatsappAlerts").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -91,6 +92,7 @@ export const transactions = mysqlTable("transactions", {
   details: text("details"), // JSON string with change details
   oldValue: text("oldValue"),
   newValue: text("newValue"),
+  comment: text("comment"), // User comment explaining the transaction
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

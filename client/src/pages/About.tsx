@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { PaymentButton } from "@/components/PaymentButton";
+import { WhatsAppAlertsSettings } from "@/components/WhatsAppAlertsSettings";
 
 interface AboutProps {
   onBackClick: () => void;
@@ -137,6 +138,9 @@ export default function About({ onBackClick }: AboutProps) {
         </p>
         <NewsletterForm />
       </Card>
+
+      {/* WhatsApp Alerts Settings */}
+      <WhatsAppAlertsSettings />
 
       {/* Contact Section */}
       <Card className="bg-slate-800 border-slate-700 p-6">

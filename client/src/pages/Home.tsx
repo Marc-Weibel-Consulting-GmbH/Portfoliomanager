@@ -240,8 +240,9 @@ export default function Home() {
   };
 
   const handleDeleteStock = (ticker: string) => {
-    if (confirm(`Möchtest du ${ticker} wirklich löschen?`)) {
-      deleteStockMutation.mutate(ticker);
+    const comment = prompt(`Möchtest du ${ticker} wirklich löschen?\n\nOptional: Grund für die Löschung angeben:`);
+    if (comment !== null) { // null means cancelled
+      deleteStockMutation.mutate({ ticker, comment: comment || undefined } as any);
     }
   };
 
@@ -823,6 +824,13 @@ export default function Home() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Textarea
+                    placeholder="Kommentar (optional) - z.B. Grund für Kauf, Strategie, etc."
+                    value={formData.comment || ""}
+                    onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white"
+                    rows={3}
+                  />
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
                     Hinzufügen
                   </Button>
@@ -1238,6 +1246,16 @@ export default function Home() {
                                         value={formData.portfolioWeight || ""}
                                         onChange={(e) => setFormData({ ...formData, portfolioWeight: parseFloat(e.target.value) })}
                                         className="bg-slate-700 border-slate-600 text-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Kommentar (optional)</label>
+                                      <Textarea
+                                        placeholder="z.B. Grund für Änderung, Strategie, etc."
+                                        value={formData.comment || ""}
+                                        onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+                                        className="bg-slate-700 border-slate-600 text-white"
+                                        rows={3}
                                       />
                                     </div>
                                     <Button 

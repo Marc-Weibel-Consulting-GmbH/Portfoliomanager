@@ -296,8 +296,9 @@ export const appRouter = router({
         if (typeof val === "object" && val !== null) return val;
         throw new Error("Invalid input");
       })
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { insertStock, getAllStocks, logTransaction, updateStock } = await import("./db");
+        const { notifyTransaction } = await import("./services/whatsapp");
         const { invokeLLM } = await import("./_core/llm");
         const stockData = input as any;
         
@@ -350,14 +351,30 @@ export const appRouter = router({
         
         await insertStock(stockData);
         
-        // Log transaction
+        // Log transaction with comment
         await logTransaction({
           action: "add",
           ticker: stockData.ticker,
           companyName: stockData.companyName,
           details: JSON.stringify({ category: stockData.category, price: stockData.currentPrice }),
           newValue: stockData.portfolioWeight || "0",
+          comment: stockData.comment || null,
         });
+        
+        // Send WhatsApp notification if enabled
+        if (ctx.user) {
+          await notifyTransaction(
+            ctx.user.mobile,
+            ctx.user.whatsappAlerts === 1,
+            "add",
+            stockData.ticker,
+            stockData.companyName,
+            {
+              newWeight: stockData.portfolioWeight,
+              comment: stockData.comment,
+            }
+          );
+        }
         
         // Recalculate weights: redistribute other stocks
         await recalculateWeights(stockData.ticker, false);
@@ -369,8 +386,9 @@ export const appRouter = router({
         if (typeof val === "object" && val !== null && "ticker" in val) return val;
         throw new Error("Invalid input");
       })
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { updateStock, getStockByTicker, logTransaction } = await import("./db");
+        const { notifyTransaction } = await import("./services/whatsapp");
         const { ticker, ...updates } = input as any;
         
         // Get old values before update
@@ -405,7 +423,7 @@ export const appRouter = router({
         
         await updateStock(ticker, updates);
         
-        // Log transaction
+        // Log transaction with comment
         if (hasWeightUpdate) {
           await logTransaction({
             action: "update_weight",
@@ -414,13 +432,31 @@ export const appRouter = router({
             details: "Portfolio weight updated",
             oldValue: oldStock?.portfolioWeight || "0",
             newValue: updates.portfolioWeight,
+            comment: updates.comment || null,
           });
+          
+          // Send WhatsApp notification for weight update
+          if (ctx.user) {
+            await notifyTransaction(
+              ctx.user.mobile,
+              ctx.user.whatsappAlerts === 1,
+              "update_weight",
+              ticker,
+              oldStock?.companyName || ticker,
+              {
+                oldWeight: oldStock?.portfolioWeight || undefined,
+                newWeight: updates.portfolioWeight,
+                comment: updates.comment || undefined,
+              }
+            );
+          }
         } else {
           await logTransaction({
             action: "update_data",
             ticker,
             companyName: oldStock?.companyName || ticker,
             details: JSON.stringify(updates),
+            comment: updates.comment || null,
           });
         }
         
@@ -433,26 +469,43 @@ export const appRouter = router({
       }),
     delete: protectedProcedure
       .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid ticker");
+        if (typeof val === "object" && val !== null && "ticker" in val) return val;
+        throw new Error("Invalid input");
       })
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { deleteStock, getStockByTicker, logTransaction } = await import("./db");
+        const { notifyTransaction } = await import("./services/whatsapp");
+        const { ticker, comment } = input as { ticker: string; comment?: string };
         
         // Get stock data before deletion
-        const stock = await getStockByTicker(input);
+        const stock = await getStockByTicker(ticker);
         
-        await deleteStock(input);
+        await deleteStock(ticker);
         
-        // Log transaction
+        // Log transaction with comment
         if (stock) {
           await logTransaction({
             action: "delete",
-            ticker: input,
+            ticker,
             companyName: stock.companyName,
             details: JSON.stringify({ category: stock.category, weight: stock.portfolioWeight }),
             oldValue: stock.portfolioWeight || "0",
+            comment: comment || null,
           });
+          
+          // Send WhatsApp notification
+          if (ctx.user) {
+            await notifyTransaction(
+              ctx.user.mobile,
+              ctx.user.whatsappAlerts === 1,
+              "delete",
+              ticker,
+              stock.companyName,
+              {
+                comment: comment || undefined,
+              }
+            );
+          }
         }
         
         // Recalculate weights: redistribute all remaining stocks equally to 100%
@@ -993,6 +1046,29 @@ export const appRouter = router({
           success: true,
           message: "Thank you for your message!",
         };
+      }),
+  }),
+
+  user: router({
+    updateSettings: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) return val;
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        const updates = input as { mobile?: string | null; whatsappAlerts?: number };
+        
+        await db.update(users)
+          .set(updates)
+          .where(eq(users.openId, ctx.user.openId));
+        
+        return { success: true };
       }),
   }),
 });

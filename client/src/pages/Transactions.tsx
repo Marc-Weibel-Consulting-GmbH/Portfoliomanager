@@ -132,6 +132,12 @@ export default function Transactions({ onBackClick }: TransactionsProps) {
                             Vorherige Gewichtung: {parseFloat(tx.oldValue || "0").toFixed(1)}%
                           </div>
                         )}
+                        
+                        {tx.comment && (
+                          <div className="mt-2 text-sm text-slate-300 bg-slate-800 rounded p-2 border-l-2 border-blue-500">
+                            💬 {tx.comment}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="text-right text-sm text-slate-500">
