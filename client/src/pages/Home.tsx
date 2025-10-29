@@ -126,8 +126,8 @@ export default function Home() {
     }
   };
 
-  // Check if user has paid access
-  const hasPaidAccess = user?.hasPaid === 1;
+  // Check if user has paid access (or is owner)
+  const hasPaidAccess = user?.hasPaid === 1 || user?.role === 'admin';
   
   const filteredStocks = useMemo(() => {
     let filtered = stocks.filter(stock => {

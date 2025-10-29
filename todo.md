@@ -101,4 +101,5 @@
 - [x] whatsappAlerts Feld in users Tabelle hinzugefügt
 - [x] comment Feld in transactions Tabelle hinzugefügt
 - [x] Twilio API-Keys konfiguriert (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER)
+- [x] Owner/Admin hat automatisch Vollzugriff (ohne Bezahlung)
 
