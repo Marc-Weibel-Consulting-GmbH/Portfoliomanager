@@ -1,6 +1,10 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [ ] Sharpe Ratio Optimierung implementieren
+- [ ] Monte Carlo Simulation für optimale Gewichtung
+- [ ] Zwei Varianten anzeigen: Original vs. Sharpe-optimiert
+- [ ] User kann zwischen Varianten wählen
 
 ## Später
 - [ ] "Finanzen" Tab in "Info" Tab integrieren
@@ -137,4 +141,16 @@
 - [x] Optimizer Resultat: Durchschnittliche Dividendenrendite gewichtet berechnet
 - [x] Optimizer Resultat: "Gesamt Aktien" durch "Ø Dividendenrendite" ersetzt
 - [x] Login-Problem: Nur auf Dev-URL (Production URL ist stabil)
+- [x] Optimizer: Dividendenfilter entfernt - alle Aktien werden berücksichtigt
+- [x] Optimizer: Scoring-Logik komplett überarbeitet (Div.aktien + Wachstumsaktien)
+- [x] Optimizer: 10% Max-Position statt 5% (flexibler)
+- [x] Optimizer: Garantiert gewünschte Anzahl Positionen durch 3-Pass-Algorithmus
+- [x] Optimizer: Portfolio-Zusammensetzung angezeigt (Div./Wachstum/Cash)
+- [x] Optimizer: Durchschnittliche Dividendenrendite gewichtet berechnet
+- [x] Optimizer: Dividendenfilter entfernt - alle Aktien werden berücksichtigt
+- [x] Optimizer: Scoring-Logik komplett überarbeitet (Div.aktien + Wachstumsaktien)
+- [x] Optimizer: 10% Max-Position statt 5% (flexibler)
+- [x] Optimizer: Garantiert gewünschte Anzahl Positionen
+- [x] Optimizer: Portfolio-Zusammensetzung angezeigt (Div./Wachstum/Cash)
+- [x] Optimizer: Durchschnittliche Dividendenrendite korrekt berechnet
 

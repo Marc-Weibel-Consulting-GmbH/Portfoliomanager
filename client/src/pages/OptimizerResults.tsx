@@ -30,6 +30,8 @@ interface OptimizedPosition {
   investmentAmount: number;
   portfolioWeight: number;
   score: number;
+  isDividendStock: boolean;
+  isGrowthStock: boolean;
 }
 
 export default function OptimizerResults({ inputs, onBack }: OptimizerResultsProps) {
@@ -44,50 +46,71 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   } => {
     if (!allStocks.length) return { positions: [], totalInvested: 0, remainingCash: inputs.investmentAmount, totalShares: 0, avgDividendYield: 0 };
 
-    // Step 1: Filter by dividend yield
-    const filtered = allStocks.filter((stock: any) => {
-      const divYield = parseFloat(stock.dividendYield || "0");
-      return divYield >= inputs.expectedDividendYield;
-    });
-
-    // Step 2: Calculate score for each stock based on investor type
-    const scored = filtered.map((stock: any) => {
+    // Step 1: Calculate score for ALL stocks (no dividend filter)
+    const scored = allStocks.map((stock: any) => {
       let score = 0;
       const divYield = parseFloat(stock.dividendYield || "0");
       const ytdPerf = parseFloat(stock.ytdPerformance || "0");
       const peRatio = parseFloat(stock.peRatio || "0");
+      const currentPrice = parseFloat(stock.currentPrice || "0");
 
-      // Base score from dividend yield
-      score += divYield * 10;
+      // Classify stock type
+      const isDividendStock = divYield >= 2.5;
+      const isGrowthStock = ytdPerf > 10 || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category);
 
       // Investor type specific scoring
       if (inputs.investorType === "conservative") {
-        // Prefer high dividends, low P/E, defensive sectors
-        score += divYield * 15; // Extra weight on dividends
-        if (peRatio > 0 && peRatio < 20) score += 20;
-        if (["Healthcare", "Consumer Staples", "Utilities"].includes(stock.category)) {
-          score += 25;
+        // Prefer dividend stocks (70%), some growth (30%)
+        if (isDividendStock) {
+          score += divYield * 20; // High weight on dividends
+          score += 50; // Bonus for dividend stocks
         }
-        // Penalize high volatility (negative YTD is a proxy)
-        if (ytdPerf < 0) score -= Math.abs(ytdPerf) * 0.5;
+        if (peRatio > 0 && peRatio < 20) score += 15;
+        if (["Healthcare", "Consumer Staples", "Utilities"].includes(stock.category)) {
+          score += 20;
+        }
+        // Small bonus for growth stocks (diversification)
+        if (isGrowthStock) score += ytdPerf * 0.3;
+        // Penalize negative performance
+        if (ytdPerf < -5) score -= Math.abs(ytdPerf) * 2;
       } else if (inputs.investorType === "balanced") {
-        // Balanced approach
-        score += ytdPerf * 0.5; // Moderate weight on performance
-        score += divYield * 10;
-        if (peRatio > 0 && peRatio < 30) score += 10;
-      } else if (inputs.investorType === "dynamic") {
-        // Prefer growth, high performance, tech
-        score += ytdPerf * 1.5; // High weight on performance
-        if (["Technology", "E-Commerce", "Fintech"].includes(stock.category)) {
+        // 50% dividend, 50% growth
+        if (isDividendStock) {
+          score += divYield * 12;
           score += 30;
         }
-        // Less weight on dividends
-        score += divYield * 5;
+        if (isGrowthStock) {
+          score += ytdPerf * 1.2;
+          score += 30;
+        }
+        if (peRatio > 0 && peRatio < 30) score += 10;
+        // Bonus for stocks that are both
+        if (isDividendStock && isGrowthStock) score += 20;
+      } else if (inputs.investorType === "dynamic") {
+        // Prefer growth stocks (70%), some dividend (30%)
+        if (isGrowthStock) {
+          score += ytdPerf * 2;
+          score += 50; // Bonus for growth stocks
+        }
+        if (["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category)) {
+          score += 30;
+        }
+        // Small bonus for dividend stocks (diversification)
+        if (isDividendStock) score += divYield * 8;
+        // Reward high performance
+        if (ytdPerf > 20) score += 25;
+      }
+
+      // Bonus for expected dividend yield match (but not a filter)
+      if (divYield >= inputs.expectedDividendYield) {
+        score += 15;
       }
 
       return {
         ...stock,
         score,
+        isDividendStock,
+        isGrowthStock,
       };
     });
 
@@ -132,8 +155,9 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       }
     }
 
-    // Step 5: Calculate position sizes with 5% max rule
-    const maxPositionAmount = inputs.investmentAmount * 0.05; // 5% max
+    // Step 5: Calculate position sizes with 10% max rule (more flexible)
+    const maxPositionPercent = 0.10; // 10% max per position
+    const maxPositionAmount = inputs.investmentAmount * maxPositionPercent;
     const baseAllocation = inputs.investmentAmount / diversified.length;
     
     const positions: OptimizedPosition[] = diversified.map((stock) => {
@@ -142,7 +166,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         return null;
       }
 
-      // Limit position size to 5% max
+      // Limit position size to 10% max
       const positionAmount = Math.min(baseAllocation, maxPositionAmount);
       const shares = Math.floor(positionAmount / currentPrice);
       const actualInvestment = shares * currentPrice;
@@ -160,6 +184,8 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         investmentAmount: actualInvestment,
         portfolioWeight,
         score: stock.score,
+        isDividendStock: stock.isDividendStock,
+        isGrowthStock: stock.isGrowthStock,
       };
     }).filter(Boolean) as OptimizedPosition[];
 
@@ -176,7 +202,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
       for (const position of sortedByPrice) {
         const currentPrice = parseFloat(position.currentPrice);
-        const maxPositionAmount = inputs.investmentAmount * 0.05; // 5% max
+        const maxPositionAmount = inputs.investmentAmount * maxPositionPercent; // 10% max
         const currentAmount = position.investmentAmount;
         const availableForPosition = maxPositionAmount - currentAmount;
 
@@ -277,8 +303,51 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     );
   }
 
+  // Calculate portfolio composition
+  const dividendAmount = optimizedPortfolio.positions
+    .filter((p: any) => p.isDividendStock)
+    .reduce((sum, p) => sum + p.investmentAmount, 0);
+  const growthAmount = optimizedPortfolio.positions
+    .filter((p: any) => p.isGrowthStock && !p.isDividendStock)
+    .reduce((sum, p) => sum + p.investmentAmount, 0);
+  const dividendPercent = (dividendAmount / inputs.investmentAmount) * 100;
+  const growthPercent = (growthAmount / inputs.investmentAmount) * 100;
+  const cashPercent = (optimizedPortfolio.remainingCash / inputs.investmentAmount) * 100;
+
   return (
     <div className="space-y-4">
+      {/* Portfolio Composition */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white">Portfolio-Zusammensetzung</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-slate-900 p-4 rounded-lg">
+              <p className="text-slate-400 text-sm mb-1">Dividendenaktien</p>
+              <p className="text-2xl font-bold text-blue-400">{dividendPercent.toFixed(1)}%</p>
+              <p className="text-slate-500 text-xs mt-1">
+                CHF {dividendAmount.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="bg-slate-900 p-4 rounded-lg">
+              <p className="text-slate-400 text-sm mb-1">Wachstumsaktien</p>
+              <p className="text-2xl font-bold text-green-400">{growthPercent.toFixed(1)}%</p>
+              <p className="text-slate-500 text-xs mt-1">
+                CHF {growthAmount.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="bg-slate-900 p-4 rounded-lg">
+              <p className="text-slate-400 text-sm mb-1">Cash</p>
+              <p className="text-2xl font-bold text-yellow-400">{cashPercent.toFixed(1)}%</p>
+              <p className="text-slate-500 text-xs mt-1">
+                CHF {optimizedPortfolio.remainingCash.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-slate-800 border-slate-700">
