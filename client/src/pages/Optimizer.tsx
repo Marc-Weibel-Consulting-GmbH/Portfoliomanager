@@ -28,6 +28,15 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
     investorType: "balanced",
   });
   const [showInvestorTest, setShowInvestorTest] = useState(false);
+  const [investmentAmountDisplay, setInvestmentAmountDisplay] = useState("10'000");
+
+  const formatNumber = (num: number): string => {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+  };
+
+  const parseFormattedNumber = (str: string): number => {
+    return Number(str.replace(/'/g, ""));
+  };
 
   const { data: stocks = [] } = trpc.stocks.list.useQuery();
   const maxPositions = stocks.length || 63;
@@ -69,14 +78,21 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                 </span>
                 <Input
                   id="amount"
-                  type="number"
-                  min="1000"
-                  step="1000"
-                  value={inputs.investmentAmount}
-                  onChange={(e) =>
-                    setInputs({ ...inputs, investmentAmount: Number(e.target.value) })
-                  }
-                  className="pl-20 text-3xl h-20 bg-slate-800 border-slate-700 text-white text-center"
+                  type="text"
+                  value={investmentAmountDisplay}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9']/g, "");
+                    setInvestmentAmountDisplay(value);
+                    const numValue = parseFormattedNumber(value);
+                    if (!isNaN(numValue)) {
+                      setInputs({ ...inputs, investmentAmount: numValue });
+                    }
+                  }}
+                  onBlur={() => {
+                    setInvestmentAmountDisplay(formatNumber(inputs.investmentAmount));
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  className="pr-16 text-3xl h-20 bg-slate-800 border-slate-700 text-white text-center"
                 />
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
@@ -112,6 +128,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                   onChange={(e) =>
                     setInputs({ ...inputs, expectedDividendYield: Number(e.target.value) })
                   }
+                  onFocus={(e) => e.target.select()}
                   className="pr-16 text-3xl h-20 bg-slate-800 border-slate-700 text-white text-center"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl text-slate-400">

@@ -128,4 +128,6 @@
 - [x] Optimizer: Anlegertyp-Test implementiert (Risikoprofil-Fragebogen)
 - [x] Test mit 5 Fragen zu Risikotoleranz, Anlagehorizont, Zielen, Erfahrung, Schwankungstoleranz
 - [x] Automatische Empfehlung des Anlegertyps basierend auf Durchschnittsscore
+- [x] Optimizer: Dividendenrendite Input - Auto-Select beim Fokus (0 Problem gelöst)
+- [x] Optimizer: Investitionsbetrag mit Tausendertrennzeichen (10'000 statt 10000)
 
