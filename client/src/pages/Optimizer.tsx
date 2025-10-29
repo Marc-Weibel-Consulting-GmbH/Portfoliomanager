@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { trpc } from "@/lib/trpc";
-import { ArrowRight, ArrowLeft, TrendingUp } from "lucide-react";
+import { ArrowRight, ArrowLeft, TrendingUp, HelpCircle } from "lucide-react";
+import InvestorTypeTest from "@/components/InvestorTypeTest";
 
 interface OptimizerInputs {
   investmentAmount: number;
@@ -26,6 +27,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
     numberOfPositions: 20,
     investorType: "balanced",
   });
+  const [showInvestorTest, setShowInvestorTest] = useState(false);
 
   const { data: stocks = [] } = trpc.stocks.list.useQuery();
   const maxPositions = stocks.length || 63;
@@ -105,7 +107,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                   type="number"
                   min="0"
                   max="10"
-                  step="0.1"
+                  step="0.5"
                   value={inputs.expectedDividendYield}
                   onChange={(e) =>
                     setInputs({ ...inputs, expectedDividendYield: Number(e.target.value) })
@@ -117,7 +119,8 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                 </span>
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
-                Durchschnittliche Dividendenrendite im Portfolio BIG: ~2.5%
+                Durchschnittliche Dividendenrendite im Portfolio BIG: ~2.5%<br />
+                <span className="text-slate-600 text-xs">Hinweis: Bitte Punkt verwenden (z.B. 2.5)</span>
               </p>
             </div>
           </div>
@@ -175,6 +178,14 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
               <p className="text-slate-400">
                 Wählen Sie Ihre Risikobereitschaft
               </p>
+              <Button
+                onClick={() => setShowInvestorTest(true)}
+                variant="outline"
+                className="mt-4 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Anlegertyp-Test machen
+              </Button>
             </div>
             <div className="max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
@@ -252,6 +263,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
   };
 
   return (
+    <>
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
@@ -302,6 +314,17 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
         </div>
       </CardContent>
     </Card>
+
+    {/* Investor Type Test Dialog */}
+    <InvestorTypeTest
+      isOpen={showInvestorTest}
+      onClose={() => setShowInvestorTest(false)}
+      onResult={(type) => {
+        setInputs({ ...inputs, investorType: type });
+        setShowInvestorTest(false);
+      }}
+    />
+    </>
   );
 }
 

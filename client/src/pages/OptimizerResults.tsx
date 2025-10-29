@@ -151,9 +151,38 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       };
     }).filter(Boolean) as OptimizedPosition[];
 
-    // Redistribute any remaining cash from rounding
-    const totalInvested = positions.reduce((sum, p) => sum + p.investmentAmount, 0);
-    const remainingCash = inputs.investmentAmount - totalInvested;
+    // Redistribute any remaining cash from rounding to invest full amount
+    let totalInvested = positions.reduce((sum, p) => sum + p.investmentAmount, 0);
+    let remainingCash = inputs.investmentAmount - totalInvested;
+
+    // Distribute remaining cash by buying additional shares where possible
+    if (remainingCash > 0 && positions.length > 0) {
+      // Sort positions by price (cheapest first) to maximize additional shares
+      const sortedByPrice = [...positions].sort((a, b) => 
+        parseFloat(a.currentPrice) - parseFloat(b.currentPrice)
+      );
+
+      for (const position of sortedByPrice) {
+        const currentPrice = parseFloat(position.currentPrice);
+        const maxPositionAmount = inputs.investmentAmount * 0.05; // 5% max
+        const currentAmount = position.investmentAmount;
+        const availableForPosition = maxPositionAmount - currentAmount;
+
+        if (remainingCash >= currentPrice && availableForPosition >= currentPrice) {
+          const additionalShares = Math.floor(Math.min(remainingCash, availableForPosition) / currentPrice);
+          if (additionalShares > 0) {
+            position.shares += additionalShares;
+            const additionalInvestment = additionalShares * currentPrice;
+            position.investmentAmount += additionalInvestment;
+            position.portfolioWeight = (position.investmentAmount / inputs.investmentAmount) * 100;
+            remainingCash -= additionalInvestment;
+            totalInvested += additionalInvestment;
+          }
+        }
+
+        if (remainingCash < 1) break; // Stop if less than 1 CHF remaining
+      }
+    }
 
     return {
       positions,
@@ -198,19 +227,29 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     doc.save(`portfolio-optimizer-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
+  // Check if too few stocks for good diversification
+  const showDiversificationWarning = optimizedPortfolio.positions.length > 0 && 
+                                      optimizedPortfolio.positions.length < Math.min(inputs.numberOfPositions, 10);
+
   if (!optimizedPortfolio.positions?.length) {
     return (
       <Card className="bg-slate-800 border-slate-700">
         <CardContent className="p-8 text-center">
-          <p className="text-white text-lg">
-            Keine Aktien gefunden, die Ihren Kriterien entsprechen.
+          <div className="text-6xl mb-4">⚠️</div>
+          <p className="text-white text-xl font-bold mb-2">
+            Keine Aktien gefunden
           </p>
           <p className="text-slate-400 mt-2">
-            Versuchen Sie, die Dividendenrendite zu senken oder andere Parameter anzupassen.
+            Mit einer Dividendenrendite von <span className="font-bold text-white">{inputs.expectedDividendYield}%</span> wurden keine passenden Aktien gefunden.
           </p>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mt-6 max-w-md mx-auto">
+            <p className="text-yellow-400 text-sm">
+              💡 <strong>Vorschlag:</strong> Senken Sie die erwartete Dividendenrendite auf 2.0-3.0% für bessere Diversifikation.
+            </p>
+          </div>
           <Button onClick={onBack} className="mt-6 bg-cyan-600 hover:bg-cyan-700">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück
+            Zurück und anpassen
           </Button>
         </CardContent>
       </Card>

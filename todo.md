@@ -122,4 +122,10 @@
 - [x] Stückzahl-Berechnung basierend auf Anlagebetrag und Aktienkurs
 - [x] Total in CHF pro Position und Gesamt-Total anzeigen
 - [x] PDF-Export für Optimizer-Ergebnis
+- [x] Optimizer: Dividendenrendite-Eingabeformat mit Hinweistext (Punkt statt Komma)
+- [x] Optimizer: Gesamten Betrag investieren (Restgeld wird auf Positionen verteilt)
+- [x] Optimizer: Warnung bei zu wenigen Aktien mit Vorschlag Dividendenrendite zu senken
+- [x] Optimizer: Anlegertyp-Test implementiert (Risikoprofil-Fragebogen)
+- [x] Test mit 5 Fragen zu Risikotoleranz, Anlagehorizont, Zielen, Erfahrung, Schwankungstoleranz
+- [x] Automatische Empfehlung des Anlegertyps basierend auf Durchschnittsscore
 
