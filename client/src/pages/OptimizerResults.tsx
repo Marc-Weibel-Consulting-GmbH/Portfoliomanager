@@ -40,8 +40,9 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     totalInvested: number;
     remainingCash: number;
     totalShares: number;
+    avgDividendYield: number;
   } => {
-    if (!allStocks.length) return { positions: [], totalInvested: 0, remainingCash: inputs.investmentAmount, totalShares: 0 };
+    if (!allStocks.length) return { positions: [], totalInvested: 0, remainingCash: inputs.investmentAmount, totalShares: 0, avgDividendYield: 0 };
 
     // Step 1: Filter by dividend yield
     const filtered = allStocks.filter((stock: any) => {
@@ -98,16 +99,18 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     const sectorCounts: Record<string, number> = {};
     const maxPerSector = Math.ceil(inputs.numberOfPositions * 0.3);
     
-    const diversified = topN.filter((stock) => {
+    const diversified: any[] = [];
+    
+    // First pass: Add stocks respecting sector limits
+    for (const stock of topN) {
       const count = sectorCounts[stock.category] || 0;
       if (count < maxPerSector) {
+        diversified.push(stock);
         sectorCounts[stock.category] = count + 1;
-        return true;
       }
-      return false;
-    });
+    }
 
-    // If we filtered out too many, add back lower-scored stocks from underrepresented sectors
+    // Second pass: If we don't have enough, add more from remaining sorted stocks
     if (diversified.length < inputs.numberOfPositions) {
       const remaining = sorted.filter(s => !diversified.find(d => d.ticker === s.ticker));
       for (const stock of remaining) {
@@ -117,6 +120,15 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           diversified.push(stock);
           sectorCounts[stock.category] = count + 1;
         }
+      }
+    }
+
+    // Third pass: If still not enough, relax sector constraint
+    if (diversified.length < inputs.numberOfPositions) {
+      const remaining = sorted.filter(s => !diversified.find(d => d.ticker === s.ticker));
+      for (const stock of remaining) {
+        if (diversified.length >= inputs.numberOfPositions) break;
+        diversified.push(stock);
       }
     }
 
@@ -184,11 +196,20 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       }
     }
 
+    // Calculate average dividend yield weighted by investment amount
+    const avgDividendYield = positions.length > 0
+      ? positions.reduce((sum, p) => {
+          const divYield = parseFloat(p.dividendYield || "0");
+          return sum + (divYield * p.investmentAmount);
+        }, 0) / totalInvested
+      : 0;
+
     return {
       positions,
       totalInvested,
       remainingCash,
       totalShares: positions.reduce((sum, p) => sum + p.shares, 0),
+      avgDividendYield,
     };
   }, [allStocks, inputs]);
 
@@ -295,11 +316,11 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Gesamt Aktien</CardTitle>
+            <CardTitle className="text-sm text-slate-400">Ø Dividendenrendite</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-white">
-              {optimizedPortfolio.totalShares}
+              {optimizedPortfolio.avgDividendYield.toFixed(2)}%
             </p>
           </CardContent>
         </Card>

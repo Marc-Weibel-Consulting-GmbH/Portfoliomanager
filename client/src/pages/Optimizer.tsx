@@ -28,6 +28,8 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
     investorType: "balanced",
   });
   const [showInvestorTest, setShowInvestorTest] = useState(false);
+  const [testResult, setTestResult] = useState<"conservative" | "balanced" | "dynamic" | null>(null);
+  const [showTestConfirmation, setShowTestConfirmation] = useState(false);
   const [investmentAmountDisplay, setInvestmentAmountDisplay] = useState("10'000");
 
   const formatNumber = (num: number): string => {
@@ -92,7 +94,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                     setInvestmentAmountDisplay(formatNumber(inputs.investmentAmount));
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="pr-16 text-3xl h-20 bg-slate-800 border-slate-700 text-white text-center"
+                  className="pl-20 pr-4 text-5xl h-24 bg-slate-800 border-slate-700 text-white text-center font-bold"
                 />
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
@@ -337,10 +339,63 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
       isOpen={showInvestorTest}
       onClose={() => setShowInvestorTest(false)}
       onResult={(type) => {
-        setInputs({ ...inputs, investorType: type });
+        setTestResult(type);
         setShowInvestorTest(false);
+        setShowTestConfirmation(true);
       }}
     />
+
+    {/* Test Result Confirmation Dialog */}
+    {showTestConfirmation && testResult && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <Card className="bg-slate-900 border-slate-800 max-w-md mx-4">
+          <CardHeader>
+            <CardTitle className="text-white text-center">Test-Ergebnis</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="text-center">
+              <p className="text-slate-300 mb-4">
+                Basierend auf Ihren Antworten empfehlen wir:
+              </p>
+              <div className="bg-slate-800 p-4 rounded-lg">
+                <p className="text-2xl font-bold text-white">
+                  {testResult === "conservative" && "Konservativ"}
+                  {testResult === "balanced" && "Ausgewogen"}
+                  {testResult === "dynamic" && "Dynamisch"}
+                </p>
+              </div>
+            </div>
+            <p className="text-slate-400 text-sm text-center">
+              M\u00f6chten Sie diese Empfehlung \u00fcbernehmen oder manuell w\u00e4hlen?
+            </p>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowTestConfirmation(false);
+                  setTestResult(null);
+                }}
+                variant="outline"
+                className="flex-1 bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
+              >
+                Manuell w\u00e4hlen
+              </Button>
+              <Button
+                onClick={() => {
+                  if (testResult) {
+                    setInputs({ ...inputs, investorType: testResult });
+                  }
+                  setShowTestConfirmation(false);
+                  setTestResult(null);
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Empfehlung \u00fcbernehmen
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )}
     </>
   );
 }

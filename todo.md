@@ -130,4 +130,11 @@
 - [x] Automatische Empfehlung des Anlegertyps basierend auf Durchschnittsscore
 - [x] Optimizer: Dividendenrendite Input - Auto-Select beim Fokus (0 Problem gelöst)
 - [x] Optimizer: Investitionsbetrag mit Tausendertrennzeichen (10'000 statt 10000)
+- [x] Optimizer: Investitionsbetrag-Schriftgröße vergrößert (text-5xl, font-bold)
+- [x] Anlegertest: Bestätigungsmeldung mit Resultat und Option zur manuellen Übersteuerung
+- [x] Optimizer Resultat: Diversifikations-Bug behoben (3-Pass-Algorithmus)
+- [x] Optimizer Resultat: Anzahl Titel stimmt jetzt mit gewählter Anzahl überein
+- [x] Optimizer Resultat: Durchschnittliche Dividendenrendite gewichtet berechnet
+- [x] Optimizer Resultat: "Gesamt Aktien" durch "Ø Dividendenrendite" ersetzt
+- [x] Login-Problem: Nur auf Dev-URL (Production URL ist stabil)
 
