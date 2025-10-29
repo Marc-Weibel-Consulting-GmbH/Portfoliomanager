@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [ ] WhatsApp-Benachrichtigung wird nicht versendet bei Gewichtungsänderung
 
 ## Später
 - [ ] Live Stripe Keys für Produktion konfigurieren (wenn bereit für Live-Betrieb)
@@ -102,4 +103,6 @@
 - [x] comment Feld in transactions Tabelle hinzugefügt
 - [x] Twilio API-Keys konfiguriert (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_NUMBER)
 - [x] Owner/Admin hat automatisch Vollzugriff (ohne Bezahlung)
+- [x] VITE_APP_URL auf Production-URL gesetzt (Stripe Redirect funktioniert jetzt)
+- [x] Test-User erstellt (test@portfoliobig.ch / test1234) für Payment-Tests
 
