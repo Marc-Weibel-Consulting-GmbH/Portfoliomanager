@@ -163,3 +163,20 @@
 - [x] Anzeige von Sharpe Ratio, Erwarteter Rendite und Volatilität
 - [x] User kann zwischen Varianten wählen
 
+
+- - [x] Investitionssumme-Schriftgröße reduziert (text-5xl/6xl, gleiche Größe wie CHF)
+- [x] Original-Portfolio: Kennzahlen angezeigt (Ø Div.rendite, Ø YTD Performance, Diversifikation)
+- [x] "Portfolio anpassen" Button zum Zurückkehren mit vorausgefüllten Werten
+- [x] Optimizer als Premium-Funktion (nur für bezahlte User zugänglich)
+- [x] Info-Icons für alle Fachbegriffe (Sharpe Ratio, Volatilität, Dividende, YTD, Diversifikation)en
+
+
+
+## Bugs behoben
+- [x] Info-Buttons mit Tooltip-Komponente implementiert (HelpCircle Icons)
+- [x] Original-Portfolio Kennzahlen angezeigt (Ø Div., Ø YTD, Diversifikation)
+- [x] "Portfolio anpassen" Button implementiert (statt Zurück)
+- [x] Investitionssumme-Font reduziert (text-3xl, einheitlich)
+- [x] Dividendenrendite-Font vergrößert (text-3xl, einheitlich)
+- [x] Gewichtungslogik geändert: Minimum 1%, Maximum 5% (statt 10%)
+

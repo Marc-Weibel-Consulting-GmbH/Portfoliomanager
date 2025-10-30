@@ -437,6 +437,49 @@ export default function Home() {
   }
 
   if (activeTab === "optimizer") {
+    // Premium feature check
+    if (!user?.hasPaid) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-slate-900">
+          <Card className="bg-slate-800 border-slate-700 max-w-md">
+            <CardHeader>
+              <CardTitle className="text-white text-center">🔒 Premium-Funktion</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center space-y-4">
+              <p className="text-slate-300">
+                Der Portfolio Optimizer ist eine Premium-Funktion.
+              </p>
+              <p className="text-slate-400 text-sm">
+                Erhalten Sie Zugriff auf:
+              </p>
+              <ul className="text-left text-slate-400 text-sm space-y-2 max-w-xs mx-auto">
+                <li>✓ Intelligente Portfolio-Optimierung</li>
+                <li>✓ Dividendenrendite-Anpassung</li>
+                <li>✓ Sharpe-Ratio-Optimierung</li>
+                <li>✓ Anlegertyp-basierte Empfehlungen</li>
+                <li>✓ PDF-Export</li>
+              </ul>
+              <div className="flex gap-2 justify-center pt-4">
+                <Button
+                  onClick={() => setActiveTab("about")}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Jetzt upgraden (CHF 10.-)
+                </Button>
+                <Button
+                  onClick={() => setActiveTab("portfolio")}
+                  variant="outline"
+                  className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                >
+                  Zurück
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     if (showOptimizerResults && optimizerInputs) {
       return (
         <OptimizerResults
