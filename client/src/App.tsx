@@ -19,7 +19,9 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/login" component={Login} />
       <Route path="/newsroom" component={Newsroom} />
-      <Route path="/reviews" component={Reviews} />
+      <Route path="/reviews">
+        {() => <Reviews />}
+      </Route>
       <Route path="/stock/:ticker" component={StockDetail} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}

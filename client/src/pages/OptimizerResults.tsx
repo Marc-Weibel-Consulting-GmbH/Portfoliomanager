@@ -64,11 +64,12 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       avgDividendYield: 0 
     };
 
-    const maxPositionPercent = 0.05; // 5% max per position
-    const minPositionPercent = 0.01; // 1% min per position
-    const targetInvestmentPercent = 0.95; // 95% minimum investment target
+    // Dynamic limits based on portfolio size
+    const maxPositionPercent = inputs.investmentAmount < 20000 ? 0.10 : 0.05; // 10% for small, 5% for large
+    const minPositionPercent = inputs.investmentAmount < 20000 ? 0 : 0.01; // No min for small, 1% for large
+    const targetInvestmentPercent = 0.98; // 98% minimum investment target
     const maxPositionAmount = inputs.investmentAmount * maxPositionPercent;
-    const minPositionAmount = inputs.investmentAmount * minPositionPercent;
+    const minPositionAmount = minPositionPercent > 0 ? inputs.investmentAmount * minPositionPercent : 0;
 
     // Step 1: Calculate score with dividend-aware weighting
     const scored = allStocks.map((stock: any) => {
@@ -233,8 +234,14 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       const shares = Math.floor(positionAmount / currentPrice);
       const actualInvestment = shares * currentPrice;
       
-      // If actual investment is below 1% due to rounding, skip this position
-      if (actualInvestment < minPositionAmount * 0.95) { // 5% tolerance for rounding
+      // Only skip if NO shares can be bought (price too high)
+      if (shares === 0) {
+        return null;
+      }
+      
+      // For small portfolios: Allow any amount
+      // For large portfolios: Enforce 1% minimum with tolerance
+      if (minPositionPercent > 0 && actualInvestment < minPositionAmount * 0.95) {
         return null;
       }
       

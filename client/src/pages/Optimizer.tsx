@@ -48,6 +48,12 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
   const maxPositions = stocks.length || 63;
 
   const handleNext = () => {
+    // Validate minimum investment at step 1
+    if (step === 1 && inputs.investmentAmount < 10000) {
+      alert('Der Mindestbetrag beträgt CHF 10\'000');
+      return;
+    }
+    
     if (step < 4) {
       setStep(step + 1);
     } else {
@@ -105,7 +111,7 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
                 />
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
-                Mindestbetrag: CHF 1'000
+                Mindestbetrag: CHF 10'000
               </p>
             </div>
           </div>

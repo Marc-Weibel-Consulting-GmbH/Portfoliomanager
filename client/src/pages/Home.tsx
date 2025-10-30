@@ -15,6 +15,7 @@ import Research from "./Research";
 import Import from "./Import";
 import { Admin } from "./Admin";
 import About from "./About";
+import Reviews from "./Reviews";
 import Optimizer from "./Optimizer";
 import OptimizerResults from "./OptimizerResults";
 import jsPDF from 'jspdf';
@@ -436,6 +437,10 @@ export default function Home() {
     return <About onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "reviews") {
+    return <Reviews onBackClick={() => setActiveTab("portfolio")} />;
+  }
+
   if (activeTab === "optimizer") {
     // Premium feature check
     if (!user?.hasPaid) {
@@ -777,6 +782,16 @@ export default function Home() {
             }`}
           >
             Über mich
+          </button>
+          <button
+            onClick={() => setActiveTab("reviews")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "reviews"
+                ? "bg-green-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Bewertungen
           </button>
         </div>
 

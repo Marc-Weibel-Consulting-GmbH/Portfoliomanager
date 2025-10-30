@@ -228,3 +228,46 @@
 - [x] Review-Carousel vorbereitet (Template ID: 54ad5defc6454f065c28af8b)
 - [ ] Business Unit ID in Settings → Secrets hinzufügen (VITE_TRUSTPILOT_BUSINESS_UNIT_ID)n
 
+
+
+## Trustpilot Demo-Modus
+- [x] Demo-Bewertungen erstellt (4 Fake-Reviews mit Namen, Ratings, Texten)
+- [x] Demo-Header-Widget mit 4.8 Sternen und 127 Bewertungen
+- [x] Demo-Mini-Widget für Footer
+- [x] Demo-Carousel mit allen Reviews
+- [x] Automatisches Umschalten: Demo wenn keine Business Unit ID, Live wenn konfiguriert
+
+
+
+## Navigation
+- [x] "Bewertungen" Button in Navigation hinzugefügt (grüner Button)
+
+
+
+## KRITISCH - Kleine Portfolios funktionieren nicht
+- [x] Dynamische Limits implementiert:
+  - < CHF 20'000: 0% Min, 10% Max (mehr Flexibilität)
+  - ≥ CHF 20'000: 1% Min, 5% Max (wie vorher)
+- [x] 98% Investment-Ziel (statt 95%)
+- [x] Kein Minimum bei kleinen Portfolios (erlaubt alle Aktien)
+- [x] 10% Maximum bei kleinen Portfolios (ermöglicht mehr Positionen)
+
+
+
+## Minimum Investment
+- [x] Minimum Investment auf CHF 10'000 gesetzt (Text + Validierung)
+
+
+
+## Unified Portfolio Optimization (Single Variant)
+- [ ] Sharpe Ratio Button entfernen (nur 1 Portfolio-Variante)
+- [ ] Base Case von Anfang an mit Sharpe Ratio optimieren
+- [ ] Multi-Kriterien-Optimierung: Dividende + Sharpe + Diversifikation
+- [ ] Zielkonflikt-Erkennung implementieren
+- [ ] Interaktives Pop-up bei Zielkonflikten mit Lösungsoptionen:
+  - Option 1: Dividende priorisieren
+  - Option 2: Sharpe Ratio priorisieren
+  - Option 3: Ausgewogen
+  - Option 4: Anzahl Positionen anpassen
+- [ ] User-Auswahl im Pop-up verarbeiten und Portfolio neu berechnen
+

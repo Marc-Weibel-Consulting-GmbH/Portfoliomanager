@@ -1,7 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import TrustpilotWidget from "@/components/trustpilot/TrustpilotWidget";
+import { TrustpilotDemoHeader, TrustpilotDemoCarousel } from "@/components/trustpilot/TrustpilotDemo";
 
-export default function Reviews() {
+export default function Reviews({ onBackClick }: { onBackClick?: () => void }) {
+  const businessUnitId = import.meta.env.VITE_TRUSTPILOT_BUSINESS_UNIT_ID;
+  const isDemoMode = !businessUnitId;
+
   return (
     <div className="space-y-6">
       <div>
@@ -17,27 +21,35 @@ export default function Reviews() {
           <CardTitle className="text-white">Unsere Trustpilot-Bewertungen</CardTitle>
         </CardHeader>
         <CardContent>
-          <TrustpilotWidget
-            templateId="53aa8912dec7e10d38f59f36" // Horizontal widget
-            height="140px"
-            width="100%"
-            theme="dark"
-          />
+          {isDemoMode ? (
+            <TrustpilotDemoHeader />
+          ) : (
+            <TrustpilotWidget
+              templateId="53aa8912dec7e10d38f59f36" // Horizontal widget
+              height="140px"
+              width="100%"
+              theme="dark"
+            />
+          )}
         </CardContent>
       </Card>
 
-      {/* Review Carousel (for later) */}
+      {/* Review Carousel */}
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
           <CardTitle className="text-white">Aktuelle Bewertungen</CardTitle>
         </CardHeader>
         <CardContent>
-          <TrustpilotWidget
-            templateId="54ad5defc6454f065c28af8b" // Carousel template
-            height="240px"
-            width="100%"
-            theme="dark"
-          />
+          {isDemoMode ? (
+            <TrustpilotDemoCarousel />
+          ) : (
+            <TrustpilotWidget
+              templateId="54ad5defc6454f065c28af8b" // Carousel template
+              height="240px"
+              width="100%"
+              theme="dark"
+            />
+          )}
         </CardContent>
       </Card>
 
