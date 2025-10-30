@@ -218,3 +218,13 @@
   2. Anzahl Titel reduzieren - Zeigt empfohlene Anzahl
   3. Investitionsbetrag erhöhen - Zeigt empfohlenen Betrag
 
+
+## Trustpilot Integration
+- [x] Footer-Integration (TrustBox Mini - auf allen Seiten sichtbar)
+- [x] Separate "Bewertungen" Seite erstellt (/reviews)
+- [x] TrustpilotWidget-Komponente (wiederverwendbar)
+- [x] Placeholder wenn keine Business Unit ID konfiguriert
+- [x] Anleitung für Business Unit ID (auf /reviews Seite)
+- [x] Review-Carousel vorbereitet (Template ID: 54ad5defc6454f065c28af8b)
+- [ ] Business Unit ID in Settings → Secrets hinzufügen (VITE_TRUSTPILOT_BUSINESS_UNIT_ID)n
+

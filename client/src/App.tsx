@@ -9,6 +9,7 @@ import Newsroom from "./pages/Newsroom";
 import StockDetail from "./pages/StockDetail";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import Reviews from "./pages/Reviews";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/login" component={Login} />
       <Route path="/newsroom" component={Newsroom} />
+      <Route path="/reviews" component={Reviews} />
       <Route path="/stock/:ticker" component={StockDetail} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}

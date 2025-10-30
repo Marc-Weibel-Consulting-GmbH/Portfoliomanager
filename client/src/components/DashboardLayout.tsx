@@ -26,6 +26,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import TrustpilotMini from "./trustpilot/TrustpilotMini";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Page 1", path: "/" },
@@ -287,6 +288,13 @@ function DashboardLayoutContent({
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>
+        
+        {/* Trustpilot Footer */}
+        <footer className="border-t border-slate-700 bg-slate-900 p-4">
+          <div className="max-w-7xl mx-auto">
+            <TrustpilotMini />
+          </div>
+        </footer>
       </SidebarInset>
     </>
   );
