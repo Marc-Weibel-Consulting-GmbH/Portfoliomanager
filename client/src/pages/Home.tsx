@@ -485,8 +485,9 @@ export default function Home() {
         <OptimizerResults
           inputs={optimizerInputs}
           onBack={() => {
+            // Keep inputs when going back for adjustment
             setShowOptimizerResults(false);
-            setOptimizerInputs(null);
+            // Don't set to null - keep the inputs for adjustment
           }}
         />
       );
@@ -497,6 +498,8 @@ export default function Home() {
           setOptimizerInputs(inputs);
           setShowOptimizerResults(true);
         }}
+        onBack={() => setActiveTab("portfolio")}
+        initialInputs={optimizerInputs || undefined}
       />
     );
   }

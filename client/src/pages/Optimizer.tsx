@@ -17,11 +17,13 @@ interface OptimizerInputs {
 
 interface OptimizerProps {
   onShowResults: (inputs: OptimizerInputs) => void;
+  onBack?: () => void;
+  initialInputs?: OptimizerInputs;
 }
 
-export default function Optimizer({ onShowResults }: OptimizerProps) {
+export default function Optimizer({ onShowResults, onBack, initialInputs }: OptimizerProps) {
   const [step, setStep] = useState(1);
-  const [inputs, setInputs] = useState<OptimizerInputs>({
+  const [inputs, setInputs] = useState<OptimizerInputs>(initialInputs || {
     investmentAmount: 10000,
     expectedDividendYield: 2.0,
     numberOfPositions: 20,
@@ -30,7 +32,9 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
   const [showInvestorTest, setShowInvestorTest] = useState(false);
   const [testResult, setTestResult] = useState<"conservative" | "balanced" | "dynamic" | null>(null);
   const [showTestConfirmation, setShowTestConfirmation] = useState(false);
-  const [investmentAmountDisplay, setInvestmentAmountDisplay] = useState("10'000");
+  const [investmentAmountDisplay, setInvestmentAmountDisplay] = useState(
+    initialInputs ? initialInputs.investmentAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'") : "10'000"
+  );
 
   const formatNumber = (num: number): string => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'");
@@ -54,6 +58,9 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
+    } else if (onBack) {
+      // At step 1, go back to main page
+      onBack();
     }
   };
 
@@ -75,7 +82,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                 Anlagebetrag in CHF
               </Label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-3xl text-slate-400 font-bold">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-slate-400 font-normal">
                   CHF
                 </span>
                 <Input
@@ -94,7 +101,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                     setInvestmentAmountDisplay(formatNumber(inputs.investmentAmount));
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="pl-20 pr-4 text-3xl h-20 bg-slate-800 border-slate-700 text-white text-center font-bold"
+                  className="pl-20 pr-4 text-2xl h-16 bg-slate-800 border-slate-700 text-white text-center font-normal"
                 />
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
@@ -131,9 +138,9 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                     setInputs({ ...inputs, expectedDividendYield: Number(e.target.value) })
                   }
                   onFocus={(e) => e.target.select()}
-                  className="pr-16 text-3xl h-20 bg-slate-800 border-slate-700 text-white text-center font-bold"
+                  className="pr-16 text-2xl h-16 bg-slate-800 border-slate-700 text-white text-center font-normal"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-3xl text-slate-400 font-bold">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl text-slate-400 font-normal">
                   %
                 </span>
               </div>
@@ -316,7 +323,6 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
         <div className="flex justify-between mt-8">
           <Button
             onClick={handleBack}
-            disabled={step === 1}
             variant="outline"
             className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
           >

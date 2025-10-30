@@ -180,3 +180,41 @@
 - [x] Dividendenrendite-Font vergrößert (text-3xl, einheitlich)
 - [x] Gewichtungslogik geändert: Minimum 1%, Maximum 5% (statt 10%)
 
+
+
+## Kritische Bugs
+- [ ] Gewichtungslogik: Positionen unter 1% werden erstellt (Minimum nicht eingehalten)
+- [ ] Gewichtungslogik: Weniger als 90% des Kapitals wird investiert (Ziel: min. 90%)
+
+
+- [x] 0% Positionen gefiltert (< 0.95% werden entfernt)
+- [x] 90% Investment-Ziel implementiert (iterative Verteilung nach Filterung)
+- [x] Zurück-Button beim Optimizer-Start funktioniert (zurück zu Portfolio)
+
+
+
+## Portfolio Anpassen Bugs
+- [ ] Nach Portfolio-Anpassung: 0% Positionen erscheinen wieder
+- [ ] Nach Portfolio-Anpassung: >10% Cash (weniger als 90% investiert)
+- [ ] Gewichtungslogik funktioniert nicht konsistent bei verschiedenen Szenarien
+- [ ] Prüfen: Werden Eingaben beim "Portfolio anpassen" übernommen?
+
+
+
+## KRITISCH - Gewichtungslogik komplett kaputt
+- [x] Gesamte Logik neu geschrieben (einfacher, robuster)
+- [x] Dividenden-Optimierung entfernt (zu fehleranfällig)
+- [x] Score-Berechnung berücksichtigt Dividenden-Ziel direkt
+- [x] 95% Investment-Ziel (statt 90%)
+- [x] 1%-5% Gewichtung strikt durchgesetzt
+- [x] Filter < 1% am Ende
+
+
+
+## Minimum Investment Conflict
+- [x] Warnung wenn 1% Minimum nicht erreichbar (z.B. CHF 10'000 für 20 Positionen)
+- [x] 3 Optionen implementiert:
+  1. Min. 1% unterschreiten (flexibel) - Portfolio wird trotzdem erstellt
+  2. Anzahl Titel reduzieren - Zeigt empfohlene Anzahl
+  3. Investitionsbetrag erhöhen - Zeigt empfohlenen Betrag
+

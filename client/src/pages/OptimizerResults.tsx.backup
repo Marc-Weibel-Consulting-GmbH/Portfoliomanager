@@ -41,14 +41,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const [showSharpeOptimized, setShowSharpeOptimized] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [showMinInvestmentWarning, setShowMinInvestmentWarning] = useState(false);
-  const [minInvestmentConflict, setMinInvestmentConflict] = useState<{
-    tooExpensiveStocks: number;
-    suggestedPositions: number;
-    suggestedAmount: number;
-  } | null>(null);
 
-  // SIMPLIFIED PORTFOLIO OPTIMIZATION - No complex dividend swapping
   const optimizedPortfolio = useMemo((): {
     positions: OptimizedPosition[];
     totalInvested: number;
@@ -56,26 +49,15 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     totalShares: number;
     avgDividendYield: number;
   } => {
-    if (!allStocks.length) return { 
-      positions: [], 
-      totalInvested: 0, 
-      remainingCash: inputs.investmentAmount, 
-      totalShares: 0, 
-      avgDividendYield: 0 
-    };
+    if (!allStocks.length) return { positions: [], totalInvested: 0, remainingCash: inputs.investmentAmount, totalShares: 0, avgDividendYield: 0 };
 
-    const maxPositionPercent = 0.05; // 5% max per position
-    const minPositionPercent = 0.01; // 1% min per position
-    const targetInvestmentPercent = 0.95; // 95% minimum investment target
-    const maxPositionAmount = inputs.investmentAmount * maxPositionPercent;
-    const minPositionAmount = inputs.investmentAmount * minPositionPercent;
-
-    // Step 1: Calculate score with dividend-aware weighting
+    // Step 1: Calculate score for ALL stocks (no dividend filter)
     const scored = allStocks.map((stock: any) => {
       let score = 0;
       const divYield = parseFloat(stock.dividendYield || "0");
       const ytdPerf = parseFloat(stock.ytdPerformance || "0");
       const peRatio = parseFloat(stock.peRatio || "0");
+      const currentPrice = parseFloat(stock.currentPrice || "0");
 
       // Classify stock type
       const isDividendStock = divYield >= 2.5;
@@ -124,14 +106,9 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         if (ytdPerf > 20) score += 25;
       }
 
-      // IMPORTANT: Boost score based on how close dividend is to target
-      const divDiff = Math.abs(divYield - inputs.expectedDividendYield);
-      if (divDiff < 0.5) {
-        score += 30; // Very close to target
-      } else if (divDiff < 1.0) {
-        score += 20; // Close to target
-      } else if (divDiff < 2.0) {
-        score += 10; // Somewhat close
+      // Bonus for expected dividend yield match (but not a filter)
+      if (divYield >= inputs.expectedDividendYield) {
+        score += 15;
       }
 
       return {
@@ -183,7 +160,13 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       }
     }
 
-    // Step 2: Select top stocks and check affordability
+    // Step 5: Calculate position sizes with 5% max and 1% min rule, target 90%+ investment
+    const maxPositionPercent = 0.05; // 5% max per position
+    const minPositionPercent = 0.01; // 1% min per position
+    const targetInvestmentPercent = 0.90; // 90% minimum investment target
+    const maxPositionAmount = inputs.investmentAmount * maxPositionPercent;
+    const minPositionAmount = inputs.investmentAmount * minPositionPercent;
+    
     // Check if we can afford 1% minimum for all positions
     const maxAffordablePositions = Math.floor(inputs.investmentAmount / minPositionAmount);
     let selectedStocks = diversified;
@@ -195,30 +178,6 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     
     // Calculate equal allocation with 1% minimum
     const baseAllocation = inputs.investmentAmount / selectedStocks.length;
-    
-    // CONFLICT DETECTION: Check if any stocks are too expensive for 1% minimum
-    const tooExpensiveStocks = selectedStocks.filter(stock => {
-      const currentPrice = parseFloat(stock.currentPrice || "0");
-      if (currentPrice === 0) return false;
-      // Can we buy at least 1 share with 1% minimum?
-      const minShares = Math.floor(minPositionAmount / currentPrice);
-      return minShares === 0; // Too expensive
-    });
-    
-    // If conflict detected, calculate suggestions
-    if (tooExpensiveStocks.length > 0) {
-      const maxStockPrice = Math.max(...selectedStocks.map(s => parseFloat(s.currentPrice || "0")));
-      const suggestedAmount = Math.ceil(maxStockPrice * 100 / 1) * selectedStocks.length; // Amount needed for 1% min
-      const suggestedPositions = Math.floor(inputs.investmentAmount / maxStockPrice); // Max positions we can afford
-      
-      // Store conflict info for warning display
-      setMinInvestmentConflict({
-        tooExpensiveStocks: tooExpensiveStocks.length,
-        suggestedPositions: Math.max(1, suggestedPositions),
-        suggestedAmount,
-      });
-      setShowMinInvestmentWarning(true);
-    }
     
     const positions: OptimizedPosition[] = selectedStocks.map((stock) => {
       const currentPrice = parseFloat(stock.currentPrice || "0");
@@ -309,9 +268,130 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         }, 0) / totalInvested
       : 0;
 
-    // Step 4: FINAL FILTER - Remove any positions with 0 shares or < 1% weight
+    // Step 6: Optimize to match target dividend yield (iterative approach)
+    const targetDividendYield = inputs.expectedDividendYield;
+    const tolerance = 0.1; // ±0.1% tolerance
+    const maxIterations = 10;
+    let iteration = 0;
+    let optimizedPositions = [...positions];
+    
+    // Get all available stocks sorted by dividend yield
+    const availableStocks = scored.filter(s => 
+      !optimizedPositions.find(p => p.ticker === s.ticker)
+    );
+    const highDivStocks = availableStocks
+      .filter(s => parseFloat(s.dividendYield || "0") >= targetDividendYield)
+      .sort((a, b) => parseFloat(b.dividendYield || "0") - parseFloat(a.dividendYield || "0"));
+    const lowDivStocks = availableStocks
+      .filter(s => parseFloat(s.dividendYield || "0") < targetDividendYield)
+      .sort((a, b) => parseFloat(a.dividendYield || "0") - parseFloat(b.dividendYield || "0"));
+
+    while (Math.abs(avgDividendYield - targetDividendYield) > tolerance && iteration < maxIterations) {
+      iteration++;
+      let swapMade = false;
+
+      if (avgDividendYield < targetDividendYield && highDivStocks.length > 0) {
+        // Need to increase dividend yield: replace lowest dividend stock with highest available
+        const lowestDivPosition = optimizedPositions
+          .sort((a, b) => parseFloat(a.dividendYield || "0") - parseFloat(b.dividendYield || "0"))[0];
+        const replacementStock = highDivStocks[0];
+
+        if (replacementStock && parseFloat(replacementStock.dividendYield || "0") > parseFloat(lowestDivPosition.dividendYield || "0")) {
+          // Remove lowest div stock
+          optimizedPositions = optimizedPositions.filter(p => p.ticker !== lowestDivPosition.ticker);
+          
+          // Add high div stock with 1% minimum enforcement
+          const currentPrice = parseFloat(replacementStock.currentPrice || "0");
+          if (currentPrice > 0) {
+            let positionAmount = Math.min(baseAllocation, maxPositionAmount);
+            positionAmount = Math.max(positionAmount, minPositionAmount); // Enforce 1% min
+            const shares = Math.floor(positionAmount / currentPrice);
+            const actualInvestment = shares * currentPrice;
+            
+            // Only add if meets minimum requirement
+            if (actualInvestment >= minPositionAmount * 0.95) {
+              optimizedPositions.push({
+                ticker: replacementStock.ticker,
+                companyName: replacementStock.companyName,
+                category: replacementStock.category,
+                currentPrice: replacementStock.currentPrice,
+                dividendYield: replacementStock.dividendYield,
+                ytdPerformance: replacementStock.ytdPerformance,
+                peRatio: replacementStock.peRatio,
+                shares,
+                investmentAmount: actualInvestment,
+                portfolioWeight: (actualInvestment / inputs.investmentAmount) * 100,
+                score: replacementStock.score,
+                isDividendStock: replacementStock.isDividendStock,
+                isGrowthStock: replacementStock.isGrowthStock,
+              });
+
+              // Move used stock to end of list
+              highDivStocks.shift();
+              swapMade = true;
+            }
+          }
+        }
+      } else if (avgDividendYield > targetDividendYield && lowDivStocks.length > 0) {
+        // Need to decrease dividend yield: replace highest dividend stock with lowest available
+        const highestDivPosition = optimizedPositions
+          .sort((a, b) => parseFloat(b.dividendYield || "0") - parseFloat(a.dividendYield || "0"))[0];
+        const replacementStock = lowDivStocks[0];
+
+        if (replacementStock && parseFloat(replacementStock.dividendYield || "0") < parseFloat(highestDivPosition.dividendYield || "0")) {
+          // Remove highest div stock
+          optimizedPositions = optimizedPositions.filter(p => p.ticker !== highestDivPosition.ticker);
+          
+          // Add low div stock with 1% minimum enforcement
+          const currentPrice = parseFloat(replacementStock.currentPrice || "0");
+          if (currentPrice > 0) {
+            let positionAmount = Math.min(baseAllocation, maxPositionAmount);
+            positionAmount = Math.max(positionAmount, minPositionAmount); // Enforce 1% min
+            const shares = Math.floor(positionAmount / currentPrice);
+            const actualInvestment = shares * currentPrice;
+            
+            // Only add if meets minimum requirement
+            if (actualInvestment >= minPositionAmount * 0.95) {
+              optimizedPositions.push({
+                ticker: replacementStock.ticker,
+                companyName: replacementStock.companyName,
+                category: replacementStock.category,
+                currentPrice: replacementStock.currentPrice,
+                dividendYield: replacementStock.dividendYield,
+                ytdPerformance: replacementStock.ytdPerformance,
+                peRatio: replacementStock.peRatio,
+                shares,
+                investmentAmount: actualInvestment,
+                portfolioWeight: (actualInvestment / inputs.investmentAmount) * 100,
+                score: replacementStock.score,
+                isDividendStock: replacementStock.isDividendStock,
+                isGrowthStock: replacementStock.isGrowthStock,
+              });
+
+              // Move used stock to end of list
+              lowDivStocks.shift();
+              swapMade = true;
+            }
+          }
+        }
+      }
+
+      if (!swapMade) break; // Can't improve further
+
+      // Recalculate total invested and avg dividend yield
+      totalInvested = optimizedPositions.reduce((sum, p) => sum + p.investmentAmount, 0);
+      avgDividendYield = optimizedPositions.length > 0
+        ? optimizedPositions.reduce((sum, p) => {
+            const divYield = parseFloat(p.dividendYield || "0");
+            return sum + (divYield * p.investmentAmount);
+          }, 0) / totalInvested
+        : 0;
+    }
+
+    // Use optimized positions if we got closer to target
+    // FINAL FILTER: Remove any positions with 0 shares or < 1% weight
     const minWeight = 0.95; // 0.95% to account for rounding (slightly below 1%)
-    let finalPositions = positions.filter(p => {
+    let finalPositions = optimizedPositions.filter(p => {
       const weight = (p.investmentAmount / inputs.investmentAmount) * 100;
       return p.shares > 0 && weight >= minWeight;
     });
@@ -321,7 +401,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     let finalRemainingCash = inputs.investmentAmount - finalTotalInvested;
     const finalInvestmentPercent = finalTotalInvested / inputs.investmentAmount;
 
-    // ENFORCE 95% INVESTMENT: Distribute remaining cash if below 95%
+    // ENFORCE 90% INVESTMENT: Distribute remaining cash if below 90%
     if (finalInvestmentPercent < targetInvestmentPercent && finalPositions.length > 0) {
       const sortedByWeight = [...finalPositions].sort((a, b) => a.portfolioWeight - b.portfolioWeight);
       let iterations = 0;
@@ -575,72 +655,6 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
   return (
     <div className="space-y-4">
-      {/* Minimum Investment Conflict Warning */}
-      {showMinInvestmentWarning && minInvestmentConflict && (
-        <Card className="bg-amber-900/20 border-amber-600">
-          <CardHeader>
-            <CardTitle className="text-amber-400 flex items-center gap-2">
-              <HelpCircle className="w-5 h-5" />
-              1% Minimum-Gewichtung nicht erreichbar
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-slate-300">
-              Mit einem Investitionsbetrag von <strong>CHF {inputs.investmentAmount.toLocaleString('de-CH')}</strong> und <strong>{inputs.numberOfPositions} Positionen</strong> können {minInvestmentConflict.tooExpensiveStocks} Aktien nicht mit der Mindestgewichtung von 1% gekauft werden (zu teuer).
-            </p>
-            <p className="text-slate-300 font-bold">Wählen Sie eine Option:</p>
-            <div className="grid gap-3">
-              <Button
-                onClick={() => {
-                  setShowMinInvestmentWarning(false);
-                  // Continue with flexible minimum (< 1% allowed)
-                }}
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 justify-start h-auto py-4"
-              >
-                <div className="text-left">
-                  <div className="font-bold">Option 1: Minimum unterschreiten (flexibel)</div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Erlaubt Positionen unter 1% für teure Aktien. Portfolio wird trotzdem erstellt.
-                  </div>
-                </div>
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowMinInvestmentWarning(false);
-                  // Go back and suggest fewer positions
-                  onBack();
-                }}
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 justify-start h-auto py-4"
-              >
-                <div className="text-left">
-                  <div className="font-bold">Option 2: Anzahl Titel reduzieren</div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Empfohlen: Maximal {minInvestmentConflict.suggestedPositions} Positionen für 1% Minimum.
-                  </div>
-                </div>
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowMinInvestmentWarning(false);
-                  onBack();
-                }}
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 justify-start h-auto py-4"
-              >
-                <div className="text-left">
-                  <div className="font-bold">Option 3: Investitionsbetrag erhöhen</div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Empfohlen: Mindestens CHF {minInvestmentConflict.suggestedAmount.toLocaleString('de-CH')} für {inputs.numberOfPositions} Positionen mit 1% Minimum.
-                  </div>
-                </div>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Variant Switcher */}
       {sharpeOptimizedPortfolio && (
         <Card className="bg-slate-800 border-slate-700">
