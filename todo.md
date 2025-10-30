@@ -1,6 +1,13 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [ ] Sharpe-optimiert: Alle Aktien etwa gleichgewichtet (Monte Carlo findet keine Optimierung)
+- [ ] Sharpe-optimiert: Aktie mit 0% Gewicht wird angezeigt (sollte gefiltert werden)
+- [x] Durchschnittliche Dividendenrendite optimiert (iterativer Algorithmus mit ±0.1% Toleranz)
+- [x] Warnung wenn maximale Div.rendite nicht erreichbar (>0.5% Abweichung)
+- [x] Button-Text bei Varianten-Switcher dunkel (nicht-aktiver Button soll weiß sein)
+- [x] Aktien mit 0% Gewicht werden nicht mehr angezeigt (gefiltert)
+- [x] Investitionsbetrag Schriftgröße im Optimizer wesentlich vergrößert (text-7xl/8xl, h-32/40, responsive)
 
 ## Später
 - [ ] "Finanzen" Tab in "Info" Tab integrieren

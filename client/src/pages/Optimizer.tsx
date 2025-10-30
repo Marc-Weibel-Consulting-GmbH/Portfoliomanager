@@ -75,7 +75,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                 Anlagebetrag in CHF
               </Label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-slate-400">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-5xl md:text-6xl text-slate-400 font-bold">
                   CHF
                 </span>
                 <Input
@@ -94,7 +94,7 @@ export default function Optimizer({ onShowResults }: OptimizerProps) {
                     setInvestmentAmountDisplay(formatNumber(inputs.investmentAmount));
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="pl-20 pr-4 text-5xl h-24 bg-slate-800 border-slate-700 text-white text-center font-bold"
+                  className="pl-28 pr-4 text-8xl md:text-9xl h-40 md:h-48 bg-slate-800 border-slate-700 text-white text-center font-bold"
                 />
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">

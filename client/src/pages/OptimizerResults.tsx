@@ -227,19 +227,141 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     }
 
     // Calculate average dividend yield weighted by investment amount
-    const avgDividendYield = positions.length > 0
+    let avgDividendYield = positions.length > 0
       ? positions.reduce((sum, p) => {
           const divYield = parseFloat(p.dividendYield || "0");
           return sum + (divYield * p.investmentAmount);
         }, 0) / totalInvested
       : 0;
 
+    // Step 6: Optimize to match target dividend yield (iterative approach)
+    const targetDividendYield = inputs.expectedDividendYield;
+    const tolerance = 0.1; // ±0.1% tolerance
+    const maxIterations = 10;
+    let iteration = 0;
+    let optimizedPositions = [...positions];
+    
+    // Get all available stocks sorted by dividend yield
+    const availableStocks = scored.filter(s => 
+      !optimizedPositions.find(p => p.ticker === s.ticker)
+    );
+    const highDivStocks = availableStocks
+      .filter(s => parseFloat(s.dividendYield || "0") >= targetDividendYield)
+      .sort((a, b) => parseFloat(b.dividendYield || "0") - parseFloat(a.dividendYield || "0"));
+    const lowDivStocks = availableStocks
+      .filter(s => parseFloat(s.dividendYield || "0") < targetDividendYield)
+      .sort((a, b) => parseFloat(a.dividendYield || "0") - parseFloat(b.dividendYield || "0"));
+
+    while (Math.abs(avgDividendYield - targetDividendYield) > tolerance && iteration < maxIterations) {
+      iteration++;
+      let swapMade = false;
+
+      if (avgDividendYield < targetDividendYield && highDivStocks.length > 0) {
+        // Need to increase dividend yield: replace lowest dividend stock with highest available
+        const lowestDivPosition = optimizedPositions
+          .sort((a, b) => parseFloat(a.dividendYield || "0") - parseFloat(b.dividendYield || "0"))[0];
+        const replacementStock = highDivStocks[0];
+
+        if (replacementStock && parseFloat(replacementStock.dividendYield || "0") > parseFloat(lowestDivPosition.dividendYield || "0")) {
+          // Remove lowest div stock
+          optimizedPositions = optimizedPositions.filter(p => p.ticker !== lowestDivPosition.ticker);
+          
+          // Add high div stock
+          const currentPrice = parseFloat(replacementStock.currentPrice || "0");
+          if (currentPrice > 0) {
+            const positionAmount = Math.min(baseAllocation, maxPositionAmount);
+            const shares = Math.floor(positionAmount / currentPrice);
+            const actualInvestment = shares * currentPrice;
+            
+            optimizedPositions.push({
+              ticker: replacementStock.ticker,
+              companyName: replacementStock.companyName,
+              category: replacementStock.category,
+              currentPrice: replacementStock.currentPrice,
+              dividendYield: replacementStock.dividendYield,
+              ytdPerformance: replacementStock.ytdPerformance,
+              peRatio: replacementStock.peRatio,
+              shares,
+              investmentAmount: actualInvestment,
+              portfolioWeight: (actualInvestment / inputs.investmentAmount) * 100,
+              score: replacementStock.score,
+              isDividendStock: replacementStock.isDividendStock,
+              isGrowthStock: replacementStock.isGrowthStock,
+            });
+
+            // Move used stock to end of list
+            highDivStocks.shift();
+            swapMade = true;
+          }
+        }
+      } else if (avgDividendYield > targetDividendYield && lowDivStocks.length > 0) {
+        // Need to decrease dividend yield: replace highest dividend stock with lowest available
+        const highestDivPosition = optimizedPositions
+          .sort((a, b) => parseFloat(b.dividendYield || "0") - parseFloat(a.dividendYield || "0"))[0];
+        const replacementStock = lowDivStocks[0];
+
+        if (replacementStock && parseFloat(replacementStock.dividendYield || "0") < parseFloat(highestDivPosition.dividendYield || "0")) {
+          // Remove highest div stock
+          optimizedPositions = optimizedPositions.filter(p => p.ticker !== highestDivPosition.ticker);
+          
+          // Add low div stock
+          const currentPrice = parseFloat(replacementStock.currentPrice || "0");
+          if (currentPrice > 0) {
+            const positionAmount = Math.min(baseAllocation, maxPositionAmount);
+            const shares = Math.floor(positionAmount / currentPrice);
+            const actualInvestment = shares * currentPrice;
+            
+            optimizedPositions.push({
+              ticker: replacementStock.ticker,
+              companyName: replacementStock.companyName,
+              category: replacementStock.category,
+              currentPrice: replacementStock.currentPrice,
+              dividendYield: replacementStock.dividendYield,
+              ytdPerformance: replacementStock.ytdPerformance,
+              peRatio: replacementStock.peRatio,
+              shares,
+              investmentAmount: actualInvestment,
+              portfolioWeight: (actualInvestment / inputs.investmentAmount) * 100,
+              score: replacementStock.score,
+              isDividendStock: replacementStock.isDividendStock,
+              isGrowthStock: replacementStock.isGrowthStock,
+            });
+
+            // Move used stock to end of list
+            lowDivStocks.shift();
+            swapMade = true;
+          }
+        }
+      }
+
+      if (!swapMade) break; // Can't improve further
+
+      // Recalculate total invested and avg dividend yield
+      totalInvested = optimizedPositions.reduce((sum, p) => sum + p.investmentAmount, 0);
+      avgDividendYield = optimizedPositions.length > 0
+        ? optimizedPositions.reduce((sum, p) => {
+            const divYield = parseFloat(p.dividendYield || "0");
+            return sum + (divYield * p.investmentAmount);
+          }, 0) / totalInvested
+        : 0;
+    }
+
+    // Use optimized positions if we got closer to target
+    const finalPositions = optimizedPositions;
+    const finalTotalInvested = finalPositions.reduce((sum, p) => sum + p.investmentAmount, 0);
+    const finalAvgDividendYield = finalPositions.length > 0
+      ? finalPositions.reduce((sum, p) => {
+          const divYield = parseFloat(p.dividendYield || "0");
+          return sum + (divYield * p.investmentAmount);
+        }, 0) / finalTotalInvested
+      : 0;
+
     return {
-      positions,
-      totalInvested,
-      remainingCash,
-      totalShares: positions.reduce((sum, p) => sum + p.shares, 0),
-      avgDividendYield,
+      positions: finalPositions,
+      totalInvested: finalTotalInvested,
+      remainingCash: inputs.investmentAmount - finalTotalInvested,
+      totalShares: finalPositions.reduce((sum, p) => sum + p.shares, 0),
+      avgDividendYield: finalAvgDividendYield,
     };
   }, [allStocks, inputs]);
 
@@ -321,25 +443,27 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       0.10 // 10% max
     );
 
-    // Build full position objects
-    const positions: OptimizedPosition[] = weightedPositions.map(wp => {
-      const stock = selectedStocks.find(s => s.ticker === wp.ticker)!;
-      return {
-        ticker: stock.ticker,
-        companyName: stock.companyName,
-        category: stock.category,
-        currentPrice: stock.currentPrice,
-        dividendYield: stock.dividendYield,
-        ytdPerformance: stock.ytdPerformance,
-        peRatio: stock.peRatio,
-        shares: wp.shares,
-        investmentAmount: wp.amount,
-        portfolioWeight: (wp.amount / inputs.investmentAmount) * 100,
-        score: stock.score,
-        isDividendStock: stock.isDividendStock,
-        isGrowthStock: stock.isGrowthStock,
-      };
-    });
+    // Build full position objects and filter out 0% positions
+    const positions: OptimizedPosition[] = weightedPositions
+      .filter(wp => wp.shares > 0 && wp.amount > 0) // Filter out 0% positions
+      .map(wp => {
+        const stock = selectedStocks.find(s => s.ticker === wp.ticker)!;
+        return {
+          ticker: stock.ticker,
+          companyName: stock.companyName,
+          category: stock.category,
+          currentPrice: stock.currentPrice,
+          dividendYield: stock.dividendYield,
+          ytdPerformance: stock.ytdPerformance,
+          peRatio: stock.peRatio,
+          shares: wp.shares,
+          investmentAmount: wp.amount,
+          portfolioWeight: (wp.amount / inputs.investmentAmount) * 100,
+          score: stock.score,
+          isDividendStock: stock.isDividendStock,
+          isGrowthStock: stock.isGrowthStock,
+        };
+      });
 
     const totalInvested = positions.reduce((sum, p) => sum + p.investmentAmount, 0);
     const remainingCash = inputs.investmentAmount - totalInvested;
@@ -460,14 +584,14 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 <Button
                   onClick={() => setShowSharpeOptimized(false)}
                   variant={!showSharpeOptimized ? "default" : "outline"}
-                  className={!showSharpeOptimized ? "bg-cyan-600 hover:bg-cyan-700" : ""}
+                  className={!showSharpeOptimized ? "bg-cyan-600 hover:bg-cyan-700" : "text-white border-slate-600 hover:bg-slate-700"}
                 >
                   Original
                 </Button>
                 <Button
                   onClick={() => setShowSharpeOptimized(true)}
                   variant={showSharpeOptimized ? "default" : "outline"}
-                  className={showSharpeOptimized ? "bg-green-600 hover:bg-green-700" : ""}
+                  className={showSharpeOptimized ? "bg-green-600 hover:bg-green-700" : "text-white border-slate-600 hover:bg-slate-700"}
                 >
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Sharpe-optimiert
@@ -496,6 +620,31 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dividend Yield Warning */}
+      {Math.abs(displayPortfolio.avgDividendYield - inputs.expectedDividendYield) > 0.5 && (
+        <Card className="bg-yellow-500/10 border-yellow-500/30">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">⚠️</div>
+              <div className="flex-1">
+                <h3 className="text-yellow-400 font-bold mb-1">
+                  Ziel-Dividendenrendite nicht vollständig erreichbar
+                </h3>
+                <p className="text-slate-300 text-sm mb-2">
+                  Die durchschnittliche Dividendenrendite von <strong>{displayPortfolio.avgDividendYield.toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{inputs.expectedDividendYield}%</strong>) ab.
+                </p>
+                <p className="text-slate-400 text-xs">
+                  💡 <strong>Grund:</strong> Unter Einhaltung der 10% Maximalgewichtung pro Position und Berücksichtigung Ihres Anlegertyps ({inputs.investorType === 'conservative' ? 'Konservativ' : inputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}) ist dies die bestmögliche Annäherung.
+                </p>
+                <p className="text-slate-400 text-xs mt-2">
+                  <strong>Tipp:</strong> Passen Sie die Ziel-Dividende an oder wählen Sie mehr Positionen für bessere Flexibilität.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
