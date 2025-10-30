@@ -272,3 +272,22 @@
 - [x] User-Auswahl im Pop-up verarbeiten und Portfolio neu berechnen
 - [ ] Optimierungslogik basierend auf User-Strategie anpassen
 
+
+
+## Risk Score für einzelne Aktien
+- [ ] Risk Score Spalte im Portfolio hinzufügen (Rendite/Risiko-Verhältnis 0-10)
+- [ ] Risk Score Spalte im Optimizer hinzufügen
+- [ ] Berechnung: (YTD Performance) / (geschätzte Volatilität)
+- [ ] Tooltip mit Erklärung hinzufügen
+
+
+
+## Portfolio-Anpassungs-Dialog
+- [x] Dialog-Komponente mit Checkboxen für Parameter-Änderungen
+- [x] Investitionsbetrag direkt ändern (CHF Input mit Min 10'000)
+- [x] Dividendenrendite direkt ändern (% Input 0-10%)
+- [x] Anzahl Titel direkt ändern (5-30 Positionen)
+- [x] Anlegerprofil direkt ändern (Konservativ/Ausgewogen/Dynamisch)
+- [x] "Übernehmen" Button für Neuberechnung (disabled wenn keine Änderung)
+- [x] "Portfolio anpassen" Button öffnet Dialog (statt zurück zum Fragebogen)
+

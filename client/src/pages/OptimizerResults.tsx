@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { optimizePortfolioSharpe, weightsToPositions, calculateSharpeRatio } from "@/utils/sharpeOptimizer";
 import { useState, useEffect } from "react";
 import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
+import PortfolioAdjustmentDialog from "@/components/PortfolioAdjustmentDialog";
 
 interface OptimizerInputs {
   investmentAmount: number;
@@ -40,7 +41,6 @@ interface OptimizedPosition {
 
 export default function OptimizerResults({ inputs, onBack }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
-  const [showSharpeOptimized, setShowSharpeOptimized] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showMinInvestmentWarning, setShowMinInvestmentWarning] = useState(false);
   const [minInvestmentConflict, setMinInvestmentConflict] = useState<{
@@ -51,6 +51,8 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictData, setConflictData] = useState<any>(null);
   const [optimizationStrategy, setOptimizationStrategy] = useState<"dividend" | "sharpe" | "balanced" | "reduce_positions">("balanced");
+  const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
+  const [adjustedInputs, setAdjustedInputs] = useState(inputs);
 
   // SIMPLIFIED PORTFOLIO OPTIMIZATION - No complex dividend swapping
   const optimizedPortfolio = useMemo((): {
@@ -139,6 +141,22 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         score += 10; // Somewhat close
       }
 
+      // Apply optimization strategy from conflict resolution
+      if (optimizationStrategy === 'dividend') {
+        // Prioritize dividend: 70% dividend, 20% sharpe, 10% diversity
+        score += divYield * 15; // Extra dividend weight
+        if (ytdPerf > 0) score += ytdPerf * 0.5; // Some performance
+      } else if (optimizationStrategy === 'sharpe') {
+        // Prioritize sharpe: 70% sharpe, 20% dividend, 10% diversity
+        score += ytdPerf * 3; // Extra performance weight
+        if (divYield > 0) score += divYield * 5; // Some dividend
+      } else if (optimizationStrategy === 'balanced') {
+        // Balanced: 40% dividend, 40% sharpe, 20% diversity
+        score += divYield * 10;
+        score += ytdPerf * 1.5;
+      }
+      // 'reduce_positions' uses same scoring but fewer stocks selected
+
       return {
         ...stock,
         score,
@@ -193,8 +211,12 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     const maxAffordablePositions = Math.floor(inputs.investmentAmount / minPositionAmount);
     let selectedStocks = diversified;
     
-    // If we can't afford 1% for all, reduce number of positions
-    if (diversified.length > maxAffordablePositions) {
+    // Apply reduce_positions strategy: use 70% of requested positions
+    if (optimizationStrategy === 'reduce_positions') {
+      const reducedCount = Math.max(5, Math.floor(inputs.numberOfPositions * 0.7));
+      selectedStocks = diversified.slice(0, Math.min(reducedCount, maxAffordablePositions));
+    } else if (diversified.length > maxAffordablePositions) {
+      // If we can't afford 1% for all, reduce number of positions
       selectedStocks = diversified.slice(0, maxAffordablePositions);
     }
     
@@ -380,7 +402,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       totalShares: finalPositions.reduce((sum, p) => sum + p.shares, 0),
       avgDividendYield: finalAvgDividendYield,
     };
-  }, [allStocks, inputs, optimizationStrategy]);
+  }, [allStocks, adjustedInputs, optimizationStrategy]);
 
   // Detect conflicts and show dialog
   useEffect(() => {
@@ -611,10 +633,8 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     );
   }
 
-  // Select which portfolio to display
-  const displayPortfolio = showSharpeOptimized && sharpeOptimizedPortfolio 
-    ? sharpeOptimizedPortfolio 
-    : optimizedPortfolio;
+  // Always use optimizedPortfolio (single variant)
+  const displayPortfolio = optimizedPortfolio;
 
   // Calculate composition for display portfolio
   const dividendAmount = displayPortfolio.positions
@@ -641,6 +661,17 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           conflict={conflictData}
         />
       )}
+
+      {/* Portfolio Adjustment Dialog */}
+      <PortfolioAdjustmentDialog
+        open={showAdjustmentDialog}
+        onClose={() => setShowAdjustmentDialog(false)}
+        currentInputs={adjustedInputs}
+        onAdjust={(newInputs) => {
+          setAdjustedInputs(newInputs);
+          setShowAdjustmentDialog(false);
+        }}
+      />
 
       {/* Minimum Investment Conflict Warning */}
       {showMinInvestmentWarning && minInvestmentConflict && (
@@ -708,158 +739,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         </Card>
       )}
 
-      {/* Variant Switcher */}
-      {sharpeOptimizedPortfolio && (
-        <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-bold mb-1">Portfolio-Varianten</h3>
-                <p className="text-slate-400 text-sm">
-                  Wählen Sie zwischen dem ursprünglichen Portfolio und der Sharpe-Ratio-optimierten Variante
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setShowSharpeOptimized(false)}
-                  variant={!showSharpeOptimized ? "default" : "outline"}
-                  className={!showSharpeOptimized ? "bg-cyan-600 hover:bg-cyan-700" : "text-white border-slate-600 hover:bg-slate-700"}
-                >
-                  Original
-                </Button>
-                <Button
-                  onClick={() => setShowSharpeOptimized(true)}
-                  variant={showSharpeOptimized ? "default" : "outline"}
-                  className={showSharpeOptimized ? "bg-green-600 hover:bg-green-700" : "text-white border-slate-600 hover:bg-slate-700"}
-                >
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Sharpe-optimiert
-                </Button>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-4 pt-4 border-t border-slate-700">
-              {showSharpeOptimized && sharpeOptimizedPortfolio ? (
-                <>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-slate-400 text-xs">Sharpe Ratio</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-slate-500 hover:text-slate-300">
-                            <HelpCircle className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs bg-slate-700 text-white">
-                          <p>Sharpe Ratio: Maß für das Rendite-Risiko-Verhältnis. Je höher, desto besser die Rendite im Verhältnis zum Risiko. Werte über 1 sind gut, über 2 sehr gut.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-white font-bold text-lg">
-                      {sharpeOptimizedPortfolio.sharpeRatio.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-slate-400 text-xs">Erwartete Rendite</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-slate-500 hover:text-slate-300">
-                            <HelpCircle className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs bg-slate-700 text-white">
-                          <p>Erwartete Rendite: Durchschnittliche jährliche Rendite basierend auf historischen Daten (YTD Performance). Zeigt das Wachstumspotenzial des Portfolios.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-green-400 font-bold text-lg">
-                      {sharpeOptimizedPortfolio.expectedReturn.toFixed(1)}%
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-slate-400 text-xs">Volatilität</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-slate-500 hover:text-slate-300">
-                            <HelpCircle className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs bg-slate-700 text-white">
-                          <p>Volatilität: Maß für Kursschwankungen. Niedrigere Werte bedeuten stabilere Kurse. Hohe Volatilität = höheres Risiko, aber auch Chancen.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-yellow-400 font-bold text-lg">
-                      {sharpeOptimizedPortfolio.volatility.toFixed(1)}%
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-slate-400 text-xs">Ø Dividendenrendite</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-slate-500 hover:text-slate-300">
-                            <HelpCircle className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs bg-slate-700 text-white">
-                          <p>Durchschnittliche Dividendenrendite: Gewichteter Durchschnitt aller Dividendenrenditen im Portfolio. Zeigt die jährliche Ausschüttung in Prozent.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-blue-400 font-bold text-lg">
-                      {optimizedPortfolio.avgDividendYield.toFixed(2)}%
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-slate-400 text-xs">Ø YTD Performance</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-slate-500 hover:text-slate-300">
-                            <HelpCircle className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs bg-slate-700 text-white">
-                          <p>Durchschnittliche YTD Performance: Year-to-Date Wertentwicklung seit Jahresbeginn. Zeigt wie gut das Portfolio dieses Jahr performt hat.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-green-400 font-bold text-lg">
-                      {(optimizedPortfolio.positions.reduce((sum, p) => {
-                        const ytd = parseFloat(p.ytdPerformance || "0");
-                        return sum + (ytd * p.investmentAmount);
-                      }, 0) / optimizedPortfolio.totalInvested).toFixed(1)}%
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-slate-400 text-xs">Diversifikation</p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-slate-500 hover:text-slate-300">
-                            <HelpCircle className="w-3 h-3" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs bg-slate-700 text-white">
-                          <p>Diversifikation: Anzahl verschiedener Sektoren im Portfolio. Mehr Sektoren = bessere Risikostreuung. Empfohlen: mindestens 5 Sektoren.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <p className="text-cyan-400 font-bold text-lg">
-                      {new Set(optimizedPortfolio.positions.map(p => p.category)).size} Sektoren
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Dividend Yield Warning */}
       {Math.abs(displayPortfolio.avgDividendYield - inputs.expectedDividendYield) > 0.5 && (
@@ -970,7 +850,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white">Optimiertes Portfolio</CardTitle>
           <div className="flex gap-2">
-            <Button onClick={onBack} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+            <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Portfolio anpassen
             </Button>
@@ -994,6 +874,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                   <th className="text-right p-3 text-slate-400 font-medium">Gewicht</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Div. %</th>
                   <th className="text-right p-3 text-slate-400 font-medium">YTD %</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">Risk Score</th>
                 </tr>
               </thead>
               <tbody>
@@ -1019,6 +900,15 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                       parseFloat(pos.ytdPerformance) >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
                       {parseFloat(pos.ytdPerformance) >= 0 ? '+' : ''}{pos.ytdPerformance}%
+                    </td>
+                    <td className="p-3 text-right">
+                      {(() => {
+                        const ytd = parseFloat(pos.ytdPerformance);
+                        const volatility = Math.abs(ytd) > 0 ? Math.abs(ytd) / 2 : 10;
+                        const riskScore = Math.min(10, Math.max(0, (ytd / volatility) * 2));
+                        const color = riskScore >= 7 ? "text-green-400" : riskScore >= 4 ? "text-yellow-400" : "text-red-400";
+                        return <span className={`font-medium ${color}`}>{riskScore.toFixed(1)}</span>;
+                      })()}
                     </td>
                   </tr>
                 ))}

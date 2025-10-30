@@ -983,6 +983,9 @@ export default function Home() {
                       <th onClick={() => handleSort('dividendYield')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Div. Rendite {sortField === 'dividendYield' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th onClick={() => handleSort('riskScore')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Risk Score {sortField === 'riskScore' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th onClick={() => handleSort('portfolioWeight')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Portfolio % {sortField === 'portfolioWeight' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -1010,6 +1013,15 @@ export default function Home() {
                         <td className="py-2 px-2 text-slate-300">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "-"}</td>
                         <td className="py-2 px-2 text-slate-300">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(1) : "-"}</td>
                         <td className="py-2 px-2 text-green-400">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : "-"}</td>
+                        <td className="py-2 px-2">
+                          {(() => {
+                            const ytd = parseFloat(stock.ytdPerformance || "0");
+                            const volatility = Math.abs(ytd) > 0 ? Math.abs(ytd) / 2 : 10; // Estimate volatility
+                            const riskScore = Math.min(10, Math.max(0, (ytd / volatility) * 2));
+                            const color = riskScore >= 7 ? "text-green-400" : riskScore >= 4 ? "text-yellow-400" : "text-red-400";
+                            return <span className={color}>{riskScore.toFixed(1)}</span>;
+                          })()}
+                        </td>
                         <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(2)}%</td>
                         <td className="py-2 px-2 text-slate-400">{stock.category}</td>
                         <td className="py-2 px-2 text-center">
