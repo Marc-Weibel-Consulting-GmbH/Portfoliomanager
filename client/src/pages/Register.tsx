@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 export default function Register() {
+  const utils = trpc.useUtils();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -53,10 +55,16 @@ export default function Register() {
         throw new Error(data.error || "Registrierung fehlgeschlagen");
       }
       
-      // Success - wait 500ms to ensure cookie is saved, then redirect
+      // Success - show toast and redirect
+      toast.success("Erfolgreich registriert! Willkommen bei Portfolio BIG.");
+      
+      // Invalidate auth query to force refetch with new cookie
+      await utils.auth.me.invalidate();
+      
+      // Wait 2 seconds to ensure cookie is saved on mobile, then force reload
       setTimeout(() => {
-        window.location.href = "/";
-      }, 500);
+        window.location.replace("/");
+      }, 2000);
     } catch (error: any) {
       setIsLoading(false);
       toast.error("Registrierung fehlgeschlagen: " + error.message);

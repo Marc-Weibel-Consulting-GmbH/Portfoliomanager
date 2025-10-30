@@ -291,3 +291,19 @@
 - [x] "Übernehmen" Button für Neuberechnung (disabled wenn keine Änderung)
 - [x] "Portfolio anpassen" Button öffnet Dialog (statt zurück zum Fragebogen)
 
+
+
+## Login Problem beheben (URGENT)
+- [x] Login-Problem diagnostizieren (User kann sich nicht einloggen)
+- [x] Cookie-Handling überprüft und verbessert (2s Delay, query invalidation, window.location.replace)
+- [x] Session-Management getestet
+- [x] Login-Flow auf Production-URL bereit zum Testen
+- [x] Server-Logs überprüft
+
+
+
+## Optimizer Probleme beheben (URGENT)
+- [x] Konflikt-Dialog Optionen 1-3 entfernt (nicht mehr relevant für neue Logik)
+- [x] Portfolio-Anpassungs-Dialog: Automatische Neuberechnung bei Parameter-Änderungen (Checkboxen entfernt, direkte Eingabe)
+- [x] Nur empfohlene Lösung im Konflikt-Dialog (Positionen reduzieren)
+

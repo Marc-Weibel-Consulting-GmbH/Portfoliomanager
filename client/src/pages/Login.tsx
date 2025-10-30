@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 export default function Login() {
+  const utils = trpc.useUtils();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -45,14 +47,16 @@ export default function Login() {
         throw new Error(data.error || "Login fehlgeschlagen");
       }
       
-      // Success - check if cookie was set
-      console.log("[Login] Success, cookies:", document.cookie);
+      // Success - show toast and redirect
+      toast.success("Erfolgreich angemeldet! Willkommen zurück.");
       
-      // Wait 500ms to ensure cookie is saved, then redirect
+      // Invalidate auth query to force refetch with new cookie
+      await utils.auth.me.invalidate();
+      
+      // Wait 2 seconds to ensure cookie is saved on mobile, then force reload
       setTimeout(() => {
-        console.log("[Login] Before redirect, cookies:", document.cookie);
-        window.location.href = "/";
-      }, 500);
+        window.location.replace("/");
+      }, 2000);
     } catch (error: any) {
       setIsLoading(false);
       toast.error("Login fehlgeschlagen: " + error.message);

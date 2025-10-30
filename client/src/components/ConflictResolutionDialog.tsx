@@ -25,7 +25,7 @@ export default function ConflictResolutionDialog({
   onResolve,
   conflict,
 }: ConflictResolutionDialogProps) {
-  const [selectedStrategy, setSelectedStrategy] = useState<"dividend" | "sharpe" | "balanced" | "reduce_positions">("balanced");
+  const [selectedStrategy, setSelectedStrategy] = useState<"reduce_positions">("reduce_positions");
 
   const handleResolve = () => {
     onResolve(selectedStrategy);
@@ -73,52 +73,17 @@ export default function ConflictResolutionDialog({
           <div className="space-y-3">
             <p className="text-slate-300 font-medium">Wählen Sie Ihre Priorität:</p>
             
-            <RadioGroup value={selectedStrategy} onValueChange={(value: any) => setSelectedStrategy(value)}>
-              <div className="space-y-3">
-                <div className="flex items-start space-x-3 p-3 rounded-lg border border-slate-700 hover:border-cyan-600 hover:bg-slate-750 transition-colors">
-                  <RadioGroupItem value="dividend" id="dividend" className="mt-1" />
-                  <Label htmlFor="dividend" className="cursor-pointer flex-1">
-                    <div className="font-medium text-white">Dividende priorisieren</div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      Erreicht {conflict.targetDividend.toFixed(1)}% Dividende, Sharpe Ratio ~{(conflict.targetSharpe * 0.85).toFixed(2)}
-                    </div>
-                  </Label>
-                </div>
-
-                <div className="flex items-start space-x-3 p-3 rounded-lg border border-slate-700 hover:border-green-600 hover:bg-slate-750 transition-colors">
-                  <RadioGroupItem value="sharpe" id="sharpe" className="mt-1" />
-                  <Label htmlFor="sharpe" className="cursor-pointer flex-1">
-                    <div className="font-medium text-white">Sharpe Ratio priorisieren</div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      Erreicht Sharpe {conflict.targetSharpe.toFixed(2)}, Dividende ~{(conflict.targetDividend * 0.8).toFixed(1)}%
-                    </div>
-                  </Label>
-                </div>
-
-                <div className="flex items-start space-x-3 p-3 rounded-lg border border-slate-700 hover:border-blue-600 hover:bg-slate-750 transition-colors">
-                  <RadioGroupItem value="balanced" id="balanced" className="mt-1" />
-                  <Label htmlFor="balanced" className="cursor-pointer flex-1">
-                    <div className="font-medium text-white">Ausgewogen (empfohlen)</div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      Dividende {((conflict.targetDividend + conflict.achievedDividend) / 2).toFixed(1)}%, 
-                      Sharpe {((conflict.targetSharpe + conflict.achievedSharpe) / 2).toFixed(2)}
-                    </div>
-                  </Label>
-                </div>
-
-                {conflict.suggestedPositions && conflict.suggestedPositions < conflict.currentPositions && (
-                  <div className="flex items-start space-x-3 p-3 rounded-lg border border-slate-700 hover:border-purple-600 hover:bg-slate-750 transition-colors">
-                    <RadioGroupItem value="reduce_positions" id="reduce_positions" className="mt-1" />
-                    <Label htmlFor="reduce_positions" className="cursor-pointer flex-1">
-                      <div className="font-medium text-white">Anzahl Positionen reduzieren</div>
-                      <div className="text-sm text-slate-400 mt-1">
-                        {conflict.suggestedPositions} Titel statt {conflict.currentPositions} → Beide Ziele erreichbar
-                      </div>
-                    </Label>
+            <div className="bg-slate-900 p-4 rounded-lg border border-purple-600">
+              <div className="flex items-start space-x-3">
+                <div className="flex-1">
+                  <div className="font-medium text-white mb-2">💡 Empfohlene Lösung</div>
+                  <div className="text-slate-300">
+                    Reduzieren Sie die Anzahl der Positionen auf {conflict.suggestedPositions || Math.floor(conflict.currentPositions * 0.7)} Titel.
+                    Dies ermöglicht eine bessere Diversifikation und höhere Gewichtungen pro Position.
                   </div>
-                )}
+                </div>
               </div>
-            </RadioGroup>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

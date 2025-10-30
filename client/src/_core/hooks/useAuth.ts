@@ -17,6 +17,7 @@ export function useAuth(options?: UseAuthOptions) {
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnMount: true, // Always refetch when component mounts to catch new logins
+    staleTime: 0, // Always consider data stale to force refetch after login
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({
