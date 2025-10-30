@@ -6,8 +6,9 @@ import { ArrowLeft, Download, TrendingUp, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { optimizePortfolioSharpe, weightsToPositions } from "@/utils/sharpeOptimizer";
-import { useState } from "react";
+import { optimizePortfolioSharpe, weightsToPositions, calculateSharpeRatio } from "@/utils/sharpeOptimizer";
+import { useState, useEffect } from "react";
+import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
 
 interface OptimizerInputs {
   investmentAmount: number;
@@ -47,6 +48,9 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     suggestedPositions: number;
     suggestedAmount: number;
   } | null>(null);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflictData, setConflictData] = useState<any>(null);
+  const [optimizationStrategy, setOptimizationStrategy] = useState<"dividend" | "sharpe" | "balanced" | "reduce_positions">("balanced");
 
   // SIMPLIFIED PORTFOLIO OPTIMIZATION - No complex dividend swapping
   const optimizedPortfolio = useMemo((): {
@@ -376,7 +380,50 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       totalShares: finalPositions.reduce((sum, p) => sum + p.shares, 0),
       avgDividendYield: finalAvgDividendYield,
     };
-  }, [allStocks, inputs]);
+  }, [allStocks, inputs, optimizationStrategy]);
+
+  // Detect conflicts and show dialog
+  useEffect(() => {
+    if (!optimizedPortfolio.positions.length || showConflictDialog) return;
+
+    // Calculate Sharpe Ratio for current portfolio
+    const weights: Record<string, number> = {};
+    const totalInvested = optimizedPortfolio.totalInvested;
+    optimizedPortfolio.positions.forEach(pos => {
+      weights[pos.ticker] = pos.investmentAmount / totalInvested;
+    });
+
+    const { sharpeRatio } = calculateSharpeRatio(
+      optimizedPortfolio.positions.map(p => ({
+        ticker: p.ticker,
+        ytdPerformance: p.ytdPerformance,
+        dividendYield: p.dividendYield,
+        currentPrice: p.currentPrice,
+      })),
+      weights
+    );
+
+    // Define thresholds
+    const dividendDiff = Math.abs(optimizedPortfolio.avgDividendYield - inputs.expectedDividendYield);
+    const targetSharpe = 1.5; // Good Sharpe Ratio target
+    const sharpeDiff = targetSharpe - sharpeRatio;
+
+    // Check if there's a conflict (dividend off by >0.5% OR sharpe below 1.0)
+    const hasConflict = dividendDiff > 0.5 || sharpeRatio < 1.0;
+
+    if (hasConflict && optimizationStrategy === "balanced") {
+      // Show conflict dialog
+      setConflictData({
+        targetDividend: inputs.expectedDividendYield,
+        achievedDividend: optimizedPortfolio.avgDividendYield,
+        targetSharpe,
+        achievedSharpe: sharpeRatio,
+        currentPositions: inputs.numberOfPositions,
+        suggestedPositions: Math.max(10, Math.floor(inputs.numberOfPositions * 0.75)),
+      });
+      setShowConflictDialog(true);
+    }
+  }, [optimizedPortfolio, inputs, showConflictDialog, optimizationStrategy]);
 
   // Calculate Sharpe-optimized portfolio
   const sharpeOptimizedPortfolio = useMemo(() => {
@@ -582,6 +629,19 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
   return (
     <div className="space-y-4">
+      {/* Conflict Resolution Dialog */}
+      {conflictData && (
+        <ConflictResolutionDialog
+          open={showConflictDialog}
+          onClose={() => setShowConflictDialog(false)}
+          onResolve={(strategy) => {
+            setOptimizationStrategy(strategy);
+            setShowConflictDialog(false);
+          }}
+          conflict={conflictData}
+        />
+      )}
+
       {/* Minimum Investment Conflict Warning */}
       {showMinInvestmentWarning && minInvestmentConflict && (
         <Card className="bg-amber-900/20 border-amber-600">

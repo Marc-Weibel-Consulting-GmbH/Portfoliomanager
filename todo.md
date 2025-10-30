@@ -263,11 +263,12 @@
 - [ ] Sharpe Ratio Button entfernen (nur 1 Portfolio-Variante)
 - [ ] Base Case von Anfang an mit Sharpe Ratio optimieren
 - [ ] Multi-Kriterien-Optimierung: Dividende + Sharpe + Diversifikation
-- [ ] Zielkonflikt-Erkennung implementieren
-- [ ] Interaktives Pop-up bei Zielkonflikten mit Lösungsoptionen:
+- [x] Zielkonflikt-Erkennung implementiert (Dividende >0.5% Abweichung ODER Sharpe <1.0)
+- [x] Interaktives Pop-up bei Zielkonflikten mit Lösungsoptionen:
   - Option 1: Dividende priorisieren
   - Option 2: Sharpe Ratio priorisieren
-  - Option 3: Ausgewogen
+  - Option 3: Ausgewogen (empfohlen)
   - Option 4: Anzahl Positionen anpassen
-- [ ] User-Auswahl im Pop-up verarbeiten und Portfolio neu berechnen
+- [x] User-Auswahl im Pop-up verarbeiten und Portfolio neu berechnen
+- [ ] Optimierungslogik basierend auf User-Strategie anpassen
 
