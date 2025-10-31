@@ -90,27 +90,12 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
     const minPositionAmount = minPositionPercent > 0 ? currentInputs.investmentAmount * minPositionPercent : 0;
 
-    // PRIORITY 2: Dividend yield guarantee (mandatory)
-    // If dividend target > 2%, use conservative scoring and filter stocks
-    const hasDividendTarget = currentInputs.expectedDividendYield > 2;
-    const effectiveInvestorType = hasDividendTarget ? "conservative" : currentInputs.investorType;
+    // PRIORITY 2: Dividend yield targeting (exact target, not minimum)
+    // Keep investor type as-is, use scoring to achieve exact dividend target
+    const effectiveInvestorType = currentInputs.investorType;
     
-    // Hard filter: Only stocks with dividend >= target (with 10% tolerance for flexibility)
-    const dividendFilteredStocks = hasDividendTarget
-      ? allStocks.filter((stock: any) => {
-          const divYield = parseFloat(stock.dividendYield || "0");
-          return divYield >= currentInputs.expectedDividendYield * 0.9; // 90% of target minimum
-        })
-      : allStocks;
-    
-    // Fallback: If not enough stocks available, reduce number of positions
-    const availableStocksCount = dividendFilteredStocks.length;
-    if (hasDividendTarget && availableStocksCount < effectiveNumberOfPositions) {
-      effectiveNumberOfPositions = Math.max(5, availableStocksCount); // Minimum 5 positions for diversification
-    }
-    
-    // Use filtered stocks for scoring
-    const stocksToScore = dividendFilteredStocks.length > 0 ? dividendFilteredStocks : allStocks;
+    // No hard filtering - use all stocks and let scoring + optimization achieve target
+    const stocksToScore = allStocks;
     
     // Step 1: Calculate score with dividend-aware weighting (using effective investor type and filtered stocks)
     const scored = stocksToScore.map((stock: any) => {
@@ -450,17 +435,19 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       }
     }
     
-    const finalAvgDividendYield = finalPositions.length > 0
-      ? finalPositions.reduce((sum, p) => {
-          const divYield = parseFloat(p.dividendYield || "0");
-          return sum + (divYield * p.investmentAmount);
-        }, 0) / finalTotalInvested
-      : 0;
+    let finalAvgDividendYield = finalTotalInvested > 0
+        ? finalPositions.reduce((sum, p) => {
+            const divYield = parseFloat(p.dividendYield || "0");
+            return sum + (divYield * p.investmentAmount);
+          }, 0) / finalTotalInvested
+        : 0;
+
+    // Dividend optimization removed - show warning instead if target not met
 
     return {
       positions: finalPositions,
       totalInvested: finalTotalInvested,
-      remainingCash: finalRemainingCash,
+      remainingCash: currentInputs.investmentAmount - finalTotalInvested,
       totalShares: finalPositions.reduce((sum, p) => sum + p.shares, 0),
       avgDividendYield: finalAvgDividendYield,
     };
@@ -791,6 +778,13 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 <p className="text-slate-400 text-xs mt-2">
                   <strong>Tipp:</strong> Passen Sie die Ziel-Dividende an oder wählen Sie mehr Positionen für bessere Flexibilität.
                 </p>
+                <Button
+                  onClick={() => setShowAdjustmentDialog(true)}
+                  className="mt-3 bg-blue-600 hover:bg-blue-700"
+                  size="sm"
+                >
+                  Portfolio anpassen
+                </Button>
               </div>
             </div>
           </CardContent>

@@ -384,3 +384,27 @@
 - [x] Garantie: Durchschnittliche Portfolio-Dividende >= Ziel-Dividende (harte Filterung)
 - [x] Automatische Positions-Reduktion wenn nicht genug Dividenden-Aktien verfügbar
 
+
+
+## Dividende zu hoch (4% statt 3%) - BUG URGENT
+- [ ] Problem: 3% Dividende eingegeben, Portfolio hat 4% (zu hoch!)
+- [ ] Ursache: "Konservativ" Override ignoriert Wachstumsaktien komplett
+- [ ] Lösung: Anlegertyp-Override ENTFERNEN
+- [ ] Exakte Dividenden-Optimierung implementieren (3% → genau 3.0% ±0.1%)
+- [ ] Mix aus verschiedenen Dividenden-Levels (2%, 3%, 4%, 5%)
+- [ ] Gewichtung so anpassen dass Durchschnitt = Ziel
+- [ ] Anlegertyp "Ausgewogen" beibehalten (Mix Dividende + Wachstum)
+
+
+
+## Dividenden-Optimierung funktioniert nicht (BUG)
+- [x] Problem: Immer noch 4% statt 3% → BEHOBEN durch Entfernung
+- [x] Austausch-Algorithmus greift nicht → ENTFERNT (zu komplex, funktioniert nicht zuverlässig)
+- [x] Warnung mit "Portfolio anpassen" Button stattdessen implementiert
+- [x] User kann jetzt manuell Parameter anpassen
+
+## Optimierungsvorschlag-Dialog fehlt Abbrechen-Button
+- [x] User kann Dialog nicht schließen ohne Auswahl → BEHOBEN
+- [x] "Abbrechen" Button existiert bereits (Zeile 96-102 in ConflictResolutionDialog.tsx)
+- [x] Bei Abbruch: Portfolio wird angezeigt (ohne Optimierung)
+
