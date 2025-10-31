@@ -6,87 +6,84 @@ Der Portfolio Optimizer verwendet ein **Scoring-System** um die besten Aktien f�
 
 ---
 
-## Anlegertyp-spezifisches Scoring
+## Neues Balanced Scoring System
 
-### 1. Konservativ (Conservative)
+### Conservative (Konservativ)
 
-**Fokus:** Dividenden und Stabilität (70% Dividende, 30% Wachstum)
+**Fokus:** Dividende 40%, Sharpe Ratio 30%, Stabilität 30%
 
-**Scoring-Faktoren:**
-- **Dividendenrendite:** `dividendYield × 50` (bei Dividendenziel) oder `dividendYield × 20`
-  - Beispiel: 4% Dividende = 200 Punkte (mit Ziel) oder 80 Punkte (ohne Ziel)
-- **Dividenden-Aktien Bonus:** +100 Punkte (mit Ziel) oder +50 Punkte (ohne Ziel)
-  - Kriterium: Dividende ≥ 2.5%
-- **P/E Ratio:** +15 Punkte wenn P/E < 20 (günstige Bewertung)
-- **Sektor-Bonus:** +20 Punkte für Healthcare, Consumer Staples, Utilities
-- **Wachstums-Bonus:** `ytdPerformance × 0.3` (kleine Diversifikation)
-- **Performance-Penalty:** `-|ytdPerformance| × 2` wenn YTD < -5%
+**Scoring-Komponenten:**
+- **Dividendenrendite:** 40% Gewichtung
+  - Multiplikator: 40x
+  - Beispiel: 3% Dividende = 120 Punkte
+- **Sharpe Ratio:** 30% Gewichtung
+  - Berechnung: YTD Performance / Kategorie-Volatilität
+  - Multiplikator: 30x
+  - Beispiel: 10% YTD / 1.0 Volatilität = 10 Sharpe × 30 = 300 Punkte
+- **Stabilität:** 30% Gewichtung
+  - P/E Ratio < 20: +30 Punkte
+  - Defensive Sektoren (Healthcare, Consumer Staples, Utilities): +30 Punkte
+  - Penalty: -20 für hohe Volatilität (>1.3)
 
-**Beispiel-Rechnung:**
-```
-Nestlé SA (NESN.SW):
-- Dividende: 3.7% → 3.7 × 50 = 185 Punkte
-- Dividenden-Aktien: +100 Punkte
-- P/E: 20.3 → 0 Punkte (nicht < 20)
-- Sektor: Consumer Staples → +20 Punkte
-- YTD: 1.0% → 1.0 × 0.3 = 0.3 Punkte
-= 305.3 Punkte
-```
+**Kategorie-Volatilität:**
+- Technology/E-Commerce: 1.5
+- Fintech: 1.4
+- Biotech: 1.8
+- Healthcare: 1.0
+- Consumer Staples: 0.8
+- Utilities: 0.7
+- Energy: 1.3
+- Industrials: 1.1
 
----
-
-### 2. Ausgewogen (Balanced)
-
-**Fokus:** Mix aus Dividende und Wachstum (50% Dividende, 50% Wachstum)
-
-**Scoring-Faktoren:**
-- **Dividendenrendite:** `dividendYield × 12`
-  - Beispiel: 3% Dividende = 36 Punkte
-- **Dividenden-Aktien Bonus:** +30 Punkte (Dividende ≥ 2.5%)
-- **Wachstums-Performance:** `ytdPerformance × 1.2`
-  - Beispiel: 15% YTD = 18 Punkte
-- **Wachstums-Aktien Bonus:** +30 Punkte
-  - Kriterium: YTD > 10% ODER Sektor = Technology/E-Commerce/Fintech/Biotech
-- **P/E Ratio:** +10 Punkte wenn P/E < 30
-- **Hybrid-Bonus:** +20 Punkte wenn BEIDE (Dividende UND Wachstum)
-
-**Beispiel-Rechnung:**
-```
-Microsoft Corp (MSFT):
-- Dividende: 0.7% → 0.7 × 12 = 8.4 Punkte
-- Dividenden-Aktien: 0 Punkte (< 2.5%)
-- YTD: 2.4% → 2.4 × 1.2 = 2.9 Punkte
-- Wachstums-Aktien: 0 Punkte (YTD < 10%, kein Tech-Sektor)
-- P/E: 35.0 → 0 Punkte (nicht < 30)
-- Hybrid: 0 Punkte
-= 11.3 Punkte
-```
+**Beispiel:**
+- Aktie: Nestlé (Dividende 3%, YTD +5%, P/E 18, Healthcare)
+- Score: (3 × 40) + (5/1.0 × 30) + 30 + 30 = **340 Punkte**
 
 ---
 
-### 3. Dynamisch (Dynamic)
+### Balanced (Ausgewogen)
 
-**Fokus:** Wachstum und Performance (70% Wachstum, 30% Dividende)
+**Fokus:** Dividende 50%, Sharpe Ratio 50%
 
-**Scoring-Faktoren:**
-- **Wachstums-Performance:** `ytdPerformance × 2`
-  - Beispiel: 20% YTD = 40 Punkte
-- **Wachstums-Aktien Bonus:** +50 Punkte
-  - Kriterium: YTD > 10% ODER Sektor = Technology/E-Commerce/Fintech/Biotech
-- **Sektor-Bonus:** +30 Punkte für Technology, E-Commerce, Fintech, Biotech
-- **High-Performance Bonus:** +25 Punkte wenn YTD > 20%
-- **Dividenden-Bonus:** `dividendYield × 8` (kleine Diversifikation)
+**Scoring-Komponenten:**
+- **Dividendenrendite:** 50% Gewichtung
+  - Multiplikator: 50x
+  - Beispiel: 2% Dividende = 100 Punkte
+- **Sharpe Ratio:** 50% Gewichtung
+  - Berechnung: YTD Performance / Kategorie-Volatilität
+  - Multiplikator: 50x
+  - Beispiel: 15% YTD / 1.5 Volatilität = 10 Sharpe × 50 = 500 Punkte
+- **Hybrid-Bonus:**
+  - Aktien mit BEIDEN Eigenschaften (Dividende ≥2.5% UND Wachstum): +30 Punkte
 
-**Beispiel-Rechnung:**
-```
-NVIDIA Corp (NVDA):
-- YTD: 1.6% → 1.6 × 2 = 3.2 Punkte
-- Wachstums-Aktien: 0 Punkte (YTD < 10%, kein Tech-Sektor in Daten)
-- Sektor: Diversified/Healthcare → 0 Punkte
-- High-Performance: 0 Punkte (YTD < 20%)
-- Dividende: 0.3% → 0.3 × 8 = 2.4 Punkte
-= 5.6 Punkte
-```
+**Beispiel:**
+- Aktie: Microsoft (Dividende 1%, YTD +25%, Technology, Volatilität 1.5)
+- Score: (1 × 50) + (25/1.5 × 50) + 30 = **913 Punkte**
+
+---
+
+### Dynamic (Dynamisch)
+
+**Fokus:** Dividende 20%, Sharpe Ratio 60%, YTD 20%
+
+**Scoring-Komponenten:**
+- **Dividendenrendite:** 20% Gewichtung
+  - Multiplikator: 20x (für Diversifikation)
+  - Beispiel: 0.5% Dividende = 10 Punkte
+- **Sharpe Ratio:** 60% Gewichtung
+  - Berechnung: YTD Performance / Kategorie-Volatilität
+  - Multiplikator: 60x
+  - Beispiel: 50% YTD / 1.5 Volatilität = 33.3 Sharpe × 60 = 2000 Punkte
+- **YTD Performance:** 20% Gewichtung
+  - Multiplikator: 20x (absolute Performance)
+  - Beispiel: 50% YTD = 1000 Punkte
+- **Sektor-Bonus:**
+  - Tech/E-Commerce/Fintech/Biotech: +40 Punkte
+  - Extra Bonus: +30 für YTD >20%
+
+**Beispiel:**
+- Aktie: NVIDIA (Dividende 0.1%, YTD +150%, Technology, Volatilität 1.5)
+- Score: (0.1 × 20) + (150/1.5 × 60) + (150 × 20) + 40 + 30 = **9072 Punkte**
 
 ---
 
@@ -202,12 +199,32 @@ Portfolio-Dividende: (80'000 × 3.5% + 10'000 × 0.5%) / 90'000 = 3.17% ✅
 
 ## Zusammenfassung
 
-**Der Score kombiniert:**
-1. ✅ Anlegertyp-spezifische Gewichtung (Conservative/Balanced/Dynamic)
-2. ✅ Dividenden-Nähe-Bonus (massiv bei Dividendenziel)
-3. ✅ Sektor-Diversifikation (max 30% pro Sektor)
-4. ✅ Wachstums-Minimum (25% bei Ausgewogen + Dividendenziel)
-5. ✅ Dynamische Gewichtung (Dividenden-Aktien höher, Wachstums-Aktien niedriger)
+**Das neue Balanced Scoring System kombiniert:**
+1. ✅ **Sharpe Ratio** - Risiko-adjustierte Performance (YTD / Volatilität)
+2. ✅ **Dividendenrendite** - Stabile Erträge
+3. ✅ **Anlegertyp-spezifische Gewichtung:**
+   - Conservative: 40% Dividende, 30% Sharpe, 30% Stabilität
+   - Balanced: 50% Dividende, 50% Sharpe
+   - Dynamic: 20% Dividende, 60% Sharpe, 20% YTD
+4. ✅ **Dividenden-Nähe-Bonus** (massiv bei Dividendenziel)
+5. ✅ **Sektor-Diversifikation** (max 30% pro Sektor)
+6. ✅ **Wachstums-Minimum** (25% bei Ausgewogen + Dividendenziel)
+7. ✅ **Dynamische Gewichtung** (Dividenden-Aktien höher, Wachstums-Aktien niedriger)
 
 **Resultat:** Portfolio das Ihre Ziele (Dividende, Wachstum, Diversifikation) optimal erfüllt! 🎯
+
+---
+
+## Warum Sharpe Ratio?
+
+Die **Sharpe Ratio** misst die **risiko-adjustierte Performance**:
+- Hohe Performance + niedrige Volatilität = hoher Score ✅
+- Hohe Performance + hohe Volatilität = moderater Score ⚠️
+- Niedrige Performance + hohe Volatilität = niedriger Score ❌
+
+**Beispiel:**
+- Aktie A: +20% YTD, Volatilität 2.0 → Sharpe = 10
+- Aktie B: +15% YTD, Volatilität 0.8 → Sharpe = 18.75 ✅ (besser!)
+
+So bevorzugt der Optimizer **stabile Performer** statt riskanter Spekulationen.
 

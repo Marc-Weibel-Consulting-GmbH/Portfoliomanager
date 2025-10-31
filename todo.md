@@ -449,3 +449,26 @@
 - [x] Gap reduziert: gap-3 statt gap-4
 - [x] Titel gekürzt: "Ø YTD Perf." statt "Ø YTD Performance"
 
+
+
+## Finanzen Spalte von Frontseite entfernen
+- [x] "Finanzen" Spalte auf Homepage (Home.tsx) entfernt
+- [x] Table Header entfernt (Zeile 996)
+- [x] Table Cell + Dialog entfernt (Zeile 1152-1271)
+- [x] State-Variablen entfernt (editingFinanzenStock, finanzenFormData)
+- [x] Funktionen entfernt (startEditingFinanzen, saveFinanzen, saveFinanzenMutation)
+- [x] Layout angepasst nach Entfernung
+- [x] Homepage korrekt angezeigt ✅
+
+
+
+## Scoring-System verfeinern (Wachstumsaktien zu schwach)
+- [x] Problem: Wachstumsaktien kommen zu schlecht weg → BEHOBEN
+- [x] Neue Gewichtung implementiert:
+  - [x] Conservative: Dividende 40%, Sharpe 30%, Stabilität 30%
+  - [x] Balanced: Dividende 50%, Sharpe 50%
+  - [x] Dynamic: Dividende 20%, Sharpe 60%, YTD 20%
+- [x] Alte übermäßige Dividenden-Gewichtung entfernt (50x Multiplikator)
+- [x] Sharpe Ratio eingebaut (YTD / Kategorie-Volatilität)
+- [x] Score-Dokumentation aktualisiert (SCORE_CALCULATION.md)
+
