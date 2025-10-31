@@ -2,17 +2,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import TrustpilotWidget from "@/components/trustpilot/TrustpilotWidget";
 import { TrustpilotDemoHeader, TrustpilotDemoCarousel } from "@/components/trustpilot/TrustpilotDemo";
 
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+
 export default function Reviews({ onBackClick }: { onBackClick?: () => void }) {
   const businessUnitId = import.meta.env.VITE_TRUSTPILOT_BUSINESS_UNIT_ID;
   const isDemoMode = !businessUnitId;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Kundenbewertungen</h1>
-        <p className="text-slate-400">
-          Sehen Sie, was unsere Kunden über uns sagen
-        </p>
+      <div className="flex items-center gap-4">
+        {onBackClick && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBackClick}
+            className="text-slate-400 hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Zurück
+          </Button>
+        )}
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold text-white mb-2">Kundenbewertungen</h1>
+          <p className="text-slate-400">
+            Sehen Sie, was unsere Kunden über uns sagen
+          </p>
+        </div>
       </div>
 
       {/* Trustpilot Header Widget */}

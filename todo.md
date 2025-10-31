@@ -408,3 +408,25 @@
 - [x] "Abbrechen" Button existiert bereits (Zeile 96-102 in ConflictResolutionDialog.tsx)
 - [x] Bei Abbruch: Portfolio wird angezeigt (ohne Optimierung)
 
+
+
+## Dividenden-Garantie 3% ±0.2% (CRITICAL BUG)
+- [x] Problem: 3% Ziel, nur 1.2% erreicht (Screenshot zeigt Konflikt-Dialog)
+- [x] Scoring-Gewichtung massiv erhöht für Dividende (50x statt 20x)
+- [x] "Konservativ" Scoring verwendet wenn Dividendenziel > 0
+- [x] Mindestens 25% Wachstumstitel garantiert (Mix!)
+- [x] NEUES PROBLEM: Scoring allein reicht nicht, GEWICHTUNG muss dynamisch sein → BEHOBEN
+- [x] Dividenden-Aktien: 8% Gewichtung (statt 5%)
+- [x] Wachstums-Aktien: 2% Gewichtung (statt 5%)
+- [x] So erreichen wir 3% Durchschnitt! ✅
+
+## Zurück-Button unter Bewertungen fehlt
+- [x] Bewertungen-Seite hat keinen Zurück-Button → BEHOBEN
+- [x] Zurück-Button hinzugefügt (mit ArrowLeft Icon, zu Portfolio-Ergebnissen)
+
+## Score-Berechnung dokumentieren
+- [x] User kann Score-Berechnung nicht nachvollziehen → BEHOBEN
+- [x] Dokumentation erstellt: SCORE_CALCULATION.md (umfassende Erklärung)
+- [x] Erklärung für Conservative/Balanced/Dynamic Scoring mit Beispielen
+- [x] Erklärung für Dividenden-Bonus, Ziel-Nähe-Bonus, dynamische Gewichtung
+

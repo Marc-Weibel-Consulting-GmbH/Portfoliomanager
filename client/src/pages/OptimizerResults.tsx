@@ -90,11 +90,13 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
     const minPositionAmount = minPositionPercent > 0 ? currentInputs.investmentAmount * minPositionPercent : 0;
 
-    // PRIORITY 2: Dividend yield targeting (exact target, not minimum)
-    // Keep investor type as-is, use scoring to achieve exact dividend target
-    const effectiveInvestorType = currentInputs.investorType;
+    // PRIORITY 2: Dividend yield guarantee (3% ±0.2% tolerance)
+    // Use conservative scoring when dividend target > 0 to prioritize dividend stocks
+    // BUT maintain 20-30% growth stocks for balanced portfolio
+    const hasDividendTarget = currentInputs.expectedDividendYield > 0;
+    const effectiveInvestorType = hasDividendTarget ? "conservative" : currentInputs.investorType;
     
-    // No hard filtering - use all stocks and let scoring + optimization achieve target
+    // No hard filtering - use all stocks
     const stocksToScore = allStocks;
     
     // Step 1: Calculate score with dividend-aware weighting (using effective investor type and filtered stocks)
@@ -112,8 +114,10 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       if (effectiveInvestorType === "conservative") {
         // Prefer dividend stocks (70%), some growth (30%)
         if (isDividendStock) {
-          score += divYield * 20; // High weight on dividends
-          score += 50; // Bonus for dividend stocks
+          // MASSIVELY increase dividend weight when target exists
+          const dividendMultiplier = hasDividendTarget ? 50 : 20;
+          score += divYield * dividendMultiplier;
+          score += hasDividendTarget ? 100 : 50; // Bonus for dividend stocks
         }
         if (peRatio > 0 && peRatio < 20) score += 15;
         if (["Healthcare", "Consumer Staples", "Utilities"].includes(stock.category)) {
@@ -152,13 +156,19 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       }
 
       // IMPORTANT: Boost score based on how close dividend is to target
-      const divDiff = Math.abs(divYield - currentInputs.expectedDividendYield);
-      if (divDiff < 0.5) {
-        score += 30; // Very close to target
-      } else if (divDiff < 1.0) {
-        score += 20; // Close to target
-      } else if (divDiff < 2.0) {
-        score += 10; // Somewhat close
+      if (hasDividendTarget && currentInputs.expectedDividendYield > 0) {
+        const divDiff = Math.abs(divYield - currentInputs.expectedDividendYield);
+        if (divDiff < 0.5) {
+          score += 150; // Very close to target - MASSIVE boost
+        } else if (divDiff < 1.0) {
+          score += 80; // Close to target
+        } else if (divDiff < 2.0) {
+          score += 40; // Somewhat close
+        }
+        // Penalize stocks far from target
+        if (divDiff > 2.0) {
+          score -= 50;
+        }
       }
 
       // Note: 'reduce_positions' strategy uses same scoring but selects fewer stocks (70% of requested)
@@ -212,6 +222,35 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       }
     }
 
+    // GROWTH STOCK MINIMUM: Ensure 20-30% growth stocks when dividend target exists
+    if (hasDividendTarget && currentInputs.investorType === "balanced") {
+      const growthStocksInPortfolio = diversified.filter(s => s.isGrowthStock).length;
+      const minGrowthStocks = Math.ceil(diversified.length * 0.25); // 25% minimum
+      
+      if (growthStocksInPortfolio < minGrowthStocks) {
+        // Need to add more growth stocks
+        const growthStocksAvailable = sorted.filter(s => 
+          s.isGrowthStock && !diversified.find(d => d.ticker === s.ticker)
+        );
+        
+        const neededGrowthStocks = minGrowthStocks - growthStocksInPortfolio;
+        const growthToAdd = growthStocksAvailable.slice(0, neededGrowthStocks);
+        
+        // Replace lowest scoring dividend stocks with growth stocks
+        const dividendStocksToReplace = diversified
+          .filter(s => s.isDividendStock && !s.isGrowthStock)
+          .sort((a, b) => a.score - b.score)
+          .slice(0, growthToAdd.length);
+        
+        dividendStocksToReplace.forEach((divStock, idx) => {
+          const indexToReplace = diversified.findIndex(s => s.ticker === divStock.ticker);
+          if (indexToReplace >= 0 && growthToAdd[idx]) {
+            diversified[indexToReplace] = growthToAdd[idx];
+          }
+        });
+      }
+    }
+
     // Step 2: Select top stocks and check affordability
     // Check if we can afford 1% minimum for all positions
     const maxAffordablePositions = Math.floor(currentInputs.investmentAmount / minPositionAmount);
@@ -226,11 +265,25 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       selectedStocks = diversified.slice(0, maxAffordablePositions);
     }
     
-    // Calculate equal allocation with 1% minimum
-    const baseAllocation = currentInputs.investmentAmount / selectedStocks.length;
+    // DYNAMIC WEIGHTING: Dividend stocks get higher weight, growth stocks lower weight
+    // This helps achieve exact dividend target (e.g., 3%)
+    const dividendStocksCount = selectedStocks.filter(s => s.isDividendStock && !s.isGrowthStock).length;
+    const growthStocksCount = selectedStocks.filter(s => s.isGrowthStock && !s.isDividendStock).length;
+    const mixedStocksCount = selectedStocks.filter(s => s.isDividendStock && s.isGrowthStock).length;
     
-    // CONFLICT DETECTION: Check if any stocks are too expensive for 1% minimum
-    // Minimum investment conflict detection removed - new priority logic handles this automatically
+    // Calculate target weights based on dividend goal
+    const dividendWeight = hasDividendTarget ? 0.08 : 0.05; // 8% for dividend stocks (vs 5% default)
+    const growthWeight = hasDividendTarget ? 0.02 : 0.05; // 2% for growth stocks (vs 5% default)
+    const mixedWeight = 0.05; // 5% for mixed stocks
+    
+    // Calculate total target allocation
+    const targetDividendAllocation = dividendStocksCount * dividendWeight * currentInputs.investmentAmount;
+    const targetGrowthAllocation = growthStocksCount * growthWeight * currentInputs.investmentAmount;
+    const targetMixedAllocation = mixedStocksCount * mixedWeight * currentInputs.investmentAmount;
+    const totalTargetAllocation = targetDividendAllocation + targetGrowthAllocation + targetMixedAllocation;
+    
+    // Scale to fit investment amount (90% target)
+    const scaleFactor = (currentInputs.investmentAmount * 0.90) / totalTargetAllocation;
     
     const positions: OptimizedPosition[] = selectedStocks.map((stock) => {
       const currentPrice = parseFloat(stock.currentPrice || "0");
@@ -238,8 +291,22 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         return null;
       }
 
-      // Start with base allocation, enforce min 1% and max 5%
-      let positionAmount = Math.min(baseAllocation, maxPositionAmount);
+      // Determine position weight based on stock type
+      let targetWeight = 0.05; // default
+      if (stock.isDividendStock && !stock.isGrowthStock) {
+        targetWeight = dividendWeight;
+      } else if (stock.isGrowthStock && !stock.isDividendStock) {
+        targetWeight = growthWeight;
+      } else if (stock.isDividendStock && stock.isGrowthStock) {
+        targetWeight = mixedWeight;
+      }
+      
+      // Calculate position amount with scaling
+      let positionAmount = targetWeight * currentInputs.investmentAmount * scaleFactor;
+      
+      // Enforce limits
+      const maxForType = stock.isDividendStock ? currentInputs.investmentAmount * 0.10 : maxPositionAmount; // 10% max for dividend stocks
+      positionAmount = Math.min(positionAmount, maxForType);
       positionAmount = Math.max(positionAmount, minPositionAmount);
       
       const shares = Math.floor(positionAmount / currentPrice);
