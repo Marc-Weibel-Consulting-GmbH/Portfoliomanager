@@ -438,3 +438,14 @@
 - [x] Anzeige neben "Durchschnittliche Dividendenrendite" als neue Karte
 - [x] Format: "+13.2%" (grün) oder "-5.3%" (rot) mit dynamischer Farbe
 
+
+
+## Karten schmaler machen (4 auf einer Zeile)
+- [x] Aktuell: Karten zu breit, YTD Performance auf neuer Zeile → BEHOBEN
+- [x] Ziel: Investiert, Positionen, Dividende, YTD auf EINER Zeile ✅
+- [x] Grid-Layout: md:grid-cols-2 lg:grid-cols-4 (responsive)
+- [x] Padding reduziert: pb-1 pt-3 px-3 (statt pb-2)
+- [x] Text kleiner: text-xs (Titel), text-lg (Wert) statt text-sm/text-2xl
+- [x] Gap reduziert: gap-3 statt gap-4
+- [x] Titel gekürzt: "Ø YTD Perf." statt "Ø YTD Performance"
+

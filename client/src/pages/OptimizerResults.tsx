@@ -907,57 +907,46 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Investiert</CardTitle>
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs text-slate-400">Investiert</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-white">
-              CHF {displayPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+          <CardContent className="px-3 pb-3">
+            <p className="text-lg font-bold text-white">
+              CHF {displayPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 0 })}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Restbetrag</CardTitle>
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs text-slate-400">Positionen</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-white">
-              CHF {displayPortfolio.remainingCash.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Positionen</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-white">
+          <CardContent className="px-3 pb-3">
+            <p className="text-lg font-bold text-white">
               {displayPortfolio.positions.length}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Ø Dividendenrendite</CardTitle>
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs text-slate-400">Ø Dividende</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-white">
+          <CardContent className="px-3 pb-3">
+            <p className="text-lg font-bold text-white">
               {displayPortfolio.avgDividendYield.toFixed(2)}%
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Ø YTD Performance</CardTitle>
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-xs text-slate-400">Ø YTD Perf.</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className={`text-2xl font-bold ${
+          <CardContent className="px-3 pb-3">
+            <p className={`text-lg font-bold ${
               displayPortfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
             }`}>
               {displayPortfolio.avgYtdPerformance >= 0 ? '+' : ''}{displayPortfolio.avgYtdPerformance.toFixed(1)}%
