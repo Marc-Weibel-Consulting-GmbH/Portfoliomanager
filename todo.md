@@ -321,3 +321,14 @@
 - [x] Performance-Metriken korrekt berechnet (Sharpe Ratio, Dividende)
 - [x] UI-Feedback bei Fehlern vorhanden (Konflikt-Dialog, Warnungen)
 
+
+
+## 90% Investment-Garantie (URGENT)
+- [x] Aktuelle Investment-Verteilungs-Logik analysiert
+- [x] Problem identifiziert: maxPositionPercent Limit blockiert, teure Aktien
+- [x] Cash-Verteilungs-Algorithmus verbessert (2-Phasen-Ansatz)
+- [x] Garantie implementiert: Mindestens 90% investiert (Phase 1: Standard-Limits, Phase 2: Flexible Limits)
+- [x] Edge Case gelöst: Sehr teure Aktien (Sortierung nach Preis, flexible Limits bis 8%/15%)
+- [x] Edge Case gelöst: Sehr kleine Portfolios (0-10% Limits, keine Minimums)
+- [x] Ziel geändert: 90% Minimum statt 98% (realistischer)
+

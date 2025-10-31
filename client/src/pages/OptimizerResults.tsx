@@ -81,7 +81,8 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     // Dynamic limits based on portfolio size
     const maxPositionPercent = currentInputs.investmentAmount < 20000 ? 0.10 : 0.05; // 10% for small, 5% for large
     const minPositionPercent = currentInputs.investmentAmount < 20000 ? 0 : 0.01; // No min for small, 1% for large
-    const targetInvestmentPercent = 0.98; // 98% minimum investment target
+    const targetInvestmentPercent = 0.90; // 90% MINIMUM investment target (changed from 98%)
+    const flexibleMaxPercent = currentInputs.investmentAmount < 20000 ? 0.15 : 0.08; // Flexible max for final distribution
     const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
     const minPositionAmount = minPositionPercent > 0 ? currentInputs.investmentAmount * minPositionPercent : 0;
 
@@ -289,25 +290,23 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     let remainingCash = currentInputs.investmentAmount - totalInvested;
     const investmentPercent = totalInvested / currentInputs.investmentAmount;
 
-    // Aggressively distribute remaining cash to reach 90%+ investment
+    // PHASE 1: Distribute remaining cash with standard limits (reach ~90%)
     if (investmentPercent < targetInvestmentPercent && positions.length > 0) {
-      // Sort by current weight (lowest first) to balance portfolio
-      const sortedByWeight = [...positions].sort((a, b) => a.portfolioWeight - b.portfolioWeight);
+      // Sort by price (cheapest first) to maximize shares bought
+      const sortedByPrice = [...positions].sort((a, b) => parseFloat(a.currentPrice) - parseFloat(b.currentPrice));
 
-      // Keep distributing until we hit 90% or run out of room
       let iterations = 0;
       while (totalInvested / currentInputs.investmentAmount < targetInvestmentPercent && remainingCash > 0 && iterations < 100) {
         iterations++;
         let addedThisRound = false;
 
-        for (const position of sortedByWeight) {
+        for (const position of sortedByPrice) {
           const currentPrice = parseFloat(position.currentPrice);
           const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
           const currentAmount = position.investmentAmount;
           const availableForPosition = maxPositionAmount - currentAmount;
 
           if (remainingCash >= currentPrice && availableForPosition >= currentPrice) {
-            // Add one share at a time to distribute evenly
             position.shares += 1;
             const additionalInvestment = currentPrice;
             position.investmentAmount += additionalInvestment;
@@ -316,14 +315,46 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
             totalInvested += additionalInvestment;
             addedThisRound = true;
 
-            // Check if we reached 90%
             if (totalInvested / currentInputs.investmentAmount >= targetInvestmentPercent) {
               break;
             }
           }
         }
 
-        // If we couldn't add any shares this round, stop
+        if (!addedThisRound) break;
+      }
+    }
+
+    // PHASE 2: If still below 90%, use FLEXIBLE limits to guarantee 90%
+    if (totalInvested / currentInputs.investmentAmount < targetInvestmentPercent && positions.length > 0 && remainingCash > 0) {
+      const sortedByPrice = [...positions].sort((a, b) => parseFloat(a.currentPrice) - parseFloat(b.currentPrice));
+      
+      let iterations = 0;
+      while (totalInvested / currentInputs.investmentAmount < targetInvestmentPercent && remainingCash > 0 && iterations < 100) {
+        iterations++;
+        let addedThisRound = false;
+
+        for (const position of sortedByPrice) {
+          const currentPrice = parseFloat(position.currentPrice);
+          const flexibleMaxAmount = currentInputs.investmentAmount * flexibleMaxPercent; // Higher limit
+          const currentAmount = position.investmentAmount;
+          const availableForPosition = flexibleMaxAmount - currentAmount;
+
+          if (remainingCash >= currentPrice && availableForPosition >= currentPrice) {
+            position.shares += 1;
+            const additionalInvestment = currentPrice;
+            position.investmentAmount += additionalInvestment;
+            position.portfolioWeight = (position.investmentAmount / currentInputs.investmentAmount) * 100;
+            remainingCash -= additionalInvestment;
+            totalInvested += additionalInvestment;
+            addedThisRound = true;
+
+            if (totalInvested / currentInputs.investmentAmount >= targetInvestmentPercent) {
+              break;
+            }
+          }
+        }
+
         if (!addedThisRound) break;
       }
     }
@@ -348,20 +379,52 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     let finalRemainingCash = currentInputs.investmentAmount - finalTotalInvested;
     const finalInvestmentPercent = finalTotalInvested / currentInputs.investmentAmount;
 
-    // ENFORCE 95% INVESTMENT: Distribute remaining cash if below 95%
-    if (finalInvestmentPercent < targetInvestmentPercent && finalPositions.length > 0) {
-      const sortedByWeight = [...finalPositions].sort((a, b) => a.portfolioWeight - b.portfolioWeight);
+    // ENFORCE 90% MINIMUM: Distribute remaining cash with FLEXIBLE limits
+    if (finalInvestmentPercent < targetInvestmentPercent && finalPositions.length > 0 && finalRemainingCash > 0) {
+      // Sort by price (cheapest first) to maximize investment
+      const sortedByPrice = [...finalPositions].sort((a, b) => parseFloat(a.currentPrice) - parseFloat(b.currentPrice));
       let iterations = 0;
 
+      // Phase 1: Try with standard limits
       while (finalTotalInvested / currentInputs.investmentAmount < targetInvestmentPercent && finalRemainingCash > 0 && iterations < 100) {
         iterations++;
         let addedThisRound = false;
 
-        for (const position of sortedByWeight) {
+        for (const position of sortedByPrice) {
           const currentPrice = parseFloat(position.currentPrice);
           const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
           const currentAmount = position.investmentAmount;
           const availableForPosition = maxPositionAmount - currentAmount;
+
+          if (finalRemainingCash >= currentPrice && availableForPosition >= currentPrice) {
+            position.shares += 1;
+            const additionalInvestment = currentPrice;
+            position.investmentAmount += additionalInvestment;
+            position.portfolioWeight = (position.investmentAmount / currentInputs.investmentAmount) * 100;
+            finalRemainingCash -= additionalInvestment;
+            finalTotalInvested += additionalInvestment;
+            addedThisRound = true;
+
+            if (finalTotalInvested / currentInputs.investmentAmount >= targetInvestmentPercent) {
+              break;
+            }
+          }
+        }
+
+        if (!addedThisRound) break;
+      }
+
+      // Phase 2: If still below 90%, use FLEXIBLE limits
+      iterations = 0;
+      while (finalTotalInvested / currentInputs.investmentAmount < targetInvestmentPercent && finalRemainingCash > 0 && iterations < 100) {
+        iterations++;
+        let addedThisRound = false;
+
+        for (const position of sortedByPrice) {
+          const currentPrice = parseFloat(position.currentPrice);
+          const flexibleMaxAmount = currentInputs.investmentAmount * flexibleMaxPercent; // Higher limit
+          const currentAmount = position.investmentAmount;
+          const availableForPosition = flexibleMaxAmount - currentAmount;
 
           if (finalRemainingCash >= currentPrice && availableForPosition >= currentPrice) {
             position.shares += 1;
