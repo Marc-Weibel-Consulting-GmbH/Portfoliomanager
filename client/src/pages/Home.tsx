@@ -148,7 +148,7 @@ export default function Home() {
         let bVal: any = b[sortField as keyof typeof b];
 
         // Handle numeric fields
-        if (['currentPrice', 'peRatio', 'pegRatio', 'dividendYield', 'portfolioWeight'].includes(sortField)) {
+        if (['currentPrice', 'peRatio', 'pegRatio', 'sharpeRatio', 'dividendYield', 'portfolioWeight'].includes(sortField)) {
           aVal = parseFloat(aVal || '0');
           bVal = parseFloat(bVal || '0');
         }
@@ -949,6 +949,9 @@ export default function Home() {
                       <th onClick={() => handleSort('pegRatio')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         PEG {sortField === 'pegRatio' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th onClick={() => handleSort('sharpeRatio')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Sharpe {sortField === 'sharpeRatio' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th onClick={() => handleSort('dividendYield')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Div. Rendite {sortField === 'dividendYield' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -980,6 +983,13 @@ export default function Home() {
                         <td className="py-2 px-2 text-slate-300">{stock.currentPrice} {stock.currency || "USD"}</td>
                         <td className="py-2 px-2 text-slate-300">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "-"}</td>
                         <td className="py-2 px-2 text-slate-300">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(1) : "-"}</td>
+                        <td className="py-2 px-2">
+                          {stock.sharpeRatio ? (
+                            <span className={parseFloat(stock.sharpeRatio) >= 1 ? "text-green-400" : parseFloat(stock.sharpeRatio) >= 0 ? "text-yellow-400" : "text-red-400"}>
+                              {parseFloat(stock.sharpeRatio).toFixed(2)}
+                            </span>
+                          ) : "-"}
+                        </td>
                         <td className="py-2 px-2 text-green-400">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : "-"}</td>
                         <td className="py-2 px-2">
                           {(() => {

@@ -59,6 +59,14 @@ export const stocks = mysqlTable("stocks", {
   financialHighlight1: text("financialHighlight1"),
   financialHighlight2: text("financialHighlight2"),
   financialHighlight3: text("financialHighlight3"),
+  // Yahoo Finance API metrics
+  sharpeRatio: varchar("sharpeRatio", { length: 50 }),
+  volatility: varchar("volatility", { length: 50 }), // Annualized volatility in %
+  week52High: varchar("week52High", { length: 50 }),
+  week52Low: varchar("week52Low", { length: 50 }),
+  marketCap: varchar("marketCap", { length: 50 }),
+  beta: varchar("beta", { length: 50 }), // Market beta
+  lastDataRefresh: timestamp("lastDataRefresh"), // When was data last updated from API
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

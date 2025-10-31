@@ -472,3 +472,64 @@
 - [x] Sharpe Ratio eingebaut (YTD / Kategorie-Volatilität)
 - [x] Score-Dokumentation aktualisiert (SCORE_CALCULATION.md)
 
+
+
+## Zurück-Button im Portfolio Optimizer fehlt
+- [ ] Optimizer.tsx hat keinen Zurück-Button zur Hauptseite
+- [ ] OptimizerResults.tsx hat bereits Zurück-Button (zu Optimizer)
+- [ ] Zurück-Button zu Optimizer.tsx hinzufügen (zur Hauptseite)
+
+
+
+## Stock Data API Recherche (URGENT - Portfolio Optimizer pausiert)
+- [ ] Portfolio Optimizer pausiert bis verlässliche Daten verfügbar
+- [ ] API-Quellen recherchieren mit:
+  - [ ] API Key verfügbar
+  - [ ] Niedrige Kosten
+  - [ ] Hohes Volumen / hohe Request-Limits
+  - [ ] Aktuelle Daten (Preise, Dividenden, Performance, Fundamentaldaten)
+  - [ ] Schweizer Aktien (SIX Exchange) Support
+- [ ] Optionen vergleichen und beste Lösung empfehlen
+- [ ] Dokumentation erstellen mit Preisen, Limits, Features
+
+
+
+
+## Stock Data Integration (Yahoo Finance API)
+- [ ] Update database schema for stock metrics storage (currentPrice, pegRatio, sharpeRatio, peRatio, dividendYield, week52High, week52Low, volatility, lastUpdated)
+- [ ] Create backend API helper for Yahoo Finance integration (server/_core/stockDataApi.ts)
+- [ ] Implement tRPC procedure for fetching stock data (stocks.refreshData)
+- [ ] Add Sharpe Ratio calculation based on historical data
+- [ ] Add PEG Ratio extraction from Yahoo Finance insights
+- [ ] Add volatility calculation from historical prices
+- [ ] Implement data caching mechanism (only update on manual refresh)
+- [ ] Create refresh button component in Portfolio view
+- [ ] Build stock metrics display cards with all financial data
+- [ ] Add loading states for data refresh
+- [ ] Display current price and price change percentage
+- [ ] Display PEG Ratio with tooltip explanation
+- [ ] Display Sharpe Ratio with tooltip explanation
+- [ ] Display P/E Ratio with tooltip explanation
+- [ ] Display dividend yield
+- [ ] Display 52-week high/low ranges
+- [ ] Display volatility metrics
+- [ ] Add error handling for failed API calls
+- [ ] Test with Swiss stocks (NESN.SW, NOVN.SW, ROG.SW)
+- [ ] Verify all metrics display correctly
+- [ ] Test refresh button functionality
+- [ ] Create checkpoint after successful implementation
+
+
+
+## Stock Data Integration - Completed Items
+- [x] Update database schema for stock metrics storage (sharpeRatio, volatility, week52High, week52Low, marketCap, beta, lastDataRefresh)
+- [x] Create backend API helper for Yahoo Finance integration (server/_core/stockDataApi.ts)
+- [x] Implement tRPC procedure for fetching stock data (stocks.refreshData)
+- [x] Add Sharpe Ratio calculation based on historical data
+- [x] Add PEG Ratio extraction from Yahoo Finance insights
+- [x] Add volatility calculation from historical prices
+- [x] Implement data caching mechanism (only update on manual refresh)
+- [x] Display Sharpe Ratio column in Portfolio table
+- [x] Add sorting support for Sharpe Ratio column
+- [x] Color-code Sharpe Ratio (green >= 1, yellow >= 0, red < 0)
+

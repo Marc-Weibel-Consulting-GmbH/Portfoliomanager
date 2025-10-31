@@ -545,30 +545,79 @@ export const appRouter = router({
       }),
     refreshData: protectedProcedure.mutation(async () => {
       const { getAllStocks, updateStock } = await import("./db");
+      const { fetchStockMetrics } = await import("./_core/stockDataApi");
       
       const stocks = await getAllStocks();
-      let ytdUpdated = 0;
+      let updated = 0;
+      let failed = 0;
+      const errors: string[] = [];
       
-      // Recalculate YTD performance for all stocks
+      // Fetch fresh data from Yahoo Finance for all stocks
       for (const stock of stocks) {
-        if (stock.ytdStartPrice && stock.currentPrice) {
-          const ytdStart = parseFloat(stock.ytdStartPrice);
-          const current = parseFloat(stock.currentPrice);
+        try {
+          // Determine region from ticker (Swiss stocks end with .SW)
+          const region = stock.ticker.endsWith(".SW") ? "CH" : "US";
           
-          if (ytdStart > 0 && current > 0) {
-            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
-            await updateStock(stock.ticker, {
-              ytdPerformance: ytdPerf.toFixed(2),
-            });
-            ytdUpdated++;
+          // Fetch comprehensive metrics from Yahoo Finance
+          const metrics = await fetchStockMetrics(stock.ticker, region);
+          
+          // Prepare update data
+          const updateData: any = {
+            lastDataRefresh: new Date(),
+          };
+          
+          // Update price data
+          if (metrics.currentPrice !== null) {
+            updateData.currentPrice = metrics.currentPrice.toFixed(2);
+            
+            // Recalculate YTD performance if we have start price
+            if (stock.ytdStartPrice) {
+              const ytdStart = parseFloat(stock.ytdStartPrice);
+              if (ytdStart > 0) {
+                const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
+                updateData.ytdPerformance = ytdPerf.toFixed(2);
+              }
+            }
           }
+          
+          if (metrics.currency) updateData.currency = metrics.currency;
+          
+          // Update financial metrics
+          if (metrics.pegRatio !== null) updateData.pegRatio = metrics.pegRatio.toFixed(2);
+          if (metrics.peRatio !== null) updateData.peRatio = metrics.peRatio.toFixed(2);
+          if (metrics.dividendYield !== null) updateData.dividendYield = metrics.dividendYield.toFixed(2);
+          
+          // Update risk metrics
+          if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
+          if (metrics.volatility !== null) updateData.volatility = metrics.volatility.toFixed(2);
+          if (metrics.beta !== null) updateData.beta = metrics.beta.toFixed(2);
+          
+          // Update 52-week range
+          if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
+          if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
+          
+          // Update market cap
+          if (metrics.marketCap !== null) {
+            // Convert to billions for readability
+            const marketCapB = metrics.marketCap / 1_000_000_000;
+            updateData.marketCap = marketCapB.toFixed(2);
+          }
+          
+          await updateStock(stock.ticker, updateData);
+          updated++;
+          
+          // Add delay to avoid rate limiting (500ms between requests)
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          console.error(`[Refresh] Failed to update ${stock.ticker}:`, error);
+          failed++;
+          errors.push(`${stock.ticker}: ${error.message}`);
         }
       }
       
-      // Trigger news update (the news updater runs in background)
+      // Trigger news update in background
       try {
         const { updateNewsForAllStocks } = await import("./newsUpdater");
-        // Run news update in background without waiting
         updateNewsForAllStocks().catch((error: any) => {
           console.error("[Refresh] News update failed:", error);
         });
@@ -578,8 +627,10 @@ export const appRouter = router({
       
       return { 
         success: true, 
-        message: `YTD Performance für ${ytdUpdated} Aktien aktualisiert. News werden im Hintergrund aktualisiert.`,
-        ytdUpdated,
+        message: `${updated} Aktien erfolgreich aktualisiert${failed > 0 ? `, ${failed} fehlgeschlagen` : ""}. News werden im Hintergrund aktualisiert.`,
+        updated,
+        failed,
+        errors: failed > 0 ? errors : undefined,
       };
     }),
     importPrices: protectedProcedure
