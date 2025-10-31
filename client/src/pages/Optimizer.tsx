@@ -87,8 +87,29 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
               <Label htmlFor="amount" className="text-white text-lg mb-4 block">
                 Anlagebetrag in CHF
               </Label>
+              <div className="text-center mb-6">
+                <span className="text-6xl font-bold text-green-400">
+                  CHF {formatNumber(inputs.investmentAmount)}
+                </span>
+              </div>
+              <Slider
+                id="amount-slider"
+                min={10000}
+                max={1000000}
+                step={5000}
+                value={[inputs.investmentAmount]}
+                onValueChange={(value) => {
+                  setInputs({ ...inputs, investmentAmount: value[0] });
+                  setInvestmentAmountDisplay(formatNumber(value[0]));
+                }}
+                className="w-full mb-2"
+              />
+              <div className="flex justify-between text-slate-500 text-sm mt-2 mb-6">
+                <span>CHF 10'000</span>
+                <span>CHF 1'000'000</span>
+              </div>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-slate-400 font-normal">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-slate-400 font-normal">
                   CHF
                 </span>
                 <Input
@@ -107,11 +128,12 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
                     setInvestmentAmountDisplay(formatNumber(inputs.investmentAmount));
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="pl-20 pr-4 text-2xl h-16 bg-slate-800 border-slate-700 text-white text-center font-normal"
+                  className="pl-20 pr-4 text-xl h-14 bg-slate-800 border-slate-700 text-white text-center font-normal"
+                  placeholder="Oder manuell eingeben"
                 />
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
-                Mindestbetrag: CHF 10'000
+                Mindestbetrag: CHF 10'000 • Nutzen Sie den Slider oder geben Sie den Betrag manuell ein
               </p>
             </div>
           </div>
@@ -132,27 +154,47 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
               <Label htmlFor="dividend" className="text-white text-lg mb-4 block">
                 Erwartete Dividendenrendite
               </Label>
+              <div className="text-center mb-6">
+                <span className="text-6xl font-bold text-blue-400">
+                  {inputs.expectedDividendYield.toFixed(1)}%
+                </span>
+              </div>
+              <Slider
+                id="dividend-slider"
+                min={0}
+                max={10}
+                step={0.5}
+                value={[inputs.expectedDividendYield]}
+                onValueChange={(value) =>
+                  setInputs({ ...inputs, expectedDividendYield: value[0] })
+                }
+                className="w-full mb-2"
+              />
+              <div className="flex justify-between text-slate-500 text-sm mt-2 mb-6">
+                <span>0%</span>
+                <span>10%</span>
+              </div>
               <div className="relative">
                 <Input
                   id="dividend"
                   type="number"
                   min="0"
                   max="10"
-                  step="0.5"
+                  step="0.1"
                   value={inputs.expectedDividendYield}
                   onChange={(e) =>
                     setInputs({ ...inputs, expectedDividendYield: Number(e.target.value) })
                   }
                   onFocus={(e) => e.target.select()}
-                  className="pr-16 text-2xl h-16 bg-slate-800 border-slate-700 text-white text-center font-normal"
+                  className="pr-16 text-xl h-14 bg-slate-800 border-slate-700 text-white text-center font-normal"
+                  placeholder="Oder manuell eingeben"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl text-slate-400 font-normal">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl text-slate-400 font-normal">
                   %
                 </span>
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
-                Durchschnittliche Dividendenrendite im Portfolio BIG: ~2.5%<br />
-                <span className="text-slate-600 text-xs">Hinweis: Bitte Punkt verwenden (z.B. 2.5)</span>
+                Durchschnittliche Dividendenrendite im Portfolio BIG: ~2.5% • Nutzen Sie den Slider oder geben Sie den Wert manuell ein
               </p>
             </div>
           </div>

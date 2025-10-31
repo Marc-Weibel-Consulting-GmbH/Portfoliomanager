@@ -332,3 +332,21 @@
 - [x] Edge Case gelöst: Sehr kleine Portfolios (0-10% Limits, keine Minimums)
 - [x] Ziel geändert: 90% Minimum statt 98% (realistischer)
 
+
+
+## Header-Buttons entfernen (Balanced/Dynamisch/Newcron)
+- [x] Obsolete Header-Buttons identifiziert (bereits entfernt)
+- [x] Buttons aus OptimizerResults.tsx entfernt (bereits in früherem Checkpoint)
+- [x] "Anpassen" Button bleibt (einzige Möglichkeit Parameter zu ändern)
+- [x] Layout nach Entfernung getestet
+
+
+
+## Slider für Investitionsbetrag und Dividendenrendite
+- [x] Fragebogen-Komponente gefunden (Optimizer.tsx)
+- [x] Slider für Investitionsbetrag hinzugefügt (10k-1M CHF, Schritte: 5k)
+- [x] Slider für Dividendenrendite hinzugefügt (0-10%, Schritte: 0.5%)
+- [x] Input-Felder behalten (manuelle Eingabe weiterhin möglich)
+- [x] Slider-Design an bestehenden "Anzahl Positionen" Slider angepasst
+- [x] Große Wert-Anzeige über Slider (grün für Betrag, blau für Dividende)
+
