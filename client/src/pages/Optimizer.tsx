@@ -95,9 +95,9 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
               <Slider
                 id="amount-slider"
                 min={10000}
-                max={1000000}
+                max={500000}
                 step={5000}
-                value={[inputs.investmentAmount]}
+                value={[Math.min(inputs.investmentAmount, 500000)]}
                 onValueChange={(value) => {
                   setInputs({ ...inputs, investmentAmount: value[0] });
                   setInvestmentAmountDisplay(formatNumber(value[0]));
@@ -106,7 +106,7 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
               />
               <div className="flex justify-between text-slate-500 text-sm mt-2 mb-6">
                 <span>CHF 10'000</span>
-                <span>CHF 1'000'000</span>
+                <span>CHF 500'000</span>
               </div>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-slate-400 font-normal">
@@ -133,7 +133,7 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
                 />
               </div>
               <p className="text-slate-500 text-sm mt-4 text-center">
-                Mindestbetrag: CHF 10'000 • Nutzen Sie den Slider oder geben Sie den Betrag manuell ein
+                Mindestbetrag: CHF 10'000 • Für Beträge über CHF 500'000 bitte manuell eingeben
               </p>
             </div>
           </div>

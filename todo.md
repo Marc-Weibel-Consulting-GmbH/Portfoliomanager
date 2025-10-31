@@ -350,3 +350,12 @@
 - [x] Slider-Design an bestehenden "Anzahl Positionen" Slider angepasst
 - [x] Große Wert-Anzeige über Slider (grün für Betrag, blau für Dividende)
 
+
+
+## Slider-Limit auf 500k CHF anpassen
+- [x] Slider max von 1M auf 500k geändert
+- [x] Hinweis hinzugefügt: "Für Beträge über CHF 500'000 bitte manuell eingeben"
+- [x] Input-Feld erlaubt weiterhin unbegrenzte Eingabe
+- [x] Slider-Range: 10k - 500k CHF (Schritte: 5k)
+- [x] Math.min() verwendet um Werte über 500k im Slider zu cappen
+
