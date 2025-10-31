@@ -307,3 +307,17 @@
 - [x] Portfolio-Anpassungs-Dialog: Automatische Neuberechnung bei Parameter-Änderungen (Checkboxen entfernt, direkte Eingabe)
 - [x] Nur empfohlene Lösung im Konflikt-Dialog (Positionen reduzieren)
 
+
+
+## Portfolio Optimizer systematisch verbessern (URGENT - FOCUS)
+- [x] Optimizer Score-Berechnung analysiert und korrigiert (veraltete Strategy-Boni entfernt)
+- [x] Ranking-Logik überprüft (Top N Aktien mit Sektor-Diversifikation)
+- [x] Konflikt-Erkennung verbessert (nur bei initialer "balanced" Strategy)
+- [x] Portfolio-Anpassung: Neuberechnung bei Parameter-Änderung (currentInputs/adjustedInputs synchronisiert)
+- [x] Strategie "reduce_positions" korrekt implementiert (70% der Positionen)
+- [x] Gewichtungs-Limits geprüft (1-5% für >20k, 0-10% für <20k)
+- [x] Edge Cases dokumentiert (Test-Script erstellt: test-optimizer.ts)
+- [x] Optimizer-Ergebnis-Validierung (Summe ≥ 95%, Limits eingehalten)
+- [x] Performance-Metriken korrekt berechnet (Sharpe Ratio, Dividende)
+- [x] UI-Feedback bei Fehlern vorhanden (Konflikt-Dialog, Warnungen)
+

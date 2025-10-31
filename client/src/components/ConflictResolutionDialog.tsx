@@ -8,7 +8,7 @@ import { useState } from "react";
 interface ConflictResolutionDialogProps {
   open: boolean;
   onClose: () => void;
-  onResolve: (strategy: "dividend" | "sharpe" | "balanced" | "reduce_positions") => void;
+  onResolve: (strategy: "reduce_positions") => void;
   conflict: {
     targetDividend: number;
     achievedDividend: number;

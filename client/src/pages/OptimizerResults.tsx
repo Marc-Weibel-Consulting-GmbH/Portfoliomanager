@@ -50,9 +50,17 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   } | null>(null);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictData, setConflictData] = useState<any>(null);
-  const [optimizationStrategy, setOptimizationStrategy] = useState<"dividend" | "sharpe" | "balanced" | "reduce_positions">("balanced");
+  const [optimizationStrategy, setOptimizationStrategy] = useState<"balanced" | "reduce_positions">("balanced");
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [adjustedInputs, setAdjustedInputs] = useState(inputs);
+
+  // Sync adjustedInputs with inputs prop changes
+  useEffect(() => {
+    setAdjustedInputs(inputs);
+  }, [inputs]);
+
+  // Use adjustedInputs for all calculations (allows user adjustments)
+  const currentInputs = adjustedInputs;
 
   // SIMPLIFIED PORTFOLIO OPTIMIZATION - No complex dividend swapping
   const optimizedPortfolio = useMemo((): {
@@ -65,17 +73,17 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     if (!allStocks.length) return { 
       positions: [], 
       totalInvested: 0, 
-      remainingCash: inputs.investmentAmount, 
+      remainingCash: currentInputs.investmentAmount, 
       totalShares: 0, 
       avgDividendYield: 0 
     };
 
     // Dynamic limits based on portfolio size
-    const maxPositionPercent = inputs.investmentAmount < 20000 ? 0.10 : 0.05; // 10% for small, 5% for large
-    const minPositionPercent = inputs.investmentAmount < 20000 ? 0 : 0.01; // No min for small, 1% for large
+    const maxPositionPercent = currentInputs.investmentAmount < 20000 ? 0.10 : 0.05; // 10% for small, 5% for large
+    const minPositionPercent = currentInputs.investmentAmount < 20000 ? 0 : 0.01; // No min for small, 1% for large
     const targetInvestmentPercent = 0.98; // 98% minimum investment target
-    const maxPositionAmount = inputs.investmentAmount * maxPositionPercent;
-    const minPositionAmount = minPositionPercent > 0 ? inputs.investmentAmount * minPositionPercent : 0;
+    const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
+    const minPositionAmount = minPositionPercent > 0 ? currentInputs.investmentAmount * minPositionPercent : 0;
 
     // Step 1: Calculate score with dividend-aware weighting
     const scored = allStocks.map((stock: any) => {
@@ -89,7 +97,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       const isGrowthStock = ytdPerf > 10 || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category);
 
       // Investor type specific scoring
-      if (inputs.investorType === "conservative") {
+      if (currentInputs.investorType === "conservative") {
         // Prefer dividend stocks (70%), some growth (30%)
         if (isDividendStock) {
           score += divYield * 20; // High weight on dividends
@@ -103,7 +111,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         if (isGrowthStock) score += ytdPerf * 0.3;
         // Penalize negative performance
         if (ytdPerf < -5) score -= Math.abs(ytdPerf) * 2;
-      } else if (inputs.investorType === "balanced") {
+      } else if (currentInputs.investorType === "balanced") {
         // 50% dividend, 50% growth
         if (isDividendStock) {
           score += divYield * 12;
@@ -116,7 +124,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         if (peRatio > 0 && peRatio < 30) score += 10;
         // Bonus for stocks that are both
         if (isDividendStock && isGrowthStock) score += 20;
-      } else if (inputs.investorType === "dynamic") {
+      } else if (currentInputs.investorType === "dynamic") {
         // Prefer growth stocks (70%), some dividend (30%)
         if (isGrowthStock) {
           score += ytdPerf * 2;
@@ -132,7 +140,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       }
 
       // IMPORTANT: Boost score based on how close dividend is to target
-      const divDiff = Math.abs(divYield - inputs.expectedDividendYield);
+      const divDiff = Math.abs(divYield - currentInputs.expectedDividendYield);
       if (divDiff < 0.5) {
         score += 30; // Very close to target
       } else if (divDiff < 1.0) {
@@ -141,21 +149,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         score += 10; // Somewhat close
       }
 
-      // Apply optimization strategy from conflict resolution
-      if (optimizationStrategy === 'dividend') {
-        // Prioritize dividend: 70% dividend, 20% sharpe, 10% diversity
-        score += divYield * 15; // Extra dividend weight
-        if (ytdPerf > 0) score += ytdPerf * 0.5; // Some performance
-      } else if (optimizationStrategy === 'sharpe') {
-        // Prioritize sharpe: 70% sharpe, 20% dividend, 10% diversity
-        score += ytdPerf * 3; // Extra performance weight
-        if (divYield > 0) score += divYield * 5; // Some dividend
-      } else if (optimizationStrategy === 'balanced') {
-        // Balanced: 40% dividend, 40% sharpe, 20% diversity
-        score += divYield * 10;
-        score += ytdPerf * 1.5;
-      }
-      // 'reduce_positions' uses same scoring but fewer stocks selected
+      // Note: 'reduce_positions' strategy uses same scoring but selects fewer stocks (70% of requested)
 
       return {
         ...stock,
@@ -167,11 +161,11 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
     // Step 3: Sort by score and take top N
     const sorted = scored.sort((a, b) => b.score - a.score);
-    const topN = sorted.slice(0, inputs.numberOfPositions);
+    const topN = sorted.slice(0, currentInputs.numberOfPositions);
 
     // Step 4: Ensure sector diversification (max 30% per sector)
     const sectorCounts: Record<string, number> = {};
-    const maxPerSector = Math.ceil(inputs.numberOfPositions * 0.3);
+    const maxPerSector = Math.ceil(currentInputs.numberOfPositions * 0.3);
     
     const diversified: any[] = [];
     
@@ -185,10 +179,10 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     }
 
     // Second pass: If we don't have enough, add more from remaining sorted stocks
-    if (diversified.length < inputs.numberOfPositions) {
+    if (diversified.length < currentInputs.numberOfPositions) {
       const remaining = sorted.filter(s => !diversified.find(d => d.ticker === s.ticker));
       for (const stock of remaining) {
-        if (diversified.length >= inputs.numberOfPositions) break;
+        if (diversified.length >= currentInputs.numberOfPositions) break;
         const count = sectorCounts[stock.category] || 0;
         if (count < maxPerSector) {
           diversified.push(stock);
@@ -198,22 +192,22 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     }
 
     // Third pass: If still not enough, relax sector constraint
-    if (diversified.length < inputs.numberOfPositions) {
+    if (diversified.length < currentInputs.numberOfPositions) {
       const remaining = sorted.filter(s => !diversified.find(d => d.ticker === s.ticker));
       for (const stock of remaining) {
-        if (diversified.length >= inputs.numberOfPositions) break;
+        if (diversified.length >= currentInputs.numberOfPositions) break;
         diversified.push(stock);
       }
     }
 
     // Step 2: Select top stocks and check affordability
     // Check if we can afford 1% minimum for all positions
-    const maxAffordablePositions = Math.floor(inputs.investmentAmount / minPositionAmount);
+    const maxAffordablePositions = Math.floor(currentInputs.investmentAmount / minPositionAmount);
     let selectedStocks = diversified;
     
     // Apply reduce_positions strategy: use 70% of requested positions
     if (optimizationStrategy === 'reduce_positions') {
-      const reducedCount = Math.max(5, Math.floor(inputs.numberOfPositions * 0.7));
+      const reducedCount = Math.max(5, Math.floor(currentInputs.numberOfPositions * 0.7));
       selectedStocks = diversified.slice(0, Math.min(reducedCount, maxAffordablePositions));
     } else if (diversified.length > maxAffordablePositions) {
       // If we can't afford 1% for all, reduce number of positions
@@ -221,7 +215,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     }
     
     // Calculate equal allocation with 1% minimum
-    const baseAllocation = inputs.investmentAmount / selectedStocks.length;
+    const baseAllocation = currentInputs.investmentAmount / selectedStocks.length;
     
     // CONFLICT DETECTION: Check if any stocks are too expensive for 1% minimum
     const tooExpensiveStocks = selectedStocks.filter(stock => {
@@ -236,7 +230,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     if (tooExpensiveStocks.length > 0) {
       const maxStockPrice = Math.max(...selectedStocks.map(s => parseFloat(s.currentPrice || "0")));
       const suggestedAmount = Math.ceil(maxStockPrice * 100 / 1) * selectedStocks.length; // Amount needed for 1% min
-      const suggestedPositions = Math.floor(inputs.investmentAmount / maxStockPrice); // Max positions we can afford
+      const suggestedPositions = Math.floor(currentInputs.investmentAmount / maxStockPrice); // Max positions we can afford
       
       // Store conflict info for warning display
       setMinInvestmentConflict({
@@ -271,7 +265,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         return null;
       }
       
-      const portfolioWeight = (actualInvestment / inputs.investmentAmount) * 100;
+      const portfolioWeight = (actualInvestment / currentInputs.investmentAmount) * 100;
 
       return {
         ticker: stock.ticker,
@@ -292,8 +286,8 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
     // Calculate current investment level
     let totalInvested = positions.reduce((sum, p) => sum + p.investmentAmount, 0);
-    let remainingCash = inputs.investmentAmount - totalInvested;
-    const investmentPercent = totalInvested / inputs.investmentAmount;
+    let remainingCash = currentInputs.investmentAmount - totalInvested;
+    const investmentPercent = totalInvested / currentInputs.investmentAmount;
 
     // Aggressively distribute remaining cash to reach 90%+ investment
     if (investmentPercent < targetInvestmentPercent && positions.length > 0) {
@@ -302,13 +296,13 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
       // Keep distributing until we hit 90% or run out of room
       let iterations = 0;
-      while (totalInvested / inputs.investmentAmount < targetInvestmentPercent && remainingCash > 0 && iterations < 100) {
+      while (totalInvested / currentInputs.investmentAmount < targetInvestmentPercent && remainingCash > 0 && iterations < 100) {
         iterations++;
         let addedThisRound = false;
 
         for (const position of sortedByWeight) {
           const currentPrice = parseFloat(position.currentPrice);
-          const maxPositionAmount = inputs.investmentAmount * maxPositionPercent;
+          const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
           const currentAmount = position.investmentAmount;
           const availableForPosition = maxPositionAmount - currentAmount;
 
@@ -317,13 +311,13 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
             position.shares += 1;
             const additionalInvestment = currentPrice;
             position.investmentAmount += additionalInvestment;
-            position.portfolioWeight = (position.investmentAmount / inputs.investmentAmount) * 100;
+            position.portfolioWeight = (position.investmentAmount / currentInputs.investmentAmount) * 100;
             remainingCash -= additionalInvestment;
             totalInvested += additionalInvestment;
             addedThisRound = true;
 
             // Check if we reached 90%
-            if (totalInvested / inputs.investmentAmount >= targetInvestmentPercent) {
+            if (totalInvested / currentInputs.investmentAmount >= targetInvestmentPercent) {
               break;
             }
           }
@@ -345,27 +339,27 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     // Step 4: FINAL FILTER - Remove any positions with 0 shares or < 1% weight
     const minWeight = 0.95; // 0.95% to account for rounding (slightly below 1%)
     let finalPositions = positions.filter(p => {
-      const weight = (p.investmentAmount / inputs.investmentAmount) * 100;
+      const weight = (p.investmentAmount / currentInputs.investmentAmount) * 100;
       return p.shares > 0 && weight >= minWeight;
     });
     
     // Recalculate totals after filtering
     let finalTotalInvested = finalPositions.reduce((sum, p) => sum + p.investmentAmount, 0);
-    let finalRemainingCash = inputs.investmentAmount - finalTotalInvested;
-    const finalInvestmentPercent = finalTotalInvested / inputs.investmentAmount;
+    let finalRemainingCash = currentInputs.investmentAmount - finalTotalInvested;
+    const finalInvestmentPercent = finalTotalInvested / currentInputs.investmentAmount;
 
     // ENFORCE 95% INVESTMENT: Distribute remaining cash if below 95%
     if (finalInvestmentPercent < targetInvestmentPercent && finalPositions.length > 0) {
       const sortedByWeight = [...finalPositions].sort((a, b) => a.portfolioWeight - b.portfolioWeight);
       let iterations = 0;
 
-      while (finalTotalInvested / inputs.investmentAmount < targetInvestmentPercent && finalRemainingCash > 0 && iterations < 100) {
+      while (finalTotalInvested / currentInputs.investmentAmount < targetInvestmentPercent && finalRemainingCash > 0 && iterations < 100) {
         iterations++;
         let addedThisRound = false;
 
         for (const position of sortedByWeight) {
           const currentPrice = parseFloat(position.currentPrice);
-          const maxPositionAmount = inputs.investmentAmount * maxPositionPercent;
+          const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
           const currentAmount = position.investmentAmount;
           const availableForPosition = maxPositionAmount - currentAmount;
 
@@ -373,12 +367,12 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
             position.shares += 1;
             const additionalInvestment = currentPrice;
             position.investmentAmount += additionalInvestment;
-            position.portfolioWeight = (position.investmentAmount / inputs.investmentAmount) * 100;
+            position.portfolioWeight = (position.investmentAmount / currentInputs.investmentAmount) * 100;
             finalRemainingCash -= additionalInvestment;
             finalTotalInvested += additionalInvestment;
             addedThisRound = true;
 
-            if (finalTotalInvested / inputs.investmentAmount >= targetInvestmentPercent) {
+            if (finalTotalInvested / currentInputs.investmentAmount >= targetInvestmentPercent) {
               break;
             }
           }
@@ -426,26 +420,28 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     );
 
     // Define thresholds
-    const dividendDiff = Math.abs(optimizedPortfolio.avgDividendYield - inputs.expectedDividendYield);
+    const dividendDiff = Math.abs(optimizedPortfolio.avgDividendYield - currentInputs.expectedDividendYield);
     const targetSharpe = 1.5; // Good Sharpe Ratio target
     const sharpeDiff = targetSharpe - sharpeRatio;
 
     // Check if there's a conflict (dividend off by >0.5% OR sharpe below 1.0)
     const hasConflict = dividendDiff > 0.5 || sharpeRatio < 1.0;
 
+    // Show conflict dialog ONLY on initial optimization (strategy is 'balanced')
+    // Once user chooses a strategy, don't show again
     if (hasConflict && optimizationStrategy === "balanced") {
       // Show conflict dialog
       setConflictData({
-        targetDividend: inputs.expectedDividendYield,
+        targetDividend: currentInputs.expectedDividendYield,
         achievedDividend: optimizedPortfolio.avgDividendYield,
         targetSharpe,
         achievedSharpe: sharpeRatio,
-        currentPositions: inputs.numberOfPositions,
-        suggestedPositions: Math.max(10, Math.floor(inputs.numberOfPositions * 0.75)),
+        currentPositions: currentInputs.numberOfPositions,
+        suggestedPositions: Math.max(10, Math.floor(currentInputs.numberOfPositions * 0.75)),
       });
       setShowConflictDialog(true);
     }
-  }, [optimizedPortfolio, inputs, showConflictDialog, optimizationStrategy]);
+  }, [optimizedPortfolio, currentInputs, showConflictDialog, optimizationStrategy]);
 
   // Calculate Sharpe-optimized portfolio
   const sharpeOptimizedPortfolio = useMemo(() => {
@@ -461,7 +457,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       const isDividendStock = divYield >= 2.5;
       const isGrowthStock = ytdPerf > 10 || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category);
 
-      if (inputs.investorType === "conservative") {
+      if (currentInputs.investorType === "conservative") {
         if (isDividendStock) {
           score += divYield * 20;
           score += 50;
@@ -472,7 +468,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         }
         if (isGrowthStock) score += ytdPerf * 0.3;
         if (ytdPerf < -5) score -= Math.abs(ytdPerf) * 2;
-      } else if (inputs.investorType === "balanced") {
+      } else if (currentInputs.investorType === "balanced") {
         if (isDividendStock) {
           score += divYield * 12;
           score += 30;
@@ -483,7 +479,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         }
         if (peRatio > 0 && peRatio < 30) score += 10;
         if (isDividendStock && isGrowthStock) score += 20;
-      } else if (inputs.investorType === "dynamic") {
+      } else if (currentInputs.investorType === "dynamic") {
         if (isGrowthStock) {
           score += ytdPerf * 2;
           score += 50;
@@ -495,7 +491,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         if (ytdPerf > 20) score += 25;
       }
 
-      if (divYield >= inputs.expectedDividendYield) {
+      if (divYield >= currentInputs.expectedDividendYield) {
         score += 15;
       }
 
@@ -512,16 +508,16 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     // Run Sharpe optimization
     const optimizationResult = optimizePortfolioSharpe(
       sorted,
-      inputs.numberOfPositions,
+      currentInputs.numberOfPositions,
       5000 // 5000 iterations
     );
 
     // Convert weights to positions
-    const selectedStocks = sorted.slice(0, inputs.numberOfPositions);
+    const selectedStocks = sorted.slice(0, currentInputs.numberOfPositions);
     const weightedPositions = weightsToPositions(
       selectedStocks,
       optimizationResult.weights,
-      inputs.investmentAmount,
+      currentInputs.investmentAmount,
       0.05 // 5% max
     );
 
@@ -540,7 +536,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           peRatio: stock.peRatio,
           shares: wp.shares,
           investmentAmount: wp.amount,
-          portfolioWeight: (wp.amount / inputs.investmentAmount) * 100,
+          portfolioWeight: (wp.amount / currentInputs.investmentAmount) * 100,
           score: stock.score,
           isDividendStock: stock.isDividendStock,
           isGrowthStock: stock.isGrowthStock,
@@ -548,7 +544,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       });
 
     const totalInvested = positions.reduce((sum, p) => sum + p.investmentAmount, 0);
-    const remainingCash = inputs.investmentAmount - totalInvested;
+    const remainingCash = currentInputs.investmentAmount - totalInvested;
 
     const avgDividendYield = positions.length > 0
       ? positions.reduce((sum, p) => {
@@ -576,10 +572,10 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     doc.text("Portfolio Optimizer - Ergebnis", 14, 20);
     
     doc.setFontSize(11);
-    doc.text(`Anlagebetrag: CHF ${inputs.investmentAmount.toLocaleString('de-CH')}`, 14, 30);
-    doc.text(`Erwartete Dividendenrendite: ${inputs.expectedDividendYield}%`, 14, 36);
-    doc.text(`Anzahl Positionen: ${inputs.numberOfPositions}`, 14, 42);
-    doc.text(`Anlegertyp: ${inputs.investorType === 'conservative' ? 'Konservativ' : inputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}`, 14, 48);
+    doc.text(`Anlagebetrag: CHF ${currentInputs.investmentAmount.toLocaleString('de-CH')}`, 14, 30);
+    doc.text(`Erwartete Dividendenrendite: ${currentInputs.expectedDividendYield}%`, 14, 36);
+    doc.text(`Anzahl Positionen: ${currentInputs.numberOfPositions}`, 14, 42);
+    doc.text(`Anlegertyp: ${currentInputs.investorType === 'conservative' ? 'Konservativ' : currentInputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}`, 14, 48);
     
     const tableData = optimizedPortfolio.positions.map((pos) => [
       pos.ticker,
@@ -606,7 +602,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
   // Check if too few stocks for good diversification
   const showDiversificationWarning = optimizedPortfolio.positions.length > 0 && 
-                                      optimizedPortfolio.positions.length < Math.min(inputs.numberOfPositions, 10);
+                                      optimizedPortfolio.positions.length < Math.min(currentInputs.numberOfPositions, 10);
 
   if (!optimizedPortfolio.positions?.length) {
     return (
@@ -617,7 +613,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
             Keine Aktien gefunden
           </p>
           <p className="text-slate-400 mt-2">
-            Mit einer Dividendenrendite von <span className="font-bold text-white">{inputs.expectedDividendYield}%</span> wurden keine passenden Aktien gefunden.
+            Mit einer Dividendenrendite von <span className="font-bold text-white">{currentInputs.expectedDividendYield}%</span> wurden keine passenden Aktien gefunden.
           </p>
           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mt-6 max-w-md mx-auto">
             <p className="text-yellow-400 text-sm">
@@ -643,9 +639,9 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   const growthAmount = displayPortfolio.positions
     .filter((p: any) => p.isGrowthStock && !p.isDividendStock)
     .reduce((sum, p) => sum + p.investmentAmount, 0);
-  const dividendPercent = (dividendAmount / inputs.investmentAmount) * 100;
-  const growthPercent = (growthAmount / inputs.investmentAmount) * 100;
-  const cashPercent = (displayPortfolio.remainingCash / inputs.investmentAmount) * 100;
+  const dividendPercent = (dividendAmount / currentInputs.investmentAmount) * 100;
+  const growthPercent = (growthAmount / currentInputs.investmentAmount) * 100;
+  const cashPercent = (displayPortfolio.remainingCash / currentInputs.investmentAmount) * 100;
 
   return (
     <div className="space-y-4">
@@ -684,7 +680,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-slate-300">
-              Mit einem Investitionsbetrag von <strong>CHF {inputs.investmentAmount.toLocaleString('de-CH')}</strong> und <strong>{inputs.numberOfPositions} Positionen</strong> können {minInvestmentConflict.tooExpensiveStocks} Aktien nicht mit der Mindestgewichtung von 1% gekauft werden (zu teuer).
+              Mit einem Investitionsbetrag von <strong>CHF {currentInputs.investmentAmount.toLocaleString('de-CH')}</strong> und <strong>{currentInputs.numberOfPositions} Positionen</strong> können {minInvestmentConflict.tooExpensiveStocks} Aktien nicht mit der Mindestgewichtung von 1% gekauft werden (zu teuer).
             </p>
             <p className="text-slate-300 font-bold">Wählen Sie eine Option:</p>
             <div className="grid gap-3">
@@ -730,7 +726,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 <div className="text-left">
                   <div className="font-bold">Option 3: Investitionsbetrag erhöhen</div>
                   <div className="text-sm text-slate-400 mt-1">
-                    Empfohlen: Mindestens CHF {minInvestmentConflict.suggestedAmount.toLocaleString('de-CH')} für {inputs.numberOfPositions} Positionen mit 1% Minimum.
+                    Empfohlen: Mindestens CHF {minInvestmentConflict.suggestedAmount.toLocaleString('de-CH')} für {currentInputs.numberOfPositions} Positionen mit 1% Minimum.
                   </div>
                 </div>
               </Button>
@@ -742,7 +738,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
 
       {/* Dividend Yield Warning */}
-      {Math.abs(displayPortfolio.avgDividendYield - inputs.expectedDividendYield) > 0.5 && (
+      {Math.abs(displayPortfolio.avgDividendYield - currentInputs.expectedDividendYield) > 0.5 && (
         <Card className="bg-yellow-500/10 border-yellow-500/30">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
@@ -752,10 +748,10 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                   Ziel-Dividendenrendite nicht vollständig erreichbar
                 </h3>
                 <p className="text-slate-300 text-sm mb-2">
-                  Die durchschnittliche Dividendenrendite von <strong>{displayPortfolio.avgDividendYield.toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{inputs.expectedDividendYield}%</strong>) ab.
+                  Die durchschnittliche Dividendenrendite von <strong>{displayPortfolio.avgDividendYield.toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{currentInputs.expectedDividendYield}%</strong>) ab.
                 </p>
                 <p className="text-slate-400 text-xs">
-                  💡 <strong>Grund:</strong> Unter Einhaltung der 5% Maximalgewichtung (1% Minimum) pro Position und Berücksichtigung Ihres Anlegertyps ({inputs.investorType === 'conservative' ? 'Konservativ' : inputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}) ist dies die bestmögliche Annäherung.
+                  💡 <strong>Grund:</strong> Unter Einhaltung der 5% Maximalgewichtung (1% Minimum) pro Position und Berücksichtigung Ihres Anlegertyps ({currentInputs.investorType === 'conservative' ? 'Konservativ' : currentInputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}) ist dies die bestmögliche Annäherung.
                 </p>
                 <p className="text-slate-400 text-xs mt-2">
                   <strong>Tipp:</strong> Passen Sie die Ziel-Dividende an oder wählen Sie mehr Positionen für bessere Flexibilität.
@@ -920,7 +916,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                     CHF {displayPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="p-3 text-right text-white">
-                    {((displayPortfolio.totalInvested / inputs.investmentAmount) * 100).toFixed(2)}%
+                    {((displayPortfolio.totalInvested / currentInputs.investmentAmount) * 100).toFixed(2)}%
                   </td>
                   <td colSpan={2}></td>
                 </tr>
