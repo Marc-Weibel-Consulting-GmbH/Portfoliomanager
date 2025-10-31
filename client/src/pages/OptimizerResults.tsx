@@ -42,12 +42,6 @@ interface OptimizedPosition {
 export default function OptimizerResults({ inputs, onBack }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [showMinInvestmentWarning, setShowMinInvestmentWarning] = useState(false);
-  const [minInvestmentConflict, setMinInvestmentConflict] = useState<{
-    tooExpensiveStocks: number;
-    suggestedPositions: number;
-    suggestedAmount: number;
-  } | null>(null);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictData, setConflictData] = useState<any>(null);
   const [optimizationStrategy, setOptimizationStrategy] = useState<"balanced" | "reduce_positions">("balanced");
@@ -78,6 +72,16 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       avgDividendYield: 0 
     };
 
+    // PRIORITY 3: Enforce CHF 1'000 minimum position size (due to transaction costs)
+    const MIN_POSITION_SIZE = 1000; // CHF 1'000 absolute minimum
+    const avgPositionSize = currentInputs.investmentAmount / currentInputs.numberOfPositions;
+    
+    // Auto-reduce number of positions if average position size < CHF 1'000
+    let effectiveNumberOfPositions = currentInputs.numberOfPositions;
+    if (avgPositionSize < MIN_POSITION_SIZE) {
+      effectiveNumberOfPositions = Math.max(1, Math.floor(currentInputs.investmentAmount / MIN_POSITION_SIZE));
+    }
+    
     // Dynamic limits based on portfolio size
     const maxPositionPercent = currentInputs.investmentAmount < 20000 ? 0.10 : 0.05; // 10% for small, 5% for large
     const minPositionPercent = currentInputs.investmentAmount < 20000 ? 0 : 0.01; // No min for small, 1% for large
@@ -86,7 +90,23 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
     const minPositionAmount = minPositionPercent > 0 ? currentInputs.investmentAmount * minPositionPercent : 0;
 
-    // Step 1: Calculate score with dividend-aware weighting
+    // NEW PRIORITY LOGIC: Check if we need to override investor type for dividend target
+    // Calculate potential average dividend with current investor type
+    const testScored = allStocks.map((stock: any) => {
+      const divYield = parseFloat(stock.dividendYield || "0");
+      return { ...stock, divYield };
+    });
+    const topDividendStocks = testScored
+      .sort((a, b) => b.divYield - a.divYield)
+      .slice(0, Math.min(effectiveNumberOfPositions, allStocks.length));
+    const potentialAvgDividend = topDividendStocks.reduce((sum, s) => sum + s.divYield, 0) / topDividendStocks.length;
+    
+    // OVERRIDE: If target dividend is high and not achievable with current type, force conservative scoring
+    const effectiveInvestorType = (currentInputs.expectedDividendYield > potentialAvgDividend * 0.8) 
+      ? "conservative" 
+      : currentInputs.investorType;
+    
+    // Step 1: Calculate score with dividend-aware weighting (using effective investor type)
     const scored = allStocks.map((stock: any) => {
       let score = 0;
       const divYield = parseFloat(stock.dividendYield || "0");
@@ -97,8 +117,8 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       const isDividendStock = divYield >= 2.5;
       const isGrowthStock = ytdPerf > 10 || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category);
 
-      // Investor type specific scoring
-      if (currentInputs.investorType === "conservative") {
+      // Investor type specific scoring (using effectiveInvestorType)
+      if (effectiveInvestorType === "conservative") {
         // Prefer dividend stocks (70%), some growth (30%)
         if (isDividendStock) {
           score += divYield * 20; // High weight on dividends
@@ -112,7 +132,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         if (isGrowthStock) score += ytdPerf * 0.3;
         // Penalize negative performance
         if (ytdPerf < -5) score -= Math.abs(ytdPerf) * 2;
-      } else if (currentInputs.investorType === "balanced") {
+      } else if (effectiveInvestorType === "balanced") {
         // 50% dividend, 50% growth
         if (isDividendStock) {
           score += divYield * 12;
@@ -125,7 +145,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         if (peRatio > 0 && peRatio < 30) score += 10;
         // Bonus for stocks that are both
         if (isDividendStock && isGrowthStock) score += 20;
-      } else if (currentInputs.investorType === "dynamic") {
+      } else if (effectiveInvestorType === "dynamic") {
         // Prefer growth stocks (70%), some dividend (30%)
         if (isGrowthStock) {
           score += ytdPerf * 2;
@@ -160,13 +180,13 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       };
     });
 
-    // Step 3: Sort by score and take top N
+    // Step 3: Sort by score and take top N (using effectiveNumberOfPositions)
     const sorted = scored.sort((a, b) => b.score - a.score);
-    const topN = sorted.slice(0, currentInputs.numberOfPositions);
+    const topN = sorted.slice(0, effectiveNumberOfPositions);
 
     // Step 4: Ensure sector diversification (max 30% per sector)
     const sectorCounts: Record<string, number> = {};
-    const maxPerSector = Math.ceil(currentInputs.numberOfPositions * 0.3);
+    const maxPerSector = Math.ceil(effectiveNumberOfPositions * 0.3);
     
     const diversified: any[] = [];
     
@@ -219,28 +239,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     const baseAllocation = currentInputs.investmentAmount / selectedStocks.length;
     
     // CONFLICT DETECTION: Check if any stocks are too expensive for 1% minimum
-    const tooExpensiveStocks = selectedStocks.filter(stock => {
-      const currentPrice = parseFloat(stock.currentPrice || "0");
-      if (currentPrice === 0) return false;
-      // Can we buy at least 1 share with 1% minimum?
-      const minShares = Math.floor(minPositionAmount / currentPrice);
-      return minShares === 0; // Too expensive
-    });
-    
-    // If conflict detected, calculate suggestions
-    if (tooExpensiveStocks.length > 0) {
-      const maxStockPrice = Math.max(...selectedStocks.map(s => parseFloat(s.currentPrice || "0")));
-      const suggestedAmount = Math.ceil(maxStockPrice * 100 / 1) * selectedStocks.length; // Amount needed for 1% min
-      const suggestedPositions = Math.floor(currentInputs.investmentAmount / maxStockPrice); // Max positions we can afford
-      
-      // Store conflict info for warning display
-      setMinInvestmentConflict({
-        tooExpensiveStocks: tooExpensiveStocks.length,
-        suggestedPositions: Math.max(1, suggestedPositions),
-        suggestedAmount,
-      });
-      setShowMinInvestmentWarning(true);
-    }
+    // Minimum investment conflict detection removed - new priority logic handles this automatically
     
     const positions: OptimizedPosition[] = selectedStocks.map((stock) => {
       const currentPrice = parseFloat(stock.currentPrice || "0");
@@ -732,73 +731,40 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         }}
       />
 
-      {/* Minimum Investment Conflict Warning */}
-      {showMinInvestmentWarning && minInvestmentConflict && (
+      {/* Minimum Investment Warning removed - new priority logic implemented */}
+
+
+
+      {/* ETF Recommendation Warning */}
+      {(displayPortfolio.positions.length < 10 || 
+        (displayPortfolio.totalInvested / displayPortfolio.positions.length) < 1000) && (
         <Card className="bg-amber-900/20 border-amber-600">
-          <CardHeader>
-            <CardTitle className="text-amber-400 flex items-center gap-2">
-              <HelpCircle className="w-5 h-5" />
-              1% Minimum-Gewichtung nicht erreichbar
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-slate-300">
-              Mit einem Investitionsbetrag von <strong>CHF {currentInputs.investmentAmount.toLocaleString('de-CH')}</strong> und <strong>{currentInputs.numberOfPositions} Positionen</strong> können {minInvestmentConflict.tooExpensiveStocks} Aktien nicht mit der Mindestgewichtung von 1% gekauft werden (zu teuer).
-            </p>
-            <p className="text-slate-300 font-bold">Wählen Sie eine Option:</p>
-            <div className="grid gap-3">
-              <Button
-                onClick={() => {
-                  setShowMinInvestmentWarning(false);
-                  // Continue with flexible minimum (< 1% allowed)
-                }}
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 justify-start h-auto py-4"
-              >
-                <div className="text-left">
-                  <div className="font-bold">Option 1: Minimum unterschreiten (flexibel)</div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Erlaubt Positionen unter 1% für teure Aktien. Portfolio wird trotzdem erstellt.
-                  </div>
-                </div>
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowMinInvestmentWarning(false);
-                  // Go back and suggest fewer positions
-                  onBack();
-                }}
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 justify-start h-auto py-4"
-              >
-                <div className="text-left">
-                  <div className="font-bold">Option 2: Anzahl Titel reduzieren</div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Empfohlen: Maximal {minInvestmentConflict.suggestedPositions} Positionen für 1% Minimum.
-                  </div>
-                </div>
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowMinInvestmentWarning(false);
-                  onBack();
-                }}
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 justify-start h-auto py-4"
-              >
-                <div className="text-left">
-                  <div className="font-bold">Option 3: Investitionsbetrag erhöhen</div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Empfohlen: Mindestens CHF {minInvestmentConflict.suggestedAmount.toLocaleString('de-CH')} für {currentInputs.numberOfPositions} Positionen mit 1% Minimum.
-                  </div>
-                </div>
-              </Button>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">⚠️</div>
+              <div className="flex-1">
+                <h3 className="text-amber-400 font-bold mb-1">
+                  Mangelnde Diversifikation
+                </h3>
+                <p className="text-slate-300 text-sm mb-2">
+                  {displayPortfolio.positions.length < 10 && (
+                    <span>Ihr Portfolio enthält nur <strong>{displayPortfolio.positions.length} Positionen</strong>. </span>
+                  )}
+                  {(displayPortfolio.totalInvested / displayPortfolio.positions.length) < 1000 && (
+                    <span>Die durchschnittliche Positionsgröße beträgt nur <strong>CHF {Math.round(displayPortfolio.totalInvested / displayPortfolio.positions.length).toLocaleString('de-CH')}</strong>. </span>
+                  )}
+                </p>
+                <p className="text-slate-400 text-xs">
+                  💡 <strong>Empfehlung:</strong> Für bessere Diversifikation und geringere Transaktionskosten empfehlen wir den Einsatz von ETFs (Exchange Traded Funds).
+                </p>
+                <p className="text-slate-400 text-xs mt-2">
+                  <strong>Tipp:</strong> Erhöhen Sie den Investitionsbetrag oder reduzieren Sie die Anzahl der Positionen für größere Einzelpositionen.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
-
-
 
       {/* Dividend Yield Warning */}
       {Math.abs(displayPortfolio.avgDividendYield - currentInputs.expectedDividendYield) > 0.5 && (

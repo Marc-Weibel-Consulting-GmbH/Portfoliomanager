@@ -359,3 +359,18 @@
 - [x] Slider-Range: 10k - 500k CHF (Schritte: 5k)
 - [x] Math.min() verwendet um Werte über 500k im Slider zu cappen
 
+
+
+## Neue Prioritäten-Logik & Header entfernen (URGENT)
+- [x] Header "1% Minimum-Gewichtung nicht erreichbar" komplett entfernt
+- [x] Optionen 1-3 im Header entfernt (State-Variablen gelöscht)
+- [x] Neue Prioritäten implementiert:
+  - [x] Prio 1: 90% investiert (zwingend) ✅ bereits implementiert
+  - [x] Prio 2: Dividendenrendite einhalten (zwingend, Anlegertyp-Override auf "conservative")
+  - [x] Prio 3: Positionsgröße CHF 1'000 Minimum (absolut, wegen Spesen)
+  - [x] Prio 4: Anzahl Titel automatisch reduzieren wenn Positionsgröße < CHF 1'000
+- [x] ETF-Empfehlung hinzugefügt wenn:
+  - [x] Anzahl Titel < 10 ODER
+  - [x] Positionsgröße < CHF 1'000
+  - [x] Warnung: "Mangelnde Diversifikation - ETF für bessere Diversifikation empfohlen"
+
