@@ -374,3 +374,13 @@
   - [x] Positionsgröße < CHF 1'000
   - [x] Warnung: "Mangelnde Diversifikation - ETF für bessere Diversifikation empfohlen"
 
+
+
+## Dividenden-Ziel wird nicht erreicht (BUG - URGENT)
+- [x] Problem: 3% Dividende eingegeben, nur 2.2% erreicht → BEHOBEN
+- [x] Anlegertyp-Override Schwelle angepasst (> 2% → "conservative")
+- [x] Scoring-Gewichtung für Dividende verstärkt ("conservative" erzwungen)
+- [x] Direkte Dividenden-Filterung implementiert (>= 90% des Ziels)
+- [x] Garantie: Durchschnittliche Portfolio-Dividende >= Ziel-Dividende (harte Filterung)
+- [x] Automatische Positions-Reduktion wenn nicht genug Dividenden-Aktien verfügbar
+

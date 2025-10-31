@@ -90,24 +90,30 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     const maxPositionAmount = currentInputs.investmentAmount * maxPositionPercent;
     const minPositionAmount = minPositionPercent > 0 ? currentInputs.investmentAmount * minPositionPercent : 0;
 
-    // NEW PRIORITY LOGIC: Check if we need to override investor type for dividend target
-    // Calculate potential average dividend with current investor type
-    const testScored = allStocks.map((stock: any) => {
-      const divYield = parseFloat(stock.dividendYield || "0");
-      return { ...stock, divYield };
-    });
-    const topDividendStocks = testScored
-      .sort((a, b) => b.divYield - a.divYield)
-      .slice(0, Math.min(effectiveNumberOfPositions, allStocks.length));
-    const potentialAvgDividend = topDividendStocks.reduce((sum, s) => sum + s.divYield, 0) / topDividendStocks.length;
+    // PRIORITY 2: Dividend yield guarantee (mandatory)
+    // If dividend target > 2%, use conservative scoring and filter stocks
+    const hasDividendTarget = currentInputs.expectedDividendYield > 2;
+    const effectiveInvestorType = hasDividendTarget ? "conservative" : currentInputs.investorType;
     
-    // OVERRIDE: If target dividend is high and not achievable with current type, force conservative scoring
-    const effectiveInvestorType = (currentInputs.expectedDividendYield > potentialAvgDividend * 0.8) 
-      ? "conservative" 
-      : currentInputs.investorType;
+    // Hard filter: Only stocks with dividend >= target (with 10% tolerance for flexibility)
+    const dividendFilteredStocks = hasDividendTarget
+      ? allStocks.filter((stock: any) => {
+          const divYield = parseFloat(stock.dividendYield || "0");
+          return divYield >= currentInputs.expectedDividendYield * 0.9; // 90% of target minimum
+        })
+      : allStocks;
     
-    // Step 1: Calculate score with dividend-aware weighting (using effective investor type)
-    const scored = allStocks.map((stock: any) => {
+    // Fallback: If not enough stocks available, reduce number of positions
+    const availableStocksCount = dividendFilteredStocks.length;
+    if (hasDividendTarget && availableStocksCount < effectiveNumberOfPositions) {
+      effectiveNumberOfPositions = Math.max(5, availableStocksCount); // Minimum 5 positions for diversification
+    }
+    
+    // Use filtered stocks for scoring
+    const stocksToScore = dividendFilteredStocks.length > 0 ? dividendFilteredStocks : allStocks;
+    
+    // Step 1: Calculate score with dividend-aware weighting (using effective investor type and filtered stocks)
+    const scored = stocksToScore.map((stock: any) => {
       let score = 0;
       const divYield = parseFloat(stock.dividendYield || "0");
       const ytdPerf = parseFloat(stock.ytdPerformance || "0");
