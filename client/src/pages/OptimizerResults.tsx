@@ -63,13 +63,15 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     remainingCash: number;
     totalShares: number;
     avgDividendYield: number;
+    avgYtdPerformance: number;
   } => {
     if (!allStocks.length) return { 
       positions: [], 
       totalInvested: 0, 
       remainingCash: currentInputs.investmentAmount, 
       totalShares: 0, 
-      avgDividendYield: 0 
+      avgDividendYield: 0,
+      avgYtdPerformance: 0 
     };
 
     // PRIORITY 3: Enforce CHF 1'000 minimum position size (due to transaction costs)
@@ -424,6 +426,14 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         }, 0) / totalInvested
       : 0;
 
+    // Calculate average YTD performance weighted by investment amount
+    let avgYtdPerformance = positions.length > 0
+      ? positions.reduce((sum, p) => {
+          const ytd = parseFloat(p.ytdPerformance || "0");
+          return sum + (ytd * p.investmentAmount);
+        }, 0) / totalInvested
+      : 0;
+
     // Step 4: FINAL FILTER - Remove any positions with 0 shares or < 1% weight
     const minWeight = 0.95; // 0.95% to account for rounding (slightly below 1%)
     let finalPositions = positions.filter(p => {
@@ -517,6 +527,12 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       remainingCash: currentInputs.investmentAmount - finalTotalInvested,
       totalShares: finalPositions.reduce((sum, p) => sum + p.shares, 0),
       avgDividendYield: finalAvgDividendYield,
+      avgYtdPerformance: finalPositions.length > 0
+        ? finalPositions.reduce((sum, p) => {
+            const ytd = parseFloat(p.ytdPerformance || "0");
+            return sum + (ytd * p.investmentAmount);
+          }, 0) / finalTotalInvested
+        : 0,
     };
   }, [allStocks, adjustedInputs, optimizationStrategy]);
 
@@ -932,6 +948,19 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           <CardContent>
             <p className="text-2xl font-bold text-white">
               {displayPortfolio.avgDividendYield.toFixed(2)}%
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-slate-400">Ø YTD Performance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-bold ${
+              displayPortfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
+            }`}>
+              {displayPortfolio.avgYtdPerformance >= 0 ? '+' : ''}{displayPortfolio.avgYtdPerformance.toFixed(1)}%
             </p>
           </CardContent>
         </Card>

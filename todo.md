@@ -430,3 +430,11 @@
 - [x] Erklärung für Conservative/Balanced/Dynamic Scoring mit Beispielen
 - [x] Erklärung für Dividenden-Bonus, Ziel-Nähe-Bonus, dynamische Gewichtung
 
+
+
+## YTD Performance des Portfolios anzeigen
+- [x] Neben Dividendenrendite fehlt YTD Performance → BEHOBEN
+- [x] Gewichteten Durchschnitt der YTD Performance berechnet
+- [x] Anzeige neben "Durchschnittliche Dividendenrendite" als neue Karte
+- [x] Format: "+13.2%" (grün) oder "-5.3%" (rot) mit dynamischer Farbe
+
