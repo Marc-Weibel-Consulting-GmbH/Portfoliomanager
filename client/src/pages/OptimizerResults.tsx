@@ -112,52 +112,49 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       const isDividendStock = divYield >= 2.5;
       const isGrowthStock = ytdPerf > 10 || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category);
 
-      // NEW BALANCED SCORING SYSTEM
-      // Calculate Sharpe Ratio (simplified: YTD Performance / Volatility estimate)
-      // Using YTD as proxy for return, and category risk as proxy for volatility
-      const categoryRisk = {
-        "Technology": 1.5,
-        "E-Commerce": 1.5,
-        "Fintech": 1.4,
-        "Biotech": 1.8,
-        "Healthcare": 1.0,
-        "Consumer Staples": 0.8,
-        "Utilities": 0.7,
-        "Energy": 1.3,
-        "Industrials": 1.1,
-      };
-      const volatility = categoryRisk[stock.category as keyof typeof categoryRisk] || 1.0;
-      const sharpeRatio = ytdPerf / volatility;
-
-      // Investor type specific scoring
+      // Investor type specific scoring (using effectiveInvestorType)
       if (effectiveInvestorType === "conservative") {
-        // Conservative: Dividende 40%, Sharpe 30%, Stabilität 30%
-        score += divYield * 40; // 40% weight on dividend
-        score += sharpeRatio * 30; // 30% weight on risk-adjusted return
-        // Stability: 30% weight
-        if (peRatio > 0 && peRatio < 20) score += 30;
+        // Prefer dividend stocks (70%), some growth (30%)
+        if (isDividendStock) {
+          // MASSIVELY increase dividend weight when target exists
+          const dividendMultiplier = hasDividendTarget ? 50 : 20;
+          score += divYield * dividendMultiplier;
+          score += hasDividendTarget ? 100 : 50; // Bonus for dividend stocks
+        }
+        if (peRatio > 0 && peRatio < 20) score += 15;
         if (["Healthcare", "Consumer Staples", "Utilities"].includes(stock.category)) {
+          score += 20;
+        }
+        // Small bonus for growth stocks (diversification)
+        if (isGrowthStock) score += ytdPerf * 0.3;
+        // Penalize negative performance
+        if (ytdPerf < -5) score -= Math.abs(ytdPerf) * 2;
+      } else if (effectiveInvestorType === "balanced") {
+        // 50% dividend, 50% growth
+        if (isDividendStock) {
+          score += divYield * 12;
           score += 30;
         }
-        // Penalize high volatility
-        if (volatility > 1.3) score -= 20;
-      } else if (effectiveInvestorType === "balanced") {
-        // Balanced: Dividende 50%, Sharpe 50%
-        score += divYield * 50; // 50% weight on dividend
-        score += sharpeRatio * 50; // 50% weight on risk-adjusted return
-        // Bonus for stocks that have both dividend and growth
-        if (isDividendStock && isGrowthStock) score += 30;
-      } else if (effectiveInvestorType === "dynamic") {
-        // Dynamic: Dividende 20%, Sharpe 60%, YTD 20%
-        score += divYield * 20; // 20% weight on dividend
-        score += sharpeRatio * 60; // 60% weight on risk-adjusted return
-        score += ytdPerf * 20; // 20% weight on absolute performance
-        // Bonus for high-growth categories
-        if (["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category)) {
-          score += 40;
+        if (isGrowthStock) {
+          score += ytdPerf * 1.2;
+          score += 30;
         }
-        // Reward exceptional performance
-        if (ytdPerf > 20) score += 30;
+        if (peRatio > 0 && peRatio < 30) score += 10;
+        // Bonus for stocks that are both
+        if (isDividendStock && isGrowthStock) score += 20;
+      } else if (effectiveInvestorType === "dynamic") {
+        // Prefer growth stocks (70%), some dividend (30%)
+        if (isGrowthStock) {
+          score += ytdPerf * 2;
+          score += 50; // Bonus for growth stocks
+        }
+        if (["Technology", "E-Commerce", "Fintech", "Biotech"].includes(stock.category)) {
+          score += 30;
+        }
+        // Small bonus for dividend stocks (diversification)
+        if (isDividendStock) score += divYield * 8;
+        // Reward high performance
+        if (ytdPerf > 20) score += 25;
       }
 
       // IMPORTANT: Boost score based on how close dividend is to target

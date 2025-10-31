@@ -47,7 +47,9 @@ export default function Home() {
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");
   const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
   const [editingInfoStock, setEditingInfoStock] = useState<any>(null);
+  const [editingFinanzenStock, setEditingFinanzenStock] = useState<any>(null);
   const [infoFormData, setInfoFormData] = useState<any>({});
+  const [finanzenFormData, setFinanzenFormData] = useState<any>({});
   const [optimizerInputs, setOptimizerInputs] = useState<any>(null);
   const [showOptimizerResults, setShowOptimizerResults] = useState(false);
   
@@ -264,6 +266,15 @@ export default function Home() {
     });
   };
 
+  const startEditingFinanzen = (stock: any) => {
+    setEditingFinanzenStock(stock);
+    setFinanzenFormData({
+      financialHighlight1: stock.financialHighlight1 || '',
+      financialHighlight2: stock.financialHighlight2 || '',
+      financialHighlight3: stock.financialHighlight3 || '',
+    });
+  };
+
   const saveInfoMutation = trpc.stocks.update.useMutation({
     onSuccess: () => {
       refetchStocks();
@@ -275,11 +286,31 @@ export default function Home() {
     },
   });
 
+  const saveFinanzenMutation = trpc.stocks.update.useMutation({
+    onSuccess: () => {
+      refetchStocks();
+      setEditingFinanzenStock(null);
+      toast.success('Finanzielle Highlights aktualisiert');
+    },
+    onError: (error) => {
+      toast.error('Fehler beim Aktualisieren: ' + error.message);
+    },
+  });
+
   const saveInfo = () => {
     if (editingInfoStock) {
       saveInfoMutation.mutate({
         ticker: editingInfoStock.ticker,
         ...infoFormData,
+      });
+    }
+  };
+
+  const saveFinanzen = () => {
+    if (editingFinanzenStock) {
+      saveFinanzenMutation.mutate({
+        ticker: editingFinanzenStock.ticker,
+        ...finanzenFormData,
       });
     }
   };
@@ -965,6 +996,7 @@ export default function Home() {
                         Kategorie {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th className="text-center py-2 px-2 text-slate-400">Info</th>
+                      <th className="text-center py-2 px-2 text-slate-400">Finanzen</th>
                       <th className="text-left py-2 px-2 text-slate-400">Aktionen</th>
                     </tr>
                   </thead>
@@ -1126,6 +1158,126 @@ export default function Home() {
                               </DialogContent>
                             </Dialog>
                           )}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <Dialog>
+                              <DialogTrigger asChild>
+                                <button className="p-1 hover:bg-slate-600 rounded text-green-400 hover:text-green-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="12" y1="1" x2="12" y2="23"/>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                  </svg>
+                                </button>
+                              </DialogTrigger>
+                              <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle className="text-white text-xl">{stock.companyName}</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-4 pb-4 border-b border-slate-700">
+                                    <div className="w-16 h-16 rounded-lg bg-white p-2 flex items-center justify-center">
+                                      <img 
+                                        src={`https://financialmodelingprep.com/image-stock/${stock.ticker.replace(/\.(SW|PA|MI|CO|DE|AS)$/, '')}.png`}
+                                        alt={stock.companyName}
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => {
+                                          const domain = stock.companyName.toLowerCase()
+                                            .replace(/\s+(inc|corp|ltd|ag|sa|spa|group|holding|technologies|enterprise|healthcare|energy|networks|semiconductor|therapeutics|platforms|solutions).*$/i, '')
+                                            .replace(/[^a-z0-9]/g, '');
+                                          e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                          e.currentTarget.onerror = () => {
+                                            if (e.currentTarget.parentElement) {
+                                              e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-green-600">${stock.companyName.charAt(0)}</div>`;
+                                            }
+                                          };
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-semibold text-white">{stock.companyName}</h3>
+                                      <p className="text-sm text-slate-400">{stock.ticker}</p>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h4 className="text-md font-semibold text-green-400">Finanzielle Highlights</h4>
+                                      {isAuthenticated && editingFinanzenStock?.ticker !== stock.ticker && (
+                                        <button
+                                          onClick={() => startEditingFinanzen(stock)}
+                                          className="text-sm text-green-400 hover:text-green-300 flex items-center gap-1"
+                                        >
+                                          <Edit2 className="w-4 h-4" />
+                                          Bearbeiten
+                                        </button>
+                                      )}
+                                    </div>
+                                    {editingFinanzenStock?.ticker === stock.ticker ? (
+                                      <div className="space-y-3">
+                                        <div>
+                                          <label className="text-sm text-slate-400">Highlight 1</label>
+                                          <Textarea
+                                            value={finanzenFormData.financialHighlight1}
+                                            onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight1: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
+                                            placeholder="Erstes finanzielles Highlight"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-sm text-slate-400">Highlight 2</label>
+                                          <Textarea
+                                            value={finanzenFormData.financialHighlight2}
+                                            onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight2: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
+                                            placeholder="Zweites finanzielles Highlight"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-sm text-slate-400">Highlight 3</label>
+                                          <Textarea
+                                            value={finanzenFormData.financialHighlight3}
+                                            onChange={(e) => setFinanzenFormData({...finanzenFormData, financialHighlight3: e.target.value})}
+                                            className="bg-slate-700 border-slate-600 text-white mt-1 min-h-[60px]"
+                                            placeholder="Drittes finanzielles Highlight"
+                                          />
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                          <Button onClick={saveFinanzen} className="bg-green-600 hover:bg-green-700">
+                                            Speichern
+                                          </Button>
+                                          <Button onClick={() => setEditingFinanzenStock(null)} variant="outline" className="border-slate-600 text-white hover:text-white">
+                                            Abbrechen
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <ul className="space-y-2">
+                                        {stock.financialHighlight1 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">$</span>
+                                            <span>{stock.financialHighlight1}</span>
+                                          </li>
+                                        )}
+                                        {stock.financialHighlight2 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">$</span>
+                                            <span>{stock.financialHighlight2}</span>
+                                          </li>
+                                        )}
+                                        {stock.financialHighlight3 && (
+                                          <li className="flex items-start gap-2 text-slate-300">
+                                            <span className="text-green-400 mt-1">$</span>
+                                            <span>{stock.financialHighlight3}</span>
+                                          </li>
+                                        )}
+                                        {!stock.financialHighlight1 && !stock.financialHighlight2 && !stock.financialHighlight3 && (
+                                          <p className="text-slate-400 italic">Keine finanziellen Highlights definiert</p>
+                                        )}
+                                      </ul>
+                                    )}
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
                         </td>
                         <td className="py-2 px-2 flex gap-2">
                           {isAuthenticated && (

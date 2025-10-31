@@ -546,22 +546,24 @@ export const appRouter = router({
     refreshData: protectedProcedure.mutation(async () => {
       const { getAllStocks, updateStock } = await import("./db");
       const { fetchStockMetrics } = await import("./_core/stockDataApi");
+      const { fetchEODHDFundamentals } = await import("./_core/eodhdApi");
       
       const stocks = await getAllStocks();
       let updated = 0;
       let failed = 0;
       const errors: string[] = [];
       
-      // Fetch fresh data from Yahoo Finance for all stocks
+      // Fetch fresh data for all stocks
       for (const stock of stocks) {
         try {
-          // Determine region from ticker (Swiss stocks end with .SW)
           const region = stock.ticker.endsWith(".SW") ? "CH" : "US";
           
-          // Fetch comprehensive metrics from Yahoo Finance
+          // Fetch price & risk metrics from Yahoo Finance
           const metrics = await fetchStockMetrics(stock.ticker, region);
           
-          // Prepare update data
+          // Fetch fundamental data from EODHD
+          const fundamentals = await fetchEODHDFundamentals(stock.ticker);
+          
           const updateData: any = {
             lastDataRefresh: new Date(),
           };
@@ -570,7 +572,7 @@ export const appRouter = router({
           if (metrics.currentPrice !== null) {
             updateData.currentPrice = metrics.currentPrice.toFixed(2);
             
-            // Recalculate YTD performance if we have start price
+            // Recalculate YTD performance
             if (stock.ytdStartPrice) {
               const ytdStart = parseFloat(stock.ytdStartPrice);
               if (ytdStart > 0) {
@@ -582,32 +584,41 @@ export const appRouter = router({
           
           if (metrics.currency) updateData.currency = metrics.currency;
           
-          // Update financial metrics
-          if (metrics.pegRatio !== null) updateData.pegRatio = metrics.pegRatio.toFixed(2);
-          if (metrics.peRatio !== null) updateData.peRatio = metrics.peRatio.toFixed(2);
-          if (metrics.dividendYield !== null) updateData.dividendYield = metrics.dividendYield.toFixed(2);
+          // Update fundamentals from EODHD
+          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio)) {
+            updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
+          }
+          if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
+            updateData.peRatio = fundamentals.peRatio.toFixed(2);
+          }
+          if (fundamentals.dividendYield !== null && !isNaN(fundamentals.dividendYield)) {
+            updateData.dividendYield = fundamentals.dividendYield.toFixed(2);
+          }
           
-          // Update risk metrics
+          // Update risk metrics from Yahoo
           if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
           if (metrics.volatility !== null) updateData.volatility = metrics.volatility.toFixed(2);
-          if (metrics.beta !== null) updateData.beta = metrics.beta.toFixed(2);
+          if (metrics.beta !== null || fundamentals.beta !== null) {
+            const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
+            if (beta !== null) updateData.beta = beta.toFixed(2);
+          }
           
           // Update 52-week range
           if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
           if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
           
           // Update market cap
-          if (metrics.marketCap !== null) {
-            // Convert to billions for readability
-            const marketCapB = metrics.marketCap / 1_000_000_000;
+          const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
+          if (marketCap !== null) {
+            const marketCapB = marketCap / 1_000_000_000;
             updateData.marketCap = marketCapB.toFixed(2);
           }
           
           await updateStock(stock.ticker, updateData);
           updated++;
           
-          // Add delay to avoid rate limiting (500ms between requests)
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Delay to avoid rate limiting (1s for EODHD)
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error: any) {
           console.error(`[Refresh] Failed to update ${stock.ticker}:`, error);
           failed++;

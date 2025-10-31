@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "5bfd4856-cd1f-40c4-9914-347a6cbc95ec",
+  "id": "cd7baae8-2b75-4b80-9ff5-345d8cd0e794",
   "prevId": "eb870d52-2c36-4cc7-a5ae-86bffb22eaba",
   "tables": {
     "news": {
@@ -365,6 +365,55 @@
           "notNull": false,
           "autoincrement": false
         },
+        "sharpeRatio": {
+          "name": "sharpeRatio",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "volatility": {
+          "name": "volatility",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "beta": {
+          "name": "beta",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "marketCap": {
+          "name": "marketCap",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "week52High": {
+          "name": "week52High",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "week52Low": {
+          "name": "week52Low",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastDataRefresh": {
+          "name": "lastDataRefresh",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "exchangeRateToChf": {
           "name": "exchangeRateToChf",
           "type": "varchar(50)",
@@ -454,55 +503,6 @@
         "financialHighlight3": {
           "name": "financialHighlight3",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sharpeRatio": {
-          "name": "sharpeRatio",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "volatility": {
-          "name": "volatility",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "week52High": {
-          "name": "week52High",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "week52Low": {
-          "name": "week52Low",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "marketCap": {
-          "name": "marketCap",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "beta": {
-          "name": "beta",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "lastDataRefresh": {
-          "name": "lastDataRefresh",
-          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

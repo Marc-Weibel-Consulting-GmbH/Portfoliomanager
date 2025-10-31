@@ -1,8 +1,0 @@
-{
-  "query": "ALTER TABLE `stocks` ADD `sharpeRatio` varchar(50);\nALTER TABLE `stocks` ADD `volatility` varchar(50);\nALTER TABLE `stocks` ADD `week52High` varchar(50);\nALTER TABLE `stocks` ADD `week52Low` varchar(50);\nALTER TABLE `stocks` ADD `marketCap` varchar(50);\nALTER TABLE `stocks` ADD `beta` varchar(50);\nALTER TABLE `stocks` ADD `lastDataRefresh` timestamp;",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute ALTER TABLE `stocks` ADD `sharpeRatio` varchar(50);\nALTER TABLE `stocks` ADD `volatility` varchar(50);\nALTER TABLE `stocks` ADD `week52High` varchar(50);\nALTER TABLE `stocks` ADD `week52Low` varchar(50);\nALTER TABLE `stocks` ADD `marketCap` varchar(50);\nALTER TABLE `stocks` ADD `beta` varchar(50);\nALTER TABLE `stocks` ADD `lastDataRefresh` timestamp;",
-  "returncode": 1,
-  "logs": [
-    "ERROR 1060 (42S21) at line 1: Duplicate column name 'sharpeRatio'"
-  ]
-}
