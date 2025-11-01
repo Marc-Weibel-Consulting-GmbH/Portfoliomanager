@@ -92,6 +92,24 @@ export default function Home() {
     },
   });
 
+  const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
+    onSuccess: (data: any) => {
+      setFormData((prev: any) => ({
+        ...prev,
+        companyName: data.companyName || prev.companyName,
+        ticker: data.ticker || prev.ticker,
+        currentPrice: data.currentPrice?.toString() || prev.currentPrice,
+        peRatio: data.peRatio?.toString() || prev.peRatio,
+        pegRatio: data.pegRatio?.toString() || prev.pegRatio,
+        sharpeRatio: data.sharpeRatio?.toString() || prev.sharpeRatio,
+      }));
+      toast.success("Erfolgreich", { description: "Daten wurden geladen" });
+    },
+    onError: (error: any) => {
+      toast.error("Fehler", { description: error.message || "Daten konnten nicht geladen werden" });
+    },
+  });
+
   const updateStockMutation = trpc.stocks.update.useMutation({
     onSuccess: () => {
       refetchStocks();
@@ -1026,30 +1044,19 @@ export default function Home() {
                     rows={3}
                   />
                   <Button 
-                    onClick={async () => {
-                      if (!formData.ticker) {
-                        toast.error("Fehler", { description: "Bitte geben Sie einen Ticker ein" });
+                    onClick={() => {
+                      const ticker = formData.ticker || formData.companyName;
+                      if (!ticker) {
+                        toast.error("Fehler", { description: "Bitte geben Sie einen Ticker oder Firmennamen ein" });
                         return;
                       }
-                      try {
-                        toast.info("Laden...", { description: "Daten werden geladen..." });
-                        const data = await trpc.stocks.fetchStockData.mutate(formData.ticker);
-                        setFormData({
-                          ...formData,
-                          companyName: data.companyName || formData.companyName,
-                          currentPrice: data.currentPrice?.toString() || formData.currentPrice,
-                          peRatio: data.peRatio?.toString() || formData.peRatio,
-                          pegRatio: data.pegRatio?.toString() || formData.pegRatio,
-                          sharpeRatio: data.sharpeRatio?.toString() || formData.sharpeRatio,
-                        });
-                        toast.success("Erfolgreich", { description: "Daten wurden geladen" });
-                      } catch (error: any) {
-                        toast.error("Fehler", { description: error.message || "Daten konnten nicht geladen werden" });
-                      }
+                      toast.info("Laden...", { description: "Daten werden geladen..." });
+                      fetchStockDataMutation.mutate(ticker);
                     }}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    disabled={fetchStockDataMutation.isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Daten laden
+                    {fetchStockDataMutation.isLoading ? "Lädt..." : "Daten laden"}
                   </Button>
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
                     Hinzufügen

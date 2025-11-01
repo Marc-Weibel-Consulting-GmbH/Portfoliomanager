@@ -1,6 +1,8 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Fix validation to check companyName OR ticker field
+- [x] Fix tRPC hooks error by using useMutation hook properly
 - [x] Add fetchStockData API endpoint in routers.ts
 - [x] Add "Daten laden" button at bottom of add stock dialog
 - [x] Implement auto-fill logic to populate all fields
