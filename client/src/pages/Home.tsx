@@ -98,6 +98,7 @@ export default function Home() {
         ...prev,
         companyName: data.companyName || prev.companyName,
         ticker: data.ticker || prev.ticker,
+        ytdStartPrice: data.ytdStartPrice?.toString() || prev.ytdStartPrice,
         currentPrice: data.currentPrice?.toString() || prev.currentPrice,
         peRatio: data.peRatio?.toString() || prev.peRatio,
         pegRatio: data.pegRatio?.toString() || prev.pegRatio,

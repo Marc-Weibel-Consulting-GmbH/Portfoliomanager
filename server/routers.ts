@@ -270,10 +270,27 @@ export const appRouter = router({
           if (!quoteRes.ok) throw new Error("Failed to fetch quote");
           const quote = await quoteRes.json();
 
+          // Fetch historical price for YTD start (31.12.2024 or last available trading day)
+          let ytdStartPrice = null;
+          try {
+            const historicalUrl = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
+            const historicalRes = await fetch(historicalUrl);
+            if (historicalRes.ok) {
+              const historicalData = await historicalRes.json();
+              if (historicalData && historicalData.length > 0) {
+                // Get the last available trading day's close price
+                ytdStartPrice = historicalData[historicalData.length - 1].close;
+              }
+            }
+          } catch (err) {
+            console.warn('[fetchStockData] Failed to fetch historical price:', err);
+          }
+
           return {
             ticker: cleanTicker,
             companyName: fundamentals.General?.Name || cleanTicker,
             currentPrice: quote.close || 0,
+            ytdStartPrice: ytdStartPrice,
             peRatio: fundamentals.Highlights?.PERatio || null,
             pegRatio: fundamentals.Highlights?.PEGRatio || null,
             dividendYield: fundamentals.Highlights?.DividendYield ? fundamentals.Highlights.DividendYield * 100 : null,

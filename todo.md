@@ -539,4 +539,6 @@
 ## Bugs
 - [x] Hinzufügen Button funktioniert nicht nach Auto-Fill Implementation (funktioniert einwandfrei)
 - [x] Dividendenrendite wird als 0% angezeigt bei Auto-Fill (sollte ~3-4% für Novartis sein) - FIXED: Dividendenrendite-Feld hinzugefügt
+- [x] Kurs per 31.12.24 wird nicht automatisch gefüllt bei Auto-Fill - FIXED: EODHD Historical Data API integriert
+- [x] Sharpe Ratio wird nicht angezeigt bei Auto-Fill - WONTFIX: EODHD API liefert keine Sharpe Ratio (muss manuell eingegeben werden)
 
