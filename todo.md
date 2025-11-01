@@ -557,4 +557,7 @@
 ## Neue Features
 - [x] 10-Jahres-Kurschart im Info-Dialog hinzugefügt (TradingView Widget)
 - [x] Wettbewerbsvorteile bereits auf Deutsch
+- [x] Analyzer UI entwickeln mit Diagramm-Platzhaltern
+- [x] Analyse-Kategorien hinzugefügt (Portfolio-Übersicht, Risiko-Analyse, Performance-Analyse)
+- [x] Interaktive Elemente: 4 Chart-Platzhalter + Kennzahlen-Dashboard
 

@@ -513,21 +513,170 @@ export default function Home() {
   if (activeTab === "analyzer") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-8">
-        <div className="max-w-4xl mx-auto">
-          <button
-            onClick={() => setActiveTab("portfolio")}
-            className="mb-6 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-          >
-            ← Zurück
-          </button>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveTab("portfolio")}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+              >
+                ← Zurück
+              </button>
+              <h1 className="text-3xl font-bold">Portfolio Analyzer</h1>
+            </div>
+          </div>
+
+          {/* Analysis Categories */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-500 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 3v18h18" />
+                    <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+                  </svg>
+                  Portfolio-Übersicht
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-sm">Diversifikation, Gewichtung und Sektorenverteilung</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                  Risiko-Analyse
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-sm">Volatilität, Sharpe Ratio und Risiko-Scores</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-green-500 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                  Performance-Analyse
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-sm">YTD-Performance, Rendite und Vergleiche</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Chart Placeholders */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Portfolio Allocation Chart */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Sektoren-Allokation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
+                  <div className="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                      <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                    </svg>
+                    <p className="text-slate-400">Kreisdiagramm</p>
+                    <p className="text-slate-500 text-sm">Sektorenverteilung</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Risk Distribution Chart */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Risiko-Verteilung</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
+                  <div className="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="12" y1="20" x2="12" y2="10" />
+                      <line x1="18" y1="20" x2="18" y2="4" />
+                      <line x1="6" y1="20" x2="6" y2="16" />
+                    </svg>
+                    <p className="text-slate-400">Balkendiagramm</p>
+                    <p className="text-slate-500 text-sm">Risiko nach Kategorie</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Performance Timeline Chart */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Performance-Verlauf</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
+                  <div className="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                    <p className="text-slate-400">Liniendiagramm</p>
+                    <p className="text-slate-500 text-sm">Zeitliche Entwicklung</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Correlation Matrix */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Korrelations-Matrix</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
+                  <div className="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    <p className="text-slate-400">Heatmap</p>
+                    <p className="text-slate-500 text-sm">Aktien-Korrelationen</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Key Metrics */}
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader>
-              <CardTitle className="text-white text-2xl">Analyzer</CardTitle>
+              <CardTitle className="text-white">Wichtige Kennzahlen</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-slate-300 mb-4">
-                Der Analyzer ist in Entwicklung. Hier werden Sie bald erweiterte Analyse-Tools finden.
-              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Portfolio-Sharpe</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Durchschn. P/E</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Volatilität</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Beta</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
