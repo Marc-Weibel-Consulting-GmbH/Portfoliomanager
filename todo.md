@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Fix refresh button progress bar stuck at 95% (doesn't complete)
 - [x] Add YTD Performance column after "Kurs" column in portfolio table
 - [x] Remove Finanzen column (green $ symbol) from portfolio table
 - [x] Ensure YTD Performance shows percentage with color coding (green positive, red negative)

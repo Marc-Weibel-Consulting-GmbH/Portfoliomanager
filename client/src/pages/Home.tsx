@@ -115,16 +115,23 @@ export default function Home() {
 
   const refreshDataMutation = trpc.stocks.refreshData.useMutation({
     onSuccess: async (data: any) => {
-      setIsRefreshing(false);
+      // Set to 100% first
       setRefreshProgress(100);
+      // Wait a brief moment to show 100%
+      await new Promise(resolve => setTimeout(resolve, 300));
+      // Then stop refreshing state
+      setIsRefreshing(false);
       toast.success("Daten aktualisiert", {
         description: data.message || `${data.updated} Aktien erfolgreich aktualisiert`,
       });
+      // Reset progress after showing completion
       setTimeout(() => setRefreshProgress(0), 2000);
       // Refetch immediately after mutation completes
       await refetchStocks();
     },
     onError: (error: any) => {
+      setIsRefreshing(false);
+      setRefreshProgress(0);
       toast.error("Fehler bei der Aktualisierung", {
         description: error.message,
       });
