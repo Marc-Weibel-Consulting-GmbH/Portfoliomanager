@@ -170,3 +170,15 @@
     }
   }
 }
+
+/* Make dialog close button (X) white for better visibility on dark backgrounds */
+[data-radix-dialog-content] button[aria-label="Close"],
+[data-radix-dialog-content] button:has(svg) {
+  color: white !important;
+}
+
+[data-radix-dialog-content] button[aria-label="Close"]:hover,
+[data-radix-dialog-content] button:has(svg):hover {
+  color: rgb(226, 232, 240) !important; /* slate-200 */
+}
+
