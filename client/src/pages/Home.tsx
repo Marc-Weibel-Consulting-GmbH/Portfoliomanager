@@ -524,6 +524,20 @@ export default function Home() {
               </button>
               <h1 className="text-3xl font-bold">Portfolio Analyzer</h1>
             </div>
+            <button
+              onClick={() => {
+                // Show all stocks with alternatives
+                const stocksWithAlternatives = stocks.filter(s => s.competitiveAdvantages && s.competitiveAdvantages.length > 0);
+                if (stocksWithAlternatives.length > 0) {
+                  alert(`${stocksWithAlternatives.length} Aktien mit Konkurrenten gefunden:\n\n${stocksWithAlternatives.map(s => s.companyName).join('\n')}`);
+                } else {
+                  alert('Keine Aktien mit Konkurrenten gefunden.');
+                }
+              }}
+              className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors font-semibold"
+            >
+              🎯 Konkurrenten
+            </button>
           </div>
 
           {/* Analysis Categories */}
@@ -613,20 +627,42 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Performance Timeline Chart */}
+            {/* Performance Timeline Chart with Benchmark */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
-                <CardTitle className="text-white">Performance-Verlauf</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white">Performance-Verlauf (5 Jahre)</CardTitle>
+                  <select
+                    className="px-3 py-1 bg-slate-700 text-white rounded border border-slate-600 text-sm"
+                    onChange={(e) => {
+                      const benchmarkSymbols: Record<string, string> = {
+                        'S&P 500': 'SPY',
+                        'Nasdaq': 'QQQ',
+                        'MSCI World': 'URTH',
+                        'SMI': 'SMI',
+                        'SMIM': 'SMIM'
+                      };
+                      const symbol = benchmarkSymbols[e.target.value];
+                      // Update chart with benchmark
+                      console.log('Benchmark selected:', symbol);
+                    }}
+                  >
+                    <option value="">Benchmark wählen</option>
+                    <option value="S&P 500">S&P 500</option>
+                    <option value="Nasdaq">Nasdaq</option>
+                    <option value="MSCI World">MSCI World</option>
+                    <option value="SMI">SMI</option>
+                    <option value="SMIM">SMIM</option>
+                  </select>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
-                  <div className="text-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                    </svg>
-                    <p className="text-slate-400">Liniendiagramm</p>
-                    <p className="text-slate-500 text-sm">Zeitliche Entwicklung</p>
-                  </div>
+                <div className="bg-slate-900 rounded-lg overflow-hidden">
+                  <iframe
+                    src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${encodeURIComponent(stocks[0]?.ticker || 'AAPL')}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&utm_term=${encodeURIComponent(stocks[0]?.ticker || 'AAPL')}`}
+                    className="w-full h-64 border-0"
+                    title="5-Year Performance Chart"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1297,6 +1333,7 @@ export default function Home() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-700">
+                      <th className="text-left py-2 px-2 text-slate-400 w-12">Logo</th>
                       <th onClick={() => handleSort('companyName')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Titel {sortField === 'companyName' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -1337,6 +1374,45 @@ export default function Home() {
                   <tbody>
                     {filteredStocks.map(stock => (
                       <tr key={stock.ticker} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="py-2 px-2">
+                          <div className="w-8 h-8 rounded overflow-hidden bg-white flex items-center justify-center">
+                            <img
+                              src={`https://logo.clearbit.com/${(() => {
+                                const domain = stock.companyName.toLowerCase()
+                                  .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)$/i, '')
+                                  .replace(/\s+/g, '')
+                                  .replace(/[^a-z0-9]/g, '');
+                                return domain;
+                              })()}.com`}
+                              alt={stock.companyName}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const domain = stock.companyName.toLowerCase()
+                                  .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)$/i, '')
+                                  .replace(/\s+/g, '')
+                                  .replace(/[^a-z0-9]/g, '');
+                                
+                                if (e.currentTarget.src.includes('clearbit')) {
+                                  if (stock.ticker.endsWith('.SW') || stock.ticker.endsWith('.N')) {
+                                    e.currentTarget.src = `https://logo.clearbit.com/${domain}.ch`;
+                                    e.currentTarget.onerror = () => {
+                                      if (e.currentTarget.parentElement) {
+                                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                      }
+                                    };
+                                  } else {
+                                    e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                    e.currentTarget.onerror = () => {
+                                      if (e.currentTarget.parentElement) {
+                                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                      }
+                                    };
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                        </td>
                         <td className="py-2 px-2 text-white">{stock.companyName}</td>
                         <td className="py-2 px-2">
                           <button

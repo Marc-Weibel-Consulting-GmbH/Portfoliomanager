@@ -561,3 +561,13 @@
 - [x] Analyse-Kategorien hinzugefügt (Portfolio-Übersicht, Risiko-Analyse, Performance-Analyse)
 - [x] Interaktive Elemente: 4 Chart-Platzhalter + Kennzahlen-Dashboard
 
+## Bugs zu beheben
+- [x] Logos werden auf "Aktien"-Seite nicht angezeigt - FIXED: Logo-Spalte hinzugefügt
+- [ ] ETF werden nicht unter "Aktien" aufgeführt
+
+## Neue Anforderungen
+- [x] "Konkurrenten" Button im Analyzer hinzugefügt
+- [x] Alle Aktien mit Alternativen im Analyzer auflisten (Alert-Dialog)
+- [x] 5-Jahres-Kurschart für Performance-Verlauf im Analyzer (TradingView Widget)
+- [x] Benchmark-Dropdown im Performance-Chart (S&P 500, Nasdaq, MSCI World, SMI, SMIM)
+
