@@ -1149,15 +1149,32 @@ export default function Home() {
                                         alt={stock.companyName}
                                         className="w-full h-full object-contain"
                                         onError={(e) => {
-                                          // Fallback to logo.dev
-                                          const domain = stock.companyName.toLowerCase()
-                                            .replace(/\s+(inc|corp|ltd|ag|sa|spa|group|holding|technologies|enterprise|healthcare|energy|networks|semiconductor|therapeutics|platforms|solutions).*$/i, '')
-                                            .replace(/[^a-z0-9]/g, '');
-                                          e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                          // Fallback to logo.dev with better domain extraction
+                                          let domain = stock.companyName.toLowerCase()
+                                            .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services).*$/i, '')
+                                            .replace(/[^a-z0-9]/g, '')
+                                            .trim();
+                                          
+                                          // For Swiss companies, try .ch domain first
+                                          const isSwissStock = stock.ticker?.endsWith('.SW');
+                                          const domainExt = isSwissStock ? 'ch' : 'com';
+                                          
+                                          e.currentTarget.src = `https://img.logo.dev/${domain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
                                           e.currentTarget.onerror = () => {
-                                            // Final fallback to letter avatar
-                                            if (e.currentTarget.parentElement) {
-                                              e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                            // If .ch failed for Swiss stocks, try .com
+                                            if (isSwissStock && domainExt === 'ch') {
+                                              e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                              e.currentTarget.onerror = () => {
+                                                // Final fallback to letter avatar
+                                                if (e.currentTarget.parentElement) {
+                                                  e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                                }
+                                              };
+                                            } else {
+                                              // Final fallback to letter avatar
+                                              if (e.currentTarget.parentElement) {
+                                                e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                              }
                                             }
                                           };
                                         }}
@@ -1428,7 +1445,7 @@ export default function Home() {
       
       {/* Competitor Comparison Dialog */}
       <Dialog open={isCompetitorDialogOpen} onOpenChange={setIsCompetitorDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white text-xl">
               Bessere Alternativen für {competitorAnalysisStock?.companyName}

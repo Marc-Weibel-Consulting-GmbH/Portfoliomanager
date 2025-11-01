@@ -1,6 +1,8 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Widen Competition Analyzer dialog for better visibility
+- [x] Fix Swiss stock (.SW) logos to load correctly
 - [x] Fix dialog close button (X) visibility - make it white
 - [x] Add company names to Competition Analyzer (show both ticker and company name)
 - [x] Add "Aktie behalten" button to Competition Analyzer dialog
