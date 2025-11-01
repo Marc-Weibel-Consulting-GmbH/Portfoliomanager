@@ -1136,17 +1136,43 @@ export default function Home() {
                                         src={`https://financialmodelingprep.com/image-stock/${stock.ticker.replace(/\.(SW|PA|MI|CO|DE|AS)$/, '')}.png`}
                                         alt={stock.companyName}
                                         className="w-full h-full object-contain"
-                                        onError={(e) => {
+                                         onError={(e) => {
+                                          // Swiss company domain mapping for known companies
+                                          const swissDomainMap: Record<string, string> = {
+                                            'St Galler Kantonalbank': 'sgkb.ch',
+                                            'Zurich Insurance Group': 'zurich.com',
+                                            'Swiss Re AG': 'swissre.com',
+                                            'Swiss Life Holding': 'swisslife.com',
+                                            'Swisscom AG': 'swisscom.ch',
+                                            'Kuehne + Nagel International AG': 'kuehne-nagel.com',
+                                            'Straumann Holding': 'straumann.com',
+                                            'Galderma Group A': 'galderma.com',
+                                            'Flughafen Zurich A': 'zurich-airport.com',
+                                            'Galenica AG': 'galenica.com',
+                                            'Holcim AG': 'holcim.com',
+                                            'BKW AG': 'bkw.ch',
+                                            'Cembra Money Bank': 'cembra.ch',
+                                            'Swissquote Group': 'swissquote.com',
+                                            'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
+                                          };
+                                          
+                                          // Check if we have a known domain mapping
+                                          const knownDomain = swissDomainMap[stock.companyName];
+                                          const isSwissStock = stock.ticker?.endsWith('.SW');
+                                          const domainExt = isSwissStock ? 'ch' : 'com';
+                                          
                                           // Extract clean domain from company name
                                           let domain = stock.companyName.toLowerCase()
-                                            .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial).*$/i, '')
+                                            .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial|kantonalbank).*$/i, '')
                                             .replace(/[^a-z0-9]/g, '')
                                             .trim();
                                           
-                                          // Fallback 1: Try Clearbit (works well for most companies)
-                                          const isSwissStock = stock.ticker?.endsWith('.SW');
-                                          const domainExt = isSwissStock ? 'ch' : 'com';
-                                          e.currentTarget.src = `https://logo.clearbit.com/${domain}.${domainExt}`;
+                                          // Fallback 1: Try Clearbit with known domain or extracted domain
+                                          if (knownDomain) {
+                                            e.currentTarget.src = `https://logo.clearbit.com/${knownDomain}`;
+                                          } else {
+                                            e.currentTarget.src = `https://logo.clearbit.com/${domain}.${domainExt}`;
+                                          }
                                           
                                           e.currentTarget.onerror = () => {
                                             // Fallback 2: Try alternate domain extension for Swiss stocks
