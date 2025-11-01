@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Fix "Daten laden" button not appearing in add stock dialog
 - [x] Implement stock search API endpoint for company name lookup
 - [x] Add auto-complete UI with ticker suggestions when entering company name
 - [x] Auto-fill all stock data (ticker, price, P/E, PEG, dividend, etc.) after selection
