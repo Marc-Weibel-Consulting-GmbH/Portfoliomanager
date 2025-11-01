@@ -48,6 +48,10 @@ export default function Home() {
   const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
   const [editingInfoStock, setEditingInfoStock] = useState<any>(null);
   const [editingFinanzenStock, setEditingFinanzenStock] = useState<any>(null);
+  const [competitorAnalysisStock, setCompetitorAnalysisStock] = useState<any>(null);
+  const [competitorAnalysisData, setCompetitorAnalysisData] = useState<any>(null);
+  const [isCompetitorDialogOpen, setIsCompetitorDialogOpen] = useState(false);
+  const [isLoadingCompetitors, setIsLoadingCompetitors] = useState(false);
   const [infoFormData, setInfoFormData] = useState<any>({});
   const [finanzenFormData, setFinanzenFormData] = useState<any>({});
   const [optimizerInputs, setOptimizerInputs] = useState<any>(null);
@@ -90,14 +94,32 @@ export default function Home() {
   });
 
   const refreshDataMutation = trpc.stocks.refreshData.useMutation({
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       toast.success("Daten aktualisiert", {
-        description: data.message || `YTD Performance und News aktualisiert`,
+        description: data.message || `${data.updated} Aktien erfolgreich aktualisiert`,
       });
-      setTimeout(() => refetchStocks(), 2000);
+      // Refetch immediately after mutation completes
+      await refetchStocks();
     },
     onError: (error: any) => {
       toast.error("Fehler bei der Aktualisierung", {
+        description: error.message,
+      });
+    },
+  });
+  
+  const findCompetitorsMutation = trpc.stocks.findCompetitors.useMutation({
+    onSuccess: (data: any) => {
+      setCompetitorAnalysisData(data);
+      setIsLoadingCompetitors(false);
+      setIsCompetitorDialogOpen(true);
+      toast.success("Alternativen gefunden", {
+        description: `${data.alternatives.length} bessere Alternativen gefunden`,
+      });
+    },
+    onError: (error: any) => {
+      setIsLoadingCompetitors(false);
+      toast.error("Fehler bei der Analyse", {
         description: error.message,
       });
     },
@@ -1154,6 +1176,42 @@ export default function Home() {
                                       </ul>
                                     )}
                                   </div>
+                                  
+                                  {/* Owner-only: Competition Analyzer */}
+                                  {user?.role === 'admin' && (
+                                    <div className="pt-4 border-t border-slate-700">
+                                      <Button
+                                        onClick={() => {
+                                          setCompetitorAnalysisStock(stock);
+                                          setIsLoadingCompetitors(true);
+                                          findCompetitorsMutation.mutate({
+                                            ticker: stock.ticker,
+                                            name: stock.companyName,
+                                            category: stock.category || "Unknown"
+                                          });
+                                        }}
+                                        disabled={isLoadingCompetitors}
+                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
+                                      >
+                                        {isLoadingCompetitors ? (
+                                          <>
+                                            <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Analysiere...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                            Alternativen prüfen
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
                               </DialogContent>
                             </Dialog>
@@ -1418,6 +1476,135 @@ export default function Home() {
 
 
       </div>
+      
+      {/* Competitor Comparison Dialog */}
+      <Dialog open={isCompetitorDialogOpen} onOpenChange={setIsCompetitorDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl">
+              Bessere Alternativen für {competitorAnalysisStock?.companyName}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {competitorAnalysisData && (
+            <div className="space-y-6">
+              {/* Current Stock Info */}
+              <div className="bg-slate-700/50 p-4 rounded-lg">
+                <h3 className="text-sm font-semibold text-slate-400 mb-2">Aktuelle Aktie</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-400">Ticker:</span>
+                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.ticker}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Sharpe:</span>
+                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.sharpeRatio?.toFixed(2) || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">PEG:</span>
+                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.pegRatio?.toFixed(2) || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Div.:</span>
+                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.dividendYield ? (competitorAnalysisData.currentStock.dividendYield * 100).toFixed(2) + '%' : 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Alternatives */}
+              {competitorAnalysisData.alternatives.length > 0 ? (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white">Gefundene Alternativen</h3>
+                  {competitorAnalysisData.alternatives.map((alt: any, idx: number) => (
+                    <div key={idx} className="bg-slate-700/30 p-4 rounded-lg border border-slate-600 hover:border-purple-500 transition-colors">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 className="text-white font-semibold text-lg">{alt.name}</h4>
+                          <p className="text-slate-400 text-sm">{alt.ticker}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-green-400 font-bold text-lg">Score: {alt.score.toFixed(2)}</div>
+                          <div className="text-slate-400 text-xs">vs. {competitorAnalysisData.currentStock.score.toFixed(2)}</div>
+                        </div>
+                      </div>
+                      
+                      {/* Metrics Comparison */}
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 text-sm">
+                        <div>
+                          <span className="text-slate-400 block">Kurs</span>
+                          <span className="text-white font-semibold">{alt.currentPrice?.toFixed(2) || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">Sharpe</span>
+                          <span className={`font-semibold ${alt.sharpeRatio > competitorAnalysisData.currentStock.sharpeRatio ? 'text-green-400' : 'text-white'}`}>
+                            {alt.sharpeRatio?.toFixed(2) || 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">PEG</span>
+                          <span className={`font-semibold ${alt.pegRatio < competitorAnalysisData.currentStock.pegRatio ? 'text-green-400' : 'text-white'}`}>
+                            {alt.pegRatio?.toFixed(2) || 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">P/E</span>
+                          <span className="text-white font-semibold">{alt.peRatio?.toFixed(2) || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">Div.</span>
+                          <span className={`font-semibold ${alt.dividendYield > competitorAnalysisData.currentStock.dividendYield ? 'text-green-400' : 'text-white'}`}>
+                            {alt.dividendYield ? (alt.dividendYield * 100).toFixed(2) + '%' : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Reason */}
+                      <p className="text-slate-300 text-sm mb-4 italic">{alt.reason}</p>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            if (confirm(`Möchten Sie ${competitorAnalysisStock.companyName} (${competitorAnalysisStock.ticker}) durch ${alt.name} (${alt.ticker}) ersetzen?`)) {
+                              // TODO: Implement replace logic
+                              toast.info("Ersetzen", {
+                                description: `${competitorAnalysisStock.ticker} wird durch ${alt.ticker} ersetzt...`
+                              });
+                              setIsCompetitorDialogOpen(false);
+                            }
+                          }}
+                          className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          Bestehenden Titel ersetzen
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            if (confirm(`Möchten Sie ${alt.name} (${alt.ticker}) zum Portfolio hinzufügen?`)) {
+                              // TODO: Implement add logic
+                              toast.info("Hinzufügen", {
+                                description: `${alt.ticker} wird zum Portfolio hinzugefügt...`
+                              });
+                              setIsCompetitorDialogOpen(false);
+                            }
+                          }}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Titel hinzufügen
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-400">
+                  <p>Keine besseren Alternativen gefunden.</p>
+                  <p className="text-sm mt-2">Die aktuelle Aktie hat bereits sehr gute Kennzahlen!</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
     </>
   );

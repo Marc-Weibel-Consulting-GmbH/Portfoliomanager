@@ -1,7 +1,9 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
+import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { fetchStockMetrics } from "./_core/stockDataApi";
+import { fetchEODHDFundamentals } from "./_core/eodhdApi";
 
 /**
  * Portfolio weighting logic with manual weight preservation:
@@ -544,11 +546,11 @@ export const appRouter = router({
         return { success: true };
       }),
     refreshData: protectedProcedure.mutation(async () => {
+      console.log('[RefreshData] Starting refresh...');
       const { getAllStocks, updateStock } = await import("./db");
-      const { fetchStockMetrics } = await import("./_core/stockDataApi");
-      const { fetchEODHDFundamentals } = await import("./_core/eodhdApi");
       
       const stocks = await getAllStocks();
+      console.log(`[RefreshData] Found ${stocks.length} stocks to update`);
       let updated = 0;
       let failed = 0;
       const errors: string[] = [];
@@ -644,6 +646,21 @@ export const appRouter = router({
         errors: failed > 0 ? errors : undefined,
       };
     }),
+    findCompetitors: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "ticker" in val && "name" in val && "category" in val) {
+          return val as { ticker: string; name: string; category: string };
+        }
+        throw new Error("Invalid input: ticker, name, and category required");
+      })
+      .mutation(async ({ input }) => {
+        const { findCompetitors } = await import("./_core/competitorAnalyzer");
+        
+        console.log(`[FindCompetitors] Analyzing ${input.ticker}...`);
+        const analysis = await findCompetitors(input.ticker, input.name, input.category);
+        
+        return analysis;
+      }),
     importPrices: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null) return val;

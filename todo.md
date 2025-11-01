@@ -456,3 +456,36 @@
 - [x] Gap reduziert: gap-3 statt gap-4
 - [x] Titel gekürzt: "Ø YTD Perf." statt "Ø YTD Performance"
 
+
+
+## URGENT - Refresh Button Bug
+- [ ] TypeScript-Fehler: API-Helper werden nicht gefunden (./_core/stockDataApi, ./_core/eodhdApi)
+- [ ] Refresh Button kann nicht funktionieren wegen Import-Fehler
+- [x] Sharpe Ratio Spalte ist NICHT sichtbar auf der Frontseite (Home.tsx Änderungen verloren)
+- [ ] Sharpe Ratio Spalte muss in Home.tsx hinzugefügt werden
+
+## Competition Analyzer (Owner-only Feature)
+- [ ] "Alternativen prüfen" Button im Info-Popup (nur für Owner)
+- [ ] LLM-basierte Konkurrenz-Suche (gleiche Branche/Kategorie)
+- [ ] Max. 3 Konkurrenten mit besseren Kennzahlen finden (tieferes PEG, höheres Sharpe, höhere Div.)
+- [ ] Vergleichstabelle anzeigen (aktuelle Aktie vs. Alternativen)
+- [ ] "Bestehenden Titel ersetzen" Option
+- [ ] "Titel hinzufügen" Option
+
+
+
+
+## Competition Analyzer (Owner-only Feature)
+- [x] Backend API (findCompetitors mutation mit LLM + Yahoo Finance + EODHD)
+- [x] "Alternativen prüfen" Button im Info-Popup (nur für Owner/Admin sichtbar)
+- [x] LLM-basierte Konkurrenz-Suche (gleiche Branche/Kategorie)
+- [x] Max. 3 Konkurrenten mit besseren Kennzahlen finden (Scoring-Algorithmus)
+- [x] Competitor Comparison Dialog mit Vergleichstabelle
+- [x] Metriken-Vergleich mit Farbcodierung (grün = besser)
+- [x] Score-Anzeige für jede Alternative
+- [x] Begründung warum Alternative besser ist
+- [x] "Bestehenden Titel ersetzen" Button
+- [x] "Titel hinzufügen" Button
+- [ ] Replace-Logik implementieren (Aktie in DB ersetzen)
+- [ ] Add-Logik implementieren (Neue Aktie in DB hinzufügen)
+
