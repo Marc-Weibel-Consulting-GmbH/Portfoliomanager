@@ -542,3 +542,19 @@
 - [x] Kurs per 31.12.24 wird nicht automatisch gefüllt bei Auto-Fill - FIXED: EODHD Historical Data API integriert
 - [x] Sharpe Ratio wird nicht angezeigt bei Auto-Fill - WONTFIX: EODHD API liefert keine Sharpe Ratio (muss manuell eingegeben werden)
 
+
+
+## In Arbeit
+- [x] Alternative Stocks Karten breiter und länger machen (ganzer Kasten sichtbar)
+- [x] Titel-Struktur ändern: Fetter Firmenname als Titel, Ticker als kleinere zweite Zeile
+- [ ] Firmenlogo links vom Titel für jede Alternative anzeigen
+- [x] Navigation umbenennen: Portfolio→Aktien, Optimizer→Portfolio, Newsroom→News
+- [x] Neuer Button "Analyzer" nach Portfolio einfügen
+- [ ] 9 ETFs aus Portfolio-Liste zur Datenbank hinzufügen (Kategorie: ETF)
+
+
+
+## Neue Features
+- [x] 10-Jahres-Kurschart im Info-Dialog hinzugefügt (TradingView Widget)
+- [x] Wettbewerbsvorteile bereits auf Deutsch
+

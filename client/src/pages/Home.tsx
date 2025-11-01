@@ -510,6 +510,31 @@ export default function Home() {
     return <Reviews onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "analyzer") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-8">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => setActiveTab("portfolio")}
+            className="mb-6 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+          >
+            ← Zurück
+          </button>
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white text-2xl">Analyzer</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-slate-300 mb-4">
+                Der Analyzer ist in Entwicklung. Hier werden Sie bald erweiterte Analyse-Tools finden.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   if (activeTab === "optimizer") {
     // Premium feature check
     if (!user?.hasPaid) {
@@ -766,7 +791,7 @@ export default function Home() {
                 : "bg-slate-700 text-slate-300 hover:bg-slate-600"
             }`}
           >
-            Portfolio
+            Aktien
           </button>
           <button
             onClick={() => setActiveTab("optimizer")}
@@ -776,7 +801,17 @@ export default function Home() {
                 : "bg-slate-700 text-slate-300 hover:bg-slate-600"
             }`}
           >
-            Optimizer
+            Portfolio
+          </button>
+          <button
+            onClick={() => setActiveTab("analyzer")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "analyzer"
+                ? "bg-pink-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Analyzer
           </button>
           <button
             onClick={() => setActiveTab("newsroom")}
@@ -786,7 +821,7 @@ export default function Home() {
                 : "bg-slate-700 text-slate-300 hover:bg-slate-600"
             }`}
           >
-            Newsroom
+            News
           </button>
           <button
             onClick={() => setActiveTab("transactions")}
@@ -1362,6 +1397,18 @@ export default function Home() {
                                       </ul>
                                     )}
                                   </div>
+
+                                  {/* 10-Year Price Chart */}
+                                  <div className="pt-4 border-t border-slate-700">
+                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Kursentwicklung (10 Jahre)</h4>
+                                    <div className="bg-slate-700/50 rounded-lg p-4">
+                                      <iframe
+                                        src={`https://www.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${stock.ticker.includes('.') ? stock.ticker.replace('.', '%3A') : stock.ticker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=${stock.ticker}`}
+                                        className="w-full h-[400px] border-0 rounded"
+                                        title="TradingView Chart"
+                                      />
+                                    </div>
+                                  </div>
                                   
                                   {/* Owner-only: Competition Analyzer */}
                                   {user?.role === 'admin' && (
@@ -1590,20 +1637,82 @@ export default function Home() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">Gefundene Alternativen</h3>
                   {competitorAnalysisData.alternatives.map((alt: any, idx: number) => (
-                    <div key={idx} className="bg-slate-700/30 p-4 rounded-lg border border-slate-600 hover:border-purple-500 transition-colors">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="text-white font-semibold text-lg">{alt.name}</h4>
-                          <p className="text-slate-400 text-sm">{alt.ticker}</p>
+                    <div key={idx} className="bg-slate-700/30 p-5 rounded-lg border border-slate-600 hover:border-purple-500 transition-colors">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          {/* Company Logo */}
+                          <div className="w-12 h-12 rounded-lg bg-white p-2 flex items-center justify-center flex-shrink-0">
+                            <img 
+                              src={`https://financialmodelingprep.com/image-stock/${alt.ticker.replace(/\.(SW|PA|MI|CO|DE|AS)$/, '')}.png`}
+                              alt={alt.name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const swissDomainMap: Record<string, string> = {
+                                  'St Galler Kantonalbank': 'sgkb.ch',
+                                  'Zurich Insurance Group': 'zurich.com',
+                                  'Swiss Re AG': 'swissre.com',
+                                  'Swiss Life Holding': 'swisslife.com',
+                                  'Swisscom AG': 'swisscom.ch',
+                                  'Kuehne + Nagel International AG': 'kuehne-nagel.com',
+                                  'Straumann Holding': 'straumann.com',
+                                  'Galderma Group A': 'galderma.com',
+                                  'Flughafen Zurich A': 'zurich-airport.com',
+                                  'Galenica AG': 'galenica.com',
+                                  'Holcim AG': 'holcim.com',
+                                  'BKW AG': 'bkw.ch',
+                                  'Cembra Money Bank': 'cembra.ch',
+                                  'Swissquote Group': 'swissquote.com',
+                                  'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
+                                };
+                                const knownDomain = swissDomainMap[alt.name];
+                                const isSwissStock = alt.ticker?.endsWith('.SW');
+                                const domainExt = isSwissStock ? 'ch' : 'com';
+                                let domain = alt.name.toLowerCase()
+                                  .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial|kantonalbank).*$/i, '')
+                                  .replace(/[^a-z0-9]/g, '')
+                                  .trim();
+                                if (knownDomain) {
+                                  e.currentTarget.src = `https://logo.clearbit.com/${knownDomain}`;
+                                } else {
+                                  e.currentTarget.src = `https://logo.clearbit.com/${domain}.${domainExt}`;
+                                }
+                                e.currentTarget.onerror = () => {
+                                  if (isSwissStock) {
+                                    e.currentTarget.src = `https://logo.clearbit.com/${domain}.com`;
+                                    e.currentTarget.onerror = () => {
+                                      e.currentTarget.src = `https://img.logo.dev/${domain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                      e.currentTarget.onerror = () => {
+                                        if (e.currentTarget.parentElement) {
+                                          e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${alt.name.charAt(0)}</div>`;
+                                        }
+                                      };
+                                    };
+                                  } else {
+                                    e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                    e.currentTarget.onerror = () => {
+                                      if (e.currentTarget.parentElement) {
+                                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${alt.name.charAt(0)}</div>`;
+                                      }
+                                    };
+                                  }
+                                };
+                              }}
+                            />
+                          </div>
+                          {/* Company Name and Ticker */}
+                          <div>
+                            <h4 className="text-white font-bold text-xl mb-1">{alt.name}</h4>
+                            <p className="text-slate-400 text-base">{alt.ticker}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-green-400 font-bold text-lg">Score: {alt.score.toFixed(2)}</div>
-                          <div className="text-slate-400 text-xs">vs. {competitorAnalysisData.currentStock.score.toFixed(2)}</div>
+                        <div className="text-right ml-4">
+                          <div className="text-green-400 font-bold text-xl">Score: {alt.score.toFixed(2)}</div>
+                          <div className="text-slate-400 text-sm">vs. {competitorAnalysisData.currentStock.score.toFixed(2)}</div>
                         </div>
                       </div>
                       
                       {/* Metrics Comparison */}
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 text-sm">
+                      <div className="grid grid-cols-5 gap-4 mb-4 text-sm">
                         <div>
                           <span className="text-slate-400 block">Kurs</span>
                           <span className="text-white font-semibold">{alt.currentPrice?.toFixed(2) || 'N/A'}</span>
