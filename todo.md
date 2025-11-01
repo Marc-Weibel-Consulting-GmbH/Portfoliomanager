@@ -534,3 +534,9 @@
 - [x] Nur Alternativen aus gleicher Kategorie vorschlagen - FIXED: Category constraint in LLM
 - [x] Mindestens 1 Kennzahl besser OHNE dass andere signifikant schlechter sind - FIXED: isBetter && isNotWorse logic
 
+
+
+## Bugs
+- [x] Hinzufügen Button funktioniert nicht nach Auto-Fill Implementation (funktioniert einwandfrei)
+- [x] Dividendenrendite wird als 0% angezeigt bei Auto-Fill (sollte ~3-4% für Novartis sein) - FIXED: Dividendenrendite-Feld hinzugefügt
+

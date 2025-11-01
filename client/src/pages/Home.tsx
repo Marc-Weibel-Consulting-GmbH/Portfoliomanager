@@ -102,6 +102,7 @@ export default function Home() {
         peRatio: data.peRatio?.toString() || prev.peRatio,
         pegRatio: data.pegRatio?.toString() || prev.pegRatio,
         sharpeRatio: data.sharpeRatio?.toString() || prev.sharpeRatio,
+        dividendYield: data.dividendYield?.toString() || prev.dividendYield,
       }));
       toast.success("Erfolgreich", { description: "Daten wurden geladen" });
     },
@@ -998,7 +999,7 @@ export default function Home() {
                     className="bg-slate-700 border-slate-600 text-white"
                   />
                   {/* P/E, PEG, Sharpe Ratio Row */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <Input
                       placeholder="P/E Ratio"
                       type="number"
@@ -1015,12 +1016,22 @@ export default function Home() {
                       onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
                       className="bg-slate-700 border-slate-600 text-white"
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
                     <Input
                       placeholder="Sharpe Ratio"
                       type="number"
                       step="0.01"
                       value={formData.sharpeRatio || ""}
                       onChange={(e) => setFormData({ ...formData, sharpeRatio: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Input
+                      placeholder="Dividendenrendite (%)"
+                      type="number"
+                      step="0.01"
+                      value={formData.dividendYield || ""}
+                      onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
                       className="bg-slate-700 border-slate-600 text-white"
                     />
                   </div>
