@@ -1025,6 +1025,32 @@ export default function Home() {
                     className="bg-slate-700 border-slate-600 text-white"
                     rows={3}
                   />
+                  <Button 
+                    onClick={async () => {
+                      if (!formData.ticker) {
+                        toast.error("Fehler", { description: "Bitte geben Sie einen Ticker ein" });
+                        return;
+                      }
+                      try {
+                        toast.info("Laden...", { description: "Daten werden geladen..." });
+                        const data = await trpc.stocks.fetchStockData.mutate(formData.ticker);
+                        setFormData({
+                          ...formData,
+                          companyName: data.companyName || formData.companyName,
+                          currentPrice: data.currentPrice?.toString() || formData.currentPrice,
+                          peRatio: data.peRatio?.toString() || formData.peRatio,
+                          pegRatio: data.pegRatio?.toString() || formData.pegRatio,
+                          sharpeRatio: data.sharpeRatio?.toString() || formData.sharpeRatio,
+                        });
+                        toast.success("Erfolgreich", { description: "Daten wurden geladen" });
+                      } catch (error: any) {
+                        toast.error("Fehler", { description: error.message || "Daten konnten nicht geladen werden" });
+                      }
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    Daten laden
+                  </Button>
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
                     Hinzufügen
                   </Button>

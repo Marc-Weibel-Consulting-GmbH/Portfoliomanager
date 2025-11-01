@@ -234,6 +234,44 @@ export const appRouter = router({
           return [];
         }
       }),
+    fetchStockData: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid ticker");
+      })
+      .mutation(async ({ input: ticker }) => {
+        try {
+          const apiKey = process.env.EODHD_API_KEY;
+          if (!apiKey) throw new Error("EODHD API key not configured");
+
+          // Fetch fundamentals from EODHD
+          const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}`;
+          const fundamentalsRes = await fetch(fundamentalsUrl);
+          if (!fundamentalsRes.ok) throw new Error("Failed to fetch fundamentals");
+          const fundamentals = await fundamentalsRes.json();
+
+          // Fetch real-time quote
+          const quoteUrl = `https://eodhd.com/api/real-time/${ticker}?api_token=${apiKey}&fmt=json`;
+          const quoteRes = await fetch(quoteUrl);
+          if (!quoteRes.ok) throw new Error("Failed to fetch quote");
+          const quote = await quoteRes.json();
+
+          return {
+            ticker,
+            companyName: fundamentals.General?.Name || ticker,
+            currentPrice: quote.close || 0,
+            peRatio: fundamentals.Highlights?.PERatio || null,
+            pegRatio: fundamentals.Highlights?.PEGRatio || null,
+            dividendYield: fundamentals.Highlights?.DividendYield ? fundamentals.Highlights.DividendYield * 100 : null,
+            sharpeRatio: fundamentals.Technicals?.SharpRatio || null,
+            volatility: fundamentals.Technicals?.Volatility || null,
+            beta: fundamentals.Technicals?.Beta || null,
+          };
+        } catch (error: any) {
+          console.error("[fetchStockData] Error:", error);
+          throw new Error(error.message || "Failed to fetch stock data");
+        }
+      }),
     list: publicProcedure.query(async () => {
       const { getAllStocks } = await import("./db");
       return await getAllStocks();

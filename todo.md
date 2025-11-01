@@ -1,6 +1,9 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Add fetchStockData API endpoint in routers.ts
+- [x] Add "Daten laden" button at bottom of add stock dialog
+- [x] Implement auto-fill logic to populate all fields
 - [x] Fix logo loading for Swiss banks (e.g., St. Galler Kantonalbank) - domain extraction issue
 - [x] Add % symbol to dividend yield column in portfolio table
 - [x] Move Import function to Admin area
