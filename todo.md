@@ -1,6 +1,10 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Add YTD Performance column after "Kurs" column in portfolio table
+- [x] Remove Finanzen column (green $ symbol) from portfolio table
+- [x] Ensure YTD Performance shows percentage with color coding (green positive, red negative)
+- [x] Test sorting functionality for YTD Performance column
 - [ ] Sharpe-optimiert: Alle Aktien etwa gleichgewichtet (Monte Carlo findet keine Optimierung)
 - [ ] Sharpe-optimiert: Aktie mit 0% Gewicht wird angezeigt (sollte gefiltert werden)
 - [x] Durchschnittliche Dividendenrendite optimiert (iterativer Algorithmus mit ±0.1% Toleranz)
