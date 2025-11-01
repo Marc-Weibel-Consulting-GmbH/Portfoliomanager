@@ -1137,32 +1137,40 @@ export default function Home() {
                                         alt={stock.companyName}
                                         className="w-full h-full object-contain"
                                         onError={(e) => {
-                                          // Fallback to logo.dev with better domain extraction
+                                          // Extract clean domain from company name
                                           let domain = stock.companyName.toLowerCase()
-                                            .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services).*$/i, '')
+                                            .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial).*$/i, '')
                                             .replace(/[^a-z0-9]/g, '')
                                             .trim();
                                           
-                                          // For Swiss companies, try .ch domain first
+                                          // Fallback 1: Try Clearbit (works well for most companies)
                                           const isSwissStock = stock.ticker?.endsWith('.SW');
                                           const domainExt = isSwissStock ? 'ch' : 'com';
+                                          e.currentTarget.src = `https://logo.clearbit.com/${domain}.${domainExt}`;
                                           
-                                          e.currentTarget.src = `https://img.logo.dev/${domain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
                                           e.currentTarget.onerror = () => {
-                                            // If .ch failed for Swiss stocks, try .com
-                                            if (isSwissStock && domainExt === 'ch') {
+                                            // Fallback 2: Try alternate domain extension for Swiss stocks
+                                            if (isSwissStock) {
+                                              e.currentTarget.src = `https://logo.clearbit.com/${domain}.com`;
+                                              e.currentTarget.onerror = () => {
+                                                // Fallback 3: Try logo.dev
+                                                e.currentTarget.src = `https://img.logo.dev/${domain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                                e.currentTarget.onerror = () => {
+                                                  // Final fallback: Letter avatar
+                                                  if (e.currentTarget.parentElement) {
+                                                    e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                                  }
+                                                };
+                                              };
+                                            } else {
+                                              // Fallback 3: Try logo.dev for non-Swiss stocks
                                               e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
                                               e.currentTarget.onerror = () => {
-                                                // Final fallback to letter avatar
+                                                // Final fallback: Letter avatar
                                                 if (e.currentTarget.parentElement) {
                                                   e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
                                                 }
                                               };
-                                            } else {
-                                              // Final fallback to letter avatar
-                                              if (e.currentTarget.parentElement) {
-                                                e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
-                                              }
                                             }
                                           };
                                         }}

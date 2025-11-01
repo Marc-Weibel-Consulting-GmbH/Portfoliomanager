@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Fix company logos not loading or displaying
 - [x] Add % symbol to dividend yield column in portfolio table
 - [x] Move Import function to Admin area
 - [x] Remove Import button from main view
