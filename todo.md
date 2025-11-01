@@ -564,6 +564,7 @@
 ## Bugs zu beheben
 - [x] Logos werden auf "Aktien"-Seite nicht angezeigt - FIXED: Logo-Spalte hinzugefügt
 - [ ] ETF werden nicht unter "Aktien" aufgeführt
+- [x] "2010 errors" Button unten links - FIXED: parentElement Null-Prüfung in Logo onError Handler
 
 ## Neue Anforderungen
 - [x] "Konkurrenten" Button im Analyzer hinzugefügt

@@ -1387,24 +1387,26 @@ export default function Home() {
                               alt={stock.companyName}
                               className="w-full h-full object-contain"
                               onError={(e) => {
+                                const img = e.currentTarget;
+                                const parent = img.parentElement;
                                 const domain = stock.companyName.toLowerCase()
                                   .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)$/i, '')
                                   .replace(/\s+/g, '')
                                   .replace(/[^a-z0-9]/g, '');
                                 
-                                if (e.currentTarget.src.includes('clearbit')) {
+                                if (img.src.includes('clearbit')) {
                                   if (stock.ticker.endsWith('.SW') || stock.ticker.endsWith('.N')) {
-                                    e.currentTarget.src = `https://logo.clearbit.com/${domain}.ch`;
-                                    e.currentTarget.onerror = () => {
-                                      if (e.currentTarget.parentElement) {
-                                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                    img.src = `https://logo.clearbit.com/${domain}.ch`;
+                                    img.onerror = () => {
+                                      if (parent) {
+                                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
                                       }
                                     };
                                   } else {
-                                    e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
-                                    e.currentTarget.onerror = () => {
-                                      if (e.currentTarget.parentElement) {
-                                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                    img.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                    img.onerror = () => {
+                                      if (parent) {
+                                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
                                       }
                                     };
                                   }
