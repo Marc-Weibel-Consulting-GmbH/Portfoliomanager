@@ -973,6 +973,33 @@ export default function Home() {
                     onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
                   />
+                  {/* P/E, PEG, Sharpe Ratio Row */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <Input
+                      placeholder="P/E Ratio"
+                      type="number"
+                      step="0.01"
+                      value={formData.peRatio || ""}
+                      onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Input
+                      placeholder="PEG Ratio"
+                      type="number"
+                      step="0.01"
+                      value={formData.pegRatio || ""}
+                      onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Input
+                      placeholder="Sharpe Ratio"
+                      type="number"
+                      step="0.01"
+                      value={formData.sharpeRatio || ""}
+                      onChange={(e) => setFormData({ ...formData, sharpeRatio: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                  </div>
                   <Input
                     placeholder="Portfolio-Gewicht (%)"
                     type="number"
