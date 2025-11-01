@@ -931,7 +931,9 @@ export default function Home() {
                       placeholder="Firmenname oder Ticker suchen..."
                       value={tickerSearchQuery}
                       onChange={(e) => {
-                        setTickerSearchQuery(e.target.value);
+                        const value = e.target.value;
+                        setTickerSearchQuery(value);
+                        setFormData({ ...formData, companyName: value });
                         setShowTickerSuggestions(true);
                       }}
                       onFocus={() => setShowTickerSuggestions(true)}

@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Sync search field input with formData.companyName
 - [x] Fix validation to check companyName OR ticker field
 - [x] Fix tRPC hooks error by using useMutation hook properly
 - [x] Add fetchStockData API endpoint in routers.ts
