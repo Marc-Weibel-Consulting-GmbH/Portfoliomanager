@@ -56,9 +56,29 @@ export default function Home() {
   const [finanzenFormData, setFinanzenFormData] = useState<any>({});
   const [optimizerInputs, setOptimizerInputs] = useState<any>(null);
   const [showOptimizerResults, setShowOptimizerResults] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshStartTime, setRefreshStartTime] = useState<number | null>(null);
   
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;
+  
+  // Progress tracking effect
+  useEffect(() => {
+    if (isRefreshing && refreshStartTime) {
+      const totalStocks = stocks.length;
+      const estimatedTimePerStock = 1000; // 1 second per stock
+      const totalEstimatedTime = totalStocks * estimatedTimePerStock;
+      
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - refreshStartTime;
+        const progress = Math.min(95, (elapsed / totalEstimatedTime) * 100);
+        setRefreshProgress(progress);
+      }, 100);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isRefreshing, refreshStartTime, stocks.length]);
   
   const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
     tickerSearchQuery,
@@ -95,9 +115,12 @@ export default function Home() {
 
   const refreshDataMutation = trpc.stocks.refreshData.useMutation({
     onSuccess: async (data: any) => {
+      setIsRefreshing(false);
+      setRefreshProgress(100);
       toast.success("Daten aktualisiert", {
         description: data.message || `${data.updated} Aktien erfolgreich aktualisiert`,
       });
+      setTimeout(() => setRefreshProgress(0), 2000);
       // Refetch immediately after mutation completes
       await refetchStocks();
     },
@@ -836,12 +859,42 @@ export default function Home() {
             </SelectContent>
           </Select>
           {isAuthenticated && (
-            <Button onClick={() => refreshDataMutation.mutate()} className="bg-blue-600 hover:bg-blue-700 text-white">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </Button>
+            <div className="relative">
+              <Button 
+                onClick={() => {
+                  setIsRefreshing(true);
+                  setRefreshStartTime(Date.now());
+                  setRefreshProgress(0);
+                  refreshDataMutation.mutate();
+                }} 
+                disabled={isRefreshing}
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {isRefreshing ? 'Aktualisiere...' : 'Refresh'}
+              </Button>
+              {isRefreshing && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-lg z-10 min-w-[280px]">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-slate-300">
+                      <span>{Math.round(refreshProgress)}% abgeschlossen</span>
+                      <span>{Math.round((stocks.length * 1000 * (1 - refreshProgress / 100)) / 1000)}s verbleibend</span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-blue-500 h-full transition-all duration-300 ease-out"
+                        style={{ width: `${refreshProgress}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-slate-400 text-center">
+                      Aktualisiere {stocks.length} Aktien...
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <Button onClick={exportToPDF} className="bg-green-600 hover:bg-green-700 text-white">
             <Download className="w-4 h-4 mr-2" />

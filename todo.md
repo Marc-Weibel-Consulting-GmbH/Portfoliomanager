@@ -489,3 +489,15 @@
 - [ ] Replace-Logik implementieren (Aktie in DB ersetzen)
 - [ ] Add-Logik implementieren (Neue Aktie in DB hinzufügen)
 
+
+
+
+## Refresh Progress Bar
+- [x] Frontend: Progressbar-Komponente unter Refresh-Button
+- [x] Prozentanzeige (z.B. "51% abgeschlossen")
+- [x] Geschätzte Restzeit anzeigen (z.B. "30s verbleibend")
+- [x] Visueller Fortschrittsbalken (0-100%) mit smooth animation
+- [x] Disable Refresh-Button während Update läuft
+- [x] Spinning Icon während Refresh
+- [x] Button-Text ändert sich zu "Aktualisiere..."
+
