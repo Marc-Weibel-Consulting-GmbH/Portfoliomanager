@@ -1,6 +1,8 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Add company names to Competition Analyzer (show both ticker and company name)
+- [x] Add "Aktie behalten" button to Competition Analyzer dialog
 - [x] Fix refresh button progress bar stuck at 95% (doesn't complete)
 - [x] Add YTD Performance column after "Kurs" column in portfolio table
 - [x] Remove Finanzen column (green $ symbol) from portfolio table

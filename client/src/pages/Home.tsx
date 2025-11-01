@@ -1440,10 +1440,14 @@ export default function Home() {
               {/* Current Stock Info */}
               <div className="bg-slate-700/50 p-4 rounded-lg">
                 <h3 className="text-sm font-semibold text-slate-400 mb-2">Aktuelle Aktie</h3>
+                <div className="mb-3">
+                  <h4 className="text-white font-semibold text-lg">{competitorAnalysisData.currentStock.name || competitorAnalysisStock?.companyName}</h4>
+                  <p className="text-slate-400 text-sm">{competitorAnalysisData.currentStock.ticker}</p>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                   <div>
-                    <span className="text-slate-400">Ticker:</span>
-                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.ticker}</span>
+                    <span className="text-slate-400">Kurs:</span>
+                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.currentPrice?.toFixed(2) || 'N/A'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400">Sharpe:</span>
@@ -1543,6 +1547,18 @@ export default function Home() {
                           className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                         >
                           Titel hinzufügen
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setIsCompetitorDialogOpen(false);
+                            toast.success("Aktie behalten", {
+                              description: `${competitorAnalysisStock.companyName} bleibt im Portfolio`
+                            });
+                          }}
+                          variant="outline"
+                          className="flex-1 border-slate-600 text-white hover:bg-slate-700 hover:text-white"
+                        >
+                          Aktie behalten
                         </Button>
                       </div>
                     </div>
