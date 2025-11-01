@@ -225,10 +225,21 @@ export const appRouter = router({
         throw new Error("Invalid search query");
       })
       .query(async ({ input }) => {
-        const { callDataApi } = await import("./_core/dataApi");
         try {
-          const result = await callDataApi("yahoo-finance/search", { query: { q: input } }) as any;
-          return result.quotes?.slice(0, 10) || [];
+          const apiKey = process.env.EODHD_API_KEY;
+          if (!apiKey) return [];
+          
+          const searchUrl = `https://eodhd.com/api/search/${encodeURIComponent(input)}?api_token=${apiKey}&limit=10`;
+          const response = await fetch(searchUrl);
+          if (!response.ok) return [];
+          
+          const results = await response.json();
+          return results.map((r: any) => ({
+            symbol: r.Code,
+            shortname: r.Name,
+            exchange: r.Exchange,
+            displaySymbol: `${r.Code} • ${r.Exchange}`,
+          }));
         } catch (error) {
           console.error("[Ticker Search] Failed:", error);
           return [];
@@ -244,21 +255,24 @@ export const appRouter = router({
           const apiKey = process.env.EODHD_API_KEY;
           if (!apiKey) throw new Error("EODHD API key not configured");
 
+          // Clean ticker: replace " • " with "." (e.g., "NOVN • SW" -> "NOVN.SW")
+          const cleanTicker = ticker.replace(/ • /g, ".").trim();
+
           // Fetch fundamentals from EODHD
-          const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}`;
+          const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${cleanTicker}?api_token=${apiKey}`;
           const fundamentalsRes = await fetch(fundamentalsUrl);
           if (!fundamentalsRes.ok) throw new Error("Failed to fetch fundamentals");
           const fundamentals = await fundamentalsRes.json();
 
           // Fetch real-time quote
-          const quoteUrl = `https://eodhd.com/api/real-time/${ticker}?api_token=${apiKey}&fmt=json`;
+          const quoteUrl = `https://eodhd.com/api/real-time/${cleanTicker}?api_token=${apiKey}&fmt=json`;
           const quoteRes = await fetch(quoteUrl);
           if (!quoteRes.ok) throw new Error("Failed to fetch quote");
           const quote = await quoteRes.json();
 
           return {
-            ticker,
-            companyName: fundamentals.General?.Name || ticker,
+            ticker: cleanTicker,
+            companyName: fundamentals.General?.Name || cleanTicker,
             currentPrice: quote.close || 0,
             peRatio: fundamentals.Highlights?.PERatio || null,
             pegRatio: fundamentals.Highlights?.PEGRatio || null,

@@ -946,19 +946,23 @@ export default function Home() {
                             key={suggestion.symbol}
                             type="button"
                             onClick={() => {
+                              const ticker = suggestion.displaySymbol; // Use displaySymbol (e.g., "NOVN.SW") instead of symbol ("NOVN")
                               setFormData({
                                 ...formData,
-                                companyName: suggestion.shortname || suggestion.longname,
-                                ticker: suggestion.symbol,
+                                companyName: suggestion.shortname,
+                                ticker: ticker,
                               });
-                              setTickerSearchQuery(suggestion.symbol);
+                              setTickerSearchQuery(ticker);
                               setShowTickerSuggestions(false);
+                              // Automatically load data after selection
+                              toast.info("Laden...", { description: "Daten werden geladen..." });
+                              fetchStockDataMutation.mutate(ticker);
                             }}
                             className="w-full px-4 py-2 text-left hover:bg-slate-600 text-white"
                           >
-                            <div className="font-medium">{suggestion.shortname || suggestion.longname}</div>
+                            <div className="font-medium">{suggestion.shortname}</div>
                             <div className="text-sm text-slate-400">
-                              {suggestion.symbol} • {suggestion.exchDisp || suggestion.exchange}
+                              {suggestion.displaySymbol}
                             </div>
                           </button>
                         ))}

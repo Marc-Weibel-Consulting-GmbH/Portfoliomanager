@@ -1,12 +1,6 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
-- [x] Sync search field input with formData.companyName
-- [x] Fix validation to check companyName OR ticker field
-- [x] Fix tRPC hooks error by using useMutation hook properly
-- [x] Add fetchStockData API endpoint in routers.ts
-- [x] Add "Daten laden" button at bottom of add stock dialog
-- [x] Implement auto-fill logic to populate all fields
 - [x] Fix logo loading for Swiss banks (e.g., St. Galler Kantonalbank) - domain extraction issue
 - [x] Add % symbol to dividend yield column in portfolio table
 - [x] Move Import function to Admin area
@@ -41,6 +35,12 @@
 
 ## Abgeschlossen
 - [x] Yahoo Finance + EODHD API Integration für Stock Metrics
+- [x] EODHD Search API für Ticker-Suche implementiert (ersetzt Yahoo Finance)
+- [x] Auto-Fill beim Hinzufügen neuer Aktien: Suche → Auswahl → Alle Daten geladen
+- [x] Ticker-Format-Bereinigung ("NOVN • SW" → "NOVN.SW" für API-Kompatibilität)
+- [x] fetchStockData Endpoint mit EODHD Fundamentals + Real-Time Quote Integration
+- [x] Automatisches Laden von P/E, PEG, Kurs, Dividendenrendite bei Ticker-Auswahl
+- [x] "Daten laden" Button im Add Stock Dialog
 - [x] Sharpe Ratio Spalte im Portfolio mit Farbcodierung (Grün ≥1, Gelb ≥0, Rot <0)
 - [x] Sharpe Ratio Berechnung basierend auf 1 Jahr historischer Kursdaten
 - [x] PEG Ratio, P/E Ratio, Dividendenrendite von EODHD API
