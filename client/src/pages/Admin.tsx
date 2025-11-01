@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft, LogOut } from "lucide-react";
 import { NewsletterExport } from "../components/NewsletterExport";
+import Import from "./Import";
 
 interface AdminProps {
   onBackClick?: () => void;
@@ -141,6 +142,21 @@ export function Admin({ onBackClick }: AdminProps) {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Excel Import Section */}
+      <Card className="bg-slate-800 border-slate-700 mb-6">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            📊 Excel-Kurs-Import
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            Importieren Sie Aktienkurse aus Excel-Dateien (YTD oder aktuelle Kurse)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Import onBackClick={() => {}} />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Newsletter Export Card */}

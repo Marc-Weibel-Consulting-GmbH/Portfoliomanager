@@ -1,6 +1,9 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Add % symbol to dividend yield column in portfolio table
+- [x] Move Import function to Admin area
+- [x] Remove Import button from main view
 - [x] Widen Competition Analyzer dialog for better visibility
 - [x] Fix Swiss stock (.SW) logos to load correctly
 - [x] Fix dialog close button (X) visibility - make it white

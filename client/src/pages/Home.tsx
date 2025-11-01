@@ -12,7 +12,6 @@ import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
 import Performance from "./Performance";
 import Research from "./Research";
-import Import from "./Import";
 import { Admin } from "./Admin";
 import About from "./About";
 import Reviews from "./Reviews";
@@ -477,9 +476,7 @@ export default function Home() {
     return <Research onBackClick={() => setActiveTab("portfolio")} />;
   }
 
-  if (activeTab === "import") {
-    return <Import onBackClick={() => setActiveTab("portfolio")} />;
-  }
+
 
   if (activeTab === "admin") {
     return <Admin onBackClick={() => setActiveTab("portfolio")} />;
@@ -803,16 +800,7 @@ export default function Home() {
           </button>
           {isAuthenticated && (
             <>
-              <button
-                onClick={() => setActiveTab("import")}
-                className={`px-4 py-2 rounded font-medium transition-colors ${
-                  activeTab === "import"
-                    ? "bg-teal-600 text-white"
-                    : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                }`}
-              >
-                Import
-              </button>
+
               <button
                 onClick={() => setActiveTab("admin")}
                 className={`px-4 py-2 rounded font-medium transition-colors ${
@@ -1113,7 +1101,7 @@ export default function Home() {
                             </span>
                           ) : "-"}
                         </td>
-                        <td className="py-2 px-2 text-green-400">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : "-"}</td>
+                        <td className="py-2 px-2 text-green-400">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) + '%' : "-"}</td>
                         <td className="py-2 px-2">
                           {(() => {
                             const ytd = parseFloat(stock.ytdPerformance || "0");

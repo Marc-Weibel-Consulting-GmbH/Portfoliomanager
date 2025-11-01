@@ -86,17 +86,8 @@ export default function Import({ onBackClick }: ImportProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white p-6">
+    <div className="text-white">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Excel Import</h1>
-            <p className="text-slate-300">Aktienkurse aus Excel-Dateien importieren</p>
-          </div>
-          <Button onClick={onBackClick} variant="outline" className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700">
-            Zurück
-          </Button>
-        </div>
 
         {!isAuthenticated && (
           <Card className="bg-slate-800 border-slate-700 mb-6">
