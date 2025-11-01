@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Trigger auto-fill when selecting company from search suggestions (not from ticker field)
 - [x] Fix "Daten laden" button not appearing in add stock dialog
 - [x] Implement stock search API endpoint for company name lookup
 - [x] Add auto-complete UI with ticker suggestions when entering company name

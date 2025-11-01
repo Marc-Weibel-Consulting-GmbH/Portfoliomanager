@@ -967,6 +967,9 @@ export default function Home() {
                               });
                               setTickerSearchQuery(suggestion.symbol);
                               setShowTickerSuggestions(false);
+                              // Automatically fetch stock data when selecting from suggestions
+                              setIsLoadingStockData(true);
+                              fetchStockDataMutation.mutate(suggestion.symbol);
                             }}
                             className="w-full px-4 py-2 text-left hover:bg-slate-600 text-white"
                           >
