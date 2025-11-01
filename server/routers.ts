@@ -655,9 +655,14 @@ export const appRouter = router({
       })
       .mutation(async ({ input }) => {
         const { findCompetitors } = await import("./_core/competitorAnalyzer");
+        const { getAllStocks } = await import("./db");
+        
+        // Get all existing tickers to prevent duplicates
+        const existingStocks = await getAllStocks();
+        const existingTickers = existingStocks.map(s => s.ticker);
         
         console.log(`[FindCompetitors] Analyzing ${input.ticker}...`);
-        const analysis = await findCompetitors(input.ticker, input.name, input.category);
+        const analysis = await findCompetitors(input.ticker, input.name, input.category, existingTickers);
         
         return analysis;
       }),

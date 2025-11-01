@@ -501,3 +501,16 @@
 - [x] Spinning Icon während Refresh
 - [x] Button-Text ändert sich zu "Aktualisiere..."
 
+
+
+
+## URGENT - Competition Analyzer Bugs
+- [x] Dividendenrendite Faktor 100 zu hoch (372% statt 3.72%) - FIXED: Removed *100 multiplication
+- [x] P/E Ratio fehlt bei aktueller Aktie im Vergleich - FIXED: Added P/E column
+- [x] Vorgeschlagene Titel sind bereits im Portfolio (Duplikat-Check fehlt) - FIXED: Added existingTickers filter
+- [x] Falsche Kategorie-Zuordnung (Versicherung statt Kantonalbank) - FIXED: LLM prompt enforces exact category
+- [x] Schlechtere Kennzahlen werden nicht berücksichtigt (Sharpe 0.59 vs 1.69) - FIXED: Added isNotWorse check
+- [x] Scoring-Algorithmus muss alle Metriken gleichzeitig bewerten - FIXED: Balanced scoring
+- [x] Nur Alternativen aus gleicher Kategorie vorschlagen - FIXED: Category constraint in LLM
+- [x] Mindestens 1 Kennzahl besser OHNE dass andere signifikant schlechter sind - FIXED: isBetter && isNotWorse logic
+

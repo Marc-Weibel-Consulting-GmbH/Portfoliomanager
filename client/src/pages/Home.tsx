@@ -1544,7 +1544,7 @@ export default function Home() {
               {/* Current Stock Info */}
               <div className="bg-slate-700/50 p-4 rounded-lg">
                 <h3 className="text-sm font-semibold text-slate-400 mb-2">Aktuelle Aktie</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                   <div>
                     <span className="text-slate-400">Ticker:</span>
                     <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.ticker}</span>
@@ -1558,8 +1558,12 @@ export default function Home() {
                     <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.pegRatio?.toFixed(2) || 'N/A'}</span>
                   </div>
                   <div>
+                    <span className="text-slate-400">P/E:</span>
+                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.peRatio?.toFixed(2) || 'N/A'}</span>
+                  </div>
+                  <div>
                     <span className="text-slate-400">Div.:</span>
-                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.dividendYield ? (competitorAnalysisData.currentStock.dividendYield * 100).toFixed(2) + '%' : 'N/A'}</span>
+                    <span className="ml-2 text-white font-semibold">{competitorAnalysisData.currentStock.dividendYield ? competitorAnalysisData.currentStock.dividendYield.toFixed(2) + '%' : 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -1606,7 +1610,7 @@ export default function Home() {
                         <div>
                           <span className="text-slate-400 block">Div.</span>
                           <span className={`font-semibold ${alt.dividendYield > competitorAnalysisData.currentStock.dividendYield ? 'text-green-400' : 'text-white'}`}>
-                            {alt.dividendYield ? (alt.dividendYield * 100).toFixed(2) + '%' : 'N/A'}
+                            {alt.dividendYield ? alt.dividendYield.toFixed(2) + '%' : 'N/A'}
                           </span>
                         </div>
                       </div>

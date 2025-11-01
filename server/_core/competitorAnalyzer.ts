@@ -94,7 +94,8 @@ function generateReason(current: CompetitorStock, alternative: CompetitorStock):
 export async function findCompetitors(
   ticker: string,
   name: string,
-  category: string
+  category: string,
+  existingTickers: string[] = []
 ): Promise<CompetitorAnalysis> {
   console.log(`[CompetitorAnalyzer] Finding competitors for ${ticker} (${name})`);
   
@@ -136,9 +137,11 @@ export async function findCompetitors(
         content: `Find 5-7 direct competitors for "${name}" (Ticker: ${ticker}, Category: ${category}).
         
 Requirements:
-- Same industry/sector
+- MUST be in the EXACT same category: ${category}
+- Same industry/sector as ${name}
 - Similar market cap range
 - Listed on ${region === 'CH' ? 'Swiss Exchange (use .SW suffix)' : 'US exchanges'}
+- DO NOT suggest these tickers (already in portfolio): ${existingTickers.join(', ')}
 - Return ONLY ticker symbols, one per line
 - No explanations, just tickers
 
@@ -177,6 +180,12 @@ GOOGL`
   const alternatives: CompetitorStock[] = [];
   
   for (const competitorTicker of competitorTickers.slice(0, 7)) {
+    // Skip if ticker is already in portfolio
+    if (existingTickers.includes(competitorTicker)) {
+      console.log(`[CompetitorAnalyzer] Skipping ${competitorTicker} (already in portfolio)`);
+      continue;
+    }
+    
     try {
       const metrics = await fetchStockMetrics(competitorTicker, region);
       const fundamentals = await fetchEODHDFundamentals(competitorTicker);
@@ -188,8 +197,27 @@ GOOGL`
         volatility: metrics.volatility,
       });
       
-      // Only include if score is better than current
-      if (score > currentStock.score) {
+      // Only include if at least one metric is significantly better
+      // AND no metric is significantly worse
+      const isBetter = (
+        (metrics.sharpeRatio !== null && currentStock.sharpeRatio !== null && 
+         metrics.sharpeRatio > currentStock.sharpeRatio * 1.1) || // 10% better Sharpe
+        (fundamentals.pegRatio !== null && currentStock.pegRatio !== null && currentStock.pegRatio > 0 &&
+         fundamentals.pegRatio < currentStock.pegRatio * 0.9) || // 10% lower PEG
+        (fundamentals.dividendYield !== null && currentStock.dividendYield !== null &&
+         fundamentals.dividendYield > currentStock.dividendYield * 1.2) // 20% higher dividend
+      );
+      
+      const isNotWorse = (
+        (metrics.sharpeRatio === null || currentStock.sharpeRatio === null || 
+         metrics.sharpeRatio >= currentStock.sharpeRatio * 0.7) && // Not 30% worse Sharpe
+        (fundamentals.pegRatio === null || currentStock.pegRatio === null || currentStock.pegRatio <= 0 ||
+         fundamentals.pegRatio <= currentStock.pegRatio * 1.5) && // Not 50% higher PEG
+        (fundamentals.dividendYield === null || currentStock.dividendYield === null ||
+         fundamentals.dividendYield >= currentStock.dividendYield * 0.8) // Not 20% lower dividend
+      );
+      
+      if (isBetter && isNotWorse && score > currentStock.score) {
         const tempCompetitor: CompetitorStock = {
           ticker: competitorTicker,
           name: competitorTicker, // We don't have name from API
