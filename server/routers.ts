@@ -234,6 +234,55 @@ export const appRouter = router({
           return [];
         }
       }),
+    fetchStockData: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid ticker");
+      })
+      .mutation(async ({ input }) => {
+        const ticker = input;
+        const region = ticker.endsWith(".SW") ? "CH" : "US";
+        
+        try {
+          // Fetch price & risk metrics from Yahoo Finance
+          const metrics = await fetchStockMetrics(ticker, region);
+          
+          // Fetch fundamental data from EODHD
+          const fundamentals = await fetchEODHDFundamentals(ticker);
+          
+          // Fetch company profile for name
+          const { callDataApi } = await import("./_core/dataApi");
+          let companyName = ticker;
+          try {
+            const profile = await callDataApi("yahoo-finance/quote", { query: { symbol: ticker } }) as any;
+            companyName = profile.longName || profile.shortName || ticker;
+          } catch (error) {
+            console.error("[FetchStockData] Failed to fetch company name:", error);
+          }
+          
+          return {
+            success: true,
+            data: {
+              ticker,
+              companyName,
+              currentPrice: metrics.currentPrice?.toFixed(2) || null,
+              currency: metrics.currency || "USD",
+              peRatio: fundamentals.peRatio?.toFixed(2) || null,
+              pegRatio: fundamentals.pegRatio?.toFixed(2) || null,
+              dividendYield: fundamentals.dividendYield?.toFixed(2) || null,
+              sharpeRatio: metrics.sharpeRatio?.toFixed(2) || null,
+              volatility: metrics.volatility?.toFixed(2) || null,
+              beta: (metrics.beta ?? fundamentals.beta)?.toFixed(2) || null,
+              week52High: metrics.week52High?.toFixed(2) || null,
+              week52Low: metrics.week52Low?.toFixed(2) || null,
+              marketCap: ((metrics.marketCap ?? fundamentals.marketCap) / 1_000_000_000)?.toFixed(2) || null,
+            },
+          };
+        } catch (error: any) {
+          console.error(`[FetchStockData] Failed to fetch data for ${ticker}:`, error);
+          throw new Error(`Fehler beim Laden der Daten: ${error.message}`);
+        }
+      }),
     list: publicProcedure.query(async () => {
       const { getAllStocks } = await import("./db");
       return await getAllStocks();

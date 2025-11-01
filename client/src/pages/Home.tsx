@@ -58,6 +58,8 @@ export default function Home() {
   const [refreshProgress, setRefreshProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshStartTime, setRefreshStartTime] = useState<number | null>(null);
+  const [isLoadingStockData, setIsLoadingStockData] = useState(false);
+  const [autoFilledData, setAutoFilledData] = useState<any>(null);
   
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;
@@ -84,11 +86,43 @@ export default function Home() {
     { enabled: tickerSearchQuery.length >= 2 }
   );
 
+  const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
+    onSuccess: (result) => {
+      if (result.success && result.data) {
+        setAutoFilledData(result.data);
+        setFormData({
+          ...formData,
+          companyName: result.data.companyName,
+          ticker: result.data.ticker,
+          currentPrice: result.data.currentPrice,
+          currency: result.data.currency,
+          peRatio: result.data.peRatio,
+          pegRatio: result.data.pegRatio,
+          dividendYield: result.data.dividendYield,
+          sharpeRatio: result.data.sharpeRatio,
+          volatility: result.data.volatility,
+          beta: result.data.beta,
+        });
+        toast.success("Daten geladen", {
+          description: "Alle verfügbaren Daten wurden automatisch ausgefüllt",
+        });
+      }
+      setIsLoadingStockData(false);
+    },
+    onError: (error) => {
+      toast.error("Fehler beim Laden", {
+        description: error.message,
+      });
+      setIsLoadingStockData(false);
+    },
+  });
+
   const addStockMutation = trpc.stocks.add.useMutation({
     onSuccess: () => {
       refetchStocks();
       setIsAddDialogOpen(false);
       setFormData({});
+      setAutoFilledData(null);
     },
   });
 
@@ -951,12 +985,27 @@ export default function Home() {
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
                   />
-                  <Input
-                    placeholder="Ticker"
-                    value={formData.ticker || ""}
-                    onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ticker"
+                      value={formData.ticker || ""}
+                      onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white flex-1"
+                    />
+                    {formData.ticker && !autoFilledData && (
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setIsLoadingStockData(true);
+                          fetchStockDataMutation.mutate(formData.ticker);
+                        }}
+                        disabled={isLoadingStockData}
+                        className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+                      >
+                        {isLoadingStockData ? "Lädt..." : "Daten laden"}
+                      </Button>
+                    )}
+                  </div>
                   <Input
                     placeholder="Kurs per 31.12. Vorjahr"
                     type="number"
@@ -998,8 +1047,19 @@ export default function Home() {
                     className="bg-slate-700 border-slate-600 text-white"
                     rows={3}
                   />
+                  {autoFilledData && (
+                    <div className="bg-blue-900/30 border border-blue-500/50 rounded-md p-3 text-sm text-blue-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="font-medium">Daten automatisch geladen</span>
+                      </div>
+                      <p className="text-xs">Kurs, P/E, PEG, Dividende, Sharpe, Volatilität und Beta wurden automatisch ausgefüllt.</p>
+                    </div>
+                  )}
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
-                    Hinzufügen
+                    {autoFilledData ? "Übernehmen" : "Hinzufügen"}
                   </Button>
                 </div>
               </DialogContent>

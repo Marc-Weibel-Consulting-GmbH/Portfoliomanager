@@ -1,6 +1,10 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [x] Implement stock search API endpoint for company name lookup
+- [x] Add auto-complete UI with ticker suggestions when entering company name
+- [x] Auto-fill all stock data (ticker, price, P/E, PEG, dividend, etc.) after selection
+- [x] Add "Übernehmen" button to confirm auto-filled data
 - [x] Fix logo loading for Swiss banks (e.g., St. Galler Kantonalbank) - domain extraction issue
 - [x] Add % symbol to dividend yield column in portfolio table
 - [x] Move Import function to Admin area
