@@ -702,7 +702,9 @@ export default function Home() {
   if (activeTab === "rechner") {
     // Calculator state is declared at the top of the component
 
-    const calculatePension = () => {
+    const results = React.useMemo(() => {
+      if (!pensionCapital) return null;
+      
       const totalCapital = parseFloat(pensionCapital);
       const rate = parseFloat(conversionRate) / 100;
       const life = parseInt(lifeExpectancy);
@@ -774,9 +776,7 @@ export default function Home() {
         capitalForWithdrawal: capitalForWithdrawal.toFixed(0),
         recommendation: totalValue > fullCapitalValue ? 'Mischbezug empfohlen' : 'Vollständiger Kapitalbezug empfohlen'
       };
-    };
-
-    const results = pensionCapital ? calculatePension() : null;
+    }, [pensionCapital, conversionRate, lifeExpectancy, currentAge, regularIncome, desiredExpenses, desiredCoverageRatio, canton, religion, pensionTaxRate, expectedReturn]);
     
     const totalBudget = Object.values(budgetItems).reduce((sum, item) => sum + item.custom, 0);
     const income = parseFloat(annualIncome) || 0;

@@ -668,3 +668,19 @@
 - [x] Adjust standard values based on household size (1, 2, 3, 4, 5, 6 persons)
 - [x] Hide education costs for households without children
 
+
+
+## Portfolio Performance & Navigation
+- [ ] Fix portfolio performance chart to use fixed CHF 10'000 start value (not dynamic)
+- [ ] Add back button in portfolio area for navigation
+- [ ] Implement portfolio save functionality with custom names
+- [ ] Create database schema for saved portfolios (user_id, name, stocks, weights, created_at)
+- [ ] Add UI to save current portfolio with custom name
+- [ ] Add UI to load previously saved portfolios
+- [ ] Support multiple portfolio variants per user
+
+
+
+## Rechner Tab Bug
+- [x] Fix Rechner tab switching to homepage while filling out fields (React error causing re-render)
+

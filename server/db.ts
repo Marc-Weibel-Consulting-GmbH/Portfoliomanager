@@ -1,6 +1,6 @@
 import { eq, desc, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStock, InsertUser, InsertNews, InsertTransaction, stocks, users, news, transactions } from "../drizzle/schema";
+import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, stocks, users, news, transactions, savedPortfolios } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
