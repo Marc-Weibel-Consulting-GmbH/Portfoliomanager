@@ -149,3 +149,143 @@ export async function fetchStockMetrics(ticker: string, region: string = "US"): 
   }
 }
 
+
+
+
+/**
+ * Fetch historical prices for portfolio performance calculation
+ * Returns daily closing prices for the last 5 years
+ */
+export async function fetchHistoricalPrices(
+  ticker: string,
+  years: number = 5
+): Promise<{ date: string; close: number }[] | null> {
+  try {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - years);
+
+    const result = await callDataApi("YahooFinance/get_stock_chart", {
+      query: {
+        symbol: ticker,
+        interval: "1d",
+        range: `${years}y`,
+      },
+    });
+
+    if (!result || !result.chart || !result.chart.result || result.chart.result.length === 0) {
+      console.warn(`[StockDataAPI] No historical data for ${ticker}`);
+      return null;
+    }
+
+    const chartData = result.chart.result[0];
+    const timestamps = chartData.timestamp || [];
+    const quotes = chartData.indicators?.quote?.[0] || {};
+    const closes = quotes.close || [];
+
+    if (timestamps.length === 0 || closes.length === 0) {
+      return null;
+    }
+
+    // Convert to date/price pairs
+    const historicalData: { date: string; close: number }[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      if (closes[i] !== null && closes[i] !== undefined) {
+        const date = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
+        historicalData.push({
+          date,
+          close: closes[i],
+        });
+      }
+    }
+
+    return historicalData;
+  } catch (error) {
+    console.error(`[StockDataAPI] Error fetching historical prices for ${ticker}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Calculate portfolio performance over time based on current holdings and weights
+ */
+export interface PortfolioPerformancePoint {
+  date: string;
+  value: number;
+  percentChange: number;
+}
+
+export async function calculatePortfolioPerformance(
+  stocks: Array<{ ticker: string; portfolioWeight: string }>
+): Promise<PortfolioPerformancePoint[]> {
+  try {
+    // Fetch historical data for all stocks
+    const historicalDataPromises = stocks.map(async (stock) => {
+      const data = await fetchHistoricalPrices(stock.ticker, 5);
+      return {
+        ticker: stock.ticker,
+        weight: parseFloat(stock.portfolioWeight) / 100,
+        data: data || [],
+      };
+    });
+
+    const allHistoricalData = await Promise.all(historicalDataPromises);
+
+    // Filter out stocks with no data
+    const validStocks = allHistoricalData.filter((s) => s.data.length > 0);
+
+    if (validStocks.length === 0) {
+      return [];
+    }
+
+    // Find common date range (intersection of all dates)
+    const dateArrays = validStocks.map((s) => s.data.map((d) => d.date));
+    const commonDates = dateArrays.reduce((acc, dates) => {
+      return acc.filter((date) => dates.includes(date));
+    });
+
+    if (commonDates.length === 0) {
+      return [];
+    }
+
+    // Sort dates chronologically
+    commonDates.sort();
+
+    // Calculate portfolio value for each date
+    const portfolioPerformance: PortfolioPerformancePoint[] = [];
+    const initialValue = 10000; // Start with CHF 10,000
+    let firstPortfolioValue: number | null = null;
+
+    for (const date of commonDates) {
+      let portfolioValue = 0;
+
+      for (const stock of validStocks) {
+        const priceData = stock.data.find((d) => d.date === date);
+        if (priceData) {
+          portfolioValue += priceData.close * stock.weight;
+        }
+      }
+
+      // Store first portfolio value for normalization
+      if (firstPortfolioValue === null) {
+        firstPortfolioValue = portfolioValue;
+      }
+
+      // Normalize to initial value (CHF 10,000)
+      const normalizedValue = (portfolioValue / firstPortfolioValue) * initialValue;
+      const percentChange = ((normalizedValue - initialValue) / initialValue) * 100;
+
+      portfolioPerformance.push({
+        date,
+        value: normalizedValue,
+        percentChange,
+      });
+    }
+
+    return portfolioPerformance;
+  } catch (error) {
+    console.error("[StockDataAPI] Error calculating portfolio performance:", error);
+    return [];
+  }
+}
+

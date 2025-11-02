@@ -610,3 +610,52 @@
 - [x] React Hooks Fehler behoben (useState Hooks an den Anfang der Komponente verschoben)
 - [x] TypeScript Kompilierung erfolgreich (keine Fehler)
 
+
+
+## TradingView Chart Fix
+- [ ] Fix TradingView chart symbol format for Swiss stocks (.SW suffix)
+- [ ] Convert SGKN.SW to SIX:SGKN format for TradingView widget
+- [ ] Test chart display with multiple Swiss stocks
+
+
+
+## Portfolio Performance & Fear & Greed Index Updates
+- [ ] Portfolio Performance Chart: Berechnung basierend auf aktueller Zusammensetzung über 5 Jahre
+- [ ] Historische Kursdaten für alle Aktien abrufen (5 Jahre)
+- [ ] Gewichtete Portfolio-Performance berechnen
+- [ ] Eigene Chart-Visualisierung erstellen (ohne TradingView)
+- [ ] Fear & Greed Index mit echten aktuellen Daten aktualisieren
+- [ ] API-Integration für Fear & Greed Index Daten
+
+
+
+## Syntax Error Fix
+- [x] Fix syntax error in Home.tsx line 1262 (incomplete benchmark selector code)
+
+
+
+## Pension Calculator Enhancement
+- [ ] Add canton selection dropdown (all 26 Swiss cantons)
+- [ ] Add religion selection (reformiert, katholisch, konfessionslos)
+- [ ] Implement canton-specific capital withdrawal tax calculation
+- [ ] Add desired coverage ratio field (Einnahmen/Ausgaben)
+- [ ] Calculate optimal capital withdrawal percentage automatically
+- [ ] Update calculator UI with new fields
+- [ ] Test calculations with different scenarios
+
+
+
+## Portfolio Performance Chart Fix
+- [ ] Fix start value to CHF 10'000 (minimum investment)
+- [ ] Calculate end value based on actual 5-year performance
+- [ ] Display correct performance percentage over 5 years
+
+
+
+
+## Budget Calculator Integration
+- [x] Add "Budgetrechner öffnen" button next to desired expenses field in pension calculator
+- [x] Implement switch to budget calculator when button is clicked
+- [x] Add "Übernehmen" button in budget calculator to transfer total back to pension calculator
+- [x] Ensure seamless data flow between calculators
+

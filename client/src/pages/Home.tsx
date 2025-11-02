@@ -20,6 +20,9 @@ import OptimizerResults from "./OptimizerResults";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
+import { PortfolioPerformanceChart } from '@/components/PortfolioPerformanceChart';
+import { PortfolioSentimentIndicator } from '@/components/PortfolioSentimentIndicator';
+import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
 
 // AI-powered portfolio market analysis
 async function analyzePortfolioMarket(stocks: any[]) {
@@ -141,6 +144,9 @@ export default function Home() {
   const [desiredExpenses, setDesiredExpenses] = useState('');
   const [expectedReturn, setExpectedReturn] = useState('4');
   const [currentAge, setCurrentAge] = useState('65');
+  const [canton, setCanton] = useState<Canton>('ZH');
+  const [religion, setReligion] = useState<Religion>('konfessionslos');
+  const [desiredCoverageRatio, setDesiredCoverageRatio] = useState('100');
   const [householdType, setHouseholdType] = useState<'single' | 'family'>('single');
   const [annualIncome, setAnnualIncome] = useState('');
   const [budgetItems, setBudgetItems] = useState({
@@ -697,19 +703,44 @@ export default function Home() {
     // Calculator state is declared at the top of the component
 
     const calculatePension = () => {
-      const capital = parseFloat(pensionCapital);
+      const totalCapital = parseFloat(pensionCapital);
       const rate = parseFloat(conversionRate) / 100;
       const life = parseInt(lifeExpectancy);
       const age = parseInt(currentAge);
       const years = life - age;
+      const income = parseFloat(regularIncome) || 0;
+      const expenses = parseFloat(desiredExpenses) || 0;
+      const targetCoverage = parseFloat(desiredCoverageRatio) / 100;
       
-      // Annual pension
-      const annualPension = capital * rate;
+      // Calculate optimal capital withdrawal percentage
+      let optimalWithdrawalPct = 0;
+      if (expenses > 0 && targetCoverage > 0) {
+        // Required monthly income to reach target coverage
+        const requiredMonthlyIncome = expenses * targetCoverage;
+        const additionalIncomeNeeded = Math.max(0, requiredMonthlyIncome - income);
+        
+        // Calculate how much capital withdrawal is needed to generate this income
+        if (additionalIncomeNeeded > 0) {
+          const requiredAnnualPension = additionalIncomeNeeded * 12;
+          const requiredCapitalForPension = requiredAnnualPension / rate;
+          optimalWithdrawalPct = Math.min(100, (requiredCapitalForPension / totalCapital) * 100);
+        }
+      }
+      
+      // Use optimal withdrawal or 100% if not specified
+      const withdrawalPct = optimalWithdrawalPct > 0 ? optimalWithdrawalPct : 100;
+      const capitalForPension = totalCapital * (withdrawalPct / 100);
+      const capitalForWithdrawal = totalCapital - capitalForPension;
+      
+      // Annual pension from partial capital
+      const annualPension = capitalForPension * rate;
       const monthlyPension = annualPension / 12;
       
-      // Capital option with tax
-      const capitalTax = capital * (parseFloat(capitalTaxRate) / 100);
-      const netCapital = capital - capitalTax;
+      // Capital withdrawal with canton-specific tax
+      const taxResult = calculateCapitalWithdrawalTax(capitalForWithdrawal, canton, religion);
+      const netCapital = taxResult.netAmount;
+      const capitalTax = taxResult.taxAmount;
+      const effectiveTaxRate = taxResult.taxRate;
       
       // Total pension over lifetime
       const totalPensionGross = annualPension * years;
@@ -721,10 +752,12 @@ export default function Home() {
       const futureValue = netCapital * Math.pow(1 + returnRate, years);
       
       // Coverage ratio
-      const income = parseFloat(regularIncome) || 0;
-      const expenses = parseFloat(desiredExpenses) || 0;
-      const coverageWithPension = expenses > 0 ? ((income + monthlyPension) / expenses * 100).toFixed(1) : '0';
-      const coverageWithoutPension = expenses > 0 ? (income / expenses * 100).toFixed(1) : '0';
+      const totalMonthlyIncome = income + monthlyPension;
+      const coverageWithPension = expenses > 0 ? ((totalMonthlyIncome / expenses) * 100).toFixed(1) : '0';
+      const coverageWithoutPension = expenses > 0 ? ((income / expenses) * 100).toFixed(1) : '0';
+      
+      const totalValue = totalPensionNet + futureValue;
+      const fullCapitalValue = calculateCapitalWithdrawalTax(totalCapital, canton, religion).netAmount * Math.pow(1 + returnRate, years);
       
       return {
         monthlyPension: monthlyPension.toFixed(0),
@@ -732,10 +765,14 @@ export default function Home() {
         totalPensionNet: totalPensionNet.toFixed(0),
         netCapital: netCapital.toFixed(0),
         capitalTax: capitalTax.toFixed(0),
+        effectiveTaxRate: effectiveTaxRate.toFixed(2),
         futureValue: futureValue.toFixed(0),
         coverageWithPension,
         coverageWithoutPension,
-        recommendation: totalPensionNet > netCapital ? 'Rente empfohlen' : 'Kapitalbezug empfohlen'
+        optimalWithdrawalPct: optimalWithdrawalPct.toFixed(1),
+        capitalForPension: capitalForPension.toFixed(0),
+        capitalForWithdrawal: capitalForWithdrawal.toFixed(0),
+        recommendation: totalValue > fullCapitalValue ? 'Mischbezug empfohlen' : 'Vollständiger Kapitalbezug empfohlen'
       };
     };
 
@@ -835,25 +872,40 @@ export default function Home() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-slate-300 text-sm mb-1 block">Steuer Kapitalbezug (%)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={capitalTaxRate}
-                        onChange={(e) => setCapitalTaxRate(e.target.value)}
+                      <label className="text-slate-300 text-sm mb-1 block">Kanton</label>
+                      <select
+                        value={canton}
+                        onChange={(e) => setCanton(e.target.value as Canton)}
                         className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
-                      />
+                      >
+                        {CANTONS.map(c => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <label className="text-slate-300 text-sm mb-1 block">Steuer Rente (%)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={pensionTaxRate}
-                        onChange={(e) => setPensionTaxRate(e.target.value)}
+                      <label className="text-slate-300 text-sm mb-1 block">Konfession</label>
+                      <select
+                        value={religion}
+                        onChange={(e) => setReligion(e.target.value as Religion)}
                         className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
-                      />
+                      >
+                        <option value="konfessionslos">Konfessionslos</option>
+                        <option value="reformiert">Reformiert</option>
+                        <option value="katholisch">Katholisch</option>
+                      </select>
                     </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Steuer Rente (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={pensionTaxRate}
+                      onChange={(e) => setPensionTaxRate(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    />
                   </div>
                   
                   <div>
@@ -869,13 +921,33 @@ export default function Home() {
                   
                   <div>
                     <label className="text-slate-300 text-sm mb-1 block">Gewünschte Ausgaben (CHF/Monat)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={desiredExpenses}
+                        onChange={(e) => setDesiredExpenses(e.target.value)}
+                        className="flex-1 px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                        placeholder="Lebenshaltungskosten"
+                      />
+                      <button
+                        onClick={() => setCalculatorType('budget')}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors whitespace-nowrap"
+                      >
+                        📋 Budgetrechner
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Gewünschter Deckungsgrad (%)</label>
                     <input
                       type="number"
-                      value={desiredExpenses}
-                      onChange={(e) => setDesiredExpenses(e.target.value)}
+                      value={desiredCoverageRatio}
+                      onChange={(e) => setDesiredCoverageRatio(e.target.value)}
                       className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
-                      placeholder="Lebenshaltungskosten"
+                      placeholder="z.B. 100 für vollständige Deckung"
                     />
+                    <p className="text-slate-400 text-xs mt-1">Verhältnis Einnahmen/Ausgaben (100% = vollständige Deckung)</p>
                   </div>
                   
                   <div>
@@ -896,18 +968,29 @@ export default function Home() {
                 <h2 className="text-2xl font-bold text-white mb-6">📊 Ergebnisse</h2>
                 
                 {results ? (
-                  <div className="space-y-6">
-                    {/* Recommendation */}
+                  <div className="space-y-4">
+                    {/* Recommendation Banner */}
                     <div className={`p-4 rounded-lg border-2 ${
-                      results.recommendation.includes('Rente')
-                        ? 'bg-green-900/20 border-green-500'
+                      results.recommendation.includes('Mischbezug') 
+                        ? 'bg-green-900/20 border-green-500' 
                         : 'bg-blue-900/20 border-blue-500'
                     }`}>
                       <div className="text-center">
-                        <div className="text-3xl mb-2">
-                          {results.recommendation.includes('Rente') ? '💰' : '💵'}
+                        <div className="text-2xl font-bold text-white mb-1">
+                          {results.recommendation}
                         </div>
-                        <div className="text-xl font-bold text-white">{results.recommendation}</div>
+                        {parseFloat(results.optimalWithdrawalPct) > 0 && (
+                          <div className="text-sm text-slate-300 mt-2">
+                            Empfohlener Kapitalbezug: <span className="font-semibold text-white">{results.optimalWithdrawalPct}%</span> (CHF {results.capitalForWithdrawal})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Tax Info */}
+                    <div className="bg-slate-700/30 p-3 rounded-lg">
+                      <div className="text-sm text-slate-300 text-center">
+                        Effektiver Steuersatz Kapitalbezug: <span className="font-semibold text-white">{results.effectiveTaxRate}%</span>
                       </div>
                     </div>
                     
@@ -1097,22 +1180,37 @@ export default function Home() {
               </div>
               
               {annualIncome && (
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-700/50 p-4 rounded-lg">
-                    <div className="text-slate-400 text-sm mb-1">Monatliches Einkommen</div>
-                    <div className="text-2xl font-bold text-white">CHF {monthlyIncome.toFixed(0)}</div>
-                  </div>
-                  <div className="bg-slate-700/50 p-4 rounded-lg">
-                    <div className="text-slate-400 text-sm mb-1">Überschuss/Defizit</div>
-                    <div className={`text-2xl font-bold ${
-                      monthlyIncome - totalBudget >= 0 ? 'text-green-400' : 'text-red-400'
-                    }`}>
-                      CHF {(monthlyIncome - totalBudget).toFixed(0)}
+                <div className="mt-6 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm mb-1">Monatliches Einkommen</div>
+                      <div className="text-2xl font-bold text-white">CHF {monthlyIncome.toFixed(0)}</div>
+                    </div>
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm mb-1">Überschuss/Defizit</div>
+                      <div className={`text-2xl font-bold ${
+                        monthlyIncome - totalBudget >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        CHF {(monthlyIncome - totalBudget).toFixed(0)}
+                      </div>
+                    </div>
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm mb-1">Sparquote</div>
+                      <div className="text-2xl font-bold text-blue-400">{savingsRate}%</div>
                     </div>
                   </div>
-                  <div className="bg-slate-700/50 p-4 rounded-lg">
-                    <div className="text-slate-400 text-sm mb-1">Sparquote</div>
-                    <div className="text-2xl font-bold text-blue-400">{savingsRate}%</div>
+                  
+                  {/* Transfer to Pension Calculator Button */}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => {
+                        setDesiredExpenses(totalBudget.toFixed(0));
+                        setCalculatorType('pension');
+                      }}
+                      className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <span>✓</span> Budget übernehmen (CHF {totalBudget.toFixed(0)})
+                    </button>
                   </div>
                 </div>
               )}
@@ -1229,65 +1327,11 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Fear & Greed Index */}
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white">Fear & Greed Index</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-slate-700/30 rounded-lg p-4">
-                  <img 
-                    src="/fear-greed-index.png" 
-                    alt="Fear & Greed Index" 
-                    className="w-full h-auto rounded-lg"
-                  />
-                  <p className="text-slate-400 text-sm mt-3 text-center">
-                    Aktuelle Marktstimmung: <span className="text-orange-400 font-bold">Fear (32)</span>
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Portfolio Sentiment Indicator */}
+            <PortfolioSentimentIndicator />
 
-            {/* Performance Timeline Chart with Benchmark */}
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">Performance-Verlauf (5 Jahre)</CardTitle>
-                  <select
-                    className="px-3 py-1 bg-slate-700 text-white rounded border border-slate-600 text-sm"
-                    onChange={(e) => {
-                      const benchmarkSymbols: Record<string, string> = {
-                        'S&P 500': 'SPY',
-                        'Nasdaq': 'QQQ',
-                        'MSCI World': 'URTH',
-                        'SMI': 'SMI',
-                        'SMIM': 'SMIM'
-                      };
-                      const symbol = benchmarkSymbols[e.target.value];
-                      // Update chart with benchmark
-                      console.log('Benchmark selected:', symbol);
-                    }}
-                  >
-                    <option value="">Benchmark wählen</option>
-                    <option value="S&P 500">S&P 500</option>
-                    <option value="Nasdaq">Nasdaq</option>
-                    <option value="MSCI World">MSCI World</option>
-                    <option value="SMI">SMI</option>
-                    <option value="SMIM">SMIM</option>
-                  </select>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-slate-900 rounded-lg overflow-hidden">
-                  <iframe
-                    src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${encodeURIComponent(stocks[0]?.ticker || 'AAPL')}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=localhost&utm_medium=widget_new&utm_campaign=chart&utm_term=${encodeURIComponent(stocks[0]?.ticker || 'AAPL')}`}
-                    className="w-full h-64 border-0"
-                    title="5-Year Performance Chart"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
+            {/* Portfolio Performance Chart */}
+            <PortfolioPerformanceChart />
             {/* Correlation Matrix */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
@@ -2303,7 +2347,23 @@ export default function Home() {
                                     <h4 className="text-md font-semibold text-blue-400 mb-3">Kursentwicklung (10 Jahre)</h4>
                                     <div className="bg-slate-700/50 rounded-lg p-4">
                                       <iframe
-                                        src={`https://www.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${stock.ticker.includes('.') ? stock.ticker.replace('.', '%3A') : stock.ticker}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=${stock.ticker}`}
+                                        src={`https://www.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${(() => {
+                                          const ticker = stock.ticker;
+                                          // Swiss stocks: SGKN.SW -> SIX:SGKN
+                                          if (ticker.endsWith('.SW')) {
+                                            return 'SIX%3A' + ticker.replace('.SW', '');
+                                          }
+                                          // Paris stocks: SU.PA -> EURONEXT:SU
+                                          if (ticker.endsWith('.PA')) {
+                                            return 'EURONEXT%3A' + ticker.replace('.PA', '');
+                                          }
+                                          // Milan stocks: MONC.MI -> MIL:MONC
+                                          if (ticker.endsWith('.MI')) {
+                                            return 'MIL%3A' + ticker.replace('.MI', '');
+                                          }
+                                          // US stocks: no prefix needed
+                                          return ticker;
+                                        })()}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=${stock.ticker}`}
                                         className="w-full h-[400px] border-0 rounded"
                                         title="TradingView Chart"
                                       />

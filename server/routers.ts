@@ -715,6 +715,19 @@ export const appRouter = router({
         errors: failed > 0 ? errors : undefined,
       };
     }),
+    portfolioPerformance: publicProcedure.query(async () => {
+      const { getAllStocks } = await import("./db");
+      const { calculatePortfolioPerformance } = await import("./_core/stockDataApi");
+      
+      const stocks = await getAllStocks();
+      
+      if (stocks.length === 0) {
+        return [];
+      }
+      
+      const performance = await calculatePortfolioPerformance(stocks);
+      return performance;
+    }),
     findCompetitors: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "ticker" in val && "name" in val && "category" in val) {
