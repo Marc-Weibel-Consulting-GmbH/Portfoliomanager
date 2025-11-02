@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Download, TrendingUp, HelpCircle, Save, FolderOpen } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -47,6 +51,30 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   const [optimizationStrategy, setOptimizationStrategy] = useState<"balanced" | "reduce_positions">("balanced");
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [adjustedInputs, setAdjustedInputs] = useState(inputs);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [portfolioName, setPortfolioName] = useState('');
+  const [portfolioDescription, setPortfolioDescription] = useState('');
+
+  const saveMutation = trpc.savedPortfolios.create.useMutation({
+    onSuccess: () => {
+      toast.success('Portfolio erfolgreich gespeichert!');
+      setShowSaveDialog(false);
+      setPortfolioName('');
+      setPortfolioDescription('');
+    },
+    onError: (error) => {
+      toast.error('Fehler beim Speichern: ' + error.message);
+    },
+  });
+
+  const { data: savedPortfolios = [], refetch: refetchPortfolios } = trpc.savedPortfolios.list.useQuery();
+  const loadMutation = trpc.savedPortfolios.delete.useMutation({
+    onSuccess: () => {
+      refetchPortfolios();
+      toast.success('Portfolio gelöscht!');
+    },
+  });
 
   // Sync adjustedInputs with inputs prop changes
   useEffect(() => {
@@ -967,11 +995,11 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
             <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               Portfolio anpassen
             </Button>
-            <Button onClick={() => {/* TODO: Open save dialog */}} className="bg-green-600 hover:bg-green-700 text-white">
+            <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
               <Save className="w-4 h-4 mr-2" />
               Speichern
             </Button>
-            <Button onClick={() => {/* TODO: Open load dialog */}} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={() => setShowLoadDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
               <FolderOpen className="w-4 h-4 mr-2" />
               Laden
             </Button>
@@ -1050,6 +1078,115 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </div>
         </CardContent>
       </Card>
+
+      {/* Save Portfolio Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Portfolio speichern</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-slate-400 mb-2 block">Portfolio-Name</label>
+              <Input
+                value={portfolioName}
+                onChange={(e) => setPortfolioName(e.target.value)}
+                placeholder="z.B. Mein Dividenden-Portfolio"
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-2 block">Beschreibung (optional)</label>
+              <Textarea
+                value={portfolioDescription}
+                onChange={(e) => setPortfolioDescription(e.target.value)}
+                placeholder="Notizen zu diesem Portfolio..."
+                className="bg-slate-700 border-slate-600 text-white"
+                rows={3}
+              />
+            </div>
+            <Button
+              onClick={() => {
+                const portfolioData = {
+                  name: portfolioName,
+                  description: portfolioDescription,
+                  stocks: displayPortfolio.positions.map(pos => ({
+                    ticker: pos.ticker,
+                    companyName: pos.companyName,
+                    shares: pos.shares,
+                    investmentAmount: pos.investmentAmount,
+                    portfolioWeight: pos.portfolioWeight,
+                  })),
+                  totalInvested: displayPortfolio.totalInvested,
+                  numberOfPositions: displayPortfolio.positions.length,
+                  avgDividendYield: displayPortfolio.avgDividendYield,
+                  avgYtdPerformance: displayPortfolio.avgYtdPerformance,
+                };
+                saveMutation.mutate(portfolioData);
+              }}
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={!portfolioName.trim() || saveMutation.isPending}
+            >
+              {saveMutation.isPending ? 'Speichern...' : 'Speichern'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Portfolio Dialog */}
+      <Dialog open={showLoadDialog} onOpenChange={setShowLoadDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Portfolio laden</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {savedPortfolios.length === 0 ? (
+              <p className="text-slate-400 text-center py-8">Keine gespeicherten Portfolios gefunden.</p>
+            ) : (
+              savedPortfolios.map((portfolio: any) => (
+                <div key={portfolio.id} className="bg-slate-700 p-4 rounded-lg border border-slate-600">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="text-white font-semibold text-lg">{portfolio.name}</h3>
+                      {portfolio.description && (
+                        <p className="text-slate-400 text-sm mt-1">{portfolio.description}</p>
+                      )}
+                      <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                        <div>
+                          <span className="text-slate-400">Positionen:</span>
+                          <span className="text-white ml-2">{portfolio.numberOfPositions}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Total:</span>
+                          <span className="text-white ml-2">CHF {portfolio.totalInvested.toLocaleString('de-CH')}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Ø Div.:</span>
+                          <span className="text-green-400 ml-2">{portfolio.avgDividendYield.toFixed(2)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Ø YTD:</span>
+                          <span className={`ml-2 ${portfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {portfolio.avgYtdPerformance >= 0 ? '+' : ''}{portfolio.avgYtdPerformance.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => loadMutation.mutate(portfolio.id)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-red-600 border-red-500 text-white hover:bg-red-700"
+                    >
+                      Löschen
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

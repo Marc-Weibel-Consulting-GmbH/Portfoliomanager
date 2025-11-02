@@ -718,3 +718,12 @@
 - [x] Remove "Speichern" and "Laden" buttons from Aktien tab (already in Portfolio tab)
 
 # Updated Sun Nov  2 04:49:27 EST 2025
+
+
+- [x] Fix logo loading issue on production website (logos not displaying correctly)
+- [x] Fix: Alle Logos werden nicht geladen (Logo-Anzeige komplett defekt) - Clearbit/Logo.dev APIs wiederhergestellt
+- [x] Fix: Speichern-Button in OptimizerResults funktioniert nicht - Dialog implementiert
+- [x] Fix: Zurück-Button in OptimizerResults soll zur Hauptseite führen (nicht zum Fragebogen)
+- [x] Fix: Portfolio-Auswahl beim Start - Wenn Portfolios existieren → Liste zeigen, sonst → 4-Fragen-Prozess
+- [x] Add: "Portfolio erstellen" Button um neuen 4-Fragen-Prozess zu starten
+

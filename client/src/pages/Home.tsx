@@ -1550,20 +1550,113 @@ export default function Home() {
         <OptimizerResults
           inputs={optimizerInputs}
           onBack={() => {
-            // Keep inputs when going back for adjustment
+            // Go back to main portfolio view
+            setActiveTab("portfolio");
             setShowOptimizerResults(false);
-            // Don't set to null - keep the inputs for adjustment
+            setOptimizerInputs(null);
           }}
         />
       );
     }
+
+    // Show portfolio selection if user has saved portfolios and hasn't started questionnaire
+    const { data: savedPortfolios = [] } = trpc.savedPortfolios.list.useQuery();
+    if (!optimizerInputs && savedPortfolios.length > 0) {
+      return (
+        <div className="min-h-screen bg-slate-900 p-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-white mb-4">Portfolio Optimizer</h1>
+              <p className="text-slate-400">Wählen Sie ein gespeichertes Portfolio oder erstellen Sie ein neues</p>
+            </div>
+
+            <div className="grid gap-6 mb-8">
+              {savedPortfolios.map((portfolio: any) => (
+                <Card key={portfolio.id} className="bg-slate-800 border-slate-700 hover:border-blue-500 transition-colors cursor-pointer"
+                  onClick={() => {
+                    // Load this portfolio and show results
+                    const inputs = {
+                      investmentAmount: portfolio.totalInvested,
+                      expectedDividendYield: portfolio.avgDividendYield,
+                      numberOfPositions: portfolio.numberOfPositions,
+                      investorType: "balanced" as const,
+                    };
+                    setOptimizerInputs(inputs);
+                    setShowOptimizerResults(true);
+                  }}
+                >
+                  <CardHeader>
+                    <CardTitle className="text-white text-xl">{portfolio.name}</CardTitle>
+                    {portfolio.description && (
+                      <p className="text-slate-400 text-sm mt-2">{portfolio.description}</p>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-slate-400 text-sm">Positionen</p>
+                        <p className="text-white font-semibold text-lg">{portfolio.numberOfPositions}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-sm">Total investiert</p>
+                        <p className="text-white font-semibold text-lg">CHF {portfolio.totalInvested.toLocaleString('de-CH')}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-sm">Ø Dividende</p>
+                        <p className="text-green-400 font-semibold text-lg">{portfolio.avgDividendYield.toFixed(2)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-sm">Ø YTD Performance</p>
+                        <p className={`font-semibold text-lg ${
+                          portfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {portfolio.avgYtdPerformance >= 0 ? '+' : ''}{portfolio.avgYtdPerformance.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex gap-4 justify-center">
+              <Button
+                onClick={() => setActiveTab("portfolio")}
+                variant="outline"
+                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+              >
+                Zurück
+              </Button>
+              <Button
+                onClick={() => {
+                  // Start new questionnaire
+                  setOptimizerInputs({ 
+                    investmentAmount: 10000,
+                    expectedDividendYield: 2.0,
+                    numberOfPositions: 20,
+                    investorType: "balanced"
+                  });
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Neues Portfolio erstellen
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <Optimizer
         onShowResults={(inputs) => {
           setOptimizerInputs(inputs);
           setShowOptimizerResults(true);
         }}
-        onBack={() => setActiveTab("portfolio")}
+        onBack={() => {
+          setActiveTab("portfolio");
+          setOptimizerInputs(null);
+        }}
         initialInputs={optimizerInputs || undefined}
       />
     );
