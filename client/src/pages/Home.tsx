@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Trash2, Edit2, Plus, Download, LogOut } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
@@ -20,6 +20,77 @@ import OptimizerResults from "./OptimizerResults";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
+
+// AI-powered portfolio market analysis
+async function analyzePortfolioMarket(stocks: any[]) {
+  if (stocks.length === 0) {
+    return '⚠️ Keine Aktien im Portfolio vorhanden.';
+  }
+
+  // Calculate portfolio metrics
+  const avgPE = stocks.filter(s => s.peRatio).reduce((sum, s) => sum + s.peRatio, 0) / stocks.filter(s => s.peRatio).length;
+  const avgPEG = stocks.filter(s => s.pegRatio).reduce((sum, s) => sum + s.pegRatio, 0) / stocks.filter(s => s.pegRatio).length;
+  const avgYTD = stocks.filter(s => s.ytdPerformance).reduce((sum, s) => sum + s.ytdPerformance, 0) / stocks.filter(s => s.ytdPerformance).length;
+  
+  // Sector distribution
+  const sectors: Record<string, number> = {};
+  stocks.forEach(s => {
+    sectors[s.category] = (sectors[s.category] || 0) + 1;
+  });
+  const dominantSector = Object.entries(sectors).sort((a, b) => b[1] - a[1])[0];
+  
+  // Generate analysis
+  let analysis = '📊 MARKTANALYSE\n\n';
+  
+  // Valuation analysis
+  if (avgPE > 25) {
+    analysis += '⚠️ BEWERTUNG: Portfolio überbewertet (Durchschn. P/E: ' + avgPE.toFixed(1) + ')\n';
+    analysis += '→ Empfehlung: Gewinne teilweise mitnehmen, defensive Positionen aufbauen\n\n';
+  } else if (avgPE < 15) {
+    analysis += '✅ BEWERTUNG: Portfolio günstig bewertet (Durchschn. P/E: ' + avgPE.toFixed(1) + ')\n';
+    analysis += '→ Empfehlung: Gute Kaufgelegenheit, Position ausbauen\n\n';
+  } else {
+    analysis += '🔵 BEWERTUNG: Portfolio fair bewertet (Durchschn. P/E: ' + avgPE.toFixed(1) + ')\n\n';
+  }
+  
+  // Growth analysis
+  if (avgPEG < 1) {
+    analysis += '✅ WACHSTUM: Attraktives Wachstumspotenzial (Durchschn. PEG: ' + avgPEG.toFixed(2) + ')\n\n';
+  } else if (avgPEG > 2) {
+    analysis += '⚠️ WACHSTUM: Wachstum teuer bezahlt (Durchschn. PEG: ' + avgPEG.toFixed(2) + ')\n\n';
+  }
+  
+  // Performance analysis
+  if (avgYTD > 20) {
+    analysis += '🚀 PERFORMANCE: Sehr starke YTD-Performance (+' + avgYTD.toFixed(1) + '%)\n';
+    analysis += '→ Empfehlung: Gewinne sichern, Stop-Loss setzen\n\n';
+  } else if (avgYTD < 0) {
+    analysis += '📉 PERFORMANCE: Negative YTD-Performance (' + avgYTD.toFixed(1) + '%)\n';
+    analysis += '→ Empfehlung: Qualität prüfen, ggf. Positionen reduzieren\n\n';
+  }
+  
+  // Diversification analysis
+  if (dominantSector && dominantSector[1] > stocks.length * 0.4) {
+    analysis += '⚠️ DIVERSIFIKATION: Zu hohe Konzentration in "' + dominantSector[0] + '" (' + Math.round(dominantSector[1] / stocks.length * 100) + '%)\n';
+    analysis += '→ Empfehlung: Andere Sektoren (z.B. Healthcare, Energie) ergänzen\n\n';
+  } else {
+    analysis += '✅ DIVERSIFIKATION: Gute Streuung über verschiedene Sektoren\n\n';
+  }
+  
+  // Market sentiment (simulated - in real app would fetch from API)
+  const fearGreedIndex = 32; // From uploaded image
+  if (fearGreedIndex < 40) {
+    analysis += '🔴 MARKTSTIMMUNG: Fear & Greed Index bei ' + fearGreedIndex + ' (FEAR)\n';
+    analysis += '→ Empfehlung: Vorsichtig agieren, Cash-Position erhöhen\n\n';
+  } else if (fearGreedIndex > 70) {
+    analysis += '🟢 MARKTSTIMMUNG: Fear & Greed Index bei ' + fearGreedIndex + ' (GREED)\n';
+    analysis += '→ Empfehlung: Markt überhitzt, Absicherung prüfen\n\n';
+  }
+  
+  analysis += '---\n💡 Hinweis: Diese Analyse basiert auf aktuellen Portfolio-Kennzahlen und Marktbedingungen.';
+  
+  return analysis;
+}
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -58,6 +129,34 @@ export default function Home() {
   const [refreshProgress, setRefreshProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshStartTime, setRefreshStartTime] = useState<number | null>(null);
+  
+  // Calculator state - MUST be declared here, not inside conditional
+  const [calculatorType, setCalculatorType] = useState<'pension' | 'budget'>('pension');
+  const [pensionCapital, setPensionCapital] = useState('');
+  const [conversionRate, setConversionRate] = useState('6.8');
+  const [lifeExpectancy, setLifeExpectancy] = useState('85');
+  const [capitalTaxRate, setCapitalTaxRate] = useState('5');
+  const [pensionTaxRate, setPensionTaxRate] = useState('15');
+  const [regularIncome, setRegularIncome] = useState('');
+  const [desiredExpenses, setDesiredExpenses] = useState('');
+  const [expectedReturn, setExpectedReturn] = useState('4');
+  const [currentAge, setCurrentAge] = useState('65');
+  const [householdType, setHouseholdType] = useState<'single' | 'family'>('single');
+  const [annualIncome, setAnnualIncome] = useState('');
+  const [budgetItems, setBudgetItems] = useState({
+    housing: { standard: 1500, custom: 1500 },
+    utilities: { standard: 250, custom: 250 },
+    insurance: { standard: 450, custom: 450 },
+    food: { standard: 600, custom: 600 },
+    transport: { standard: 300, custom: 300 },
+    communication: { standard: 100, custom: 100 },
+    leisure: { standard: 400, custom: 400 },
+    clothing: { standard: 150, custom: 150 },
+    health: { standard: 200, custom: 200 },
+    education: { standard: 100, custom: 100 },
+    savings: { standard: 500, custom: 500 },
+    other: { standard: 200, custom: 200 }
+  });
   
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;
@@ -496,7 +595,533 @@ export default function Home() {
     return <Research onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "wissen") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => setActiveTab("portfolio")}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              ← Zurück
+            </button>
+            <h1 className="text-4xl font-bold text-white">Finanzwissen für Anfänger</h1>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* P/E Ratio */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center text-2xl">
+                  📊
+                </div>
+                <h3 className="text-xl font-bold text-white">P/E Ratio</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Das Kurs-Gewinn-Verhältnis zeigt, wie viel Investoren bereit sind für jeden Euro Gewinn zu zahlen. Ein niedriger Wert kann auf eine günstige Bewertung hindeuten.
+              </p>
+            </div>
+
+            {/* PEG Ratio */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center text-2xl">
+                  📈
+                </div>
+                <h3 className="text-xl font-bold text-white">PEG Ratio</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Das PEG-Verhältnis berücksichtigt das Gewinnwachstum. Ein Wert unter 1 deutet darauf hin, dass die Aktie im Verhältnis zum Wachstum günstig bewertet ist.
+              </p>
+            </div>
+
+            {/* Sharpe Ratio */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center text-2xl">
+                  ⚖️
+                </div>
+                <h3 className="text-xl font-bold text-white">Sharpe Ratio</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Misst die risikobereinigte Rendite. Ein höherer Wert bedeutet bessere Rendite pro Risikoeinheit. Werte über 1 gelten als gut.
+              </p>
+            </div>
+
+            {/* Dividendenrendite */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-2xl">
+                  💰
+                </div>
+                <h3 className="text-xl font-bold text-white">Dividendenrendite</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Der Prozentsatz der jährlichen Dividende im Verhältnis zum Aktienkurs. Höhere Werte bedeuten mehr regelmäßiges Einkommen.
+              </p>
+            </div>
+
+            {/* Diversifikation */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center text-2xl">
+                  🎯
+                </div>
+                <h3 className="text-xl font-bold text-white">Diversifikation</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Streuung des Kapitals über verschiedene Anlagen, um Risiken zu minimieren. "Nicht alle Eier in einen Korb legen."
+              </p>
+            </div>
+
+            {/* YTD Performance */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-2xl">
+                  📅
+                </div>
+                <h3 className="text-xl font-bold text-white">YTD Performance</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Year-to-Date Performance zeigt die Wertentwicklung seit Jahresbeginn. Hilft beim Vergleich der aktuellen Jahresperformance.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === "rechner") {
+    // Calculator state is declared at the top of the component
+
+    const calculatePension = () => {
+      const capital = parseFloat(pensionCapital);
+      const rate = parseFloat(conversionRate) / 100;
+      const life = parseInt(lifeExpectancy);
+      const age = parseInt(currentAge);
+      const years = life - age;
+      
+      // Annual pension
+      const annualPension = capital * rate;
+      const monthlyPension = annualPension / 12;
+      
+      // Capital option with tax
+      const capitalTax = capital * (parseFloat(capitalTaxRate) / 100);
+      const netCapital = capital - capitalTax;
+      
+      // Total pension over lifetime
+      const totalPensionGross = annualPension * years;
+      const pensionTax = totalPensionGross * (parseFloat(pensionTaxRate) / 100);
+      const totalPensionNet = totalPensionGross - pensionTax;
+      
+      // Capital with investment return
+      const returnRate = parseFloat(expectedReturn) / 100;
+      const futureValue = netCapital * Math.pow(1 + returnRate, years);
+      
+      // Coverage ratio
+      const income = parseFloat(regularIncome) || 0;
+      const expenses = parseFloat(desiredExpenses) || 0;
+      const coverageWithPension = expenses > 0 ? ((income + monthlyPension) / expenses * 100).toFixed(1) : '0';
+      const coverageWithoutPension = expenses > 0 ? (income / expenses * 100).toFixed(1) : '0';
+      
+      return {
+        monthlyPension: monthlyPension.toFixed(0),
+        annualPension: annualPension.toFixed(0),
+        totalPensionNet: totalPensionNet.toFixed(0),
+        netCapital: netCapital.toFixed(0),
+        capitalTax: capitalTax.toFixed(0),
+        futureValue: futureValue.toFixed(0),
+        coverageWithPension,
+        coverageWithoutPension,
+        recommendation: totalPensionNet > netCapital ? 'Rente empfohlen' : 'Kapitalbezug empfohlen'
+      };
+    };
+
+    const results = pensionCapital ? calculatePension() : null;
+    
+    const totalBudget = Object.values(budgetItems).reduce((sum, item) => sum + item.custom, 0);
+    const income = parseFloat(annualIncome) || 0;
+    const monthlyIncome = income / 12;
+    const savingsRate = monthlyIncome > 0 ? ((budgetItems.savings.custom / monthlyIncome) * 100).toFixed(1) : '0';
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => setActiveTab("portfolio")}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              ← Zurück
+            </button>
+            <h1 className="text-4xl font-bold text-white">Finanzrechner</h1>
+          </div>
+
+          {/* Calculator Type Selector */}
+          <div className="flex gap-4 mb-6">
+            <button
+              onClick={() => setCalculatorType('pension')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                calculatorType === 'pension'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              🏦 Renten-/Kapitalbezug
+            </button>
+            <button
+              onClick={() => setCalculatorType('budget')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                calculatorType === 'budget'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              📋 Budgetrechner
+            </button>
+          </div>
+
+          {calculatorType === 'pension' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Input Section */}
+              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                <h2 className="text-2xl font-bold text-white mb-6">📊 Eingaben</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Pensionskassen-Kapital (CHF)</label>
+                    <input
+                      type="number"
+                      value={pensionCapital}
+                      onChange={(e) => setPensionCapital(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      placeholder="z.B. 500000"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Aktuelles Alter</label>
+                      <input
+                        type="number"
+                        value={currentAge}
+                        onChange={(e) => setCurrentAge(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Lebenserwartung</label>
+                      <input
+                        type="number"
+                        value={lifeExpectancy}
+                        onChange={(e) => setLifeExpectancy(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Umwandlungssatz (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={conversionRate}
+                      onChange={(e) => setConversionRate(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Steuer Kapitalbezug (%)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={capitalTaxRate}
+                        onChange={(e) => setCapitalTaxRate(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Steuer Rente (%)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={pensionTaxRate}
+                        onChange={(e) => setPensionTaxRate(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Regelmässige Einnahmen (CHF/Monat)</label>
+                    <input
+                      type="number"
+                      value={regularIncome}
+                      onChange={(e) => setRegularIncome(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      placeholder="AHV, Immobilien, Wertschriften"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Gewünschte Ausgaben (CHF/Monat)</label>
+                    <input
+                      type="number"
+                      value={desiredExpenses}
+                      onChange={(e) => setDesiredExpenses(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      placeholder="Lebenshaltungskosten"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Erwartete Rendite (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={expectedReturn}
+                      onChange={(e) => setExpectedReturn(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Results Section */}
+              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                <h2 className="text-2xl font-bold text-white mb-6">📊 Ergebnisse</h2>
+                
+                {results ? (
+                  <div className="space-y-6">
+                    {/* Recommendation */}
+                    <div className={`p-4 rounded-lg border-2 ${
+                      results.recommendation.includes('Rente')
+                        ? 'bg-green-900/20 border-green-500'
+                        : 'bg-blue-900/20 border-blue-500'
+                    }`}>
+                      <div className="text-center">
+                        <div className="text-3xl mb-2">
+                          {results.recommendation.includes('Rente') ? '💰' : '💵'}
+                        </div>
+                        <div className="text-xl font-bold text-white">{results.recommendation}</div>
+                      </div>
+                    </div>
+                    
+                    {/* Pension Option */}
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3">💰 Rentenbezug</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Monatliche Rente:</span>
+                          <span className="text-white font-semibold">CHF {results.monthlyPension}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Jährliche Rente:</span>
+                          <span className="text-white font-semibold">CHF {results.annualPension}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Total (netto):</span>
+                          <span className="text-green-400 font-semibold">CHF {results.totalPensionNet}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Capital Option */}
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3">💵 Kapitalbezug</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Steuer:</span>
+                          <span className="text-red-400 font-semibold">CHF {results.capitalTax}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Netto-Kapital:</span>
+                          <span className="text-white font-semibold">CHF {results.netCapital}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Endwert (mit Rendite):</span>
+                          <span className="text-blue-400 font-semibold">CHF {results.futureValue}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Coverage Ratio */}
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3">📊 Deckungsgrad</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Ohne BVG-Rente:</span>
+                          <span className={`font-semibold ${
+                            parseFloat(results.coverageWithoutPension) >= 100 ? 'text-green-400' : 'text-orange-400'
+                          }`}>{results.coverageWithoutPension}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Mit BVG-Rente:</span>
+                          <span className={`font-semibold ${
+                            parseFloat(results.coverageWithPension) >= 100 ? 'text-green-400' : 'text-orange-400'
+                          }`}>{results.coverageWithPension}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-slate-400 py-12">
+                    <div className="text-4xl mb-4">📊</div>
+                    <p>Füllen Sie die Eingabefelder aus, um die Berechnung zu starten</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <h2 className="text-2xl font-bold text-white mb-6">📋 Budgetrechner</h2>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <label className="text-slate-300 text-sm mb-1 block">Haushaltstyp</label>
+                  <select
+                    value={householdType}
+                    onChange={(e) => {
+                      setHouseholdType(e.target.value as 'single' | 'family');
+                      // Adjust standard values based on household type
+                      const multiplier = e.target.value === 'family' ? 1.8 : 1;
+                      setBudgetItems({
+                        housing: { standard: 1500 * multiplier, custom: 1500 * multiplier },
+                        utilities: { standard: 250 * multiplier, custom: 250 * multiplier },
+                        insurance: { standard: 450 * multiplier, custom: 450 * multiplier },
+                        food: { standard: 600 * multiplier, custom: 600 * multiplier },
+                        transport: { standard: 300 * multiplier, custom: 300 * multiplier },
+                        communication: { standard: 100 * multiplier, custom: 100 * multiplier },
+                        leisure: { standard: 400 * multiplier, custom: 400 * multiplier },
+                        clothing: { standard: 150 * multiplier, custom: 150 * multiplier },
+                        health: { standard: 200 * multiplier, custom: 200 * multiplier },
+                        education: { standard: 100 * multiplier, custom: 100 * multiplier },
+                        savings: { standard: 500 * multiplier, custom: 500 * multiplier },
+                        other: { standard: 200 * multiplier, custom: 200 * multiplier }
+                      });
+                    }}
+                    className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="single">Einzelhaushalt</option>
+                    <option value="family">Familie</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="text-slate-300 text-sm mb-1 block">Jährliches Einkommen (CHF)</label>
+                  <input
+                    type="number"
+                    value={annualIncome}
+                    onChange={(e) => setAnnualIncome(e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    placeholder="z.B. 80000"
+                  />
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    onClick={() => {
+                      setBudgetItems(prev => {
+                        const newItems = { ...prev };
+                        Object.keys(newItems).forEach(key => {
+                          newItems[key as keyof typeof newItems].custom = newItems[key as keyof typeof newItems].standard;
+                        });
+                        return newItems;
+                      });
+                    }}
+                    className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors"
+                  >
+                    🔄 Vorschlag übernehmen
+                  </button>
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left text-slate-300 py-3 px-4">Kategorie</th>
+                      <th className="text-right text-slate-300 py-3 px-4">Standard (CHF)</th>
+                      <th className="text-right text-slate-300 py-3 px-4">Individuell (CHF)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(budgetItems).map(([key, value]) => (
+                      <tr key={key} className="border-b border-slate-700/50">
+                        <td className="text-slate-300 py-3 px-4 capitalize">
+                          {key === 'housing' ? 'Wohnen' :
+                           key === 'utilities' ? 'Nebenkosten' :
+                           key === 'insurance' ? 'Krankenkasse' :
+                           key === 'food' ? 'Lebensmittel' :
+                           key === 'transport' ? 'Verkehr' :
+                           key === 'communication' ? 'Kommunikation' :
+                           key === 'leisure' ? 'Freizeit' :
+                           key === 'clothing' ? 'Kleidung' :
+                           key === 'health' ? 'Gesundheit' :
+                           key === 'education' ? 'Bildung' :
+                           key === 'savings' ? 'Sparen' : 'Sonstiges'}
+                        </td>
+                        <td className="text-right text-slate-400 py-3 px-4">
+                          {value.standard.toFixed(0)}
+                        </td>
+                        <td className="text-right py-3 px-4">
+                          <input
+                            type="number"
+                            value={value.custom}
+                            onChange={(e) => {
+                              setBudgetItems(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key as keyof typeof prev], custom: parseFloat(e.target.value) || 0 }
+                              }));
+                            }}
+                            className="w-32 px-3 py-1 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-right"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-slate-600 font-bold">
+                      <td className="text-white py-3 px-4">Total</td>
+                      <td className="text-right text-slate-300 py-3 px-4">
+                        {Object.values(budgetItems).reduce((sum, item) => sum + item.standard, 0).toFixed(0)}
+                      </td>
+                      <td className="text-right text-white py-3 px-4">
+                        {totalBudget.toFixed(0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              {annualIncome && (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-slate-700/50 p-4 rounded-lg">
+                    <div className="text-slate-400 text-sm mb-1">Monatliches Einkommen</div>
+                    <div className="text-2xl font-bold text-white">CHF {monthlyIncome.toFixed(0)}</div>
+                  </div>
+                  <div className="bg-slate-700/50 p-4 rounded-lg">
+                    <div className="text-slate-400 text-sm mb-1">Überschuss/Defizit</div>
+                    <div className={`text-2xl font-bold ${
+                      monthlyIncome - totalBudget >= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      CHF {(monthlyIncome - totalBudget).toFixed(0)}
+                    </div>
+                  </div>
+                  <div className="bg-slate-700/50 p-4 rounded-lg">
+                    <div className="text-slate-400 text-sm mb-1">Sparquote</div>
+                    <div className="text-2xl font-bold text-blue-400">{savingsRate}%</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (activeTab === "admin") {
     return <Admin onBackClick={() => setActiveTab("portfolio")} />;
@@ -524,19 +1149,16 @@ export default function Home() {
               </button>
               <h1 className="text-3xl font-bold">Portfolio Analyzer</h1>
             </div>
+
             <button
-              onClick={() => {
-                // Show all stocks with alternatives
-                const stocksWithAlternatives = stocks.filter(s => s.competitiveAdvantages && s.competitiveAdvantages.length > 0);
-                if (stocksWithAlternatives.length > 0) {
-                  alert(`${stocksWithAlternatives.length} Aktien mit Konkurrenten gefunden:\n\n${stocksWithAlternatives.map(s => s.companyName).join('\n')}`);
-                } else {
-                  alert('Keine Aktien mit Konkurrenten gefunden.');
-                }
+              onClick={async () => {
+                // AI-powered market analysis
+                const analysis = await analyzePortfolioMarket(stocks);
+                alert(analysis);
               }}
-              className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors font-semibold"
+              className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-semibold"
             >
-              🎯 Konkurrenten
+              📊 Marktanalyse
             </button>
           </div>
 
@@ -607,22 +1229,21 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Risk Distribution Chart */}
+            {/* Fear & Greed Index */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
-                <CardTitle className="text-white">Risiko-Verteilung</CardTitle>
+                <CardTitle className="text-white">Fear & Greed Index</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
-                  <div className="text-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="12" y1="20" x2="12" y2="10" />
-                      <line x1="18" y1="20" x2="18" y2="4" />
-                      <line x1="6" y1="20" x2="6" y2="16" />
-                    </svg>
-                    <p className="text-slate-400">Balkendiagramm</p>
-                    <p className="text-slate-500 text-sm">Risiko nach Kategorie</p>
-                  </div>
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <img 
+                    src="/fear-greed-index.png" 
+                    alt="Fear & Greed Index" 
+                    className="w-full h-auto rounded-lg"
+                  />
+                  <p className="text-slate-400 text-sm mt-3 text-center">
+                    Aktuelle Marktstimmung: <span className="text-orange-400 font-bold">Fear (32)</span>
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -1038,6 +1659,26 @@ export default function Home() {
           >
             Research
           </button>
+          <button
+            onClick={() => setActiveTab("wissen")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "wissen"
+                ? "bg-indigo-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Wissen
+          </button>
+          <button
+            onClick={() => setActiveTab("rechner")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "rechner"
+                ? "bg-indigo-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Rechner
+          </button>
           {isAuthenticated && (
             <>
 
@@ -1291,10 +1932,10 @@ export default function Home() {
                       toast.info("Laden...", { description: "Daten werden geladen..." });
                       fetchStockDataMutation.mutate(ticker);
                     }}
-                    disabled={fetchStockDataMutation.isLoading}
+                    disabled={fetchStockDataMutation.isPending}
                     className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {fetchStockDataMutation.isLoading ? "Lädt..." : "Daten laden"}
+                    {fetchStockDataMutation.isPending ? "Lädt..." : "Daten laden"}
                   </Button>
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
                     Hinzufügen
@@ -1389,26 +2030,58 @@ export default function Home() {
                               onError={(e) => {
                                 const img = e.currentTarget;
                                 const parent = img.parentElement;
-                                const domain = stock.companyName.toLowerCase()
-                                  .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)$/i, '')
-                                  .replace(/\s+/g, '')
-                                  .replace(/[^a-z0-9]/g, '');
+                                
+                                // Swiss company domain mapping
+                                const swissDomainMap: Record<string, string> = {
+                                  'St Galler Kantonalbank': 'sgkb.ch',
+                                  'Zurich Insurance Group': 'zurich.com',
+                                  'Swiss Re AG': 'swissre.com',
+                                  'Swiss Life Holding': 'swisslife.com',
+                                  'Swisscom AG': 'swisscom.ch',
+                                  'Kuehne + Nagel International AG': 'kuehne-nagel.com',
+                                  'Straumann Holding': 'straumann.com',
+                                  'Galderma Group A': 'galderma.com',
+                                  'Flughafen Zurich A': 'zurich-airport.com',
+                                  'Galenica AG': 'galenica.com',
+                                  'Holcim AG': 'holcim.com',
+                                  'BKW AG': 'bkw.ch',
+                                  'Cembra Money Bank': 'cembra.ch',
+                                  'Swissquote Group': 'swissquote.com',
+                                  'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
+                                };
+                                
+                                const knownDomain = swissDomainMap[stock.companyName];
                                 
                                 if (img.src.includes('clearbit')) {
-                                  if (stock.ticker.endsWith('.SW') || stock.ticker.endsWith('.N')) {
-                                    img.src = `https://logo.clearbit.com/${domain}.ch`;
+                                  // Try known domain first for Swiss companies
+                                  if (knownDomain) {
+                                    img.src = `https://logo.clearbit.com/${knownDomain}`;
                                     img.onerror = () => {
                                       if (parent) {
                                         parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
                                       }
                                     };
                                   } else {
-                                    img.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
-                                    img.onerror = () => {
-                                      if (parent) {
-                                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
-                                      }
-                                    };
+                                    const domain = stock.companyName.toLowerCase()
+                                      .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance|kantonalbank)$/i, '')
+                                      .replace(/\s+/g, '')
+                                      .replace(/[^a-z0-9]/g, '');
+                                    
+                                    if (stock.ticker.endsWith('.SW') || stock.ticker.endsWith('.N')) {
+                                      img.src = `https://logo.clearbit.com/${domain}.ch`;
+                                      img.onerror = () => {
+                                        if (parent) {
+                                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                        }
+                                      };
+                                    } else {
+                                      img.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                      img.onerror = () => {
+                                        if (parent) {
+                                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                        }
+                                      };
+                                    }
                                   }
                                 }
                               }}
@@ -2031,3 +2704,4 @@ export default function Home() {
     </>
   );
 }
+

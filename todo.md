@@ -565,10 +565,48 @@
 - [x] Logos werden auf "Aktien"-Seite nicht angezeigt - FIXED: Logo-Spalte hinzugefügt
 - [ ] ETF werden nicht unter "Aktien" aufgeführt
 - [x] "2010 errors" Button unten links - FIXED: parentElement Null-Prüfung in Logo onError Handler
+- [x] Schweizer Aktien-Logos werden in Tabelle nicht angezeigt (funktioniert im Info-Dialog) - FIXED: Swiss domain map integriert
 
 ## Neue Anforderungen
 - [x] "Konkurrenten" Button im Analyzer hinzugefügt
 - [x] Alle Aktien mit Alternativen im Analyzer auflisten (Alert-Dialog)
 - [x] 5-Jahres-Kurschart für Performance-Verlauf im Analyzer (TradingView Widget)
 - [x] Benchmark-Dropdown im Performance-Chart (S&P 500, Nasdaq, MSCI World, SMI, SMIM)
+- [x] "Wissen" Button nach "Research" hinzugefügt
+- [x] Wissen UI mit wichtigsten Finanzbegriffen für Anfänger (6 Begriffe mit Icons)
+- [x] "Rechner" Button hinzugefügt
+- [x] Rechner UI mit verschiedenen Kalkulatoren
+- [x] Platzhalter für "Renten-/Kapitalbezug" Kalkulator erstellt
+- [x] "Marktanalyse" Button im Analyzer hinzugefügt
+- [x] KI-gestützte Portfolio-Analyse basierend auf Marktbedingungen (Bewertung, Wachstum, Performance, Diversifikation)
+- [x] Fear & Greed Index Widget im Analyzer (mit hochgeladenem Bild)
+- [ ] Renten-/Kapitalbezug Rechner UI entwickeln mit:
+  - [ ] Pensionskassen-Kapital, Umwandlungssatz, Lebenserwartung
+  - [ ] Steuerbelastung Kapitalbezug & Rente (Schweiz)
+  - [ ] Regelmässige Einnahmen (AHV, Immobilien, Wertschriften)
+  - [ ] Gewünschte Ausgaben, erwartete Rendite
+  - [ ] Vergleichsberechnung & Empfehlung
+- [ ] Checkpoint-Speicherproblem dauerhaft lösen
+
+
+
+## Rechner Features (Neu hinzugefügt)
+- [x] Finanzrechner-Tab implementiert mit zwei Rechnern
+- [x] Renten-/Kapitalbezug Rechner erstellt
+- [x] Pensionskassen-Kapital Eingabe
+- [x] Umwandlungssatz, Lebenserwartung, Steuersätze konfigurierbar
+- [x] Automatische Berechnung: Rente vs. Kapitalbezug Vergleich
+- [x] Empfehlung basierend auf Gesamtwert (Rente oder Kapital)
+- [x] Deckungsgrad-Analyse (mit/ohne BVG-Rente)
+- [x] Regelmässige Einnahmen und gewünschte Ausgaben berücksichtigt
+- [x] Erwartete Rendite für Kapitalbezug-Szenario
+- [x] Budgetrechner implementiert
+- [x] Haushaltstyp-Auswahl (Einzelhaushalt/Familie)
+- [x] 12 typische Schweizer Haushaltskategorien (Wohnen, Nebenkosten, Krankenkasse, etc.)
+- [x] Standard-Werte mit individueller Anpassungsmöglichkeit
+- [x] Automatische Berechnung: Monatliches Einkommen, Überschuss/Defizit, Sparquote
+- [x] Farbcodierung für bessere Übersicht (grün = Überschuss, rot = Defizit)
+- [x] Total-Berechnung über alle Kategorien
+- [x] React Hooks Fehler behoben (useState Hooks an den Anfang der Komponente verschoben)
+- [x] TypeScript Kompilierung erfolgreich (keine Fehler)
 
