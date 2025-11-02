@@ -1607,30 +1607,6 @@ export default function Home() {
             <p className="text-blue-100">Verwalte und analysiere dein Aktienportfolio</p>
           </div>
           <div className="flex items-center gap-3">
-            {(isAuthenticated || user) && (
-              <>
-                <Button
-                  onClick={() => setIsSavePortfolioDialogOpen(true)}
-                  variant="outline"
-                  size="sm"
-                  className="bg-green-600 border-green-500 text-white hover:bg-green-700 hover:border-green-600"
-                  title="Portfolio speichern"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Speichern
-                </Button>
-                <Button
-                  onClick={() => setIsLoadPortfolioDialogOpen(true)}
-                  variant="outline"
-                  size="sm"
-                  className="bg-blue-600 border-blue-500 text-white hover:bg-blue-700 hover:border-blue-600"
-                  title="Portfolio laden"
-                >
-                  <FolderOpen className="w-4 h-4 mr-2" />
-                  Laden
-                </Button>
-              </>
-            )}
             <img 
               src="/portrait.jpg" 
               alt="Portfolio Manager" 
@@ -2133,7 +2109,29 @@ export default function Home() {
         {activeTab === "portfolio" ? (
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
-              <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setIsSavePortfolioDialogOpen(true)}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    title="Portfolio speichern"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Speichern
+                  </Button>
+                  <Button
+                    onClick={() => setIsLoadPortfolioDialogOpen(true)}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    title="Portfolio laden"
+                  >
+                    <FolderOpen className="w-4 h-4 mr-2" />
+                    Laden
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {!hasPaidAccess && (
