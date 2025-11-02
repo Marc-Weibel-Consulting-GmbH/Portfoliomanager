@@ -703,3 +703,11 @@
 - [x] Add back button (←) in optimized portfolio to return to input form
 - [x] Test save/load workflow end-to-end
 
+
+
+## Chart Type Default
+- [x] Change default chart type in Info dialog from "Linie" to "Fläche"
+
+## Remove Duplicate Buttons
+- [x] Remove "Speichern" and "Laden" buttons from Aktien tab (already in Portfolio tab)
+

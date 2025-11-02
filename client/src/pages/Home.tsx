@@ -1932,22 +1932,6 @@ export default function Home() {
               )}
             </div>
           )}
-          <Button
-            onClick={() => setIsSavePortfolioDialogOpen(true)}
-            className="bg-green-600 hover:bg-green-700 text-white"
-            title="Portfolio speichern"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Speichern
-          </Button>
-          <Button
-            onClick={() => setIsLoadPortfolioDialogOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            title="Portfolio laden"
-          >
-            <FolderOpen className="w-4 h-4 mr-2" />
-            Laden
-          </Button>
           <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
             <Download className="w-4 h-4 mr-2" />
             PDF Export
@@ -2495,7 +2479,7 @@ export default function Home() {
                                           }
                                           // US stocks: no prefix needed
                                           return ticker;
-                                        })()}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=${stock.ticker}`}
+                                        })()}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=3&timezone=Etc%2FUTC&withdateranges=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=${stock.ticker}`}
                                         className="w-full h-[400px] border-0 rounded"
                                         title="TradingView Chart"
                                       />
