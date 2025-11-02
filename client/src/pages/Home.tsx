@@ -1932,7 +1932,23 @@ export default function Home() {
               )}
             </div>
           )}
-          <Button onClick={exportToPDF} className="bg-green-600 hover:bg-green-700 text-white">
+          <Button
+            onClick={() => setIsSavePortfolioDialogOpen(true)}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            title="Portfolio speichern"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Speichern
+          </Button>
+          <Button
+            onClick={() => setIsLoadPortfolioDialogOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            title="Portfolio laden"
+          >
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Laden
+          </Button>
+          <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
             <Download className="w-4 h-4 mr-2" />
             PDF Export
           </Button>
@@ -2109,29 +2125,7 @@ export default function Home() {
         {activeTab === "portfolio" ? (
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setIsSavePortfolioDialogOpen(true)}
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    title="Portfolio speichern"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Speichern
-                  </Button>
-                  <Button
-                    onClick={() => setIsLoadPortfolioDialogOpen(true)}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    title="Portfolio laden"
-                  >
-                    <FolderOpen className="w-4 h-4 mr-2" />
-                    Laden
-                  </Button>
-                </div>
-              </div>
+              <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
             </CardHeader>
             <CardContent>
               {!hasPaidAccess && (

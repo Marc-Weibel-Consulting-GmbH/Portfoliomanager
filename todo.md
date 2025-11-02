@@ -699,6 +699,6 @@
 - [x] Create "Save Portfolio" dialog with name input
 - [x] Create "Load Portfolio" dialog showing saved portfolios list
 - [x] Add "Delete Portfolio" functionality
-- [x] Move Save/Load buttons from header to Portfolio tab only
+- [x] Move Save/Load buttons to Portfolio tab (next to "Portfolio anpassen" and "PDF Export")
 - [x] Test save/load workflow end-to-end
 
