@@ -659,3 +659,12 @@
 - [x] Add "Übernehmen" button in budget calculator to transfer total back to pension calculator
 - [x] Ensure seamless data flow between calculators
 
+
+
+## Budget Calculator Household Types
+- [x] Replace simple single/family selection with 6 detailed options
+- [x] Add household types: Einpersonenhaushalt, Zweipersonenhaushalt, Familie mit 1-4 Kindern
+- [x] Add dynamic "Ausbildungskosten" budget item for families with children
+- [x] Adjust standard values based on household size (1, 2, 3, 4, 5, 6 persons)
+- [x] Hide education costs for households without children
+

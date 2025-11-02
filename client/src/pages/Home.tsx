@@ -147,7 +147,7 @@ export default function Home() {
   const [canton, setCanton] = useState<Canton>('ZH');
   const [religion, setReligion] = useState<Religion>('konfessionslos');
   const [desiredCoverageRatio, setDesiredCoverageRatio] = useState('100');
-  const [householdType, setHouseholdType] = useState<'single' | 'family'>('single');
+  const [householdType, setHouseholdType] = useState<'single' | 'couple' | 'family1' | 'family2' | 'family3' | 'family4'>('single');
   const [annualIncome, setAnnualIncome] = useState('');
   const [budgetItems, setBudgetItems] = useState({
     housing: { standard: 1500, custom: 1500 },
@@ -1069,9 +1069,22 @@ export default function Home() {
                   <select
                     value={householdType}
                     onChange={(e) => {
-                      setHouseholdType(e.target.value as 'single' | 'family');
-                      // Adjust standard values based on household type
-                      const multiplier = e.target.value === 'family' ? 1.8 : 1;
+                      const newType = e.target.value as 'single' | 'couple' | 'family1' | 'family2' | 'family3' | 'family4';
+                      setHouseholdType(newType);
+                      
+                      // Calculate multiplier based on household size
+                      const multipliers = {
+                        single: 1,
+                        couple: 1.6,
+                        family1: 2.0,
+                        family2: 2.4,
+                        family3: 2.8,
+                        family4: 3.2
+                      };
+                      
+                      const multiplier = multipliers[newType];
+                      const hasChildren = ['family1', 'family2', 'family3', 'family4'].includes(newType);
+                      
                       setBudgetItems({
                         housing: { standard: 1500 * multiplier, custom: 1500 * multiplier },
                         utilities: { standard: 250 * multiplier, custom: 250 * multiplier },
@@ -1082,15 +1095,19 @@ export default function Home() {
                         leisure: { standard: 400 * multiplier, custom: 400 * multiplier },
                         clothing: { standard: 150 * multiplier, custom: 150 * multiplier },
                         health: { standard: 200 * multiplier, custom: 200 * multiplier },
-                        education: { standard: 100 * multiplier, custom: 100 * multiplier },
-                        savings: { standard: 500 * multiplier, custom: 500 * multiplier },
+                        education: { standard: hasChildren ? 300 : 0, custom: hasChildren ? 300 : 0 },
+                        savings: { standard: 500, custom: 500 },
                         other: { standard: 200 * multiplier, custom: 200 * multiplier }
                       });
                     }}
                     className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
                   >
-                    <option value="single">Einzelhaushalt</option>
-                    <option value="family">Familie</option>
+                    <option value="single">Einpersonenhaushalt</option>
+                    <option value="couple">Zweipersonenhaushalt</option>
+                    <option value="family1">Familie mit 1 Kind</option>
+                    <option value="family2">Familie mit 2 Kindern</option>
+                    <option value="family3">Familie mit 3 Kindern</option>
+                    <option value="family4">Familie mit 4 Kindern</option>
                   </select>
                 </div>
                 
@@ -1133,7 +1150,13 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(budgetItems).map(([key, value]) => (
+                    {Object.entries(budgetItems)
+                      .filter(([key]) => {
+                        // Hide education row if no children
+                        const hasChildren = ['family1', 'family2', 'family3', 'family4'].includes(householdType);
+                        return key !== 'education' || hasChildren;
+                      })
+                      .map(([key, value]) => (
                       <tr key={key} className="border-b border-slate-700/50">
                         <td className="text-slate-300 py-3 px-4 capitalize">
                           {key === 'housing' ? 'Wohnen' :
@@ -1145,7 +1168,7 @@ export default function Home() {
                            key === 'leisure' ? 'Freizeit' :
                            key === 'clothing' ? 'Kleidung' :
                            key === 'health' ? 'Gesundheit' :
-                           key === 'education' ? 'Bildung' :
+                           key === 'education' ? 'Ausbildungskosten' :
                            key === 'savings' ? 'Sparen' : 'Sonstiges'}
                         </td>
                         <td className="text-right text-slate-400 py-3 px-4">
