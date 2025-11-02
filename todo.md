@@ -727,3 +727,7 @@
 - [x] Fix: Portfolio-Auswahl beim Start - Wenn Portfolios existieren → Liste zeigen, sonst → 4-Fragen-Prozess
 - [x] Add: "Portfolio erstellen" Button um neuen 4-Fragen-Prozess zu starten
 
+
+- [x] Add: Zeitstempel zu gespeicherten Portfolios (zeigt wann zuletzt gespeichert)
+- [x] Fix: Logos laden wieder nicht (nach letztem Update) - Logos funktionieren auf Dev-Server, Production braucht neues Deploymente)
+

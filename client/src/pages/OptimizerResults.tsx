@@ -1147,7 +1147,22 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 <div key={portfolio.id} className="bg-slate-700 p-4 rounded-lg border border-slate-600">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="text-white font-semibold text-lg">{portfolio.name}</h3>
+                      <div className="flex justify-between items-baseline mb-2">
+                        <h3 className="text-white font-semibold text-lg">{portfolio.name}</h3>
+                        <div className="text-right ml-4">
+                          <p className="text-slate-500 text-xs">Gespeichert am</p>
+                          <p className="text-slate-400 text-sm">
+                            {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })} {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                      </div>
                       {portfolio.description && (
                         <p className="text-slate-400 text-sm mt-1">{portfolio.description}</p>
                       )}

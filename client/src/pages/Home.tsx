@@ -1586,10 +1586,30 @@ export default function Home() {
                   }}
                 >
                   <CardHeader>
-                    <CardTitle className="text-white text-xl">{portfolio.name}</CardTitle>
-                    {portfolio.description && (
-                      <p className="text-slate-400 text-sm mt-2">{portfolio.description}</p>
-                    )}
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <CardTitle className="text-white text-xl">{portfolio.name}</CardTitle>
+                        {portfolio.description && (
+                          <p className="text-slate-400 text-sm mt-2">{portfolio.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-slate-500 text-xs">Zuletzt gespeichert</p>
+                        <p className="text-slate-400 text-sm">
+                          {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-slate-500 text-xs">
+                          {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
