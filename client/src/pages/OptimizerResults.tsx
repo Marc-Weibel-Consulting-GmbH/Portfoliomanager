@@ -1107,9 +1107,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
             </div>
             <Button
               onClick={() => {
-                const portfolioData = {
-                  name: portfolioName,
-                  description: portfolioDescription,
+                const portfolioDataObj = {
                   stocks: displayPortfolio.positions.map(pos => ({
                     ticker: pos.ticker,
                     companyName: pos.companyName,
@@ -1122,7 +1120,11 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                   avgDividendYield: displayPortfolio.avgDividendYield,
                   avgYtdPerformance: displayPortfolio.avgYtdPerformance,
                 };
-                saveMutation.mutate(portfolioData);
+                saveMutation.mutate({
+                  name: portfolioName,
+                  description: portfolioDescription,
+                  portfolioData: JSON.stringify(portfolioDataObj),
+                });
               }}
               className="w-full bg-green-600 hover:bg-green-700"
               disabled={!portfolioName.trim() || saveMutation.isPending}

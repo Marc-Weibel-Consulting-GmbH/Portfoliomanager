@@ -731,3 +731,7 @@
 - [x] Add: Zeitstempel zu gespeicherten Portfolios (zeigt wann zuletzt gespeichert)
 - [x] Fix: Logos laden wieder nicht (nach letztem Update) - Logos funktionieren auf Dev-Server, Production braucht neues Deploymente)
 
+
+- [x] Fix: "Invalid portfolio data" Fehler beim Speichern - JSON.stringify hinzugefügt
+- [x] Fix: Logos laden immer noch nicht (StockAnalysis.com funktioniert nicht) - Zurück zu Clearbit mit Swiss domain mapping
+

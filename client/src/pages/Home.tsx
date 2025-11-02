@@ -2293,7 +2293,40 @@ export default function Home() {
                         <td className="py-2 px-2">
                           <div className="w-8 h-8 rounded overflow-hidden bg-white flex items-center justify-center">
                             <img
-                              src={`https://logo.stockanalysis.com/${stock.ticker.replace(/\.(SW|N|PA)$/, '').toLowerCase()}.svg`}
+                              src={`https://logo.clearbit.com/${(() => {
+                                // For Swiss stocks, try known domains first
+                                const swissDomainMap: Record<string, string> = {
+                                  'NOVN.SW': 'novartis.com',
+                                  'NESN.SW': 'nestle.com',
+                                  'ROG.SW': 'roche.com',
+                                  'ZURN.SW': 'zurich.com',
+                                  'SREN.SW': 'swissre.com',
+                                  'SLHN.SW': 'swisslife.com',
+                                  'SCMN.SW': 'swisscom.ch',
+                                  'KNIN.SW': 'kuehne-nagel.com',
+                                  'STMN.SW': 'straumann.com',
+                                  'GALD.SW': 'galderma.com',
+                                  'FHZN.SW': 'zurich-airport.com',
+                                  'GALE.SW': 'galenica.com',
+                                  'HOLN.SW': 'holcim.com',
+                                  'BKWN.SW': 'bkw.ch',
+                                  'CMBN.SW': 'cembra.ch',
+                                  'SQN.SW': 'swissquote.com',
+                                  'LISN.SW': 'lindt.com',
+                                  'SGKN.SW': 'sgkb.ch',
+                                };
+                                
+                                if (swissDomainMap[stock.ticker]) {
+                                  return swissDomainMap[stock.ticker];
+                                }
+                                
+                                // For US stocks, extract domain from company name
+                                const domain = stock.companyName.toLowerCase()
+                                  .replace(/\s+(inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)\.?$/i, '')
+                                  .replace(/\s+/g, '')
+                                  .replace(/[^a-z0-9]/g, '');
+                                return `${domain}.com`;
+                              })()}`}
                               alt={stock.companyName}
                               className="w-full h-full object-contain"
                               onError={(e) => {
