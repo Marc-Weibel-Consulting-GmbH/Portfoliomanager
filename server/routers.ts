@@ -225,10 +225,21 @@ export const appRouter = router({
         throw new Error("Invalid search query");
       })
       .query(async ({ input }) => {
-        const { callDataApi } = await import("./_core/dataApi");
         try {
-          const result = await callDataApi("yahoo-finance/search", { query: { q: input } }) as any;
-          return result.quotes?.slice(0, 10) || [];
+          const apiKey = process.env.EODHD_API_KEY;
+          if (!apiKey) return [];
+          
+          const searchUrl = `https://eodhd.com/api/search/${encodeURIComponent(input)}?api_token=${apiKey}&limit=10`;
+          const response = await fetch(searchUrl);
+          if (!response.ok) return [];
+          
+          const results = await response.json();
+          return results.map((r: any) => ({
+            symbol: r.Code,
+            shortname: r.Name,
+            exchange: r.Exchange,
+            displaySymbol: `${r.Code} • ${r.Exchange}`,
+          }));
         } catch (error) {
           console.error("[Ticker Search] Failed:", error);
           return [];
@@ -239,48 +250,57 @@ export const appRouter = router({
         if (typeof val === "string") return val;
         throw new Error("Invalid ticker");
       })
-      .mutation(async ({ input }) => {
-        const ticker = input;
-        const region = ticker.endsWith(".SW") ? "CH" : "US";
-        
+      .mutation(async ({ input: ticker }) => {
         try {
-          // Fetch price & risk metrics from Yahoo Finance
-          const metrics = await fetchStockMetrics(ticker, region);
-          
-          // Fetch fundamental data from EODHD
-          const fundamentals = await fetchEODHDFundamentals(ticker);
-          
-          // Fetch company profile for name
-          const { callDataApi } = await import("./_core/dataApi");
-          let companyName = ticker;
+          const apiKey = process.env.EODHD_API_KEY;
+          if (!apiKey) throw new Error("EODHD API key not configured");
+
+          // Clean ticker: replace " • " with "." (e.g., "NOVN • SW" -> "NOVN.SW")
+          const cleanTicker = ticker.replace(/ • /g, ".").trim();
+
+          // Fetch fundamentals from EODHD
+          const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${cleanTicker}?api_token=${apiKey}`;
+          const fundamentalsRes = await fetch(fundamentalsUrl);
+          if (!fundamentalsRes.ok) throw new Error("Failed to fetch fundamentals");
+          const fundamentals = await fundamentalsRes.json();
+
+          // Fetch real-time quote
+          const quoteUrl = `https://eodhd.com/api/real-time/${cleanTicker}?api_token=${apiKey}&fmt=json`;
+          const quoteRes = await fetch(quoteUrl);
+          if (!quoteRes.ok) throw new Error("Failed to fetch quote");
+          const quote = await quoteRes.json();
+
+          // Fetch historical price for YTD start (31.12.2024 or last available trading day)
+          let ytdStartPrice = null;
           try {
-            const profile = await callDataApi("yahoo-finance/quote", { query: { symbol: ticker } }) as any;
-            companyName = profile.longName || profile.shortName || ticker;
-          } catch (error) {
-            console.error("[FetchStockData] Failed to fetch company name:", error);
+            const historicalUrl = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
+            const historicalRes = await fetch(historicalUrl);
+            if (historicalRes.ok) {
+              const historicalData = await historicalRes.json();
+              if (historicalData && historicalData.length > 0) {
+                // Get the last available trading day's close price
+                ytdStartPrice = historicalData[historicalData.length - 1].close;
+              }
+            }
+          } catch (err) {
+            console.warn('[fetchStockData] Failed to fetch historical price:', err);
           }
-          
+
           return {
-            success: true,
-            data: {
-              ticker,
-              companyName,
-              currentPrice: metrics.currentPrice?.toFixed(2) || null,
-              currency: metrics.currency || "USD",
-              peRatio: fundamentals.peRatio?.toFixed(2) || null,
-              pegRatio: fundamentals.pegRatio?.toFixed(2) || null,
-              dividendYield: fundamentals.dividendYield?.toFixed(2) || null,
-              sharpeRatio: metrics.sharpeRatio?.toFixed(2) || null,
-              volatility: metrics.volatility?.toFixed(2) || null,
-              beta: (metrics.beta ?? fundamentals.beta)?.toFixed(2) || null,
-              week52High: metrics.week52High?.toFixed(2) || null,
-              week52Low: metrics.week52Low?.toFixed(2) || null,
-              marketCap: ((metrics.marketCap ?? fundamentals.marketCap) / 1_000_000_000)?.toFixed(2) || null,
-            },
+            ticker: cleanTicker,
+            companyName: fundamentals.General?.Name || cleanTicker,
+            currentPrice: quote.close || 0,
+            ytdStartPrice: ytdStartPrice,
+            peRatio: fundamentals.Highlights?.PERatio || null,
+            pegRatio: fundamentals.Highlights?.PEGRatio || null,
+            dividendYield: fundamentals.Highlights?.DividendYield ? fundamentals.Highlights.DividendYield * 100 : null,
+            sharpeRatio: fundamentals.Technicals?.SharpRatio || null,
+            volatility: fundamentals.Technicals?.Volatility || null,
+            beta: fundamentals.Technicals?.Beta || null,
           };
         } catch (error: any) {
-          console.error(`[FetchStockData] Failed to fetch data for ${ticker}:`, error);
-          throw new Error(`Fehler beim Laden der Daten: ${error.message}`);
+          console.error("[fetchStockData] Error:", error);
+          throw new Error(error.message || "Failed to fetch stock data");
         }
       }),
     list: publicProcedure.query(async () => {
@@ -694,6 +714,19 @@ export const appRouter = router({
         failed,
         errors: failed > 0 ? errors : undefined,
       };
+    }),
+    portfolioPerformance: publicProcedure.query(async () => {
+      const { getAllStocks } = await import("./db");
+      const { calculatePortfolioPerformance } = await import("./_core/stockDataApi");
+      
+      const stocks = await getAllStocks();
+      
+      if (stocks.length === 0) {
+        return [];
+      }
+      
+      const performance = await calculatePortfolioPerformance(stocks);
+      return performance;
     }),
     findCompetitors: protectedProcedure
       .input((val: unknown) => {
@@ -1209,6 +1242,71 @@ export const appRouter = router({
           success: true,
           message: "Thank you for your message!",
         };
+      }),
+  }),
+
+  savedPortfolios: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const { getSavedPortfolios } = await import("./db");
+      return await getSavedPortfolios(ctx.user.id);
+    }),
+
+    get: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById } = await import("./db");
+        return await getSavedPortfolioById(input, ctx.user.id);
+      }),
+
+    create: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "name" in val && "portfolioData" in val) {
+          return val as { name: string; description?: string; portfolioData: string };
+        }
+        throw new Error("Invalid portfolio data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { createSavedPortfolio } = await import("./db");
+        return await createSavedPortfolio({
+          userId: ctx.user.id,
+          name: input.name,
+          description: input.description || null,
+          portfolioData: input.portfolioData,
+        });
+      }),
+
+    update: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val as { id: number; name?: string; description?: string; portfolioData?: string };
+        }
+        throw new Error("Invalid update data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { updateSavedPortfolio } = await import("./db");
+        const { id, ...updates } = input;
+        return await updateSavedPortfolio(id, ctx.user.id, updates);
+      }),
+
+    delete: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { deleteSavedPortfolio } = await import("./db");
+        const success = await deleteSavedPortfolio(input, ctx.user.id);
+        if (!success) {
+          throw new Error("Failed to delete portfolio");
+        }
+        return { success: true };
       }),
   }),
 

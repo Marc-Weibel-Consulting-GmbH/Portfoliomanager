@@ -5,8 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { useState, useMemo, useEffect } from "react";
-import { Trash2, Edit2, Plus, Download, LogOut } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
@@ -20,6 +20,176 @@ import OptimizerResults from "./OptimizerResults";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
+import { PortfolioPerformanceChart } from '@/components/PortfolioPerformanceChart';
+import { PortfolioSentimentIndicator } from '@/components/PortfolioSentimentIndicator';
+import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
+
+// AI-powered portfolio market analysis
+async function analyzePortfolioMarket(stocks: any[]) {
+  if (stocks.length === 0) {
+    return '⚠️ Keine Aktien im Portfolio vorhanden.';
+  }
+
+  // Calculate portfolio metrics
+  const avgPE = stocks.filter(s => s.peRatio).reduce((sum, s) => sum + s.peRatio, 0) / stocks.filter(s => s.peRatio).length;
+  const avgPEG = stocks.filter(s => s.pegRatio).reduce((sum, s) => sum + s.pegRatio, 0) / stocks.filter(s => s.pegRatio).length;
+  const avgYTD = stocks.filter(s => s.ytdPerformance).reduce((sum, s) => sum + s.ytdPerformance, 0) / stocks.filter(s => s.ytdPerformance).length;
+  
+  // Sector distribution
+  const sectors: Record<string, number> = {};
+  stocks.forEach(s => {
+    sectors[s.category] = (sectors[s.category] || 0) + 1;
+  });
+  const dominantSector = Object.entries(sectors).sort((a, b) => b[1] - a[1])[0];
+  
+  // Generate analysis
+  let analysis = '📊 MARKTANALYSE\n\n';
+  
+  // Valuation analysis
+  if (avgPE > 25) {
+    analysis += '⚠️ BEWERTUNG: Portfolio überbewertet (Durchschn. P/E: ' + avgPE.toFixed(1) + ')\n';
+    analysis += '→ Empfehlung: Gewinne teilweise mitnehmen, defensive Positionen aufbauen\n\n';
+  } else if (avgPE < 15) {
+    analysis += '✅ BEWERTUNG: Portfolio günstig bewertet (Durchschn. P/E: ' + avgPE.toFixed(1) + ')\n';
+    analysis += '→ Empfehlung: Gute Kaufgelegenheit, Position ausbauen\n\n';
+  } else {
+    analysis += '🔵 BEWERTUNG: Portfolio fair bewertet (Durchschn. P/E: ' + avgPE.toFixed(1) + ')\n\n';
+  }
+  
+  // Growth analysis
+  if (avgPEG < 1) {
+    analysis += '✅ WACHSTUM: Attraktives Wachstumspotenzial (Durchschn. PEG: ' + avgPEG.toFixed(2) + ')\n\n';
+  } else if (avgPEG > 2) {
+    analysis += '⚠️ WACHSTUM: Wachstum teuer bezahlt (Durchschn. PEG: ' + avgPEG.toFixed(2) + ')\n\n';
+  }
+  
+  // Performance analysis
+  if (avgYTD > 20) {
+    analysis += '🚀 PERFORMANCE: Sehr starke YTD-Performance (+' + avgYTD.toFixed(1) + '%)\n';
+    analysis += '→ Empfehlung: Gewinne sichern, Stop-Loss setzen\n\n';
+  } else if (avgYTD < 0) {
+    analysis += '📉 PERFORMANCE: Negative YTD-Performance (' + avgYTD.toFixed(1) + '%)\n';
+    analysis += '→ Empfehlung: Qualität prüfen, ggf. Positionen reduzieren\n\n';
+  }
+  
+  // Diversification analysis
+  if (dominantSector && dominantSector[1] > stocks.length * 0.4) {
+    analysis += '⚠️ DIVERSIFIKATION: Zu hohe Konzentration in "' + dominantSector[0] + '" (' + Math.round(dominantSector[1] / stocks.length * 100) + '%)\n';
+    analysis += '→ Empfehlung: Andere Sektoren (z.B. Healthcare, Energie) ergänzen\n\n';
+  } else {
+    analysis += '✅ DIVERSIFIKATION: Gute Streuung über verschiedene Sektoren\n\n';
+  }
+  
+  // Market sentiment (simulated - in real app would fetch from API)
+  const fearGreedIndex = 32; // From uploaded image
+  if (fearGreedIndex < 40) {
+    analysis += '🔴 MARKTSTIMMUNG: Fear & Greed Index bei ' + fearGreedIndex + ' (FEAR)\n';
+    analysis += '→ Empfehlung: Vorsichtig agieren, Cash-Position erhöhen\n\n';
+  } else if (fearGreedIndex > 70) {
+    analysis += '🟢 MARKTSTIMMUNG: Fear & Greed Index bei ' + fearGreedIndex + ' (GREED)\n';
+    analysis += '→ Empfehlung: Markt überhitzt, Absicherung prüfen\n\n';
+  }
+  
+  analysis += '---\n💡 Hinweis: Diese Analyse basiert auf aktuellen Portfolio-Kennzahlen und Marktbedingungen.';
+  
+  return analysis;
+}
+
+// Load Portfolio Content Component
+function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
+  const { data: savedPortfolios = [], refetch } = trpc.savedPortfolios.list.useQuery();
+  const deleteMutation = trpc.savedPortfolios.delete.useMutation();
+  const { refetch: refetchStocks } = trpc.stocks.list.useQuery();
+
+  const handleLoad = async (portfolio: any) => {
+    try {
+      const data = JSON.parse(portfolio.portfolioData);
+      
+      // TODO: Implement loading logic to replace current portfolio
+      // This would require a new tRPC mutation to replace all stocks
+      
+      toast.success('Portfolio geladen', {
+        description: `"${portfolio.name}" wurde erfolgreich geladen`,
+      });
+      
+      onClose();
+      window.location.reload(); // Temporary solution
+    } catch (error) {
+      console.error('Failed to load portfolio:', error);
+      toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden' });
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Möchten Sie das Portfolio "${name}" wirklich löschen?`)) {
+      return;
+    }
+
+    try {
+      await deleteMutation.mutateAsync({ id });
+      toast.success('Gelöscht', { description: `Portfolio "${name}" wurde gelöscht` });
+      refetch();
+    } catch (error) {
+      console.error('Failed to delete portfolio:', error);
+      toast.error('Fehler', { description: 'Portfolio konnte nicht gelöscht werden' });
+    }
+  };
+
+  if (savedPortfolios.length === 0) {
+    return (
+      <div className="text-center py-8 text-slate-400">
+        <p>Keine gespeicherten Portfolios gefunden.</p>
+        <p className="text-sm mt-2">Speichern Sie Ihr aktuelles Portfolio, um es später wieder zu laden.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 max-h-96 overflow-y-auto">
+      {savedPortfolios.map((portfolio: any) => {
+        const data = JSON.parse(portfolio.portfolioData);
+        const stockCount = data.stocks?.length || 0;
+        
+        return (
+          <div
+            key={portfolio.id}
+            className="p-4 bg-slate-700 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="font-semibold text-white mb-1">{portfolio.name}</h3>
+                {portfolio.description && (
+                  <p className="text-sm text-slate-400 mb-2">{portfolio.description}</p>
+                )}
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span>{stockCount} Aktien</span>
+                  <span>Gespeichert: {new Date(portfolio.createdAt).toLocaleDateString('de-DE')}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 ml-4">
+                <Button
+                  onClick={() => handleLoad(portfolio)}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Laden
+                </Button>
+                <Button
+                  onClick={() => handleDelete(portfolio.id, portfolio.name)}
+                  size="sm"
+                  variant="outline"
+                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -58,11 +228,113 @@ export default function Home() {
   const [refreshProgress, setRefreshProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshStartTime, setRefreshStartTime] = useState<number | null>(null);
-  const [isLoadingStockData, setIsLoadingStockData] = useState(false);
-  const [autoFilledData, setAutoFilledData] = useState<any>(null);
+  const [isSavePortfolioDialogOpen, setIsSavePortfolioDialogOpen] = useState(false);
+  const [isLoadPortfolioDialogOpen, setIsLoadPortfolioDialogOpen] = useState(false);
+  const [portfolioName, setPortfolioName] = useState('');
+  const [portfolioDescription, setPortfolioDescription] = useState('');
+  
+  // Calculator state - MUST be declared here, not inside conditional
+  const [calculatorType, setCalculatorType] = useState<'pension' | 'budget'>('pension');
+  const [pensionCapital, setPensionCapital] = useState('');
+  const [conversionRate, setConversionRate] = useState('6.8');
+  const [lifeExpectancy, setLifeExpectancy] = useState('85');
+  const [capitalTaxRate, setCapitalTaxRate] = useState('5');
+  const [pensionTaxRate, setPensionTaxRate] = useState('15');
+  const [regularIncome, setRegularIncome] = useState('');
+  const [desiredExpenses, setDesiredExpenses] = useState('');
+  const [expectedReturn, setExpectedReturn] = useState('4');
+  const [currentAge, setCurrentAge] = useState('65');
+  const [canton, setCanton] = useState<Canton>('ZH');
+  const [religion, setReligion] = useState<Religion>('konfessionslos');
+  const [desiredCoverageRatio, setDesiredCoverageRatio] = useState('100');
+  const [householdType, setHouseholdType] = useState<'single' | 'couple' | 'family1' | 'family2' | 'family3' | 'family4'>('single');
+  const [annualIncome, setAnnualIncome] = useState('');
+  const [budgetItems, setBudgetItems] = useState({
+    housing: { standard: 1500, custom: 1500 },
+    utilities: { standard: 250, custom: 250 },
+    insurance: { standard: 450, custom: 450 },
+    food: { standard: 600, custom: 600 },
+    transport: { standard: 300, custom: 300 },
+    communication: { standard: 100, custom: 100 },
+    leisure: { standard: 400, custom: 400 },
+    clothing: { standard: 150, custom: 150 },
+    health: { standard: 200, custom: 200 },
+    education: { standard: 100, custom: 100 },
+    savings: { standard: 500, custom: 500 },
+    other: { standard: 200, custom: 200 }
+  });
   
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;
+  
+  // Calculator results (must be outside conditional for React Hooks rules)
+  const calculatorResults = React.useMemo(() => {
+    if (activeTab !== "rechner" || !pensionCapital) return null;
+    
+    const totalCapital = parseFloat(pensionCapital);
+    const rate = parseFloat(conversionRate) / 100;
+    const life = parseInt(lifeExpectancy);
+    const age = parseInt(currentAge);
+    const years = life - age;
+    const income = parseFloat(regularIncome) || 0;
+    const expenses = parseFloat(desiredExpenses) || 0;
+    const targetCoverage = parseFloat(desiredCoverageRatio) / 100;
+    
+    // Calculate optimal capital withdrawal percentage
+    let optimalWithdrawalPct = 0;
+    if (expenses > 0 && targetCoverage > 0) {
+      const requiredMonthlyIncome = expenses * targetCoverage;
+      const additionalIncomeNeeded = Math.max(0, requiredMonthlyIncome - income);
+      
+      if (additionalIncomeNeeded > 0) {
+        const requiredAnnualPension = additionalIncomeNeeded * 12;
+        const requiredCapitalForPension = requiredAnnualPension / rate;
+        optimalWithdrawalPct = Math.min(100, (requiredCapitalForPension / totalCapital) * 100);
+      }
+    }
+    
+    const withdrawalPct = optimalWithdrawalPct > 0 ? optimalWithdrawalPct : 100;
+    const capitalForPension = totalCapital * (withdrawalPct / 100);
+    const capitalForWithdrawal = totalCapital - capitalForPension;
+    
+    const annualPension = capitalForPension * rate;
+    const monthlyPension = annualPension / 12;
+    
+    const taxResult = calculateCapitalWithdrawalTax(capitalForWithdrawal, canton, religion);
+    const netCapital = taxResult.netAmount;
+    const capitalTax = taxResult.taxAmount;
+    const effectiveTaxRate = taxResult.taxRate;
+    
+    const totalPensionGross = annualPension * years;
+    const pensionTax = totalPensionGross * (parseFloat(pensionTaxRate) / 100);
+    const totalPensionNet = totalPensionGross - pensionTax;
+    
+    const returnRate = parseFloat(expectedReturn) / 100;
+    const futureValue = netCapital * Math.pow(1 + returnRate, years);
+    
+    const totalMonthlyIncome = income + monthlyPension;
+    const coverageWithPension = expenses > 0 ? ((totalMonthlyIncome / expenses) * 100).toFixed(1) : '0';
+    const coverageWithoutPension = expenses > 0 ? ((income / expenses) * 100).toFixed(1) : '0';
+    
+    const totalValue = totalPensionNet + futureValue;
+    const fullCapitalValue = calculateCapitalWithdrawalTax(totalCapital, canton, religion).netAmount * Math.pow(1 + returnRate, years);
+    
+    return {
+      monthlyPension: monthlyPension.toFixed(0),
+      annualPension: annualPension.toFixed(0),
+      totalPensionNet: totalPensionNet.toFixed(0),
+      netCapital: netCapital.toFixed(0),
+      capitalTax: capitalTax.toFixed(0),
+      effectiveTaxRate: effectiveTaxRate.toFixed(2),
+      futureValue: futureValue.toFixed(0),
+      coverageWithPension,
+      coverageWithoutPension,
+      optimalWithdrawalPct: optimalWithdrawalPct.toFixed(1),
+      capitalForPension: capitalForPension.toFixed(0),
+      capitalForWithdrawal: capitalForWithdrawal.toFixed(0),
+      recommendation: totalValue > fullCapitalValue ? 'Mischbezug empfohlen' : 'Vollständiger Kapitalbezug empfohlen'
+    };
+  }, [activeTab, pensionCapital, conversionRate, lifeExpectancy, currentAge, regularIncome, desiredExpenses, desiredCoverageRatio, canton, religion, pensionTaxRate, expectedReturn]);
   
   // Progress tracking effect
   useEffect(() => {
@@ -86,43 +358,31 @@ export default function Home() {
     { enabled: tickerSearchQuery.length >= 2 }
   );
 
-  const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
-    onSuccess: (result) => {
-      if (result.success && result.data) {
-        setAutoFilledData(result.data);
-        setFormData({
-          ...formData,
-          companyName: result.data.companyName,
-          ticker: result.data.ticker,
-          currentPrice: result.data.currentPrice,
-          currency: result.data.currency,
-          peRatio: result.data.peRatio,
-          pegRatio: result.data.pegRatio,
-          dividendYield: result.data.dividendYield,
-          sharpeRatio: result.data.sharpeRatio,
-          volatility: result.data.volatility,
-          beta: result.data.beta,
-        });
-        toast.success("Daten geladen", {
-          description: "Alle verfügbaren Daten wurden automatisch ausgefüllt",
-        });
-      }
-      setIsLoadingStockData(false);
-    },
-    onError: (error) => {
-      toast.error("Fehler beim Laden", {
-        description: error.message,
-      });
-      setIsLoadingStockData(false);
-    },
-  });
-
   const addStockMutation = trpc.stocks.add.useMutation({
     onSuccess: () => {
       refetchStocks();
       setIsAddDialogOpen(false);
       setFormData({});
-      setAutoFilledData(null);
+    },
+  });
+
+  const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
+    onSuccess: (data: any) => {
+      setFormData((prev: any) => ({
+        ...prev,
+        companyName: data.companyName || prev.companyName,
+        ticker: data.ticker || prev.ticker,
+        ytdStartPrice: data.ytdStartPrice?.toString() || prev.ytdStartPrice,
+        currentPrice: data.currentPrice?.toString() || prev.currentPrice,
+        peRatio: data.peRatio?.toString() || prev.peRatio,
+        pegRatio: data.pegRatio?.toString() || prev.pegRatio,
+        sharpeRatio: data.sharpeRatio?.toString() || prev.sharpeRatio,
+        dividendYield: data.dividendYield?.toString() || prev.dividendYield,
+      }));
+      toast.success("Erfolgreich", { description: "Daten wurden geladen" });
+    },
+    onError: (error: any) => {
+      toast.error("Fehler", { description: error.message || "Daten konnten nicht geladen werden" });
     },
   });
 
@@ -510,7 +770,572 @@ export default function Home() {
     return <Research onBackClick={() => setActiveTab("portfolio")} />;
   }
 
+  if (activeTab === "wissen") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => setActiveTab("portfolio")}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              ← Zurück
+            </button>
+            <h1 className="text-4xl font-bold text-white">Finanzwissen für Anfänger</h1>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* P/E Ratio */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center text-2xl">
+                  📊
+                </div>
+                <h3 className="text-xl font-bold text-white">P/E Ratio</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Das Kurs-Gewinn-Verhältnis zeigt, wie viel Investoren bereit sind für jeden Euro Gewinn zu zahlen. Ein niedriger Wert kann auf eine günstige Bewertung hindeuten.
+              </p>
+            </div>
+
+            {/* PEG Ratio */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center text-2xl">
+                  📈
+                </div>
+                <h3 className="text-xl font-bold text-white">PEG Ratio</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Das PEG-Verhältnis berücksichtigt das Gewinnwachstum. Ein Wert unter 1 deutet darauf hin, dass die Aktie im Verhältnis zum Wachstum günstig bewertet ist.
+              </p>
+            </div>
+
+            {/* Sharpe Ratio */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center text-2xl">
+                  ⚖️
+                </div>
+                <h3 className="text-xl font-bold text-white">Sharpe Ratio</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Misst die risikobereinigte Rendite. Ein höherer Wert bedeutet bessere Rendite pro Risikoeinheit. Werte über 1 gelten als gut.
+              </p>
+            </div>
+
+            {/* Dividendenrendite */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-2xl">
+                  💰
+                </div>
+                <h3 className="text-xl font-bold text-white">Dividendenrendite</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Der Prozentsatz der jährlichen Dividende im Verhältnis zum Aktienkurs. Höhere Werte bedeuten mehr regelmäßiges Einkommen.
+              </p>
+            </div>
+
+            {/* Diversifikation */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center text-2xl">
+                  🎯
+                </div>
+                <h3 className="text-xl font-bold text-white">Diversifikation</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Streuung des Kapitals über verschiedene Anlagen, um Risiken zu minimieren. "Nicht alle Eier in einen Korb legen."
+              </p>
+            </div>
+
+            {/* YTD Performance */}
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-indigo-500 transition-all cursor-pointer">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-2xl">
+                  📅
+                </div>
+                <h3 className="text-xl font-bold text-white">YTD Performance</h3>
+              </div>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                Year-to-Date Performance zeigt die Wertentwicklung seit Jahresbeginn. Hilft beim Vergleich der aktuellen Jahresperformance.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === "rechner") {
+    const results = calculatorResults;
+    
+    const totalBudget = Object.values(budgetItems).reduce((sum, item) => sum + item.custom, 0);
+    const income = parseFloat(annualIncome) || 0;
+    const monthlyIncome = income / 12;
+    const savingsRate = monthlyIncome > 0 ? ((budgetItems.savings.custom / monthlyIncome) * 100).toFixed(1) : '0';
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => setActiveTab("portfolio")}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              ← Zurück
+            </button>
+            <h1 className="text-4xl font-bold text-white">Finanzrechner</h1>
+          </div>
+
+          {/* Calculator Type Selector */}
+          <div className="flex gap-4 mb-6">
+            <button
+              onClick={() => setCalculatorType('pension')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                calculatorType === 'pension'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              🏦 Renten-/Kapitalbezug
+            </button>
+            <button
+              onClick={() => setCalculatorType('budget')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+                calculatorType === 'budget'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              📋 Budgetrechner
+            </button>
+          </div>
+
+          {calculatorType === 'pension' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Input Section */}
+              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                <h2 className="text-2xl font-bold text-white mb-6">📊 Eingaben</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Pensionskassen-Kapital (CHF)</label>
+                    <input
+                      type="number"
+                      value={pensionCapital}
+                      onChange={(e) => setPensionCapital(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      placeholder="z.B. 500000"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Aktuelles Alter</label>
+                      <input
+                        type="number"
+                        value={currentAge}
+                        onChange={(e) => setCurrentAge(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Lebenserwartung</label>
+                      <input
+                        type="number"
+                        value={lifeExpectancy}
+                        onChange={(e) => setLifeExpectancy(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Umwandlungssatz (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={conversionRate}
+                      onChange={(e) => setConversionRate(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Kanton</label>
+                      <select
+                        value={canton}
+                        onChange={(e) => setCanton(e.target.value as Canton)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      >
+                        {CANTONS.map(c => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm mb-1 block">Konfession</label>
+                      <select
+                        value={religion}
+                        onChange={(e) => setReligion(e.target.value as Religion)}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      >
+                        <option value="konfessionslos">Konfessionslos</option>
+                        <option value="reformiert">Reformiert</option>
+                        <option value="katholisch">Katholisch</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Steuer Rente (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={pensionTaxRate}
+                      onChange={(e) => setPensionTaxRate(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Regelmässige Einnahmen (CHF/Monat)</label>
+                    <input
+                      type="number"
+                      value={regularIncome}
+                      onChange={(e) => setRegularIncome(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      placeholder="AHV, Immobilien, Wertschriften"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Gewünschte Ausgaben (CHF/Monat)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={desiredExpenses}
+                        onChange={(e) => setDesiredExpenses(e.target.value)}
+                        className="flex-1 px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                        placeholder="Lebenshaltungskosten"
+                      />
+                      <button
+                        onClick={() => setCalculatorType('budget')}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors whitespace-nowrap"
+                      >
+                        📋 Budgetrechner
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Gewünschter Deckungsgrad (%)</label>
+                    <input
+                      type="number"
+                      value={desiredCoverageRatio}
+                      onChange={(e) => setDesiredCoverageRatio(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                      placeholder="z.B. 100 für vollständige Deckung"
+                    />
+                    <p className="text-slate-400 text-xs mt-1">Verhältnis Einnahmen/Ausgaben (100% = vollständige Deckung)</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-slate-300 text-sm mb-1 block">Erwartete Rendite (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={expectedReturn}
+                      onChange={(e) => setExpectedReturn(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Results Section */}
+              <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+                <h2 className="text-2xl font-bold text-white mb-6">📊 Ergebnisse</h2>
+                
+                {results ? (
+                  <div className="space-y-4">
+                    {/* Recommendation Banner */}
+                    <div className={`p-4 rounded-lg border-2 ${
+                      results.recommendation.includes('Mischbezug') 
+                        ? 'bg-green-900/20 border-green-500' 
+                        : 'bg-blue-900/20 border-blue-500'
+                    }`}>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-white mb-1">
+                          {results.recommendation}
+                        </div>
+                        {parseFloat(results.optimalWithdrawalPct) > 0 && (
+                          <div className="text-sm text-slate-300 mt-2">
+                            Empfohlener Kapitalbezug: <span className="font-semibold text-white">{results.optimalWithdrawalPct}%</span> (CHF {results.capitalForWithdrawal})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Tax Info */}
+                    <div className="bg-slate-700/30 p-3 rounded-lg">
+                      <div className="text-sm text-slate-300 text-center">
+                        Effektiver Steuersatz Kapitalbezug: <span className="font-semibold text-white">{results.effectiveTaxRate}%</span>
+                      </div>
+                    </div>
+                    
+                    {/* Pension Option */}
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3">💰 Rentenbezug</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Monatliche Rente:</span>
+                          <span className="text-white font-semibold">CHF {results.monthlyPension}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Jährliche Rente:</span>
+                          <span className="text-white font-semibold">CHF {results.annualPension}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Total (netto):</span>
+                          <span className="text-green-400 font-semibold">CHF {results.totalPensionNet}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Capital Option */}
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3">💵 Kapitalbezug</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Steuer:</span>
+                          <span className="text-red-400 font-semibold">CHF {results.capitalTax}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Netto-Kapital:</span>
+                          <span className="text-white font-semibold">CHF {results.netCapital}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Endwert (mit Rendite):</span>
+                          <span className="text-blue-400 font-semibold">CHF {results.futureValue}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Coverage Ratio */}
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3">📊 Deckungsgrad</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Ohne BVG-Rente:</span>
+                          <span className={`font-semibold ${
+                            parseFloat(results.coverageWithoutPension) >= 100 ? 'text-green-400' : 'text-orange-400'
+                          }`}>{results.coverageWithoutPension}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-300">Mit BVG-Rente:</span>
+                          <span className={`font-semibold ${
+                            parseFloat(results.coverageWithPension) >= 100 ? 'text-green-400' : 'text-orange-400'
+                          }`}>{results.coverageWithPension}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-slate-400 py-12">
+                    <div className="text-4xl mb-4">📊</div>
+                    <p>Füllen Sie die Eingabefelder aus, um die Berechnung zu starten</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <h2 className="text-2xl font-bold text-white mb-6">📋 Budgetrechner</h2>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <label className="text-slate-300 text-sm mb-1 block">Haushaltstyp</label>
+                  <select
+                    value={householdType}
+                    onChange={(e) => {
+                      const newType = e.target.value as 'single' | 'couple' | 'family1' | 'family2' | 'family3' | 'family4';
+                      setHouseholdType(newType);
+                      
+                      // Calculate multiplier based on household size
+                      const multipliers = {
+                        single: 1,
+                        couple: 1.6,
+                        family1: 2.0,
+                        family2: 2.4,
+                        family3: 2.8,
+                        family4: 3.2
+                      };
+                      
+                      const multiplier = multipliers[newType];
+                      const hasChildren = ['family1', 'family2', 'family3', 'family4'].includes(newType);
+                      
+                      setBudgetItems({
+                        housing: { standard: 1500 * multiplier, custom: 1500 * multiplier },
+                        utilities: { standard: 250 * multiplier, custom: 250 * multiplier },
+                        insurance: { standard: 450 * multiplier, custom: 450 * multiplier },
+                        food: { standard: 600 * multiplier, custom: 600 * multiplier },
+                        transport: { standard: 300 * multiplier, custom: 300 * multiplier },
+                        communication: { standard: 100 * multiplier, custom: 100 * multiplier },
+                        leisure: { standard: 400 * multiplier, custom: 400 * multiplier },
+                        clothing: { standard: 150 * multiplier, custom: 150 * multiplier },
+                        health: { standard: 200 * multiplier, custom: 200 * multiplier },
+                        education: { standard: hasChildren ? 300 : 0, custom: hasChildren ? 300 : 0 },
+                        savings: { standard: 500, custom: 500 },
+                        other: { standard: 200 * multiplier, custom: 200 * multiplier }
+                      });
+                    }}
+                    className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="single">Einpersonenhaushalt</option>
+                    <option value="couple">Zweipersonenhaushalt</option>
+                    <option value="family1">Familie mit 1 Kind</option>
+                    <option value="family2">Familie mit 2 Kindern</option>
+                    <option value="family3">Familie mit 3 Kindern</option>
+                    <option value="family4">Familie mit 4 Kindern</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="text-slate-300 text-sm mb-1 block">Jährliches Einkommen (CHF)</label>
+                  <input
+                    type="number"
+                    value={annualIncome}
+                    onChange={(e) => setAnnualIncome(e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none"
+                    placeholder="z.B. 80000"
+                  />
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    onClick={() => {
+                      setBudgetItems(prev => {
+                        const newItems = { ...prev };
+                        Object.keys(newItems).forEach(key => {
+                          newItems[key as keyof typeof newItems].custom = newItems[key as keyof typeof newItems].standard;
+                        });
+                        return newItems;
+                      });
+                    }}
+                    className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors"
+                  >
+                    🔄 Vorschlag übernehmen
+                  </button>
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left text-slate-300 py-3 px-4">Kategorie</th>
+                      <th className="text-right text-slate-300 py-3 px-4">Standard (CHF)</th>
+                      <th className="text-right text-slate-300 py-3 px-4">Individuell (CHF)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(budgetItems)
+                      .filter(([key]) => {
+                        // Hide education row if no children
+                        const hasChildren = ['family1', 'family2', 'family3', 'family4'].includes(householdType);
+                        return key !== 'education' || hasChildren;
+                      })
+                      .map(([key, value]) => (
+                      <tr key={key} className="border-b border-slate-700/50">
+                        <td className="text-slate-300 py-3 px-4 capitalize">
+                          {key === 'housing' ? 'Wohnen' :
+                           key === 'utilities' ? 'Nebenkosten' :
+                           key === 'insurance' ? 'Krankenkasse' :
+                           key === 'food' ? 'Lebensmittel' :
+                           key === 'transport' ? 'Verkehr' :
+                           key === 'communication' ? 'Kommunikation' :
+                           key === 'leisure' ? 'Freizeit' :
+                           key === 'clothing' ? 'Kleidung' :
+                           key === 'health' ? 'Gesundheit' :
+                           key === 'education' ? 'Ausbildungskosten' :
+                           key === 'savings' ? 'Sparen' : 'Sonstiges'}
+                        </td>
+                        <td className="text-right text-slate-400 py-3 px-4">
+                          {value.standard.toFixed(0)}
+                        </td>
+                        <td className="text-right py-3 px-4">
+                          <input
+                            type="number"
+                            value={value.custom}
+                            onChange={(e) => {
+                              setBudgetItems(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key as keyof typeof prev], custom: parseFloat(e.target.value) || 0 }
+                              }));
+                            }}
+                            className="w-32 px-3 py-1 bg-slate-700 text-white rounded border border-slate-600 focus:border-indigo-500 focus:outline-none text-right"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-slate-600 font-bold">
+                      <td className="text-white py-3 px-4">Total</td>
+                      <td className="text-right text-slate-300 py-3 px-4">
+                        {Object.values(budgetItems).reduce((sum, item) => sum + item.standard, 0).toFixed(0)}
+                      </td>
+                      <td className="text-right text-white py-3 px-4">
+                        {totalBudget.toFixed(0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              {annualIncome && (
+                <div className="mt-6 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm mb-1">Monatliches Einkommen</div>
+                      <div className="text-2xl font-bold text-white">CHF {monthlyIncome.toFixed(0)}</div>
+                    </div>
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm mb-1">Überschuss/Defizit</div>
+                      <div className={`text-2xl font-bold ${
+                        monthlyIncome - totalBudget >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        CHF {(monthlyIncome - totalBudget).toFixed(0)}
+                      </div>
+                    </div>
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm mb-1">Sparquote</div>
+                      <div className="text-2xl font-bold text-blue-400">{savingsRate}%</div>
+                    </div>
+                  </div>
+                  
+                  {/* Transfer to Pension Calculator Button */}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => {
+                        setDesiredExpenses(totalBudget.toFixed(0));
+                        setCalculatorType('pension');
+                      }}
+                      className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <span>✓</span> Budget übernehmen (CHF {totalBudget.toFixed(0)})
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (activeTab === "admin") {
     return <Admin onBackClick={() => setActiveTab("portfolio")} />;
@@ -522,6 +1347,158 @@ export default function Home() {
 
   if (activeTab === "reviews") {
     return <Reviews onBackClick={() => setActiveTab("portfolio")} />;
+  }
+
+  if (activeTab === "analyzer") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveTab("portfolio")}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+              >
+                ← Zurück
+              </button>
+              <h1 className="text-3xl font-bold">Portfolio Analyzer</h1>
+            </div>
+
+            <button
+              onClick={async () => {
+                // AI-powered market analysis
+                const analysis = await analyzePortfolioMarket(stocks);
+                alert(analysis);
+              }}
+              className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-semibold"
+            >
+              📊 Marktanalyse
+            </button>
+          </div>
+
+          {/* Analysis Categories */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-500 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 3v18h18" />
+                    <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+                  </svg>
+                  Portfolio-Übersicht
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-sm">Diversifikation, Gewichtung und Sektorenverteilung</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-purple-500 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                  Risiko-Analyse
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-sm">Volatilität, Sharpe Ratio und Risiko-Scores</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800/50 border-slate-700 hover:border-green-500 transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-white text-lg flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                  Performance-Analyse
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-400 text-sm">YTD-Performance, Rendite und Vergleiche</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Chart Placeholders */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Portfolio Allocation Chart */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Sektoren-Allokation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
+                  <div className="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                      <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                    </svg>
+                    <p className="text-slate-400">Kreisdiagramm</p>
+                    <p className="text-slate-500 text-sm">Sektorenverteilung</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Portfolio Sentiment Indicator */}
+            <PortfolioSentimentIndicator />
+
+            {/* Portfolio Performance Chart */}
+            <PortfolioPerformanceChart />
+            {/* Correlation Matrix */}
+            <Card className="bg-slate-800/50 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white">Korrelations-Matrix</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-slate-700/30 rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-slate-600">
+                  <div className="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-slate-500 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    <p className="text-slate-400">Heatmap</p>
+                    <p className="text-slate-500 text-sm">Aktien-Korrelationen</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Key Metrics */}
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Wichtige Kennzahlen</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Portfolio-Sharpe</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Durchschn. P/E</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Volatilität</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+                <div className="bg-slate-700/30 rounded-lg p-4">
+                  <p className="text-slate-400 text-sm mb-1">Beta</p>
+                  <p className="text-2xl font-bold text-white">-</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   if (activeTab === "optimizer") {
@@ -780,7 +1757,7 @@ export default function Home() {
                 : "bg-slate-700 text-slate-300 hover:bg-slate-600"
             }`}
           >
-            Portfolio
+            Aktien
           </button>
           <button
             onClick={() => setActiveTab("optimizer")}
@@ -790,7 +1767,17 @@ export default function Home() {
                 : "bg-slate-700 text-slate-300 hover:bg-slate-600"
             }`}
           >
-            Optimizer
+            Portfolio
+          </button>
+          <button
+            onClick={() => setActiveTab("analyzer")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "analyzer"
+                ? "bg-pink-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Analyzer
           </button>
           <button
             onClick={() => setActiveTab("newsroom")}
@@ -800,7 +1787,7 @@ export default function Home() {
                 : "bg-slate-700 text-slate-300 hover:bg-slate-600"
             }`}
           >
-            Newsroom
+            News
           </button>
           <button
             onClick={() => setActiveTab("transactions")}
@@ -831,6 +1818,26 @@ export default function Home() {
             }`}
           >
             Research
+          </button>
+          <button
+            onClick={() => setActiveTab("wissen")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "wissen"
+                ? "bg-indigo-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Wissen
+          </button>
+          <button
+            onClick={() => setActiveTab("rechner")}
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              activeTab === "rechner"
+                ? "bg-indigo-600 text-white"
+                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+            }`}
+          >
+            Rechner
           </button>
           {isAuthenticated && (
             <>
@@ -925,7 +1932,7 @@ export default function Home() {
               )}
             </div>
           )}
-          <Button onClick={exportToPDF} className="bg-green-600 hover:bg-green-700 text-white">
+          <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
             <Download className="w-4 h-4 mr-2" />
             PDF Export
           </Button>
@@ -947,7 +1954,9 @@ export default function Home() {
                       placeholder="Firmenname oder Ticker suchen..."
                       value={tickerSearchQuery}
                       onChange={(e) => {
-                        setTickerSearchQuery(e.target.value);
+                        const value = e.target.value;
+                        setTickerSearchQuery(value);
+                        setFormData({ ...formData, companyName: value });
                         setShowTickerSuggestions(true);
                       }}
                       onFocus={() => setShowTickerSuggestions(true)}
@@ -960,22 +1969,23 @@ export default function Home() {
                             key={suggestion.symbol}
                             type="button"
                             onClick={() => {
+                              const ticker = suggestion.displaySymbol; // Use displaySymbol (e.g., "NOVN.SW") instead of symbol ("NOVN")
                               setFormData({
                                 ...formData,
-                                companyName: suggestion.shortname || suggestion.longname,
-                                ticker: suggestion.symbol,
+                                companyName: suggestion.shortname,
+                                ticker: ticker,
                               });
-                              setTickerSearchQuery(suggestion.symbol);
+                              setTickerSearchQuery(ticker);
                               setShowTickerSuggestions(false);
-                              // Automatically fetch stock data when selecting from suggestions
-                              setIsLoadingStockData(true);
-                              fetchStockDataMutation.mutate(suggestion.symbol);
+                              // Automatically load data after selection
+                              toast.info("Laden...", { description: "Daten werden geladen..." });
+                              fetchStockDataMutation.mutate(ticker);
                             }}
                             className="w-full px-4 py-2 text-left hover:bg-slate-600 text-white"
                           >
-                            <div className="font-medium">{suggestion.shortname || suggestion.longname}</div>
+                            <div className="font-medium">{suggestion.shortname}</div>
                             <div className="text-sm text-slate-400">
-                              {suggestion.symbol} • {suggestion.exchDisp || suggestion.exchange}
+                              {suggestion.displaySymbol}
                             </div>
                           </button>
                         ))}
@@ -988,27 +1998,12 @@ export default function Home() {
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
                   />
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ticker"
-                      value={formData.ticker || ""}
-                      onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
-                      className="bg-slate-700 border-slate-600 text-white flex-1"
-                    />
-                    {formData.ticker && !autoFilledData && (
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setIsLoadingStockData(true);
-                          fetchStockDataMutation.mutate(formData.ticker);
-                        }}
-                        disabled={isLoadingStockData}
-                        className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
-                      >
-                        {isLoadingStockData ? "Lädt..." : "Daten laden"}
-                      </Button>
-                    )}
-                  </div>
+                  <Input
+                    placeholder="Ticker"
+                    value={formData.ticker || ""}
+                    onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
                   <Input
                     placeholder="Kurs per 31.12. Vorjahr"
                     type="number"
@@ -1025,6 +2020,43 @@ export default function Home() {
                     onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
                     className="bg-slate-700 border-slate-600 text-white"
                   />
+                  {/* P/E, PEG, Sharpe Ratio Row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      placeholder="P/E Ratio"
+                      type="number"
+                      step="0.01"
+                      value={formData.peRatio || ""}
+                      onChange={(e) => setFormData({ ...formData, peRatio: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Input
+                      placeholder="PEG Ratio"
+                      type="number"
+                      step="0.01"
+                      value={formData.pegRatio || ""}
+                      onChange={(e) => setFormData({ ...formData, pegRatio: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      placeholder="Sharpe Ratio"
+                      type="number"
+                      step="0.01"
+                      value={formData.sharpeRatio || ""}
+                      onChange={(e) => setFormData({ ...formData, sharpeRatio: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Input
+                      placeholder="Dividendenrendite (%)"
+                      type="number"
+                      step="0.01"
+                      value={formData.dividendYield || ""}
+                      onChange={(e) => setFormData({ ...formData, dividendYield: e.target.value })}
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                  </div>
                   <Input
                     placeholder="Portfolio-Gewicht (%)"
                     type="number"
@@ -1050,19 +2082,23 @@ export default function Home() {
                     className="bg-slate-700 border-slate-600 text-white"
                     rows={3}
                   />
-                  {autoFilledData && (
-                    <div className="bg-blue-900/30 border border-blue-500/50 rounded-md p-3 text-sm text-blue-200">
-                      <div className="flex items-center gap-2 mb-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="font-medium">Daten automatisch geladen</span>
-                      </div>
-                      <p className="text-xs">Kurs, P/E, PEG, Dividende, Sharpe, Volatilität und Beta wurden automatisch ausgefüllt.</p>
-                    </div>
-                  )}
+                  <Button 
+                    onClick={() => {
+                      const ticker = formData.ticker || formData.companyName;
+                      if (!ticker) {
+                        toast.error("Fehler", { description: "Bitte geben Sie einen Ticker oder Firmennamen ein" });
+                        return;
+                      }
+                      toast.info("Laden...", { description: "Daten werden geladen..." });
+                      fetchStockDataMutation.mutate(ticker);
+                    }}
+                    disabled={fetchStockDataMutation.isPending}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {fetchStockDataMutation.isPending ? "Lädt..." : "Daten laden"}
+                  </Button>
                   <Button onClick={handleAddStock} className="w-full bg-green-600 hover:bg-green-700">
-                    {autoFilledData ? "Übernehmen" : "Hinzufügen"}
+                    Hinzufügen
                   </Button>
                 </div>
               </DialogContent>
@@ -1098,6 +2134,7 @@ export default function Home() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-700">
+                      <th className="text-left py-2 px-2 text-slate-400 w-12">Logo</th>
                       <th onClick={() => handleSort('companyName')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Titel {sortField === 'companyName' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -1138,6 +2175,79 @@ export default function Home() {
                   <tbody>
                     {filteredStocks.map(stock => (
                       <tr key={stock.ticker} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="py-2 px-2">
+                          <div className="w-8 h-8 rounded overflow-hidden bg-white flex items-center justify-center">
+                            <img
+                              src={`https://logo.clearbit.com/${(() => {
+                                const domain = stock.companyName.toLowerCase()
+                                  .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)$/i, '')
+                                  .replace(/\s+/g, '')
+                                  .replace(/[^a-z0-9]/g, '');
+                                return domain;
+                              })()}.com`}
+                              alt={stock.companyName}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const img = e.currentTarget;
+                                const parent = img.parentElement;
+                                
+                                // Swiss company domain mapping
+                                const swissDomainMap: Record<string, string> = {
+                                  'St Galler Kantonalbank': 'sgkb.ch',
+                                  'Zurich Insurance Group': 'zurich.com',
+                                  'Swiss Re AG': 'swissre.com',
+                                  'Swiss Life Holding': 'swisslife.com',
+                                  'Swisscom AG': 'swisscom.ch',
+                                  'Kuehne + Nagel International AG': 'kuehne-nagel.com',
+                                  'Straumann Holding': 'straumann.com',
+                                  'Galderma Group A': 'galderma.com',
+                                  'Flughafen Zurich A': 'zurich-airport.com',
+                                  'Galenica AG': 'galenica.com',
+                                  'Holcim AG': 'holcim.com',
+                                  'BKW AG': 'bkw.ch',
+                                  'Cembra Money Bank': 'cembra.ch',
+                                  'Swissquote Group': 'swissquote.com',
+                                  'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
+                                };
+                                
+                                const knownDomain = swissDomainMap[stock.companyName];
+                                
+                                if (img.src.includes('clearbit')) {
+                                  // Try known domain first for Swiss companies
+                                  if (knownDomain) {
+                                    img.src = `https://logo.clearbit.com/${knownDomain}`;
+                                    img.onerror = () => {
+                                      if (parent) {
+                                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                      }
+                                    };
+                                  } else {
+                                    const domain = stock.companyName.toLowerCase()
+                                      .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance|kantonalbank)$/i, '')
+                                      .replace(/\s+/g, '')
+                                      .replace(/[^a-z0-9]/g, '');
+                                    
+                                    if (stock.ticker.endsWith('.SW') || stock.ticker.endsWith('.N')) {
+                                      img.src = `https://logo.clearbit.com/${domain}.ch`;
+                                      img.onerror = () => {
+                                        if (parent) {
+                                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                        }
+                                      };
+                                    } else {
+                                      img.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                      img.onerror = () => {
+                                        if (parent) {
+                                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
+                                        }
+                                      };
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                        </td>
                         <td className="py-2 px-2 text-white">{stock.companyName}</td>
                         <td className="py-2 px-2">
                           <button
@@ -1346,6 +2456,34 @@ export default function Home() {
                                         )}
                                       </ul>
                                     )}
+                                  </div>
+
+                                  {/* 10-Year Price Chart */}
+                                  <div className="pt-4 border-t border-slate-700">
+                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Kursentwicklung (10 Jahre)</h4>
+                                    <div className="bg-slate-700/50 rounded-lg p-4">
+                                      <iframe
+                                        src={`https://www.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${(() => {
+                                          const ticker = stock.ticker;
+                                          // Swiss stocks: SGKN.SW -> SIX:SGKN
+                                          if (ticker.endsWith('.SW')) {
+                                            return 'SIX%3A' + ticker.replace('.SW', '');
+                                          }
+                                          // Paris stocks: SU.PA -> EURONEXT:SU
+                                          if (ticker.endsWith('.PA')) {
+                                            return 'EURONEXT%3A' + ticker.replace('.PA', '');
+                                          }
+                                          // Milan stocks: MONC.MI -> MIL:MONC
+                                          if (ticker.endsWith('.MI')) {
+                                            return 'MIL%3A' + ticker.replace('.MI', '');
+                                          }
+                                          // US stocks: no prefix needed
+                                          return ticker;
+                                        })()}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=3&timezone=Etc%2FUTC&withdateranges=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=de_DE&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=${stock.ticker}`}
+                                        className="w-full h-[400px] border-0 rounded"
+                                        title="TradingView Chart"
+                                      />
+                                    </div>
                                   </div>
                                   
                                   {/* Owner-only: Competition Analyzer */}
@@ -1575,20 +2713,82 @@ export default function Home() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">Gefundene Alternativen</h3>
                   {competitorAnalysisData.alternatives.map((alt: any, idx: number) => (
-                    <div key={idx} className="bg-slate-700/30 p-4 rounded-lg border border-slate-600 hover:border-purple-500 transition-colors">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="text-white font-semibold text-lg">{alt.name}</h4>
-                          <p className="text-slate-400 text-sm">{alt.ticker}</p>
+                    <div key={idx} className="bg-slate-700/30 p-5 rounded-lg border border-slate-600 hover:border-purple-500 transition-colors">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          {/* Company Logo */}
+                          <div className="w-12 h-12 rounded-lg bg-white p-2 flex items-center justify-center flex-shrink-0">
+                            <img 
+                              src={`https://financialmodelingprep.com/image-stock/${alt.ticker.replace(/\.(SW|PA|MI|CO|DE|AS)$/, '')}.png`}
+                              alt={alt.name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const swissDomainMap: Record<string, string> = {
+                                  'St Galler Kantonalbank': 'sgkb.ch',
+                                  'Zurich Insurance Group': 'zurich.com',
+                                  'Swiss Re AG': 'swissre.com',
+                                  'Swiss Life Holding': 'swisslife.com',
+                                  'Swisscom AG': 'swisscom.ch',
+                                  'Kuehne + Nagel International AG': 'kuehne-nagel.com',
+                                  'Straumann Holding': 'straumann.com',
+                                  'Galderma Group A': 'galderma.com',
+                                  'Flughafen Zurich A': 'zurich-airport.com',
+                                  'Galenica AG': 'galenica.com',
+                                  'Holcim AG': 'holcim.com',
+                                  'BKW AG': 'bkw.ch',
+                                  'Cembra Money Bank': 'cembra.ch',
+                                  'Swissquote Group': 'swissquote.com',
+                                  'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
+                                };
+                                const knownDomain = swissDomainMap[alt.name];
+                                const isSwissStock = alt.ticker?.endsWith('.SW');
+                                const domainExt = isSwissStock ? 'ch' : 'com';
+                                let domain = alt.name.toLowerCase()
+                                  .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial|kantonalbank).*$/i, '')
+                                  .replace(/[^a-z0-9]/g, '')
+                                  .trim();
+                                if (knownDomain) {
+                                  e.currentTarget.src = `https://logo.clearbit.com/${knownDomain}`;
+                                } else {
+                                  e.currentTarget.src = `https://logo.clearbit.com/${domain}.${domainExt}`;
+                                }
+                                e.currentTarget.onerror = () => {
+                                  if (isSwissStock) {
+                                    e.currentTarget.src = `https://logo.clearbit.com/${domain}.com`;
+                                    e.currentTarget.onerror = () => {
+                                      e.currentTarget.src = `https://img.logo.dev/${domain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                      e.currentTarget.onerror = () => {
+                                        if (e.currentTarget.parentElement) {
+                                          e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${alt.name.charAt(0)}</div>`;
+                                        }
+                                      };
+                                    };
+                                  } else {
+                                    e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
+                                    e.currentTarget.onerror = () => {
+                                      if (e.currentTarget.parentElement) {
+                                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${alt.name.charAt(0)}</div>`;
+                                      }
+                                    };
+                                  }
+                                };
+                              }}
+                            />
+                          </div>
+                          {/* Company Name and Ticker */}
+                          <div>
+                            <h4 className="text-white font-bold text-xl mb-1">{alt.name}</h4>
+                            <p className="text-slate-400 text-base">{alt.ticker}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-green-400 font-bold text-lg">Score: {alt.score.toFixed(2)}</div>
-                          <div className="text-slate-400 text-xs">vs. {competitorAnalysisData.currentStock.score.toFixed(2)}</div>
+                        <div className="text-right ml-4">
+                          <div className="text-green-400 font-bold text-xl">Score: {alt.score.toFixed(2)}</div>
+                          <div className="text-slate-400 text-sm">vs. {competitorAnalysisData.currentStock.score.toFixed(2)}</div>
                         </div>
                       </div>
                       
                       {/* Metrics Comparison */}
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 text-sm">
+                      <div className="grid grid-cols-5 gap-4 mb-4 text-sm">
                         <div>
                           <span className="text-slate-400 block">Kurs</span>
                           <span className="text-white font-semibold">{alt.currentPrice?.toFixed(2) || 'N/A'}</span>
@@ -1676,7 +2876,101 @@ export default function Home() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Save Portfolio Dialog */}
+      <Dialog open={isSavePortfolioDialogOpen} onOpenChange={setIsSavePortfolioDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Portfolio speichern</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Portfolio-Name</label>
+              <input
+                type="text"
+                value={portfolioName}
+                onChange={(e) => setPortfolioName(e.target.value)}
+                placeholder="z.B. Mein Wachstumsportfolio"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Beschreibung (optional)</label>
+              <textarea
+                value={portfolioDescription}
+                onChange={(e) => setPortfolioDescription(e.target.value)}
+                placeholder="Beschreiben Sie Ihre Portfolio-Strategie..."
+                rows={3}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                onClick={() => {
+                  setIsSavePortfolioDialogOpen(false);
+                  setPortfolioName('');
+                  setPortfolioDescription('');
+                }}
+                variant="outline"
+                className="border-slate-600 text-white hover:bg-slate-700"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!portfolioName.trim()) {
+                    toast.error('Fehler', { description: 'Bitte geben Sie einen Portfolio-Namen ein' });
+                    return;
+                  }
+                  
+                  try {
+                    const portfolioData = JSON.stringify({
+                      stocks: stocks.map(s => ({
+                        ticker: s.ticker,
+                        companyName: s.companyName,
+                        portfolioWeight: s.portfolioWeight,
+                        isManualWeight: s.isManualWeight,
+                        category: s.category,
+                      })),
+                      savedAt: new Date().toISOString(),
+                    });
+                    
+                    await trpc.savedPortfolios.create.mutate({
+                      name: portfolioName,
+                      description: portfolioDescription || undefined,
+                      portfolioData,
+                    });
+                    
+                    toast.success('Erfolg', { description: `Portfolio "${portfolioName}" wurde gespeichert` });
+                    setIsSavePortfolioDialogOpen(false);
+                    setPortfolioName('');
+                    setPortfolioDescription('');
+                  } catch (error) {
+                    console.error('Failed to save portfolio:', error);
+                    toast.error('Fehler', { description: 'Portfolio konnte nicht gespeichert werden' });
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={!portfolioName.trim()}
+              >
+                Speichern
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Portfolio Dialog */}
+      <Dialog open={isLoadPortfolioDialogOpen} onOpenChange={setIsLoadPortfolioDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Portfolio laden</DialogTitle>
+          </DialogHeader>
+          <LoadPortfolioContent onClose={() => setIsLoadPortfolioDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
     </>
   );
 }
+

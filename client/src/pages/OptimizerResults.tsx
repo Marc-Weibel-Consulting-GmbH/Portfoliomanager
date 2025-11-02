@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Download, TrendingUp, HelpCircle } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp, HelpCircle, Save, FolderOpen } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -960,11 +960,22 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white">Optimiertes Portfolio</CardTitle>
           <div className="flex gap-2">
-            <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+            <Button onClick={onBack} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück
+            </Button>
+            <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               Portfolio anpassen
             </Button>
-            <Button onClick={exportToPDF} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={() => {/* TODO: Open save dialog */}} className="bg-green-600 hover:bg-green-700 text-white">
+              <Save className="w-4 h-4 mr-2" />
+              Speichern
+            </Button>
+            <Button onClick={() => {/* TODO: Open load dialog */}} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Laden
+            </Button>
+            <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
               <Download className="w-4 h-4 mr-2" />
               PDF Export
             </Button>

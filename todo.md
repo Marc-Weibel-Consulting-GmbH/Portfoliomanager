@@ -41,6 +41,12 @@
 
 ## Abgeschlossen
 - [x] Yahoo Finance + EODHD API Integration für Stock Metrics
+- [x] EODHD Search API für Ticker-Suche implementiert (ersetzt Yahoo Finance)
+- [x] Auto-Fill beim Hinzufügen neuer Aktien: Suche → Auswahl → Alle Daten geladen
+- [x] Ticker-Format-Bereinigung ("NOVN • SW" → "NOVN.SW" für API-Kompatibilität)
+- [x] fetchStockData Endpoint mit EODHD Fundamentals + Real-Time Quote Integration
+- [x] Automatisches Laden von P/E, PEG, Kurs, Dividendenrendite bei Ticker-Auswahl
+- [x] "Daten laden" Button im Add Stock Dialog
 - [x] Sharpe Ratio Spalte im Portfolio mit Farbcodierung (Grün ≥1, Gelb ≥0, Rot <0)
 - [x] Sharpe Ratio Berechnung basierend auf 1 Jahr historischer Kursdaten
 - [x] PEG Ratio, P/E Ratio, Dividendenrendite von EODHD API
@@ -534,3 +540,181 @@
 - [x] Nur Alternativen aus gleicher Kategorie vorschlagen - FIXED: Category constraint in LLM
 - [x] Mindestens 1 Kennzahl besser OHNE dass andere signifikant schlechter sind - FIXED: isBetter && isNotWorse logic
 
+
+
+## Bugs
+- [x] Hinzufügen Button funktioniert nicht nach Auto-Fill Implementation (funktioniert einwandfrei)
+- [x] Dividendenrendite wird als 0% angezeigt bei Auto-Fill (sollte ~3-4% für Novartis sein) - FIXED: Dividendenrendite-Feld hinzugefügt
+- [x] Kurs per 31.12.24 wird nicht automatisch gefüllt bei Auto-Fill - FIXED: EODHD Historical Data API integriert
+- [x] Sharpe Ratio wird nicht angezeigt bei Auto-Fill - WONTFIX: EODHD API liefert keine Sharpe Ratio (muss manuell eingegeben werden)
+
+
+
+## In Arbeit
+- [x] Alternative Stocks Karten breiter und länger machen (ganzer Kasten sichtbar)
+- [x] Titel-Struktur ändern: Fetter Firmenname als Titel, Ticker als kleinere zweite Zeile
+- [ ] Firmenlogo links vom Titel für jede Alternative anzeigen
+- [x] Navigation umbenennen: Portfolio→Aktien, Optimizer→Portfolio, Newsroom→News
+- [x] Neuer Button "Analyzer" nach Portfolio einfügen
+- [ ] 9 ETFs aus Portfolio-Liste zur Datenbank hinzufügen (Kategorie: ETF)
+
+
+
+## Neue Features
+- [x] 10-Jahres-Kurschart im Info-Dialog hinzugefügt (TradingView Widget)
+- [x] Wettbewerbsvorteile bereits auf Deutsch
+- [x] Analyzer UI entwickeln mit Diagramm-Platzhaltern
+- [x] Analyse-Kategorien hinzugefügt (Portfolio-Übersicht, Risiko-Analyse, Performance-Analyse)
+- [x] Interaktive Elemente: 4 Chart-Platzhalter + Kennzahlen-Dashboard
+
+## Bugs zu beheben
+- [x] Logos werden auf "Aktien"-Seite nicht angezeigt - FIXED: Logo-Spalte hinzugefügt
+- [ ] ETF werden nicht unter "Aktien" aufgeführt
+- [x] "2010 errors" Button unten links - FIXED: parentElement Null-Prüfung in Logo onError Handler
+- [x] Schweizer Aktien-Logos werden in Tabelle nicht angezeigt (funktioniert im Info-Dialog) - FIXED: Swiss domain map integriert
+
+## Neue Anforderungen
+- [x] "Konkurrenten" Button im Analyzer hinzugefügt
+- [x] Alle Aktien mit Alternativen im Analyzer auflisten (Alert-Dialog)
+- [x] 5-Jahres-Kurschart für Performance-Verlauf im Analyzer (TradingView Widget)
+- [x] Benchmark-Dropdown im Performance-Chart (S&P 500, Nasdaq, MSCI World, SMI, SMIM)
+- [x] "Wissen" Button nach "Research" hinzugefügt
+- [x] Wissen UI mit wichtigsten Finanzbegriffen für Anfänger (6 Begriffe mit Icons)
+- [x] "Rechner" Button hinzugefügt
+- [x] Rechner UI mit verschiedenen Kalkulatoren
+- [x] Platzhalter für "Renten-/Kapitalbezug" Kalkulator erstellt
+- [x] "Marktanalyse" Button im Analyzer hinzugefügt
+- [x] KI-gestützte Portfolio-Analyse basierend auf Marktbedingungen (Bewertung, Wachstum, Performance, Diversifikation)
+- [x] Fear & Greed Index Widget im Analyzer (mit hochgeladenem Bild)
+- [ ] Renten-/Kapitalbezug Rechner UI entwickeln mit:
+  - [ ] Pensionskassen-Kapital, Umwandlungssatz, Lebenserwartung
+  - [ ] Steuerbelastung Kapitalbezug & Rente (Schweiz)
+  - [ ] Regelmässige Einnahmen (AHV, Immobilien, Wertschriften)
+  - [ ] Gewünschte Ausgaben, erwartete Rendite
+  - [ ] Vergleichsberechnung & Empfehlung
+- [ ] Checkpoint-Speicherproblem dauerhaft lösen
+
+
+
+## Rechner Features (Neu hinzugefügt)
+- [x] Finanzrechner-Tab implementiert mit zwei Rechnern
+- [x] Renten-/Kapitalbezug Rechner erstellt
+- [x] Pensionskassen-Kapital Eingabe
+- [x] Umwandlungssatz, Lebenserwartung, Steuersätze konfigurierbar
+- [x] Automatische Berechnung: Rente vs. Kapitalbezug Vergleich
+- [x] Empfehlung basierend auf Gesamtwert (Rente oder Kapital)
+- [x] Deckungsgrad-Analyse (mit/ohne BVG-Rente)
+- [x] Regelmässige Einnahmen und gewünschte Ausgaben berücksichtigt
+- [x] Erwartete Rendite für Kapitalbezug-Szenario
+- [x] Budgetrechner implementiert
+- [x] Haushaltstyp-Auswahl (Einzelhaushalt/Familie)
+- [x] 12 typische Schweizer Haushaltskategorien (Wohnen, Nebenkosten, Krankenkasse, etc.)
+- [x] Standard-Werte mit individueller Anpassungsmöglichkeit
+- [x] Automatische Berechnung: Monatliches Einkommen, Überschuss/Defizit, Sparquote
+- [x] Farbcodierung für bessere Übersicht (grün = Überschuss, rot = Defizit)
+- [x] Total-Berechnung über alle Kategorien
+- [x] React Hooks Fehler behoben (useState Hooks an den Anfang der Komponente verschoben)
+- [x] TypeScript Kompilierung erfolgreich (keine Fehler)
+
+
+
+## TradingView Chart Fix
+- [ ] Fix TradingView chart symbol format for Swiss stocks (.SW suffix)
+- [ ] Convert SGKN.SW to SIX:SGKN format for TradingView widget
+- [ ] Test chart display with multiple Swiss stocks
+
+
+
+## Portfolio Performance & Fear & Greed Index Updates
+- [ ] Portfolio Performance Chart: Berechnung basierend auf aktueller Zusammensetzung über 5 Jahre
+- [ ] Historische Kursdaten für alle Aktien abrufen (5 Jahre)
+- [ ] Gewichtete Portfolio-Performance berechnen
+- [ ] Eigene Chart-Visualisierung erstellen (ohne TradingView)
+- [ ] Fear & Greed Index mit echten aktuellen Daten aktualisieren
+- [ ] API-Integration für Fear & Greed Index Daten
+
+
+
+## Syntax Error Fix
+- [x] Fix syntax error in Home.tsx line 1262 (incomplete benchmark selector code)
+
+
+
+## Pension Calculator Enhancement
+- [ ] Add canton selection dropdown (all 26 Swiss cantons)
+- [ ] Add religion selection (reformiert, katholisch, konfessionslos)
+- [ ] Implement canton-specific capital withdrawal tax calculation
+- [ ] Add desired coverage ratio field (Einnahmen/Ausgaben)
+- [ ] Calculate optimal capital withdrawal percentage automatically
+- [ ] Update calculator UI with new fields
+- [ ] Test calculations with different scenarios
+
+
+
+## Portfolio Performance Chart Fix
+- [ ] Fix start value to CHF 10'000 (minimum investment)
+- [ ] Calculate end value based on actual 5-year performance
+- [ ] Display correct performance percentage over 5 years
+
+
+
+
+## Budget Calculator Integration
+- [x] Add "Budgetrechner öffnen" button next to desired expenses field in pension calculator
+- [x] Implement switch to budget calculator when button is clicked
+- [x] Add "Übernehmen" button in budget calculator to transfer total back to pension calculator
+- [x] Ensure seamless data flow between calculators
+
+
+
+## Budget Calculator Household Types
+- [x] Replace simple single/family selection with 6 detailed options
+- [x] Add household types: Einpersonenhaushalt, Zweipersonenhaushalt, Familie mit 1-4 Kindern
+- [x] Add dynamic "Ausbildungskosten" budget item for families with children
+- [x] Adjust standard values based on household size (1, 2, 3, 4, 5, 6 persons)
+- [x] Hide education costs for households without children
+
+
+
+## Portfolio Performance & Navigation
+- [ ] Fix portfolio performance chart to use fixed CHF 10'000 start value (not dynamic)
+- [ ] Add back button in portfolio area for navigation
+- [ ] Implement portfolio save functionality with custom names
+- [ ] Create database schema for saved portfolios (user_id, name, stocks, weights, created_at)
+- [ ] Add UI to save current portfolio with custom name
+- [ ] Add UI to load previously saved portfolios
+- [ ] Support multiple portfolio variants per user
+
+
+
+## Rechner Tab Bug
+- [x] Fix React Hooks error - useMemo inside conditional block (moved outside if statement)
+
+
+
+## Swiss Canton Tax Rates Update
+- [x] Research latest 2024/2025 capital withdrawal tax rates for all 26 cantons
+- [x] Update swissCantonTax.ts with accurate progressive tax rates
+- [x] Include religion-based adjustments (church tax)
+- [x] Verify calculations with official sources
+
+
+
+## Portfolio Save/Load Feature
+- [x] Implement backend tRPC procedures for portfolio CRUD (create, read, update, delete)
+- [x] Create "Save Portfolio" dialog with name input
+- [x] Create "Load Portfolio" dialog showing saved portfolios list
+- [x] Add "Delete Portfolio" functionality
+- [x] Move Save/Load buttons to optimized portfolio section (when showOptimizerResults is true)
+- [x] Add back button (←) in optimized portfolio to return to input form
+- [x] Test save/load workflow end-to-end
+
+
+
+## Chart Type Default
+- [x] Change default chart type in Info dialog from "Linie" to "Fläche"
+
+## Remove Duplicate Buttons
+- [x] Remove "Speichern" and "Laden" buttons from Aktien tab (already in Portfolio tab)
+
+# Updated Sun Nov  2 04:49:27 EST 2025

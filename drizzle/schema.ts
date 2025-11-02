@@ -151,3 +151,19 @@ export const payments = mysqlTable("payments", {
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = typeof payments.$inferInsert;
 
+
+
+// Saved portfolios table - allows users to save multiple portfolio variants
+export const savedPortfolios = mysqlTable("savedPortfolios", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(), // References users.id
+  name: varchar("name", { length: 255 }).notNull(), // User-defined portfolio name
+  description: text("description"), // Optional description
+  portfolioData: text("portfolioData").notNull(), // JSON string with stocks and weights
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SavedPortfolio = typeof savedPortfolios.$inferSelect;
+export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
+
