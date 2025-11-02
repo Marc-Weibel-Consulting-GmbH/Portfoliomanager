@@ -684,3 +684,11 @@
 ## Rechner Tab Bug
 - [x] Fix Rechner tab switching to homepage while filling out fields (React error causing re-render)
 
+
+
+## Swiss Canton Tax Rates Update
+- [x] Research latest 2024/2025 capital withdrawal tax rates for all 26 cantons
+- [x] Update swissCantonTax.ts with accurate progressive tax rates
+- [x] Include religion-based adjustments (church tax)
+- [x] Verify calculations with official sources
+
