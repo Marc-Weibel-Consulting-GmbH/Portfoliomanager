@@ -233,6 +233,9 @@ export default function Home() {
   const [portfolioName, setPortfolioName] = useState('');
   const [portfolioDescription, setPortfolioDescription] = useState('');
   
+  // Query for saved portfolios - MUST be at top level (not conditional)
+  const { data: savedPortfoliosData = [] } = trpc.savedPortfolios.list.useQuery();
+  
   // Calculator state - MUST be declared here, not inside conditional
   const [calculatorType, setCalculatorType] = useState<'pension' | 'budget'>('pension');
   const [pensionCapital, setPensionCapital] = useState('');
@@ -1560,8 +1563,7 @@ export default function Home() {
     }
 
     // Show portfolio selection if user has saved portfolios and hasn't started questionnaire
-    const { data: savedPortfolios = [] } = trpc.savedPortfolios.list.useQuery();
-    if (!optimizerInputs && savedPortfolios.length > 0) {
+    if (!optimizerInputs && savedPortfoliosData.length > 0) {
       return (
         <div className="min-h-screen bg-slate-900 p-8">
           <div className="max-w-5xl mx-auto">
@@ -1571,7 +1573,7 @@ export default function Home() {
             </div>
 
             <div className="grid gap-6 mb-8">
-              {savedPortfolios.map((portfolio: any) => (
+              {savedPortfoliosData.map((portfolio: any) => (
                 <Card key={portfolio.id} className="bg-slate-800 border-slate-700 hover:border-blue-500 transition-colors cursor-pointer"
                   onClick={() => {
                     // Load this portfolio and show results
@@ -2291,13 +2293,7 @@ export default function Home() {
                         <td className="py-2 px-2">
                           <div className="w-8 h-8 rounded overflow-hidden bg-white flex items-center justify-center">
                             <img
-                              src={`https://logo.clearbit.com/${(() => {
-                                const domain = stock.companyName.toLowerCase()
-                                  .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)$/i, '')
-                                  .replace(/\s+/g, '')
-                                  .replace(/[^a-z0-9]/g, '');
-                                return domain;
-                              })()}.com`}
+                              src={`https://logo.stockanalysis.com/${stock.ticker.replace(/\.(SW|N|PA)$/, '').toLowerCase()}.svg`}
                               alt={stock.companyName}
                               className="w-full h-full object-contain"
                               onError={(e) => {
