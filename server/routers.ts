@@ -1245,6 +1245,71 @@ export const appRouter = router({
       }),
   }),
 
+  savedPortfolios: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const { getSavedPortfolios } = await import("./db");
+      return await getSavedPortfolios(ctx.user.id);
+    }),
+
+    get: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById } = await import("./db");
+        return await getSavedPortfolioById(input, ctx.user.id);
+      }),
+
+    create: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "name" in val && "portfolioData" in val) {
+          return val as { name: string; description?: string; portfolioData: string };
+        }
+        throw new Error("Invalid portfolio data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { createSavedPortfolio } = await import("./db");
+        return await createSavedPortfolio({
+          userId: ctx.user.id,
+          name: input.name,
+          description: input.description || null,
+          portfolioData: input.portfolioData,
+        });
+      }),
+
+    update: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val as { id: number; name?: string; description?: string; portfolioData?: string };
+        }
+        throw new Error("Invalid update data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { updateSavedPortfolio } = await import("./db");
+        const { id, ...updates } = input;
+        return await updateSavedPortfolio(id, ctx.user.id, updates);
+      }),
+
+    delete: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { deleteSavedPortfolio } = await import("./db");
+        const success = await deleteSavedPortfolio(input, ctx.user.id);
+        if (!success) {
+          throw new Error("Failed to delete portfolio");
+        }
+        return { success: true };
+      }),
+  }),
+
   user: router({
     updateSettings: protectedProcedure
       .input((val: unknown) => {

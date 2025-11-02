@@ -255,3 +255,99 @@ export async function deleteAllTransactions() {
   }
 }
 
+
+
+// Saved Portfolio queries
+export async function getSavedPortfolios(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  try {
+    const result = await db
+      .select()
+      .from(savedPortfolios)
+      .where(eq(savedPortfolios.userId, userId))
+      .orderBy(desc(savedPortfolios.updatedAt));
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get saved portfolios:", error);
+    return [];
+  }
+}
+
+export async function getSavedPortfolioById(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  try {
+    const result = await db
+      .select()
+      .from(savedPortfolios)
+      .where(eq(savedPortfolios.id, id))
+      .limit(1);
+    
+    if (result.length === 0 || result[0].userId !== userId) {
+      return null; // Not found or doesn't belong to user
+    }
+    
+    return result[0];
+  } catch (error) {
+    console.error("[Database] Failed to get saved portfolio:", error);
+    return null;
+  }
+}
+
+export async function createSavedPortfolio(portfolio: InsertSavedPortfolio) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  try {
+    const result = await db.insert(savedPortfolios).values(portfolio);
+    return { id: Number(result.insertId), ...portfolio };
+  } catch (error) {
+    console.error("[Database] Failed to create saved portfolio:", error);
+    return null;
+  }
+}
+
+export async function updateSavedPortfolio(id: number, userId: number, updates: Partial<InsertSavedPortfolio>) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  try {
+    // Verify ownership
+    const existing = await getSavedPortfolioById(id, userId);
+    if (!existing) {
+      return null;
+    }
+    
+    await db.update(savedPortfolios)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(savedPortfolios.id, id));
+    
+    return { id, ...existing, ...updates };
+  } catch (error) {
+    console.error("[Database] Failed to update saved portfolio:", error);
+    return null;
+  }
+}
+
+export async function deleteSavedPortfolio(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  
+  try {
+    // Verify ownership
+    const existing = await getSavedPortfolioById(id, userId);
+    if (!existing) {
+      return false;
+    }
+    
+    await db.delete(savedPortfolios).where(eq(savedPortfolios.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete saved portfolio:", error);
+    return false;
+  }
+}
+

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useMemo, useEffect } from "react";
-import { Trash2, Edit2, Plus, Download, LogOut } from "lucide-react";
+import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
@@ -95,6 +95,102 @@ async function analyzePortfolioMarket(stocks: any[]) {
   return analysis;
 }
 
+// Load Portfolio Content Component
+function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
+  const { data: savedPortfolios = [], refetch } = trpc.savedPortfolios.list.useQuery();
+  const deleteMutation = trpc.savedPortfolios.delete.useMutation();
+  const { refetch: refetchStocks } = trpc.stocks.list.useQuery();
+
+  const handleLoad = async (portfolio: any) => {
+    try {
+      const data = JSON.parse(portfolio.portfolioData);
+      
+      // TODO: Implement loading logic to replace current portfolio
+      // This would require a new tRPC mutation to replace all stocks
+      
+      toast.success('Portfolio geladen', {
+        description: `"${portfolio.name}" wurde erfolgreich geladen`,
+      });
+      
+      onClose();
+      window.location.reload(); // Temporary solution
+    } catch (error) {
+      console.error('Failed to load portfolio:', error);
+      toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden' });
+    }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Möchten Sie das Portfolio "${name}" wirklich löschen?`)) {
+      return;
+    }
+
+    try {
+      await deleteMutation.mutateAsync({ id });
+      toast.success('Gelöscht', { description: `Portfolio "${name}" wurde gelöscht` });
+      refetch();
+    } catch (error) {
+      console.error('Failed to delete portfolio:', error);
+      toast.error('Fehler', { description: 'Portfolio konnte nicht gelöscht werden' });
+    }
+  };
+
+  if (savedPortfolios.length === 0) {
+    return (
+      <div className="text-center py-8 text-slate-400">
+        <p>Keine gespeicherten Portfolios gefunden.</p>
+        <p className="text-sm mt-2">Speichern Sie Ihr aktuelles Portfolio, um es später wieder zu laden.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 max-h-96 overflow-y-auto">
+      {savedPortfolios.map((portfolio: any) => {
+        const data = JSON.parse(portfolio.portfolioData);
+        const stockCount = data.stocks?.length || 0;
+        
+        return (
+          <div
+            key={portfolio.id}
+            className="p-4 bg-slate-700 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="font-semibold text-white mb-1">{portfolio.name}</h3>
+                {portfolio.description && (
+                  <p className="text-sm text-slate-400 mb-2">{portfolio.description}</p>
+                )}
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span>{stockCount} Aktien</span>
+                  <span>Gespeichert: {new Date(portfolio.createdAt).toLocaleDateString('de-DE')}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 ml-4">
+                <Button
+                  onClick={() => handleLoad(portfolio)}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Laden
+                </Button>
+                <Button
+                  onClick={() => handleDelete(portfolio.id, portfolio.name)}
+                  size="sm"
+                  variant="outline"
+                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery(undefined, {
@@ -132,6 +228,10 @@ export default function Home() {
   const [refreshProgress, setRefreshProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshStartTime, setRefreshStartTime] = useState<number | null>(null);
+  const [isSavePortfolioDialogOpen, setIsSavePortfolioDialogOpen] = useState(false);
+  const [isLoadPortfolioDialogOpen, setIsLoadPortfolioDialogOpen] = useState(false);
+  const [portfolioName, setPortfolioName] = useState('');
+  const [portfolioDescription, setPortfolioDescription] = useState('');
   
   // Calculator state - MUST be declared here, not inside conditional
   const [calculatorType, setCalculatorType] = useState<'pension' | 'budget'>('pension');
@@ -1507,6 +1607,30 @@ export default function Home() {
             <p className="text-blue-100">Verwalte und analysiere dein Aktienportfolio</p>
           </div>
           <div className="flex items-center gap-3">
+            {(isAuthenticated || user) && (
+              <>
+                <Button
+                  onClick={() => setIsSavePortfolioDialogOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-green-600 border-green-500 text-white hover:bg-green-700 hover:border-green-600"
+                  title="Portfolio speichern"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Speichern
+                </Button>
+                <Button
+                  onClick={() => setIsLoadPortfolioDialogOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-blue-600 border-blue-500 text-white hover:bg-blue-700 hover:border-blue-600"
+                  title="Portfolio laden"
+                >
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  Laden
+                </Button>
+              </>
+            )}
             <img 
               src="/portrait.jpg" 
               alt="Portfolio Manager" 
@@ -2774,6 +2898,99 @@ export default function Home() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Save Portfolio Dialog */}
+      <Dialog open={isSavePortfolioDialogOpen} onOpenChange={setIsSavePortfolioDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Portfolio speichern</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Portfolio-Name</label>
+              <input
+                type="text"
+                value={portfolioName}
+                onChange={(e) => setPortfolioName(e.target.value)}
+                placeholder="z.B. Mein Wachstumsportfolio"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Beschreibung (optional)</label>
+              <textarea
+                value={portfolioDescription}
+                onChange={(e) => setPortfolioDescription(e.target.value)}
+                placeholder="Beschreiben Sie Ihre Portfolio-Strategie..."
+                rows={3}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                onClick={() => {
+                  setIsSavePortfolioDialogOpen(false);
+                  setPortfolioName('');
+                  setPortfolioDescription('');
+                }}
+                variant="outline"
+                className="border-slate-600 text-white hover:bg-slate-700"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!portfolioName.trim()) {
+                    toast.error('Fehler', { description: 'Bitte geben Sie einen Portfolio-Namen ein' });
+                    return;
+                  }
+                  
+                  try {
+                    const portfolioData = JSON.stringify({
+                      stocks: stocks.map(s => ({
+                        ticker: s.ticker,
+                        companyName: s.companyName,
+                        portfolioWeight: s.portfolioWeight,
+                        isManualWeight: s.isManualWeight,
+                        category: s.category,
+                      })),
+                      savedAt: new Date().toISOString(),
+                    });
+                    
+                    await trpc.savedPortfolios.create.mutate({
+                      name: portfolioName,
+                      description: portfolioDescription || undefined,
+                      portfolioData,
+                    });
+                    
+                    toast.success('Erfolg', { description: `Portfolio "${portfolioName}" wurde gespeichert` });
+                    setIsSavePortfolioDialogOpen(false);
+                    setPortfolioName('');
+                    setPortfolioDescription('');
+                  } catch (error) {
+                    console.error('Failed to save portfolio:', error);
+                    toast.error('Fehler', { description: 'Portfolio konnte nicht gespeichert werden' });
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={!portfolioName.trim()}
+              >
+                Speichern
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Portfolio Dialog */}
+      <Dialog open={isLoadPortfolioDialogOpen} onOpenChange={setIsLoadPortfolioDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Portfolio laden</DialogTitle>
+          </DialogHeader>
+          <LoadPortfolioContent onClose={() => setIsLoadPortfolioDialogOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

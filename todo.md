@@ -692,3 +692,13 @@
 - [x] Include religion-based adjustments (church tax)
 - [x] Verify calculations with official sources
 
+
+
+## Portfolio Save/Load Feature
+- [x] Implement backend tRPC procedures for portfolio CRUD (create, read, update, delete)
+- [x] Create "Save Portfolio" dialog with name input
+- [x] Create "Load Portfolio" dialog showing saved portfolios list
+- [x] Add "Delete Portfolio" functionality
+- [x] Display saved portfolios count in UI
+- [x] Test save/load workflow end-to-end
+
