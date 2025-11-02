@@ -167,6 +167,75 @@ export default function Home() {
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;
   
+  // Calculator results (must be outside conditional for React Hooks rules)
+  const calculatorResults = React.useMemo(() => {
+    if (activeTab !== "rechner" || !pensionCapital) return null;
+    
+    const totalCapital = parseFloat(pensionCapital);
+    const rate = parseFloat(conversionRate) / 100;
+    const life = parseInt(lifeExpectancy);
+    const age = parseInt(currentAge);
+    const years = life - age;
+    const income = parseFloat(regularIncome) || 0;
+    const expenses = parseFloat(desiredExpenses) || 0;
+    const targetCoverage = parseFloat(desiredCoverageRatio) / 100;
+    
+    // Calculate optimal capital withdrawal percentage
+    let optimalWithdrawalPct = 0;
+    if (expenses > 0 && targetCoverage > 0) {
+      const requiredMonthlyIncome = expenses * targetCoverage;
+      const additionalIncomeNeeded = Math.max(0, requiredMonthlyIncome - income);
+      
+      if (additionalIncomeNeeded > 0) {
+        const requiredAnnualPension = additionalIncomeNeeded * 12;
+        const requiredCapitalForPension = requiredAnnualPension / rate;
+        optimalWithdrawalPct = Math.min(100, (requiredCapitalForPension / totalCapital) * 100);
+      }
+    }
+    
+    const withdrawalPct = optimalWithdrawalPct > 0 ? optimalWithdrawalPct : 100;
+    const capitalForPension = totalCapital * (withdrawalPct / 100);
+    const capitalForWithdrawal = totalCapital - capitalForPension;
+    
+    const annualPension = capitalForPension * rate;
+    const monthlyPension = annualPension / 12;
+    
+    const taxResult = calculateCapitalWithdrawalTax(capitalForWithdrawal, canton, religion);
+    const netCapital = taxResult.netAmount;
+    const capitalTax = taxResult.taxAmount;
+    const effectiveTaxRate = taxResult.taxRate;
+    
+    const totalPensionGross = annualPension * years;
+    const pensionTax = totalPensionGross * (parseFloat(pensionTaxRate) / 100);
+    const totalPensionNet = totalPensionGross - pensionTax;
+    
+    const returnRate = parseFloat(expectedReturn) / 100;
+    const futureValue = netCapital * Math.pow(1 + returnRate, years);
+    
+    const totalMonthlyIncome = income + monthlyPension;
+    const coverageWithPension = expenses > 0 ? ((totalMonthlyIncome / expenses) * 100).toFixed(1) : '0';
+    const coverageWithoutPension = expenses > 0 ? ((income / expenses) * 100).toFixed(1) : '0';
+    
+    const totalValue = totalPensionNet + futureValue;
+    const fullCapitalValue = calculateCapitalWithdrawalTax(totalCapital, canton, religion).netAmount * Math.pow(1 + returnRate, years);
+    
+    return {
+      monthlyPension: monthlyPension.toFixed(0),
+      annualPension: annualPension.toFixed(0),
+      totalPensionNet: totalPensionNet.toFixed(0),
+      netCapital: netCapital.toFixed(0),
+      capitalTax: capitalTax.toFixed(0),
+      effectiveTaxRate: effectiveTaxRate.toFixed(2),
+      futureValue: futureValue.toFixed(0),
+      coverageWithPension,
+      coverageWithoutPension,
+      optimalWithdrawalPct: optimalWithdrawalPct.toFixed(1),
+      capitalForPension: capitalForPension.toFixed(0),
+      capitalForWithdrawal: capitalForWithdrawal.toFixed(0),
+      recommendation: totalValue > fullCapitalValue ? 'Mischbezug empfohlen' : 'Vollständiger Kapitalbezug empfohlen'
+    };
+  }, [activeTab, pensionCapital, conversionRate, lifeExpectancy, currentAge, regularIncome, desiredExpenses, desiredCoverageRatio, canton, religion, pensionTaxRate, expectedReturn]);
+  
   // Progress tracking effect
   useEffect(() => {
     if (isRefreshing && refreshStartTime) {
@@ -700,83 +769,7 @@ export default function Home() {
   }
 
   if (activeTab === "rechner") {
-    // Calculator state is declared at the top of the component
-
-    const results = React.useMemo(() => {
-      if (!pensionCapital) return null;
-      
-      const totalCapital = parseFloat(pensionCapital);
-      const rate = parseFloat(conversionRate) / 100;
-      const life = parseInt(lifeExpectancy);
-      const age = parseInt(currentAge);
-      const years = life - age;
-      const income = parseFloat(regularIncome) || 0;
-      const expenses = parseFloat(desiredExpenses) || 0;
-      const targetCoverage = parseFloat(desiredCoverageRatio) / 100;
-      
-      // Calculate optimal capital withdrawal percentage
-      let optimalWithdrawalPct = 0;
-      if (expenses > 0 && targetCoverage > 0) {
-        // Required monthly income to reach target coverage
-        const requiredMonthlyIncome = expenses * targetCoverage;
-        const additionalIncomeNeeded = Math.max(0, requiredMonthlyIncome - income);
-        
-        // Calculate how much capital withdrawal is needed to generate this income
-        if (additionalIncomeNeeded > 0) {
-          const requiredAnnualPension = additionalIncomeNeeded * 12;
-          const requiredCapitalForPension = requiredAnnualPension / rate;
-          optimalWithdrawalPct = Math.min(100, (requiredCapitalForPension / totalCapital) * 100);
-        }
-      }
-      
-      // Use optimal withdrawal or 100% if not specified
-      const withdrawalPct = optimalWithdrawalPct > 0 ? optimalWithdrawalPct : 100;
-      const capitalForPension = totalCapital * (withdrawalPct / 100);
-      const capitalForWithdrawal = totalCapital - capitalForPension;
-      
-      // Annual pension from partial capital
-      const annualPension = capitalForPension * rate;
-      const monthlyPension = annualPension / 12;
-      
-      // Capital withdrawal with canton-specific tax
-      const taxResult = calculateCapitalWithdrawalTax(capitalForWithdrawal, canton, religion);
-      const netCapital = taxResult.netAmount;
-      const capitalTax = taxResult.taxAmount;
-      const effectiveTaxRate = taxResult.taxRate;
-      
-      // Total pension over lifetime
-      const totalPensionGross = annualPension * years;
-      const pensionTax = totalPensionGross * (parseFloat(pensionTaxRate) / 100);
-      const totalPensionNet = totalPensionGross - pensionTax;
-      
-      // Capital with investment return
-      const returnRate = parseFloat(expectedReturn) / 100;
-      const futureValue = netCapital * Math.pow(1 + returnRate, years);
-      
-      // Coverage ratio
-      const totalMonthlyIncome = income + monthlyPension;
-      const coverageWithPension = expenses > 0 ? ((totalMonthlyIncome / expenses) * 100).toFixed(1) : '0';
-      const coverageWithoutPension = expenses > 0 ? ((income / expenses) * 100).toFixed(1) : '0';
-      
-      const totalValue = totalPensionNet + futureValue;
-      const fullCapitalValue = calculateCapitalWithdrawalTax(totalCapital, canton, religion).netAmount * Math.pow(1 + returnRate, years);
-      
-      return {
-        monthlyPension: monthlyPension.toFixed(0),
-        annualPension: annualPension.toFixed(0),
-        totalPensionNet: totalPensionNet.toFixed(0),
-        netCapital: netCapital.toFixed(0),
-        capitalTax: capitalTax.toFixed(0),
-        effectiveTaxRate: effectiveTaxRate.toFixed(2),
-        futureValue: futureValue.toFixed(0),
-        coverageWithPension,
-        coverageWithoutPension,
-        optimalWithdrawalPct: optimalWithdrawalPct.toFixed(1),
-        capitalForPension: capitalForPension.toFixed(0),
-        capitalForWithdrawal: capitalForWithdrawal.toFixed(0),
-        recommendation: totalValue > fullCapitalValue ? 'Mischbezug empfohlen' : 'Vollständiger Kapitalbezug empfohlen'
-      };
-    }, [pensionCapital, conversionRate, lifeExpectancy, currentAge, regularIncome, desiredExpenses, desiredCoverageRatio, canton, religion, pensionTaxRate, expectedReturn]);
+    const results = calculatorResults;
     
     const totalBudget = Object.values(budgetItems).reduce((sum, item) => sum + item.custom, 0);
     const income = parseFloat(annualIncome) || 0;

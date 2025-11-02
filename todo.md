@@ -682,7 +682,7 @@
 
 
 ## Rechner Tab Bug
-- [x] Fix Rechner tab switching to homepage while filling out fields (React error causing re-render)
+- [x] Fix React Hooks error - useMemo inside conditional block (moved outside if statement)
 
 
 
