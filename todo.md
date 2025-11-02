@@ -699,6 +699,7 @@
 - [x] Create "Save Portfolio" dialog with name input
 - [x] Create "Load Portfolio" dialog showing saved portfolios list
 - [x] Add "Delete Portfolio" functionality
-- [x] Move Save/Load buttons to Portfolio tab (next to "Portfolio anpassen" and "PDF Export")
+- [x] Move Save/Load buttons to optimized portfolio section (when showOptimizerResults is true)
+- [x] Add back button (←) in optimized portfolio to return to input form
 - [x] Test save/load workflow end-to-end
 
