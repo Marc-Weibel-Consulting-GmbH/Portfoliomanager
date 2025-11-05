@@ -515,6 +515,14 @@ export default function Home() {
           aVal = parseFloat(aVal || '0');
           bVal = parseFloat(bVal || '0');
         }
+        
+        // Handle score field (get totalScore from stockScores)
+        if (sortField === 'score') {
+          const aScore = stockScores.find(s => s.ticker === a.ticker);
+          const bScore = stockScores.find(s => s.ticker === b.ticker);
+          aVal = aScore?.totalScore || 0;
+          bVal = bScore?.totalScore || 0;
+        }
 
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
@@ -2343,8 +2351,8 @@ export default function Home() {
                       <th onClick={() => handleSort('riskScore')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Risk Score {sortField === 'riskScore' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th className="text-center py-2 px-2 text-slate-400">
-                        Score
+                      <th onClick={() => handleSort('score')} className="text-center py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Score {sortField === 'score' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th onClick={() => handleSort('portfolioWeight')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Portfolio % {sortField === 'portfolioWeight' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -3208,113 +3216,152 @@ export default function Home() {
 
       {/* Score Detail Dialog */}
       <Dialog open={showScoreDetail} onOpenChange={setShowScoreDetail}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedScoreDetail && (
-                <div className="flex items-center gap-3">
-                  <span>Score-Details: {selectedScoreDetail.ticker}</span>
-                  <span className={`px-3 py-1 rounded text-sm font-bold ${
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">Score-Berechnung: {selectedScoreDetail.ticker}</span>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      selectedScoreDetail.type === 'dividend' ? 'bg-blue-600' : 'bg-purple-600'
+                    }`}>
+                      {selectedScoreDetail.type === 'dividend' ? 'Dividendenaktie' : 'Wachstumsaktie'}
+                    </span>
+                  </div>
+                  <span className={`px-4 py-2 rounded-lg text-2xl font-bold ${
                     selectedScoreDetail.color === 'red' ? 'bg-red-500' :
                     selectedScoreDetail.color === 'orange' ? 'bg-orange-500' :
                     selectedScoreDetail.color === 'yellow' ? 'bg-yellow-500' :
                     'bg-green-500'
                   }`}>
-                    {selectedScoreDetail.totalScore.toFixed(0)} / 100
+                    {selectedScoreDetail.totalScore.toFixed(0)}
                   </span>
                 </div>
               )}
             </DialogTitle>
           </DialogHeader>
           {selectedScoreDetail && (
-            <div className="space-y-4">
-              {/* Stock Type Badge */}
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-400">Aktientyp:</span>
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                  selectedScoreDetail.type === 'dividend' ? 'bg-blue-600' : 'bg-purple-600'
-                }`}>
-                  {selectedScoreDetail.type === 'dividend' ? 'Dividendenaktie' : 'Wachstumsaktie'}
-                </span>
+            <div className="space-y-6">
+              {/* Total Score Progress Bar */}
+              <div className="bg-slate-900 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-slate-400 text-sm">Gesamt-Score</span>
+                  <span className="text-white font-bold text-lg">{selectedScoreDetail.totalScore.toFixed(1)} / 100</span>
+                </div>
+                <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      selectedScoreDetail.color === 'red' ? 'bg-red-500' :
+                      selectedScoreDetail.color === 'orange' ? 'bg-orange-500' :
+                      selectedScoreDetail.color === 'yellow' ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${selectedScoreDetail.totalScore}%` }}
+                  />
+                </div>
               </div>
 
-              {/* Sub-Scores Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left py-2 px-2 text-slate-400">Kennzahl</th>
-                      <th className="text-right py-2 px-2 text-slate-400">Wert</th>
-                      <th className="text-right py-2 px-2 text-slate-400">Gewichtung</th>
-                      <th className="text-right py-2 px-2 text-slate-400">Score</th>
-                      <th className="text-center py-2 px-2 text-slate-400">Bewertung</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedScoreDetail.subScores.map((sub: any, idx: number) => (
-                      <tr key={idx} className="border-b border-slate-700/50">
-                        <td className="py-2 px-2 text-white">{sub.metric}</td>
-                        <td className="py-2 px-2 text-right text-slate-300">
-                          {sub.value !== null ? (
-                            sub.metric.includes('Rendite') || sub.metric.includes('Yield') || sub.metric.includes('Wachstum') || sub.metric.includes('quote') ? 
-                              `${sub.value.toFixed(2)}%` : 
-                              sub.value.toFixed(2)
-                          ) : (
-                            <span className="text-slate-500">N/A</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-2 text-right text-slate-400">
-                          {(sub.weight * 100).toFixed(0)}%
-                        </td>
-                        <td className="py-2 px-2 text-right font-semibold">
-                          <span className={`${
-                            sub.color === 'red' ? 'text-red-400' :
-                            sub.color === 'orange' ? 'text-orange-400' :
-                            sub.color === 'yellow' ? 'text-yellow-400' :
-                            'text-green-400'
-                          }`}>
-                            {sub.score.toFixed(1)}
-                          </span>
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          <div className={`w-3 h-3 rounded-full mx-auto ${
+              {/* Calculation Formula */}
+              <div className="bg-slate-900 p-4 rounded-lg">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Berechnungsformel
+                </h3>
+                <div className="text-slate-300 text-sm space-y-2">
+                  <p className="font-mono bg-slate-800 p-3 rounded">
+                    Gesamt-Score = Σ (Kennzahl-Score × Gewichtung)
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Jede Kennzahl wird auf einer Skala von 0-100 bewertet und mit ihrer Gewichtung multipliziert.
+                  </p>
+                </div>
+              </div>
+
+              {/* Sub-Scores with Progress Bars */}
+              <div>
+                <h3 className="text-white font-semibold mb-3">Kennzahlen-Breakdown</h3>
+                <div className="space-y-3">
+                  {selectedScoreDetail.subScores.map((sub: any, idx: number) => (
+                    <div key={idx} className="bg-slate-900 p-4 rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-white font-medium">{sub.metric}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                              sub.color === 'red' ? 'bg-red-500/20 text-red-400' :
+                              sub.color === 'orange' ? 'bg-orange-500/20 text-orange-400' :
+                              sub.color === 'yellow' ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-green-500/20 text-green-400'
+                            }`}>
+                              {sub.score.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="flex gap-4 text-xs text-slate-400">
+                            <span>
+                              Wert: <span className="text-slate-300">
+                                {sub.value !== null ? (
+                                  sub.metric.includes('Rendite') || sub.metric.includes('Yield') || sub.metric.includes('Wachstum') || sub.metric.includes('quote') ? 
+                                    `${sub.value.toFixed(2)}%` : 
+                                    sub.value.toFixed(2)
+                                ) : 'N/A'}
+                              </span>
+                            </span>
+                            <span>
+                              Gewichtung: <span className="text-slate-300">{(sub.weight * 100).toFixed(0)}%</span>
+                            </span>
+                            <span>
+                              Beitrag: <span className="text-slate-300">{(sub.score * sub.weight).toFixed(1)}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden mt-2">
+                        <div 
+                          className={`h-full transition-all duration-500 ${
                             sub.color === 'red' ? 'bg-red-500' :
                             sub.color === 'orange' ? 'bg-orange-500' :
                             sub.color === 'yellow' ? 'bg-yellow-500' :
                             'bg-green-500'
-                          }`} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          }`}
+                          style={{ width: `${sub.score}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Legend */}
-              <div className="grid grid-cols-4 gap-2 text-xs mt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <span className="text-slate-400">Rot: 0-40</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-orange-500" />
-                  <span className="text-slate-400">Orange: 41-60</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <span className="text-slate-400">Gelb: 61-80</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="text-slate-400">Grün: 81-100</span>
+              <div className="bg-slate-900 p-4 rounded-lg">
+                <h3 className="text-white font-semibold mb-3 text-sm">Bewertungsskala</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-red-500" />
+                    <span className="text-slate-300">Rot: 0-40</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-orange-500" />
+                    <span className="text-slate-300">Orange: 41-60</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-yellow-500" />
+                    <span className="text-slate-300">Gelb: 61-80</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-green-500" />
+                    <span className="text-slate-300">Grün: 81-100</span>
+                  </div>
                 </div>
               </div>
 
               {/* Close Button */}
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <Button
                   onClick={() => setShowScoreDetail(false)}
-                  className="bg-slate-700 hover:bg-slate-600 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Schließen
                 </Button>

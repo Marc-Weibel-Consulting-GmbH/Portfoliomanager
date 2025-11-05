@@ -813,3 +813,9 @@
 - [x] Implement traffic light colors for Risk Score column (green/yellow/red badges)
 - [x] Move Speichern/Laden/PDF Export buttons next to metrics cards in Analyzer
 - [x] Responsive layout for buttons (desktop: right side, mobile: below metrics)
+- [x] Fix score column sorting error (toFixed is not a function)
+- [x] Implement sort functionality for Score column
+- [x] Create pop-up dialog showing score calculation breakdown when clicking on score badge
+- [x] Visual score calculation display with formula and metrics
+- [x] Add progress bars for each sub-score in detail dialog
+- [x] Show calculation formula (Σ) and contribution of each metric
