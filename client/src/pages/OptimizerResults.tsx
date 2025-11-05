@@ -1,17 +1,17 @@
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Download, TrendingUp, HelpCircle, Save, FolderOpen } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp, HelpCircle, Save, FolderOpen, Plus, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { optimizePortfolioSharpe, weightsToPositions, calculateSharpeRatio } from "@/utils/sharpeOptimizer";
-import { useState, useEffect } from "react";
 import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
 import PortfolioAdjustmentDialog from "@/components/PortfolioAdjustmentDialog";
 
@@ -60,6 +60,11 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   const [hideDiversificationWarning, setHideDiversificationWarning] = useState(() => {
     return localStorage.getItem('hideDivWarning') === 'true';
   });
+  
+  // Editable portfolio state (separate from optimized suggestion)
+  const [editablePositions, setEditablePositions] = useState<OptimizedPosition[] | null>(null);
+  const [showAddStockDialog, setShowAddStockDialog] = useState(false);
+  const [addStockFormData, setAddStockFormData] = useState<any>({});
 
   const saveMutation = trpc.savedPortfolios.create.useMutation({
     onSuccess: () => {
@@ -812,8 +817,26 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
     );
   }
 
-  // Always use optimizedPortfolio (single variant)
-  const displayPortfolio = optimizedPortfolio;
+  // Use editable positions if available, otherwise use optimized portfolio
+  const displayPortfolio = editablePositions ? {
+    positions: editablePositions,
+    totalInvested: editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0),
+    remainingCash: currentInputs.investmentAmount - editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0),
+    totalShares: editablePositions.reduce((sum, p) => sum + p.shares, 0),
+    avgDividendYield: editablePositions.length > 0 
+      ? editablePositions.reduce((sum, p) => sum + parseFloat(p.dividendYield || '0'), 0) / editablePositions.length
+      : 0,
+    avgYtdPerformance: editablePositions.length > 0
+      ? editablePositions.reduce((sum, p) => sum + parseFloat(p.ytdPerformance || '0'), 0) / editablePositions.length
+      : 0,
+  } : optimizedPortfolio;
+  
+  // Initialize editable positions from optimized portfolio on first render
+  useEffect(() => {
+    if (!editablePositions && optimizedPortfolio.positions.length > 0) {
+      setEditablePositions([...optimizedPortfolio.positions]);
+    }
+  }, [optimizedPortfolio.positions, editablePositions]);
 
   // Calculate composition for display portfolio
   const dividendAmount = displayPortfolio.positions
@@ -1028,6 +1051,25 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
               <ArrowLeft className="w-4 h-4 mr-2" />
               Zurück
             </Button>
+            <Button 
+              onClick={() => {
+                setEditablePositions([...optimizedPortfolio.positions]);
+                toast.success('Portfolio-Vorschlag wiederhergestellt!');
+              }} 
+              variant="outline" 
+              className="bg-orange-600 border-orange-500 text-white hover:bg-orange-700"
+              disabled={!editablePositions || JSON.stringify(editablePositions) === JSON.stringify(optimizedPortfolio.positions)}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Vorschlag laden
+            </Button>
+            <Button 
+              onClick={() => setShowAddStockDialog(true)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Aktie hinzufügen
+            </Button>
             <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               Portfolio anpassen
             </Button>
@@ -1237,6 +1279,151 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                 </div>
               ))
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Stock Dialog */}
+      <Dialog open={showAddStockDialog} onOpenChange={setShowAddStockDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aktie zum Portfolio hinzufügen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Ticker</label>
+              <Input
+                placeholder="z.B. AAPL"
+                value={addStockFormData.ticker || ''}
+                onChange={(e) => setAddStockFormData({ ...addStockFormData, ticker: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Firmenname</label>
+              <Input
+                placeholder="z.B. Apple Inc."
+                value={addStockFormData.companyName || ''}
+                onChange={(e) => setAddStockFormData({ ...addStockFormData, companyName: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Kategorie</label>
+              <Select 
+                value={addStockFormData.category || ''} 
+                onValueChange={(v) => setAddStockFormData({ ...addStockFormData, category: v })}
+              >
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Kategorie wählen" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                  <SelectItem value="Technologie" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Technologie</SelectItem>
+                  <SelectItem value="E-Commerce" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">E-Commerce</SelectItem>
+                  <SelectItem value="Automotive" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Automotive</SelectItem>
+                  <SelectItem value="Healthcare" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Healthcare</SelectItem>
+                  <SelectItem value="Biotech" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Biotech</SelectItem>
+                  <SelectItem value="Energie" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Energie</SelectItem>
+                  <SelectItem value="Finanzdienstleistungen" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Finanzdienstleistungen</SelectItem>
+                  <SelectItem value="Infrastruktur" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Infrastruktur</SelectItem>
+                  <SelectItem value="Industrie" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Industrie</SelectItem>
+                  <SelectItem value="Konsumgüter" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Konsumgüter</SelectItem>
+                  <SelectItem value="Rohstoffe" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Rohstoffe</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Aktueller Kurs (CHF)</label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="z.B. 150.50"
+                value={addStockFormData.currentPrice || ''}
+                onChange={(e) => setAddStockFormData({ ...addStockFormData, currentPrice: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Dividendenrendite (%)</label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="z.B. 2.5"
+                value={addStockFormData.dividendYield || ''}
+                onChange={(e) => setAddStockFormData({ ...addStockFormData, dividendYield: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">YTD Performance (%)</label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="z.B. 15.3"
+                value={addStockFormData.ytdPerformance || ''}
+                onChange={(e) => setAddStockFormData({ ...addStockFormData, ytdPerformance: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Anzahl Aktien</label>
+              <Input
+                type="number"
+                step="1"
+                placeholder="z.B. 10"
+                value={addStockFormData.shares || ''}
+                onChange={(e) => setAddStockFormData({ ...addStockFormData, shares: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  setShowAddStockDialog(false);
+                  setAddStockFormData({});
+                }}
+                variant="outline"
+                className="flex-1 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!addStockFormData.ticker || !addStockFormData.companyName || !addStockFormData.currentPrice || !addStockFormData.shares) {
+                    toast.error('Bitte füllen Sie alle Pflichtfelder aus');
+                    return;
+                  }
+                  
+                  const shares = parseInt(addStockFormData.shares);
+                  const currentPrice = parseFloat(addStockFormData.currentPrice);
+                  const investmentAmount = shares * currentPrice;
+                  
+                  const newPosition: OptimizedPosition = {
+                    ticker: addStockFormData.ticker,
+                    companyName: addStockFormData.companyName,
+                    category: addStockFormData.category || 'Andere',
+                    shares: shares,
+                    currentPrice: currentPrice.toString(),
+                    investmentAmount: investmentAmount,
+                    portfolioWeight: (investmentAmount / currentInputs.investmentAmount) * 100,
+                    dividendYield: addStockFormData.dividendYield || '0',
+                    ytdPerformance: addStockFormData.ytdPerformance || '0',
+                    peRatio: '0',
+                    pegRatio: '0',
+                    isDividendStock: parseFloat(addStockFormData.dividendYield || '0') >= 2,
+                    isGrowthStock: parseFloat(addStockFormData.dividendYield || '0') < 2,
+                  };
+                  
+                  setEditablePositions([...(editablePositions || optimizedPortfolio.positions), newPosition]);
+                  setShowAddStockDialog(false);
+                  setAddStockFormData({});
+                  toast.success(`${newPosition.companyName} wurde hinzugefügt`);
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Hinzufügen
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

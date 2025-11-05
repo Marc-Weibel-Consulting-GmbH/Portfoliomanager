@@ -756,3 +756,12 @@
 - [x] Add hover effect to portfolio cards in load dialog
 - [x] Make portfolio cards clickable to load portfolio details
 - [x] Keep delete button functional with stopPropagation
+
+## Portfolio Manual Stock Management
+
+- [x] Add category selection dropdown to "Aktie hinzufügen" dialog in Aktien tab (already exists)
+- [ ] Add editable portfolio state in OptimizerResults (separate from optimized suggestion)
+- [ ] Add "Aktie hinzufügen" button and dialog in OptimizerResults
+- [ ] Add category selection to OptimizerResults add stock dialog
+- [ ] Add "Vorschlag wiederherstellen" button to reset to original optimized portfolio
+- [ ] Ensure manual changes persist when saving portfolio
