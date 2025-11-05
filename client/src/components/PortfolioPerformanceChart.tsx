@@ -8,8 +8,11 @@ interface PortfolioPerformanceChartProps {
   stocks?: any[];
 }
 
+type TimePeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'Max';
+
 export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceChartProps) {
   const [selectedBenchmark, setSelectedBenchmark] = useState('sp500');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('5Y');
 
   // Get all stocks from the portfolio
   const { data: allStocks } = trpc.stocks.list.useQuery();
@@ -23,15 +26,30 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
     return totalValue > 0 ? value / totalValue : 0;
   });
 
+  // Calculate years based on selected period
+  const years = useMemo(() => {
+    switch (selectedPeriod) {
+      case '1M': return 0.1;
+      case '3M': return 0.25;
+      case '6M': return 0.5;
+      case 'YTD': return 1;
+      case '1Y': return 1;
+      case '3Y': return 3;
+      case '5Y': return 5;
+      case 'Max': return 10;
+      default: return 5;
+    }
+  }, [selectedPeriod]);
+
   // Fetch portfolio historical data
   const { data: portfolioData, isLoading: isLoadingPortfolio } = trpc.portfolioPerformance.getHistoricalData.useQuery(
-    { tickers, weights, years: 5 },
+    { tickers, weights, years },
     { enabled: tickers.length > 0 && weights.length > 0 }
   );
 
   // Fetch benchmark data
   const { data: benchmarkData, isLoading: isLoadingBenchmark } = trpc.portfolioPerformance.getBenchmarkData.useQuery(
-    { benchmark: selectedBenchmark, years: 5 },
+    { benchmark: selectedBenchmark, years },
     { enabled: !!selectedBenchmark }
   );
 
@@ -41,7 +59,34 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
     if (!benchmarkData || !benchmarkData.dates || benchmarkData.dates.length === 0) return [];
     
     // Find common dates
-    const commonDates = portfolioData.dates.filter(date => benchmarkData.dates.includes(date));
+    let commonDates = portfolioData.dates.filter(date => benchmarkData.dates.includes(date));
+    
+    if (commonDates.length === 0) return [];
+    
+    // Filter dates based on selected period
+    const now = new Date();
+    const cutoffDate = new Date();
+    
+    if (selectedPeriod === 'YTD') {
+      cutoffDate.setMonth(0, 1); // January 1st of current year
+    } else if (selectedPeriod === '1M') {
+      cutoffDate.setMonth(now.getMonth() - 1);
+    } else if (selectedPeriod === '3M') {
+      cutoffDate.setMonth(now.getMonth() - 3);
+    } else if (selectedPeriod === '6M') {
+      cutoffDate.setMonth(now.getMonth() - 6);
+    } else if (selectedPeriod === '1Y') {
+      cutoffDate.setFullYear(now.getFullYear() - 1);
+    } else if (selectedPeriod === '3Y') {
+      cutoffDate.setFullYear(now.getFullYear() - 3);
+    } else if (selectedPeriod === '5Y') {
+      cutoffDate.setFullYear(now.getFullYear() - 5);
+    }
+    // 'Max' uses all available dates
+    
+    if (selectedPeriod !== 'Max') {
+      commonDates = commonDates.filter(date => new Date(date) >= cutoffDate);
+    }
     
     if (commonDates.length === 0) return [];
     
@@ -68,7 +113,7 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
       portfolio: portfolioValues[index] - portfolioStart,
       benchmark: benchmarkValues[index] - benchmarkStart,
     }));
-  }, [portfolioData, benchmarkData]);
+  }, [portfolioData, benchmarkData, selectedPeriod]);
 
   const benchmarkOptions = [
     { value: 'sp500', label: 'S&P 500' },
@@ -76,6 +121,17 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
     { value: 'smi', label: 'SMI' },
     { value: 'msci_world', label: 'MSCI World' },
     { value: 'eurostoxx', label: 'Eurostoxx' },
+  ];
+
+  const periodOptions: { value: TimePeriod; label: string }[] = [
+    { value: '1M', label: '1M' },
+    { value: '3M', label: '3M' },
+    { value: '6M', label: '6M' },
+    { value: 'YTD', label: 'YTD' },
+    { value: '1Y', label: '1J' },
+    { value: '3Y', label: '3J' },
+    { value: '5Y', label: '5J' },
+    { value: 'Max', label: 'Max' },
   ];
 
   const isLoading = isLoadingPortfolio || isLoadingBenchmark;
@@ -135,22 +191,41 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
   return (
     <Card className="bg-slate-800/50 border-slate-700">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-white">Portfolio Performance (5 Jahre)</CardTitle>
-          <div className="flex items-center gap-2">
-            <label className="text-slate-400 text-sm">Benchmark:</label>
-            <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
-              <SelectTrigger className="w-[140px] bg-slate-700 border-slate-600 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {benchmarkOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-white">Portfolio Performance</CardTitle>
+            <div className="flex items-center gap-2">
+              <label className="text-slate-400 text-sm">Benchmark:</label>
+              <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
+                <SelectTrigger className="w-[140px] bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {benchmarkOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {/* Time Period Selector */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {periodOptions.map(option => (
+              <button
+                key={option.value}
+                onClick={() => setSelectedPeriod(option.value)}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  selectedPeriod === option.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
       </CardHeader>

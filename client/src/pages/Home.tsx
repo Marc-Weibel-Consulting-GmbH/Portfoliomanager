@@ -1612,49 +1612,21 @@ export default function Home() {
                           <p className="text-slate-400 text-sm mt-2">{portfolio.description}</p>
                         )}
                       </div>
-                      <div className="flex items-start gap-3">
-                        <div className="text-right">
-                          <p className="text-slate-500 text-xs">Zuletzt gespeichert</p>
-                          <p className="text-slate-400 text-sm">
-                            {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                            })}
-                          </p>
-                          <p className="text-slate-500 text-xs">
-                            {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toast.info('Portfolio laden', { description: 'Diese Funktion ist noch nicht implementiert' });
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                          >
-                            Laden
-                          </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
-                                deletePortfolioMutation.mutate(portfolio.id);
-                              }
-                            }}
-                            variant="destructive"
-                            size="sm"
-                            className="w-full"
-                          >
-                            Löschen
-                          </Button>
-                        </div>
+                      <div className="text-right">
+                        <p className="text-slate-500 text-xs">Zuletzt gespeichert</p>
+                        <p className="text-slate-400 text-sm">
+                          {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })}
+                        </p>
+                        <p className="text-slate-500 text-xs">
+                          {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
                       </div>
                     </div>
                   </CardHeader>
@@ -1683,7 +1655,25 @@ export default function Home() {
                       <div className="flex gap-2 ml-auto">
                         <Button
                           onClick={() => {
-                            toast.info('Portfolio laden', { description: 'Diese Funktion ist noch nicht implementiert' });
+                            // Load portfolio and show OptimizerResults
+                            try {
+                              console.log('[Laden Button] Portfolio data:', portfolio.portfolioData);
+                              const data = JSON.parse(portfolio.portfolioData);
+                              console.log('[Laden Button] Parsed data:', data);
+                              console.log('[Laden Button] Has inputs:', !!data.inputs, 'Has stocks:', !!data.stocks);
+                              
+                              if (data.inputs && data.stocks) {
+                                setOptimizerInputs(data.inputs);
+                                setShowOptimizerResults(true);
+                                toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde geladen` });
+                              } else {
+                                console.error('[Laden Button] Missing data - inputs:', data.inputs, 'stocks:', data.stocks);
+                                toast.error('Fehler', { description: 'Portfolio-Daten sind unvollständig. Inputs: ' + !!data.inputs + ', Stocks: ' + !!data.stocks });
+                              }
+                            } catch (error) {
+                              console.error('[Laden Button] Failed to load portfolio:', error);
+                              toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden: ' + (error as Error).message });
+                            }
                           }}
                           size="sm"
                           className="bg-blue-600 hover:bg-blue-700 text-white"

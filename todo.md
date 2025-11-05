@@ -839,3 +839,15 @@
 - [ ] Verify portfolio card changes are visible (Laden button, horizontal timestamp, reduced height)
 - [ ] Fix Analyzer chart - only shows 1 year history instead of 5 years (backend issue)
 - [ ] Add ETFs to stock list under Aktien tab
+- [x] Zeitraum-Auswahl für 5-Jahres Performance Chart hinzufügen
+  - [x] Buttons für verschiedene Zeiträume (1M, 3M, 6M, YTD, 1J, 3J, 5J, Max)
+  - [x] State Management für ausgewählten Zeitraum
+  - [x] Datenfilterung basierend auf ausgewähltem Zeitraum
+  - [x] UI-Integration neben Benchmark-Selector
+- [x] Portfolio Optimizer: "Laden" und "Löschen" Buttons oben rechts bei Portfolio-Karten entfernen
+- [ ] Portfolio Optimizer: Blauen "Laden" Button unten funktionsfähig machen (Portfolio laden und zum Analyzer navigieren) - onClick Handler wird nicht ausgeführt
+- [ ]- [x] ETFs zur "Aktien" Seite hinzufügen
+  - [x] ETF-Datenbank-Schema erweitern (category Feld verwendet)
+  - [x] ETF-Liste mit wichtigen ETFs (25 ETFs hinzugefügt: US Market, World, Europe, Switzerland, Sector, Bonds, Commodities)
+  - [x] ETF-Anzeige in der Aktien-Tabelle (92 Positionen total)
+  - [x] Kategorien zeigen ETF-Kategorien (ETF - Switzerland, ETF - US Market, etc.)
