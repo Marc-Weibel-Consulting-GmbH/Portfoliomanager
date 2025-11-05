@@ -65,6 +65,32 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   const [editablePositions, setEditablePositions] = useState<OptimizedPosition[] | null>(null);
   const [showAddStockDialog, setShowAddStockDialog] = useState(false);
   const [addStockFormData, setAddStockFormData] = useState<any>({});
+  const [tickerSearchQuery, setTickerSearchQuery] = useState("");
+  const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
+
+  // Ticker search query for auto-complete
+  const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
+    tickerSearchQuery,
+    { enabled: tickerSearchQuery.length >= 2 }
+  );
+
+  // Fetch stock data mutation for auto-fill
+  const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
+    onSuccess: (data: any) => {
+      setAddStockFormData((prev: any) => ({
+        ...prev,
+        companyName: data.companyName || prev.companyName,
+        ticker: data.ticker || prev.ticker,
+        currentPrice: data.currentPrice?.toString() || prev.currentPrice,
+        dividendYield: data.dividendYield?.toString() || prev.dividendYield,
+        ytdPerformance: data.ytdPerformance?.toString() || prev.ytdPerformance,
+      }));
+      toast.success("Erfolgreich", { description: "Daten wurden geladen" });
+    },
+    onError: (error: any) => {
+      toast.error("Fehler", { description: error.message || "Daten konnten nicht geladen werden" });
+    },
+  });
 
   const saveMutation = trpc.savedPortfolios.create.useMutation({
     onSuccess: () => {
@@ -1284,20 +1310,63 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
       </Dialog>
 
       {/* Add Stock Dialog */}
-      <Dialog open={showAddStockDialog} onOpenChange={setShowAddStockDialog}>
+      <Dialog open={showAddStockDialog} onOpenChange={(open) => {
+        setShowAddStockDialog(open);
+        if (!open) {
+          // Reset form when closing
+          setAddStockFormData({});
+          setTickerSearchQuery("");
+          setShowTickerSuggestions(false);
+        }
+      }}>
         <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
           <DialogHeader>
             <DialogTitle>Aktie zum Portfolio hinzufügen</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <label className="text-sm text-slate-400 mb-1 block">Ticker</label>
+            <div className="relative">
+              <label className="text-sm text-slate-400 mb-1 block">Firmenname oder Ticker suchen</label>
               <Input
-                placeholder="z.B. AAPL"
-                value={addStockFormData.ticker || ''}
-                onChange={(e) => setAddStockFormData({ ...addStockFormData, ticker: e.target.value })}
+                placeholder="z.B. Apple, AAPL, Novartis, NOVN.SW..."
+                value={tickerSearchQuery}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setTickerSearchQuery(value);
+                  setAddStockFormData({ ...addStockFormData, companyName: value });
+                  setShowTickerSuggestions(true);
+                }}
+                onFocus={() => setShowTickerSuggestions(true)}
                 className="bg-slate-700 border-slate-600 text-white"
               />
+              {showTickerSuggestions && tickerSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-slate-700 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  {tickerSuggestions.map((suggestion: any) => (
+                    <button
+                      key={suggestion.symbol}
+                      type="button"
+                      onClick={() => {
+                        const ticker = suggestion.displaySymbol;
+                        setAddStockFormData({
+                          ...addStockFormData,
+                          companyName: suggestion.shortname,
+                          ticker: ticker,
+                        });
+                        setTickerSearchQuery(ticker);
+                        setShowTickerSuggestions(false);
+                        // Automatically load data after selection
+                        toast.info("Laden...", { description: "Daten werden geladen..." });
+                        fetchStockDataMutation.mutate(ticker);
+                      }}
+                      className="w-full px-4 py-2 text-left hover:bg-slate-600 text-white"
+                    >
+                      <div className="font-medium">{suggestion.shortname}</div>
+                      <div className="text-sm text-slate-400">
+                        {suggestion.displaySymbol}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-sm text-slate-400 mb-1 block">Firmenname</label>
@@ -1306,6 +1375,17 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                 value={addStockFormData.companyName || ''}
                 onChange={(e) => setAddStockFormData({ ...addStockFormData, companyName: e.target.value })}
                 className="bg-slate-700 border-slate-600 text-white"
+                disabled
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">Ticker</label>
+              <Input
+                placeholder="z.B. AAPL"
+                value={addStockFormData.ticker || ''}
+                onChange={(e) => setAddStockFormData({ ...addStockFormData, ticker: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+                disabled
               />
             </div>
             <div>
@@ -1381,6 +1461,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                 onClick={() => {
                   setShowAddStockDialog(false);
                   setAddStockFormData({});
+                  setTickerSearchQuery("");
+                  setShowTickerSuggestions(false);
                 }}
                 variant="outline"
                 className="flex-1 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
@@ -1417,6 +1499,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   setEditablePositions([...(editablePositions || optimizedPortfolio.positions), newPosition]);
                   setShowAddStockDialog(false);
                   setAddStockFormData({});
+                  setTickerSearchQuery("");
+                  setShowTickerSuggestions(false);
                   toast.success(`${newPosition.companyName} wurde hinzugefügt`);
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"

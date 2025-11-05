@@ -28,6 +28,10 @@
 - [x] Button-Text bei Varianten-Switcher dunkel (nicht-aktiver Button soll weiß sein)
 - [x] Aktien mit 0% Gewicht werden nicht mehr angezeigt (gefiltert)
 - [x] Investitionsbetrag Schriftgröße im Optimizer wesentlich vergrößert (text-7xl/8xl, h-32/40, responsive)
+- [x] Auto-Selection im "Aktie hinzufügen" Dialog (OptimizerResults) implementieren
+  - [x] Ticker-Suche mit Auto-Complete wie im Hauptportfolio
+  - [x] Automatisches Laden aller Daten beim Auswählen einer Aktie
+  - [x] Integration mit fetchStockData API
 
 ## Später
 - [ ] "Finanzen" Tab in "Info" Tab integrieren
