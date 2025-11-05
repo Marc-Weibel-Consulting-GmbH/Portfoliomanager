@@ -23,7 +23,7 @@ export interface StockMetrics {
 export interface SubScore {
   metric: string;
   value: number | null;
-  score: number;
+  score: number | null;
   weight: number;
   color: ScoreColor;
 }
@@ -43,9 +43,9 @@ function calcSubscore(
   value: number | undefined | null,
   thresholds: [number, number, number, number],
   inverted: boolean = false
-): { score: number; color: ScoreColor } {
+): { score: number | null; color: ScoreColor } {
   if (value === undefined || value === null || isNaN(value)) {
-    return { score: 0, color: 'red' };
+    return { score: null, color: 'red' };
   }
 
   const [redMax, orangeMax, yellowMax, greenMin] = thresholds;
@@ -262,7 +262,7 @@ export function calculateStockScore(
   let totalWeight = 0;
 
   for (const sub of subScores) {
-    if (sub.value !== null) {
+    if (sub.value !== null && sub.score !== null) {
       totalScore += sub.score * sub.weight;
       totalWeight += sub.weight;
     }

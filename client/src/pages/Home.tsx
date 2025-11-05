@@ -1658,7 +1658,7 @@ export default function Home() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex justify-between items-center gap-6">
                       <div>
                         <p className="text-slate-400 text-sm">Positionen</p>
                         <p className="text-white font-semibold text-lg">{portfolio.numberOfPositions}</p>

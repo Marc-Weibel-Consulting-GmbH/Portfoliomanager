@@ -1200,7 +1200,15 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                 />
                 <Legend 
                   wrapperStyle={{ color: '#94a3b8' }}
-                  formatter={(value) => value === 'portfolio' ? 'Portfolio' : benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'}
+                  formatter={(value) => {
+                    if (value === 'portfolio') {
+                      const portfolioName = selectedPortfolioId 
+                        ? savedPortfolios.find(p => p.id.toString() === selectedPortfolioId)?.name
+                        : null;
+                      return portfolioName || 'Portfolio';
+                    }
+                    return benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
+                  }}
                 />
                 <Line 
                   type="monotone" 
@@ -1228,7 +1236,12 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
       {/* Portfolio Table */}
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-white">Optimiertes Portfolio</CardTitle>
+          <CardTitle className="text-white">
+            {selectedPortfolioId 
+              ? savedPortfolios.find(p => p.id.toString() === selectedPortfolioId)?.name || 'Optimiertes Portfolio'
+              : 'Optimiertes Portfolio'
+            }
+          </CardTitle>
           <div className="flex gap-2 items-center">
             <Button onClick={onBack} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1242,9 +1255,18 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   if (portfolio) {
                     setSelectedPortfolioId(value);
                     // Load the selected portfolio
-                    const positions = JSON.parse(portfolio.positions);
-                    setEditablePositions(positions);
-                    toast.success(`Portfolio "${portfolio.name}" geladen!`);
+                    try {
+                      const data = JSON.parse(portfolio.portfolioData);
+                      if (data.stocks && Array.isArray(data.stocks)) {
+                        setEditablePositions(data.stocks);
+                        toast.success(`Portfolio "${portfolio.name}" geladen!`);
+                      } else {
+                        toast.error('Portfolio-Daten haben ungültiges Format');
+                      }
+                    } catch (error) {
+                      console.error('Failed to parse portfolio data:', error);
+                      toast.error('Portfolio konnte nicht geladen werden');
+                    }
                   }
                 }}
               >

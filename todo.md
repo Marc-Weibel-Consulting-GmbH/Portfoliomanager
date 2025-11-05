@@ -786,3 +786,10 @@
 - [x] API-Endpoint für Score-Berechnung aller Aktien
 - [x] Score-Spalte in Aktien-Tabelle mit Ampel-Farben (Rot/Orange/Gelb/Grün)
 - [x] Detail-Dialog mit Score-Breakdown pro Kennzahl
+
+## Bugs zu beheben
+- [x] Score-Spalte ist leer - Daten werden nicht geladen (Null-Werte werden jetzt korrekt behandelt)
+- [x] Chart-Legende fehlt - Blaue Linie braucht Portfolio-Namen als Label (Portfolio-Name wird jetzt angezeigt)
+- [x] Titel "Optimiertes Portfolio" sollte durch tatsächlichen Portfolionamen ersetzt werden (Dynamischer Titel implementiert)
+- [x] Portfolio-Dropdown nicht funktional - Laden-Button zeigt Portfolios, aber Auswahl funktioniert nicht (portfolioData statt positions verwendet)
+- [x] Analyzer Kennzahlen Layout - Alle Metriken auf einer Linie nach dem Titel anordnen (Flex-Layout implementiert)
