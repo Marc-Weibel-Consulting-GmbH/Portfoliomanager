@@ -1088,53 +1088,74 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-1 pt-3 px-3">
-            <CardTitle className="text-xs text-slate-400">Investiert</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <p className="text-lg font-bold text-white">
-              CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 0 }) || '0'}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Summary Cards and Action Buttons */}
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        {/* Metrics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-slate-400">Investiert</CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3">
+              <p className="text-lg font-bold text-white">
+                CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 0 }) || '0'}
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-1 pt-3 px-3">
-            <CardTitle className="text-xs text-slate-400">Positionen</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <p className="text-lg font-bold text-white">
-              {displayPortfolio.positions.length}
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-slate-400">Positionen</CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3">
+              <p className="text-lg font-bold text-white">
+                {displayPortfolio.positions.length}
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-1 pt-3 px-3">
-            <CardTitle className="text-xs text-slate-400">Ø Dividende</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <p className="text-lg font-bold text-white">
-              {(displayPortfolio.avgDividendYield || 0).toFixed(2)}%
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-slate-400">Ø Dividende</CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3">
+              <p className="text-lg font-bold text-white">
+                {(displayPortfolio.avgDividendYield || 0).toFixed(2)}%
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-1 pt-3 px-3">
-            <CardTitle className="text-xs text-slate-400">Ø YTD Perf.</CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <p className={`text-lg font-bold ${
-              displayPortfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {(displayPortfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(displayPortfolio.avgYtdPerformance || 0).toFixed(1)}%
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-slate-400">Ø YTD Perf.</CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3">
+              <p className={`text-lg font-bold ${
+                displayPortfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {(displayPortfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(displayPortfolio.avgYtdPerformance || 0).toFixed(1)}%
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-2 lg:w-auto w-full">
+          <div className="flex gap-2">
+            <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white flex-1 lg:flex-none">
+              <Save className="w-4 h-4 mr-2" />
+              Speichern
+            </Button>
+            <Button onClick={() => setShowLoadDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white flex-1 lg:flex-none">
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Laden
+            </Button>
+          </div>
+          <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white w-full">
+            <Download className="w-4 h-4 mr-2" />
+            PDF Export
+          </Button>
+        </div>
       </div>
 
       {/* Performance Chart */}
@@ -1235,14 +1256,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
 
       {/* Portfolio Table */}
       <Card className="bg-slate-800 border-slate-700">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-white">
             {selectedPortfolioId 
               ? savedPortfolios.find(p => p.id.toString() === selectedPortfolioId)?.name || 'Optimiertes Portfolio'
               : 'Optimiertes Portfolio'
             }
           </CardTitle>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             <Button onClick={onBack} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Zurück
@@ -1308,18 +1329,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
             <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               Portfolio anpassen
             </Button>
-            <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
-              <Save className="w-4 h-4 mr-2" />
-              Speichern
-            </Button>
-            <Button onClick={() => setShowLoadDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Laden
-            </Button>
-            <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
-              <Download className="w-4 h-4 mr-2" />
-              PDF Export
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -1369,7 +1378,12 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                         const volatility = Math.abs(ytd) > 0 ? Math.abs(ytd) / 2 : 10;
                         const riskScore = Math.min(10, Math.max(0, (ytd / volatility) * 2));
                         const color = riskScore >= 7 ? "text-green-400" : riskScore >= 4 ? "text-yellow-400" : "text-red-400";
-                        return <span className={`font-medium ${color}`}>{(riskScore || 0).toFixed(1)}</span>;
+                        const bgColor = riskScore >= 7 ? "bg-green-400/20" : riskScore >= 4 ? "bg-yellow-400/20" : "bg-red-400/20";
+                        return (
+                          <span className={`inline-flex items-center justify-center px-2 py-1 rounded font-medium ${color} ${bgColor}`}>
+                            {(riskScore || 0).toFixed(1)}
+                          </span>
+                        );
                       })()}
                     </td>
                   </tr>

@@ -793,3 +793,23 @@
 - [x] Titel "Optimiertes Portfolio" sollte durch tatsächlichen Portfolionamen ersetzt werden (Dynamischer Titel implementiert)
 - [x] Portfolio-Dropdown nicht funktional - Laden-Button zeigt Portfolios, aber Auswahl funktioniert nicht (portfolioData statt positions verwendet)
 - [x] Analyzer Kennzahlen Layout - Alle Metriken auf einer Linie nach dem Titel anordnen (Flex-Layout implementiert)
+
+## Layout-Anpassung
+- [ ] Buttons (Laden & Löschen) auf dieselbe Linie wie Kennzahlen verschieben für kompakteres Design
+- [ ] Score-Spalte zeigt nur "-" statt Ampel-Farben mit Werten - API-Aufruf funktioniert nicht
+- [ ] Syntax-Fehler in Home.tsx Zeile 1626 - Unterminated regular expression beim Portfolio-Laden
+
+## ETFs hinzufügen
+- [ ] 8 ETFs aus der Liste in die Datenbank eintragen
+  - [ ] UBS Equities Wrld x CH I-A hdg (Aktien Welt)
+  - [ ] Vanguard S&P 500 ETF (Aktien Nordamerika)
+  - [ ] iShares Global Infrastructure (Aktien Themen)
+  - [ ] UBS Eqt Pacific ex Jap Idx I-A (Aktien Asien/Pazifik)
+  - [ ] UBS Eqty CH Passive Leader W (Aktien Schweiz)
+  - [ ] SWC IEF Small & Mid Caps CH GT (Aktien Schweiz)
+  - [ ] iShares Swiss Dividend A (Aktien Schweiz)
+  - [ ] UBS Gold hCHF I-A (Rohstoffe und Edelmetalle)
+- [x] Fix getStocks import error in score router (changed to getAllStocks)
+- [x] Implement traffic light colors for Risk Score column (green/yellow/red badges)
+- [x] Move Speichern/Laden/PDF Export buttons next to metrics cards in Analyzer
+- [x] Responsive layout for buttons (desktop: right side, mobile: below metrics)

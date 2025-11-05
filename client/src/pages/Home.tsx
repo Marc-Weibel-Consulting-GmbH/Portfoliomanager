@@ -1624,34 +1624,26 @@ export default function Home() {
                                 investmentAmount: portfolio.totalInvested,
                                 expectedDividendYield: portfolio.avgDividendYield,
                                 numberOfPositions: portfolio.numberOfPositions,
-                                investorType: "balanced" as const,
+                                investorProfile: 'balanced' as const,
                               };
-                              setOptimizerInputs(inputs);
-                              setShowOptimizerResults(true);
+                              handleLoadPortfolio(portfolio.id, inputs);
                             }}
+                            variant="outline"
                             size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            className="w-full"
                           >
                             Laden
                           </Button>
                           <Button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
-                                try {
-                                  await deletePortfolioMutation.mutateAsync({ id: portfolio.id });
-                                  toast.success('Gelöscht', { description: `Portfolio "${portfolio.name}" wurde gelöscht` });
-                                  refetchSavedPortfolios();
-                                } catch (error) {
-                                  toast.error('Fehler', { description: 'Portfolio konnte nicht gelöscht werden' });
-                                }
-                              }
+                              handleDeletePortfolio(portfolio.id);
                             }}
+                            variant="destructive"
                             size="sm"
-                            variant="outline"
-                            className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                            className="w-full"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            Löschen
                           </Button>
                         </div>
                       </div>
@@ -1678,6 +1670,36 @@ export default function Home() {
                         }`}>
                           {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{portfolio.avgYtdPerformance?.toFixed(1) || '0.0'}%
                         </p>
+                      </div>
+                      <div className="flex gap-2 ml-auto">
+                        <Button
+                          onClick={() => {
+                            setSelectedPortfolioId(portfolio.id.toString());
+                            loadPortfolioMutation.mutate({ id: portfolio.id });
+                          }}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Laden
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
+                              try {
+                                await deletePortfolioMutation.mutateAsync({ id: portfolio.id });
+                                toast.success('Gelöscht', { description: `Portfolio "${portfolio.name}" wurde gelöscht` });
+                                refetchSavedPortfolios();
+                              } catch (error) {
+                                toast.error('Fehler', { description: 'Portfolio konnte nicht gelöscht werden' });
+                              }
+                            }
+                          }}
+                          size="sm"
+                          variant="outline"
+                          className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </CardContent>

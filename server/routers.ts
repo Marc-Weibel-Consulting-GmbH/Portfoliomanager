@@ -1471,10 +1471,10 @@ export const appRouter = router({
 
   score: router({
     calculateAll: protectedProcedure.query(async ({ ctx }) => {
-      const { getStocks } = await import("./db");
+      const { getAllStocks } = await import("./db");
       const { calculateStockScore, StockMetrics } = await import("./scoring");
       
-      const stocks = await getStocks(ctx.user.id);
+      const stocks = await getAllStocks();
       
       const scores = stocks.map(stock => {
         const metrics: StockMetrics = {
