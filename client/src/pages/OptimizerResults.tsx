@@ -1210,11 +1210,41 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white">Optimiertes Portfolio</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Button onClick={onBack} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Zurück
             </Button>
+            {savedPortfolios && savedPortfolios.length > 0 && (
+              <Select
+                value={selectedPortfolioId || ""}
+                onValueChange={(value) => {
+                  const portfolio = savedPortfolios.find(p => p.id.toString() === value);
+                  if (portfolio) {
+                    setSelectedPortfolioId(value);
+                    // Load the selected portfolio
+                    const positions = JSON.parse(portfolio.positions);
+                    setEditablePositions(positions);
+                    toast.success(`Portfolio "${portfolio.name}" geladen!`);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[200px] bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Portfolio wählen..." />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700">
+                  {savedPortfolios.map((portfolio) => (
+                    <SelectItem 
+                      key={portfolio.id} 
+                      value={portfolio.id.toString()}
+                      className="text-white hover:bg-slate-700"
+                    >
+                      {portfolio.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Button 
               onClick={() => {
                 setEditablePositions([...optimizedPortfolio.positions]);
