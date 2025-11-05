@@ -741,3 +741,8 @@
 - [x] Zurück button should navigate to Aktien tab (main portfolio) not Portfolio tab
 - [x] Diversification warning should be a dialog with "OK" and "Nicht mehr anzeigen" buttons
 - [x] Fix empty saved portfolio (CHF 0, 0 positions) - Added validation to prevent saving empty portfolios
+
+## Portfolio Optimizer Navigation Issues
+
+- [x] Zurück button in Portfolio Optimizer should go to Portfolio tab (where saved portfolios are shown), not Aktien tab
+- [x] After saving portfolio, automatically refresh the portfolio list and show it

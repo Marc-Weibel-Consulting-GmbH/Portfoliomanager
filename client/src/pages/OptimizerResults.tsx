@@ -25,6 +25,7 @@ interface OptimizerInputs {
 interface OptimizerResultsProps {
   inputs: OptimizerInputs;
   onBack: () => void;
+  onPortfolioSaved?: () => void;
 }
 
 interface OptimizedPosition {
@@ -43,7 +44,7 @@ interface OptimizedPosition {
   isGrowthStock: boolean;
 }
 
-export default function OptimizerResults({ inputs, onBack }: OptimizerResultsProps) {
+export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
@@ -66,6 +67,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       setShowSaveDialog(false);
       setPortfolioName('');
       setPortfolioDescription('');
+      onPortfolioSaved?.(); // Notify parent to refresh portfolio list
     },
     onError: (error) => {
       toast.error('Fehler beim Speichern: ' + error.message);
@@ -84,17 +86,6 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   useEffect(() => {
     setAdjustedInputs(inputs);
   }, [inputs]);
-
-  // Show diversification dialog automatically if needed
-  useEffect(() => {
-    if (!hideDiversificationWarning && optimizedPortfolio) {
-      const shouldShow = optimizedPortfolio.positions.length < 10 || 
-        (optimizedPortfolio.totalInvested / optimizedPortfolio.positions.length) < 1000;
-      if (shouldShow) {
-        setShowDiversificationDialog(true);
-      }
-    }
-  }, [optimizedPortfolio, hideDiversificationWarning]);
 
   // Use adjustedInputs for all calculations (allows user adjustments)
   const currentInputs = adjustedInputs;
@@ -578,6 +569,17 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
         : 0,
     };
   }, [allStocks, adjustedInputs, optimizationStrategy]);
+
+  // Show diversification dialog automatically if needed
+  useEffect(() => {
+    if (!hideDiversificationWarning && optimizedPortfolio) {
+      const shouldShow = optimizedPortfolio.positions.length < 10 || 
+        (optimizedPortfolio.totalInvested / optimizedPortfolio.positions.length) < 1000;
+      if (shouldShow) {
+        setShowDiversificationDialog(true);
+      }
+    }
+  }, [optimizedPortfolio, hideDiversificationWarning]);
 
   // Detect conflicts and show dialog
   useEffect(() => {

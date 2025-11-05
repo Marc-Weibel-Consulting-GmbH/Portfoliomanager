@@ -1554,10 +1554,13 @@ export default function Home() {
         <OptimizerResults
           inputs={optimizerInputs}
           onBack={() => {
-            // Go back to main portfolio view
-            setActiveTab("portfolio");
+            // Go back to portfolio optimizer start (where saved portfolios are shown)
             setShowOptimizerResults(false);
             setOptimizerInputs(null);
+            refetchSavedPortfolios(); // Refresh saved portfolios list
+          }}
+          onPortfolioSaved={() => {
+            refetchSavedPortfolios(); // Refresh list when portfolio is saved
           }}
         />
       );
