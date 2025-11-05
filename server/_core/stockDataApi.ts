@@ -160,48 +160,56 @@ export async function fetchHistoricalPrices(
   ticker: string,
   years: number = 5
 ): Promise<{ date: string; close: number }[] | null> {
+  const apiKey = process.env.EODHD_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('[fetchHistoricalPrices] EODHD API key not configured');
+    return null;
+  }
+
   try {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setFullYear(startDate.getFullYear() - years);
-
-    const result = await callDataApi("YahooFinance/get_stock_chart", {
-      query: {
-        symbol: ticker,
-        interval: "1d",
-        range: `${years}y`,
-      },
-    });
-
-    if (!result || !result.chart || !result.chart.result || result.chart.result.length === 0) {
-      console.warn(`[StockDataAPI] No historical data for ${ticker}`);
+    
+    const fromDate = startDate.toISOString().split('T')[0];
+    const toDate = endDate.toISOString().split('T')[0];
+    
+    // Convert ticker format (e.g., NESN -> NESN.SW for Swiss stocks)
+    let cleanTicker = ticker;
+    if (!ticker.includes('.')) {
+      // Assume Swiss stock if no exchange suffix
+      cleanTicker = `${ticker}.SW`;
+    }
+    
+    console.log(`[fetchHistoricalPrices] Fetching ${years} years for ${cleanTicker} from ${fromDate} to ${toDate}`);
+    
+    const url = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.warn(`[fetchHistoricalPrices] API request failed for ${cleanTicker}: ${response.status}`);
       return null;
     }
-
-    const chartData = result.chart.result[0];
-    const timestamps = chartData.timestamp || [];
-    const quotes = chartData.indicators?.quote?.[0] || {};
-    const closes = quotes.close || [];
-
-    if (timestamps.length === 0 || closes.length === 0) {
+    
+    const data = await response.json();
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      console.warn(`[fetchHistoricalPrices] No data returned for ${cleanTicker}`);
       return null;
     }
-
-    // Convert to date/price pairs
-    const historicalData: { date: string; close: number }[] = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      if (closes[i] !== null && closes[i] !== undefined) {
-        const date = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
-        historicalData.push({
-          date,
-          close: closes[i],
-        });
-      }
-    }
-
+    
+    // Convert EODHD format to our format
+    const historicalData = data.map((item: any) => ({
+      date: item.date,
+      close: item.close,
+    }));
+    
+    console.log(`[fetchHistoricalPrices] Fetched ${historicalData.length} data points for ${cleanTicker} spanning ${years} years`);
+    
     return historicalData;
   } catch (error) {
-    console.error(`[StockDataAPI] Error fetching historical prices for ${ticker}:`, error);
+    console.error(`[fetchHistoricalPrices] Error fetching historical prices for ${ticker}:`, error);
     return null;
   }
 }

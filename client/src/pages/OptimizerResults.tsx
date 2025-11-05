@@ -1088,6 +1088,89 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         </CardContent>
       </Card>
 
+      {/* Portfolio Selector */}
+      <Card className="bg-slate-800 border-slate-700 mb-4">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-white text-lg flex items-center gap-2">
+            <FolderOpen className="w-5 h-5" />
+            Portfolio Auswahl
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="text-slate-400 text-sm mb-2 block">
+                Gespeichertes Portfolio laden
+              </label>
+              <Select
+                value={selectedPortfolioId || ""}
+                onValueChange={(value) => {
+                  if (value === "current") {
+                    setSelectedPortfolioId(null);
+                    setEditablePositions(null);
+                    toast.info('Aktuelles optimiertes Portfolio angezeigt');
+                  } else {
+                    const portfolio = savedPortfolios.find((p: any) => p.id.toString() === value);
+                    if (portfolio) {
+                      try {
+                        const data = JSON.parse(portfolio.portfolioData);
+                        if (data.stocks && Array.isArray(data.stocks)) {
+                          setEditablePositions(data.stocks);
+                          setSelectedPortfolioId(value);
+                          toast.success(`Portfolio "${portfolio.name}" geladen!`);
+                        } else {
+                          toast.error('Portfolio-Daten haben ungültiges Format');
+                        }
+                      } catch (error) {
+                        console.error('Failed to parse portfolio data:', error);
+                        toast.error('Portfolio konnte nicht geladen werden');
+                      }
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Wählen Sie ein Portfolio..." />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  <SelectItem value="current" className="text-white hover:bg-slate-600">
+                    🎯 Aktuelles optimiertes Portfolio
+                  </SelectItem>
+                  {savedPortfolios.map((portfolio: any) => (
+                    <SelectItem 
+                      key={portfolio.id} 
+                      value={portfolio.id.toString()}
+                      className="text-white hover:bg-slate-600"
+                    >
+                      {portfolio.name} ({portfolio.numberOfPositions} Positionen, CHF {portfolio.totalInvested?.toLocaleString('de-CH') || '0'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedPortfolioId && (
+              <Button
+                onClick={() => {
+                  setSelectedPortfolioId(null);
+                  setEditablePositions(null);
+                  toast.info('Zurück zum optimierten Portfolio');
+                }}
+                variant="outline"
+                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Zurücksetzen
+              </Button>
+            )}
+          </div>
+          {selectedPortfolioId && (
+            <p className="text-slate-400 text-sm mt-3">
+              ℹ️ Sie betrachten ein gespeichertes Portfolio. Alle Analysen beziehen sich auf dieses Portfolio.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Summary Cards and Action Buttons */}
       <div className="flex flex-col lg:flex-row gap-4 items-start">
         {/* Metrics Cards */}
@@ -1473,57 +1556,79 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
               <p className="text-slate-400 text-center py-8">Keine gespeicherten Portfolios gefunden.</p>
             ) : (
               savedPortfolios.map((portfolio: any) => (
-                <div key={portfolio.id} className="bg-slate-700 p-4 rounded-lg border border-slate-600">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex justify-between items-baseline mb-2">
-                        <h3 className="text-white font-semibold text-lg">{portfolio.name}</h3>
-                        <div className="text-right ml-4">
-                          <p className="text-slate-500 text-xs">Gespeichert am</p>
-                          <p className="text-slate-400 text-sm">
-                            {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                            })} {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                        </div>
+                <div key={portfolio.id} className="bg-slate-700 p-3 rounded-lg border border-slate-600">
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-white font-semibold text-lg truncate">{portfolio.name}</h3>
+                        <p className="text-slate-400 text-xs whitespace-nowrap ml-2">
+                          Zuletzt gespeichert {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })} {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
                       </div>
                       {portfolio.description && (
-                        <p className="text-slate-400 text-sm mt-1">{portfolio.description}</p>
+                        <p className="text-slate-400 text-sm mb-2 line-clamp-1">{portfolio.description}</p>
                       )}
-                      <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                      <div className="grid grid-cols-4 gap-3 text-sm">
                         <div>
                           <span className="text-slate-400">Positionen:</span>
-                          <span className="text-white ml-2">{portfolio.numberOfPositions}</span>
+                          <span className="text-white ml-1">{portfolio.numberOfPositions}</span>
                         </div>
                         <div>
                           <span className="text-slate-400">Total:</span>
-                          <span className="text-white ml-2">CHF {portfolio.totalInvested?.toLocaleString('de-CH') || '0'}</span>
+                          <span className="text-white ml-1">CHF {portfolio.totalInvested?.toLocaleString('de-CH') || '0'}</span>
                         </div>
                         <div>
                           <span className="text-slate-400">Ø Div.:</span>
-                          <span className="text-green-400 ml-2">{(portfolio.avgDividendYield || 0).toFixed(2)}%</span>
+                          <span className="text-green-400 ml-1">{(portfolio.avgDividendYield || 0).toFixed(2)}%</span>
                         </div>
                         <div>
                           <span className="text-slate-400">Ø YTD:</span>
-                                 <span className={`ml-2 ${(portfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          <span className={`ml-1 ${(portfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(portfolio.avgYtdPerformance || 0).toFixed(1)}%
                           </span>
                         </div>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => loadMutation.mutate(portfolio.id)}
-                      variant="outline"
-                      size="sm"
-                      className="bg-red-600 border-red-500 text-white hover:bg-red-700"
-                    >
-                      Löschen
-                    </Button>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button
+                        onClick={() => {
+                          try {
+                            const data = JSON.parse(portfolio.portfolioData);
+                            if (data.stocks && Array.isArray(data.stocks)) {
+                              setEditablePositions(data.stocks);
+                              setSelectedPortfolioId(portfolio.id.toString());
+                              setShowLoadDialog(false);
+                              toast.success(`Portfolio "${portfolio.name}" geladen!`);
+                            } else {
+                              toast.error('Portfolio-Daten haben ungültiges Format');
+                            }
+                          } catch (error) {
+                            console.error('Failed to parse portfolio data:', error);
+                            toast.error('Portfolio konnte nicht geladen werden');
+                          }
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
+                      >
+                        Laden
+                      </Button>
+                      <Button
+                        onClick={() => loadMutation.mutate(portfolio.id)}
+                        variant="outline"
+                        size="sm"
+                        className="bg-red-600 border-red-500 text-white hover:bg-red-700"
+                      >
+                        Löschen
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -1706,15 +1811,15 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   const newPosition: OptimizedPosition = {
                     ticker: addStockFormData.ticker,
                     companyName: addStockFormData.companyName,
-                    category: addStockFormData.category || 'Andere',
-                    shares: shares,
-                    currentPrice: currentPrice.toString(),
+                    category: addStockFormData.category || 'Wachstumstitel',
+                    shares: Math.floor(investmentAmount / parseFloat(addStockFormData.currentPrice || '1')),
+                    currentPrice: addStockFormData.currentPrice || '0',
                     investmentAmount: investmentAmount,
                     portfolioWeight: (investmentAmount / currentInputs.investmentAmount) * 100,
                     dividendYield: addStockFormData.dividendYield || '0',
                     ytdPerformance: addStockFormData.ytdPerformance || '0',
                     peRatio: '0',
-                    pegRatio: '0',
+                    score: 0,
                     isDividendStock: parseFloat(addStockFormData.dividendYield || '0') >= 2,
                     isGrowthStock: parseFloat(addStockFormData.dividendYield || '0') < 2,
                   };

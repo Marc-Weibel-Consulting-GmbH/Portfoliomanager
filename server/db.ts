@@ -325,7 +325,7 @@ export async function createSavedPortfolio(portfolio: InsertSavedPortfolio) {
   
   try {
     const result = await db.insert(savedPortfolios).values(portfolio);
-    return { id: Number(result.insertId), ...portfolio };
+    return { id: Number((result as any).insertId), ...portfolio };
   } catch (error) {
     console.error("[Database] Failed to create saved portfolio:", error);
     return null;
@@ -347,7 +347,7 @@ export async function updateSavedPortfolio(id: number, userId: number, updates: 
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(savedPortfolios.id, id));
     
-    return { id, ...existing, ...updates };
+    return { ...existing, ...updates, id };
   } catch (error) {
     console.error("[Database] Failed to update saved portfolio:", error);
     return null;

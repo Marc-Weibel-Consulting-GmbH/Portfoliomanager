@@ -36,6 +36,11 @@
 - [x] Analyzer (OptimizerResults): Dropdown zum Laden gespeicherter Portfolios hinzufügen
 - [x] Analyzer (OptimizerResults): 5-Jahres-Chart mit Performance in % (statt absolute Werte)
 - [x] Analyzer (OptimizerResults): Benchmark-Auswahl (S&P 500, Nasdaq, SMI, MSCI World, Eurostoxx)
+- [x] Stripe API Version Fehler behoben (2025-10-29.clover → 2025-09-30.clover in routers.ts und webhooks/stripe.ts)
+- [x] 5-Jahres Performance Chart zeigt jetzt volle 5 Jahre Daten (statt nur ~7 Monate)
+  - [x] Union statt Intersection von Datumswerten implementiert
+  - [x] Forward-Fill für fehlende Werte (letzter bekannter Preis)
+  - [x] Gewichtungsnormalisierung für Aktien ohne Daten in frühen Perioden
 
 ## Später
 - [ ] "Finanzen" Tab in "Info" Tab integrieren
@@ -827,3 +832,10 @@
   - Growth stocks: sharpeRatio (40%), pegRatio (35%), beta (25%)
 - [x] Remove equityRatio and ytdPerformance from scoring
 - [x] Add beta and volatility to routers.ts metric passing
+- [x] Fix score classification - use category field instead of auto-detection (backend)
+- [x] Fix frontend score detail dialog - Nestlé now correctly shown as Dividendenaktie
+- [x] Add portfolio selector dropdown in Analyzer (before Portfolio Übersicht card)
+- [x] Load and display selected portfolio data in all Analyzer sections
+- [ ] Verify portfolio card changes are visible (Laden button, horizontal timestamp, reduced height)
+- [ ] Fix Analyzer chart - only shows 1 year history instead of 5 years (backend issue)
+- [ ] Add ETFs to stock list under Aktien tab

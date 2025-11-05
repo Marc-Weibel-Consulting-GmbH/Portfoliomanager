@@ -126,7 +126,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
     }
 
     try {
-      await deleteMutation.mutateAsync({ id });
+      await deleteMutation.mutateAsync(id);
       toast.success('Gelöscht', { description: `Portfolio "${name}" wurde gelöscht` });
       refetch();
     } catch (error) {
@@ -248,6 +248,11 @@ export default function Home() {
   // Query for saved portfolios - MUST be at top level (not conditional)
   const { data: savedPortfoliosData = [], refetch: refetchSavedPortfolios } = trpc.savedPortfolios.list.useQuery();
   const deletePortfolioMutation = trpc.savedPortfolios.delete.useMutation();
+  const savePortfolioMutation = trpc.savedPortfolios.create.useMutation({
+    onSuccess: () => {
+      refetchSavedPortfolios();
+    },
+  });
   
   // Calculator state - MUST be declared here, not inside conditional
   const [calculatorType, setCalculatorType] = useState<'pension' | 'budget'>('pension');
@@ -1628,13 +1633,7 @@ export default function Home() {
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const inputs = {
-                                investmentAmount: portfolio.totalInvested,
-                                expectedDividendYield: portfolio.avgDividendYield,
-                                numberOfPositions: portfolio.numberOfPositions,
-                                investorProfile: 'balanced' as const,
-                              };
-                              handleLoadPortfolio(portfolio.id, inputs);
+                              toast.info('Portfolio laden', { description: 'Diese Funktion ist noch nicht implementiert' });
                             }}
                             variant="outline"
                             size="sm"
@@ -1645,7 +1644,9 @@ export default function Home() {
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeletePortfolio(portfolio.id);
+                              if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
+                                deletePortfolioMutation.mutate(portfolio.id);
+                              }
                             }}
                             variant="destructive"
                             size="sm"
@@ -1682,8 +1683,7 @@ export default function Home() {
                       <div className="flex gap-2 ml-auto">
                         <Button
                           onClick={() => {
-                            setSelectedPortfolioId(portfolio.id.toString());
-                            loadPortfolioMutation.mutate({ id: portfolio.id });
+                            toast.info('Portfolio laden', { description: 'Diese Funktion ist noch nicht implementiert' });
                           }}
                           size="sm"
                           className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -1694,7 +1694,7 @@ export default function Home() {
                           onClick={async () => {
                             if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
                               try {
-                                await deletePortfolioMutation.mutateAsync({ id: portfolio.id });
+                                await deletePortfolioMutation.mutateAsync(portfolio.id);
                                 toast.success('Gelöscht', { description: `Portfolio "${portfolio.name}" wurde gelöscht` });
                                 refetchSavedPortfolios();
                               } catch (error) {
@@ -3167,7 +3167,7 @@ export default function Home() {
                       savedAt: new Date().toISOString(),
                     });
                     
-                    await trpc.savedPortfolios.create.mutate({
+                    await savePortfolioMutation.mutateAsync({
                       name: portfolioName,
                       description: portfolioDescription || undefined,
                       portfolioData,

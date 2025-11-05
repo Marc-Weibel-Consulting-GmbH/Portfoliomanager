@@ -14,7 +14,7 @@ export function PortfolioSentimentIndicator() {
     let score = 50; // Start neutral
 
     // 1. YTD Performance (weight: 30%)
-    const avgYTD = stocks.reduce((sum, s) => sum + (parseFloat(s.ytdChange?.toString() || '0')), 0) / stocks.length;
+    const avgYTD = stocks.reduce((sum, s) => sum + (parseFloat(s.ytdPerformance?.toString() || '0')), 0) / stocks.length;
     if (avgYTD > 20) score += 15;
     else if (avgYTD > 10) score += 10;
     else if (avgYTD > 0) score += 5;
@@ -42,10 +42,10 @@ export function PortfolioSentimentIndicator() {
     if (avgDiv > 3) score += 6;
     else if (avgDiv > 2) score += 3;
 
-    // 5. Risk Score (weight: 10%)
-    const avgRisk = stocks.reduce((sum, s) => sum + (parseFloat(s.riskScore?.toString() || '0')), 0) / stocks.length;
-    if (avgRisk < 3) score += 4;
-    else if (avgRisk > 6) score -= 4;
+    // 5. Volatility (weight: 10%) - lower is better
+    const avgVol = stocks.reduce((sum, s) => sum + (parseFloat(s.volatility?.toString() || '0')), 0) / stocks.length;
+    if (avgVol < 20) score += 4;
+    else if (avgVol > 40) score -= 4;
 
     // Clamp score between 0-100
     score = Math.max(0, Math.min(100, score));

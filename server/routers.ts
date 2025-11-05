@@ -725,7 +725,13 @@ export const appRouter = router({
         return [];
       }
       
-      const performance = await calculatePortfolioPerformance(stocks);
+      // Map stocks to format expected by calculatePortfolioPerformance
+      const stocksForPerformance = stocks.map(s => ({
+        ticker: s.ticker,
+        portfolioWeight: s.portfolioWeight || '0'
+      }));
+      
+      const performance = await calculatePortfolioPerformance(stocksForPerformance);
       return performance;
     }),
     findCompetitors: protectedProcedure
@@ -1159,7 +1165,7 @@ export const appRouter = router({
         try {
           const Stripe = (await import("stripe")).default;
           const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-            apiVersion: "2025-10-29.clover",
+            apiVersion: "2025-09-30.clover",
           });
           
           // Create Stripe checkout session
@@ -1346,38 +1352,70 @@ export const appRouter = router({
             return { dates: [], values: [] };
           }
 
-          // Find common dates across all stocks
-          const allDates = validResults[0]?.data.map((d: any) => d.date) || [];
-          const dateSet = new Set(allDates);
+          // Collect ALL dates from all stocks (union instead of intersection)
+          const allDatesSet = new Set<string>();
           validResults.forEach(r => {
             if (r && r.data) {
-              const dates = new Set(r.data.map((d: any) => d.date));
-              dateSet.forEach(date => {
-                if (!dates.has(date)) dateSet.delete(date);
-              });
+              r.data.forEach((d: any) => allDatesSet.add(d.date));
             }
           });
 
-          const commonDates = Array.from(dateSet).sort();
+          const allDates = Array.from(allDatesSet).sort();
+          console.log(`[Chart] Found ${allDates.length} total dates. First: ${allDates[0]}, Last: ${allDates[allDates.length - 1]}`);
 
-          // Calculate weighted portfolio value for each date
-          const portfolioValues = commonDates.map(date => {
-            let totalValue = 0;
-            validResults.forEach(r => {
-              const dataPoint = r.data.find((d: any) => d.date === date);
+          // Build price lookup maps for each stock with forward-fill for missing dates
+          const stockPriceMaps = validResults.map(r => {
+            const priceMap = new Map<string, number>();
+            let lastPrice = 0;
+            
+            // Sort data by date
+            const sortedData = [...r.data].sort((a, b) => a.date.localeCompare(b.date));
+            
+            // Fill price map with forward-fill for missing dates
+            allDates.forEach(date => {
+              const dataPoint = sortedData.find((d: any) => d.date === date);
               if (dataPoint) {
-                totalValue += dataPoint.close * r.weight;
+                lastPrice = dataPoint.close;
+                priceMap.set(date, lastPrice);
+              } else if (lastPrice > 0) {
+                // Forward-fill: use last known price
+                priceMap.set(date, lastPrice);
               }
             });
-            return totalValue;
+            
+            return { weight: r.weight, priceMap };
           });
 
-          // Normalize to percentage (start at 100%)
-          const startValue = portfolioValues[0] || 1;
-          const percentageValues = portfolioValues.map(v => ((v / startValue) - 1) * 100);
+          // Calculate weighted portfolio value for each date
+          const portfolioValues = allDates.map(date => {
+            let totalValue = 0;
+            let totalWeight = 0;
+            
+            stockPriceMaps.forEach(({ weight, priceMap }) => {
+              const price = priceMap.get(date);
+              if (price !== undefined && price > 0) {
+                totalValue += price * weight;
+                totalWeight += weight;
+              }
+            });
+            
+            // Normalize by actual weight (in case some stocks don't have data yet)
+            return totalWeight > 0 ? totalValue / totalWeight : 0;
+          });
 
+          // Filter out dates where portfolio value is 0 (no data available yet)
+          const validIndices = portfolioValues.map((v, i) => v > 0 ? i : -1).filter(i => i >= 0);
+          const validDates = validIndices.map(i => allDates[i]);
+          const validValues = validIndices.map(i => portfolioValues[i]);
+
+          // Normalize to percentage (start at 100%)
+          const startValue = validValues[0] || 1;
+          const percentageValues = validValues.map(v => ((v / startValue) - 1) * 100);
+
+          const timeSpanYears = ((new Date(validDates[validDates.length - 1]).getTime() - new Date(validDates[0]).getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toFixed(1);
+          console.log(`[Chart] Returning ${validDates.length} data points spanning ${timeSpanYears} years`);
           return {
-            dates: commonDates,
+            dates: validDates,
             values: percentageValues,
           };
         } catch (error: any) {
@@ -1472,7 +1510,8 @@ export const appRouter = router({
   score: router({
     calculateAll: protectedProcedure.query(async ({ ctx }) => {
       const { getAllStocks } = await import("./db");
-      const { calculateStockScore, StockMetrics } = await import("./scoring");
+      const { calculateStockScore } = await import("./scoring");
+      type StockMetrics = import("./scoring").StockMetrics;
       
       const stocks = await getAllStocks();
       
@@ -1489,7 +1528,7 @@ export const appRouter = router({
           ytdPerformance: stock.ytdPerformance ? parseFloat(stock.ytdPerformance) : undefined,
         };
         
-        return calculateStockScore(stock.ticker, metrics);
+        return calculateStockScore(stock.ticker, metrics, undefined, stock.category || undefined);
       });
       
       return scores;

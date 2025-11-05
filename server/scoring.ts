@@ -86,23 +86,32 @@ function calcSubscore(
 }
 
 /**
- * Determine stock type based on metrics
+ * Determine stock type based on category or metrics
  */
-export function determineStockType(metrics: StockMetrics): StockType {
-  // If dividend yield > 2% and payout ratio exists, likely dividend stock
-  if (metrics.dividendYield && metrics.dividendYield > 2 && metrics.payoutRatio !== undefined) {
+export function determineStockType(metrics: StockMetrics, category?: string): StockType {
+  // Use category from database if available
+  if (category) {
+    const categoryLower = category.toLowerCase();
+    console.log('[Score] Category:', category, '-> lowercase:', categoryLower);
+    if (categoryLower.includes('dividend') || categoryLower.includes('dividendentitel')) {
+      console.log('[Score] Classified as DIVIDEND based on category');
+      return 'dividend';
+    }
+    if (categoryLower.includes('growth') || categoryLower.includes('wachstum')) {
+      console.log('[Score] Classified as GROWTH based on category');
+      return 'growth';
+    }
+  }
+  
+  // Fallback: If dividend yield > 2%, likely dividend stock
+  if (metrics.dividendYield && metrics.dividendYield > 2) {
+    console.log('[Score] Classified as DIVIDEND based on yield:', metrics.dividendYield);
     return 'dividend';
   }
   
-  // If PEG ratio or high growth rates exist, likely growth stock
-  if (metrics.pegRatio !== undefined || 
-      (metrics.earningsGrowth && metrics.earningsGrowth > 15) ||
-      (metrics.revenueGrowth && metrics.revenueGrowth > 15)) {
-    return 'growth';
-  }
-  
-  // Default: if dividend yield exists, dividend stock, otherwise growth
-  return metrics.dividendYield !== undefined ? 'dividend' : 'growth';
+  // Default: growth stock
+  console.log('[Score] Classified as GROWTH (default)');
+  return 'growth';
 }
 
 /**
@@ -237,10 +246,11 @@ function getColorFromScore(score: number): ScoreColor {
 export function calculateStockScore(
   ticker: string,
   metrics: StockMetrics,
-  stockType?: StockType
+  stockType?: StockType,
+  category?: string
 ): StockScore {
   // Determine type if not provided
-  const type = stockType || determineStockType(metrics);
+  const type = stockType || determineStockType(metrics, category);
 
   // Calculate subscores based on type
   const subScores = type === 'dividend' 
