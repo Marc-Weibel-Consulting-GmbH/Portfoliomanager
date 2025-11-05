@@ -746,3 +746,7 @@
 
 - [x] Zurück button in Portfolio Optimizer should go to Portfolio tab (where saved portfolios are shown), not Aktien tab
 - [x] After saving portfolio, automatically refresh the portfolio list and show it
+
+## Portfolio Display Issue
+
+- [x] Saved portfolios show CHF 0 and 0 positions even though data is saved correctly - fixed by parsing portfolioData JSON in backend

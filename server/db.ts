@@ -268,7 +268,29 @@ export async function getSavedPortfolios(userId: number) {
       .from(savedPortfolios)
       .where(eq(savedPortfolios.userId, userId))
       .orderBy(desc(savedPortfolios.updatedAt));
-    return result;
+    
+    // Parse portfolioData JSON and extract fields for display
+    return result.map(portfolio => {
+      try {
+        const data = JSON.parse(portfolio.portfolioData);
+        return {
+          ...portfolio,
+          totalInvested: data.totalInvested || 0,
+          numberOfPositions: data.numberOfPositions || 0,
+          avgDividendYield: data.avgDividendYield || 0,
+          avgYtdPerformance: data.avgYtdPerformance || 0,
+        };
+      } catch (e) {
+        console.error("[Database] Failed to parse portfolioData:", e);
+        return {
+          ...portfolio,
+          totalInvested: 0,
+          numberOfPositions: 0,
+          avgDividendYield: 0,
+          avgYtdPerformance: 0,
+        };
+      }
+    });
   } catch (error) {
     console.error("[Database] Failed to get saved portfolios:", error);
     return [];
