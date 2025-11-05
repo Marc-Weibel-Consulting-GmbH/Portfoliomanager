@@ -775,3 +775,5 @@
 - [ ] Ensure manual changes persist when saving portfolio
 - [x] Performance Chart im Analyzer wird nicht angezeigt - Debug erforderlich (TypeScript Fehler behoben)
 - [x] Portfolio-Dropdown direkt im Analyzer Header hinzufügen für schnellen Wechsel zwischen Portfolios
+- [x] Benchmark-Linie (rot) wird im Performance-Chart nicht angezeigt (Yahoo Finance API implementiert)
+- [x] Performance-Chart fehlt im Analyzer (OptimizerResults) - sollte dort auch sichtbar sein

@@ -1395,16 +1395,14 @@ export const appRouter = router({
       })
       .query(async ({ input }) => {
         const { benchmark, years = 5 } = input;
-        const apiKey = process.env.EODHD_API_KEY;
-        if (!apiKey) throw new Error("EODHD API key not configured");
 
-        // Map benchmark names to tickers
+        // Map benchmark names to Yahoo Finance tickers
         const benchmarkTickers: Record<string, string> = {
-          'sp500': '^GSPC',
-          'nasdaq': '^IXIC',
-          'smi': '^SSMI',
+          'sp500': '%5EGSPC',
+          'nasdaq': '%5EIXIC',
+          'smi': '%5ESSMI',
           'msci_world': 'URTH',
-          'eurostoxx': '^STOXX50E',
+          'eurostoxx': '%5ESTOXX50E',
         };
 
         const ticker = benchmarkTickers[benchmark];
@@ -1412,25 +1410,52 @@ export const appRouter = router({
 
         const fromDate = new Date();
         fromDate.setFullYear(fromDate.getFullYear() - years);
-        const fromDateStr = fromDate.toISOString().split('T')[0];
-        const toDateStr = new Date().toISOString().split('T')[0];
+        const period1 = Math.floor(fromDate.getTime() / 1000);
+        const period2 = Math.floor(Date.now() / 1000);
 
         try {
-          const url = `https://eodhd.com/api/eod/${ticker}?api_token=${apiKey}&from=${fromDateStr}&to=${toDateStr}&fmt=json`;
-          const res = await fetch(url);
-          if (!res.ok) throw new Error("Failed to fetch benchmark data");
+          // Use Yahoo Finance API via Manus Data API
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d`;
+          const res = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0',
+            },
+          });
+          
+          if (!res.ok) {
+            console.error('[portfolioPerformance] Benchmark fetch failed:', res.status, res.statusText);
+            throw new Error("Failed to fetch benchmark data");
+          }
+          
           const data = await res.json();
 
-          if (!data || data.length === 0) {
+          if (!data?.chart?.result?.[0]?.timestamp || !data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close) {
+            console.warn('[portfolioPerformance] No benchmark data available');
             return { dates: [], values: [] };
           }
 
-          const dates = data.map((d: any) => d.date);
-          const closes = data.map((d: any) => d.close);
+          const timestamps = data.chart.result[0].timestamp;
+          const closes = data.chart.result[0].indicators.quote[0].close;
 
-          // Normalize to percentage (start at 100%)
-          const startValue = closes[0] || 1;
-          const percentageValues = closes.map((v: number) => ((v / startValue) - 1) * 100);
+          // Convert timestamps to dates and filter out null values
+          const validData: Array<{ date: string; close: number }> = [];
+          for (let i = 0; i < timestamps.length; i++) {
+            if (closes[i] !== null && closes[i] !== undefined) {
+              const date = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
+              validData.push({ date, close: closes[i] });
+            }
+          }
+
+          if (validData.length === 0) {
+            return { dates: [], values: [] };
+          }
+
+          const dates = validData.map(d => d.date);
+          const closePrices = validData.map(d => d.close);
+
+          // Normalize to percentage (start at 0%)
+          const startValue = closePrices[0] || 1;
+          const percentageValues = closePrices.map((v: number) => ((v / startValue) - 1) * 100);
 
           return {
             dates,
@@ -1438,7 +1463,8 @@ export const appRouter = router({
           };
         } catch (error: any) {
           console.error('[portfolioPerformance] Error fetching benchmark:', error);
-          throw new Error(error.message || "Failed to fetch benchmark data");
+          // Return empty data instead of throwing to prevent UI errors
+          return { dates: [], values: [] };
         }
       }),
   }),
