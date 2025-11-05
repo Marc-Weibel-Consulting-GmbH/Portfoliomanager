@@ -32,6 +32,10 @@
   - [x] Ticker-Suche mit Auto-Complete wie im Hauptportfolio
   - [x] Automatisches Laden aller Daten beim Auswählen einer Aktie
   - [x] Integration mit fetchStockData API
+- [x] YTD Performance wird nicht automatisch eingesetzt im OptimizerResults "Aktie hinzufügen" Dialog
+- [x] Analyzer (OptimizerResults): Dropdown zum Laden gespeicherter Portfolios hinzufügen
+- [x] Analyzer (OptimizerResults): 5-Jahres-Chart mit Performance in % (statt absolute Werte)
+- [x] Analyzer (OptimizerResults): Benchmark-Auswahl (S&P 500, Nasdaq, SMI, MSCI World, Eurostoxx)
 
 ## Später
 - [ ] "Finanzen" Tab in "Info" Tab integrieren

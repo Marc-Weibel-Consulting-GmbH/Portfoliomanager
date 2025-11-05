@@ -14,6 +14,7 @@ import autoTable from 'jspdf-autotable';
 import { optimizePortfolioSharpe, weightsToPositions, calculateSharpeRatio } from "@/utils/sharpeOptimizer";
 import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
 import PortfolioAdjustmentDialog from "@/components/PortfolioAdjustmentDialog";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface OptimizerInputs {
   investmentAmount: number;
@@ -67,6 +68,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   const [addStockFormData, setAddStockFormData] = useState<any>({});
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");
   const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
+  const [selectedBenchmark, setSelectedBenchmark] = useState<string>('sp500');
 
   // Ticker search query for auto-complete
   const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
@@ -77,13 +80,23 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   // Fetch stock data mutation for auto-fill
   const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
     onSuccess: (data: any) => {
+      // Calculate YTD Performance if both prices are available
+      let ytdPerformance = null;
+      if (data.ytdStartPrice && data.currentPrice) {
+        const ytdStart = parseFloat(data.ytdStartPrice);
+        const current = parseFloat(data.currentPrice);
+        if (ytdStart > 0 && current > 0) {
+          ytdPerformance = (((current - ytdStart) / ytdStart) * 100).toFixed(2);
+        }
+      }
+
       setAddStockFormData((prev: any) => ({
         ...prev,
         companyName: data.companyName || prev.companyName,
         ticker: data.ticker || prev.ticker,
         currentPrice: data.currentPrice?.toString() || prev.currentPrice,
         dividendYield: data.dividendYield?.toString() || prev.dividendYield,
-        ytdPerformance: data.ytdPerformance?.toString() || prev.ytdPerformance,
+        ytdPerformance: ytdPerformance || prev.ytdPerformance,
       }));
       toast.success("Erfolgreich", { description: "Daten wurden geladen" });
     },
@@ -875,6 +888,43 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   const growthPercent = (growthAmount / currentInputs.investmentAmount) * 100;
   const cashPercent = (displayPortfolio.remainingCash / currentInputs.investmentAmount) * 100;
 
+  // Prepare data for performance chart
+  const tickers = displayPortfolio.positions.map(p => p.ticker);
+  const weights = displayPortfolio.positions.map(p => p.portfolioWeight / 100);
+
+  // Fetch portfolio historical data
+  const { data: portfolioData, isLoading: isLoadingPortfolio } = trpc.portfolioPerformance.getHistoricalData.useQuery(
+    { tickers, weights, years: 5 },
+    { enabled: tickers.length > 0 && weights.length > 0 }
+  );
+
+  // Fetch benchmark data
+  const { data: benchmarkData, isLoading: isLoadingBenchmark } = trpc.portfolioPerformance.getBenchmarkData.useQuery(
+    { benchmark: selectedBenchmark, years: 5 },
+    { enabled: !!selectedBenchmark }
+  );
+
+  // Combine portfolio and benchmark data for chart
+  const chartData = useMemo(() => {
+    if (!portfolioData || !portfolioData.dates || portfolioData.dates.length === 0) return [];
+    
+    return portfolioData.dates.map((date, index) => ({
+      date,
+      portfolio: portfolioData.values[index] || 0,
+      benchmark: benchmarkData && benchmarkData.dates.includes(date) 
+        ? benchmarkData.values[benchmarkData.dates.indexOf(date)] || 0
+        : null,
+    }));
+  }, [portfolioData, benchmarkData]);
+
+  const benchmarkOptions = [
+    { value: 'sp500', label: 'S&P 500' },
+    { value: 'nasdaq', label: 'Nasdaq' },
+    { value: 'smi', label: 'SMI' },
+    { value: 'msci_world', label: 'MSCI World' },
+    { value: 'eurostoxx', label: 'Eurostoxx' },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Conflict Resolution Dialog */}
@@ -1067,6 +1117,94 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
           </CardContent>
         </Card>
       </div>
+
+      {/* Performance Chart */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-white">Portfolio Performance (5 Jahre)</CardTitle>
+            <div className="flex gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-slate-400">Benchmark:</label>
+                <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
+                  <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    {benchmarkOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value} className="text-white hover:bg-slate-600">
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingPortfolio || isLoadingBenchmark ? (
+            <div className="h-96 flex items-center justify-center text-slate-400">
+              <p>Lade Daten...</p>
+            </div>
+          ) : chartData.length === 0 ? (
+            <div className="h-96 flex items-center justify-center text-slate-400">
+              <p>Keine historischen Daten verfügbar</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#94a3b8"
+                  tick={{ fill: '#94a3b8' }}
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getFullYear().toString().slice(-2)}`;
+                  }}
+                />
+                <YAxis 
+                  stroke="#94a3b8"
+                  tick={{ fill: '#94a3b8' }}
+                  tickFormatter={(value) => `${value.toFixed(0)}%`}
+                />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '6px' }}
+                  labelStyle={{ color: '#94a3b8' }}
+                  itemStyle={{ color: '#fff' }}
+                  formatter={(value: any) => `${value.toFixed(2)}%`}
+                  labelFormatter={(label) => {
+                    const date = new Date(label);
+                    return date.toLocaleDateString('de-DE');
+                  }}
+                />
+                <Legend 
+                  wrapperStyle={{ color: '#94a3b8' }}
+                  formatter={(value) => value === 'portfolio' ? 'Portfolio' : benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="portfolio" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  dot={false}
+                  name="Portfolio"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="benchmark" 
+                  stroke="#ef4444" 
+                  strokeWidth={2}
+                  dot={false}
+                  name="Benchmark"
+                  connectNulls
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Portfolio Table */}
       <Card className="bg-slate-800 border-slate-700">

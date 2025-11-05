@@ -1310,6 +1310,137 @@ export const appRouter = router({
       }),
   }),
 
+  portfolioPerformance: router({
+    getHistoricalData: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "tickers" in val && Array.isArray((val as any).tickers)) {
+          return val as { tickers: string[]; weights: number[]; years?: number };
+        }
+        throw new Error("Invalid input: tickers and weights arrays required");
+      })
+      .query(async ({ input }) => {
+        const { tickers, weights, years = 5 } = input;
+        const apiKey = process.env.EODHD_API_KEY;
+        if (!apiKey) throw new Error("EODHD API key not configured");
+
+        const fromDate = new Date();
+        fromDate.setFullYear(fromDate.getFullYear() - years);
+        const fromDateStr = fromDate.toISOString().split('T')[0];
+        const toDateStr = new Date().toISOString().split('T')[0];
+
+        try {
+          // Fetch historical data for each ticker
+          const historicalDataPromises = tickers.map(async (ticker, index) => {
+            const cleanTicker = ticker.replace(/\s+•\s+/, '.');
+            const url = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=${fromDateStr}&to=${toDateStr}&fmt=json`;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const data = await res.json();
+            return { ticker: cleanTicker, data, weight: weights[index] || 0 };
+          });
+
+          const results = await Promise.all(historicalDataPromises);
+          const validResults = results.filter(r => r !== null && r.data && r.data.length > 0);
+
+          if (validResults.length === 0) {
+            return { dates: [], values: [] };
+          }
+
+          // Find common dates across all stocks
+          const allDates = validResults[0].data.map((d: any) => d.date);
+          const dateSet = new Set(allDates);
+          validResults.forEach(r => {
+            const dates = new Set(r.data.map((d: any) => d.date));
+            dateSet.forEach(date => {
+              if (!dates.has(date)) dateSet.delete(date);
+            });
+          });
+
+          const commonDates = Array.from(dateSet).sort();
+
+          // Calculate weighted portfolio value for each date
+          const portfolioValues = commonDates.map(date => {
+            let totalValue = 0;
+            validResults.forEach(r => {
+              const dataPoint = r.data.find((d: any) => d.date === date);
+              if (dataPoint) {
+                totalValue += dataPoint.close * r.weight;
+              }
+            });
+            return totalValue;
+          });
+
+          // Normalize to percentage (start at 100%)
+          const startValue = portfolioValues[0] || 1;
+          const percentageValues = portfolioValues.map(v => ((v / startValue) - 1) * 100);
+
+          return {
+            dates: commonDates,
+            values: percentageValues,
+          };
+        } catch (error: any) {
+          console.error('[portfolioPerformance] Error:', error);
+          throw new Error(error.message || "Failed to fetch historical data");
+        }
+      }),
+
+    getBenchmarkData: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "benchmark" in val) {
+          return val as { benchmark: string; years?: number };
+        }
+        throw new Error("Invalid input: benchmark required");
+      })
+      .query(async ({ input }) => {
+        const { benchmark, years = 5 } = input;
+        const apiKey = process.env.EODHD_API_KEY;
+        if (!apiKey) throw new Error("EODHD API key not configured");
+
+        // Map benchmark names to tickers
+        const benchmarkTickers: Record<string, string> = {
+          'sp500': '^GSPC',
+          'nasdaq': '^IXIC',
+          'smi': '^SSMI',
+          'msci_world': 'URTH',
+          'eurostoxx': '^STOXX50E',
+        };
+
+        const ticker = benchmarkTickers[benchmark];
+        if (!ticker) throw new Error("Invalid benchmark");
+
+        const fromDate = new Date();
+        fromDate.setFullYear(fromDate.getFullYear() - years);
+        const fromDateStr = fromDate.toISOString().split('T')[0];
+        const toDateStr = new Date().toISOString().split('T')[0];
+
+        try {
+          const url = `https://eodhd.com/api/eod/${ticker}?api_token=${apiKey}&from=${fromDateStr}&to=${toDateStr}&fmt=json`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to fetch benchmark data");
+          const data = await res.json();
+
+          if (!data || data.length === 0) {
+            return { dates: [], values: [] };
+          }
+
+          const dates = data.map((d: any) => d.date);
+          const closes = data.map((d: any) => d.close);
+
+          // Normalize to percentage (start at 100%)
+          const startValue = closes[0] || 1;
+          const percentageValues = closes.map((v: number) => ((v / startValue) - 1) * 100);
+
+          return {
+            dates,
+            values: percentageValues,
+          };
+        } catch (error: any) {
+          console.error('[portfolioPerformance] Error fetching benchmark:', error);
+          throw new Error(error.message || "Failed to fetch benchmark data");
+        }
+      }),
+  }),
+
   user: router({
     updateSettings: protectedProcedure
       .input((val: unknown) => {
