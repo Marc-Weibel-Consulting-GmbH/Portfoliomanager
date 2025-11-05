@@ -234,7 +234,8 @@ export default function Home() {
   const [portfolioDescription, setPortfolioDescription] = useState('');
   
   // Query for saved portfolios - MUST be at top level (not conditional)
-  const { data: savedPortfoliosData = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: savedPortfoliosData = [], refetch: refetchSavedPortfolios } = trpc.savedPortfolios.list.useQuery();
+  const deletePortfolioMutation = trpc.savedPortfolios.delete.useMutation();
   
   // Calculator state - MUST be declared here, not inside conditional
   const [calculatorType, setCalculatorType] = useState<'pension' | 'budget'>('pension');
@@ -727,7 +728,7 @@ export default function Home() {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-8">
           <div className="max-w-4xl mx-auto">
             <button
-              onClick={() => setActiveTab("portfolio")}
+              onClick={() => setActiveTab("aktien")}
               className="mb-6 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
             >
               ← Zurück
@@ -779,7 +780,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
             <button
-              onClick={() => setActiveTab("portfolio")}
+              onClick={() => setActiveTab("aktien")}
               className="text-slate-400 hover:text-white transition-colors"
             >
               ← Zurück
@@ -884,7 +885,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
             <button
-              onClick={() => setActiveTab("portfolio")}
+              onClick={() => setActiveTab("aktien")}
               className="text-slate-400 hover:text-white transition-colors"
             >
               ← Zurück
@@ -1359,7 +1360,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setActiveTab("portfolio")}
+                onClick={() => setActiveTab("aktien")}
                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
               >
                 ← Zurück
@@ -1535,7 +1536,7 @@ export default function Home() {
                   Jetzt upgraden (CHF 10.-)
                 </Button>
                 <Button
-                  onClick={() => setActiveTab("portfolio")}
+                  onClick={() => setActiveTab("aktien")}
                   variant="outline"
                   className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
                 >
@@ -1574,19 +1575,7 @@ export default function Home() {
 
             <div className="grid gap-6 mb-8">
               {savedPortfoliosData.map((portfolio: any) => (
-                <Card key={portfolio.id} className="bg-slate-800 border-slate-700 hover:border-blue-500 transition-colors cursor-pointer"
-                  onClick={() => {
-                    // Load this portfolio and show results
-                    const inputs = {
-                      investmentAmount: portfolio.totalInvested,
-                      expectedDividendYield: portfolio.avgDividendYield,
-                      numberOfPositions: portfolio.numberOfPositions,
-                      investorType: "balanced" as const,
-                    };
-                    setOptimizerInputs(inputs);
-                    setShowOptimizerResults(true);
-                  }}
-                >
+                <Card key={portfolio.id} className="bg-slate-800 border-slate-700 hover:border-blue-500 transition-colors">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -1595,21 +1584,61 @@ export default function Home() {
                           <p className="text-slate-400 text-sm mt-2">{portfolio.description}</p>
                         )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-slate-500 text-xs">Zuletzt gespeichert</p>
-                        <p className="text-slate-400 text-sm">
-                          {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })}
-                        </p>
-                        <p className="text-slate-500 text-xs">
-                          {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <div className="text-right">
+                          <p className="text-slate-500 text-xs">Zuletzt gespeichert</p>
+                          <p className="text-slate-400 text-sm">
+                            {new Date(portfolio.updatedAt).toLocaleDateString('de-CH', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </p>
+                          <p className="text-slate-500 text-xs">
+                            {new Date(portfolio.updatedAt).toLocaleTimeString('de-CH', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const inputs = {
+                                investmentAmount: portfolio.totalInvested,
+                                expectedDividendYield: portfolio.avgDividendYield,
+                                numberOfPositions: portfolio.numberOfPositions,
+                                investorType: "balanced" as const,
+                              };
+                              setOptimizerInputs(inputs);
+                              setShowOptimizerResults(true);
+                            }}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Laden
+                          </Button>
+                          <Button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
+                                try {
+                                  await deletePortfolioMutation.mutateAsync({ id: portfolio.id });
+                                  toast.success('Gelöscht', { description: `Portfolio "${portfolio.name}" wurde gelöscht` });
+                                  refetchSavedPortfolios();
+                                } catch (error) {
+                                  toast.error('Fehler', { description: 'Portfolio konnte nicht gelöscht werden' });
+                                }
+                              }
+                            }}
+                            size="sm"
+                            variant="outline"
+                            className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardHeader>
@@ -1621,18 +1650,18 @@ export default function Home() {
                       </div>
                       <div>
                         <p className="text-slate-400 text-sm">Total investiert</p>
-                        <p className="text-white font-semibold text-lg">CHF {portfolio.totalInvested.toLocaleString('de-CH')}</p>
+                        <p className="text-white font-semibold text-lg">CHF {portfolio.totalInvested?.toLocaleString('de-CH') || '0'}</p>
                       </div>
                       <div>
                         <p className="text-slate-400 text-sm">Ø Dividende</p>
-                        <p className="text-green-400 font-semibold text-lg">{portfolio.avgDividendYield.toFixed(2)}%</p>
+                        <p className="text-green-400 font-semibold text-lg">{portfolio.avgDividendYield?.toFixed(2) || '0.00'}%</p>
                       </div>
                       <div>
                         <p className="text-slate-400 text-sm">Ø YTD Performance</p>
                         <p className={`font-semibold text-lg ${
-                          portfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
+                          (portfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                         }`}>
-                          {portfolio.avgYtdPerformance >= 0 ? '+' : ''}{portfolio.avgYtdPerformance.toFixed(1)}%
+                          {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{portfolio.avgYtdPerformance?.toFixed(1) || '0.0'}%
                         </p>
                       </div>
                     </div>
@@ -1643,7 +1672,7 @@ export default function Home() {
 
             <div className="flex gap-4 justify-center">
               <Button
-                onClick={() => setActiveTab("portfolio")}
+                onClick={() => setActiveTab("aktien")}
                 variant="outline"
                 className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
               >

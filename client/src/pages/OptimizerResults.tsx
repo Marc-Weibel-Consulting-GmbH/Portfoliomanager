@@ -55,6 +55,10 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [portfolioName, setPortfolioName] = useState('');
   const [portfolioDescription, setPortfolioDescription] = useState('');
+  const [showDiversificationDialog, setShowDiversificationDialog] = useState(false);
+  const [hideDiversificationWarning, setHideDiversificationWarning] = useState(() => {
+    return localStorage.getItem('hideDivWarning') === 'true';
+  });
 
   const saveMutation = trpc.savedPortfolios.create.useMutation({
     onSuccess: () => {
@@ -80,6 +84,17 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
   useEffect(() => {
     setAdjustedInputs(inputs);
   }, [inputs]);
+
+  // Show diversification dialog automatically if needed
+  useEffect(() => {
+    if (!hideDiversificationWarning && optimizedPortfolio) {
+      const shouldShow = optimizedPortfolio.positions.length < 10 || 
+        (optimizedPortfolio.totalInvested / optimizedPortfolio.positions.length) < 1000;
+      if (shouldShow) {
+        setShowDiversificationDialog(true);
+      }
+    }
+  }, [optimizedPortfolio, hideDiversificationWarning]);
 
   // Use adjustedInputs for all calculations (allows user adjustments)
   const currentInputs = adjustedInputs;
@@ -738,7 +753,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
     doc.text("Portfolio Optimizer - Ergebnis", 14, 20);
     
     doc.setFontSize(11);
-    doc.text(`Anlagebetrag: CHF ${currentInputs.investmentAmount.toLocaleString('de-CH')}`, 14, 30);
+    doc.text(`Anlagebetrag: CHF ${currentInputs.investmentAmount?.toLocaleString('de-CH') || '0'}`, 14, 30);
     doc.text(`Erwartete Dividendenrendite: ${currentInputs.expectedDividendYield}%`, 14, 36);
     doc.text(`Anzahl Positionen: ${currentInputs.numberOfPositions}`, 14, 42);
     doc.text(`Anlegertyp: ${currentInputs.investorType === 'conservative' ? 'Konservativ' : currentInputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}`, 14, 48);
@@ -747,9 +762,9 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
       pos.ticker,
       pos.companyName,
       pos.shares.toString(),
-      `CHF ${parseFloat(pos.currentPrice).toFixed(2)}`,
-      `CHF ${pos.investmentAmount.toFixed(2)}`,
-      `${pos.portfolioWeight.toFixed(2)}%`,
+      `CHF ${parseFloat(pos.currentPrice || '0').toFixed(2)}`,
+      `CHF ${(pos.investmentAmount || 0).toFixed(2)}`,
+      `${(pos.portfolioWeight || 0).toFixed(2)}%`,
       `${pos.dividendYield}%`,
       `${pos.ytdPerformance}%`,
     ]);
@@ -839,35 +854,54 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
 
 
 
-      {/* ETF Recommendation Warning */}
-      {(displayPortfolio.positions.length < 10 || 
+      {/* ETF Recommendation Warning - Show dialog on first view */}
+      {!hideDiversificationWarning && (displayPortfolio.positions.length < 10 || 
         (displayPortfolio.totalInvested / displayPortfolio.positions.length) < 1000) && (
-        <Card className="bg-amber-900/20 border-amber-600">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="text-2xl">⚠️</div>
-              <div className="flex-1">
-                <h3 className="text-amber-400 font-bold mb-1">
-                  Mangelnde Diversifikation
-                </h3>
-                <p className="text-slate-300 text-sm mb-2">
-                  {displayPortfolio.positions.length < 10 && (
-                    <span>Ihr Portfolio enthält nur <strong>{displayPortfolio.positions.length} Positionen</strong>. </span>
-                  )}
-                  {(displayPortfolio.totalInvested / displayPortfolio.positions.length) < 1000 && (
-                    <span>Die durchschnittliche Positionsgröße beträgt nur <strong>CHF {Math.round(displayPortfolio.totalInvested / displayPortfolio.positions.length).toLocaleString('de-CH')}</strong>. </span>
-                  )}
-                </p>
-                <p className="text-slate-400 text-xs">
-                  💡 <strong>Empfehlung:</strong> Für bessere Diversifikation und geringere Transaktionskosten empfehlen wir den Einsatz von ETFs (Exchange Traded Funds).
-                </p>
-                <p className="text-slate-400 text-xs mt-2">
-                  <strong>Tipp:</strong> Erhöhen Sie den Investitionsbetrag oder reduzieren Sie die Anzahl der Positionen für größere Einzelpositionen.
-                </p>
+        <Dialog open={showDiversificationDialog} onOpenChange={setShowDiversificationDialog}>
+          <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-amber-400 flex items-center gap-2">
+                <span className="text-2xl">⚠️</span>
+                Mangelnde Diversifikation
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-slate-300 text-sm">
+                {displayPortfolio.positions.length < 10 && (
+                  <span>Ihr Portfolio enthält nur <strong>{displayPortfolio.positions.length} Positionen</strong>. </span>
+                )}
+                {(displayPortfolio.totalInvested / displayPortfolio.positions.length) < 1000 && (
+                  <span>Die durchschnittliche Positionsgröße beträgt nur <strong>CHF {Math.round(displayPortfolio.totalInvested / displayPortfolio.positions.length)?.toLocaleString('de-CH') || '0'}</strong>. </span>
+                )}
+              </p>
+              <p className="text-slate-300 text-sm">
+                💡 <strong>Empfehlung:</strong> Für bessere Diversifikation und geringere Transaktionskosten empfehlen wir den Einsatz von ETFs (Exchange Traded Funds).
+              </p>
+              <p className="text-slate-300 text-sm">
+                <strong>Tipp:</strong> Erhöhen Sie den Investitionsbetrag oder reduzieren Sie die Anzahl der Positionen für größere Einzelpositionen.
+              </p>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => setShowDiversificationDialog(false)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  OK
+                </Button>
+                <Button
+                  onClick={() => {
+                    localStorage.setItem('hideDivWarning', 'true');
+                    setHideDiversificationWarning(true);
+                    setShowDiversificationDialog(false);
+                  }}
+                  variant="outline"
+                  className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  Nicht mehr anzeigen
+                </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Dividend Yield Warning */}
@@ -881,7 +915,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                   Ziel-Dividendenrendite nicht vollständig erreichbar
                 </h3>
                 <p className="text-slate-300 text-sm mb-2">
-                  Die durchschnittliche Dividendenrendite von <strong>{displayPortfolio.avgDividendYield.toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{currentInputs.expectedDividendYield}%</strong>) ab.
+                  Die durchschnittliche Dividendenrendite von <strong>{(displayPortfolio.avgDividendYield || 0).toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{currentInputs.expectedDividendYield}%</strong>) ab.
                 </p>
                 <p className="text-slate-400 text-xs">
                   💡 <strong>Grund:</strong> Unter Einhaltung der 5% Maximalgewichtung (1% Minimum) pro Position und Berücksichtigung Ihres Anlegertyps ({currentInputs.investorType === 'conservative' ? 'Konservativ' : currentInputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}) ist dies die bestmögliche Annäherung.
@@ -911,23 +945,23 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-900 p-4 rounded-lg">
               <p className="text-slate-400 text-sm mb-1">Dividendenaktien</p>
-              <p className="text-2xl font-bold text-blue-400">{dividendPercent.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-blue-400">{(dividendPercent || 0).toFixed(1)}%</p>
               <p className="text-slate-500 text-xs mt-1">
-                CHF {dividendAmount.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+                CHF {dividendAmount?.toLocaleString('de-CH', { maximumFractionDigits: 0 }) || '0'}
               </p>
             </div>
             <div className="bg-slate-900 p-4 rounded-lg">
               <p className="text-slate-400 text-sm mb-1">Wachstumsaktien</p>
-              <p className="text-2xl font-bold text-green-400">{growthPercent.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-green-400">{(growthPercent || 0).toFixed(1)}%</p>
               <p className="text-slate-500 text-xs mt-1">
-                CHF {growthAmount.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+                CHF {growthAmount?.toLocaleString('de-CH', { maximumFractionDigits: 0 }) || '0'}
               </p>
             </div>
             <div className="bg-slate-900 p-4 rounded-lg">
               <p className="text-slate-400 text-sm mb-1">Cash</p>
-              <p className="text-2xl font-bold text-yellow-400">{cashPercent.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-yellow-400">{(cashPercent || 0).toFixed(1)}%</p>
               <p className="text-slate-500 text-xs mt-1">
-                CHF {optimizedPortfolio.remainingCash.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+                CHF {optimizedPortfolio.remainingCash?.toLocaleString('de-CH', { maximumFractionDigits: 0 }) || '0'}
               </p>
             </div>
           </div>
@@ -942,7 +976,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </CardHeader>
           <CardContent className="px-3 pb-3">
             <p className="text-lg font-bold text-white">
-              CHF {displayPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 0 })}
+              CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 0 }) || '0'}
             </p>
           </CardContent>
         </Card>
@@ -964,7 +998,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
           </CardHeader>
           <CardContent className="px-3 pb-3">
             <p className="text-lg font-bold text-white">
-              {displayPortfolio.avgDividendYield.toFixed(2)}%
+              {(displayPortfolio.avgDividendYield || 0).toFixed(2)}%
             </p>
           </CardContent>
         </Card>
@@ -977,7 +1011,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
             <p className={`text-lg font-bold ${
               displayPortfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
             }`}>
-              {displayPortfolio.avgYtdPerformance >= 0 ? '+' : ''}{displayPortfolio.avgYtdPerformance.toFixed(1)}%
+              {(displayPortfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(displayPortfolio.avgYtdPerformance || 0).toFixed(1)}%
             </p>
           </CardContent>
         </Card>
@@ -1034,13 +1068,13 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                     <td className="p-3 text-slate-300">{pos.category}</td>
                     <td className="p-3 text-right text-white font-medium">{pos.shares}</td>
                     <td className="p-3 text-right text-slate-300">
-                      CHF {parseFloat(pos.currentPrice).toFixed(2)}
+                      CHF {parseFloat(pos.currentPrice || '0').toFixed(2)}
                     </td>
                     <td className="p-3 text-right text-white font-medium">
-                      CHF {pos.investmentAmount.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+                       CHF {pos.investmentAmount?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
                     </td>
                     <td className="p-3 text-right text-slate-300">
-                      {pos.portfolioWeight.toFixed(2)}%
+                      {(pos.portfolioWeight || 0).toFixed(2)}%
                     </td>
                     <td className="p-3 text-right text-green-400">
                       {pos.dividendYield}%
@@ -1056,7 +1090,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                         const volatility = Math.abs(ytd) > 0 ? Math.abs(ytd) / 2 : 10;
                         const riskScore = Math.min(10, Math.max(0, (ytd / volatility) * 2));
                         const color = riskScore >= 7 ? "text-green-400" : riskScore >= 4 ? "text-yellow-400" : "text-red-400";
-                        return <span className={`font-medium ${color}`}>{riskScore.toFixed(1)}</span>;
+                        return <span className={`font-medium ${color}`}>{(riskScore || 0).toFixed(1)}</span>;
                       })()}
                     </td>
                   </tr>
@@ -1066,10 +1100,10 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 <tr className="border-t-2 border-slate-600 font-bold">
                   <td colSpan={5} className="p-3 text-white">Total</td>
                   <td className="p-3 text-right text-white">
-                    CHF {displayPortfolio.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+                    CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
                   </td>
                   <td className="p-3 text-right text-white">
-                    {((displayPortfolio.totalInvested / currentInputs.investmentAmount) * 100).toFixed(2)}%
+                    {((displayPortfolio.totalInvested / currentInputs.investmentAmount) * 100 || 0).toFixed(2)}%
                   </td>
                   <td colSpan={2}></td>
                 </tr>
@@ -1127,7 +1161,7 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                 });
               }}
               className="w-full bg-green-600 hover:bg-green-700"
-              disabled={!portfolioName.trim() || saveMutation.isPending}
+              disabled={!portfolioName.trim() || saveMutation.isPending || !displayPortfolio || displayPortfolio.positions.length === 0}
             >
               {saveMutation.isPending ? 'Speichern...' : 'Speichern'}
             </Button>
@@ -1175,16 +1209,16 @@ export default function OptimizerResults({ inputs, onBack }: OptimizerResultsPro
                         </div>
                         <div>
                           <span className="text-slate-400">Total:</span>
-                          <span className="text-white ml-2">CHF {portfolio.totalInvested.toLocaleString('de-CH')}</span>
+                          <span className="text-white ml-2">CHF {portfolio.totalInvested?.toLocaleString('de-CH') || '0'}</span>
                         </div>
                         <div>
                           <span className="text-slate-400">Ø Div.:</span>
-                          <span className="text-green-400 ml-2">{portfolio.avgDividendYield.toFixed(2)}%</span>
+                          <span className="text-green-400 ml-2">{(portfolio.avgDividendYield || 0).toFixed(2)}%</span>
                         </div>
                         <div>
                           <span className="text-slate-400">Ø YTD:</span>
-                          <span className={`ml-2 ${portfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {portfolio.avgYtdPerformance >= 0 ? '+' : ''}{portfolio.avgYtdPerformance.toFixed(1)}%
+                                 <span className={`ml-2 ${(portfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(portfolio.avgYtdPerformance || 0).toFixed(1)}%
                           </span>
                         </div>
                       </div>

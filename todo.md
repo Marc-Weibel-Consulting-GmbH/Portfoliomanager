@@ -735,3 +735,9 @@
 - [x] Fix: "Invalid portfolio data" Fehler beim Speichern - JSON.stringify hinzugefügt
 - [x] Fix: Logos laden immer noch nicht (StockAnalysis.com funktioniert nicht) - Zurück zu Clearbit mit Swiss domain mapping
 
+
+## New Issues to Fix
+
+- [x] Zurück button should navigate to Aktien tab (main portfolio) not Portfolio tab
+- [x] Diversification warning should be a dialog with "OK" and "Nicht mehr anzeigen" buttons
+- [x] Fix empty saved portfolio (CHF 0, 0 positions) - Added validation to prevent saving empty portfolios
