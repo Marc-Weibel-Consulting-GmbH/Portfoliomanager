@@ -773,3 +773,4 @@
 - [ ] Add category selection to OptimizerResults add stock dialog
 - [ ] Add "Vorschlag wiederherstellen" button to reset to original optimized portfolio
 - [ ] Ensure manual changes persist when saving portfolio
+- [x] Performance Chart im Analyzer wird nicht angezeigt - Debug erforderlich (TypeScript Fehler behoben)

@@ -1340,20 +1340,22 @@ export const appRouter = router({
           });
 
           const results = await Promise.all(historicalDataPromises);
-          const validResults = results.filter(r => r !== null && r.data && r.data.length > 0);
+          const validResults = results.filter((r): r is { ticker: string; data: any[]; weight: number } => r !== null && r.data && r.data.length > 0);
 
           if (validResults.length === 0) {
             return { dates: [], values: [] };
           }
 
           // Find common dates across all stocks
-          const allDates = validResults[0].data.map((d: any) => d.date);
+          const allDates = validResults[0]?.data.map((d: any) => d.date) || [];
           const dateSet = new Set(allDates);
           validResults.forEach(r => {
-            const dates = new Set(r.data.map((d: any) => d.date));
-            dateSet.forEach(date => {
-              if (!dates.has(date)) dateSet.delete(date);
-            });
+            if (r && r.data) {
+              const dates = new Set(r.data.map((d: any) => d.date));
+              dateSet.forEach(date => {
+                if (!dates.has(date)) dateSet.delete(date);
+              });
+            }
           });
 
           const commonDates = Array.from(dateSet).sort();
