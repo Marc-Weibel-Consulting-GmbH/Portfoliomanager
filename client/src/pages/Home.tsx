@@ -1458,7 +1458,7 @@ export default function Home() {
             <PortfolioSentimentIndicator />
 
             {/* Portfolio Performance Chart */}
-            <PortfolioPerformanceChart />
+            <PortfolioPerformanceChart stocks={filteredStocks} />
             {/* Correlation Matrix */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>

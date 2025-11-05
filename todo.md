@@ -777,3 +777,5 @@
 - [x] Portfolio-Dropdown direkt im Analyzer Header hinzufügen für schnellen Wechsel zwischen Portfolios
 - [x] Benchmark-Linie (rot) wird im Performance-Chart nicht angezeigt (Yahoo Finance API implementiert)
 - [x] Performance-Chart fehlt im Analyzer (OptimizerResults) - sollte dort auch sichtbar sein
+- [x] Beide Kursverläufe (Portfolio & Benchmark) müssen beim selben Startpunkt (0%) anfangen
+- [x] Chart zeigt nicht 5 Jahre zurück - Zeitraum zu kurz

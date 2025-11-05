@@ -907,13 +907,32 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   // Combine portfolio and benchmark data for chart
   const chartData = useMemo(() => {
     if (!portfolioData || !portfolioData.dates || portfolioData.dates.length === 0) return [];
+    if (!benchmarkData || !benchmarkData.dates || benchmarkData.dates.length === 0) return [];
     
-    return portfolioData.dates.map((date, index) => ({
+    // Find common dates between portfolio and benchmark
+    const commonDates = portfolioData.dates.filter(date => benchmarkData.dates.includes(date));
+    
+    if (commonDates.length === 0) return [];
+    
+    // Get values for common dates
+    const portfolioValues = commonDates.map(date => {
+      const index = portfolioData.dates.indexOf(date);
+      return portfolioData.values[index] || 0;
+    });
+    
+    const benchmarkValues = commonDates.map(date => {
+      const index = benchmarkData.dates.indexOf(date);
+      return benchmarkData.values[index] || 0;
+    });
+    
+    // Normalize both to start at 0% (relative to first common date)
+    const portfolioStart = portfolioValues[0];
+    const benchmarkStart = benchmarkValues[0];
+    
+    return commonDates.map((date, index) => ({
       date,
-      portfolio: portfolioData.values[index] || 0,
-      benchmark: benchmarkData && benchmarkData.dates.includes(date) 
-        ? benchmarkData.values[benchmarkData.dates.indexOf(date)] || 0
-        : null,
+      portfolio: portfolioValues[index] - portfolioStart,
+      benchmark: benchmarkValues[index] - benchmarkStart,
     }));
   }, [portfolioData, benchmarkData]);
 

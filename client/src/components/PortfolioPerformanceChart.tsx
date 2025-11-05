@@ -1,9 +1,84 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState, useMemo } from 'react';
 
-export function PortfolioPerformanceChart() {
-  const { data: performanceData, isLoading, error } = trpc.stocks.portfolioPerformance.useQuery();
+interface PortfolioPerformanceChartProps {
+  stocks?: any[];
+}
+
+export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceChartProps) {
+  const [selectedBenchmark, setSelectedBenchmark] = useState('sp500');
+
+  // Get all stocks from the portfolio
+  const { data: allStocks } = trpc.stocks.list.useQuery();
+  const portfolioStocks = stocks.length > 0 ? stocks : (allStocks || []);
+
+  // Calculate tickers and weights from portfolio
+  const tickers = portfolioStocks.map((s: any) => s.ticker);
+  const totalValue = portfolioStocks.reduce((sum: number, s: any) => sum + (s.currentPrice || 0) * (s.shares || 1), 0);
+  const weights = portfolioStocks.map((s: any) => {
+    const value = (s.currentPrice || 0) * (s.shares || 1);
+    return totalValue > 0 ? value / totalValue : 0;
+  });
+
+  // Fetch portfolio historical data
+  const { data: portfolioData, isLoading: isLoadingPortfolio } = trpc.portfolioPerformance.getHistoricalData.useQuery(
+    { tickers, weights, years: 5 },
+    { enabled: tickers.length > 0 && weights.length > 0 }
+  );
+
+  // Fetch benchmark data
+  const { data: benchmarkData, isLoading: isLoadingBenchmark } = trpc.portfolioPerformance.getBenchmarkData.useQuery(
+    { benchmark: selectedBenchmark, years: 5 },
+    { enabled: !!selectedBenchmark }
+  );
+
+  // Combine and normalize data
+  const chartData = useMemo(() => {
+    if (!portfolioData || !portfolioData.dates || portfolioData.dates.length === 0) return [];
+    if (!benchmarkData || !benchmarkData.dates || benchmarkData.dates.length === 0) return [];
+    
+    // Find common dates
+    const commonDates = portfolioData.dates.filter(date => benchmarkData.dates.includes(date));
+    
+    if (commonDates.length === 0) return [];
+    
+    // Get values for common dates
+    const portfolioValues = commonDates.map(date => {
+      const index = portfolioData.dates.indexOf(date);
+      return portfolioData.values[index] || 0;
+    });
+    
+    const benchmarkValues = commonDates.map(date => {
+      const index = benchmarkData.dates.indexOf(date);
+      return benchmarkData.values[index] || 0;
+    });
+    
+    // Normalize both to start at 0%
+    const portfolioStart = portfolioValues[0];
+    const benchmarkStart = benchmarkValues[0];
+    
+    return commonDates.map((date, index) => ({
+      date: new Date(date).toLocaleDateString('de-CH', { 
+        year: '2-digit', 
+        month: 'short' 
+      }),
+      portfolio: portfolioValues[index] - portfolioStart,
+      benchmark: benchmarkValues[index] - benchmarkStart,
+    }));
+  }, [portfolioData, benchmarkData]);
+
+  const benchmarkOptions = [
+    { value: 'sp500', label: 'S&P 500' },
+    { value: 'nasdaq', label: 'Nasdaq' },
+    { value: 'smi', label: 'SMI' },
+    { value: 'msci_world', label: 'MSCI World' },
+    { value: 'eurostoxx', label: 'Eurostoxx' },
+  ];
+
+  const isLoading = isLoadingPortfolio || isLoadingBenchmark;
 
   if (isLoading) {
     return (
@@ -20,7 +95,7 @@ export function PortfolioPerformanceChart() {
     );
   }
 
-  if (error || !performanceData || performanceData.length === 0) {
+  if (chartData.length === 0) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
@@ -28,45 +103,28 @@ export function PortfolioPerformanceChart() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-64">
-            <div className="text-slate-400">
-              {error ? 'Fehler beim Laden der Daten' : 'Keine Daten verfügbar'}
-            </div>
+            <div className="text-slate-400">Keine Daten verfügbar</div>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  // Calculate statistics
-  const latestPoint = performanceData[performanceData.length - 1];
-  const totalReturn = latestPoint?.percentChange || 0;
-  const initialValue = 10000;
-  const currentValue = latestPoint?.value || initialValue;
-  const absoluteReturn = currentValue - initialValue;
-
-  // Format data for chart (sample every 7 days to reduce points)
-  const chartData = performanceData
-    .filter((_, index) => index % 7 === 0 || index === performanceData.length - 1)
-    .map((point) => ({
-      date: new Date(point.date).toLocaleDateString('de-CH', { 
-        year: '2-digit', 
-        month: 'short' 
-      }),
-      value: point.value,
-      percentChange: point.percentChange,
-    }));
+  const latestPoint = chartData[chartData.length - 1];
+  const portfolioReturn = latestPoint?.portfolio || 0;
+  const benchmarkReturn = latestPoint?.benchmark || 0;
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
         <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg">
-          <p className="text-white font-semibold">{data.date}</p>
+          <p className="text-white font-semibold mb-2">{data.date}</p>
           <p className="text-blue-400">
-            Wert: CHF {data.value.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            Portfolio: {data.portfolio >= 0 ? '+' : ''}{data.portfolio.toFixed(2)}%
           </p>
-          <p className={data.percentChange >= 0 ? 'text-green-400' : 'text-red-400'}>
-            {data.percentChange >= 0 ? '+' : ''}{data.percentChange.toFixed(2)}%
+          <p className="text-red-400">
+            {benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}: {data.benchmark >= 0 ? '+' : ''}{data.benchmark.toFixed(2)}%
           </p>
         </div>
       );
@@ -77,17 +135,24 @@ export function PortfolioPerformanceChart() {
   return (
     <Card className="bg-slate-800/50 border-slate-700">
       <CardHeader>
-        <CardTitle className="text-white flex items-center justify-between">
-          <span>Portfolio Performance (5 Jahre)</span>
-          <div className="text-sm font-normal space-y-1">
-            <div className={`text-right ${totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
-            </div>
-            <div className={`text-right text-xs ${absoluteReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {absoluteReturn >= 0 ? '+' : ''}CHF {absoluteReturn.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white">Portfolio Performance (5 Jahre)</CardTitle>
+          <div className="flex items-center gap-2">
+            <label className="text-slate-400 text-sm">Benchmark:</label>
+            <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
+              <SelectTrigger className="w-[140px] bg-slate-700 border-slate-600 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {benchmarkOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="bg-slate-900/50 rounded-lg p-4">
@@ -103,43 +168,45 @@ export function PortfolioPerformanceChart() {
               <YAxis 
                 stroke="#94a3b8"
                 tick={{ fill: '#94a3b8', fontSize: 12 }}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => `${value.toFixed(0)}%`}
               />
               <Tooltip content={<CustomTooltip />} />
-              <ReferenceLine 
-                y={initialValue} 
-                stroke="#64748b" 
-                strokeDasharray="3 3"
-                label={{ value: 'Start', fill: '#64748b', fontSize: 12 }}
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                iconType="line"
               />
               <Line 
                 type="monotone" 
-                dataKey="value" 
+                dataKey="portfolio" 
                 stroke="#3b82f6" 
                 strokeWidth={2}
                 dot={false}
+                name="Portfolio"
                 activeDot={{ r: 6, fill: '#3b82f6' }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="benchmark" 
+                stroke="#ef4444" 
+                strokeWidth={2}
+                dot={false}
+                name={benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'}
+                activeDot={{ r: 6, fill: '#ef4444' }}
               />
             </LineChart>
           </ResponsiveContainer>
           
-          <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+          <div className="mt-4 grid grid-cols-2 gap-4 text-center">
             <div>
-              <div className="text-slate-400 text-xs">Startwert</div>
-              <div className="text-white font-semibold">
-                CHF {initialValue.toLocaleString('de-CH')}
+              <div className="text-slate-400 text-xs">Portfolio Performance</div>
+              <div className={`font-semibold text-lg ${portfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {portfolioReturn >= 0 ? '+' : ''}{portfolioReturn.toFixed(2)}%
               </div>
             </div>
             <div>
-              <div className="text-slate-400 text-xs">Aktueller Wert</div>
-              <div className="text-white font-semibold">
-                CHF {currentValue.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
-            <div>
-              <div className="text-slate-400 text-xs">Gesamtrendite</div>
-              <div className={`font-semibold ${totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
+              <div className="text-slate-400 text-xs">{benchmarkOptions.find(b => b.value === selectedBenchmark)?.label} Performance</div>
+              <div className={`font-semibold text-lg ${benchmarkReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {benchmarkReturn >= 0 ? '+' : ''}{benchmarkReturn.toFixed(2)}%
               </div>
             </div>
           </div>
@@ -148,4 +215,3 @@ export function PortfolioPerformanceChart() {
     </Card>
   );
 }
-
