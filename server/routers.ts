@@ -1469,6 +1469,32 @@ export const appRouter = router({
       }),
   }),
 
+  score: router({
+    calculateAll: protectedProcedure.query(async ({ ctx }) => {
+      const { getStocks } = await import("./db");
+      const { calculateStockScore, StockMetrics } = await import("./scoring");
+      
+      const stocks = await getStocks(ctx.user.id);
+      
+      const scores = stocks.map(stock => {
+        const metrics: StockMetrics = {
+          dividendYield: stock.dividendYield || undefined,
+          payoutRatio: stock.payoutRatio || undefined,
+          equityRatio: stock.equityRatio || undefined,
+          peRatio: stock.peRatio || undefined,
+          pegRatio: stock.pegRatio || undefined,
+          earningsGrowth: stock.earningsGrowth || undefined,
+          fcfYield: stock.fcfYield || undefined,
+          revenueGrowth: stock.revenueGrowth || undefined,
+        };
+        
+        return calculateStockScore(stock.ticker, metrics);
+      });
+      
+      return scores;
+    }),
+  }),
+
   user: router({
     updateSettings: protectedProcedure
       .input((val: unknown) => {

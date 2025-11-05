@@ -779,3 +779,10 @@
 - [x] Performance-Chart fehlt im Analyzer (OptimizerResults) - sollte dort auch sichtbar sein
 - [x] Beide Kursverläufe (Portfolio & Benchmark) müssen beim selben Startpunkt (0%) anfangen
 - [x] Chart zeigt nicht 5 Jahre zurück - Zeitraum zu kurz
+
+## Scoring System (Ampel-Bewertung)
+- [x] Score-Berechnung für Dividendenaktien (Dividendenrendite, Ausschüttungsquote, Eigenkapitalquote, KGV)
+- [x] Score-Berechnung für Wachstumsaktien (PEG-Ratio, Gewinnwachstum, FCF Yield, Umsatzwachstum)
+- [x] API-Endpoint für Score-Berechnung aller Aktien
+- [x] Score-Spalte in Aktien-Tabelle mit Ampel-Farben (Rot/Orange/Gelb/Grün)
+- [x] Detail-Dialog mit Score-Breakdown pro Kennzahl

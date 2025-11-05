@@ -203,6 +203,9 @@ export default function Home() {
   const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
   });
+  const { data: stockScores = [] } = trpc.score.calculateAll.useQuery(undefined, {
+    enabled: isAuthenticated || !!user,
+  });
   const { data: stats } = trpc.stocks.stats.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
   });
@@ -217,6 +220,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("portfolio");
   const [selectedStockForChart, setSelectedStockForChart] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [showScoreDetail, setShowScoreDetail] = useState(false);
+  const [selectedScoreDetail, setSelectedScoreDetail] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -2316,6 +2321,9 @@ export default function Home() {
                       <th onClick={() => handleSort('riskScore')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Risk Score {sortField === 'riskScore' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th className="text-center py-2 px-2 text-slate-400">
+                        Score
+                      </th>
                       <th onClick={() => handleSort('portfolioWeight')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Portfolio % {sortField === 'portfolioWeight' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -2463,6 +2471,31 @@ export default function Home() {
                             const riskScore = Math.min(10, Math.max(0, (ytd / volatility) * 2));
                             const color = riskScore >= 7 ? "text-green-400" : riskScore >= 4 ? "text-yellow-400" : "text-red-400";
                             return <span className={color}>{riskScore.toFixed(1)}</span>;
+                          })()}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          {(() => {
+                            const score = stockScores.find(s => s.ticker === stock.ticker);
+                            if (!score) return <span className="text-slate-500">-</span>;
+                            
+                            const colorMap = {
+                              red: 'bg-red-500',
+                              orange: 'bg-orange-500',
+                              yellow: 'bg-yellow-500',
+                              green: 'bg-green-500',
+                            };
+                            
+                            return (
+                              <button
+                                onClick={() => {
+                                  setSelectedScoreDetail(score);
+                                  setShowScoreDetail(true);
+                                }}
+                                className={`px-2 py-1 rounded text-white text-xs font-bold ${colorMap[score.color]} hover:opacity-80 cursor-pointer`}
+                              >
+                                {score.totalScore.toFixed(0)}
+                              </button>
+                            );
                           })()}
                         </td>
                         <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(2)}%</td>
@@ -3148,6 +3181,124 @@ export default function Home() {
             <DialogTitle>Portfolio laden</DialogTitle>
           </DialogHeader>
           <LoadPortfolioContent onClose={() => setIsLoadPortfolioDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Score Detail Dialog */}
+      <Dialog open={showScoreDetail} onOpenChange={setShowScoreDetail}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedScoreDetail && (
+                <div className="flex items-center gap-3">
+                  <span>Score-Details: {selectedScoreDetail.ticker}</span>
+                  <span className={`px-3 py-1 rounded text-sm font-bold ${
+                    selectedScoreDetail.color === 'red' ? 'bg-red-500' :
+                    selectedScoreDetail.color === 'orange' ? 'bg-orange-500' :
+                    selectedScoreDetail.color === 'yellow' ? 'bg-yellow-500' :
+                    'bg-green-500'
+                  }`}>
+                    {selectedScoreDetail.totalScore.toFixed(0)} / 100
+                  </span>
+                </div>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedScoreDetail && (
+            <div className="space-y-4">
+              {/* Stock Type Badge */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-slate-400">Aktientyp:</span>
+                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                  selectedScoreDetail.type === 'dividend' ? 'bg-blue-600' : 'bg-purple-600'
+                }`}>
+                  {selectedScoreDetail.type === 'dividend' ? 'Dividendenaktie' : 'Wachstumsaktie'}
+                </span>
+              </div>
+
+              {/* Sub-Scores Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-2 px-2 text-slate-400">Kennzahl</th>
+                      <th className="text-right py-2 px-2 text-slate-400">Wert</th>
+                      <th className="text-right py-2 px-2 text-slate-400">Gewichtung</th>
+                      <th className="text-right py-2 px-2 text-slate-400">Score</th>
+                      <th className="text-center py-2 px-2 text-slate-400">Bewertung</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedScoreDetail.subScores.map((sub: any, idx: number) => (
+                      <tr key={idx} className="border-b border-slate-700/50">
+                        <td className="py-2 px-2 text-white">{sub.metric}</td>
+                        <td className="py-2 px-2 text-right text-slate-300">
+                          {sub.value !== null ? (
+                            sub.metric.includes('Rendite') || sub.metric.includes('Yield') || sub.metric.includes('Wachstum') || sub.metric.includes('quote') ? 
+                              `${sub.value.toFixed(2)}%` : 
+                              sub.value.toFixed(2)
+                          ) : (
+                            <span className="text-slate-500">N/A</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-right text-slate-400">
+                          {(sub.weight * 100).toFixed(0)}%
+                        </td>
+                        <td className="py-2 px-2 text-right font-semibold">
+                          <span className={`${
+                            sub.color === 'red' ? 'text-red-400' :
+                            sub.color === 'orange' ? 'text-orange-400' :
+                            sub.color === 'yellow' ? 'text-yellow-400' :
+                            'text-green-400'
+                          }`}>
+                            {sub.score.toFixed(1)}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <div className={`w-3 h-3 rounded-full mx-auto ${
+                            sub.color === 'red' ? 'bg-red-500' :
+                            sub.color === 'orange' ? 'bg-orange-500' :
+                            sub.color === 'yellow' ? 'bg-yellow-500' :
+                            'bg-green-500'
+                          }`} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Legend */}
+              <div className="grid grid-cols-4 gap-2 text-xs mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <span className="text-slate-400">Rot: 0-40</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-orange-500" />
+                  <span className="text-slate-400">Orange: 41-60</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                  <span className="text-slate-400">Gelb: 61-80</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <span className="text-slate-400">Grün: 81-100</span>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setShowScoreDetail(false)}
+                  className="bg-slate-700 hover:bg-slate-600 text-white"
+                >
+                  Schließen
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
