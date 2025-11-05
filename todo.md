@@ -750,3 +750,9 @@
 ## Portfolio Display Issue
 
 - [x] Saved portfolios show CHF 0 and 0 positions even though data is saved correctly - fixed by parsing portfolioData JSON in backend
+
+## Portfolio Load Dialog Enhancement
+
+- [x] Add hover effect to portfolio cards in load dialog
+- [x] Make portfolio cards clickable to load portfolio details
+- [x] Keep delete button functional with stopPropagation

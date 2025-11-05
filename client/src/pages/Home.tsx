@@ -153,7 +153,8 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
         return (
           <div
             key={portfolio.id}
-            className="p-4 bg-slate-700 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors"
+            onClick={() => handleLoad(portfolio)}
+            className="p-4 bg-slate-700 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors cursor-pointer"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -168,14 +169,20 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
               </div>
               <div className="flex gap-2 ml-4">
                 <Button
-                  onClick={() => handleLoad(portfolio)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLoad(portfolio);
+                  }}
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Laden
                 </Button>
                 <Button
-                  onClick={() => handleDelete(portfolio.id, portfolio.name)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(portfolio.id, portfolio.name);
+                  }}
                   size="sm"
                   variant="outline"
                   className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
