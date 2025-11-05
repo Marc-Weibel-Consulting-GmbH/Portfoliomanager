@@ -819,3 +819,11 @@
 - [x] Visual score calculation display with formula and metrics
 - [x] Add progress bars for each sub-score in detail dialog
 - [x] Show calculation formula (Σ) and contribution of each metric
+- [x] Fix toFixed error in score detail dialog (sub.value, sub.weight, sub.score might be null)
+- [x] Remove Risk Score column from stock table
+- [x] Adjust score calculation to use only available metrics
+- [x] Update score calculation with final metrics:
+  - Dividend stocks: dividendYield (40%), peRatio (30%), beta (20%), volatility (10%)
+  - Growth stocks: sharpeRatio (40%), pegRatio (35%), beta (25%)
+- [x] Remove equityRatio and ytdPerformance from scoring
+- [x] Add beta and volatility to routers.ts metric passing

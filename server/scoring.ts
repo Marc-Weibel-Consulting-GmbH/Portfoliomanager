@@ -7,14 +7,18 @@ export type StockType = 'dividend' | 'growth';
 export type ScoreColor = 'red' | 'orange' | 'yellow' | 'green';
 
 export interface StockMetrics {
-  // Dividend stock metrics
-  dividendYield?: number;        // in %
+  // Available metrics from APIs
+  dividendYield?: number;        // in % (EODHD)
+  peRatio?: number;              // P/E ratio (EODHD)
+  pegRatio?: number;             // PEG ratio (EODHD)
+  beta?: number;                 // Beta (EODHD)
+  volatility?: number;           // Volatility in % (calculated)
+  sharpeRatio?: number;          // Sharpe ratio (calculated)
+  
+  // Legacy metrics (not available, kept for compatibility)
   payoutRatio?: number;          // in %
   equityRatio?: number;          // in %
-  peRatio?: number;              // P/E ratio
-  
-  // Growth stock metrics
-  pegRatio?: number;             // PEG ratio
+  ytdPerformance?: number;       // Year-to-date performance in %
   earningsGrowth?: number;       // 5-year CAGR in %
   fcfYield?: number;             // Free Cash Flow Yield in %
   revenueGrowth?: number;        // 5-year CAGR in %
@@ -102,130 +106,116 @@ export function determineStockType(metrics: StockMetrics): StockType {
 }
 
 /**
- * Calculate score for dividend stock
+ * Calculate score for dividend stock using available metrics
  */
 function scoreDividendStock(metrics: StockMetrics): SubScore[] {
   const subScores: SubScore[] = [];
 
-  // 1. Dividend Yield (30%)
+  // 1. Dividend Yield (40%)
   const divYield = calcSubscore(
     metrics.dividendYield,
-    [2, 3, 5, 5],  // <2% red, 2-3% orange, 3-5% yellow, >5% green
+    [2, 3, 5, 7],  // <2% red, 2-3% orange, 3-5% yellow, >7% green
     false
   );
   subScores.push({
     metric: 'Dividendenrendite',
     value: metrics.dividendYield ?? null,
     score: divYield.score,
-    weight: 0.30,
+    weight: 0.40,
     color: divYield.color,
   });
 
-  // 2. Payout Ratio (25%) - inverted (lower is better)
-  const payout = calcSubscore(
-    metrics.payoutRatio,
-    [50, 70, 80, 80],  // <50% green, 50-70% yellow, 70-80% orange, >80% red
-    true
-  );
-  subScores.push({
-    metric: 'Ausschüttungsquote',
-    value: metrics.payoutRatio ?? null,
-    score: payout.score,
-    weight: 0.25,
-    color: payout.color,
-  });
-
-  // 3. Equity Ratio (25%)
-  const equity = calcSubscore(
-    metrics.equityRatio,
-    [30, 40, 60, 60],  // <30% red, 30-40% orange, 40-60% yellow, >60% green
-    false
-  );
-  subScores.push({
-    metric: 'Eigenkapitalquote',
-    value: metrics.equityRatio ?? null,
-    score: equity.score,
-    weight: 0.25,
-    color: equity.color,
-  });
-
-  // 4. P/E Ratio (20%) - inverted (lower is better)
+  // 2. P/E Ratio (30%) - inverted (lower is better)
   const pe = calcSubscore(
     metrics.peRatio,
-    [12, 20, 25, 25],  // <12 green, 12-20 yellow, 20-25 orange, >25 red
+    [12, 18, 25, 25],  // <12 green, 12-18 yellow, 18-25 orange, >25 red
     true
   );
   subScores.push({
     metric: 'KGV',
     value: metrics.peRatio ?? null,
     score: pe.score,
-    weight: 0.20,
+    weight: 0.30,
     color: pe.color,
+  });
+
+  // 3. Beta (20%) - inverted (lower is better, more stable)
+  const beta = calcSubscore(
+    metrics.beta,
+    [0.8, 1.0, 1.3, 1.3],  // <0.8 green, 0.8-1.0 yellow, 1.0-1.3 orange, >1.3 red
+    true
+  );
+  subScores.push({
+    metric: 'Beta (Stabilität)',
+    value: metrics.beta ?? null,
+    score: beta.score,
+    weight: 0.20,
+    color: beta.color,
+  });
+
+  // 4. Volatility (10%) - inverted (lower is better)
+  const vol = calcSubscore(
+    metrics.volatility,
+    [15, 25, 35, 35],  // <15% green, 15-25% yellow, 25-35% orange, >35% red
+    true
+  );
+  subScores.push({
+    metric: 'Volatilität',
+    value: metrics.volatility ?? null,
+    score: vol.score,
+    weight: 0.10,
+    color: vol.color,
   });
 
   return subScores;
 }
 
 /**
- * Calculate score for growth stock
+ * Calculate score for growth stock using available metrics
  */
 function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
   const subScores: SubScore[] = [];
 
-  // 1. PEG Ratio (30%) - inverted (lower is better)
+  // 1. Sharpe Ratio (40%)
+  const sharpe = calcSubscore(
+    metrics.sharpeRatio,
+    [0.5, 1.0, 1.5, 2.0],  // <0.5 red, 0.5-1.0 orange, 1.0-1.5 yellow, >2.0 green
+    false
+  );
+  subScores.push({
+    metric: 'Sharpe Ratio',
+    value: metrics.sharpeRatio ?? null,
+    score: sharpe.score,
+    weight: 0.40,
+    color: sharpe.color,
+  });
+
+  // 2. PEG Ratio (35%) - inverted (lower is better)
   const peg = calcSubscore(
     metrics.pegRatio,
     [1.0, 1.5, 2.0, 2.0],  // <1.0 green, 1.0-1.5 yellow, 1.5-2.0 orange, >2.0 red
     true
   );
   subScores.push({
-    metric: 'PEG-Ratio',
+    metric: 'PEG Ratio',
     value: metrics.pegRatio ?? null,
     score: peg.score,
-    weight: 0.30,
+    weight: 0.35,
     color: peg.color,
   });
 
-  // 2. Earnings Growth CAGR (30%)
-  const earnings = calcSubscore(
-    metrics.earningsGrowth,
-    [5, 10, 20, 20],  // <5% red, 5-10% orange, 10-20% yellow, >20% green
-    false
+  // 3. Beta (25%) - inverted (lower is better, more stable)
+  const beta = calcSubscore(
+    metrics.beta,
+    [1.0, 1.3, 1.6, 1.6],  // <1.0 green, 1.0-1.3 yellow, 1.3-1.6 orange, >1.6 red
+    true
   );
   subScores.push({
-    metric: 'Gewinnwachstum (5J CAGR)',
-    value: metrics.earningsGrowth ?? null,
-    score: earnings.score,
-    weight: 0.30,
-    color: earnings.color,
-  });
-
-  // 3. FCF Yield (25%)
-  const fcf = calcSubscore(
-    metrics.fcfYield,
-    [3, 5, 8, 8],  // <3% red, 3-5% orange, 5-8% yellow, >8% green
-    false
-  );
-  subScores.push({
-    metric: 'Free Cash Flow Yield',
-    value: metrics.fcfYield ?? null,
-    score: fcf.score,
+    metric: 'Beta (Stabilität)',
+    value: metrics.beta ?? null,
+    score: beta.score,
     weight: 0.25,
-    color: fcf.color,
-  });
-
-  // 4. Revenue Growth CAGR (15%)
-  const revenue = calcSubscore(
-    metrics.revenueGrowth,
-    [5, 10, 15, 15],  // <5% red, 5-10% orange, 10-15% yellow, >15% green
-    false
-  );
-  subScores.push({
-    metric: 'Umsatzwachstum (5J CAGR)',
-    value: metrics.revenueGrowth ?? null,
-    score: revenue.score,
-    weight: 0.15,
-    color: revenue.color,
+    color: beta.color,
   });
 
   return subScores;

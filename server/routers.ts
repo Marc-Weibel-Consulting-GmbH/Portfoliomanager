@@ -1478,14 +1478,15 @@ export const appRouter = router({
       
       const scores = stocks.map(stock => {
         const metrics: StockMetrics = {
-          dividendYield: stock.dividendYield || undefined,
-          payoutRatio: stock.payoutRatio || undefined,
-          equityRatio: stock.equityRatio || undefined,
-          peRatio: stock.peRatio || undefined,
-          pegRatio: stock.pegRatio || undefined,
-          earningsGrowth: stock.earningsGrowth || undefined,
-          fcfYield: stock.fcfYield || undefined,
-          revenueGrowth: stock.revenueGrowth || undefined,
+          // Available metrics from APIs
+          dividendYield: stock.dividendYield ? parseFloat(stock.dividendYield) : undefined,
+          peRatio: stock.peRatio ? parseFloat(stock.peRatio) : undefined,
+          pegRatio: stock.pegRatio ? parseFloat(stock.pegRatio) : undefined,
+          beta: stock.beta ? parseFloat(stock.beta) : undefined,
+          volatility: stock.volatility ? parseFloat(stock.volatility) : undefined,
+          sharpeRatio: stock.sharpeRatio ? parseFloat(stock.sharpeRatio) : undefined,
+          // Legacy metrics (not used)
+          ytdPerformance: stock.ytdPerformance ? parseFloat(stock.ytdPerformance) : undefined,
         };
         
         return calculateStockScore(stock.ticker, metrics);

@@ -2348,9 +2348,6 @@ export default function Home() {
                       <th onClick={() => handleSort('dividendYield')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Div. Rendite {sortField === 'dividendYield' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th onClick={() => handleSort('riskScore')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
-                        Risk Score {sortField === 'riskScore' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
                       <th onClick={() => handleSort('score')} className="text-center py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Score {sortField === 'score' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -2494,15 +2491,6 @@ export default function Home() {
                           ) : "-"}
                         </td>
                         <td className="py-2 px-2 text-green-400">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) + '%' : "-"}</td>
-                        <td className="py-2 px-2">
-                          {(() => {
-                            const ytd = parseFloat(stock.ytdPerformance || "0");
-                            const volatility = Math.abs(ytd) > 0 ? Math.abs(ytd) / 2 : 10; // Estimate volatility
-                            const riskScore = Math.min(10, Math.max(0, (ytd / volatility) * 2));
-                            const color = riskScore >= 7 ? "text-green-400" : riskScore >= 4 ? "text-yellow-400" : "text-red-400";
-                            return <span className={color}>{riskScore.toFixed(1)}</span>;
-                          })()}
-                        </td>
                         <td className="py-2 px-2 text-center">
                           {(() => {
                             const score = stockScores.find(s => s.ticker === stock.ticker);
@@ -3296,24 +3284,24 @@ export default function Home() {
                               sub.color === 'yellow' ? 'bg-yellow-500/20 text-yellow-400' :
                               'bg-green-500/20 text-green-400'
                             }`}>
-                              {sub.score.toFixed(1)}
+                              {sub.score != null ? parseFloat(sub.score).toFixed(1) : 'N/A'}
                             </span>
                           </div>
                           <div className="flex gap-4 text-xs text-slate-400">
                             <span>
                               Wert: <span className="text-slate-300">
-                                {sub.value !== null ? (
+                                {sub.value !== null && sub.value !== undefined ? (
                                   sub.metric.includes('Rendite') || sub.metric.includes('Yield') || sub.metric.includes('Wachstum') || sub.metric.includes('quote') ? 
-                                    `${sub.value.toFixed(2)}%` : 
-                                    sub.value.toFixed(2)
+                                    `${parseFloat(sub.value).toFixed(2)}%` : 
+                                    parseFloat(sub.value).toFixed(2)
                                 ) : 'N/A'}
                               </span>
                             </span>
                             <span>
-                              Gewichtung: <span className="text-slate-300">{(sub.weight * 100).toFixed(0)}%</span>
+                              Gewichtung: <span className="text-slate-300">{sub.weight != null ? (parseFloat(sub.weight) * 100).toFixed(0) : '0'}%</span>
                             </span>
                             <span>
-                              Beitrag: <span className="text-slate-300">{(sub.score * sub.weight).toFixed(1)}</span>
+                              Beitrag: <span className="text-slate-300">{(sub.score != null && sub.weight != null) ? (parseFloat(sub.score) * parseFloat(sub.weight)).toFixed(1) : 'N/A'}</span>
                             </span>
                           </div>
                         </div>
@@ -3326,7 +3314,7 @@ export default function Home() {
                             sub.color === 'yellow' ? 'bg-yellow-500' :
                             'bg-green-500'
                           }`}
-                          style={{ width: `${sub.score}%` }}
+                          style={{ width: `${sub.score != null ? parseFloat(sub.score) : 0}%` }}
                         />
                       </div>
                     </div>
