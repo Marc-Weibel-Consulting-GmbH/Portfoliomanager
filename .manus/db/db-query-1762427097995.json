@@ -1,0 +1,16 @@
+{
+  "query": "SELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN ytdStartPrice IS NOT NULL AND ytdStartPrice != '' THEN 1 ELSE 0 END) as with_ytd_start,\n  SUM(CASE WHEN ytdPerformance IS NOT NULL AND ytdPerformance != '' THEN 1 ELSE 0 END) as with_ytd_perf,\n  SUM(CASE WHEN currentPrice IS NOT NULL AND currentPrice != '' THEN 1 ELSE 0 END) as with_price\nFROM stocks;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN ytdStartPrice IS NOT NULL AND ytdStartPrice != '' THEN 1 ELSE 0 END) as with_ytd_start,\n  SUM(CASE WHEN ytdPerformance IS NOT NULL AND ytdPerformance != '' THEN 1 ELSE 0 END) as with_ytd_perf,\n  SUM(CASE WHEN currentPrice IS NOT NULL AND currentPrice != '' THEN 1 ELSE 0 END) as with_price\nFROM stocks;",
+  "rows": [
+    {
+      "total": "92",
+      "with_ytd_start": "67",
+      "with_ytd_perf": "67",
+      "with_price": "92"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\twith_ytd_start\twith_ytd_perf\twith_price\n92\t67\t67\t92\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

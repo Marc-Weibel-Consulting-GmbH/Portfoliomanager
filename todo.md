@@ -893,3 +893,8 @@
   - [x] Express server.timeout erhöht: 120s → 600s (10 Minuten)
   - [x] keepAliveTimeout und headersTimeout auch erhöht
   - [x] EODHD API funktioniert für USD-ETFs (SPY.US getestet)
+- [x] YTD Performance fehlt für die meisten Aktien/ETFs (nur wenige zeigen Werte)
+  - [x] Root Cause: ytdStartPrice fehlt für die meisten Aktien
+  - [x] Refresh-Code setzt ytdStartPrice nicht automatisch
+  - [x] Automatisches Fetching von ytdStartPrice implementiert (historischer Preis 31.12.2024)
+  - [x] YTD Performance wird jetzt für alle Aktien mit currentPrice berechnet

@@ -676,6 +676,29 @@ export const appRouter = router({
             return num.toFixed(2);
           };
           
+          // Fetch ytdStartPrice if missing (historical price from end of 2024)
+          if (!stock.ytdStartPrice || parseFloat(stock.ytdStartPrice) === 0) {
+            if (apiKey) {
+              try {
+                const historicalUrl = `https://eodhd.com/api/eod/${stock.ticker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
+                const historicalRes = await fetch(historicalUrl);
+                if (historicalRes.ok) {
+                  const historicalData = await historicalRes.json();
+                  if (historicalData && historicalData.length > 0) {
+                    // Get the last available trading day's close price
+                    const ytdStart = historicalData[historicalData.length - 1].close;
+                    if (ytdStart && isFinite(ytdStart)) {
+                      updateData.ytdStartPrice = safeFormat(ytdStart);
+                      console.log(`[Refresh] Set ytdStartPrice for ${stock.ticker}: ${ytdStart}`);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn(`[Refresh] Failed to fetch ytdStartPrice for ${stock.ticker}:`, e);
+              }
+            }
+          }
+          
           // Update price data
           if (currentPrice !== null && isFinite(currentPrice)) {
             const formatted = safeFormat(currentPrice);
@@ -683,8 +706,9 @@ export const appRouter = router({
               updateData.currentPrice = formatted;
               
               // Recalculate YTD performance
-              if (stock.ytdStartPrice) {
-                const ytdStart = parseFloat(stock.ytdStartPrice);
+              const ytdStartToUse = updateData.ytdStartPrice || stock.ytdStartPrice;
+              if (ytdStartToUse) {
+                const ytdStart = parseFloat(ytdStartToUse);
                 if (ytdStart > 0 && isFinite(ytdStart)) {
                   const ytdPerf = ((currentPrice - ytdStart) / ytdStart) * 100;
                   if (isFinite(ytdPerf)) {
