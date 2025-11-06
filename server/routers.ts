@@ -629,8 +629,34 @@ export const appRouter = router({
         try {
           const region = stock.ticker.endsWith(".SW") ? "CH" : "US";
           
-          // Fetch price & risk metrics from Yahoo Finance
+          // Fetch real-time price from EODHD (to avoid Yahoo rate limits)
+          const apiKey = process.env.EODHD_API_KEY;
+          let currentPrice = null;
+          let currency = null;
+          
+          if (apiKey) {
+            try {
+              const priceUrl = `https://eodhd.com/api/real-time/${stock.ticker}?api_token=${apiKey}&fmt=json`;
+              const priceResponse = await fetch(priceUrl);
+              if (priceResponse.ok) {
+                const priceData = await priceResponse.json();
+                currentPrice = priceData.close || priceData.previousClose;
+                // Infer currency from ticker
+                currency = stock.ticker.endsWith(".SW") ? "CHF" : "USD";
+              }
+            } catch (e) {
+              console.warn(`[Refresh] EODHD price fetch failed for ${stock.ticker}:`, e);
+            }
+          }
+          
+          // Fetch price & risk metrics from Yahoo Finance (fallback)
           const metrics = await fetchStockMetrics(stock.ticker, region);
+          
+          // Use EODHD price if available, otherwise Yahoo
+          if (currentPrice === null && metrics.currentPrice !== null) {
+            currentPrice = metrics.currentPrice;
+            currency = metrics.currency;
+          }
           
           // Fetch fundamental data from EODHD
           const fundamentals = await fetchEODHDFundamentals(stock.ticker);
@@ -640,20 +666,20 @@ export const appRouter = router({
           };
           
           // Update price data
-          if (metrics.currentPrice !== null) {
-            updateData.currentPrice = metrics.currentPrice.toFixed(2);
+          if (currentPrice !== null) {
+            updateData.currentPrice = currentPrice.toFixed(2);
             
             // Recalculate YTD performance
             if (stock.ytdStartPrice) {
               const ytdStart = parseFloat(stock.ytdStartPrice);
               if (ytdStart > 0) {
-                const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
+                const ytdPerf = ((currentPrice - ytdStart) / ytdStart) * 100;
                 updateData.ytdPerformance = ytdPerf.toFixed(2);
               }
             }
           }
           
-          if (metrics.currency) updateData.currency = metrics.currency;
+          if (currency) updateData.currency = currency;
           
           // Update fundamentals from EODHD
           if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio)) {
@@ -688,8 +714,8 @@ export const appRouter = router({
           await updateStock(stock.ticker, updateData);
           updated++;
           
-          // Delay to avoid rate limiting (1s for EODHD)
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Delay to avoid rate limiting (2s to be safe)
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error: any) {
           console.error(`[Refresh] Failed to update ${stock.ticker}:`, error);
           failed++;

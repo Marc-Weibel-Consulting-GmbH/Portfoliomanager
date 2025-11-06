@@ -874,3 +874,9 @@
   - [x] Teste manuell ob EODHD API für ETFs funktioniert
   - [x] ETF-Daten-Struktur unterscheidet sich von Aktien (ETF_Data statt Highlights)
   - [x] fetchEODHDFundamentals erweitert um ETF-Support (Dividendenrendite aus ETF_Data)
+- [x] ETF Kurse sind nicht sichtbar nach Refresh
+  - [x] Yahoo Finance Rate Limit erreicht ("Too Many Requests")
+  - [x] EODHD Real-Time API als primäre Quelle für Preise implementiert
+  - [x] Yahoo Finance als Fallback falls EODHD fehlschlägt
+  - [x] Delay erhöht von 1s auf 2s zwischen Requests
+  - [x] Weniger API-Calls pro Aktie (1 statt 2)
