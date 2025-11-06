@@ -3161,6 +3161,7 @@ export default function Home() {
                   
                   try {
                     const portfolioData = JSON.stringify({
+                      inputs: optimizerInputs, // Save optimizer inputs
                       stocks: stocks.map(s => ({
                         ticker: s.ticker,
                         companyName: s.companyName,

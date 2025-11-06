@@ -860,3 +860,12 @@
 - [x] Portfolio Laden Button: Fehler "Portfolio-Daten sind unvollständig. Inputs: false, Stocks: true"
   - [x] Default inputs generieren wenn nicht vorhanden (aus totalInvested, avgDividendYield, numberOfPositions)
   - [x] Anlegertyp auf "ausgewogen" gesetzt als Standard
+- [x] Portfolio Speichern: inputs werden nicht mitgespeichert (nur stocks)
+  - [x] Finde wo savePortfolio aufgerufen wird
+  - [x] Prüfe ob inputs im portfolioData JSON enthalten sind
+  - [x] Stelle sicher dass inputs + stocks beide gespeichert werden
+- [x] ETF Daten werden nicht geladen (keine Kurse, YTD Performance etc.)
+  - [x] Prüfe ob ETF-Ticker mit EODHD API kompatibel sind
+  - [x] Teste API-Calls für ETFs (SPY, VOO, QQQ, etc.)
+  - [x] Korrigiere Ticker-Symbole (SPY.US statt SPY) - 19 US-ETFs aktualisiert
+  - [x] Aktualisierungs-Button soll ETF-Daten laden
