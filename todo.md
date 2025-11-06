@@ -857,3 +857,6 @@
   - [ ] Event Handler Registrierung testen
   - [ ] Portfolio-Daten Struktur in DB analysieren
   - [ ] Alternative Implementierung falls nötig
+- [x] Portfolio Laden Button: Fehler "Portfolio-Daten sind unvollständig. Inputs: false, Stocks: true"
+  - [x] Default inputs generieren wenn nicht vorhanden (aus totalInvested, avgDividendYield, numberOfPositions)
+  - [x] Anlegertyp auf "ausgewogen" gesetzt als Standard

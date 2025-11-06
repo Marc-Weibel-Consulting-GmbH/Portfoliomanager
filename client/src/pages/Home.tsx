@@ -1660,21 +1660,30 @@ export default function Home() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            alert('[DEBUG] Laden Button clicked! Portfolio: ' + portfolio.name);
                             // Load portfolio and show OptimizerResults
                             try {
-                              console.log('[Laden Button] Portfolio data:', portfolio.portfolioData);
                               const data = JSON.parse(portfolio.portfolioData);
-                              console.log('[Laden Button] Parsed data:', data);
-                              console.log('[Laden Button] Has inputs:', !!data.inputs, 'Has stocks:', !!data.stocks);
+                              
+                              // If inputs are missing, generate defaults from portfolio data
+                              if (!data.inputs && data.stocks) {
+                                const totalInvested = portfolio.totalInvested || 10000;
+                                const avgDividend = portfolio.avgDividendYield || 2.0;
+                                const numberOfPositions = portfolio.numberOfPositions || data.stocks.length;
+                                
+                                data.inputs = {
+                                  investmentAmount: totalInvested,
+                                  targetDividend: avgDividend,
+                                  numberOfPositions: numberOfPositions,
+                                  investorType: 'ausgewogen' as const
+                                };
+                              }
                               
                               if (data.inputs && data.stocks) {
                                 setOptimizerInputs(data.inputs);
                                 setShowOptimizerResults(true);
                                 toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde geladen` });
                               } else {
-                                console.error('[Laden Button] Missing data - inputs:', data.inputs, 'stocks:', data.stocks);
-                                toast.error('Fehler', { description: 'Portfolio-Daten sind unvollständig. Inputs: ' + !!data.inputs + ', Stocks: ' + !!data.stocks });
+                                toast.error('Fehler', { description: 'Portfolio-Daten konnten nicht geladen werden' });
                               }
                             } catch (error) {
                               console.error('[Laden Button] Failed to load portfolio:', error);
