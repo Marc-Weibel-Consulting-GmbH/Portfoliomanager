@@ -1642,14 +1642,14 @@ export default function Home() {
                       </div>
                       <div>
                         <p className="text-slate-400 text-sm">Ø Dividende</p>
-                        <p className="text-green-400 font-semibold text-lg">{portfolio.avgDividendYield?.toFixed(2) || '0.00'}%</p>
+                        <p className="text-green-400 font-semibold text-lg">{(portfolio.avgDividendYield ?? 0).toFixed(2)}%</p>
                       </div>
                       <div>
                         <p className="text-slate-400 text-sm">Ø YTD Performance</p>
                         <p className={`font-semibold text-lg ${
                           (portfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                         }`}>
-                          {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{portfolio.avgYtdPerformance?.toFixed(1) || '0.0'}%
+                          {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(portfolio.avgYtdPerformance ?? 0).toFixed(1)}%
                         </p>
                       </div>
                     </div>

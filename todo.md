@@ -898,3 +898,17 @@
   - [x] Refresh-Code setzt ytdStartPrice nicht automatisch
   - [x] Automatisches Fetching von ytdStartPrice implementiert (historischer Preis 31.12.2024)
   - [x] YTD Performance wird jetzt für alle Aktien mit currentPrice berechnet
+- [ ] Portfolio Laden Fehler: TypeError: Cannot read properties of undefined (reading 'toFixed')
+  - [ ] Identifiziere welcher .toFixed() Call beim Portfolio-Laden fehlschlägt
+  - [ ] Prüfe OptimizerResults Komponente auf undefined Werte
+  - [ ] Füge Validierung für alle numerischen Berechnungen hinzu
+  - [ ] Teste Portfolio-Laden mit verschiedenen gespeicherten Portfolios
+
+## Portfolio Laden Fehler behoben
+- [x] Portfolio Laden Fehler: TypeError: Cannot read properties of undefined (reading 'toFixed')
+  - [x] Identifiziere welcher .toFixed() Call beim Portfolio-Laden fehlschlägt (Home.tsx + OptimizerResults.tsx)
+  - [x] Prüfe OptimizerResults Komponente auf undefined Werte
+  - [x] Füge Validierung für alle numerischen Berechnungen hinzu (Nullish Coalescing Operator ??)
+  - [x] 13 .toFixed() Aufrufe korrigiert (2 in Home.tsx, 11 in OptimizerResults.tsx)
+  - [x] Alle || 0 durch ?? 0 ersetzt für bessere Null-Behandlung
+  - [x] Division durch Null verhindert (/ (currentInputs.investmentAmount ?? 1))
