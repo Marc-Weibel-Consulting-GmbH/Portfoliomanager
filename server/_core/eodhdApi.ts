@@ -113,11 +113,26 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       }
     }
 
+    // ETF-specific data handling
+    if (data.ETF_Data) {
+      // ETF dividend yield from Valuations_Rates_Portfolio
+      if (data.ETF_Data.Valuations_Growth?.Valuations_Rates_Portfolio?.["Dividend-Yield Factor"]) {
+        const divYield = parseFloat(data.ETF_Data.Valuations_Growth.Valuations_Rates_Portfolio["Dividend-Yield Factor"]);
+        if (!isNaN(divYield) && divYield > 0) {
+          fundamentals.dividendYield = divYield;
+        }
+      }
+      
+      // ETF performance data (for YTD calculation)
+      // Note: YTD Performance is calculated separately in refreshData using real-time prices
+    }
+
     console.log(`[EODHD] Fetched fundamentals for ${ticker}:`, {
       pegRatio: fundamentals.pegRatio,
       peRatio: fundamentals.peRatio,
       dividendYield: fundamentals.dividendYield,
       beta: fundamentals.beta,
+      isETF: !!data.ETF_Data,
     });
 
     return fundamentals;

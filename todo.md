@@ -869,3 +869,8 @@
   - [x] Teste API-Calls für ETFs (SPY, VOO, QQQ, etc.)
   - [x] Korrigiere Ticker-Symbole (SPY.US statt SPY) - 19 US-ETFs aktualisiert
   - [x] Aktualisierungs-Button soll ETF-Daten laden
+- [x] ETF Kurse werden nicht aktualisiert nach Refresh-Button
+  - [x] Prüfe Server-Logs für API-Fehler
+  - [x] Teste manuell ob EODHD API für ETFs funktioniert
+  - [x] ETF-Daten-Struktur unterscheidet sich von Aktien (ETF_Data statt Highlights)
+  - [x] fetchEODHDFundamentals erweitert um ETF-Support (Dividendenrendite aus ETF_Data)
