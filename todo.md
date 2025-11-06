@@ -880,3 +880,10 @@
   - [x] Yahoo Finance als Fallback falls EODHD fehlschlägt
   - [x] Delay erhöht von 1s auf 2s zwischen Requests
   - [x] Weniger API-Calls pro Aktie (1 statt 2)
+- [x] Refresh Fehler: "The string did not match the expected pattern"
+  - [x] Identifiziere welche Validierung fehlschlägt (ungültige Zahlen bei .toFixed())
+  - [x] Prüfe tRPC Input-Validierung in refreshData procedure
+  - [x] Prüfe ob API-Responses ungültige Daten zurückgeben (NaN, Infinity)
+  - [x] Verbessere Error-Handling und Logging (safeFormat, safeYTDCalc helpers)
+  - [x] Systematische Code-Review für alle Inkonsistenzen (21 .toFixed() Aufrufe geprüft)
+  - [x] Robuste Validierung in refreshData, pegUpdater, priceUpdater, routers.ts

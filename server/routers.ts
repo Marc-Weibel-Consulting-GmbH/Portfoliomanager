@@ -384,9 +384,11 @@ export const appRouter = router({
         if (stockData.ytdStartPrice && stockData.currentPrice) {
           const ytdStart = parseFloat(stockData.ytdStartPrice);
           const current = parseFloat(stockData.currentPrice);
-          if (ytdStart > 0 && current > 0) {
+          if (ytdStart > 0 && current > 0 && isFinite(ytdStart) && isFinite(current)) {
             const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
-            stockData.ytdPerformance = ytdPerf.toFixed(2);
+            if (isFinite(ytdPerf)) {
+              stockData.ytdPerformance = ytdPerf.toFixed(2);
+            }
           }
         }
         
@@ -478,28 +480,29 @@ export const appRouter = router({
         // Check if portfolioWeight is being updated
         const hasWeightUpdate = "portfolioWeight" in updates;
         
+        // Helper to safely calculate YTD
+        const safeYTDCalc = (ytdStart: number, current: number): string | null => {
+          if (!isFinite(ytdStart) || !isFinite(current) || ytdStart <= 0 || current <= 0) return null;
+          const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+          return isFinite(ytdPerf) ? ytdPerf.toFixed(2) : null;
+        };
+        
         // Calculate YTD performance if both prices are provided
         if (updates.ytdStartPrice && updates.currentPrice) {
           const ytdStart = parseFloat(updates.ytdStartPrice);
           const current = parseFloat(updates.currentPrice);
-          if (ytdStart > 0 && current > 0) {
-            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
-            updates.ytdPerformance = ytdPerf.toFixed(2);
-          }
+          const ytdPerf = safeYTDCalc(ytdStart, current);
+          if (ytdPerf) updates.ytdPerformance = ytdPerf;
         } else if (updates.ytdStartPrice && oldStock?.currentPrice) {
           const ytdStart = parseFloat(updates.ytdStartPrice);
           const current = parseFloat(oldStock.currentPrice);
-          if (ytdStart > 0 && current > 0) {
-            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
-            updates.ytdPerformance = ytdPerf.toFixed(2);
-          }
+          const ytdPerf = safeYTDCalc(ytdStart, current);
+          if (ytdPerf) updates.ytdPerformance = ytdPerf;
         } else if (updates.currentPrice && oldStock?.ytdStartPrice) {
           const ytdStart = parseFloat(oldStock.ytdStartPrice);
           const current = parseFloat(updates.currentPrice);
-          if (ytdStart > 0 && current > 0) {
-            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
-            updates.ytdPerformance = ytdPerf.toFixed(2);
-          }
+          const ytdPerf = safeYTDCalc(ytdStart, current);
+          if (ytdPerf) updates.ytdPerformance = ytdPerf;
         }
         
         await updateStock(ticker, updates);
@@ -665,16 +668,29 @@ export const appRouter = router({
             lastDataRefresh: new Date(),
           };
           
+          // Helper function to safely format numbers
+          const safeFormat = (value: any): string | null => {
+            if (value === null || value === undefined) return null;
+            const num = typeof value === 'number' ? value : parseFloat(value);
+            if (isNaN(num) || !isFinite(num)) return null;
+            return num.toFixed(2);
+          };
+          
           // Update price data
-          if (currentPrice !== null) {
-            updateData.currentPrice = currentPrice.toFixed(2);
-            
-            // Recalculate YTD performance
-            if (stock.ytdStartPrice) {
-              const ytdStart = parseFloat(stock.ytdStartPrice);
-              if (ytdStart > 0) {
-                const ytdPerf = ((currentPrice - ytdStart) / ytdStart) * 100;
-                updateData.ytdPerformance = ytdPerf.toFixed(2);
+          if (currentPrice !== null && isFinite(currentPrice)) {
+            const formatted = safeFormat(currentPrice);
+            if (formatted) {
+              updateData.currentPrice = formatted;
+              
+              // Recalculate YTD performance
+              if (stock.ytdStartPrice) {
+                const ytdStart = parseFloat(stock.ytdStartPrice);
+                if (ytdStart > 0 && isFinite(ytdStart)) {
+                  const ytdPerf = ((currentPrice - ytdStart) / ytdStart) * 100;
+                  if (isFinite(ytdPerf)) {
+                    updateData.ytdPerformance = safeFormat(ytdPerf);
+                  }
+                }
               }
             }
           }
@@ -682,33 +698,39 @@ export const appRouter = router({
           if (currency) updateData.currency = currency;
           
           // Update fundamentals from EODHD
-          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio)) {
-            updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
-          }
-          if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
-            updateData.peRatio = fundamentals.peRatio.toFixed(2);
-          }
-          if (fundamentals.dividendYield !== null && !isNaN(fundamentals.dividendYield)) {
-            updateData.dividendYield = fundamentals.dividendYield.toFixed(2);
-          }
+          const pegFormatted = safeFormat(fundamentals.pegRatio);
+          if (pegFormatted) updateData.pegRatio = pegFormatted;
+          
+          const peFormatted = safeFormat(fundamentals.peRatio);
+          if (peFormatted) updateData.peRatio = peFormatted;
+          
+          const divYieldFormatted = safeFormat(fundamentals.dividendYield);
+          if (divYieldFormatted) updateData.dividendYield = divYieldFormatted;
           
           // Update risk metrics from Yahoo
-          if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
-          if (metrics.volatility !== null) updateData.volatility = metrics.volatility.toFixed(2);
-          if (metrics.beta !== null || fundamentals.beta !== null) {
-            const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
-            if (beta !== null) updateData.beta = beta.toFixed(2);
-          }
+          const sharpeFormatted = safeFormat(metrics.sharpeRatio);
+          if (sharpeFormatted) updateData.sharpeRatio = sharpeFormatted;
+          
+          const volatilityFormatted = safeFormat(metrics.volatility);
+          if (volatilityFormatted) updateData.volatility = volatilityFormatted;
+          
+          const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
+          const betaFormatted = safeFormat(beta);
+          if (betaFormatted) updateData.beta = betaFormatted;
           
           // Update 52-week range
-          if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
-          if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
+          const week52HighFormatted = safeFormat(metrics.week52High);
+          if (week52HighFormatted) updateData.week52High = week52HighFormatted;
+          
+          const week52LowFormatted = safeFormat(metrics.week52Low);
+          if (week52LowFormatted) updateData.week52Low = week52LowFormatted;
           
           // Update market cap
           const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
-          if (marketCap !== null) {
+          if (marketCap !== null && isFinite(marketCap)) {
             const marketCapB = marketCap / 1_000_000_000;
-            updateData.marketCap = marketCapB.toFixed(2);
+            const marketCapFormatted = safeFormat(marketCapB);
+            if (marketCapFormatted) updateData.marketCap = marketCapFormatted;
           }
           
           await updateStock(stock.ticker, updateData);
@@ -891,10 +913,14 @@ export const appRouter = router({
               // Calculate YTD performance if current price exists
               if (stock.currentPrice) {
                 const currentPrice = parseFloat(stock.currentPrice);
-                const ytdPerf = ((currentPrice - newPrice) / newPrice) * 100;
-                await updateStock(item.ticker, {
-                  ytdPerformance: ytdPerf.toFixed(2),
-                });
+                if (isFinite(currentPrice) && isFinite(newPrice) && newPrice > 0) {
+                  const ytdPerf = ((currentPrice - newPrice) / newPrice) * 100;
+                  if (isFinite(ytdPerf)) {
+                    await updateStock(item.ticker, {
+                      ytdPerformance: ytdPerf.toFixed(2),
+                    });
+                  }
+                }
               }
             } else {
               await updateStock(item.ticker, {
@@ -904,10 +930,14 @@ export const appRouter = router({
               // Calculate YTD performance if ytdStartPrice exists
               if (stock.ytdStartPrice) {
                 const ytdStart = parseFloat(stock.ytdStartPrice);
-                const ytdPerf = ((newPrice - ytdStart) / ytdStart) * 100;
-                await updateStock(item.ticker, {
-                  ytdPerformance: ytdPerf.toFixed(2),
-                });
+                if (isFinite(ytdStart) && isFinite(newPrice) && ytdStart > 0) {
+                  const ytdPerf = ((newPrice - ytdStart) / ytdStart) * 100;
+                  if (isFinite(ytdPerf)) {
+                    await updateStock(item.ticker, {
+                      ytdPerformance: ytdPerf.toFixed(2),
+                    });
+                  }
+                }
               }
             }
             

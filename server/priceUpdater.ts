@@ -88,9 +88,14 @@ export async function startPriceUpdater() {
 
             // Calculate YTD performance if ytdStartPrice exists
             const ytdStart = parseFloat(stock.ytdStartPrice || "0");
-            if (ytdStart > 0) {
-              const ytdPerformance = ((parseFloat(newPrice) - ytdStart) / ytdStart) * 100;
-              updateData.ytdPerformance = ytdPerformance.toFixed(2);
+            if (ytdStart > 0 && isFinite(ytdStart)) {
+              const currentPrice = parseFloat(newPrice);
+              if (isFinite(currentPrice)) {
+                const ytdPerformance = ((currentPrice - ytdStart) / ytdStart) * 100;
+                if (isFinite(ytdPerformance)) {
+                  updateData.ytdPerformance = ytdPerformance.toFixed(2);
+                }
+              }
             }
 
             await updateStock(stock.ticker, updateData);
