@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE stocks SET ytdStartPrice = '26.33', currentPrice = '43.65', ytdPerformance = '65.78' WHERE ticker = 'SLV.US';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute UPDATE stocks SET ytdStartPrice = '26.33', currentPrice = '43.65', ytdPerformance = '65.78' WHERE ticker = 'SLV.US';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 50
+}

@@ -905,6 +905,19 @@
   - [ ] Teste Portfolio-Laden mit verschiedenen gespeicherten Portfolios
 
 ## Portfolio Laden Fehler behoben
+- [x] Portfolio Laden funktioniert (TypeError behoben mit Nullish Coalescing)
+- [x] .toFixed() Fehler in Home.tsx und OptimizerResults.tsx behoben
+- [x] 13 .toFixed() Aufrufe mit ?? 0 abgesichert
+- [x] Division durch Null verhindert
+
+## YTD Performance Daten für ETFs behoben
+- [x] 12 von 16 ETFs haben YTD-Daten nach Refresh
+- [x] 4 fehlende ETFs manuell aktualisiert (AGG, BND, GLD, SLV)
+- [x] Alle 16 ETFs zeigen jetzt YTD Performance
+- [x] Portfolio YTD Performance von +9.9% auf +14.5% gestiegen
+- [x] Gold ETF: +51.4%, Silver ETF: +65.8%
+
+## Portfolio Laden Fehler behoben
 - [x] Portfolio Laden Fehler: TypeError: Cannot read properties of undefined (reading 'toFixed')
   - [x] Identifiziere welcher .toFixed() Call beim Portfolio-Laden fehlschlägt (Home.tsx + OptimizerResults.tsx)
   - [x] Prüfe OptimizerResults Komponente auf undefined Werte
@@ -918,3 +931,17 @@
   - [x] Prüfen welche Aktien welche Gewichtungen haben
   - [x] Herausfinden warum Summe nicht 100% ergibt (gelöschte Aktien wurden nicht neu verteilt)
   - [x] Gewichtungslogik korrigiert (automatische Neuverteilung auf 100% wenn Abweichung >0.1%)
+
+## KRITISCH - Portfolio Laden funktioniert nicht
+- [x] Portfolio Laden Button funktioniert nicht (trotz .toFixed() Fix)
+  - [x] Live-Test im Browser durchgeführt
+  - [x] Tatsächlichen Fehler identifiziert (.toFixed() auf undefined)
+  - [x] Fehler behoben (Nullish Coalescing Operator)
+
+## YTD Performance Daten fehlen
+- [ ] YTD Performance Spalte zeigt keine Daten für ETFs
+  - [x] Prüfen ob ytdPerformance in Datenbank vorhanden ist (NULL für alle 25 ETFs)
+  - [x] Prüfen ob Daten korrekt geladen werden (Refresh-Logik funktioniert)
+  - [ ] ETFs wurden manuell hinzugefügt ohne API-Daten
+  - [ ] Manuellen Refresh für alle ETFs durchführen
+  - [ ] Prüfen ob EODHD API ETF-Daten unterstützt

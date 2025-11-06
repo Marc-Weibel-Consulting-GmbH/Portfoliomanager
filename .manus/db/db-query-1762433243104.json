@@ -1,0 +1,185 @@
+{
+  "query": "SELECT ticker, companyName, ytdPerformance, ytdStartPrice, category FROM stocks WHERE category LIKE '%ETF%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, ytdPerformance, ytdStartPrice, category FROM stocks WHERE category LIKE '%ETF%';",
+  "rows": [
+    {
+      "ticker": "SPY.US",
+      "companyName": "SPDR S&P 500 ETF Trust",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - US Market"
+    },
+    {
+      "ticker": "VOO.US",
+      "companyName": "Vanguard S&P 500 ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - US Market"
+    },
+    {
+      "ticker": "QQQ.US",
+      "companyName": "Invesco QQQ Trust",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - US Tech"
+    },
+    {
+      "ticker": "IWM.US",
+      "companyName": "iShares Russell 2000 ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - US Small Cap"
+    },
+    {
+      "ticker": "VTI.US",
+      "companyName": "Vanguard Total Stock Market ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - US Market"
+    },
+    {
+      "ticker": "URTH.US",
+      "companyName": "iShares MSCI World ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - World"
+    },
+    {
+      "ticker": "VWRL.L",
+      "companyName": "Vanguard FTSE All-World UCITS ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - World"
+    },
+    {
+      "ticker": "ACWI.US",
+      "companyName": "iShares MSCI ACWI ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - World"
+    },
+    {
+      "ticker": "VWO.US",
+      "companyName": "Vanguard FTSE Emerging Markets ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Emerging Markets"
+    },
+    {
+      "ticker": "EEM.US",
+      "companyName": "iShares MSCI Emerging Markets ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Emerging Markets"
+    },
+    {
+      "ticker": "EWL.US",
+      "companyName": "iShares MSCI Switzerland ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Switzerland"
+    },
+    {
+      "ticker": "EXSA.DE",
+      "companyName": "iShares STOXX Europe 600 UCITS ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Europe"
+    },
+    {
+      "ticker": "VGK.US",
+      "companyName": "Vanguard FTSE Europe ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Europe"
+    },
+    {
+      "ticker": "XLK.US",
+      "companyName": "Technology Select Sector SPDR Fund",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Technology"
+    },
+    {
+      "ticker": "XLV.US",
+      "companyName": "Health Care Select Sector SPDR Fund",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Healthcare"
+    },
+    {
+      "ticker": "XLF.US",
+      "companyName": "Financial Select Sector SPDR Fund",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Financials"
+    },
+    {
+      "ticker": "XLE.US",
+      "companyName": "Energy Select Sector SPDR Fund",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Energy"
+    },
+    {
+      "ticker": "XLY.US",
+      "companyName": "Consumer Discretionary Select Sector SPDR Fund",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Consumer"
+    },
+    {
+      "ticker": "AGG.US",
+      "companyName": "iShares Core U.S. Aggregate Bond ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Bonds"
+    },
+    {
+      "ticker": "BND.US",
+      "companyName": "Vanguard Total Bond Market ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Bonds"
+    },
+    {
+      "ticker": "GLD.US",
+      "companyName": "SPDR Gold Shares",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Gold"
+    },
+    {
+      "ticker": "SLV.US",
+      "companyName": "iShares Silver Trust",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Silver"
+    },
+    {
+      "ticker": "CHSPI.SW",
+      "companyName": "iShares Core SPI ETF (CH)",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Switzerland"
+    },
+    {
+      "ticker": "SPICHA.SW",
+      "companyName": "UBS ETF (CH) - SPI (CHF) A-dis",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Switzerland"
+    },
+    {
+      "ticker": "CHDVD.SW",
+      "companyName": "iShares Swiss Dividend ETF",
+      "ytdPerformance": "NULL",
+      "ytdStartPrice": "NULL",
+      "category": "ETF - Switzerland"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tytdPerformance\tytdStartPrice\tcategory\nSPY.US\tSPDR S&P 500 ETF Trust\tNULL\tNULL\tETF - US Market\nVOO.US\tVanguard S&P 500 ETF\tNULL\tNULL\tETF - US Market\nQQQ.US\tInvesco QQQ Trust\tNULL\tNULL\tETF - US Tech\nIWM.US\tiShares Russell 2000 ETF\tNULL\tNULL\tETF - US Small Cap\nVTI.US\tVanguard Total Stock Market ETF\tNULL\tNULL\tETF - US Market\nURTH.US\tiShares MSCI World ETF\tNULL\tNULL\tETF - World\nVWRL.L\tVanguard FTSE All-World UCITS ETF\tNULL\tNULL\tETF - World\nACWI.US\tiShares MSCI ACWI ETF\tNULL\tNULL\tETF - World\nVWO.US\tVanguard FTSE Emerging Markets ETF\tNULL\tNULL\tETF - Emerging Markets\nEEM.US\tiShares MSCI Emerging Markets ETF\tNULL\tNULL\tETF - Emerging Markets\nEWL.US\tiShares MSCI Switzerland ETF\tNULL\tNULL\tETF - Switzerland\nEXSA.DE\tiShares STOXX Europe 600 UCITS ETF\tNULL\tNULL\tETF - Europe\nVGK.US\tVanguard FTSE Europe ETF\tNULL\tNULL\tETF - Europe\nXLK.US\tTechnology Select Sector SPDR Fund\tNULL\tNULL\tETF - Technology\nXLV.US\tHealth Care Select Sector SPDR Fund\tNULL\tNULL\tETF - Healthcare\nXLF.US\tFinancial Select Sector SPDR Fund\tNULL\tNULL\tETF - Financials\nXLE.US\tEnergy Select Sector SPDR Fund\tNULL\tNULL\tETF - Energy\nXLY.US\tConsumer Discretionary Select Sector SPDR Fund\tNULL\tNULL\tETF - Consumer\nAGG.US\tiShares Core U.S. Aggregate Bond ETF\tNULL\tNULL\tETF - Bonds\nBND.US\tVanguard Total Bond Market ETF\tNULL\tNULL\tETF - Bonds\nGLD.US\tSPDR Gold Shares\tNULL\tNULL\tETF - Gold\nSLV.US\tiShares Silver Trust\tNULL\tNULL\tETF - Silver\nCHSPI.SW\tiShares Core SPI ETF (CH)\tNULL\tNULL\tETF - Switzerland\nSPICHA.SW\tUBS ETF (CH) - SPI (CHF) A-dis\tNULL\tNULL\tETF - Switzerland\nCHDVD.SW\tiShares Swiss Dividend ETF\tNULL\tNULL\tETF - Switzerland\n",
+  "stderr": "",
+  "execution_time_ms": 72
+}
