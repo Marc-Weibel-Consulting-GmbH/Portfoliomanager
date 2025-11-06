@@ -851,3 +851,9 @@
   - [x] ETF-Liste mit wichtigen ETFs (25 ETFs hinzugefügt: US Market, World, Europe, Switzerland, Sector, Bonds, Commodities)
   - [x] ETF-Anzeige in der Aktien-Tabelle (92 Positionen total)
   - [x] Kategorien zeigen ETF-Kategorien (ETF - Switzerland, ETF - US Market, etc.)
+- [ ] Tiefgehende Untersuchung des "Laden" Button Problems
+  - [ ] Browser Console auf Fehler prüfen
+  - [ ] React Component State überprüfen
+  - [ ] Event Handler Registrierung testen
+  - [ ] Portfolio-Daten Struktur in DB analysieren
+  - [ ] Alternative Implementierung falls nötig

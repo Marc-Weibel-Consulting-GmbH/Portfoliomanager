@@ -1652,9 +1652,15 @@ export default function Home() {
                           {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{portfolio.avgYtdPerformance?.toFixed(1) || '0.0'}%
                         </p>
                       </div>
-                      <div className="flex gap-2 ml-auto">
-                        <Button
-                          onClick={() => {
+                    </div>
+                  </CardContent>
+                  <div className="px-6 pb-6">
+                    <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            alert('[DEBUG] Laden Button clicked! Portfolio: ' + portfolio.name);
                             // Load portfolio and show OptimizerResults
                             try {
                               console.log('[Laden Button] Portfolio data:', portfolio.portfolioData);
@@ -1675,11 +1681,11 @@ export default function Home() {
                               toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden: ' + (error as Error).message });
                             }
                           }}
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
+                          style={{pointerEvents: 'auto', zIndex: 10}}
                         >
                           Laden
-                        </Button>
+                        </button>
                         <Button
                           onClick={async () => {
                             if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
@@ -1698,9 +1704,8 @@ export default function Home() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                      </div>
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>
