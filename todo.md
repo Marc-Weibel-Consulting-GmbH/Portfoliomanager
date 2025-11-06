@@ -887,3 +887,9 @@
   - [x] Verbessere Error-Handling und Logging (safeFormat, safeYTDCalc helpers)
   - [x] Systematische Code-Review für alle Inkonsistenzen (21 .toFixed() Aufrufe geprüft)
   - [x] Robuste Validierung in refreshData, pegUpdater, priceUpdater, routers.ts
+- [x] USD ETFs haben keine Daten (Schweizer ETFs funktionieren)
+  - [x] Root Cause: Server/Client Timeout nach 2 Minuten (Refresh dauert 3+ Minuten)
+  - [x] AXIOS_TIMEOUT_MS erhöht: 30s → 600s (10 Minuten)
+  - [x] Express server.timeout erhöht: 120s → 600s (10 Minuten)
+  - [x] keepAliveTimeout und headersTimeout auch erhöht
+  - [x] EODHD API funktioniert für USD-ETFs (SPY.US getestet)

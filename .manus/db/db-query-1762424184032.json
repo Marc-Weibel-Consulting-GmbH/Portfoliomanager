@@ -1,0 +1,90 @@
+{
+  "query": "SELECT ticker, companyName, currentPrice, dividendYield, ytdPerformance, lastDataRefresh FROM stocks WHERE ticker LIKE '%.US' LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, currentPrice, dividendYield, ytdPerformance, lastDataRefresh FROM stocks WHERE ticker LIKE '%.US' LIMIT 10;",
+  "rows": [
+    {
+      "ticker": "MSTR.US",
+      "companyName": "MicroStrategy Incorporated",
+      "currentPrice": "255.00",
+      "dividendYield": "0",
+      "ytdPerformance": "-11.95",
+      "lastDataRefresh": "2025-11-06 10:16:03"
+    },
+    {
+      "ticker": "SPY.US",
+      "companyName": "SPDR S&P 500 ETF Trust",
+      "currentPrice": "677.58",
+      "dividendYield": "1.26",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:16:10"
+    },
+    {
+      "ticker": "VOO.US",
+      "companyName": "Vanguard S&P 500 ETF",
+      "currentPrice": "622.86",
+      "dividendYield": "1.32",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:16:13"
+    },
+    {
+      "ticker": "QQQ.US",
+      "companyName": "Invesco QQQ Trust",
+      "currentPrice": "623.28",
+      "dividendYield": "0.69",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:16:16"
+    },
+    {
+      "ticker": "IWM.US",
+      "companyName": "iShares Russell 2000 ETF",
+      "currentPrice": "244.68",
+      "dividendYield": "1.43",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:16:19"
+    },
+    {
+      "ticker": "VTI.US",
+      "companyName": "Vanguard Total Stock Market ETF",
+      "currentPrice": "333.16",
+      "dividendYield": "1.31",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:16:22"
+    },
+    {
+      "ticker": "URTH.US",
+      "companyName": "iShares MSCI World ETF",
+      "currentPrice": "NULL",
+      "dividendYield": "NULL",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 09:59:56"
+    },
+    {
+      "ticker": "ACWI.US",
+      "companyName": "iShares MSCI ACWI ETF",
+      "currentPrice": "NULL",
+      "dividendYield": "NULL",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:00:01"
+    },
+    {
+      "ticker": "VWO.US",
+      "companyName": "Vanguard FTSE Emerging Markets ETF",
+      "currentPrice": "NULL",
+      "dividendYield": "NULL",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:00:04"
+    },
+    {
+      "ticker": "EEM.US",
+      "companyName": "iShares MSCI Emerging Markets ETF",
+      "currentPrice": "NULL",
+      "dividendYield": "NULL",
+      "ytdPerformance": "NULL",
+      "lastDataRefresh": "2025-11-06 10:00:07"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tcurrentPrice\tdividendYield\tytdPerformance\tlastDataRefresh\nMSTR.US\tMicroStrategy Incorporated\t255.00\t0\t-11.95\t2025-11-06 10:16:03\nSPY.US\tSPDR S&P 500 ETF Trust\t677.58\t1.26\tNULL\t2025-11-06 10:16:10\nVOO.US\tVanguard S&P 500 ETF\t622.86\t1.32\tNULL\t2025-11-06 10:16:13\nQQQ.US\tInvesco QQQ Trust\t623.28\t0.69\tNULL\t2025-11-06 10:16:16\nIWM.US\tiShares Russell 2000 ETF\t244.68\t1.43\tNULL\t2025-11-06 10:16:19\nVTI.US\tVanguard Total Stock Market ETF\t333.16\t1.31\tNULL\t2025-11-06 10:16:22\nURTH.US\tiShares MSCI World ETF\tNULL\tNULL\tNULL\t2025-11-06 09:59:56\nACWI.US\tiShares MSCI ACWI ETF\tNULL\tNULL\tNULL\t2025-11-06 10:00:01\nVWO.US\tVanguard FTSE Emerging Markets ETF\tNULL\tNULL\tNULL\t2025-11-06 10:00:04\nEEM.US\tiShares MSCI Emerging Markets ETF\tNULL\tNULL\tNULL\t2025-11-06 10:00:07\n",
+  "stderr": "",
+  "execution_time_ms": 47
+}
