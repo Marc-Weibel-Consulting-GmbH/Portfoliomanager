@@ -912,3 +912,9 @@
   - [x] 13 .toFixed() Aufrufe korrigiert (2 in Home.tsx, 11 in OptimizerResults.tsx)
   - [x] Alle || 0 durch ?? 0 ersetzt für bessere Null-Behandlung
   - [x] Division durch Null verhindert (/ (currentInputs.investmentAmount ?? 1))
+
+## Portfolio Gewichtung Problem
+- [x] Portfolio zeigt 95.64% statt 100% an
+  - [x] Prüfen welche Aktien welche Gewichtungen haben
+  - [x] Herausfinden warum Summe nicht 100% ergibt (gelöschte Aktien wurden nicht neu verteilt)
+  - [x] Gewichtungslogik korrigiert (automatische Neuverteilung auf 100% wenn Abweichung >0.1%)

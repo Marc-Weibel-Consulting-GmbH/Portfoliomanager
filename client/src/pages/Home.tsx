@@ -472,16 +472,19 @@ export default function Home() {
   useEffect(() => {
     if (stocks.length > 0 && !hasAppliedEqualWeighting) {
       const equalWeight = (100 / stocks.length).toFixed(4);
-      const needsWeighting = stocks.some(s => !s.portfolioWeight || parseFloat(s.portfolioWeight || "0") === 0);
       
-      if (needsWeighting) {
+      // Check if any stock has 0% weight OR if total weight is not 100%
+      const needsWeighting = stocks.some(s => !s.portfolioWeight || parseFloat(s.portfolioWeight || "0") === 0);
+      const totalWeight = stocks.reduce((sum, s) => sum + parseFloat(s.portfolioWeight || "0"), 0);
+      const needsRebalancing = Math.abs(totalWeight - 100) > 0.1; // Allow 0.1% tolerance
+      
+      if (needsWeighting || needsRebalancing) {
+        // Redistribute ALL stocks to equal weight
         stocks.forEach(stock => {
-          if (!stock.portfolioWeight || parseFloat(stock.portfolioWeight || "0") === 0) {
-            updateStockMutation.mutate({ 
-              ticker: stock.ticker, 
-              portfolioWeight: parseFloat(equalWeight) 
-            } as any);
-          }
+          updateStockMutation.mutate({ 
+            ticker: stock.ticker, 
+            portfolioWeight: parseFloat(equalWeight) 
+          } as any);
         });
       }
       setHasAppliedEqualWeighting(true);
