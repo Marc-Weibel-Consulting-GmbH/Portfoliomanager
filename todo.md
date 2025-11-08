@@ -1338,3 +1338,5 @@
 - [x] Alert System: Email-Benachrichtigungen bei Metriken-Änderungen
 
 - [x] Homepage Layout: 4-Spalten-Grid mit Fokus, Kategorien, Performance & Dividende, Portfolio Performance Chart
+
+- [x] Fix YTD Performance discrepancy between Performance & Dividende card and Portfolio Performance Chart

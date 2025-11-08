@@ -1932,31 +1932,41 @@ export const appRouter = router({
             return { weight: r.weight, priceMap };
           });
 
-          // Calculate weighted portfolio value for each date
+          // Calculate weighted portfolio performance for each date
+          // First, get the start price for each stock (first valid price)
+          const startPrices = stockPriceMaps.map(({ priceMap }) => {
+            for (const date of allDates) {
+              const price = priceMap.get(date);
+              if (price !== undefined && price > 0) return price;
+            }
+            return 0;
+          });
+
+          // Calculate weighted portfolio performance (percentage-based)
           const portfolioValues = allDates.map(date => {
-            let totalValue = 0;
+            let weightedPerformance = 0;
             let totalWeight = 0;
             
-            stockPriceMaps.forEach(({ weight, priceMap }) => {
-              const price = priceMap.get(date);
-              if (price !== undefined && price > 0) {
-                totalValue += price * weight;
+            stockPriceMaps.forEach(({ weight, priceMap }, idx) => {
+              const currentPrice = priceMap.get(date);
+              const startPrice = startPrices[idx];
+              
+              if (currentPrice !== undefined && currentPrice > 0 && startPrice > 0) {
+                // Calculate percentage change for this stock
+                const stockPerformance = ((currentPrice / startPrice) - 1) * 100;
+                // Weight it
+                weightedPerformance += stockPerformance * weight;
                 totalWeight += weight;
               }
             });
             
-            // Normalize by actual weight (in case some stocks don't have data yet)
-            return totalWeight > 0 ? totalValue / totalWeight : 0;
+            // Return weighted average performance
+            return totalWeight > 0 ? weightedPerformance / totalWeight : 0;
           });
 
-          // Filter out dates where portfolio value is 0 (no data available yet)
-          const validIndices = portfolioValues.map((v, i) => v > 0 ? i : -1).filter(i => i >= 0);
-          const validDates = validIndices.map(i => allDates[i]);
-          const validValues = validIndices.map(i => portfolioValues[i]);
-
-          // Normalize to percentage (start at 100%)
-          const startValue = validValues[0] || 1;
-          const percentageValues = validValues.map(v => ((v / startValue) - 1) * 100);
+          // Values are already percentages, just filter out invalid dates
+          const validDates = allDates;
+          const percentageValues = portfolioValues;
 
           const timeSpanYears = ((new Date(validDates[validDates.length - 1]).getTime() - new Date(validDates[0]).getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toFixed(1);
           console.log(`[Chart] Returning ${validDates.length} data points spanning ${timeSpanYears} years`);

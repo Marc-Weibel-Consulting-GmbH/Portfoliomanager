@@ -102,17 +102,14 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
       return benchmarkData.values[index] || 0;
     });
     
-    // Normalize both to start at 0%
-    const portfolioStart = portfolioValues[0];
-    const benchmarkStart = benchmarkValues[0];
-    
+    // Values are already percentages from backend, no normalization needed
     return commonDates.map((date, index) => ({
       date: new Date(date).toLocaleDateString('de-CH', { 
         year: '2-digit', 
         month: 'short' 
       }),
-      portfolio: portfolioValues[index] - portfolioStart,
-      benchmark: benchmarkValues[index] - benchmarkStart,
+      portfolio: portfolioValues[index],
+      benchmark: benchmarkValues[index],
     }));
   }, [portfolioData, benchmarkData, selectedPeriod]);
 
