@@ -41,6 +41,12 @@
   - [x] Union statt Intersection von Datumswerten implementiert
   - [x] Forward-Fill für fehlende Werte (letzter bekannter Preis)
   - [x] Gewichtungsnormalisierung für Aktien ohne Daten in frühen Perioden
+- [x] Intelligente Ticker-Validierung und -Auswahl
+  - [x] Ticker-Validierungs-API erstellen die Datenvollständigkeit prüft (Kurs, P/E, PEG, Sharpe, Dividende)
+  - [x] Fallback-Logik: Schweizer Ticker (.SW) zuerst versuchen, dann US-Ticker falls Daten unvollständig
+  - [x] Alternativen-Laden aktualisieren um Ticker vor Anzeige zu validieren
+  - [x] Neue Aktie hinzufügen aktualisieren um Ticker zu validieren und Warnung bei unvollständigen Daten anzuzeigen
+  - [x] Ticker-Mapping-System für verschiedene APIs (FMP für Logos, EODHD für Daten, Yahoo für Fallback)
 
 ## Später
 - [ ] "Finanzen" Tab in "Info" Tab integrieren

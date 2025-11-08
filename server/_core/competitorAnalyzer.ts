@@ -6,6 +6,7 @@
 import { invokeLLM } from "./llm";
 import { fetchStockMetrics } from "./stockDataApi";
 import { fetchEODHDFundamentals } from "./eodhdApi";
+import { validateTicker } from "./tickerValidator";
 
 export interface CompetitorStock {
   ticker: string;
@@ -208,8 +209,23 @@ GOOGL`
     }
     
     try {
-      const metrics = await fetchStockMetrics(competitorTicker, region);
-      const fundamentals = await fetchEODHDFundamentals(competitorTicker);
+      // Step 1: Validate ticker and find best variant
+      console.log(`[CompetitorAnalyzer] Validating ${competitorTicker}...`);
+      const validation = await validateTicker(competitorTicker);
+      
+      // Skip if data completeness is too low (< 40%)
+      if (!validation.isValid || validation.completeness < 40) {
+        console.log(`[CompetitorAnalyzer] Skipping ${competitorTicker}: Only ${validation.completeness}% complete (missing: ${validation.missingFields.join(', ')})`);
+        continue;
+      }
+      
+      // Use the validated ticker (might be different from original)
+      const validatedTicker = validation.ticker;
+      console.log(`[CompetitorAnalyzer] Using ${validatedTicker} (${validation.completeness}% complete)`);
+      
+      // Step 2: Fetch full metrics with validated ticker
+      const metrics = await fetchStockMetrics(validatedTicker, region);
+      const fundamentals = await fetchEODHDFundamentals(validatedTicker);
       
       // Yahoo Finance fallback for missing competitor data
       const altPrice = metrics.currentPrice;
@@ -247,7 +263,7 @@ GOOGL`
       
       if (isBetter && isNotWorse && score > currentStock.score) {
         const tempCompetitor: CompetitorStock = {
-          ticker: competitorTicker,
+          ticker: validatedTicker,
           name: fundamentals.companyName || competitorTicker, // Use company name from EODHD API
           currentPrice: altPrice,
           sharpeRatio: metrics.sharpeRatio,

@@ -552,7 +552,25 @@ export const appRouter = router({
         const { insertStock, getAllStocks, logTransaction, updateStock } = await import("./db");
         const { notifyTransaction } = await import("./services/whatsapp");
         const { invokeLLM } = await import("./_core/llm");
+        const { validateTicker } = await import("./_core/tickerValidator");
         const stockData = input as any;
+        
+        // Validate ticker and find best variant
+        console.log(`[AddStock] Validating ticker ${stockData.ticker}...`);
+        const validation = await validateTicker(stockData.ticker);
+        
+        console.log(`[AddStock] Validation result: ${validation.completeness}% complete (ticker: ${validation.ticker})`);
+        
+        // Use validated ticker (might be different from original)
+        if (validation.ticker !== stockData.ticker) {
+          console.log(`[AddStock] Using ${validation.ticker} instead of ${stockData.ticker}`);
+          stockData.ticker = validation.ticker;
+        }
+        
+        // Warn if data is incomplete (but still allow adding)
+        if (validation.completeness < 60) {
+          console.warn(`[AddStock] Warning: ${stockData.ticker} has incomplete data (${validation.completeness}%). Missing: ${validation.missingFields.join(', ')}`);
+        }
         
         // Set default values for required fields
         stockData.currency = stockData.currency || "USD";
