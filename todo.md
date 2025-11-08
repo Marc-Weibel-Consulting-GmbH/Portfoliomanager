@@ -1563,3 +1563,20 @@
 - [x] Fix: Union-Logik mit Forward-Fill für fehlende Kurse implementiert
 - [x] Fix: Dynamische Gewichtung - nur Aktien die zu diesem Zeitpunkt existierten
 - [ ] Test: Chart visuell überprüfen - sollte glatte Kurve ohne Sprünge zeigen
+
+
+## 3Y Chart Einbruch - Debugging (2025-11-08)
+- [ ] Union-Fix hat Problem NICHT gelöst - Einbruch immer noch sichtbar
+- [ ] Server-Logs überprüfen: Wird neue Logik tatsächlich verwendet?
+- [ ] Daten-Analyse: Welche Aktien haben Kurse im Oktober 2024?
+- [ ] Hypothese: Möglicherweise fehlerhafte Kursdaten (Preis = 0 oder sehr niedrig)?
+- [ ] Alternative Lösung: Daten-Bereinigung vor Berechnung (Filter für unrealistische Kurse)
+
+
+## Automatische Kategorie/Branche-Zuweisung (2025-11-08)
+- [ ] LLM-Script erstellen für intelligente Klassifizierung
+- [ ] Kategorien: Dividendenaktien, Wachstumsaktien, ETF, Value, Andere
+- [ ] Branchen: Technology, Healthcare, Automotive, Finance, Consumer, Energy, Industrials, Materials, Real Estate, Utilities, Telecommunications, Andere
+- [ ] Script auf alle 106 existierenden Aktien anwenden
+- [ ] Datenbank mit zugewiesenen Werten aktualisieren
+- [ ] Verifizierung: Stichproben prüfen (NVDA → Technology, Mercedes → Automotive, etc.)
