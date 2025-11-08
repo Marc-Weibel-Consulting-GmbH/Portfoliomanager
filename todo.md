@@ -1326,3 +1326,7 @@
 - [ ] Verify: ABB (ABBN.SW) shows CHF instead of USD and has Sharpe Ratio (user needs to run bulk update)
 
 - [x] Fix bulkUpdateSwissStocks import error: getCompleteStockData is not a function
+
+- [x] Automated Daily Refresh: Cron-Job für tägliche Aktualisierung aller Aktien-Metriken
+- [x] Data Quality Dashboard: Admin-View mit Metriken-Vollständigkeit (% Sharpe Ratio, Dividenden)
+- [x] Manual Refresh Button: Pro-Aktie Refresh-Button im Info-Dialog

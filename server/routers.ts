@@ -310,6 +310,52 @@ export const appRouter = router({
   }),
 
   stocks: router({
+    refreshStock: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid ticker");
+      })
+      .mutation(async ({ input: ticker }) => {
+        const { fetchCompleteStockData } = await import("./_core/multiApiDataMerger");
+        const { getDb } = await import("./db");
+        const { stocks } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // Fetch fresh data
+        const completeData = await fetchCompleteStockData(ticker);
+
+        // Prepare update data
+        const updateData: any = {
+          lastDataRefresh: new Date(),
+        };
+
+        if (completeData.currentPrice !== null) {
+          updateData.currentPrice = completeData.currentPrice.toString();
+        }
+        if (completeData.currency) {
+          updateData.currency = completeData.currency;
+        }
+        if (completeData.sharpe !== null && completeData.sharpe !== undefined) {
+          updateData.sharpeRatio = completeData.sharpe.toString();
+        }
+        if (completeData.pe !== null) updateData.peRatio = completeData.pe.toString();
+        if (completeData.peg !== null) updateData.pegRatio = completeData.peg.toString();
+        if (completeData.dividendYield !== null) updateData.dividendYield = completeData.dividendYield.toString();
+        if (completeData.beta !== null) updateData.beta = completeData.beta.toString();
+        if (completeData.volatility !== null) updateData.volatility = completeData.volatility.toString();
+
+        // Update in database
+        await db.update(stocks)
+          .set(updateData)
+          .where(eq(stocks.ticker, ticker));
+
+        // Return updated stock
+        const updatedStock = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+        return updatedStock[0] || null;
+      }),
     searchTicker: publicProcedure
       .input((val: unknown) => {
         if (typeof val === "string") return val;
@@ -1487,6 +1533,28 @@ export const appRouter = router({
         failed: failedCount,
         results,
       };
+    }),
+    triggerDailyRefresh: protectedProcedure.mutation(async ({ ctx }) => {
+      // Only admin can trigger daily refresh
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const { refreshAllStocks } = await import("./_core/dailyRefreshCron");
+      const result = await refreshAllStocks();
+      
+      return result;
+    }),
+    getDataQualityMetrics: protectedProcedure.query(async ({ ctx }) => {
+      // Only admin can view data quality metrics
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const { calculateDataQualityMetrics } = await import("./_core/dataQualityMetrics");
+      const metrics = await calculateDataQualityMetrics();
+      
+      return metrics;
     }),
   }),
 

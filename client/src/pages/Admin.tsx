@@ -7,6 +7,7 @@ import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft, LogOut } from
 import { NewsletterExport } from "../components/NewsletterExport";
 import Import from "./Import";
 import { SwissStockBulkUpdate } from "../components/SwissStockBulkUpdate";
+import { DataQualityDashboard } from "../components/DataQualityDashboard";
 
 interface AdminProps {
   onBackClick?: () => void;
@@ -156,6 +157,21 @@ export function Admin({ onBackClick }: AdminProps) {
         </CardHeader>
         <CardContent>
           <Import onBackClick={() => {}} />
+        </CardContent>
+      </Card>
+
+      {/* Data Quality Dashboard Card */}
+      <Card className="bg-slate-800 border-slate-700 mb-6">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            📊 Datenqualität-Dashboard
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            Übersicht über Metriken-Vollständigkeit und Datenaktualität
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataQualityDashboard />
         </CardContent>
       </Card>
 

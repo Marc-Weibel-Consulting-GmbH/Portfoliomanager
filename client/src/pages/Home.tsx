@@ -22,7 +22,8 @@ import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
 import { PortfolioPerformanceChart } from '@/components/PortfolioPerformanceChart';
 import { PortfolioSentimentIndicator } from '@/components/PortfolioSentimentIndicator';
-import { StockLogo } from '@/components/StockLogo';
+import { StockLogo } from "@/components/StockLogo";
+import { RefreshStockButton } from "@/components/RefreshStockButton";
 import { DailyNewsSection } from '@/components/DailyNewsSection';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
 
@@ -2507,7 +2508,12 @@ export default function Home() {
                               </DialogTrigger>
                               <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl max-h-[90vh] overflow-y-auto [&>button]:text-white [&>button]:hover:text-gray-300">
                                 <DialogHeader>
-                                  <DialogTitle className="text-white text-xl">{stock.companyName}</DialogTitle>
+                                  <div className="flex items-center justify-between">
+                                    <DialogTitle className="text-white text-xl">{stock.companyName}</DialogTitle>
+                                    {isAuthenticated && (
+                                      <RefreshStockButton ticker={stock.ticker} />
+                                    )}
+                                  </div>
                                 </DialogHeader>
                                 <div className="space-y-4">
                                   <div className="flex items-center gap-4 pb-4 border-slate-700">
