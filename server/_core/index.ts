@@ -210,11 +210,6 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  // Increase timeout for long-running operations (like refresh)
-  server.timeout = 600000; // 10 minutes
-  server.keepAliveTimeout = 610000; // Slightly longer than timeout
-  server.headersTimeout = 620000; // Slightly longer than keepAliveTimeout
-  
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
     // Start price updater

@@ -134,6 +134,27 @@
       "when": 1762044645884,
       "tag": "0018_perfect_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1762503431614,
+      "tag": "0019_handy_nextwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1762519986924,
+      "tag": "0020_cooing_absorbing_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1762528996998,
+      "tag": "0021_square_demogoblin",
+      "breakpoints": true
     }
   ]
 }

@@ -14,12 +14,12 @@ export interface StockMetrics {
   beta?: number;                 // Beta (EODHD)
   volatility?: number;           // Volatility in % (calculated)
   sharpeRatio?: number;          // Sharpe ratio (calculated)
+  earningsGrowth?: number;       // Derived from P/E / PEG (annual %)
   
   // Legacy metrics (not available, kept for compatibility)
   payoutRatio?: number;          // in %
   equityRatio?: number;          // in %
   ytdPerformance?: number;       // Year-to-date performance in %
-  earningsGrowth?: number;       // 5-year CAGR in %
   fcfYield?: number;             // Free Cash Flow Yield in %
   revenueGrowth?: number;        // 5-year CAGR in %
 }
@@ -120,10 +120,10 @@ export function determineStockType(metrics: StockMetrics, category?: string): St
 function scoreDividendStock(metrics: StockMetrics): SubScore[] {
   const subScores: SubScore[] = [];
 
-  // 1. Dividend Yield (40%)
+  // 1. Dividend Yield (40%) - SOFTER thresholds for dividend stocks
   const divYield = calcSubscore(
     metrics.dividendYield,
-    [2, 3, 5, 7],  // <2% red, 2-3% orange, 3-5% yellow, >7% green
+    [1.5, 2.5, 4, 6],  // <1.5% red, 1.5-2.5% orange, 2.5-4% yellow, >6% green (softer!)
     false
   );
   subScores.push({
@@ -185,7 +185,13 @@ function scoreDividendStock(metrics: StockMetrics): SubScore[] {
 function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
   const subScores: SubScore[] = [];
 
-  // 1. Sharpe Ratio (40%)
+  // Calculate earnings growth from P/E and PEG if available
+  let earningsGrowth: number | null = null;
+  if (metrics.peRatio && metrics.pegRatio && metrics.pegRatio > 0) {
+    earningsGrowth = (metrics.peRatio / metrics.pegRatio);
+  }
+
+  // 1. Sharpe Ratio (30%) - reduced weight to make room for earnings growth
   const sharpe = calcSubscore(
     metrics.sharpeRatio,
     [0.5, 1.0, 1.5, 2.0],  // <0.5 red, 0.5-1.0 orange, 1.0-1.5 yellow, >2.0 green
@@ -195,11 +201,11 @@ function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
     metric: 'Sharpe Ratio',
     value: metrics.sharpeRatio ?? null,
     score: sharpe.score,
-    weight: 0.40,
+    weight: 0.30,
     color: sharpe.color,
   });
 
-  // 2. PEG Ratio (35%) - inverted (lower is better)
+  // 2. PEG Ratio (25%) - reduced weight
   const peg = calcSubscore(
     metrics.pegRatio,
     [1.0, 1.5, 2.0, 2.0],  // <1.0 green, 1.0-1.5 yellow, 1.5-2.0 orange, >2.0 red
@@ -209,11 +215,25 @@ function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
     metric: 'PEG Ratio',
     value: metrics.pegRatio ?? null,
     score: peg.score,
-    weight: 0.35,
+    weight: 0.25,
     color: peg.color,
   });
 
-  // 3. Beta (25%) - inverted (lower is better, more stable)
+  // 3. Earnings Growth (25%) - NEW! Derived from P/E / PEG
+  const growth = calcSubscore(
+    earningsGrowth,
+    [5, 10, 15, 20],  // <5% red, 5-10% orange, 10-15% yellow, >20% green
+    false
+  );
+  subScores.push({
+    metric: 'Gewinnwachstum (P/E/PEG)',
+    value: earningsGrowth,
+    score: growth.score,
+    weight: 0.25,
+    color: growth.color,
+  });
+
+  // 4. Beta (20%) - reduced weight
   const beta = calcSubscore(
     metrics.beta,
     [1.0, 1.3, 1.6, 1.6],  // <1.0 green, 1.0-1.3 yellow, 1.3-1.6 orange, >1.6 red
@@ -223,7 +243,7 @@ function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
     metric: 'Beta (Stabilität)',
     value: metrics.beta ?? null,
     score: beta.score,
-    weight: 0.25,
+    weight: 0.20,
     color: beta.color,
   });
 
@@ -278,4 +298,28 @@ export function calculateStockScore(
     color: getColorFromScore(finalScore),
     subScores,
   };
+}
+
+/**
+ * Calculate scores for multiple stocks
+ */
+export function calculateStockScores(stocks: any[]): StockScore[] {
+  return stocks.map(stock => {
+    const metrics: StockMetrics = {
+      dividendYield: stock.dividendYield ? parseFloat(stock.dividendYield) : undefined,
+      peRatio: stock.peRatio ? parseFloat(stock.peRatio) : undefined,
+      pegRatio: stock.pegRatio ? parseFloat(stock.pegRatio) : undefined,
+      beta: stock.beta ? parseFloat(stock.beta) : undefined,
+      volatility: stock.volatility ? parseFloat(stock.volatility) : undefined,
+      sharpeRatio: stock.sharpeRatio ? parseFloat(stock.sharpeRatio) : undefined,
+      ytdPerformance: stock.ytdPerformance ? parseFloat(stock.ytdPerformance) : undefined,
+    };
+    
+    return calculateStockScore(
+      stock.ticker,
+      metrics,
+      undefined, // Let it auto-determine type
+      stock.category
+    );
+  });
 }

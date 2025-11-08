@@ -109,11 +109,6 @@ async function fetchAndCalculatePEG(ticker: string): Promise<string | null> {
       // Calculate PEG = P/E / Growth Rate
       const pegRatio = peRatio / growthRate;
       
-      if (isNaN(pegRatio) || !isFinite(pegRatio)) {
-        console.warn(`[PEG Updater] Invalid PEG ratio for ${ticker}: ${pegRatio}`);
-        return null;
-      }
-      
       return pegRatio.toFixed(2);
     }
     

@@ -1,6 +1,6 @@
 import { eq, desc, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, stocks, users, news, transactions, savedPortfolios } from "../drizzle/schema";
+import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, stocks, users, news, transactions, savedPortfolios, categories } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -373,3 +373,60 @@ export async function deleteSavedPortfolio(id: number, userId: number) {
   }
 }
 
+
+// Category queries
+export async function getAllCategories() {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get categories: database not available");
+    return [];
+  }
+  return await db.select().from(categories).orderBy(categories.name);
+}
+
+export async function getCategoryById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function insertCategory(category: InsertCategory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  try {
+    const result = await db.insert(categories).values(category);
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to insert category:", error);
+    throw error;
+  }
+}
+
+export async function updateCategory(id: number, data: Partial<InsertCategory>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  try {
+    await db.update(categories).set(data).where(eq(categories.id, id));
+    return await getCategoryById(id);
+  } catch (error) {
+    console.error("[Database] Failed to update category:", error);
+    throw error;
+  }
+}
+
+export async function deleteCategory(id: number) {
+  const db = await getDb();
+  if (!db) return false;
+  
+  try {
+    await db.delete(categories).where(eq(categories.id, id));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to delete category:", error);
+    return false;
+  }
+}

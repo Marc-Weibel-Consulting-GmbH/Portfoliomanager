@@ -6,11 +6,12 @@ import { useState, useMemo } from 'react';
 
 interface PortfolioPerformanceChartProps {
   stocks?: any[];
+  portfolioName?: string;
 }
 
 type TimePeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'Max';
 
-export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceChartProps) {
+export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfolio BIG' }: PortfolioPerformanceChartProps) {
   const [selectedBenchmark, setSelectedBenchmark] = useState('sp500');
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('5Y');
 
@@ -177,7 +178,7 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
         <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-lg">
           <p className="text-white font-semibold mb-2">{data.date}</p>
           <p className="text-blue-400">
-            Portfolio: {data.portfolio >= 0 ? '+' : ''}{data.portfolio.toFixed(2)}%
+            {portfolioName}: {data.portfolio >= 0 ? '+' : ''}{data.portfolio.toFixed(2)}%
           </p>
           <p className="text-red-400">
             {benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}: {data.benchmark >= 0 ? '+' : ''}{data.benchmark.toFixed(2)}%
@@ -256,7 +257,7 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
                 stroke="#3b82f6" 
                 strokeWidth={2}
                 dot={false}
-                name="Portfolio"
+                name={portfolioName}
                 activeDot={{ r: 6, fill: '#3b82f6' }}
               />
               <Line 
@@ -273,7 +274,7 @@ export function PortfolioPerformanceChart({ stocks = [] }: PortfolioPerformanceC
           
           <div className="mt-4 grid grid-cols-2 gap-4 text-center">
             <div>
-              <div className="text-slate-400 text-xs">Portfolio Performance</div>
+              <div className="text-slate-400 text-xs">{portfolioName} Performance</div>
               <div className={`font-semibold text-lg ${portfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {portfolioReturn >= 0 ? '+' : ''}{portfolioReturn.toFixed(2)}%
               </div>

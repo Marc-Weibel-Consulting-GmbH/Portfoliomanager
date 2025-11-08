@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
+import { date, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -66,12 +66,26 @@ export const stocks = mysqlTable("stocks", {
   financialHighlight1: text("financialHighlight1"),
   financialHighlight2: text("financialHighlight2"),
   financialHighlight3: text("financialHighlight3"),
+  factsheetUrl: varchar("factsheetUrl", { length: 500 }), // ETF factsheet PDF URL
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type Stock = typeof stocks.$inferSelect;
 export type InsertStock = typeof stocks.$inferInsert;
+
+// Categories table for managing stock categories
+export const categories = mysqlTable("categories", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  color: varchar("color", { length: 50 }), // Optional color for UI (e.g., "bg-blue-500")
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Category = typeof categories.$inferSelect;
+export type InsertCategory = typeof categories.$inferInsert;
 
 export const news = mysqlTable("news", {
   id: int("id").autoincrement().primaryKey(),
@@ -167,3 +181,56 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
 export type SavedPortfolio = typeof savedPortfolios.$inferSelect;
 export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
 
+
+// ============================================
+// Analyzer_Test Tables (Nov 7, 2024)
+// ============================================
+
+export const securities = mysqlTable("securities", {
+  symbol: varchar("symbol", { length: 16 }).primaryKey(),
+  name: varchar("name", { length: 256 }).notNull(),
+  sector: varchar("sector", { length: 64 }).notNull(),
+  industry: varchar("industry", { length: 128 }).notNull(),
+  currency: varchar("currency", { length: 8 }).notNull(),
+});
+
+export const prices = mysqlTable("prices", {
+  id: int("id").autoincrement().primaryKey(),
+  symbol: varchar("symbol", { length: 16 }).notNull(),
+  date: date("date").notNull(),
+  close: decimal("close", { precision: 18, scale: 6 }).notNull(),
+}, (t) => ({
+  symbolDateIdx: index("ix_prices_symbol_date").on(t.symbol, t.date),
+}));
+
+export const holdings = mysqlTable("holdings", {
+  id: int("id").autoincrement().primaryKey(),
+  symbol: varchar("symbol", { length: 16 }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 6 }).notNull(),
+  marketValue: decimal("market_value", { precision: 18, scale: 6 }).notNull(),
+});
+
+export const correlations = mysqlTable("correlations", {
+  id: int("id").autoincrement().primaryKey(),
+  a: varchar("a", { length: 16 }).notNull(),
+  b: varchar("b", { length: 16 }).notNull(),
+  rho: decimal("rho", { precision: 10, scale: 6 }).notNull(),
+});
+
+export const analyzerReports = mysqlTable("analyzer_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  payload: text("payload").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Type exports
+export type Security = typeof securities.$inferSelect;
+export type InsertSecurity = typeof securities.$inferInsert;
+export type Price = typeof prices.$inferSelect;
+export type InsertPrice = typeof prices.$inferInsert;
+export type Holding = typeof holdings.$inferSelect;
+export type InsertHolding = typeof holdings.$inferInsert;
+export type Correlation = typeof correlations.$inferSelect;
+export type InsertCorrelation = typeof correlations.$inferInsert;
+export type AnalyzerReport = typeof analyzerReports.$inferSelect;
+export type InsertAnalyzerReport = typeof analyzerReports.$inferInsert;

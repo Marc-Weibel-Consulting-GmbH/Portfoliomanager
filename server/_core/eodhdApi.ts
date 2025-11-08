@@ -1,9 +1,20 @@
 /**
  * EODHD API Integration for Fundamental Data
  * Provides PEG Ratio, P/E Ratio, Dividend Yield, and other fundamentals
+ * 
+ * Features:
+ * - Memory caching with 1-hour TTL
+ * - Retry logic with exponential backoff
+ * - Graceful error handling
  */
 
+import { apiCache, CACHE_TTL } from './apiCache';
+import { retryFetch } from './retryUtil';
+
 export interface EODHDFundamentals {
+  companyName: string | null;
+  sector: string | null;
+  industry: string | null;
   pegRatio: number | null;
   peRatio: number | null;
   dividendYield: number | null;
@@ -23,6 +34,9 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
   if (!apiKey) {
     console.warn('[EODHD] API key not configured');
     return {
+      companyName: null,
+      sector: null,
+      industry: null,
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
@@ -33,15 +47,26 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
     };
   }
 
+  // Check cache first
+  const cacheKey = `eodhd:fundamentals:${ticker}`;
+  const cached = apiCache.get<EODHDFundamentals>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   try {
     // EODHD API endpoint for fundamentals
     const url = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}&fmt=json`;
     
-    const response = await fetch(url);
+    // Use retry logic with exponential backoff
+    const response = await retryFetch(url, {}, { maxRetries: 3, baseDelay: 1000 });
     
     if (!response.ok) {
       console.warn(`[EODHD] API request failed for ${ticker}: ${response.status} ${response.statusText}`);
       return {
+        companyName: null,
+        sector: null,
+        industry: null,
         pegRatio: null,
         peRatio: null,
         dividendYield: null,
@@ -56,6 +81,9 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
 
     // Extract fundamental metrics
     const fundamentals: EODHDFundamentals = {
+      companyName: null,
+      sector: null,
+      industry: null,
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
@@ -64,6 +92,19 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       eps: null,
       bookValue: null,
     };
+
+    // Extract company info from General section
+    if (data.General) {
+      if (data.General.Name) {
+        fundamentals.companyName = data.General.Name;
+      }
+      if (data.General.Sector) {
+        fundamentals.sector = data.General.Sector;
+      }
+      if (data.General.Industry) {
+        fundamentals.industry = data.General.Industry;
+      }
+    }
 
     // Highlights section contains key metrics
     if (data.Highlights) {
@@ -113,32 +154,23 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       }
     }
 
-    // ETF-specific data handling
-    if (data.ETF_Data) {
-      // ETF dividend yield from Valuations_Rates_Portfolio
-      if (data.ETF_Data.Valuations_Growth?.Valuations_Rates_Portfolio?.["Dividend-Yield Factor"]) {
-        const divYield = parseFloat(data.ETF_Data.Valuations_Growth.Valuations_Rates_Portfolio["Dividend-Yield Factor"]);
-        if (!isNaN(divYield) && divYield > 0) {
-          fundamentals.dividendYield = divYield;
-        }
-      }
-      
-      // ETF performance data (for YTD calculation)
-      // Note: YTD Performance is calculated separately in refreshData using real-time prices
-    }
-
     console.log(`[EODHD] Fetched fundamentals for ${ticker}:`, {
       pegRatio: fundamentals.pegRatio,
       peRatio: fundamentals.peRatio,
       dividendYield: fundamentals.dividendYield,
       beta: fundamentals.beta,
-      isETF: !!data.ETF_Data,
     });
+
+    // Cache the result for 1 hour
+    apiCache.set(cacheKey, fundamentals, CACHE_TTL.FUNDAMENTALS);
 
     return fundamentals;
   } catch (error: any) {
     console.error(`[EODHD] Error fetching fundamentals for ${ticker}:`, error.message);
     return {
+      companyName: null,
+      sector: null,
+      industry: null,
       pegRatio: null,
       peRatio: null,
       dividendYield: null,

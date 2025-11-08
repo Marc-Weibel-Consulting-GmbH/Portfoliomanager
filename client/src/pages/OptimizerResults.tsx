@@ -47,6 +47,7 @@ interface OptimizedPosition {
 
 export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
+  const { data: stockScores = [] } = trpc.scoring.calculateScores.useQuery();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictData, setConflictData] = useState<any>(null);
@@ -70,6 +71,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
   const [selectedBenchmark, setSelectedBenchmark] = useState<string>('sp500');
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>('5y');
 
   // Ticker search query for auto-complete
   const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
@@ -857,18 +859,27 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   }
 
   // Use editable positions if available, otherwise use optimized portfolio
-  const displayPortfolio = editablePositions ? {
-    positions: editablePositions,
-    totalInvested: editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0),
-    remainingCash: currentInputs.investmentAmount - editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0),
-    totalShares: editablePositions.reduce((sum, p) => sum + p.shares, 0),
-    avgDividendYield: editablePositions.length > 0 
-      ? editablePositions.reduce((sum, p) => sum + parseFloat(p.dividendYield || '0'), 0) / editablePositions.length
-      : 0,
-    avgYtdPerformance: editablePositions.length > 0
-      ? editablePositions.reduce((sum, p) => sum + parseFloat(p.ytdPerformance || '0'), 0) / editablePositions.length
-      : 0,
-  } : optimizedPortfolio;
+  const displayPortfolio = editablePositions ? (() => {
+    const totalInvested = editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0);
+    return {
+      positions: editablePositions,
+      totalInvested,
+      remainingCash: currentInputs.investmentAmount - totalInvested,
+      totalShares: editablePositions.reduce((sum, p) => sum + p.shares, 0),
+      avgDividendYield: editablePositions.length > 0 && totalInvested > 0
+        ? editablePositions.reduce((sum, p) => {
+            const divYield = parseFloat(p.dividendYield || '0');
+            return sum + (divYield * p.investmentAmount);
+          }, 0) / totalInvested
+        : 0,
+      avgYtdPerformance: editablePositions.length > 0 && totalInvested > 0
+        ? editablePositions.reduce((sum, p) => {
+            const ytdPerf = parseFloat(p.ytdPerformance || '0');
+            return sum + (ytdPerf * p.investmentAmount);
+          }, 0) / totalInvested
+        : 0,
+    };
+  })() : optimizedPortfolio;
   
   // Initialize editable positions from optimized portfolio on first render
   useEffect(() => {
@@ -884,23 +895,40 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   const growthAmount = displayPortfolio.positions
     .filter((p: any) => p.isGrowthStock && !p.isDividendStock)
     .reduce((sum, p) => sum + p.investmentAmount, 0);
-  const dividendPercent = (dividendAmount / currentInputs.investmentAmount) * 100;
-  const growthPercent = (growthAmount / currentInputs.investmentAmount) * 100;
-  const cashPercent = (displayPortfolio.remainingCash / currentInputs.investmentAmount) * 100;
+  
+  // Use actual total invested amount (works for both optimized and loaded portfolios)
+  const totalAmount = displayPortfolio.totalInvested + displayPortfolio.remainingCash;
+  const dividendPercent = totalAmount > 0 ? (dividendAmount / totalAmount) * 100 : 0;
+  const growthPercent = totalAmount > 0 ? (growthAmount / totalAmount) * 100 : 0;
+  const cashPercent = totalAmount > 0 ? (displayPortfolio.remainingCash / totalAmount) * 100 : 0;
 
   // Prepare data for performance chart
   const tickers = displayPortfolio.positions.map(p => p.ticker);
   const weights = displayPortfolio.positions.map(p => p.portfolioWeight / 100);
 
+  // Convert time period to years
+  const timePeriodToYears = (period: string) => {
+    switch (period) {
+      case '1m': return 0.1;
+      case '3m': return 0.25;
+      case '6m': return 0.5;
+      case 'ytd': return new Date().getMonth() / 12;
+      case '1y': return 1;
+      case '3y': return 3;
+      case '5y': return 5;
+      default: return 5;
+    }
+  };
+
   // Fetch portfolio historical data
   const { data: portfolioData, isLoading: isLoadingPortfolio } = trpc.portfolioPerformance.getHistoricalData.useQuery(
-    { tickers, weights, years: 5 },
+    { tickers, weights, years: timePeriodToYears(selectedTimePeriod) },
     { enabled: tickers.length > 0 && weights.length > 0 }
   );
 
   // Fetch benchmark data
   const { data: benchmarkData, isLoading: isLoadingBenchmark } = trpc.portfolioPerformance.getBenchmarkData.useQuery(
-    { benchmark: selectedBenchmark, years: 5 },
+    { benchmark: selectedBenchmark, years: timePeriodToYears(selectedTimePeriod) },
     { enabled: !!selectedBenchmark }
   );
 
@@ -945,7 +973,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="container mx-auto px-4 space-y-4">
       {/* Conflict Resolution Dialog */}
       {conflictData && (
         <ConflictResolutionDialog
@@ -1024,8 +1052,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         </Dialog>
       )}
 
-      {/* Dividend Yield Warning */}
-      {Math.abs(displayPortfolio.avgDividendYield - currentInputs.expectedDividendYield) > 0.5 && (
+      {/* Dividend Yield Warning - only show for optimized portfolios, not loaded ones */}
+      {!selectedPortfolioId && Math.abs(displayPortfolio.avgDividendYield - currentInputs.expectedDividendYield) > 0.5 && (
         <Card className="bg-yellow-500/10 border-yellow-500/30">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
@@ -1035,7 +1063,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   Ziel-Dividendenrendite nicht vollständig erreichbar
                 </h3>
                 <p className="text-slate-300 text-sm mb-2">
-                  Die durchschnittliche Dividendenrendite von <strong>{((displayPortfolio.avgDividendYield ?? 0)).toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{currentInputs.expectedDividendYield}%</strong>) ab.
+                  Die durchschnittliche Dividendenrendite von <strong>{(displayPortfolio.avgDividendYield || 0).toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{currentInputs.expectedDividendYield}%</strong>) ab.
                 </p>
                 <p className="text-slate-400 text-xs">
                   💡 <strong>Grund:</strong> Unter Einhaltung der 5% Maximalgewichtung (1% Minimum) pro Position und Berücksichtigung Ihres Anlegertyps ({currentInputs.investorType === 'conservative' ? 'Konservativ' : currentInputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}) ist dies die bestmögliche Annäherung.
@@ -1056,52 +1084,13 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         </Card>
       )}
 
-      {/* Portfolio Composition */}
+      {/* Compact Portfolio Header */}
       <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white">Portfolio-Zusammensetzung</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-900 p-4 rounded-lg">
-              <p className="text-slate-400 text-sm mb-1">Dividendenaktien</p>
-              <p className="text-2xl font-bold text-blue-400">{(dividendPercent ?? 0).toFixed(1)}%</p>
-              <p className="text-slate-500 text-xs mt-1">
-                CHF {dividendAmount?.toLocaleString('de-CH', { maximumFractionDigits: 0 }) || '0'}
-              </p>
-            </div>
-            <div className="bg-slate-900 p-4 rounded-lg">
-              <p className="text-slate-400 text-sm mb-1">Wachstumsaktien</p>
-              <p className="text-2xl font-bold text-green-400">{(growthPercent ?? 0).toFixed(1)}%</p>
-              <p className="text-slate-500 text-xs mt-1">
-                CHF {growthAmount?.toLocaleString('de-CH', { maximumFractionDigits: 0 }) || '0'}
-              </p>
-            </div>
-            <div className="bg-slate-900 p-4 rounded-lg">
-              <p className="text-slate-400 text-sm mb-1">Cash</p>
-              <p className="text-2xl font-bold text-yellow-400">{(cashPercent ?? 0).toFixed(1)}%</p>
-              <p className="text-slate-500 text-xs mt-1">
-                CHF {optimizedPortfolio.remainingCash?.toLocaleString('de-CH', { maximumFractionDigits: 0 }) || '0'}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Portfolio Selector */}
-      <Card className="bg-slate-800 border-slate-700 mb-4">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-white text-lg flex items-center gap-2">
-            <FolderOpen className="w-5 h-5" />
-            Portfolio Auswahl
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="text-slate-400 text-sm mb-2 block">
-                Gespeichertes Portfolio laden
-              </label>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Left: Portfolio Selector */}
+            <div className="space-y-2">
+              <label className="text-slate-400 text-xs font-medium">Portfolio Auswahl</label>
               <Select
                 value={selectedPortfolioId || ""}
                 onValueChange={(value) => {
@@ -1129,12 +1118,12 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   }
                 }}
               >
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                  <SelectValue placeholder="Wählen Sie ein Portfolio..." />
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white h-9">
+                  <SelectValue placeholder="Portfolio wählen..." />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-700 border-slate-600">
                   <SelectItem value="current" className="text-white hover:bg-slate-600">
-                    🎯 Aktuelles optimiertes Portfolio
+                    🎯 Aktuelles Portfolio
                   </SelectItem>
                   {savedPortfolios.map((portfolio: any) => (
                     <SelectItem 
@@ -1142,115 +1131,122 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                       value={portfolio.id.toString()}
                       className="text-white hover:bg-slate-600"
                     >
-                      {portfolio.name} ({portfolio.numberOfPositions} Positionen, CHF {portfolio.totalInvested?.toLocaleString('de-CH') || '0'})
+                      {portfolio.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {selectedPortfolioId && (
+                <Button
+                  onClick={() => {
+                    setSelectedPortfolioId(null);
+                    setEditablePositions(null);
+                    toast.info('Zurück zum optimierten Portfolio');
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 w-full"
+                >
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Zurücksetzen
+                </Button>
+              )}
             </div>
-            {selectedPortfolioId && (
-              <Button
-                onClick={() => {
-                  setSelectedPortfolioId(null);
-                  setEditablePositions(null);
-                  toast.info('Zurück zum optimierten Portfolio');
-                }}
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Zurücksetzen
-              </Button>
-            )}
+
+            {/* Middle: Composition */}
+            <div className="space-y-2">
+              <label className="text-slate-400 text-xs font-medium">Zusammensetzung</label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-slate-900 p-2 rounded text-center">
+                  <p className="text-xs text-slate-400">Dividenden</p>
+                  <p className="text-sm font-bold text-blue-400">{(dividendPercent || 0).toFixed(1)}%</p>
+                </div>
+                <div className="bg-slate-900 p-2 rounded text-center">
+                  <p className="text-xs text-slate-400">Wachstum</p>
+                  <p className="text-sm font-bold text-green-400">{(growthPercent || 0).toFixed(1)}%</p>
+                </div>
+                <div className="bg-slate-900 p-2 rounded text-center">
+                  <p className="text-xs text-slate-400">Cash</p>
+                  <p className="text-sm font-bold text-yellow-400">{(cashPercent || 0).toFixed(1)}%</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Stats */}
+            <div className="space-y-2">
+              <label className="text-slate-400 text-xs font-medium">Performance & Kennzahlen</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-slate-900 p-2 rounded">
+                  <p className="text-xs text-slate-400">Investiert</p>
+                  <p className="text-sm font-bold text-white">
+                    CHF {(displayPortfolio.totalInvested || 0).toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div className="bg-slate-900 p-2 rounded">
+                  <p className="text-xs text-slate-400">Positionen</p>
+                  <p className="text-sm font-bold text-white">{displayPortfolio.positions.length}</p>
+                </div>
+                <div className="bg-slate-900 p-2 rounded">
+                  <p className="text-xs text-slate-400">Ø Dividende</p>
+                  <p className="text-sm font-bold text-white">{(displayPortfolio.avgDividendYield || 0).toFixed(2)}%</p>
+                </div>
+                <div className="bg-slate-900 p-2 rounded">
+                  <p className="text-xs text-slate-400">Ø YTD Perf</p>
+                  <p className={`text-sm font-bold ${
+                    (displayPortfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {(displayPortfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(displayPortfolio.avgYtdPerformance || 0).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-          {selectedPortfolioId && (
-            <p className="text-slate-400 text-sm mt-3">
-              ℹ️ Sie betrachten ein gespeichertes Portfolio. Alle Analysen beziehen sich auf dieses Portfolio.
-            </p>
-          )}
         </CardContent>
       </Card>
 
-      {/* Summary Cards and Action Buttons */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs text-slate-400">Investiert</CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3">
-              <p className="text-lg font-bold text-white">
-                CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 0 }) || '0'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs text-slate-400">Positionen</CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3">
-              <p className="text-lg font-bold text-white">
-                {displayPortfolio.positions.length}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs text-slate-400">Ø Dividende</CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3">
-              <p className="text-lg font-bold text-white">
-                {(displayPortfolio.avgDividendYield ?? 0).toFixed(2)}%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs text-slate-400">Ø YTD Perf.</CardTitle>
-            </CardHeader>
-            <CardContent className="px-3 pb-3">
-              <p className={`text-lg font-bold ${
-                displayPortfolio.avgYtdPerformance >= 0 ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {(displayPortfolio.avgYtdPerformance ?? 0) >= 0 ? '+' : ''}{(displayPortfolio.avgYtdPerformance ?? 0).toFixed(1)}%
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-2 lg:w-auto w-full">
-          <div className="flex gap-2">
-            <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white flex-1 lg:flex-none">
-              <Save className="w-4 h-4 mr-2" />
-              Speichern
-            </Button>
-            <Button onClick={() => setShowLoadDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white flex-1 lg:flex-none">
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Laden
-            </Button>
-          </div>
-          <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white w-full">
-            <Download className="w-4 h-4 mr-2" />
-            PDF Export
-          </Button>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex gap-2 justify-end">
+        <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
+          <Save className="w-4 h-4 mr-2" />
+          Speichern
+        </Button>
+        <Button onClick={() => setShowLoadDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <FolderOpen className="w-4 h-4 mr-2" />
+          Laden
+        </Button>
+        <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
+          <Download className="w-4 h-4 mr-2" />
+          PDF Export
+        </Button>
       </div>
 
       {/* Performance Chart */}
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white">Portfolio Performance (5 Jahre)</CardTitle>
-            <div className="flex gap-4 items-center">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="text-white">Portfolio Performance</CardTitle>
+            <div className="flex gap-4 items-center flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-slate-400">Zeitraum:</label>
+                <Select value={selectedTimePeriod} onValueChange={setSelectedTimePeriod}>
+                  <SelectTrigger className="w-28 bg-slate-700 border-slate-600 text-white h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    <SelectItem value="1m" className="text-white hover:bg-slate-600">1 Monat</SelectItem>
+                    <SelectItem value="3m" className="text-white hover:bg-slate-600">3 Monate</SelectItem>
+                    <SelectItem value="6m" className="text-white hover:bg-slate-600">6 Monate</SelectItem>
+                    <SelectItem value="ytd" className="text-white hover:bg-slate-600">YTD</SelectItem>
+                    <SelectItem value="1y" className="text-white hover:bg-slate-600">1 Jahr</SelectItem>
+                    <SelectItem value="3y" className="text-white hover:bg-slate-600">3 Jahre</SelectItem>
+                    <SelectItem value="5y" className="text-white hover:bg-slate-600">5 Jahre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-slate-400">Benchmark:</label>
                 <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
-                  <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white">
+                  <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-700 border-slate-600">
@@ -1320,7 +1316,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   stroke="#3b82f6" 
                   strokeWidth={2}
                   dot={false}
-                  name="Portfolio"
+                  name="portfolio"
                 />
                 <Line 
                   type="monotone" 
@@ -1328,7 +1324,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   stroke="#ef4444" 
                   strokeWidth={2}
                   dot={false}
-                  name="Benchmark"
+                  name="benchmark"
                   connectNulls
                 />
               </LineChart>
@@ -1428,7 +1424,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   <th className="text-right p-3 text-slate-400 font-medium">Gewicht</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Div. %</th>
                   <th className="text-right p-3 text-slate-400 font-medium">YTD %</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Risk Score</th>
+                  <th className="text-center p-3 text-slate-400 font-medium">Score</th>
                 </tr>
               </thead>
               <tbody>
@@ -1445,7 +1441,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                        CHF {pos.investmentAmount?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
                     </td>
                     <td className="p-3 text-right text-slate-300">
-                      {(pos.portfolioWeight ?? 0).toFixed(2)}%
+                      {(pos.portfolioWeight || 0).toFixed(2)}%
                     </td>
                     <td className="p-3 text-right text-green-400">
                       {pos.dividendYield}%
@@ -1455,16 +1451,21 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     }`}>
                       {parseFloat(pos.ytdPerformance) >= 0 ? '+' : ''}{pos.ytdPerformance}%
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-center">
                       {(() => {
-                        const ytd = parseFloat(pos.ytdPerformance);
-                        const volatility = Math.abs(ytd) > 0 ? Math.abs(ytd) / 2 : 10;
-                        const riskScore = Math.min(10, Math.max(0, (ytd / volatility) * 2));
-                        const color = riskScore >= 7 ? "text-green-400" : riskScore >= 4 ? "text-yellow-400" : "text-red-400";
-                        const bgColor = riskScore >= 7 ? "bg-green-400/20" : riskScore >= 4 ? "bg-yellow-400/20" : "bg-red-400/20";
+                        const score = stockScores.find((s: any) => s.ticker === pos.ticker) as any;
+                        if (!score) return <span className="text-slate-500">-</span>;
+                        
+                        const colorMap = {
+                          red: 'bg-red-500',
+                          orange: 'bg-orange-500',
+                          yellow: 'bg-yellow-500',
+                          green: 'bg-green-500',
+                        };
+                        
                         return (
-                          <span className={`inline-flex items-center justify-center px-2 py-1 rounded font-medium ${color} ${bgColor}`}>
-                            {(riskScore ?? 0).toFixed(1)}
+                          <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg font-bold text-white ${colorMap[score.color as keyof typeof colorMap] || 'bg-slate-500'}`}>
+                            {score.score}
                           </span>
                         );
                       })()}
@@ -1479,7 +1480,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
                   </td>
                   <td className="p-3 text-right text-white">
-                    {(((displayPortfolio.totalInvested ?? 0) / (currentInputs.investmentAmount ?? 1)) * 100).toFixed(2)}%
+                    {((displayPortfolio.totalInvested / currentInputs.investmentAmount) * 100 || 0).toFixed(2)}%
                   </td>
                   <td colSpan={2}></td>
                 </tr>
@@ -1518,6 +1519,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
             <Button
               onClick={() => {
                 const portfolioDataObj = {
+                  inputs: currentInputs, // Save optimizer inputs
                   stocks: displayPortfolio.positions.map(pos => ({
                     ticker: pos.ticker,
                     companyName: pos.companyName,
@@ -1586,12 +1588,12 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                         </div>
                         <div>
                           <span className="text-slate-400">Ø Div.:</span>
-                          <span className="text-green-400 ml-1">{(portfolio.avgDividendYield ?? 0).toFixed(2)}%</span>
+                          <span className="text-green-400 ml-1">{(portfolio.avgDividendYield || 0).toFixed(2)}%</span>
                         </div>
                         <div>
                           <span className="text-slate-400">Ø YTD:</span>
                           <span className={`ml-1 ${(portfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {(portfolio.avgYtdPerformance ?? 0) >= 0 ? '+' : ''}{(portfolio.avgYtdPerformance ?? 0).toFixed(1)}%
+                            {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(portfolio.avgYtdPerformance || 0).toFixed(1)}%
                           </span>
                         </div>
                       </div>
@@ -1602,7 +1604,16 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                           try {
                             const data = JSON.parse(portfolio.portfolioData);
                             if (data.stocks && Array.isArray(data.stocks)) {
-                              setEditablePositions(data.stocks);
+                              // Add isDividendStock and isGrowthStock flags based on dividend yield
+                              const enrichedStocks = data.stocks.map((stock: any) => {
+                                const divYield = parseFloat(stock.dividendYield || '0');
+                                return {
+                                  ...stock,
+                                  isDividendStock: divYield >= 1.0,
+                                  isGrowthStock: divYield < 1.0
+                                };
+                              });
+                              setEditablePositions(enrichedStocks);
                               setSelectedPortfolioId(portfolio.id.toString());
                               setShowLoadDialog(false);
                               toast.success(`Portfolio "${portfolio.name}" geladen!`);

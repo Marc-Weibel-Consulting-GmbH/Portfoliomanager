@@ -99,25 +99,42 @@ export async function findCompetitors(
 ): Promise<CompetitorAnalysis> {
   console.log(`[CompetitorAnalyzer] Finding competitors for ${ticker} (${name})`);
   
-  // Step 1: Get current stock metrics
+  // Step 1: Get current stock metrics with fallback
   const region = ticker.endsWith('.SW') ? 'CH' : 'US';
   const currentMetrics = await fetchStockMetrics(ticker, region);
   const currentFundamentals = await fetchEODHDFundamentals(ticker);
   
+  // Yahoo Finance fallback for missing data
+  let finalPrice = currentMetrics.currentPrice;
+  let finalPegRatio = currentFundamentals.pegRatio || currentMetrics.pegRatio;
+  let finalPeRatio = currentFundamentals.peRatio || currentMetrics.peRatio;
+  let finalDividendYield = currentFundamentals.dividendYield || currentMetrics.dividendYield;
+  let finalBeta = currentFundamentals.beta || currentMetrics.beta;
+  
+  // If EODHD failed completely, use Yahoo Finance data
+  if (!finalPrice && !finalPegRatio && !finalPeRatio) {
+    console.log(`[CompetitorAnalyzer] EODHD failed for ${ticker}, using Yahoo Finance fallback`);
+    finalPrice = currentMetrics.currentPrice;
+    finalPegRatio = currentMetrics.pegRatio;
+    finalPeRatio = currentMetrics.peRatio;
+    finalDividendYield = currentMetrics.dividendYield;
+    finalBeta = currentMetrics.beta;
+  }
+  
   const currentStock: CompetitorStock = {
     ticker,
     name,
-    currentPrice: currentMetrics.currentPrice,
+    currentPrice: finalPrice,
     sharpeRatio: currentMetrics.sharpeRatio,
-    pegRatio: currentFundamentals.pegRatio,
-    peRatio: currentFundamentals.peRatio,
-    dividendYield: currentFundamentals.dividendYield,
+    pegRatio: finalPegRatio,
+    peRatio: finalPeRatio,
+    dividendYield: finalDividendYield,
     volatility: currentMetrics.volatility,
-    beta: currentFundamentals.beta,
+    beta: finalBeta,
     score: calculateScore({
       sharpeRatio: currentMetrics.sharpeRatio,
-      pegRatio: currentFundamentals.pegRatio,
-      dividendYield: currentFundamentals.dividendYield,
+      pegRatio: finalPegRatio,
+      dividendYield: finalDividendYield,
       volatility: currentMetrics.volatility,
     }),
     reason: "Aktuelle Position",
@@ -125,21 +142,25 @@ export async function findCompetitors(
   
   console.log(`[CompetitorAnalyzer] Current stock score: ${currentStock.score.toFixed(2)}`);
   
+  // Get industry/sector for better filtering
+  const industry = currentFundamentals.industry || currentFundamentals.sector || category;
+  console.log(`[CompetitorAnalyzer] Industry: ${industry}`);
+  
   // Step 2: Use LLM to find similar companies
   const llmResponse = await invokeLLM({
     messages: [
       {
         role: "system",
-        content: "You are a financial analyst expert. Your task is to identify competitor companies in the same industry/sector."
+        content: "You are a financial analyst expert. Your task is to identify competitor companies in the EXACT same industry."
       },
       {
         role: "user",
-        content: `Find 5-7 direct competitors for "${name}" (Ticker: ${ticker}, Category: ${category}).
+        content: `Find 5-7 direct competitors for "${name}" (Ticker: ${ticker}).
         
-Requirements:
-- MUST be in the EXACT same category: ${category}
-- Same industry/sector as ${name}
-- Similar market cap range
+REQUIREMENTS:
+- MUST be in the EXACT same industry: ${industry}
+- Direct competitors of ${name}
+- Similar business model and market cap range
 - Listed on ${region === 'CH' ? 'Swiss Exchange (use .SW suffix)' : 'US exchanges'}
 - DO NOT suggest these tickers (already in portfolio): ${existingTickers.join(', ')}
 - Return ONLY ticker symbols, one per line
@@ -190,44 +211,51 @@ GOOGL`
       const metrics = await fetchStockMetrics(competitorTicker, region);
       const fundamentals = await fetchEODHDFundamentals(competitorTicker);
       
+      // Yahoo Finance fallback for missing competitor data
+      const altPrice = metrics.currentPrice;
+      const altPegRatio = fundamentals.pegRatio || metrics.pegRatio;
+      const altPeRatio = fundamentals.peRatio || metrics.peRatio;
+      const altDividendYield = fundamentals.dividendYield || metrics.dividendYield;
+      const altBeta = fundamentals.beta || metrics.beta;
+      
       const score = calculateScore({
         sharpeRatio: metrics.sharpeRatio,
-        pegRatio: fundamentals.pegRatio,
-        dividendYield: fundamentals.dividendYield,
+        pegRatio: altPegRatio,
+        dividendYield: altDividendYield,
         volatility: metrics.volatility,
       });
       
       // Only include if at least one metric is significantly better
-      // AND no metric is significantly worse
+      // AND no metric is significantly worse (using fallback values)
       const isBetter = (
         (metrics.sharpeRatio !== null && currentStock.sharpeRatio !== null && 
          metrics.sharpeRatio > currentStock.sharpeRatio * 1.1) || // 10% better Sharpe
-        (fundamentals.pegRatio !== null && currentStock.pegRatio !== null && currentStock.pegRatio > 0 &&
-         fundamentals.pegRatio < currentStock.pegRatio * 0.9) || // 10% lower PEG
-        (fundamentals.dividendYield !== null && currentStock.dividendYield !== null &&
-         fundamentals.dividendYield > currentStock.dividendYield * 1.2) // 20% higher dividend
+        (altPegRatio !== null && currentStock.pegRatio !== null && currentStock.pegRatio > 0 &&
+         altPegRatio < currentStock.pegRatio * 0.9) || // 10% lower PEG
+        (altDividendYield !== null && currentStock.dividendYield !== null &&
+         altDividendYield > currentStock.dividendYield * 1.2) // 20% higher dividend
       );
       
       const isNotWorse = (
         (metrics.sharpeRatio === null || currentStock.sharpeRatio === null || 
          metrics.sharpeRatio >= currentStock.sharpeRatio * 0.7) && // Not 30% worse Sharpe
-        (fundamentals.pegRatio === null || currentStock.pegRatio === null || currentStock.pegRatio <= 0 ||
-         fundamentals.pegRatio <= currentStock.pegRatio * 1.5) && // Not 50% higher PEG
-        (fundamentals.dividendYield === null || currentStock.dividendYield === null ||
-         fundamentals.dividendYield >= currentStock.dividendYield * 0.8) // Not 20% lower dividend
+        (altPegRatio === null || currentStock.pegRatio === null || currentStock.pegRatio <= 0 ||
+         altPegRatio <= currentStock.pegRatio * 1.5) && // Not 50% higher PEG
+        (altDividendYield === null || currentStock.dividendYield === null ||
+         altDividendYield >= currentStock.dividendYield * 0.8) // Not 20% lower dividend
       );
       
       if (isBetter && isNotWorse && score > currentStock.score) {
         const tempCompetitor: CompetitorStock = {
           ticker: competitorTicker,
-          name: competitorTicker, // We don't have name from API
-          currentPrice: metrics.currentPrice,
+          name: fundamentals.companyName || competitorTicker, // Use company name from EODHD API
+          currentPrice: altPrice,
           sharpeRatio: metrics.sharpeRatio,
-          pegRatio: fundamentals.pegRatio,
-          peRatio: fundamentals.peRatio,
-          dividendYield: fundamentals.dividendYield,
+          pegRatio: altPegRatio,
+          peRatio: altPeRatio,
+          dividendYield: altDividendYield,
           volatility: metrics.volatility,
-          beta: fundamentals.beta,
+          beta: altBeta,
           score,
           reason: ""
         };

@@ -857,91 +857,416 @@
   - [ ] Event Handler Registrierung testen
   - [ ] Portfolio-Daten Struktur in DB analysieren
   - [ ] Alternative Implementierung falls nötig
-- [x] Portfolio Laden Button: Fehler "Portfolio-Daten sind unvollständig. Inputs: false, Stocks: true"
-  - [x] Default inputs generieren wenn nicht vorhanden (aus totalInvested, avgDividendYield, numberOfPositions)
-  - [x] Anlegertyp auf "ausgewogen" gesetzt als Standard
-- [x] Portfolio Speichern: inputs werden nicht mitgespeichert (nur stocks)
-  - [x] Finde wo savePortfolio aufgerufen wird
-  - [x] Prüfe ob inputs im portfolioData JSON enthalten sind
-  - [x] Stelle sicher dass inputs + stocks beide gespeichert werden
-- [x] ETF Daten werden nicht geladen (keine Kurse, YTD Performance etc.)
-  - [x] Prüfe ob ETF-Ticker mit EODHD API kompatibel sind
-  - [x] Teste API-Calls für ETFs (SPY, VOO, QQQ, etc.)
-  - [x] Korrigiere Ticker-Symbole (SPY.US statt SPY) - 19 US-ETFs aktualisiert
-  - [x] Aktualisierungs-Button soll ETF-Daten laden
-- [x] ETF Kurse werden nicht aktualisiert nach Refresh-Button
-  - [x] Prüfe Server-Logs für API-Fehler
-  - [x] Teste manuell ob EODHD API für ETFs funktioniert
-  - [x] ETF-Daten-Struktur unterscheidet sich von Aktien (ETF_Data statt Highlights)
-  - [x] fetchEODHDFundamentals erweitert um ETF-Support (Dividendenrendite aus ETF_Data)
-- [x] ETF Kurse sind nicht sichtbar nach Refresh
-  - [x] Yahoo Finance Rate Limit erreicht ("Too Many Requests")
-  - [x] EODHD Real-Time API als primäre Quelle für Preise implementiert
-  - [x] Yahoo Finance als Fallback falls EODHD fehlschlägt
-  - [x] Delay erhöht von 1s auf 2s zwischen Requests
-  - [x] Weniger API-Calls pro Aktie (1 statt 2)
-- [x] Refresh Fehler: "The string did not match the expected pattern"
-  - [x] Identifiziere welche Validierung fehlschlägt (ungültige Zahlen bei .toFixed())
-  - [x] Prüfe tRPC Input-Validierung in refreshData procedure
-  - [x] Prüfe ob API-Responses ungültige Daten zurückgeben (NaN, Infinity)
-  - [x] Verbessere Error-Handling und Logging (safeFormat, safeYTDCalc helpers)
-  - [x] Systematische Code-Review für alle Inkonsistenzen (21 .toFixed() Aufrufe geprüft)
-  - [x] Robuste Validierung in refreshData, pegUpdater, priceUpdater, routers.ts
-- [x] USD ETFs haben keine Daten (Schweizer ETFs funktionieren)
-  - [x] Root Cause: Server/Client Timeout nach 2 Minuten (Refresh dauert 3+ Minuten)
-  - [x] AXIOS_TIMEOUT_MS erhöht: 30s → 600s (10 Minuten)
-  - [x] Express server.timeout erhöht: 120s → 600s (10 Minuten)
-  - [x] keepAliveTimeout und headersTimeout auch erhöht
-  - [x] EODHD API funktioniert für USD-ETFs (SPY.US getestet)
-- [x] YTD Performance fehlt für die meisten Aktien/ETFs (nur wenige zeigen Werte)
-  - [x] Root Cause: ytdStartPrice fehlt für die meisten Aktien
-  - [x] Refresh-Code setzt ytdStartPrice nicht automatisch
-  - [x] Automatisches Fetching von ytdStartPrice implementiert (historischer Preis 31.12.2024)
-  - [x] YTD Performance wird jetzt für alle Aktien mit currentPrice berechnet
-- [ ] Portfolio Laden Fehler: TypeError: Cannot read properties of undefined (reading 'toFixed')
-  - [ ] Identifiziere welcher .toFixed() Call beim Portfolio-Laden fehlschlägt
-  - [ ] Prüfe OptimizerResults Komponente auf undefined Werte
-  - [ ] Füge Validierung für alle numerischen Berechnungen hinzu
-  - [ ] Teste Portfolio-Laden mit verschiedenen gespeicherten Portfolios
 
-## Portfolio Laden Fehler behoben
-- [x] Portfolio Laden funktioniert (TypeError behoben mit Nullish Coalescing)
-- [x] .toFixed() Fehler in Home.tsx und OptimizerResults.tsx behoben
-- [x] 13 .toFixed() Aufrufe mit ?? 0 abgesichert
-- [x] Division durch Null verhindert
 
-## YTD Performance Daten für ETFs behoben
-- [x] 12 von 16 ETFs haben YTD-Daten nach Refresh
-- [x] 4 fehlende ETFs manuell aktualisiert (AGG, BND, GLD, SLV)
-- [x] Alle 16 ETFs zeigen jetzt YTD Performance
-- [x] Portfolio YTD Performance von +9.9% auf +14.5% gestiegen
-- [x] Gold ETF: +51.4%, Silver ETF: +65.8%
+## KRITISCH - Portfolio Laden Fehler (Inputs fehlen)
+- [ ] Fehler: "Portfolio-Daten sind unvollständig. Inputs: false, Stocks: true"
+  - [ ] Untersuchen warum `inputs` beim Laden fehlen
+  - [ ] Prüfen ob `inputs` in der Datenbank gespeichert werden
+  - [ ] Fallback-Logik für fehlende inputs implementieren
+  - [ ] Debug-Alerts entfernen
+  - [ ] Portfolio-Laden mit verschiedenen gespeicherten Portfolios testen
 
-## Portfolio Laden Fehler behoben
-- [x] Portfolio Laden Fehler: TypeError: Cannot read properties of undefined (reading 'toFixed')
-  - [x] Identifiziere welcher .toFixed() Call beim Portfolio-Laden fehlschlägt (Home.tsx + OptimizerResults.tsx)
-  - [x] Prüfe OptimizerResults Komponente auf undefined Werte
-  - [x] Füge Validierung für alle numerischen Berechnungen hinzu (Nullish Coalescing Operator ??)
-  - [x] 13 .toFixed() Aufrufe korrigiert (2 in Home.tsx, 11 in OptimizerResults.tsx)
-  - [x] Alle || 0 durch ?? 0 ersetzt für bessere Null-Behandlung
-  - [x] Division durch Null verhindert (/ (currentInputs.investmentAmount ?? 1))
 
-## Portfolio Gewichtung Problem
-- [x] Portfolio zeigt 95.64% statt 100% an
-  - [x] Prüfen welche Aktien welche Gewichtungen haben
-  - [x] Herausfinden warum Summe nicht 100% ergibt (gelöschte Aktien wurden nicht neu verteilt)
-  - [x] Gewichtungslogik korrigiert (automatische Neuverteilung auf 100% wenn Abweichung >0.1%)
+## Portfolio Laden Fehler behoben (06.11.2025)
+- [x] Portfolio-Daten sind unvollständig. Inputs: false, Stocks: true
+  - [x] Untersuchen warum portfolio inputs fehlen beim Laden (alte Portfolios vor Fix gespeichert)
+  - [x] Fallback-Logik für fehlende inputs implementiert (Default-Werte aus Portfolio-Daten)
+  - [x] Debug-Alerts entfernt
+  - [x] Portfolio-Laden erfolgreich getestet (Portfolio 3 geladen)
+  - [x] Inputs werden jetzt beim Speichern mit gespeichert (OptimizerResults.tsx)
+  - [x] Alte Portfolios funktionieren mit Fallback-Werten (investmentAmount, expectedDividendYield, numberOfPositions, investorType)
 
-## KRITISCH - Portfolio Laden funktioniert nicht
-- [x] Portfolio Laden Button funktioniert nicht (trotz .toFixed() Fix)
-  - [x] Live-Test im Browser durchgeführt
-  - [x] Tatsächlichen Fehler identifiziert (.toFixed() auf undefined)
-  - [x] Fehler behoben (Nullish Coalescing Operator)
 
-## YTD Performance Daten fehlen
-- [ ] YTD Performance Spalte zeigt keine Daten für ETFs
-  - [x] Prüfen ob ytdPerformance in Datenbank vorhanden ist (NULL für alle 25 ETFs)
-  - [x] Prüfen ob Daten korrekt geladen werden (Refresh-Logik funktioniert)
-  - [ ] ETFs wurden manuell hinzugefügt ohne API-Daten
-  - [ ] Manuellen Refresh für alle ETFs durchführen
-  - [ ] Prüfen ob EODHD API ETF-Daten unterstützt
+## KRITISCH - Production Build Fehler (06.11.2025)
+- [x] Portfolio Laden funktioniert nicht auf Production URL
+  - [x] JavaScript Fehler in index-zBAGmSCE.js (alter Build)
+  - [x] "An unexpected error occurred" auf portfoliodash-aqvizp6n.manus.space
+  - [x] TypeScript Fehler (Out-of-Memory, aber Build erfolgreich)
+  - [x] Production Build neu erstellt (index-BdAdkDtQ.js)
+  - [ ] Checkpoint erstellen und publishen um Production URL zu aktualisieren
+
+
+## Portfolio Laden - Anzeigefehler (06.11.2025)
+- [x] "Ziel-Dividendenrendite nicht vollständig erreichbar" Warnung beim Laden angezeigt
+  - [x] Warnung sollte nur beim Optimizer erscheinen, nicht beim Laden
+  - [x] Warnung mit !selectedPortfolioId Bedingung ausgeblendet
+- [x] Portfolio-Zusammensetzung zeigt 0.0% für Dividenden- und Wachstumsaktien
+  - [x] Berechnung funktioniert nicht für geladene Portfolios (fehlende Flags)
+  - [x] isDividendStock/isGrowthStock Flags beim Laden basierend auf Dividendenrendite gesetzt
+  - [x] Dividendenaktien: 80.8%, Wachstumsaktien: 0.0%, Cash: 19.2%
+
+
+## KRITISCH - Checkpoint Erstellung fehlgeschlagen (06.11.2025)
+- [ ] "Failed to get checkpoint" beim Veröffentlichen
+  - [ ] Git Push Fehler: "remote ref is not ancestor of HEAD"
+  - [ ] Checkpoint konnte nicht gespeichert werden
+  - [ ] Git Konflikt auflösen
+  - [ ] Neuen Checkpoint erstellen
+
+## ETF Factsheet Integration
+- [ ] Add factsheetUrl field to database schema
+- [ ] Collect factsheet URLs for all 25 ETFs
+- [ ] Implement Info button for ETFs that opens factsheet PDF
+- [ ] Test factsheet opening for all ETFs
+
+## ETF Factsheet Integration - ABGESCHLOSSEN ✅
+- [x] Add factsheetUrl field to database schema
+- [x] Collect factsheet URLs for all 25 ETFs
+- [x] Implement Info button for ETFs that opens factsheet PDF
+- [x] Test factsheet opening for all ETFs
+- [x] Update FIXES_DOCUMENTATION.md with ETF Factsheet Integration
+- [x] ETF Factsheet URLs aktualisieren (einige sind veraltet/404)
+- [x] Fehlende ETF Factsheet-URLs recherchieren und hinzufügen
+- [ ] "Alternativen prüfen" Pop-Up breiter machen (kein horizontales Scrollen)
+- [ ] Aktientitel ausgeschrieben im Titel der Alternative anzeigen
+- [ ] Logo sauber laden in Alternativen
+- [ ] X-Button weiß statt schwarz machen (bessere Sichtbarkeit)
+- [x] "Alternativen" Button zwischen "PDF Export" und "Neue Aktie" hinzufügen
+- [x] Pop-Up mit allen Titeln die Alternativen haben implementieren
+- [x] Direkt-Link zur Alternativen-Analyse aus dem Überblick
+- [x] Dividenden-Score weicher machen (tiefere Schwellenwerte für Dividendenaktien)
+- [x] Gewinnwachstum aus PEG & P/E ableiten (P/E / PEG = Wachstumsrate)
+- [x] Gewinnwachstum als neues Kriterium für Wachstumsaktien-Score
+- [x] Fortschrittsbalken für Alternativen-Button hinzufügen
+- [x] X-Button im Moats-Dialog weiß machen (Info-Button bei Aktien)
+- [x] Portfolio Box-Breiten anpassen
+- [x] Portfolio Chart-Legende mit Depot-Namen
+- [x] Portfolio Score-Spalte aktualisieren
+
+## Portfolio-Seite Major Fixes (2025-11-07)
+- [x] Portfolio-Auswahl nach oben links verschieben
+- [x] Kompaktes Header-Layout: Portfolio-Auswahl + Zusammensetzung + Stats in einer Zeile
+- [x] Chart-Legende korrigieren (Portfolio-Name statt "S[ ] Chart-Legende korrigieren (Portfolio-Name statt "S&P 500" doppelt)P 500" doppelt)
+- [x] Zeitraum-Selector zum Chart hinzufügen (wie auf Performance-Seite)
+- [x] Portfolio-Wechsel Bug beheben (Daten werden auf 0 zurückgesetzt)
+- [x] tRPC Error beheben: scoring.calculateScores Procedure fehlt
+
+## Portfolio UI Fixes (2025-11-07)
+- [ ] Portfolio-Seite Container-Breite begrenzen (wie Aktien-Seite)
+- [ ] Div. Rend. beim Portfolio-Wechsel berechnen
+- [ ] YTD Perf. beim Portfolio-Wechsel berechnen
+- [ ] "Lade Alternativen" Button Fortschrittsbalken hinzufügen
+
+## Neue Bugs zu beheben
+- [x] Fix #27: "Alternativen" Button (rot/orange) auf Hauptseite funktioniert nicht (analyzeCompetitorsMutation existierte nicht, ersetzt durch findCompetitorsMutation)
+- [x] Fix #28: Progress Bar für "Alternativen prüfen" Button im Info-Dialog hinzugefügt (lila pulsierender Balken)
+- [x] Fix #29: calculateStockScores is not a function error (added wrapper function to process multiple stocks)
+
+## Alternativen Dialog Fixes
+- [ ] Fix #30: Dialog-Titel von "Bessere Alternativen für..." zu "Alternativen für..." ändern
+- [ ] Fix #31: Vollständige Firmennamen anzeigen (nicht nur Ticker), Ticker auf 2. Zeile
+- [ ] Fix #32: "Titel hinzufügen" Button implementieren (fügt Aktie zum Portfolio hinzu)
+- [ ] Fix #33: "Bestehenden Titel ersetzen" Button implementieren (ersetzt aktuelle Aktie)
+
+## Alternativen Dialog Fixes (Nov 7)
+- [x] Fix #30: Dialog-Titel von "Bessere Alternativen" zu "Alternativen" geändert
+- [x] Fix #31: Alternative Titel vollständig anzeigen - bereits durch Fix #35 behoben (Backend liefert companyName)
+- [x] Fix #32: "Titel hinzufügen" und "Bestehenden Titel ersetzen" Buttons implementiert (addStockMutation & updateStockMutation)
+- [x] Fix #33: Image error handlers causing null pointer exceptions (added null checks for all 4 onError handlers)
+
+## Portfolio-weite Alternativen Dialog Fixes (Nov 7)
+- [x] Fix #34: Dialog-Titel aktualisiert sich nicht dynamisch - verwendet jetzt competitorAnalysisStock?.companyName
+- [x] Fix #35: Alternative zeigt jetzt vollständigen Firmennamen von EODHD API (data.General.Name)
+- [x] Fix #36: Alternative Logo Fallback-Logik bereits implementiert (FMP → Clearbit → Logo.dev → Initial)
+- [x] Fix #37: "Weiter" Button oben rechts im Dialog hinzugefügt - springt zur nächsten Aktie mit Alternativen
+
+
+## Neue Bugs (Nov 7 - Nachmittag)
+- [x] Fix #38: Alternativen-Analyse läuft automatisch weiter - globaler onSuccess Handler entfernt, nur lokale Handler verwenden
+- [x] Fix #39: Alternativen passen jetzt zur Branche - verwendet industry/sector von EODHD API statt category
+- [x] Fix #40: Hinzugefügte Alternative hat jetzt alle Marktdaten (Kurs, Dividende, PEG, P/E, Sharpe, etc. vom Competitor Analyzer)
+
+## Alternativen Overview Dialog Fixes (Nov 7 - Abend)
+- [x] Fix #41: Logos in Alternativen-Übersicht verwenden jetzt 4-stufige Fallback-Logik (FMP → Clearbit → Logo.dev → Initial)
+- [x] Fix #42: Klick auf Aktie in Alternativen-Übersicht öffnet jetzt Detail-Dialog (verwendet gespeicherte Daten, kein erneuter API-Call)
+
+
+## Analyzer_Test Implementation (Nov 7 - Abend)
+- [x] Task #43: Create new database schema (securities, prices, holdings, correlations, analyzer_reports) - created via SQL
+- [x] Task #44: Create SQL views (v_returns, v_holdings_with_meta, v_risk_metrics) - all 3 views created
+- [ ] Task #45: Implement backend routers (portfolioAnalyzer, aiAnalyzer, reportsAnalyzer)
+  - [ ] Create server/analyzerDb.ts with query helpers (performanceSeries, sectorAllocation, performanceAttribution, riskMetrics, correlationMatrix)
+  - [ ] Add portfolioAnalyzer router to server/routers.ts (performance, sectorAllocation, performanceAttribution, riskMetrics, correlationMatrix)
+  - [ ] Add aiAnalyzer router (insights, competitors)
+  - [ ] Add reportsAnalyzer router (export)
+- [ ] Task #46: Create ETL script for price import
+  - [ ] Create tools/etl/import-prices.ts
+  - [ ] Implement FMP/EODHD price fetching
+  - [ ] Add pnpm script "etl:prices"
+- [ ] Task #47: Implement frontend Analyzer_Test page with all charts
+  - [ ] Create client/src/pages/AnalyzerTest.tsx
+  - [ ] Implement Performance Chart (Line chart with benchmark comparison)
+  - [ ] Implement Sector Allocation Chart (Pie/Donut chart)
+  - [ ] Implement Performance Attribution Chart (Bar chart)
+  - [ ] Implement Risk Metrics Cards (Sharpe, Sortino, Max Drawdown, VaR, Beta)
+  - [ ] Implement Correlation Matrix (Heatmap)
+  - [ ] Implement AI Insights section
+  - [ ] Implement PDF Export button
+- [ ] Task #48: Add route /analyzer-test and navigation
+  - [ ] Add route in client/src/App.tsx
+  - [ ] Add navigation link in header/sidebar
+
+## Alternativen Dialog Fixes (Nov 7 - Spät)
+- [x] Fix #43: Dialog bleibt jetzt nach Hinzufügen einer Alternative offen (setIsCompetitorDialogOpen(false) entfernt)
+- [x] Fix #44: Hinzugefügte Alternative hat jetzt alle Daten - automatischer refreshStockData API-Call nach dem Hinzufügen
+  - Root Cause: alt Objekt hatte teilweise null-Werte, Backend speicherte "0" als Fallback
+  - Lösung: Neuer refreshStockData Endpoint holt aktuelle Daten von EODHD/FMP nach dem Hinzufügen
+- [x] Fix #45: Portfolio-Gewichtung wird jetzt auf 100% neu berechnet
+  - recalculateWeights erkennt neue Aktien mit weight=0 und verteilt alle Aktien gleichmäßig
+  - Beispiel: 5 Aktien à 20% → neue Aktie hinzufügen → 6 Aktien à 16.67%
+
+## Neue Bugs nach Test (Nov 7 - Sehr Spät)
+- [ ] Fix #46: Alternativen zeigen keine Daten (Kurs, Sharpe = N/A)
+  - Root Cause: API Rate Limiting (429 Too Many Requests) - EODHD/FMP APIs
+  - Lösung: Caching implementieren oder API-Upgrade (benötigt mehr Zeit)
+  - Status: Nicht gelöst (API-Problem, kein Code-Problem)
+- [x] Fix #47: Logos fehlen bei Alternativen (leere Platzhalter)
+  - Root Cause: Domain-Extraktion funktioniert nicht für "Analog Devices Inc", "Intel Corporation"
+  - Lösung: knownCompanies Map hinzugefügt mit direkten Domain-Mappings
+- [x] Fix #48: "Weiter" Button funktioniert nicht (keine Rückkehr zur Übersicht)
+  - Root Cause: Kein "Zurück zur Übersicht" Button vorhanden
+  - Lösung: "Übersicht" Button hinzugefügt (setzt currentAlternativeIndex = null)
+- [x] Fix #49: Portfolio-Gewichtung wird NICHT automatisch auf 100% berechnet
+  - Root Cause: recalculateWeights erkennt neue Aktien nur bei weight=0, nicht bei totalWeight > 100%
+  - Lösung: Logik geändert - erkennt jetzt auch totalWeight > 100% als neuen Stock
+
+## API Improvements (Nov 7 - Final)
+- [x] Task #50: Implement memory cache for EODHD/FMP API responses
+  - Cache-Key: `${endpoint}:${ticker}`
+  - TTL: 1 Stunde für Fundamentals, 5 Minuten für Real-Time Quotes
+  - In-Memory Map (keine externe Dependency)
+  - Implementiert: apiCache.ts mit automatischem Cleanup alle 10 Minuten
+- [x] Task #51: Add retry logic with exponential backoff
+  - Max 3 Retries mit 1s, 2s, 4s Delays
+  - Nur bei 429 (Rate Limit) und 5xx (Server Error)
+  - Nicht bei 4xx (Client Error außer 429)
+  - Implementiert: retryUtil.ts mit retryFetch und retryWithBackoff
+- [x] Task #52: Implement Yahoo Finance fallback
+  - Wenn EODHD/FMP fehlschlägt, Yahoo Finance versuchen
+  - Fallback für: currentPrice, sharpeRatio, peRatio, dividendYield
+  - Implementiert in competitorAnalyzer.ts für current stock und alternatives
+
+## Finale Implementierung (Nov 7 - Abschluss)
+- [x] Task #67: Logo-Problem in Haupttabelle lösen
+  - Problem: TSMC hat Logo im Details-Dialog (FMP), aber nicht in Haupttabelle (Clearbit)
+  - Lösung: Haupttabelle auf FMP als primäre Logo-Quelle umgestellt (wie Details-Dialog)
+  - Fallback-Kette: FMP → Clearbit → Logo.dev → Initialen (bereits vorhanden im onError)
+- [ ] Task #68: YTD Performance für Adecco/Amgen testen
+  - Problem: Code implementiert (fetchEODHDHistorical), aber noch nicht getestet
+  - Test: refreshStockData für beide Aktien aufrufen und YTD % prüfen
+- [ ] Task #69: Alle Fixes validieren und finalen Checkpoint erstellen
+  - Portfolio-Gewichtung = 100%
+  - YTD % Sortierung numerisch
+  - Edit-Dialog mit Kategorie-Feld
+  - Logos funktionieren überall
+  - YTD Performance für alle Aktien
+
+## YTD Performance Automation (Nov 7 - Final)
+- [x] Task #69: Automatische YTD Performance Berechnung in refreshStockData
+  - Problem: ytdPerformance wird aktuell manuell berechnet (SQL UPDATE)
+  - Lösung: refreshStockData erweitert um automatische Berechnung
+  - Implementierung:
+    1. ytdStartPrice von EODHD Historical API holen (31.12. Vorjahr)
+    2. ytdPerformance = (currentPrice - ytdStartPrice) / ytdStartPrice * 100
+    3. Beide Werte automatisch in DB gespeichert
+  - Vorteil: Neue Aktien haben sofort YTD % ohne manuelle Intervention
+  - EODHD hat keine direkte YTD API - manuelle Berechnung ist korrekt
+
+## KRITISCHE BUGS (Nov 7 - Urgent)
+- [x] Bug #70: Gewichtungslogik überschreibt manuelle Gewichtungen
+  - Problem: Alle Aktien haben 1.05%, manuelle 5% für Nestlé/Kuehne+Nagel wurden überschrieben
+  - Erwartetes Verhalten:
+    * Manuelle Gewichtungen (isManualWeight=1) MÜSSEN erhalten bleiben
+    * Beispiel: Nestlé 5%, Kuehne+Nagel 5%, Apple 2% (neu, manuell) = 12% total
+    * Verbleibende 92 Aktien: Gleichmäßig auf 88% verteilt = 0.9565% pro Aktie
+  - Root Cause: recalculateWeights Special-Case ignorierte isManualWeight Flag
+  - Fix: Special-Case greift nur wenn KEINE manuellen Gewichtungen existieren
+- [x] Bug #71: Logo-Loading komplett kaputt nach FMP-Änderung
+  - Problem: Viele Logos fehlen jetzt (Kuehne+Nagel, NVIDIA, Nestlé, Alphabet, etc.)
+  - Root Cause: FMP als primäre Quelle + fehlerhafte Fallback-Bedingung (img.src.includes('clearbit') war nie wahr)
+  - Fix: Clearbit als primäre Quelle + Swiss domain mapping + Logo.dev Fallback + Letter Avatar
+- [x] Bug #72: Edit-Dialog Fixes nicht implementiert (Rollback verloren)
+  - Problem: Weißes Kreuz oben rechts fehlt (schwarz auf schwarz)
+  - Problem: Kategorie-Dropdown fehlt im Edit-Dialog
+  - Fix: DialogContent mit [&>button]:text-white + Kategorie-Dropdown mit 11 Kategorien hinzugefügt
+- [x] Bug #73: Alternative hinzufügen wirft Fehler "Marktdaten konnten nicht geladen werden"
+  - Problem: Nach Hinzufügen einer Alternative (z.B. Pinterest bei Meta) erscheint Fehlermeldung
+  - Root Cause: refreshStockDataMutation.mutateAsync(alt.ticker) schlägt fehl (unnötig, da Daten bereits vorhanden)
+  - Fix: API-Call entfernt, alle Marktdaten sind bereits in alt-Objekt vorhanden
+- [x] Bug #74: "Alternativen" Button soll deaktiviert werden
+  - Problem: Funktion ist noch in Entwicklung, soll nicht produktiv sein
+  - Fix: Button disabled=true + Toast "Diese Funktion befindet sich noch in Entwicklung und ist bald verfügbar"
+- [x] Bug #75: React duplicate key error "MRVL"
+  - Problem: "Encountered two children with the same key, MRVL"
+  - Root Cause: key={stock.ticker} in React, aber ticker ist nicht garantiert eindeutig
+  - Fix: key={stock.id} statt key={stock.ticker} in Portfolio-Tabelle + Alternativen-Übersicht
+- [x] Bug #76: "Neue Aktie hinzufügen" Dialog - Sharpe Ratio und Dividendenrendite fehlen
+  - Problem: Nach "Daten laden" werden Sharpe Ratio und Dividendenrendite nicht ausgefüllt
+  - Root Cause: Tippfehler in routers.ts (SharpRatio statt SharpeRatio)
+  - Problem: "Hinzufügen"-Button funktioniert nicht (keine Validierung, keine Fehlermeldungen)
+  - Fix: 1) Tippfehler korrigiert, 2) Validierung hinzugefügt (Ticker, Name, Kurs, Kategorie), 3) Default-Werte für optionale Felder
+
+## Neue Features (Nov 7)
+- [x] Feature: YTD Performance automatisch berechnen beim Hinzufügen
+  - Beim Hinzufügen neuer Aktien automatisch YTD % aus API-Daten berechnen
+  - Formel: (currentPrice - ytdStartPrice) / ytdStartPrice * 100
+  - Backend berechnet ytdPerformance und gibt es zurück
+  - Frontend setzt ytdPerformance automatisch beim "Daten laden"
+- [x] Feature: Kategorie-Verwaltung im Admin-Panel
+  - Admin kann Kategorien hinzufügen, umbenennen, löschen
+  - Kategorien in separater Tabelle gespeichert (categories table)
+  - Backend-Router mit CRUD-Operationen (add, update, delete, list)
+  - Admin-UI unter /categories (nur für Admins zugänglich)
+  - Dropdown im Add/Edit-Dialog dynamisch aus DB geladen
+- [ ] Feature: Bulk-Edit-Funktion
+  - Mehrere Aktien gleichzeitig bearbeiten
+  - Checkbox-Auswahl in Portfolio-Tabelle
+  - Bulk-Actions: Kategorie ändern, Löschen, Gewichtung anpassen
+
+## Neue Bugs (Nov 7 - Nach Kategorie-Feature)
+- [x] Bug #77: Kategorien-Seite zeigt keine bestehenden Kategorien
+  - Problem: /categories zeigt "Keine Kategorien vorhanden", obwohl Aktien Kategorien haben
+  - Root Cause: categories-Tabelle war leer, bestehende Kategorien waren nur in stocks.category
+  - Fix: SQL-Migration ausgeführt - 28 Kategorien aus stocks in categories-Tabelle migriert
+- [x] Bug #78: Kategorie-Dropdown im Add-Dialog ist leer
+  - Problem: Beim Hinzufügen neuer Aktien kann keine Kategorie ausgewählt werden
+  - Root Cause: Dropdown lädt nur aus categories-Tabelle, die leer war
+  - Fix: Migration behebt das Problem, Dropdown lädt jetzt aus categories-Tabelle
+- [x] Bug #79: Sharpe Ratio und Dividendenrendite werden nicht automatisch geladen
+  - Problem: Nach "Daten laden" bleiben Sharpe Ratio und Dividendenrendite leer
+  - Root Cause: EODHD API gibt diese Werte nicht für alle Aktien zurück
+  - Fix: 3-stufiger Fallback implementiert:
+    1. EODHD (fundamentals.Technicals.SharpeRatio + fundamentals.Highlights.DividendYield)
+    2. Finnhub (metric.sharpeRatio + metric.dividendYieldIndicatedAnnual)
+    3. Yahoo Finance (summaryDetail.dividendYield - kein Sharpe Ratio verfügbar)
+  - Test-Ergebnisse:
+    * AAPL (US): Dividend Yield 0.38% ✅, Sharpe Ratio fehlt ❌
+    * GEBN.SW (CH): Beide Werte fehlen in allen 3 APIs
+    * Sharpe Ratio ist in keiner API verfügbar (berechneter Wert)
+  - Lösung: Sharpe Ratio als optionales Feld markiert, Dividend Yield Fallback funktioniert
+
+## Kritische Bugs (Nov 7 - Datenlade-Probleme)
+- [x] Bug #80: Logo fehlt auf Frontseite, aber vorhanden im Detail-Dialog
+  - Problem: Emerson Electric zeigt Buchstabe "E" statt Logo auf Hauptseite
+  - Root Cause: Fehlerhafte Fallback-Logik (img.src.includes('clearbit') war immer wahr)
+  - Fix: Korrekte Fallback-Kette implementiert (Clearbit .ch → .com → Logo.dev → Letter Avatar)
+- [x] Bug #81: Dividendenrendite wird nicht geladen (zeigt 0.00 statt 1.6%)
+  - Problem: Trotz API-Fallback zeigt Emerson 0.00 statt 1.6% Dividendenrendite
+  - Root Cause: Nur EODHD wurde verwendet, kein Fallback auf Finnhub/Yahoo
+  - Fix: fetchDividendYieldWithFallback Helper-Funktion mit 3-tier Fallback (EODHD → Finnhub → Yahoo)
+- [x] Bug #82: Kurs und YTD Performance werden nicht aktualisiert (0 USD, +0.0%)
+  - Problem: Trotz "Aktualisierung" bleiben Kurs und YTD Performance bei 0
+  - Root Cause: currentPrice-Bug in YTD-Berechnung (undefined variable)
+  - Fix: metrics.currentPrice korrekt verwendet in YTD-Berechnung
+
+## Neue Bugs (Nov 7 - Logitech hinzufügen)
+- [x] Bug #83: Falsches Logo bei Logitech
+  - Problem: Logitech zeigt falsches Logo (wahrscheinlich Buchstabe "L")
+  - Root Cause: Domain mapping fehlt für Logitech (logitech.com)
+  - Fix: Logitech zu Swiss domain mapping in allen 3 Stellen hinzugefügt (Frontpage, Detail, Alternativen)
+- [x] Bug #84: Manuelle Gewichtung 2% wird ignoriert (Regression von Bug #70)
+  - Problem: Nach Hinzufügen von Logitech mit 2% werden ALLE Aktien gleichgewichtet
+  - Root Cause: addStock setzte isManualWeight nicht, daher wurde 2% als automatisch behandelt
+  - Fix: isManualWeight=1 setzen wenn portfolioWeight > 0, sonst 0 (automatisch)
+- [x] Bug #85: Kurs in USD statt CHF für Schweizer Aktien
+  - Problem: Logitech (.SW) zeigt Kurs in USD statt CHF
+  - Root Cause: Yahoo Finance gibt manchmal USD zurück auch für Schweizer Aktien
+  - Fix: Currency-Fallback in fetchStockMetrics - wenn ticker.endsWith('.SW') && currency === 'USD', dann 'CHF' verwenden
+
+## Neue Bugs (Nov 7 - Nach Logitech-Fix)
+- [x] Bug #86: Currency-Label fehlt in Portfolio-Tabelle
+  - Problem: Kurs ist korrekt in CHF, aber "CHF" wird nicht angezeigt (nur Zahl)
+  - Root Cause: Portfolio-Tabelle zeigt nur currentPrice, nicht currency
+  - Fix: Bereits implementiert in Zeile 2518 - {stock.currentPrice} {stock.currency || "USD"}
+- [ ] Bug #87: Gewichtungslogik funktioniert immer noch nicht
+  - Problem: Trotz isManualWeight=1 Fix wird 2% überschrieben
+  - Root Cause: recalculateWeights wird nach addStock aufgerufen und überschreibt
+  - Lösung: recalculateWeights darf manuelle Gewichtungen (isManualWeight=1) nicht überschreiben
+- [x] Bug #88: Kühne + Nagel Logo fehlt
+  - Problem: Domain mapping ist vorhanden ('kuehne-nagel.com'), aber Logo wird nicht geladen
+  - Root Cause: Company Name mit Umlaut ("Kühne") vs ohne Umlaut ("Kuehne") im mapping
+  - Fix: Beide Varianten zum Swiss domain mapping hinzugefügt (mit und ohne Umlaut)
+
+## KRITISCHE WIEDERKEHRENDE BUGS (Nov 8 - Mesa Air)
+- [x] Bug #89: Logo fehlt auf Frontpage (wiederkehrendes Problem)
+  - Problem: Mesa Air zeigt Logo im Detail-Dialog, aber Buchstabe "M" auf Frontpage
+  - Root Cause: Logo-Logik war an 4 Stellen dupliziert und inkonsistent
+  - Fix: StockLogo-Komponente erstellt mit 6-stufiger Fallback-Chain, überall verwendet
+- [x] Bug #90: Daten werden nicht automatisch geladen beim Hinzufügen von Alternativen
+  - Problem: Mesa Air hat Sharpe 0.0, Div 0.0, P/E 0.0, PEG 0.0 (alle Felder leer)
+  - Root Cause: Alternative-Add-Flow verwendete nur Competitor-Analyse-Daten (keine Fundamentals)
+  - Fix: fetchStockDataMutation vor addStockMutation aufrufen, alle API-Daten laden
+  - Test Result: ✅ Sharpe Ratio wird geladen (0.93), P/E=0 ist korrekt (Mesa Air hat keine Earnings)
+
+- [x] Bug #91: Empty src attribute warnings (36 errors)
+  - Problem: React warns "An empty string ("") was passed to the src attribute"
+  - Root Cause: StockLogo component renders <img src=""> when logoUrl is empty
+  - Fix: Added !logoUrl check to show letter avatar directly when logoUrl is null
+  - Test Result: ✅ 0 warnings (previously 36)
+
+- [x] Bug #92: Logo Regression - Nestlé und Sika zeigen nur Buchstaben-Avatar
+  - Problem: Logos die vorher funktionierten (Nestlé, Sika) zeigen jetzt nur "N" und "S"
+  - Root Cause: setTimeout Ansatz funktionierte nicht, React renderte Avatar vor Fallback
+  - Fix: useEffect verwenden um Fallback Level zu ändern wenn logoUrl null ist
+  - Test Result: ✅ Nestlé, Sika und Mesa Air zeigen alle Logos korrekt
+
+- [ ] Bug #93: Givaudan Logo zeigt falsches Bild (Person mit Kind statt Firmenlogo)
+  - Problem: Givaudan SA zeigt ein Foto von einer Person mit Kind statt des echten Logos
+  - Root Cause: Logo-URL von einem der Fallback-Services liefert falsches Bild
+  - Solution: Givaudan zur Swiss Domain Map hinzufügen oder fehlerhafte URL blockieren
+
+- [ ] B- [x] Bug #94: Kühne + Nagel Logo fehlt
+  - Problem: Logo wird nicht angezeigt (hat früher funktioniert)
+  - Root Cause: Company Name Varianten nicht im Swiss Domain Map
+  - Fix: Alle Schreibweisen hinzugefügt (Kuehne & Nagel, Kuehne & Nagel Int, Kühne & Nagel)
+  - Test Result: ✅ Logo wird jetzt angezeigterechnen
+
+- [ ] Bug #95: IBM Sharpe Ratio zeigt 0.00 statt 2.14
+  - Problem: Sharpe Ratio wurde im Dialog angezeigt (2.14), aber nicht in Datenbank gespeichert
+  - Root Cause: fetchStockData liefert Sharpe Ratio, aber addStock speichert sie nicht
+  - Solution: Prüfen ob Sharpe Ratio im addStock Payload enthalten ist
+
+- [ ] Bug #96: Emerson YTD Performance fehlt (trotz Refresh)
+  - Problem: YTD Performance wird nicht angezeigt obwohl Refresh geklickt wurde
+  - Root Cause: API liefert keine YTD Daten oder Refresh überspringt diese Aktie
+  - Solution: Prüfen warum YTD für Emerson nicht geladen wird
+
+- [ ] Bug #97: Pinterest YTD Performance fehlt (trotz Refresh)
+  - Problem: YTD Performance wird nicht angezeigt obwohl Refresh geklickt wurde
+  - Root Cause: API liefert keine YTD Daten oder Refresh überspringt diese Aktie
+  - Solution: Prüfen warum YTD für Pinterest nicht geladen wird
+
+
+## FIXES (Nov 8 - Final Batch - Ticker & Logo Corrections)
+- [x] Bug #93: Givaudan Logo zeigt falsches Bild
+  - Fix: GIVN.SW und GIVN zur FMP Blacklist hinzugefügt
+  - Fix: Ticker in DB korrigiert (GIVN → GIVN.SW)
+  - Fix: Alle Givaudan-Varianten zum Swiss Domain Map hinzugefügt
+
+- [x] Bug #95: IBM Sharpe Ratio zeigt 0.00 statt 2.14
+  - Fix: Ticker in DB korrigiert (IBM → IBM.US)
+  - Fix: Auto-.US-Suffix für US-Ticker ohne Exchange in fetchStockData
+
+- [x] Bug #96: Emerson YTD Performance fehlt
+  - Fix: Ticker in DB korrigiert (EMR → EMR.US)
+  - Fix: Auto-.US-Suffix für US-Ticker ohne Exchange in fetchStockData
+
+- [x] Bug #97: Pinterest YTD Performance fehlt
+  - Fix: Ticker in DB korrigiert (PINS → PINS.US)
+  - Fix: Auto-.US-Suffix für US-Ticker ohne Exchange in fetchStockData
+
+- [x] Bug #98: MESA YTD Performance fehlt
+  - Fix: Ticker in DB korrigiert (MESA → MESA.US)
+  - Fix: Auto-.US-Suffix für US-Ticker ohne Exchange in fetchStockData
+
+- [x] Bug #99: ABB Logo und Daten
+  - Fix: ABB zum Swiss Domain Map hinzugefügt
+  - Fix: ABBN Ticker-Mapping für API (ABBN → ABBN.SW) bei Daten-Abruf
+  - Note: ABBN bleibt in UI/DB für Kurschart-Kompatibilität
+
+- [x] Bug #100: MESA und Emerson YTD fehlt trotz Ticker-Korrektur
+  - Problem: MESA.US und EMR.US in DB, aber YTD wird nicht geladen
+  - Root Cause: fetchStockData verwendete denselben cleanTicker für FMP (braucht kein Suffix) und EODHD (braucht Suffix)
+  - Fix: Separate Ticker erstellt - eodhdTicker (mit Suffix) und fmpTicker (ohne Suffix)
+  - Fix: StockLogo entfernt jetzt alle Exchange-Suffixe für FMP API

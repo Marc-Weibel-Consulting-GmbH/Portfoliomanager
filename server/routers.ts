@@ -6,6 +6,64 @@ import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
 
 /**
+ * Fetch dividend yield with 3-tier fallback: EODHD → Finnhub → Yahoo Finance
+ * @param ticker Stock ticker symbol
+ * @param eodhDividendYield Dividend yield from EODHD (may be null)
+ * @returns Dividend yield as percentage or null if not available
+ */
+async function fetchDividendYieldWithFallback(ticker: string, eodhDividendYield: number | null): Promise<number | null> {
+  let dividendYield = eodhDividendYield;
+  
+  // Fallback 1: Finnhub
+  if (dividendYield === null || isNaN(dividendYield)) {
+    try {
+      const finnhubKey = process.env.FINNHUB_API_KEY;
+      if (finnhubKey) {
+        const finnhubUrl = `https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${finnhubKey}`;
+        const finnhubRes = await fetch(finnhubUrl);
+        if (finnhubRes.ok) {
+          const finnhubData = await finnhubRes.json();
+          if (finnhubData.metric?.dividendYieldIndicatedAnnual) {
+            dividendYield = finnhubData.metric.dividendYieldIndicatedAnnual;
+            console.log(`[DividendYield] Finnhub: ${ticker} = ${dividendYield}%`);
+          }
+        }
+      }
+    } catch (finnhubError) {
+      console.warn(`[DividendYield] Finnhub failed for ${ticker}:`, finnhubError);
+    }
+  }
+  
+  // Fallback 2: Yahoo Finance
+  if (dividendYield === null || isNaN(dividendYield)) {
+    try {
+      const yahooUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=summaryDetail`;
+      const yahooRes = await fetch(yahooUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      if (yahooRes.ok) {
+        const yahooData = await yahooRes.json();
+        const summaryDetail = yahooData.quoteSummary?.result?.[0]?.summaryDetail;
+        if (summaryDetail?.dividendYield?.raw) {
+          dividendYield = summaryDetail.dividendYield.raw * 100;
+          console.log(`[DividendYield] Yahoo Finance: ${ticker} = ${dividendYield}%`);
+        }
+      }
+    } catch (yahooError) {
+      console.warn(`[DividendYield] Yahoo Finance failed for ${ticker}:`, yahooError);
+    }
+  }
+  
+  if (dividendYield !== null && !isNaN(dividendYield)) {
+    console.log(`[DividendYield] Final: ${ticker} = ${dividendYield.toFixed(2)}%`);
+    return dividendYield;
+  }
+  
+  console.warn(`[DividendYield] No data available for ${ticker} from any source`);
+  return null;
+}
+
+/**
  * Portfolio weighting logic with manual weight preservation:
  * - Manual weights (isManualWeight = 1) are NEVER changed automatically
  * - Only automatic weights (isManualWeight = 0) are redistributed
@@ -16,7 +74,40 @@ async function recalculateWeights(changedTicker?: string, isDelete: boolean = fa
   const { getAllStocks, updateStock } = await import("./db");
   const allStocks = await getAllStocks();
   
+  console.log(`[RecalculateWeights] Called with changedTicker=${changedTicker}, isDelete=${isDelete}, totalStocks=${allStocks.length}`);
+  
   if (allStocks.length === 0) return;
+  
+  // Special case: If adding a new stock AND no manual weights exist, redistribute all equally
+  if (changedTicker && !isDelete) {
+    const changedStock = allStocks.find(s => s.ticker === changedTicker);
+    if (changedStock) {
+      const totalWeight = allStocks.reduce((sum, s) => sum + parseFloat(s.portfolioWeight || "0"), 0);
+      const isNewStock = parseFloat(changedStock.portfolioWeight || "0") === 0 || totalWeight > 100;
+      
+      console.log(`[RecalculateWeights] Changed stock: ${changedTicker}, weight=${changedStock.portfolioWeight}, isManualWeight=${changedStock.isManualWeight}, totalWeight=${totalWeight}, isNewStock=${isNewStock}`);
+      
+      // Only redistribute all stocks if NO manual weights exist
+      const hasManualWeights = allStocks.some(s => s.isManualWeight === 1);
+      const manualStocksList = allStocks.filter(s => s.isManualWeight === 1).map(s => `${s.ticker}(${s.portfolioWeight}%)`);
+      
+      console.log(`[RecalculateWeights] hasManualWeights=${hasManualWeights}, manualStocks=[${manualStocksList.join(', ')}]`);
+      
+      if (isNewStock && !hasManualWeights) {
+        // Redistribute all stocks equally to 100%
+        const equalWeight = 100 / allStocks.length;
+        console.log(`[RecalculateWeights] New stock detected (no manual weights), redistributing ${allStocks.length} stocks to ${equalWeight.toFixed(2)}% each`);
+        for (const stock of allStocks) {
+          await updateStock(stock.ticker, {
+            portfolioWeight: equalWeight.toFixed(4),
+            isManualWeight: 0,
+          });
+        }
+        return;
+      }
+      // If manual weights exist, fall through to normal Add/Update logic below
+    }
+  }
   
   if (isDelete) {
     // Delete: redistribute only AUTOMATIC stocks equally to 100%
@@ -255,17 +346,37 @@ export const appRouter = router({
           const apiKey = process.env.EODHD_API_KEY;
           if (!apiKey) throw new Error("EODHD API key not configured");
 
+          // Special ticker mappings for API calls (UI ticker -> API ticker)
+          const TICKER_API_MAP: Record<string, string> = {
+            'ABBN': 'ABBN.SW', // Keep ABBN in UI for chart, use ABBN.SW for API
+          };
+          
           // Clean ticker: replace " • " with "." (e.g., "NOVN • SW" -> "NOVN.SW")
-          const cleanTicker = ticker.replace(/ • /g, ".").trim();
+          let cleanTicker = ticker.replace(/ • /g, ".").trim();
+          
+          // Apply special mapping if exists
+          if (TICKER_API_MAP[cleanTicker]) {
+            cleanTicker = TICKER_API_MAP[cleanTicker];
+          }
+          // Add .US suffix for US tickers without exchange (e.g., "PINS" -> "PINS.US")
+          else if (!cleanTicker.includes('.')) {
+            cleanTicker = `${cleanTicker}.US`;
+          }
+          
+          // Create separate tickers for different APIs
+          // FMP (logos): No exchange suffix (e.g., "GIVN", "MESA", "IBM")
+          // EODHD (data): With exchange suffix (e.g., "GIVN.SW", "MESA.US", "IBM.US")
+          const eodhdTicker = cleanTicker; // Keep full ticker for EODHD
+          const fmpTicker = cleanTicker.replace(/\.(SW|US|PA|L|TO|NEO|BA|XETRA)$/, ''); // Strip exchange for FMP
 
           // Fetch fundamentals from EODHD
-          const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${cleanTicker}?api_token=${apiKey}`;
+          const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${eodhdTicker}?api_token=${apiKey}`;
           const fundamentalsRes = await fetch(fundamentalsUrl);
           if (!fundamentalsRes.ok) throw new Error("Failed to fetch fundamentals");
           const fundamentals = await fundamentalsRes.json();
 
           // Fetch real-time quote
-          const quoteUrl = `https://eodhd.com/api/real-time/${cleanTicker}?api_token=${apiKey}&fmt=json`;
+          const quoteUrl = `https://eodhd.com/api/real-time/${eodhdTicker}?api_token=${apiKey}&fmt=json`;
           const quoteRes = await fetch(quoteUrl);
           if (!quoteRes.ok) throw new Error("Failed to fetch quote");
           const quote = await quoteRes.json();
@@ -273,7 +384,7 @@ export const appRouter = router({
           // Fetch historical price for YTD start (31.12.2024 or last available trading day)
           let ytdStartPrice = null;
           try {
-            const historicalUrl = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
+            const historicalUrl = `https://eodhd.com/api/eod/${eodhdTicker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
             const historicalRes = await fetch(historicalUrl);
             if (historicalRes.ok) {
               const historicalData = await historicalRes.json();
@@ -286,17 +397,87 @@ export const appRouter = router({
             console.warn('[fetchStockData] Failed to fetch historical price:', err);
           }
 
+          // Calculate YTD Performance
+          let ytdPerformance = null;
+          if (ytdStartPrice && quote.close) {
+            ytdPerformance = ((quote.close - ytdStartPrice) / ytdStartPrice) * 100;
+          }
+
+          // Try to get Sharpe Ratio and Dividend Yield with fallback chain
+          let sharpeRatio = fundamentals.Technicals?.SharpeRatio || null;
+          let dividendYield = fundamentals.Highlights?.DividendYield ? fundamentals.Highlights.DividendYield * 100 : null;
+
+          // Fallback 1: Finnhub (only if values are null or undefined)
+          if (sharpeRatio === null || dividendYield === null) {
+            try {
+              const finnhubKey = process.env.FINNHUB_API_KEY;
+              if (finnhubKey) {
+                const finnhubUrl = `https://finnhub.io/api/v1/stock/metric?symbol=${cleanTicker}&metric=all&token=${finnhubKey}`;
+                const finnhubRes = await fetch(finnhubUrl);
+                if (finnhubRes.ok) {
+                  const finnhubData = await finnhubRes.json();
+                  if (!sharpeRatio && finnhubData.metric?.sharpeRatio) {
+                    sharpeRatio = finnhubData.metric.sharpeRatio;
+                    console.log(`[fetchStockData] Sharpe Ratio from Finnhub: ${sharpeRatio}`);
+                  }
+                  if (!dividendYield && finnhubData.metric?.dividendYieldIndicatedAnnual) {
+                    dividendYield = finnhubData.metric.dividendYieldIndicatedAnnual;
+                    console.log(`[fetchStockData] Dividend Yield from Finnhub: ${dividendYield}`);
+                  }
+                }
+              }
+            } catch (finnhubError) {
+              console.warn('[fetchStockData] Finnhub fallback failed:', finnhubError);
+            }
+          }
+
+          // Fallback 2: Yahoo Finance (only if values are still null or undefined)
+          if (sharpeRatio === null || dividendYield === null) {
+            try {
+              // Yahoo Finance uses different ticker format (e.g., NOVN.SW stays the same)
+              const yahooUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${cleanTicker}?modules=defaultKeyStatistics,summaryDetail`;
+              const yahooRes = await fetch(yahooUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+              });
+              if (yahooRes.ok) {
+                const yahooData = await yahooRes.json();
+                const keyStats = yahooData.quoteSummary?.result?.[0]?.defaultKeyStatistics;
+                const summaryDetail = yahooData.quoteSummary?.result?.[0]?.summaryDetail;
+                
+                if (!dividendYield && summaryDetail?.dividendYield?.raw) {
+                  dividendYield = summaryDetail.dividendYield.raw * 100;
+                  console.log(`[fetchStockData] Dividend Yield from Yahoo Finance: ${dividendYield}`);
+                }
+                // Yahoo doesn't provide Sharpe Ratio directly
+              }
+            } catch (yahooError) {
+              console.warn('[fetchStockData] Yahoo Finance fallback failed:', yahooError);
+            }
+          }
+
+          // Determine currency from exchange
+          let currency = 'USD';
+          if (cleanTicker.endsWith('.SW') || cleanTicker.endsWith('.N')) {
+            currency = 'CHF';
+          } else if (cleanTicker.endsWith('.PA')) {
+            currency = 'EUR';
+          } else if (cleanTicker.endsWith('.L')) {
+            currency = 'GBP';
+          }
+
           return {
             ticker: cleanTicker,
             companyName: fundamentals.General?.Name || cleanTicker,
             currentPrice: quote.close || 0,
             ytdStartPrice: ytdStartPrice,
+            ytdPerformance: ytdPerformance,
             peRatio: fundamentals.Highlights?.PERatio || null,
             pegRatio: fundamentals.Highlights?.PEGRatio || null,
-            dividendYield: fundamentals.Highlights?.DividendYield ? fundamentals.Highlights.DividendYield * 100 : null,
-            sharpeRatio: fundamentals.Technicals?.SharpRatio || null,
+            dividendYield: dividendYield,
+            sharpeRatio: sharpeRatio,
             volatility: fundamentals.Technicals?.Volatility || null,
             beta: fundamentals.Technicals?.Beta || null,
+            currency: currency,
           };
         } catch (error: any) {
           console.error("[fetchStockData] Error:", error);
@@ -380,15 +561,18 @@ export const appRouter = router({
         stockData.peRatio = stockData.peRatio || "0";
         stockData.portfolioWeight = stockData.portfolioWeight || "0";
         
+        // Mark as manual weight if user provided non-zero weight
+        const weight = parseFloat(stockData.portfolioWeight);
+        stockData.isManualWeight = (weight > 0) ? 1 : 0;
+        console.log(`[AddStock] ${stockData.ticker}: portfolioWeight=${stockData.portfolioWeight}, isManualWeight=${stockData.isManualWeight}`);
+        
         // Calculate YTD performance if both prices are provided
         if (stockData.ytdStartPrice && stockData.currentPrice) {
           const ytdStart = parseFloat(stockData.ytdStartPrice);
           const current = parseFloat(stockData.currentPrice);
-          if (ytdStart > 0 && current > 0 && isFinite(ytdStart) && isFinite(current)) {
+          if (ytdStart > 0 && current > 0) {
             const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
-            if (isFinite(ytdPerf)) {
-              stockData.ytdPerformance = ytdPerf.toFixed(2);
-            }
+            stockData.ytdPerformance = ytdPerf.toFixed(2);
           }
         }
         
@@ -480,29 +664,28 @@ export const appRouter = router({
         // Check if portfolioWeight is being updated
         const hasWeightUpdate = "portfolioWeight" in updates;
         
-        // Helper to safely calculate YTD
-        const safeYTDCalc = (ytdStart: number, current: number): string | null => {
-          if (!isFinite(ytdStart) || !isFinite(current) || ytdStart <= 0 || current <= 0) return null;
-          const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
-          return isFinite(ytdPerf) ? ytdPerf.toFixed(2) : null;
-        };
-        
         // Calculate YTD performance if both prices are provided
         if (updates.ytdStartPrice && updates.currentPrice) {
           const ytdStart = parseFloat(updates.ytdStartPrice);
           const current = parseFloat(updates.currentPrice);
-          const ytdPerf = safeYTDCalc(ytdStart, current);
-          if (ytdPerf) updates.ytdPerformance = ytdPerf;
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            updates.ytdPerformance = ytdPerf.toFixed(2);
+          }
         } else if (updates.ytdStartPrice && oldStock?.currentPrice) {
           const ytdStart = parseFloat(updates.ytdStartPrice);
           const current = parseFloat(oldStock.currentPrice);
-          const ytdPerf = safeYTDCalc(ytdStart, current);
-          if (ytdPerf) updates.ytdPerformance = ytdPerf;
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            updates.ytdPerformance = ytdPerf.toFixed(2);
+          }
         } else if (updates.currentPrice && oldStock?.ytdStartPrice) {
           const ytdStart = parseFloat(oldStock.ytdStartPrice);
           const current = parseFloat(updates.currentPrice);
-          const ytdPerf = safeYTDCalc(ytdStart, current);
-          if (ytdPerf) updates.ytdPerformance = ytdPerf;
+          if (ytdStart > 0 && current > 0) {
+            const ytdPerf = ((current - ytdStart) / ytdStart) * 100;
+            updates.ytdPerformance = ytdPerf.toFixed(2);
+          }
         }
         
         await updateStock(ticker, updates);
@@ -632,34 +815,8 @@ export const appRouter = router({
         try {
           const region = stock.ticker.endsWith(".SW") ? "CH" : "US";
           
-          // Fetch real-time price from EODHD (to avoid Yahoo rate limits)
-          const apiKey = process.env.EODHD_API_KEY;
-          let currentPrice = null;
-          let currency = null;
-          
-          if (apiKey) {
-            try {
-              const priceUrl = `https://eodhd.com/api/real-time/${stock.ticker}?api_token=${apiKey}&fmt=json`;
-              const priceResponse = await fetch(priceUrl);
-              if (priceResponse.ok) {
-                const priceData = await priceResponse.json();
-                currentPrice = priceData.close || priceData.previousClose;
-                // Infer currency from ticker
-                currency = stock.ticker.endsWith(".SW") ? "CHF" : "USD";
-              }
-            } catch (e) {
-              console.warn(`[Refresh] EODHD price fetch failed for ${stock.ticker}:`, e);
-            }
-          }
-          
-          // Fetch price & risk metrics from Yahoo Finance (fallback)
+          // Fetch price & risk metrics from Yahoo Finance
           const metrics = await fetchStockMetrics(stock.ticker, region);
-          
-          // Use EODHD price if available, otherwise Yahoo
-          if (currentPrice === null && metrics.currentPrice !== null) {
-            currentPrice = metrics.currentPrice;
-            currency = metrics.currency;
-          }
           
           // Fetch fundamental data from EODHD
           const fundamentals = await fetchEODHDFundamentals(stock.ticker);
@@ -668,100 +825,59 @@ export const appRouter = router({
             lastDataRefresh: new Date(),
           };
           
-          // Helper function to safely format numbers
-          const safeFormat = (value: any): string | null => {
-            if (value === null || value === undefined) return null;
-            const num = typeof value === 'number' ? value : parseFloat(value);
-            if (isNaN(num) || !isFinite(num)) return null;
-            return num.toFixed(2);
-          };
-          
-          // Fetch ytdStartPrice if missing (historical price from end of 2024)
-          if (!stock.ytdStartPrice || parseFloat(stock.ytdStartPrice) === 0) {
-            if (apiKey) {
-              try {
-                const historicalUrl = `https://eodhd.com/api/eod/${stock.ticker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
-                const historicalRes = await fetch(historicalUrl);
-                if (historicalRes.ok) {
-                  const historicalData = await historicalRes.json();
-                  if (historicalData && historicalData.length > 0) {
-                    // Get the last available trading day's close price
-                    const ytdStart = historicalData[historicalData.length - 1].close;
-                    if (ytdStart && isFinite(ytdStart)) {
-                      updateData.ytdStartPrice = safeFormat(ytdStart);
-                      console.log(`[Refresh] Set ytdStartPrice for ${stock.ticker}: ${ytdStart}`);
-                    }
-                  }
-                }
-              } catch (e) {
-                console.warn(`[Refresh] Failed to fetch ytdStartPrice for ${stock.ticker}:`, e);
-              }
-            }
-          }
-          
           // Update price data
-          if (currentPrice !== null && isFinite(currentPrice)) {
-            const formatted = safeFormat(currentPrice);
-            if (formatted) {
-              updateData.currentPrice = formatted;
-              
-              // Recalculate YTD performance
-              const ytdStartToUse = updateData.ytdStartPrice || stock.ytdStartPrice;
-              if (ytdStartToUse) {
-                const ytdStart = parseFloat(ytdStartToUse);
-                if (ytdStart > 0 && isFinite(ytdStart)) {
-                  const ytdPerf = ((currentPrice - ytdStart) / ytdStart) * 100;
-                  if (isFinite(ytdPerf)) {
-                    updateData.ytdPerformance = safeFormat(ytdPerf);
-                  }
-                }
+          if (metrics.currentPrice !== null) {
+            updateData.currentPrice = metrics.currentPrice.toFixed(2);
+            
+            // Recalculate YTD performance
+            if (stock.ytdStartPrice) {
+              const ytdStart = parseFloat(stock.ytdStartPrice);
+              if (ytdStart > 0) {
+                const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
+                updateData.ytdPerformance = ytdPerf.toFixed(2);
               }
             }
           }
           
-          if (currency) updateData.currency = currency;
+          if (metrics.currency) updateData.currency = metrics.currency;
           
           // Update fundamentals from EODHD
-          const pegFormatted = safeFormat(fundamentals.pegRatio);
-          if (pegFormatted) updateData.pegRatio = pegFormatted;
-          
-          const peFormatted = safeFormat(fundamentals.peRatio);
-          if (peFormatted) updateData.peRatio = peFormatted;
-          
-          const divYieldFormatted = safeFormat(fundamentals.dividendYield);
-          if (divYieldFormatted) updateData.dividendYield = divYieldFormatted;
+          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio)) {
+            updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
+          }
+          if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
+            updateData.peRatio = fundamentals.peRatio.toFixed(2);
+          }
+          // Use helper function with 3-tier fallback
+          const dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals.dividendYield);
+          if (dividendYield !== null) {
+            updateData.dividendYield = dividendYield.toFixed(2);
+          }
           
           // Update risk metrics from Yahoo
-          const sharpeFormatted = safeFormat(metrics.sharpeRatio);
-          if (sharpeFormatted) updateData.sharpeRatio = sharpeFormatted;
-          
-          const volatilityFormatted = safeFormat(metrics.volatility);
-          if (volatilityFormatted) updateData.volatility = volatilityFormatted;
-          
-          const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
-          const betaFormatted = safeFormat(beta);
-          if (betaFormatted) updateData.beta = betaFormatted;
+          if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
+          if (metrics.volatility !== null) updateData.volatility = metrics.volatility.toFixed(2);
+          if (metrics.beta !== null || fundamentals.beta !== null) {
+            const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
+            if (beta !== null) updateData.beta = beta.toFixed(2);
+          }
           
           // Update 52-week range
-          const week52HighFormatted = safeFormat(metrics.week52High);
-          if (week52HighFormatted) updateData.week52High = week52HighFormatted;
-          
-          const week52LowFormatted = safeFormat(metrics.week52Low);
-          if (week52LowFormatted) updateData.week52Low = week52LowFormatted;
+          if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
+          if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
           
           // Update market cap
           const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
-          if (marketCap !== null && isFinite(marketCap)) {
+          if (marketCap !== null) {
             const marketCapB = marketCap / 1_000_000_000;
-            const marketCapFormatted = safeFormat(marketCapB);
-            if (marketCapFormatted) updateData.marketCap = marketCapFormatted;
+            updateData.marketCap = marketCapB.toFixed(2);
           }
           
           await updateStock(stock.ticker, updateData);
           updated++;
           
-          // Delay to avoid rate limiting (2s to be safe)
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Delay to avoid rate limiting (1s for EODHD)
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error: any) {
           console.error(`[Refresh] Failed to update ${stock.ticker}:`, error);
           failed++;
@@ -787,6 +903,125 @@ export const appRouter = router({
         errors: failed > 0 ? errors : undefined,
       };
     }),
+    refreshStockData: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "string") return val;
+        throw new Error("Invalid ticker");
+      })
+      .mutation(async ({ input: ticker }) => {
+        console.log(`[RefreshStockData] Refreshing data for ${ticker}`);
+        const { getStockByTicker, updateStock } = await import("./db");
+        
+        const stock = await getStockByTicker(ticker);
+        if (!stock) {
+          throw new Error(`Stock ${ticker} not found`);
+        }
+        
+        try {
+          const region = ticker.endsWith(".SW") ? "CH" : "US";
+          
+          // Fetch price & risk metrics from Yahoo Finance
+          const metrics = await fetchStockMetrics(ticker, region);
+          
+          // Fetch fundamental data from EODHD
+          const fundamentals = await fetchEODHDFundamentals(ticker);
+          
+          const updateData: any = {
+            lastDataRefresh: new Date(),
+          };
+          
+          // Update price data
+          if (metrics.currentPrice !== null) {
+            updateData.currentPrice = metrics.currentPrice.toFixed(2);
+            
+            // Set ytdStartPrice if not set
+            if (!stock.ytdStartPrice || stock.ytdStartPrice === "0") {
+              updateData.ytdStartPrice = metrics.currentPrice.toFixed(2);
+              updateData.ytdPerformance = "0.00";
+            } else {
+              // Recalculate YTD performance
+              const ytdStart = parseFloat(stock.ytdStartPrice);
+              if (ytdStart > 0) {
+                const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
+                updateData.ytdPerformance = ytdPerf.toFixed(2);
+              }
+            }
+          }
+          
+          if (metrics.currency) updateData.currency = metrics.currency;
+          
+          // Update fundamentals from EODHD
+          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio)) {
+            updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
+          }
+          if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
+            updateData.peRatio = fundamentals.peRatio.toFixed(2);
+          }
+          // Use helper function with 3-tier fallback
+          const dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals.dividendYield);
+          if (dividendYield !== null) {
+            updateData.dividendYield = dividendYield.toFixed(2);
+          }
+          
+          // Update risk metrics from Yahoo
+          if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
+          if (metrics.volatility !== null) updateData.volatility = metrics.volatility.toFixed(2);
+          if (metrics.beta !== null || fundamentals.beta !== null) {
+            const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
+            if (beta !== null) updateData.beta = beta.toFixed(2);
+          }
+          
+          // Update 52-week range
+          if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
+          if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
+          
+          // Update market cap
+          const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
+          if (marketCap !== null) {
+            const marketCapB = marketCap / 1_000_000_000;
+            updateData.marketCap = marketCapB.toFixed(2);
+          }
+          
+          // Update sector and industry from EODHD
+          if (fundamentals.sector) updateData.sector = fundamentals.sector;
+          if (fundamentals.industry) updateData.industry = fundamentals.industry;
+          if (fundamentals.companyName) updateData.companyName = fundamentals.companyName;
+          
+          // TODO: Calculate YTD Performance automatically from historical data
+          // Currently YTD is calculated in fetchStockData and stored in ytdStartPrice/ytdPerformance
+          // Uncomment when fetchEODHDHistorical is implemented
+          /*
+          if (metrics.currentPrice && metrics.currentPrice > 0) {
+            try {
+              const { fetchEODHDHistorical } = await import("./_core/eodhdApi");
+              const lastYear = new Date().getFullYear() - 1;
+              const ytdStartDate = `${lastYear}-12-31`;
+              const historicalData = await fetchEODHDHistorical(ticker, ytdStartDate, ytdStartDate);
+              
+              if (historicalData && historicalData.length > 0) {
+                const ytdStartPrice = historicalData[0].close;
+                if (ytdStartPrice > 0) {
+                  const ytdPerformance = ((metrics.currentPrice - ytdStartPrice) / ytdStartPrice) * 100;
+                  updateData.ytdStartPrice = ytdStartPrice.toFixed(2);
+                  updateData.ytdPerformance = ytdPerformance.toFixed(2);
+                  console.log(`[RefreshStockData] YTD Performance calculated for ${ticker}: ${ytdPerformance.toFixed(2)}%`);
+                }
+              }
+            } catch (ytdError) {
+              console.warn(`[RefreshStockData] Could not calculate YTD for ${ticker}:`, ytdError);
+            }
+          }
+          */
+          
+          await updateStock(ticker, updateData);
+          
+          console.log(`[RefreshStockData] Successfully updated ${ticker}`);
+          return { success: true, message: `${ticker} erfolgreich aktualisiert` };
+        } catch (error: any) {
+          console.error(`[RefreshStockData] Failed to update ${ticker}:`, error);
+          throw new Error(`Failed to refresh ${ticker}: ${error.message}`);
+        }
+      }),
     portfolioPerformance: publicProcedure.query(async () => {
       const { getAllStocks } = await import("./db");
       const { calculatePortfolioPerformance } = await import("./_core/stockDataApi");
@@ -937,14 +1172,10 @@ export const appRouter = router({
               // Calculate YTD performance if current price exists
               if (stock.currentPrice) {
                 const currentPrice = parseFloat(stock.currentPrice);
-                if (isFinite(currentPrice) && isFinite(newPrice) && newPrice > 0) {
-                  const ytdPerf = ((currentPrice - newPrice) / newPrice) * 100;
-                  if (isFinite(ytdPerf)) {
-                    await updateStock(item.ticker, {
-                      ytdPerformance: ytdPerf.toFixed(2),
-                    });
-                  }
-                }
+                const ytdPerf = ((currentPrice - newPrice) / newPrice) * 100;
+                await updateStock(item.ticker, {
+                  ytdPerformance: ytdPerf.toFixed(2),
+                });
               }
             } else {
               await updateStock(item.ticker, {
@@ -954,14 +1185,10 @@ export const appRouter = router({
               // Calculate YTD performance if ytdStartPrice exists
               if (stock.ytdStartPrice) {
                 const ytdStart = parseFloat(stock.ytdStartPrice);
-                if (isFinite(ytdStart) && isFinite(newPrice) && ytdStart > 0) {
-                  const ytdPerf = ((newPrice - ytdStart) / ytdStart) * 100;
-                  if (isFinite(ytdPerf)) {
-                    await updateStock(item.ticker, {
-                      ytdPerformance: ytdPerf.toFixed(2),
-                    });
-                  }
-                }
+                const ytdPerf = ((newPrice - ytdStart) / ytdStart) * 100;
+                await updateStock(item.ticker, {
+                  ytdPerformance: ytdPerf.toFixed(2),
+                });
               }
             }
             
@@ -1634,6 +1861,73 @@ export const appRouter = router({
           .set(updates)
           .where(eq(users.openId, ctx.user.openId));
         
+        return { success: true };
+      }),
+  }),
+
+  scoring: router({
+    calculateScores: publicProcedure.query(async () => {
+      const { calculateStockScores } = await import("./scoring");
+      const { getAllStocks } = await import("./db");
+      const stocks = await getAllStocks();
+      return calculateStockScores(stocks);
+    }),
+  }),
+  
+  categories: router({
+    list: publicProcedure.query(async () => {
+      const { getAllCategories } = await import("./db");
+      return await getAllCategories();
+    }),
+    add: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "name" in val) {
+          return val as { name: string; description?: string; color?: string };
+        }
+        throw new Error("Invalid input: name is required");
+      })
+      .mutation(async ({ input, ctx }) => {
+        // Only admins can manage categories
+        if (ctx.user.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const { insertCategory } = await import("./db");
+        await insertCategory(input);
+        return { success: true };
+      }),
+    update: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val) {
+          return val as { id: number; name?: string; description?: string; color?: string };
+        }
+        throw new Error("Invalid input: id is required");
+      })
+      .mutation(async ({ input, ctx }) => {
+        // Only admins can manage categories
+        if (ctx.user.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const { updateCategory } = await import("./db");
+        const { id, ...data } = input;
+        await updateCategory(id, data);
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "number") return val;
+        throw new Error("Invalid input: id must be a number");
+      })
+      .mutation(async ({ input: id, ctx }) => {
+        // Only admins can manage categories
+        if (ctx.user.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const { deleteCategory } = await import("./db");
+        const success = await deleteCategory(id);
+        if (!success) throw new Error("Failed to delete category");
         return { success: true };
       }),
   }),

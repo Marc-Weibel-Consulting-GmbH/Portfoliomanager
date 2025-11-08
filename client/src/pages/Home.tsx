@@ -22,6 +22,7 @@ import autoTable from 'jspdf-autotable';
 import { toast, Toaster } from 'sonner';
 import { PortfolioPerformanceChart } from '@/components/PortfolioPerformanceChart';
 import { PortfolioSentimentIndicator } from '@/components/PortfolioSentimentIndicator';
+import { StockLogo } from '@/components/StockLogo';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
 
 // AI-powered portfolio market analysis
@@ -233,6 +234,11 @@ export default function Home() {
   const [competitorAnalysisData, setCompetitorAnalysisData] = useState<any>(null);
   const [isCompetitorDialogOpen, setIsCompetitorDialogOpen] = useState(false);
   const [isLoadingCompetitors, setIsLoadingCompetitors] = useState(false);
+  const [isAlternativesOverviewOpen, setIsAlternativesOverviewOpen] = useState(false);
+  const [stocksWithAlternatives, setStocksWithAlternatives] = useState<any[]>([]);
+  const [currentAlternativeIndex, setCurrentAlternativeIndex] = useState<number | null>(0);
+  const [alternativesProgress, setAlternativesProgress] = useState(0);
+  const [isLoadingAlternatives, setIsLoadingAlternatives] = useState(false);
   const [infoFormData, setInfoFormData] = useState<any>({});
   const [finanzenFormData, setFinanzenFormData] = useState<any>({});
   const [optimizerInputs, setOptimizerInputs] = useState<any>(null);
@@ -394,6 +400,7 @@ export default function Home() {
         companyName: data.companyName || prev.companyName,
         ticker: data.ticker || prev.ticker,
         ytdStartPrice: data.ytdStartPrice?.toString() || prev.ytdStartPrice,
+        ytdPerformance: data.ytdPerformance?.toString() || prev.ytdPerformance,
         currentPrice: data.currentPrice?.toString() || prev.currentPrice,
         peRatio: data.peRatio?.toString() || prev.peRatio,
         pegRatio: data.pegRatio?.toString() || prev.pegRatio,
@@ -451,16 +458,14 @@ export default function Home() {
       });
     },
   });
+
+  const refreshStockDataMutation = trpc.stocks.refreshStockData.useMutation({
+    onError: (error: any) => {
+      console.error("refreshStockData error:", error);
+    },
+  });
   
   const findCompetitorsMutation = trpc.stocks.findCompetitors.useMutation({
-    onSuccess: (data: any) => {
-      setCompetitorAnalysisData(data);
-      setIsLoadingCompetitors(false);
-      setIsCompetitorDialogOpen(true);
-      toast.success("Alternativen gefunden", {
-        description: `${data.alternatives.length} bessere Alternativen gefunden`,
-      });
-    },
     onError: (error: any) => {
       setIsLoadingCompetitors(false);
       toast.error("Fehler bei der Analyse", {
@@ -472,19 +477,16 @@ export default function Home() {
   useEffect(() => {
     if (stocks.length > 0 && !hasAppliedEqualWeighting) {
       const equalWeight = (100 / stocks.length).toFixed(4);
-      
-      // Check if any stock has 0% weight OR if total weight is not 100%
       const needsWeighting = stocks.some(s => !s.portfolioWeight || parseFloat(s.portfolioWeight || "0") === 0);
-      const totalWeight = stocks.reduce((sum, s) => sum + parseFloat(s.portfolioWeight || "0"), 0);
-      const needsRebalancing = Math.abs(totalWeight - 100) > 0.1; // Allow 0.1% tolerance
       
-      if (needsWeighting || needsRebalancing) {
-        // Redistribute ALL stocks to equal weight
+      if (needsWeighting) {
         stocks.forEach(stock => {
-          updateStockMutation.mutate({ 
-            ticker: stock.ticker, 
-            portfolioWeight: parseFloat(equalWeight) 
-          } as any);
+          if (!stock.portfolioWeight || parseFloat(stock.portfolioWeight || "0") === 0) {
+            updateStockMutation.mutate({ 
+              ticker: stock.ticker, 
+              portfolioWeight: parseFloat(equalWeight) 
+            } as any);
+          }
         });
       }
       setHasAppliedEqualWeighting(true);
@@ -598,20 +600,39 @@ export default function Home() {
     }
   }, [portfolioTotalWeight, stocks.length]);
 
+  // Load categories from database
+  const { data: categoriesData = [] } = trpc.categories.list.useQuery();
   const categories = useMemo(() => {
-    const cats = new Set<string>();
-    stocks.forEach(s => {
-      if (s.category) cats.add(s.category);
-    });
-    return Array.from(cats).sort();
-  }, [stocks]);
+    return categoriesData.map((c: any) => c.name).sort();
+  }, [categoriesData]);
 
   const handleAddStock = () => {
+    // Validation
+    if (!formData.ticker || !formData.companyName) {
+      toast.error("Fehler", { description: "Ticker und Firmenname sind erforderlich" });
+      return;
+    }
+    if (!formData.currentPrice || parseFloat(formData.currentPrice) <= 0) {
+      toast.error("Fehler", { description: "Aktueller Kurs ist erforderlich" });
+      return;
+    }
+    if (!formData.category) {
+      toast.error("Fehler", { description: "Kategorie ist erforderlich" });
+      return;
+    }
+    
     const equalWeight = (100 / (stocks.length + 1)).toFixed(4);
     addStockMutation.mutate({
       ...formData,
       portfolioWeight: parseFloat(equalWeight),
-      currentPrice: parseFloat(formData.currentPrice || "0")
+      currentPrice: parseFloat(formData.currentPrice || "0"),
+      // Ensure all numeric fields are strings or set to defaults
+      peRatio: formData.peRatio || "0",
+      pegRatio: formData.pegRatio || "0",
+      sharpeRatio: formData.sharpeRatio || "0",
+      dividendYield: formData.dividendYield || "0",
+      ytdStartPrice: formData.ytdStartPrice || formData.currentPrice,
+      ytdPerformance: formData.ytdPerformance || "0",
     });
   };
 
@@ -1645,14 +1666,14 @@ export default function Home() {
                       </div>
                       <div>
                         <p className="text-slate-400 text-sm">Ø Dividende</p>
-                        <p className="text-green-400 font-semibold text-lg">{(portfolio.avgDividendYield ?? 0).toFixed(2)}%</p>
+                        <p className="text-green-400 font-semibold text-lg">{portfolio.avgDividendYield?.toFixed(2) || '0.00'}%</p>
                       </div>
                       <div>
                         <p className="text-slate-400 text-sm">Ø YTD Performance</p>
                         <p className={`font-semibold text-lg ${
                           (portfolio.avgYtdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                         }`}>
-                          {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{(portfolio.avgYtdPerformance ?? 0).toFixed(1)}%
+                          {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{portfolio.avgYtdPerformance?.toFixed(1) || '0.0'}%
                         </p>
                       </div>
                     </div>
@@ -1667,30 +1688,24 @@ export default function Home() {
                             try {
                               const data = JSON.parse(portfolio.portfolioData);
                               
-                              // If inputs are missing, generate defaults from portfolio data
-                              if (!data.inputs && data.stocks) {
-                                const totalInvested = portfolio.totalInvested || 10000;
-                                const avgDividend = portfolio.avgDividendYield || 2.0;
-                                const numberOfPositions = portfolio.numberOfPositions || data.stocks.length;
-                                
-                                data.inputs = {
-                                  investmentAmount: totalInvested,
-                                  targetDividend: avgDividend,
-                                  numberOfPositions: numberOfPositions,
-                                  investorType: 'ausgewogen' as const
+                              if (data.stocks) {
+                                // Use saved inputs or create default inputs from portfolio data
+                                const inputs = data.inputs || {
+                                  investmentAmount: data.totalInvested || 10000,
+                                  expectedDividendYield: data.avgDividendYield || 2.0,
+                                  numberOfPositions: data.numberOfPositions || data.stocks.length,
+                                  investorType: "balanced" as const
                                 };
-                              }
-                              
-                              if (data.inputs && data.stocks) {
-                                setOptimizerInputs(data.inputs);
+                                
+                                setOptimizerInputs(inputs);
                                 setShowOptimizerResults(true);
                                 toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde geladen` });
                               } else {
-                                toast.error('Fehler', { description: 'Portfolio-Daten konnten nicht geladen werden' });
+                                toast.error('Fehler', { description: 'Portfolio-Daten sind unvollständig' });
                               }
                             } catch (error) {
-                              console.error('[Laden Button] Failed to load portfolio:', error);
-                              toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden: ' + (error as Error).message });
+                              console.error('Failed to load portfolio:', error);
+                              toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden' });
                             }
                           }}
                           className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
@@ -2132,6 +2147,40 @@ export default function Home() {
             <Download className="w-4 h-4 mr-2" />
             PDF Export
           </Button>
+          {user?.role === 'admin' && (
+            <Button onClick={() => window.location.href = '/categories'} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              Kategorien
+            </Button>
+          )}
+          {isAuthenticated && (
+            <div className="relative">
+              <Button 
+                onClick={() => {
+                  toast.info("In Entwicklung", {
+                    description: "Diese Funktion befindet sich noch in Entwicklung und ist bald verfügbar."
+                  });
+                }}
+                disabled={true}
+                className="bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {isLoadingAlternatives ? 'Analysiere...' : 'Alternativen'}
+              </Button>
+              {isLoadingAlternatives && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-700 rounded-b overflow-hidden">
+                  <div 
+                    className="h-full bg-orange-400 transition-all duration-300"
+                    style={{ width: `${alternativesProgress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {isAuthenticated && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
@@ -2370,106 +2419,9 @@ export default function Home() {
                   </thead>
                   <tbody>
                     {filteredStocks.map(stock => (
-                      <tr key={stock.ticker} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                      <tr key={stock.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                         <td className="py-2 px-2">
-                          <div className="w-8 h-8 rounded overflow-hidden bg-white flex items-center justify-center">
-                            <img
-                              src={`https://logo.clearbit.com/${(() => {
-                                // For Swiss stocks, try known domains first
-                                const swissDomainMap: Record<string, string> = {
-                                  'NOVN.SW': 'novartis.com',
-                                  'NESN.SW': 'nestle.com',
-                                  'ROG.SW': 'roche.com',
-                                  'ZURN.SW': 'zurich.com',
-                                  'SREN.SW': 'swissre.com',
-                                  'SLHN.SW': 'swisslife.com',
-                                  'SCMN.SW': 'swisscom.ch',
-                                  'KNIN.SW': 'kuehne-nagel.com',
-                                  'STMN.SW': 'straumann.com',
-                                  'GALD.SW': 'galderma.com',
-                                  'FHZN.SW': 'zurich-airport.com',
-                                  'GALE.SW': 'galenica.com',
-                                  'HOLN.SW': 'holcim.com',
-                                  'BKWN.SW': 'bkw.ch',
-                                  'CMBN.SW': 'cembra.ch',
-                                  'SQN.SW': 'swissquote.com',
-                                  'LISN.SW': 'lindt.com',
-                                  'SGKN.SW': 'sgkb.ch',
-                                };
-                                
-                                if (swissDomainMap[stock.ticker]) {
-                                  return swissDomainMap[stock.ticker];
-                                }
-                                
-                                // For US stocks, extract domain from company name
-                                const domain = stock.companyName.toLowerCase()
-                                  .replace(/\s+(inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance)\.?$/i, '')
-                                  .replace(/\s+/g, '')
-                                  .replace(/[^a-z0-9]/g, '');
-                                return `${domain}.com`;
-                              })()}`}
-                              alt={stock.companyName}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                const img = e.currentTarget;
-                                const parent = img.parentElement;
-                                
-                                // Swiss company domain mapping
-                                const swissDomainMap: Record<string, string> = {
-                                  'St Galler Kantonalbank': 'sgkb.ch',
-                                  'Zurich Insurance Group': 'zurich.com',
-                                  'Swiss Re AG': 'swissre.com',
-                                  'Swiss Life Holding': 'swisslife.com',
-                                  'Swisscom AG': 'swisscom.ch',
-                                  'Kuehne + Nagel International AG': 'kuehne-nagel.com',
-                                  'Straumann Holding': 'straumann.com',
-                                  'Galderma Group A': 'galderma.com',
-                                  'Flughafen Zurich A': 'zurich-airport.com',
-                                  'Galenica AG': 'galenica.com',
-                                  'Holcim AG': 'holcim.com',
-                                  'BKW AG': 'bkw.ch',
-                                  'Cembra Money Bank': 'cembra.ch',
-                                  'Swissquote Group': 'swissquote.com',
-                                  'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
-                                };
-                                
-                                const knownDomain = swissDomainMap[stock.companyName];
-                                
-                                if (img.src.includes('clearbit')) {
-                                  // Try known domain first for Swiss companies
-                                  if (knownDomain) {
-                                    img.src = `https://logo.clearbit.com/${knownDomain}`;
-                                    img.onerror = () => {
-                                      if (parent) {
-                                        parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
-                                      }
-                                    };
-                                  } else {
-                                    const domain = stock.companyName.toLowerCase()
-                                      .replace(/\s+(ag|inc|corp|ltd|plc|sa|holding|group|technologies|technology|networks|network|enterprise|enterprises|bank|insurance|kantonalbank)$/i, '')
-                                      .replace(/\s+/g, '')
-                                      .replace(/[^a-z0-9]/g, '');
-                                    
-                                    if (stock.ticker.endsWith('.SW') || stock.ticker.endsWith('.N')) {
-                                      img.src = `https://logo.clearbit.com/${domain}.ch`;
-                                      img.onerror = () => {
-                                        if (parent) {
-                                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
-                                        }
-                                      };
-                                    } else {
-                                      img.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
-                                      img.onerror = () => {
-                                        if (parent) {
-                                          parent.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
-                                        }
-                                      };
-                                    }
-                                  }
-                                }
-                              }}
-                            />
-                          </div>
+                          <StockLogo ticker={stock.ticker} companyName={stock.companyName} size="sm" />
                         </td>
                         <td className="py-2 px-2 text-white">{stock.companyName}</td>
                         <td className="py-2 px-2">
@@ -2526,7 +2478,20 @@ export default function Home() {
                         <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(2)}%</td>
                         <td className="py-2 px-2 text-slate-400">{stock.category}</td>
                         <td className="py-2 px-2 text-center">
-                          {(stock.moat1 || stock.moat2 || stock.moat3) && (
+                          {/* ETF: Open factsheet PDF, Stock: Show moats dialog */}
+                          {stock.factsheetUrl ? (
+                            <button 
+                              onClick={() => stock.factsheetUrl && window.open(stock.factsheetUrl, '_blank')}
+                              className="p-1 hover:bg-slate-600 rounded text-blue-400 hover:text-blue-300"
+                              title="ETF Factsheet öffnen"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                              </svg>
+                            </button>
+                          ) : (stock.moat1 || stock.moat2 || stock.moat3) && (
                             <Dialog>
                               <DialogTrigger asChild>
                                 <button className="p-1 hover:bg-slate-600 rounded text-blue-400 hover:text-blue-300">
@@ -2537,83 +2502,13 @@ export default function Home() {
                                   </svg>
                                 </button>
                               </DialogTrigger>
-                              <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+                              <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl [&>button]:text-white [&>button]:hover:text-gray-300">
                                 <DialogHeader>
                                   <DialogTitle className="text-white text-xl">{stock.companyName}</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-4">
-                                  <div className="flex items-center gap-4 pb-4 border-b border-slate-700">
-                                    <div className="w-16 h-16 rounded-lg bg-white p-2 flex items-center justify-center">
-                                      <img 
-                                        src={`https://financialmodelingprep.com/image-stock/${stock.ticker.replace(/\.(SW|PA|MI|CO|DE|AS)$/, '')}.png`}
-                                        alt={stock.companyName}
-                                        className="w-full h-full object-contain"
-                                         onError={(e) => {
-                                          // Swiss company domain mapping for known companies
-                                          const swissDomainMap: Record<string, string> = {
-                                            'St Galler Kantonalbank': 'sgkb.ch',
-                                            'Zurich Insurance Group': 'zurich.com',
-                                            'Swiss Re AG': 'swissre.com',
-                                            'Swiss Life Holding': 'swisslife.com',
-                                            'Swisscom AG': 'swisscom.ch',
-                                            'Kuehne + Nagel International AG': 'kuehne-nagel.com',
-                                            'Straumann Holding': 'straumann.com',
-                                            'Galderma Group A': 'galderma.com',
-                                            'Flughafen Zurich A': 'zurich-airport.com',
-                                            'Galenica AG': 'galenica.com',
-                                            'Holcim AG': 'holcim.com',
-                                            'BKW AG': 'bkw.ch',
-                                            'Cembra Money Bank': 'cembra.ch',
-                                            'Swissquote Group': 'swissquote.com',
-                                            'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
-                                          };
-                                          
-                                          // Check if we have a known domain mapping
-                                          const knownDomain = swissDomainMap[stock.companyName];
-                                          const isSwissStock = stock.ticker?.endsWith('.SW');
-                                          const domainExt = isSwissStock ? 'ch' : 'com';
-                                          
-                                          // Extract clean domain from company name
-                                          let domain = stock.companyName.toLowerCase()
-                                            .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial|kantonalbank).*$/i, '')
-                                            .replace(/[^a-z0-9]/g, '')
-                                            .trim();
-                                          
-                                          // Fallback 1: Try Clearbit with known domain or extracted domain
-                                          if (knownDomain) {
-                                            e.currentTarget.src = `https://logo.clearbit.com/${knownDomain}`;
-                                          } else {
-                                            e.currentTarget.src = `https://logo.clearbit.com/${domain}.${domainExt}`;
-                                          }
-                                          
-                                          e.currentTarget.onerror = () => {
-                                            // Fallback 2: Try alternate domain extension for Swiss stocks
-                                            if (isSwissStock) {
-                                              e.currentTarget.src = `https://logo.clearbit.com/${domain}.com`;
-                                              e.currentTarget.onerror = () => {
-                                                // Fallback 3: Try logo.dev
-                                                e.currentTarget.src = `https://img.logo.dev/${domain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
-                                                e.currentTarget.onerror = () => {
-                                                  // Final fallback: Letter avatar
-                                                  if (e.currentTarget.parentElement) {
-                                                    e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
-                                                  }
-                                                };
-                                              };
-                                            } else {
-                                              // Fallback 3: Try logo.dev for non-Swiss stocks
-                                              e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
-                                              e.currentTarget.onerror = () => {
-                                                // Final fallback: Letter avatar
-                                                if (e.currentTarget.parentElement) {
-                                                  e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-blue-600">${stock.companyName.charAt(0)}</div>`;
-                                                }
-                                              };
-                                            }
-                                          };
-                                        }}
-                                      />
-                                    </div>
+                                  <div className="flex items-center gap-4 pb-4 border-slate-700">
+                                    <StockLogo ticker={stock.ticker} companyName={stock.companyName} size="lg" />
                                     <div>
                                       <h3 className="text-lg font-semibold text-white">{stock.companyName}</h3>
                                       <p className="text-sm text-slate-400">{stock.ticker}</p>
@@ -2728,36 +2623,55 @@ export default function Home() {
                                   {/* Owner-only: Competition Analyzer */}
                                   {user?.role === 'admin' && (
                                     <div className="pt-4 border-t border-slate-700">
-                                      <Button
-                                        onClick={() => {
-                                          setCompetitorAnalysisStock(stock);
-                                          setIsLoadingCompetitors(true);
-                                          findCompetitorsMutation.mutate({
-                                            ticker: stock.ticker,
-                                            name: stock.companyName,
-                                            category: stock.category || "Unknown"
-                                          });
-                                        }}
-                                        disabled={isLoadingCompetitors}
-                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
-                                      >
-                                        {isLoadingCompetitors ? (
-                                          <>
-                                            <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Analysiere...
-                                          </>
-                                        ) : (
-                                          <>
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
-                                            Alternativen prüfen
-                                          </>
+                                      <div className="relative">
+                                        <Button
+                                          onClick={() => {
+                                            setCompetitorAnalysisStock(stock);
+                                            setIsLoadingCompetitors(true);
+                                            findCompetitorsMutation.mutate(
+                                              {
+                                                ticker: stock.ticker,
+                                                name: stock.companyName,
+                                                category: stock.category || "Unknown"
+                                              },
+                                              {
+                                                onSuccess: (data) => {
+                                                  setCompetitorAnalysisData(data);
+                                                  setIsLoadingCompetitors(false);
+                                                  setIsCompetitorDialogOpen(true);
+                                                  toast.success("Alternativen gefunden", {
+                                                    description: `${data.alternatives.length} bessere Alternativen gefunden`,
+                                                  });
+                                                },
+                                              }
+                                            );
+                                          }}
+                                          disabled={isLoadingCompetitors}
+                                          className="w-full bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          {isLoadingCompetitors ? (
+                                            <>
+                                              <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                              </svg>
+                                              Analysiere...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                              </svg>
+                                              Alternativen prüfen
+                                            </>
+                                          )}
+                                        </Button>
+                                        {isLoadingCompetitors && (
+                                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-700 rounded-b overflow-hidden">
+                                            <div className="h-full bg-purple-400 animate-pulse" style={{ width: '100%' }} />
+                                          </div>
                                         )}
-                                      </Button>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -2777,7 +2691,7 @@ export default function Home() {
                                     <Edit2 className="w-4 h-4 text-blue-400" />
                                   </button>
                                 </DialogTrigger>
-                                <DialogContent className="bg-slate-800 border-slate-700">
+                                <DialogContent className="bg-slate-800 border-slate-700 [&>button]:text-white [&>button]:hover:text-gray-300">
                                   <DialogHeader>
                                     <DialogTitle className="text-white">Aktie bearbeiten</DialogTitle>
                                   </DialogHeader>
@@ -2790,6 +2704,27 @@ export default function Home() {
                                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                                         className="bg-slate-700 border-slate-600 text-white"
                                       />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Kategorie</label>
+                                      <select
+                                        value={formData.category || ""}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        className="w-full bg-slate-700 border border-slate-600 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      >
+                                        <option value="">Kategorie wählen</option>
+                                        <option value="Technologie">Technologie</option>
+                                        <option value="E-Commerce">E-Commerce</option>
+                                        <option value="Automotive">Automotive</option>
+                                        <option value="Healthcare">Healthcare</option>
+                                        <option value="Biotech">Biotech</option>
+                                        <option value="Energie">Energie</option>
+                                        <option value="Finanzdienstleistungen">Finanzdienstleistungen</option>
+                                        <option value="Infrastruktur">Infrastruktur</option>
+                                        <option value="Industrie">Industrie</option>
+                                        <option value="Konsumgüter">Konsumgüter</option>
+                                        <option value="Rohstoffe">Rohstoffe</option>
+                                      </select>
                                     </div>
                                     <div>
                                       <label className="block text-sm font-medium text-slate-300 mb-1">Kurs per 31.12. Vorjahr</label>
@@ -2907,11 +2842,61 @@ export default function Home() {
       
       {/* Competitor Comparison Dialog */}
       <Dialog open={isCompetitorDialogOpen} onOpenChange={setIsCompetitorDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-[95vw] lg:max-w-7xl max-h-[90vh] overflow-y-auto [&>button]:text-white [&>button]:hover:text-gray-300">
           <DialogHeader>
-            <DialogTitle className="text-white text-xl">
-              Bessere Alternativen für {competitorAnalysisStock?.companyName}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-white text-xl">
+                Alternativen für {competitorAnalysisStock?.companyName || competitorAnalysisData?.currentStock?.name || 'Aktie'}
+              </DialogTitle>
+              <div className="flex gap-2">
+                {/* Back to Overview Button */}
+                {stocksWithAlternatives.length > 0 && currentAlternativeIndex !== null && (
+                  <Button
+                    onClick={() => {
+                      setCurrentAlternativeIndex(null);
+                      setCompetitorAnalysisStock(null);
+                      setCompetitorAnalysisData(null);
+                    }}
+                    variant="outline"
+                    className="border-slate-600 text-white hover:bg-slate-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                    Übersicht
+                  </Button>
+                )}
+                {/* Next Button */}
+                {stocksWithAlternatives.length > 0 && currentAlternativeIndex !== null && currentAlternativeIndex < stocksWithAlternatives.length - 1 && (
+                  <Button
+                    onClick={() => {
+                      const nextIndex = currentAlternativeIndex + 1;
+                      const nextStock = stocksWithAlternatives[nextIndex].stock;
+                      setCurrentAlternativeIndex(nextIndex);
+                      setCompetitorAnalysisStock(nextStock);
+                      findCompetitorsMutation.mutate(
+                        { 
+                          ticker: nextStock.ticker,
+                          name: nextStock.companyName,
+                          category: nextStock.category || "Unknown"
+                        },
+                        {
+                          onSuccess: (data) => {
+                            setCompetitorAnalysisData(data);
+                          },
+                        }
+                      );
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Weiter
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </Button>
+                )}
+              </div>
+            </div>
           </DialogHeader>
           
           {competitorAnalysisData && (
@@ -2956,67 +2941,10 @@ export default function Home() {
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-4 flex-1">
                           {/* Company Logo */}
-                          <div className="w-12 h-12 rounded-lg bg-white p-2 flex items-center justify-center flex-shrink-0">
-                            <img 
-                              src={`https://financialmodelingprep.com/image-stock/${alt.ticker.replace(/\.(SW|PA|MI|CO|DE|AS)$/, '')}.png`}
-                              alt={alt.name}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                const swissDomainMap: Record<string, string> = {
-                                  'St Galler Kantonalbank': 'sgkb.ch',
-                                  'Zurich Insurance Group': 'zurich.com',
-                                  'Swiss Re AG': 'swissre.com',
-                                  'Swiss Life Holding': 'swisslife.com',
-                                  'Swisscom AG': 'swisscom.ch',
-                                  'Kuehne + Nagel International AG': 'kuehne-nagel.com',
-                                  'Straumann Holding': 'straumann.com',
-                                  'Galderma Group A': 'galderma.com',
-                                  'Flughafen Zurich A': 'zurich-airport.com',
-                                  'Galenica AG': 'galenica.com',
-                                  'Holcim AG': 'holcim.com',
-                                  'BKW AG': 'bkw.ch',
-                                  'Cembra Money Bank': 'cembra.ch',
-                                  'Swissquote Group': 'swissquote.com',
-                                  'Chocoladefabriken Lindt & Spruengli AG': 'lindt.com',
-                                };
-                                const knownDomain = swissDomainMap[alt.name];
-                                const isSwissStock = alt.ticker?.endsWith('.SW');
-                                const domainExt = isSwissStock ? 'ch' : 'com';
-                                let domain = alt.name.toLowerCase()
-                                  .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial|kantonalbank).*$/i, '')
-                                  .replace(/[^a-z0-9]/g, '')
-                                  .trim();
-                                if (knownDomain) {
-                                  e.currentTarget.src = `https://logo.clearbit.com/${knownDomain}`;
-                                } else {
-                                  e.currentTarget.src = `https://logo.clearbit.com/${domain}.${domainExt}`;
-                                }
-                                e.currentTarget.onerror = () => {
-                                  if (isSwissStock) {
-                                    e.currentTarget.src = `https://logo.clearbit.com/${domain}.com`;
-                                    e.currentTarget.onerror = () => {
-                                      e.currentTarget.src = `https://img.logo.dev/${domain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
-                                      e.currentTarget.onerror = () => {
-                                        if (e.currentTarget.parentElement) {
-                                          e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${alt.name.charAt(0)}</div>`;
-                                        }
-                                      };
-                                    };
-                                  } else {
-                                    e.currentTarget.src = `https://img.logo.dev/${domain}.com?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
-                                    e.currentTarget.onerror = () => {
-                                      if (e.currentTarget.parentElement) {
-                                        e.currentTarget.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl font-bold text-blue-600">${alt.name.charAt(0)}</div>`;
-                                      }
-                                    };
-                                  }
-                                };
-                              }}
-                            />
-                          </div>
+                          <StockLogo ticker={alt.ticker} companyName={alt.name} size="md" />
                           {/* Company Name and Ticker */}
                           <div>
-                            <h4 className="text-white font-bold text-xl mb-1">{alt.name}</h4>
+                            <h4 className="text-white font-bold text-xl mb-1">{alt.companyName || alt.name}</h4>
                             <p className="text-slate-400 text-base">{alt.ticker}</p>
                           </div>
                         </div>
@@ -3062,13 +2990,39 @@ export default function Home() {
                       {/* Action Buttons */}
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Möchten Sie ${competitorAnalysisStock.companyName} (${competitorAnalysisStock.ticker}) durch ${alt.name} (${alt.ticker}) ersetzen?`)) {
-                              // TODO: Implement replace logic
-                              toast.info("Ersetzen", {
-                                description: `${competitorAnalysisStock.ticker} wird durch ${alt.ticker} ersetzt...`
-                              });
-                              setIsCompetitorDialogOpen(false);
+                              try {
+                                // Save old stock data
+                                const oldWeight = competitorAnalysisStock.portfolioWeight;
+                                const oldCategory = competitorAnalysisStock.category;
+                                const oldInvestment = competitorAnalysisStock.investmentAmount;
+                                
+                                // Delete old stock
+                                await deleteStockMutation.mutateAsync({ ticker: competitorAnalysisStock.ticker });
+                                
+                                // Add new stock with same weight and category
+                                await addStockMutation.mutateAsync({
+                                  ticker: alt.ticker,
+                                  companyName: alt.name,
+                                  currentPrice: alt.currentPrice?.toString() || '0',
+                                  category: oldCategory,
+                                  portfolioWeight: oldWeight,
+                                  investmentAmount: oldInvestment,
+                                });
+                                
+                                toast.success("Titel ersetzt", {
+                                  description: `${competitorAnalysisStock.companyName} wurde durch ${alt.name} ersetzt`
+                                });
+                                setIsCompetitorDialogOpen(false);
+                                
+                                // Refresh stock list
+                                await refetchStocks();
+                              } catch (error) {
+                                toast.error("Fehler", {
+                                  description: `${competitorAnalysisStock.ticker} konnte nicht ersetzt werden`
+                                });
+                              }
                             }
                           }}
                           className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
@@ -3076,13 +3030,44 @@ export default function Home() {
                           Bestehenden Titel ersetzen
                         </Button>
                         <Button
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Möchten Sie ${alt.name} (${alt.ticker}) zum Portfolio hinzufügen?`)) {
-                              // TODO: Implement add logic
-                              toast.info("Hinzufügen", {
-                                description: `${alt.ticker} wird zum Portfolio hinzugefügt...`
-                              });
-                              setIsCompetitorDialogOpen(false);
+                              try {
+                                // Fetch complete stock data from API before adding
+                                const stockData = await fetchStockDataMutation.mutateAsync(alt.ticker);
+                                
+                                // Add alternative stock to portfolio with all market data from API
+                                await addStockMutation.mutateAsync({
+                                  ticker: alt.ticker,
+                                  companyName: stockData.companyName || alt.name,
+                                  category: competitorAnalysisStock?.category || "Unknown",
+                                  investmentAmount: 0, // User can edit later
+                                  portfolioWeight: 0,
+                                  // Use API data (with fallbacks to competitor analysis data)
+                                  currentPrice: stockData.currentPrice?.toString() || alt.currentPrice?.toString() || "0",
+                                  dividendYield: stockData.dividendYield?.toString() || "0",
+                                  pegRatio: stockData.pegRatio?.toString() || "0",
+                                  peRatio: stockData.peRatio?.toString() || "0",
+                                  sharpeRatio: stockData.sharpeRatio?.toString() || alt.sharpeRatio?.toString() || "0",
+                                  volatility: stockData.volatility?.toString() || alt.volatility?.toString() || "0",
+                                  beta: stockData.beta?.toString() || alt.beta?.toString() || "0",
+                                  ytdPerformance: stockData.ytdPerformance?.toString() || "0",
+                                  ytdStartPrice: stockData.ytdStartPrice?.toString() || stockData.currentPrice?.toString() || "0",
+                                  currency: stockData.currency || (alt.ticker.endsWith('.SW') ? 'CHF' : 'USD'),
+                                });
+                                
+                                toast.success("Titel hinzugefügt", {
+                                  description: `${alt.name} wurde zum Portfolio hinzugefügt mit allen Marktdaten`
+                                });
+                                
+                                // Refresh stock list (but keep dialog open)
+                                await refetchStocks();
+                                // DO NOT close dialog: setIsCompetitorDialogOpen(false);
+                              } catch (error) {
+                                toast.error("Fehler", {
+                                  description: `${alt.ticker} konnte nicht hinzugefügt werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`
+                                });
+                              }
                             }
                           }}
                           className="flex-1 bg-green-600 hover:bg-green-700 text-white"
@@ -3164,7 +3149,6 @@ export default function Home() {
                   
                   try {
                     const portfolioData = JSON.stringify({
-                      inputs: optimizerInputs, // Save optimizer inputs
                       stocks: stocks.map(s => ({
                         ticker: s.ticker,
                         companyName: s.companyName,
@@ -3362,6 +3346,59 @@ export default function Home() {
                   Schließen
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Alternatives Overview Dialog */}
+      <Dialog open={isAlternativesOverviewOpen} onOpenChange={setIsAlternativesOverviewOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-4xl max-h-[90vh] overflow-y-auto [&>button]:text-white [&>button]:hover:text-gray-300">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl">
+              Titel mit verfügbaren Alternativen
+            </DialogTitle>
+          </DialogHeader>
+          
+          {stocksWithAlternatives.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-slate-400">Lade Alternativen...</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {stocksWithAlternatives.map(({ stock, alternativesCount }) => (
+                <div 
+                  key={stock.id}
+                  className="bg-slate-700/30 p-4 rounded-lg border border-slate-600 hover:border-orange-500 transition-colors cursor-pointer"
+                  onClick={() => {
+                    const index = stocksWithAlternatives.findIndex(s => s.stock.ticker === stock.ticker);
+                    const stockWithAlts = stocksWithAlternatives[index];
+                    
+                    if (stockWithAlts && stockWithAlts.alternativesData) {
+                      // Use stored alternatives data (no API call needed)
+                      setCurrentAlternativeIndex(index);
+                      setCompetitorAnalysisStock(stock);
+                      setCompetitorAnalysisData(stockWithAlts.alternativesData);
+                      setIsAlternativesOverviewOpen(false);
+                      setIsCompetitorDialogOpen(true);
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <StockLogo ticker={stock.ticker} companyName={stock.companyName} size="md" />
+                      <div>
+                        <h4 className="text-white font-bold text-lg">{stock.companyName}</h4>
+                        <p className="text-slate-400 text-sm">{stock.ticker}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-orange-400 font-bold text-lg">{alternativesCount} Alternative{alternativesCount > 1 ? 'n' : ''}</div>
+                      <div className="text-slate-400 text-sm">Score: {stock.score}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </DialogContent>

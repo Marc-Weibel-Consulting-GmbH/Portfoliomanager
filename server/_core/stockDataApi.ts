@@ -1,9 +1,14 @@
 /**
  * Yahoo Finance API Integration via Manus Data API
  * Provides stock prices, historical data, and risk metrics (Sharpe Ratio, Volatility)
+ * 
+ * Features:
+ * - Memory caching with 5-minute TTL for quotes
+ * - Retry logic handled by callDataApi
  */
 
 import { callDataApi } from "./dataApi";
+import { apiCache, CACHE_TTL } from './apiCache';
 
 export interface StockMetrics {
   currentPrice: number | null;
@@ -87,6 +92,13 @@ export async function fetchStockMetrics(ticker: string, region: string = "US"): 
     volatility: null,
   };
 
+  // Check cache first
+  const cacheKey = `yahoo:metrics:${ticker}:${region}`;
+  const cached = apiCache.get<StockMetrics>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   try {
     // Fetch historical chart data (1 year for Sharpe Ratio calculation)
     const chartResponse = await callDataApi("YahooFinance/get_stock_chart", {
@@ -113,6 +125,12 @@ export async function fetchStockMetrics(ticker: string, region: string = "US"): 
     if (meta) {
       defaultMetrics.currentPrice = meta.regularMarketPrice || meta.previousClose || null;
       defaultMetrics.currency = meta.currency || null;
+      
+      // Fallback: Swiss stocks should use CHF, not USD
+      if (ticker.endsWith('.SW') && defaultMetrics.currency === 'USD') {
+        console.log(`[StockDataAPI] Correcting currency for Swiss stock ${ticker}: USD -> CHF`);
+        defaultMetrics.currency = 'CHF';
+      }
     }
 
     // Extract 52-week high/low from metadata
@@ -141,6 +159,9 @@ export async function fetchStockMetrics(ticker: string, region: string = "US"): 
       week52High: defaultMetrics.week52High,
       week52Low: defaultMetrics.week52Low,
     });
+
+    // Cache the result for 5 minutes
+    apiCache.set(cacheKey, defaultMetrics, CACHE_TTL.QUOTE);
 
     return defaultMetrics;
   } catch (error: any) {
