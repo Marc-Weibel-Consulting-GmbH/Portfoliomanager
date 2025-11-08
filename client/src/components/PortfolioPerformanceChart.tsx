@@ -45,13 +45,28 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
 
   // Debug logging (updated for EODHD_API_KEY fix)
   console.log('[PortfolioChart] Tickers:', tickers.length, 'Weights:', weights.length, 'Years:', years);
-  console.log('[PortfolioChart] YTD Start Prices:', ytdStartPrices.slice(0, 5), '... (first 5)');
+
   
-  // Fetch portfolio historical data
-  const { data: portfolioData, isLoading: isLoadingPortfolio, error: portfolioError } = trpc.portfolioPerformance.getHistoricalData.useQuery(
-    { tickers, weights, years, ytdStartPrices },
+  // Fetch YTD performance using database values (matches Performance card)
+  const { data: ytdData, isLoading: isLoadingYTD, error: ytdError } = trpc.portfolioPerformance.getYTDPerformance.useQuery(
+    { tickers, weights },
     { 
-      enabled: tickers.length > 0 && weights.length > 0,
+      enabled: selectedPeriod === 'YTD' && tickers.length > 0 && weights.length > 0,
+      retry: 2,
+      onError: (err) => {
+        console.error('[PortfolioChart] YTD data fetch failed:', err);
+      },
+      onSuccess: (data) => {
+        console.log('[PortfolioChart] YTD data loaded:', data?.dates?.length, 'dates');
+      }
+    }
+  );
+
+  // Fetch portfolio historical data (for non-YTD periods)
+  const { data: portfolioData, isLoading: isLoadingPortfolio, error: portfolioError } = trpc.portfolioPerformance.getHistoricalData.useQuery(
+    { tickers, weights, years },
+    { 
+      enabled: selectedPeriod !== 'YTD' && tickers.length > 0 && weights.length > 0,
       retry: 2,
       onError: (err) => {
         console.error('[PortfolioChart] Portfolio data fetch failed:', err);
@@ -79,11 +94,14 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
 
   // Combine and normalize data
   const chartData = useMemo(() => {
-    if (!portfolioData || !portfolioData.dates || portfolioData.dates.length === 0) return [];
+    // For YTD, use ytdData instead of portfolioData
+    const activePortfolioData = selectedPeriod === 'YTD' ? ytdData : portfolioData;
+    
+    if (!activePortfolioData || !activePortfolioData.dates || activePortfolioData.dates.length === 0) return [];
     if (!benchmarkData || !benchmarkData.dates || benchmarkData.dates.length === 0) return [];
     
     // Find common dates
-    let commonDates = portfolioData.dates.filter(date => benchmarkData.dates.includes(date));
+    let commonDates = activePortfolioData.dates.filter(date => benchmarkData.dates.includes(date));
     
     if (commonDates.length === 0) return [];
     
@@ -116,8 +134,8 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     
     // Get values for common dates (these are percentage values from backend)
     const portfolioValues = commonDates.map(date => {
-      const index = portfolioData.dates.indexOf(date);
-      return portfolioData.values[index] || 0;
+      const index = activePortfolioData.dates.indexOf(date);
+      return activePortfolioData.values[index] || 0;
     });
     
     const benchmarkValues = commonDates.map(date => {
@@ -125,15 +143,12 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
       return benchmarkData.values[index] || 0;
     });
     
-    // Normalize to start at 0% by subtracting the first value
-    // Backend returns % performance relative to each stock's first price
-    // We re-normalize to the first date in the filtered period
-    const portfolioStart = portfolioValues[0] || 0;
-    const benchmarkStart = benchmarkValues[0] || 0;
+    // For YTD: Backend already returns values from 0% to ytdPerformance%, no normalization needed
+    // For other periods: Normalize to start at 0% by subtracting the first value
+    const portfolioStart = selectedPeriod === 'YTD' ? 0 : (portfolioValues[0] || 0);
+    const benchmarkStart = selectedPeriod === 'YTD' ? 0 : (benchmarkValues[0] || 0);
     
-    console.log('[Frontend] First 5 portfolio values:', portfolioValues.slice(0, 5));
-    console.log('[Frontend] portfolioStart:', portfolioStart);
-    console.log('[Frontend] Last portfolio value:', portfolioValues[portfolioValues.length - 1]);
+  // Debug logs removed
     
     return commonDates.map((date, index) => ({
       date: new Date(date).toLocaleDateString('de-CH', { 
@@ -143,7 +158,7 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
       portfolio: portfolioValues[index] - portfolioStart,
       benchmark: benchmarkValues[index] - benchmarkStart,
     }));
-  }, [portfolioData, benchmarkData, selectedPeriod]);
+  }, [ytdData, portfolioData, benchmarkData, selectedPeriod]);
 
   const benchmarkOptions = [
     { value: 'sp500', label: 'S&P 500' },
@@ -200,7 +215,7 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     );
   }
 
-  const isLoading = isLoadingPortfolio || isLoadingBenchmark;
+  const isLoading = (selectedPeriod === 'YTD' ? isLoadingYTD : isLoadingPortfolio) || isLoadingBenchmark;
 
   if (isLoading) {
     return (

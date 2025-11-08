@@ -1866,6 +1866,20 @@ export const appRouter = router({
   }),
 
   portfolioPerformance: router({
+    // YTD Performance using database ytdPerformance values (matches Performance card)
+    getYTDPerformance: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "tickers" in val && Array.isArray((val as any).tickers)) {
+          return val as { tickers: string[]; weights: number[] };
+        }
+        throw new Error("Invalid input: tickers and weights arrays required");
+      })
+      .query(async ({ input }) => {
+        const { tickers, weights } = input;
+        const { calculateYTDPerformance } = await import("./ytd-performance");
+        return await calculateYTDPerformance(tickers, weights);
+      }),
+
     getHistoricalData: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "tickers" in val && Array.isArray((val as any).tickers)) {
@@ -1973,24 +1987,19 @@ export const appRouter = router({
           // Calculate weighted portfolio performance for each date
           // Use ytdStartPrices if provided (for YTD calculations), otherwise use first price
           
-          // Get start price for each stock (ytdStartPrice or first valid price)
+          // Get start price for each stock (first valid price in data)
           const startPrices = stockPriceMaps.map(({ priceMap }, idx) => {
-            // Use ytdStartPrice if provided and valid
-            if (ytdStartPrices[idx] && ytdStartPrices[idx] > 0) {
-              console.log(`[Chart] Using ytdStartPrice for stock ${idx}: ${ytdStartPrices[idx]}`);
-              return ytdStartPrices[idx];
-            }
-            // Otherwise use first valid price in data
+            // Use first valid price in historical data
             for (const date of allDates) {
               const price = priceMap.get(date);
               if (price !== undefined && price > 0) {
-                console.log(`[Chart] Using first price for stock ${idx}: ${price}`);
                 return price;
               }
             }
             return 0;
           });
           console.log(`[Chart] Total start prices calculated: ${startPrices.filter(p => p > 0).length}/${startPrices.length}`);
+          console.log(`[Chart] First date: ${allDates[0]}, Last date: ${allDates[allDates.length - 1]}`);
 
           const portfolioValues = allDates.map(date => {
             let weightedPerformance = 0;
@@ -2006,6 +2015,8 @@ export const appRouter = router({
                 // Weight it
                 weightedPerformance += stockPerformance * weight;
                 totalWeight += weight;
+                
+
               }
             });
             

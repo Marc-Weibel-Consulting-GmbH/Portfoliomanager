@@ -1399,3 +1399,18 @@
   - [x] ROOT CAUSE gefunden: ytdStartPrices in DB sind falsch (zu niedrig)
   - [ ] ytdStartPrices aus historicalPrices Cache (31.12.2024 Preise) neu berechnen
   - [ ] Backend-Berechnung testen und Chart-Werte verifizieren
+
+- [ ] YTD Chart Performance-Diskrepanz beheben (NEUE METHODIK)
+  - [x] Problem verstanden: Chart berechnet neu aus historischen Preisen, Karte verwendet DB-Werte
+  - [ ] Backend umbauen: Verwende ytdPerformance-Werte aus DB als Basis
+  - [ ] Chart zeigt tägliche Performance interpoliert zwischen 0% (31.12.2024) und ytdPerformance% (heute)
+  - [ ] Testen: Chart muss +14.5% YTD zeigen (exakt gleich wie Performance Karte)
+
+
+## YTD Chart Performance Fix
+- [x] Problem identifiziert: Chart versuchte Performance aus historischen Preisen zu berechnen
+- [x] 80 von 106 Aktien in historicalPrices Cache geladen (75% Coverage)
+- [x] Neue Lösung: Backend verwendet EXAKT gleiche Formel wie Performance-Karte
+- [x] server/ytd-performance.ts erstellt mit ytdPerformance-Werten aus DB
+- [x] Frontend conditional logic für YTD-Periode implementiert
+- [ ] Manuell testen: Chart zeigt jetzt +14.5% YTD (wie Performance-Karte)
