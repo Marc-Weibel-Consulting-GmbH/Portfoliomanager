@@ -22,6 +22,7 @@ export interface EODHDFundamentals {
   beta: number | null;
   eps: number | null;
   bookValue: number | null;
+  earningsGrowth: number | null; // Calculated from quarterly earnings (annual %)
 }
 
 /**
@@ -44,6 +45,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       beta: null,
       eps: null,
       bookValue: null,
+      earningsGrowth: null,
     };
   }
 
@@ -91,6 +93,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       beta: null,
       eps: null,
       bookValue: null,
+      earningsGrowth: null,
     };
 
     // Extract company info from General section
@@ -154,11 +157,37 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       }
     }
 
+    // Calculate earnings growth from quarterly earnings if available
+    if (data.Earnings && data.Earnings.History) {
+      try {
+        const quarters = Object.entries(data.Earnings.History)
+          .map(([date, earnings]: [string, any]) => ({
+            date: new Date(date),
+            eps: parseFloat(earnings.epsActual || earnings.reportedEPS || 0),
+          }))
+          .filter(q => q.eps > 0)
+          .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+        if (quarters.length >= 5) {
+          const recentEPS = quarters.slice(0, 4).reduce((sum, q) => sum + q.eps, 0);
+          const previousEPS = quarters.slice(4, 8).reduce((sum, q) => sum + q.eps, 0);
+          
+          if (previousEPS > 0) {
+            fundamentals.earningsGrowth = ((recentEPS - previousEPS) / previousEPS);
+            console.log(`[EODHD] Calculated earnings growth for ${ticker}: ${(fundamentals.earningsGrowth * 100).toFixed(2)}%`);
+          }
+        }
+      } catch (error) {
+        console.warn(`[EODHD] Could not calculate earnings growth for ${ticker}:`, error);
+      }
+    }
+
     console.log(`[EODHD] Fetched fundamentals for ${ticker}:`, {
       pegRatio: fundamentals.pegRatio,
       peRatio: fundamentals.peRatio,
       dividendYield: fundamentals.dividendYield,
       beta: fundamentals.beta,
+      earningsGrowth: fundamentals.earningsGrowth,
     });
 
     // Cache the result for 1 hour
@@ -178,6 +207,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       beta: null,
       eps: null,
       bookValue: null,
+      earningsGrowth: null,
     };
   }
 }

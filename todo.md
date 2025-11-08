@@ -1293,3 +1293,8 @@
   - [x] Sortier-Logik in Stock-Table-Component gefunden (Home.tsx Zeile 524)
   - [x] ytdPerformance zu numerischen Feldern hinzugefügt
   - [x] Alle numerischen Spalten sortieren jetzt korrekt (parseFloat statt String-Vergleich)
+- [x] Fehlende PEG Ratios für bestehende Aktien fixen
+  - [x] Datenbank geprüft - viele Schweizer Aktien haben PEG = 0.0
+  - [x] Root Cause: EODHD liefert PEG = 0 für viele Aktien, Refresh-Prozess berechnet es nicht
+  - [x] Earnings Growth Berechnung in eodhdApi.ts implementiert (aus quarterly earnings)
+  - [x] Refresh-Prozess aktualisiert um PEG aus P/E und Earnings Growth zu berechnen wenn EODHD 0 liefert

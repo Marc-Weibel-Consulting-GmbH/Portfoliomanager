@@ -879,8 +879,22 @@ export const appRouter = router({
           if (metrics.currency) updateData.currency = metrics.currency;
           
           // Update fundamentals from EODHD
-          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio)) {
+          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0) {
             updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
+          } else if (fundamentals.peRatio !== null && fundamentals.peRatio > 0) {
+            // Calculate PEG from P/E and earnings growth if EODHD doesn't provide it
+            try {
+              const earningsGrowth = fundamentals.earningsGrowth;
+              if (earningsGrowth && earningsGrowth > 0) {
+                const calculatedPEG = fundamentals.peRatio / (earningsGrowth * 100);
+                if (calculatedPEG > 0 && calculatedPEG < 10) { // Sanity check
+                  updateData.pegRatio = calculatedPEG.toFixed(2);
+                  console.log(`[Refresh] Calculated PEG for ${stock.ticker}: ${calculatedPEG.toFixed(2)}`);
+                }
+              }
+            } catch (error) {
+              console.warn(`[Refresh] Could not calculate PEG for ${stock.ticker}:`, error);
+            }
           }
           if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
             updateData.peRatio = fundamentals.peRatio.toFixed(2);
@@ -988,8 +1002,22 @@ export const appRouter = router({
           if (metrics.currency) updateData.currency = metrics.currency;
           
           // Update fundamentals from EODHD
-          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio)) {
+          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0) {
             updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
+          } else if (fundamentals.peRatio !== null && fundamentals.peRatio > 0) {
+            // Calculate PEG from P/E and earnings growth if EODHD doesn't provide it
+            try {
+              const earningsGrowth = fundamentals.earningsGrowth;
+              if (earningsGrowth && earningsGrowth > 0) {
+                const calculatedPEG = fundamentals.peRatio / (earningsGrowth * 100);
+                if (calculatedPEG > 0 && calculatedPEG < 10) { // Sanity check
+                  updateData.pegRatio = calculatedPEG.toFixed(2);
+                  console.log(`[Refresh] Calculated PEG for ${stock.ticker}: ${calculatedPEG.toFixed(2)}`);
+                }
+              }
+            } catch (error) {
+              console.warn(`[Refresh] Could not calculate PEG for ${stock.ticker}:`, error);
+            }
           }
           if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
             updateData.peRatio = fundamentals.peRatio.toFixed(2);
