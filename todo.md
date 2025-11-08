@@ -1381,3 +1381,6 @@
 - [x] KI-Wochenüberblick getestet und funktioniert (NVIDIA, J&J Events angezeigt)
 
 - [ ] EODHD API key nicht auf publizierter Seite konfiguriert - User muss EODHD_API_KEY in Settings → Secrets hinzufügen
+
+- [ ] Yahoo Finance Fallback für Portfolio Chart implementieren (EODHD API-Key-Problem umgehen)
+- [ ] YTD Performance-Berechnung korrigieren (Chart zeigt +25.14% statt +13.1%)

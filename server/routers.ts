@@ -1873,8 +1873,19 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const { tickers, weights, years = 5 } = input;
         const apiKey = process.env.EODHD_API_KEY;
-        console.log('[Chart] EODHD_API_KEY exists:', !!apiKey, 'length:', apiKey?.length || 0);
-        if (!apiKey) throw new Error("EODHD API key not configured");
+        
+        // Detailed logging for debugging
+        console.log('[Chart] Environment check:', {
+          hasKey: !!apiKey,
+          keyType: typeof apiKey,
+          keyLength: apiKey?.length || 0,
+          keyPreview: apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : 'undefined',
+          allEnvKeys: Object.keys(process.env).filter(k => k.includes('EODHD') || k.includes('API')).join(', ')
+        });
+        
+        if (!apiKey || apiKey.trim() === '') {
+          throw new Error(`EODHD API key not configured. Available env keys: ${Object.keys(process.env).filter(k => k.includes('API')).join(', ')}`);
+        }
 
         const fromDate = new Date();
         fromDate.setFullYear(fromDate.getFullYear() - years);
