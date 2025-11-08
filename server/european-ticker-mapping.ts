@@ -30,6 +30,12 @@ const EUROPEAN_TICKER_MAP: Record<string, string[]> = {
  * @returns Array of ticker variants to try, ordered by likelihood
  */
 export function getEODHDTickerVariants(ticker: string): string[] {
+  // Handle .US suffix (EODHD uses plain ticker for US stocks)
+  if (ticker.endsWith('.US')) {
+    const baseTicker = ticker.replace('.US', '');
+    return [baseTicker]; // EODHD expects VTI, not VTI.US
+  }
+  
   // Check if we have a known mapping
   if (EUROPEAN_TICKER_MAP[ticker]) {
     return EUROPEAN_TICKER_MAP[ticker];
