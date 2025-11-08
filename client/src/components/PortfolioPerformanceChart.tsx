@@ -42,6 +42,9 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     }
   }, [selectedPeriod]);
 
+  // Debug logging
+  console.log('[PortfolioChart] Tickers:', tickers.length, 'Weights:', weights.length, 'Years:', years);
+  
   // Fetch portfolio historical data
   const { data: portfolioData, isLoading: isLoadingPortfolio, error: portfolioError } = trpc.portfolioPerformance.getHistoricalData.useQuery(
     { tickers, weights, years },
