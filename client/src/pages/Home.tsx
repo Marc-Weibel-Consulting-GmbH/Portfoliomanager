@@ -24,6 +24,7 @@ import { PortfolioPerformanceChart } from '@/components/PortfolioPerformanceChar
 import { PortfolioSentimentIndicator } from '@/components/PortfolioSentimentIndicator';
 import { StockLogo } from "@/components/StockLogo";
 import { RefreshStockButton } from "@/components/RefreshStockButton";
+import { HistoricalTrendChart } from "@/components/HistoricalTrendChart";
 import { DailyNewsSection } from '@/components/DailyNewsSection';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
 
@@ -2629,9 +2630,15 @@ export default function Home() {
                                     </div>
                                   </div>
 
-                                  {/* AI Daily News */}
+                                  {/* Historical Trend Charts */}
+                                  <div className="mt-6">
+                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Historische Entwicklung</h4>
+                                    <HistoricalTrendChart ticker={stock.ticker} />
+                                  </div>
+
+                                  {/* AI Daily News Section */}
                                   <DailyNewsSection ticker={stock.ticker} companyName={stock.companyName} />
-                                  
+
                                   {/* Owner-only: Competition Analyzer */}
                                   {user?.role === 'admin' && (
                                     <div className="pt-4 border-t border-slate-700">

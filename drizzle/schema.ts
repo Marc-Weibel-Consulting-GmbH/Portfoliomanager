@@ -181,6 +181,58 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
 export type SavedPortfolio = typeof savedPortfolios.$inferSelect;
 export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
 
+// Historical metrics table - tracks Sharpe Ratio, PE, and other metrics over time
+export const historicalMetrics = mysqlTable("historicalMetrics", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  recordedAt: timestamp("recordedAt").defaultNow().notNull(),
+  sharpeRatio: varchar("sharpeRatio", { length: 50 }),
+  peRatio: varchar("peRatio", { length: 50 }),
+  pegRatio: varchar("pegRatio", { length: 50 }),
+  dividendYield: varchar("dividendYield", { length: 50 }),
+  beta: varchar("beta", { length: 50 }),
+  volatility: varchar("volatility", { length: 50 }),
+  currentPrice: varchar("currentPrice", { length: 50 }),
+}, (t) => ({
+  tickerDateIdx: index("ix_historical_metrics_ticker_date").on(t.ticker, t.recordedAt),
+}));
+
+export type HistoricalMetric = typeof historicalMetrics.$inferSelect;
+export type InsertHistoricalMetric = typeof historicalMetrics.$inferInsert;
+
+// Alert rules table - defines thresholds for metric changes
+export const alertRules = mysqlTable("alertRules", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(), // References users.id
+  ticker: varchar("ticker", { length: 50 }), // null = applies to all stocks
+  metricName: varchar("metricName", { length: 50 }).notNull(), // "sharpeRatio", "peRatio", "dividendYield"
+  condition: mysqlEnum("condition", ["above", "below", "change"]).notNull(),
+  threshold: varchar("threshold", { length: 50 }).notNull(),
+  isActive: tinyint("isActive").notNull().default(1),
+  notificationMethod: mysqlEnum("notificationMethod", ["email", "whatsapp", "both"]).notNull().default("email"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AlertRule = typeof alertRules.$inferSelect;
+export type InsertAlertRule = typeof alertRules.$inferInsert;
+
+// Alert history table - logs triggered alerts
+export const alertHistory = mysqlTable("alertHistory", {
+  id: int("id").autoincrement().primaryKey(),
+  alertRuleId: int("alertRuleId").notNull(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  metricName: varchar("metricName", { length: 50 }).notNull(),
+  oldValue: varchar("oldValue", { length: 50 }),
+  newValue: varchar("newValue", { length: 50 }).notNull(),
+  message: text("message").notNull(),
+  notificationSent: tinyint("notificationSent").notNull().default(0),
+  triggeredAt: timestamp("triggeredAt").defaultNow().notNull(),
+});
+
+export type AlertHistoryRecord = typeof alertHistory.$inferSelect;
+export type InsertAlertHistory = typeof alertHistory.$inferInsert;
+
 
 // ============================================
 // Analyzer_Test Tables (Nov 7, 2024)

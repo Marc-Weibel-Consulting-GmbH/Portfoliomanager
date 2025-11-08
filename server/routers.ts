@@ -310,6 +310,26 @@ export const appRouter = router({
   }),
 
   stocks: router({
+    getHistoricalMetrics: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
+        const input = val as any;
+        if (typeof input.ticker !== 'string') throw new Error('Invalid ticker');
+        return {
+          ticker: input.ticker,
+          days: typeof input.days === 'number' ? input.days : 30,
+        };
+      })
+      .query(async ({ input }) => {
+        const { getHistoricalMetrics, getTrendSummary } = await import("./_core/historicalMetricsRecorder");
+        const history = await getHistoricalMetrics(input.ticker, input.days);
+        const trend = await getTrendSummary(input.ticker, input.days);
+        
+        return {
+          history,
+          trend,
+        };
+      }),
     refreshStock: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "string") return val;
@@ -351,6 +371,31 @@ export const appRouter = router({
         await db.update(stocks)
           .set(updateData)
           .where(eq(stocks.ticker, ticker));
+
+        // Get old values for alert checking
+        const oldStock = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+        const oldValues = oldStock[0];
+
+        // Record historical snapshot
+        const { recordMetricsSnapshot } = await import("./_core/historicalMetricsRecorder");
+        await recordMetricsSnapshot({
+          ticker,
+          sharpeRatio: updateData.sharpeRatio,
+          peRatio: updateData.peRatio,
+          pegRatio: updateData.pegRatio,
+          dividendYield: updateData.dividendYield,
+          beta: updateData.beta,
+          volatility: updateData.volatility,
+          currentPrice: updateData.currentPrice,
+        });
+
+        // Check for alert triggers
+        const { checkAlerts } = await import("./_core/alertSystem");
+        const changes = [];
+        if (updateData.sharpeRatio) changes.push({ ticker, metricName: 'sharpeRatio', oldValue: oldValues?.sharpeRatio || null, newValue: updateData.sharpeRatio });
+        if (updateData.peRatio) changes.push({ ticker, metricName: 'peRatio', oldValue: oldValues?.peRatio || null, newValue: updateData.peRatio });
+        if (updateData.dividendYield) changes.push({ ticker, metricName: 'dividendYield', oldValue: oldValues?.dividendYield || null, newValue: updateData.dividendYield });
+        await checkAlerts(changes);
 
         // Return updated stock
         const updatedStock = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
@@ -1364,6 +1409,48 @@ export const appRouter = router({
         if (!db) throw new Error("Database not available");
         await db.delete(research).where(eq(research.id, input));
         return { success: true };
+      }),
+  }),
+
+  alerts: router({
+    createRule: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
+        const input = val as any;
+        return {
+          ticker: typeof input.ticker === 'string' ? input.ticker : undefined,
+          metricName: input.metricName,
+          condition: input.condition,
+          threshold: input.threshold,
+          notificationMethod: input.notificationMethod || 'email',
+        };
+      })
+      .mutation(async ({ ctx, input }) => {
+        const { createAlertRule } = await import("./_core/alertSystem");
+        const ruleId = await createAlertRule({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { success: true, ruleId };
+      }),
+    
+    getMyRules: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getUserAlertRules } = await import("./_core/alertSystem");
+        return await getUserAlertRules(ctx.user.id);
+      }),
+    
+    getMyHistory: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val !== 'object' || val === null) return { limit: 50 };
+        const input = val as any;
+        return {
+          limit: typeof input.limit === 'number' ? input.limit : 50,
+        };
+      })
+      .query(async ({ ctx, input }) => {
+        const { getUserAlertHistory } = await import("./_core/alertSystem");
+        return await getUserAlertHistory(ctx.user.id, input.limit);
       }),
   }),
 

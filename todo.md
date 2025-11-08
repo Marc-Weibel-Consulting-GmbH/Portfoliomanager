@@ -1330,3 +1330,9 @@
 - [x] Automated Daily Refresh: Cron-Job für tägliche Aktualisierung aller Aktien-Metriken
 - [x] Data Quality Dashboard: Admin-View mit Metriken-Vollständigkeit (% Sharpe Ratio, Dividenden)
 - [x] Manual Refresh Button: Pro-Aktie Refresh-Button im Info-Dialog
+
+- [x] Historical Data Tracking: Database-Schema für Zeitreihen (Sharpe Ratio, PE)
+- [x] Historical Data Tracking: Automatische Aufzeichnung bei Refresh
+- [x] Historical Data Tracking: Trend-Visualisierung mit Charts
+- [x] Alert System: Konfigurierbare Schwellenwerte (Sharpe <1.0, Dividende >5%)
+- [x] Alert System: Email-Benachrichtigungen bei Metriken-Änderungen

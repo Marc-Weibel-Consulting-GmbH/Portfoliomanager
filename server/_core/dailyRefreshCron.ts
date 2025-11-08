@@ -16,6 +16,7 @@ import { eq, lt } from 'drizzle-orm';
 import mysql from 'mysql2/promise';
 import { stocks } from '../../drizzle/schema';
 import { fetchCompleteStockData } from './multiApiDataMerger';
+import { recordMetricsSnapshot } from './historicalMetricsRecorder';
 
 const RATE_LIMIT_MS = 500; // 500ms between API calls
 const MIN_REFRESH_INTERVAL_HOURS = 12; // Only refresh if last update was >12h ago
@@ -114,6 +115,18 @@ export async function refreshAllStocks(): Promise<RefreshResult> {
         await db.update(stocks)
           .set(updateData)
           .where(eq(stocks.ticker, stock.ticker));
+
+        // Record historical snapshot
+        await recordMetricsSnapshot({
+          ticker: stock.ticker,
+          sharpeRatio: updateData.sharpeRatio,
+          peRatio: updateData.peRatio,
+          pegRatio: updateData.pegRatio,
+          dividendYield: updateData.dividendYield,
+          beta: updateData.beta,
+          volatility: updateData.volatility,
+          currentPrice: updateData.currentPrice,
+        });
 
         console.log(`[${stock.ticker}] ✅ Updated successfully`);
         result.updated++;
