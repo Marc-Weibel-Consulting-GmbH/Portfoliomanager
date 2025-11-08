@@ -1846,13 +1846,13 @@ export default function Home() {
       </div>
 
       <div className="max-w-7xl mx-auto p-4 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_2fr] gap-4">
           <Card className="bg-slate-800 border-slate-700">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-1 px-4 pt-3">
               <CardTitle className="text-sm font-medium text-slate-400">Fokus</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-slate-300">
+            <CardContent className="px-4 pb-3 pt-2">
+              <ul className="space-y-1.5 text-sm text-slate-300">
                 <li className="flex items-start">
                   <span className="text-blue-400 mr-2">•</span>
                   <span>Diversifikation über {categories.length} Sektoren</span>
@@ -1878,11 +1878,11 @@ export default function Home() {
           </Card>
 
           <Card className="bg-slate-800 border-slate-700">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-1 px-4 pt-3">
               <CardTitle className="text-sm font-medium text-slate-400">Kategorien</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
+            <CardContent className="px-4 pb-3 pt-2">
+              <div className="space-y-1.5">
                 {(() => {
                   const categoryWeights = stocks.reduce((acc: Record<string, number>, stock) => {
                     const category = stock.category || 'Andere';
@@ -1920,14 +1920,14 @@ export default function Home() {
           </Card>
 
           <Card className="bg-slate-800 border-slate-700 border-green-700/30">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-1 px-4 pt-3">
               <CardTitle className="text-sm font-medium text-green-400">Performance & Dividende</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
+            <CardContent className="px-4 pb-3 pt-2">
+              <div className="space-y-2">
                 <div>
-                  <div className="text-xs text-slate-400 mb-1">YTD Performance (gewichtet)</div>
-                  <div className={`text-2xl font-bold ${(() => {
+                  <div className="text-xs text-slate-400 mb-0.5">YTD Performance (gewichtet)</div>
+                  <div className={`text-xl font-bold ${(() => {
                     const ytdPerf = stocks.reduce((sum, stock) => {
                       const ytd = parseFloat(stock.ytdPerformance || "0");
                       const weight = parseFloat(stock.portfolioWeight || "0");
@@ -1945,13 +1945,13 @@ export default function Home() {
                     })()}
                   </div>
                 </div>
-                <div className="border-t border-slate-700 pt-3">
-                  <div className="text-xs text-slate-400 mb-1">Ø Div. Rendite (gewichtet)</div>
-                  <div className="text-2xl font-bold text-green-400">{avgDividend.toFixed(2)}%</div>
+                <div className="border-t border-slate-700 pt-2">
+                  <div className="text-xs text-slate-400 mb-0.5">Ø Div. Rendite (gewichtet)</div>
+                  <div className="text-xl font-bold text-green-400">{avgDividend.toFixed(2)}%</div>
                 </div>
-                <div className="border-t border-slate-700 pt-3">
-                  <div className="text-xs text-slate-400 mb-1">Total Portfolio</div>
-                  <div className={`text-2xl font-bold ${
+                <div className="border-t border-slate-700 pt-2">
+                  <div className="text-xs text-slate-400 mb-0.5">Total Portfolio</div>
+                  <div className={`text-xl font-bold ${
                     Math.abs(totalWeight - 100) < 0.1 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {totalWeight.toFixed(2)}%

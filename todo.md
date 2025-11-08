@@ -1340,3 +1340,6 @@
 - [x] Homepage Layout: 4-Spalten-Grid mit Fokus, Kategorien, Performance & Dividende, Portfolio Performance Chart
 
 - [x] Fix YTD Performance discrepancy between Performance & Dividende card and Portfolio Performance Chart
+
+- [x] UI Layout: Erste 3 Kästen schmaler und weniger hoch machen, Chart breiter
+- [x] YTD-Berechnung: Chart zeigt 23.97% statt 13.1% wie in Kasten 3
