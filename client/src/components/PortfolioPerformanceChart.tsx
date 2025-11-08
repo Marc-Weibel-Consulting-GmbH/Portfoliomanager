@@ -43,15 +43,33 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
   }, [selectedPeriod]);
 
   // Fetch portfolio historical data
-  const { data: portfolioData, isLoading: isLoadingPortfolio } = trpc.portfolioPerformance.getHistoricalData.useQuery(
+  const { data: portfolioData, isLoading: isLoadingPortfolio, error: portfolioError } = trpc.portfolioPerformance.getHistoricalData.useQuery(
     { tickers, weights, years },
-    { enabled: tickers.length > 0 && weights.length > 0 }
+    { 
+      enabled: tickers.length > 0 && weights.length > 0,
+      retry: 2,
+      onError: (err) => {
+        console.error('[PortfolioChart] Portfolio data fetch failed:', err);
+      },
+      onSuccess: (data) => {
+        console.log('[PortfolioChart] Portfolio data loaded:', data?.dates?.length, 'dates');
+      }
+    }
   );
 
   // Fetch benchmark data
-  const { data: benchmarkData, isLoading: isLoadingBenchmark } = trpc.portfolioPerformance.getBenchmarkData.useQuery(
+  const { data: benchmarkData, isLoading: isLoadingBenchmark, error: benchmarkError } = trpc.portfolioPerformance.getBenchmarkData.useQuery(
     { benchmark: selectedBenchmark, years },
-    { enabled: !!selectedBenchmark }
+    { 
+      enabled: !!selectedBenchmark,
+      retry: 2,
+      onError: (err) => {
+        console.error('[PortfolioChart] Benchmark data fetch failed:', err);
+      },
+      onSuccess: (data) => {
+        console.log('[PortfolioChart] Benchmark data loaded:', data?.dates?.length, 'dates');
+      }
+    }
   );
 
   // Combine and normalize data
@@ -134,6 +152,42 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     { value: '5Y', label: '5J' },
     { value: 'Max', label: 'Max' },
   ];
+
+  // Check if portfolio is empty
+  if (portfolioStocks.length === 0 && !allStocks) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white">Portfolio Performance (5 Jahre)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-slate-400">Keine Aktien im Portfolio</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show error if queries failed
+  if (portfolioError || benchmarkError) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white">Portfolio Performance (5 Jahre)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center h-64 space-y-2">
+            <div className="text-red-400">Fehler beim Laden der Daten</div>
+            <div className="text-slate-400 text-sm">
+              {portfolioError ? `Portfolio: ${portfolioError.message}` : ''}
+              {benchmarkError ? `Benchmark: ${benchmarkError.message}` : ''}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const isLoading = isLoadingPortfolio || isLoadingBenchmark;
 

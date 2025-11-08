@@ -26,6 +26,7 @@ import { StockLogo } from "@/components/StockLogo";
 import { RefreshStockButton } from "@/components/RefreshStockButton";
 import { HistoricalTrendChart } from "@/components/HistoricalTrendChart";
 import { DailyNewsSection } from '@/components/DailyNewsSection';
+import { WeeklyOverviewDialog } from '@/components/WeeklyOverviewDialog';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
 
 // AI-powered portfolio market analysis
@@ -251,6 +252,7 @@ export default function Home() {
   const [refreshStartTime, setRefreshStartTime] = useState<number | null>(null);
   const [isSavePortfolioDialogOpen, setIsSavePortfolioDialogOpen] = useState(false);
   const [isLoadPortfolioDialogOpen, setIsLoadPortfolioDialogOpen] = useState(false);
+  const [showWeeklyOverview, setShowWeeklyOverview] = useState(false);
   const [portfolioName, setPortfolioName] = useState('');
   const [portfolioDescription, setPortfolioDescription] = useState('');
   
@@ -2369,7 +2371,15 @@ export default function Home() {
         {activeTab === "portfolio" ? (
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
-              <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white">Aktien ({filteredStocks.length})</CardTitle>
+                <Button
+                  onClick={() => setShowWeeklyOverview(true)}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold"
+                >
+                  KI-Wochenüberblick
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {!hasPaidAccess && (
@@ -3433,6 +3443,12 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </div>
+
+      {/* Weekly Overview Dialog */}
+      <WeeklyOverviewDialog 
+        open={showWeeklyOverview} 
+        onOpenChange={setShowWeeklyOverview} 
+      />
     </>
   );
 }

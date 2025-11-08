@@ -1359,3 +1359,18 @@
 
 - [x] YTD Performance-Diskrepanz beheben: Chart soll gleichen Wert zeigen wie Performance & Dividende Karte (13.1% statt 25.14%)
 - [x] Chart default auf YTD stellen (statt Max)
+
+- [ ] KI-Wochenüberblick Button rechts neben "Aktien (106)" Titel
+- [ ] News-API Integration für Portfolio-Aktien (aktuelle Woche)
+- [ ] LLM-Filter für relevante Events (Earnings, M&A, ±10% Kursbewegung, Corporate News, Kursziele)
+- [ ] Dialog mit Wochenüberblick pro Aktie (nur Aktien mit wichtigen News)
+
+- [ ] Chart lädt nicht auf öffentlicher Seite (https://portfoliodash-aqvizp6n.manus.space/)
+
+- [x] Chart lädt nicht auf öffentlicher Seite nach Login - Diagnose und Fix (API batching + error handling added)
+- [ ] KI-Wochenüberblick Backend: Finnhub News API + EODHD Preise + LLM Filter
+- [ ] KI-Wochenüberblick Frontend: Button + Dialog + Loading States
+- [x] Chart-Breite: Schwarzes Chart-Element weniger breit machen (nicht den ganzen Kasten)
+- [x] Chart-Breite: Gesamten schwarzen Kasten (bg-slate-900/50) schmaler machen, Legende bleibt darunter
+- [x] YTD Performance-Diskrepanz beheben: Chart soll gleichen Wert zeigen wie Performance & Dividende Karte (13.1% statt 25.14%)
+- [x] Chart default auf YTD stellen (statt Max)
