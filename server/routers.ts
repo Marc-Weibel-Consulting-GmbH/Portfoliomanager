@@ -343,7 +343,7 @@ export const appRouter = router({
       })
       .mutation(async ({ input: ticker }) => {
         try {
-          const { getCompleteStockData } = await import("./_core/multiApiDataMerger");
+          const { fetchCompleteStockData } = await import("./_core/multiApiDataMerger");
           
           // Special ticker mappings for API calls (UI ticker -> API ticker)
           const TICKER_API_MAP: Record<string, string> = {
@@ -363,7 +363,7 @@ export const appRouter = router({
           }
 
           // Use multi-API data merger for complete stock data (correct currency + Sharpe Ratio)
-          const completeData = await getCompleteStockData(cleanTicker);
+          const completeData = await fetchCompleteStockData(cleanTicker);
           
           // Fetch YTD data from EODHD (not available in multiApiDataMerger)
           let ytdStartPrice = null;
@@ -1411,7 +1411,7 @@ export const appRouter = router({
       const { getDb } = await import("./db");
       const { stocks } = await import("../drizzle/schema");
       const { eq } = await import("drizzle-orm");
-      const { getCompleteStockData } = await import("./_core/multiApiDataMerger");
+      const { fetchCompleteStockData } = await import("./_core/multiApiDataMerger");
       
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -1431,7 +1431,7 @@ export const appRouter = router({
           console.log(`[${stock.ticker}] Fetching data...`);
           
           // Get complete data from multiApiDataMerger
-          const completeData = await getCompleteStockData(stock.ticker);
+          const completeData = await fetchCompleteStockData(stock.ticker);
 
           // Prepare update data
           const updateData: any = {};

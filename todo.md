@@ -1324,3 +1324,5 @@
 - [x] Systematic audit: Check all stocks for currency and Sharpe Ratio bugs
 - [x] Bulk update: Fix all Swiss stocks (.SW) with correct CHF prices and Sharpe Ratios
 - [ ] Verify: ABB (ABBN.SW) shows CHF instead of USD and has Sharpe Ratio (user needs to run bulk update)
+
+- [x] Fix bulkUpdateSwissStocks import error: getCompleteStockData is not a function
