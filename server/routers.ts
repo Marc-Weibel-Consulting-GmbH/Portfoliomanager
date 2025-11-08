@@ -1881,18 +1881,13 @@ export const appRouter = router({
   }),
 
   portfolioPerformance: router({
-    // YTD Performance using database ytdPerformance values (matches Performance card)
+    // YTD Performance using daily historical prices
     getYTDPerformance: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "tickers" in val && Array.isArray((val as any).tickers)) {
-          return val as { tickers: string[]; weights: number[] };
-        }
-        throw new Error("Invalid input: tickers and weights arrays required");
-      })
-      .query(async ({ input }) => {
-        const { tickers, weights } = input;
+      .query(async () => {
+        const { getAllStocks } = await import("./db");
+        const stocks = await getAllStocks();
         const { calculateYTDPerformance } = await import("./ytd-performance");
-        return await calculateYTDPerformance(tickers, weights);
+        return await calculateYTDPerformance(stocks);
       }),
 
     getHistoricalData: protectedProcedure
