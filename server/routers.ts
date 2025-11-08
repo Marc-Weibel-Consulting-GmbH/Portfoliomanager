@@ -1943,10 +1943,13 @@ export const appRouter = router({
               
               if (cachedPrices.length > 0) {
                 console.log(`[Chart] Cache HIT for ${cleanTicker}: ${cachedPrices.length} records`);
-                const data = cachedPrices.map(p => ({
-                  date: typeof p.date === 'string' ? p.date : (p.date as Date).toISOString().split('T')[0],
-                  close: parseFloat(p.close as any)
-                }));
+                const data = cachedPrices
+                  .filter(p => p.date && p.close) // Filter out invalid entries
+                  .map(p => ({
+                    date: typeof p.date === 'string' ? p.date : (p.date as Date)?.toISOString().split('T')[0] || '',
+                    close: parseFloat(p.close as any)
+                  }))
+                  .filter(p => p.date); // Remove entries with empty dates
                 results.push({ ticker: cleanTicker, data, weight: weights[i] || 0 });
               } else {
                 console.log(`[Chart] Cache MISS for ${cleanTicker}`);
