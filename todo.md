@@ -1302,3 +1302,6 @@
   - [x] Datenbank geprüft - ABB.N war gespeichert (falsches Format)
   - [x] APIs getestet - ABBN.SW funktioniert perfekt (P/E: 28.49, PEG: 2.89, Div: 1.76%)
   - [x] Ticker aktualisiert: ABB.N → ABBN.SW
+- [x] "Neue Aktie" Dialog Fixes
+  - [x] Formular-Felder werden jetzt zurückgesetzt beim Öffnen (formData, tickerSearchQuery, suggestions)
+  - [x] Schließen-Button (weißes X) hinzugefügt oben rechts mit DialogClose Component
