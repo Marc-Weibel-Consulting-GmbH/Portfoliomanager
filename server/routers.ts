@@ -1883,7 +1883,15 @@ export const appRouter = router({
   portfolioPerformance: router({
     // YTD Performance using daily historical prices
     getYTDPerformance: protectedProcedure
+      .input((val: unknown) => {
+        // Accept tickers/weights for backwards compatibility, but ignore them
+        if (typeof val === "object" && val !== null) {
+          return val as { tickers?: string[]; weights?: number[] };
+        }
+        return {};
+      })
       .query(async () => {
+        // Load all stocks from database (ignore input params)
         const { getAllStocks } = await import("./db");
         const stocks = await getAllStocks();
         const { calculateYTDPerformance } = await import("./ytd-performance");
