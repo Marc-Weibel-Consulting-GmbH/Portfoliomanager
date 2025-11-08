@@ -1379,3 +1379,5 @@
 - [x] KI-Wochenüberblick Backend: Finnhub News API + EODHD Preise + LLM Filter
 - [x] KI-Wochenüberblick Frontend: Button + Dialog + Loading States
 - [x] KI-Wochenüberblick getestet und funktioniert (NVIDIA, J&J Events angezeigt)
+
+- [ ] EODHD API key nicht auf publizierter Seite konfiguriert - User muss EODHD_API_KEY in Settings → Secrets hinzufügen

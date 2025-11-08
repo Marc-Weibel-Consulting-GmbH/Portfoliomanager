@@ -20,7 +20,8 @@ export interface TickerValidationResult {
  */
 async function fetchStockDataInline(ticker: string): Promise<any> {
   const apiKey = process.env.EODHD_API_KEY;
-  if (!apiKey) throw new Error("EODHD API key not configured");
+  console.log('[TickerValidator] EODHD_API_KEY check:', { exists: !!apiKey, type: typeof apiKey, length: apiKey?.length || 0 });
+  if (!apiKey || apiKey.trim() === '') throw new Error("EODHD API key not configured");
 
   const cleanTicker = ticker;
   const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${cleanTicker}?api_token=${apiKey}`;
