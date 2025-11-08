@@ -1486,3 +1486,24 @@
 - [x] Tägliche Portfolio-Performance berechnen (gewichtet über alle Aktien)
 - [x] Chart zeigt reale Marktschwankungen statt gerader Linie (221 Handelstage, 0.94% → 38.83%)
 - [ ] Performance-Karte zeigt korrekten Wert für ALLE 106 Aktien (Frontend lädt nur Teilmenge)
+
+## Performance-Karten-Diskrepanz & Optimierungen
+- [ ] Performance-Karte zeigt +14.5% statt +38.83% - Frontend lädt nicht alle Aktien
+- [ ] Untersuchen: Warum trpc.stocks.list nur Teilmenge zurückgibt
+- [ ] Sicherstellen dass Performance-Karte alle 106 Aktien berücksichtigt
+- [ ] Europäische Ticker-Mapping für EODHD API (MONC.MI, VWRL.L, EXSA.DE)
+- [ ] Alternative Ticker-Formate testen (z.B. MONC.MIL statt MONC.MI)
+- [ ] Caching-System für tägliche Kurse implementieren (historicalPrices Tabelle)
+- [ ] API-Calls reduzieren durch Cache (nur neue Tage nachladen)
+- [ ] Ladezeit verbessern (aktuell ~5-10 Sekunden für 106 Aktien)
+
+
+## YTD Performance Fix (2025-11-08)
+- [x] Problem identifiziert: `ytdStartPrice`-Werte in DB waren zu niedrig (veraltet)
+- [x] Python-Script erstellt zur Korrektur basierend auf Excel YTD-Prozentsätzen
+- [x] 104 Aktien erfolgreich aktualisiert (ytdStartPrice korrigiert)
+- [x] DB YTD Performance jetzt 13.32% (Excel: 13.10%) ✅
+- [x] Tägliche historische Kurse von EODHD API implementiert (221 Handelstage)
+- [x] YTD Chart zeigt realistische Volatilität (0.94% → 38.83%)
+- [ ] Frontend-Cache-Problem: Browser zeigt alte Werte nach Refresh
+- [ ] Lösung: Benutzer muss Browser-Cache manuell leeren (Ctrl+Shift+R)

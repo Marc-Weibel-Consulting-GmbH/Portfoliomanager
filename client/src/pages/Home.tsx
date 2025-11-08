@@ -1941,6 +1941,7 @@ export default function Home() {
                       }
                       return sum;
                     }, 0);
+                    console.log('[Performance Card] Stocks loaded:', stocks.length, 'YTD:', ytdPerf.toFixed(2) + '%');
                     return ytdPerf >= 0 ? 'text-green-400' : 'text-red-400';
                   })()}`}>
                     {(() => {
