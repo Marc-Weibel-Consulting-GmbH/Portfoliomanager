@@ -1336,3 +1336,5 @@
 - [x] Historical Data Tracking: Trend-Visualisierung mit Charts
 - [x] Alert System: Konfigurierbare Schwellenwerte (Sharpe <1.0, Dividende >5%)
 - [x] Alert System: Email-Benachrichtigungen bei Metriken-Änderungen
+
+- [x] Homepage Layout: 4-Spalten-Grid mit Fokus, Kategorien, Performance & Dividende, Portfolio Performance Chart
