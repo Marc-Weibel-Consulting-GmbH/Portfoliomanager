@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { historicalPrices } from "../drizzle/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { getFiscalPEHistory, calculateMedianPE, type FiscalPERatio } from "./_core/fiscalApi";
 
 interface QuarterlyEarnings {
   date: string;
@@ -105,9 +106,9 @@ async function getHistoricalPrice(ticker: string, targetDate: Date): Promise<num
 }
 
 /**
- * Calculate historical P/E ratios
+ * Calculate TTM P/E ratios (fallback method)
  */
-export async function calculateHistoricalPE(
+async function calculateTTMPE(
   ticker: string,
   years: number = 5
 ): Promise<{
@@ -165,5 +166,64 @@ export async function calculateHistoricalPE(
     data: peData,
     median,
     current,
+  };
+}
+
+/**
+ * Calculate historical P/E ratios using hybrid approach:
+ * 1. Try Fiscal.ai Forward P/E (professional data)
+ * 2. Fallback to TTM P/E calculation if Fiscal.ai unavailable
+ */
+export async function calculateHistoricalPE(
+  ticker: string,
+  years: number = 5
+): Promise<{
+  data: HistoricalPEPoint[];
+  median: number;
+  current: number | null;
+  source: 'fiscal' | 'ttm';
+}> {
+  // Remove exchange suffix for Fiscal.ai (they use base tickers)
+  const baseTicker = ticker.split('.')[0];
+  
+  // Try Fiscal.ai first (Forward P/E)
+  console.log(`[P/E Chart] Attempting Fiscal.ai for ${baseTicker}...`);
+  const fiscalData = await getFiscalPEHistory(baseTicker);
+  
+  if (fiscalData && fiscalData.length > 0) {
+    console.log(`[P/E Chart] Using Fiscal.ai data for ${baseTicker} (${fiscalData.length} points)`);
+    
+    // Filter to last N years
+    const cutoffDate = new Date();
+    cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+    
+    const recentData = fiscalData.filter(d => new Date(d.date) >= cutoffDate);
+    
+    // Convert Fiscal.ai format to our HistoricalPEPoint format
+    const peData: HistoricalPEPoint[] = recentData.map(d => ({
+      date: d.date,
+      pe: d.ratio,
+      price: 0, // Not provided by Fiscal.ai
+      eps: 0,   // Not provided by Fiscal.ai
+    }));
+    
+    const median = calculateMedianPE(recentData);
+    const current = peData.length > 0 ? peData[peData.length - 1].pe : null;
+    
+    return {
+      data: peData,
+      median,
+      current,
+      source: 'fiscal',
+    };
+  }
+  
+  // Fallback to TTM calculation
+  console.log(`[P/E Chart] Fiscal.ai not available for ${baseTicker}, using TTM fallback`);
+  const ttmResult = await calculateTTMPE(ticker, years);
+  
+  return {
+    ...ttmResult,
+    source: 'ttm',
   };
 }

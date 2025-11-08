@@ -120,9 +120,12 @@ export function ForwardPEChart({ ticker }: ForwardPEChartProps) {
       {/* P/E Chart with Median Line */}
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
-          <CardTitle className="text-white text-sm">Trailing P/E (TTM) Entwicklung</CardTitle>
+          <CardTitle className="text-white text-sm">
+            {data.source === 'fiscal' ? 'Forward P/E (Fiscal.ai)' : 'Trailing P/E (TTM)'} Entwicklung
+          </CardTitle>
           <CardDescription className="text-slate-400 text-xs">
-            {data.data.length} Quartale über {years} Jahre • Median: {data.median.toFixed(2)}
+            {data.data.length} {data.source === 'fiscal' ? 'Datenpunkte' : 'Quartale'} über {years} Jahre • Median: {data.median.toFixed(2)}
+            {data.source === 'fiscal' && ' • Quelle: Fiscal.ai Pro'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -184,13 +187,28 @@ export function ForwardPEChart({ ticker }: ForwardPEChartProps) {
 
       {/* Info Text */}
       <div className="text-xs text-slate-400 bg-slate-800 p-3 rounded-lg border border-slate-700">
-        <p className="mb-1">
-          <strong className="text-slate-300">Trailing P/E (TTM):</strong> Kurs-Gewinn-Verhältnis basierend auf den letzten 12 Monaten (4 Quartale) tatsächlicher Gewinne.
-        </p>
-        <p>
-          <strong className="text-slate-300">Median-Linie:</strong> Durchschnittliches P/E über den gewählten Zeitraum. 
-          Werte über dem Median deuten auf eine höhere Bewertung hin.
-        </p>
+        {data.source === 'fiscal' ? (
+          <>
+            <p className="mb-1">
+              <strong className="text-slate-300">Forward P/E (Fiscal.ai):</strong> Professionelle Forward P/E Daten von Fiscal.ai. 
+              Zeigt erwartete Bewertung basierend auf zukünftigen Gewinnschätzungen.
+            </p>
+            <p>
+              <strong className="text-slate-300">Median-Linie:</strong> Durchschnittliches P/E über den gewählten Zeitraum. 
+              Werte über dem Median deuten auf eine höhere Bewertung hin.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mb-1">
+              <strong className="text-slate-300">Trailing P/E (TTM):</strong> Kurs-Gewinn-Verhältnis basierend auf den letzten 12 Monaten (4 Quartale) tatsächlicher Gewinne.
+            </p>
+            <p>
+              <strong className="text-slate-300">Median-Linie:</strong> Durchschnittliches P/E über den gewählten Zeitraum. 
+              Werte über dem Median deuten auf eine höhere Bewertung hin.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

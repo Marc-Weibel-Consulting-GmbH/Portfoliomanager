@@ -1460,3 +1460,22 @@
 - [x] Chart-Titel geändert: "Forward P/E" → "Trailing P/E (TTM)"
 - [x] Testen mit NVIDIA: Chart zeigt jetzt korrekte Werte (66.2, 55.1, 89.0 statt 169)
 - [x] Verifiziert: TTM EPS Berechnung funktioniert (sum of last 4 quarters)
+
+
+## Fiscal.ai Forward P/E Integration
+- [ ] Fiscal.ai API Key testen (FISCAL_API_KEY in Secrets)
+- [ ] API Endpoints für historisches Forward P/E erkunden
+- [ ] Backend: Fiscal.ai Forward P/E Daten abrufen (Meta als Test)
+- [ ] Chart umbauen: Forward P/E statt TTM P/E
+- [ ] Median-Linie wie in Referenz-Bild implementieren
+- [ ] Mit mehreren Aktien testen (Meta, NVDA, Schweizer Aktien)
+
+
+## Fiscal.ai Hybrid P/E Chart Implementation
+- [x] Fiscal.ai Pro API Key erfolgreich konfiguriert
+- [x] API getestet: NVIDIA funktioniert (2396 Datenpunkte), Meta nicht verfügbar
+- [ ] Backend: Fiscal.ai API Wrapper erstellen (server/_core/fiscalApi.ts)
+- [ ] Backend: historical-pe.ts erweitern mit Fiscal.ai-first, TTM-fallback Logik
+- [ ] Frontend: ForwardPEChart anpassen für Fiscal.ai Datenformat
+- [ ] Testen: NVIDIA (Fiscal.ai) vs Meta (TTM Fallback)
+- [ ] Chart-Titel dynamisch anpassen (Forward P/E vs Trailing P/E TTM)
