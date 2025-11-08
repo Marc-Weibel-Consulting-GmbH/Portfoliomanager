@@ -42,7 +42,7 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     }
   }, [selectedPeriod]);
 
-  // Debug logging
+  // Debug logging (updated for EODHD_API_KEY fix)
   console.log('[PortfolioChart] Tickers:', tickers.length, 'Weights:', weights.length, 'Years:', years);
   
   // Fetch portfolio historical data
