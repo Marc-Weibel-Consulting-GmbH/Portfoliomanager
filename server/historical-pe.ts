@@ -124,24 +124,30 @@ export async function calculateHistoricalPE(
   
   const recentEarnings = earnings.filter(e => new Date(e.date) >= cutoffDate);
   
-  // Calculate P/E for each quarter
+  // Calculate P/E for each quarter using TTM (Trailing Twelve Months) EPS
   const peData: HistoricalPEPoint[] = [];
   
-  for (const earning of recentEarnings) {
+  for (let i = 3; i < recentEarnings.length; i++) {
+    const earning = recentEarnings[i];
     const quarterEndDate = new Date(earning.date);
     const price = await getHistoricalPrice(ticker, quarterEndDate);
     
-    if (price && earning.eps > 0) {
-      const pe = price / earning.eps;
+    if (price) {
+      // Calculate TTM EPS (sum of last 4 quarters)
+      const ttmEps = recentEarnings.slice(i - 3, i + 1).reduce((sum, e) => sum + e.eps, 0);
       
-      // Filter out unrealistic P/E values (< 0 or > 500)
-      if (pe > 0 && pe < 500) {
-        peData.push({
-          date: earning.date,
-          pe,
-          price,
-          eps: earning.eps,
-        });
+      if (ttmEps > 0) {
+        const pe = price / ttmEps;
+        
+        // Filter out unrealistic P/E values (< 0 or > 500)
+        if (pe > 0 && pe < 500) {
+          peData.push({
+            date: earning.date,
+            pe,
+            price,
+            eps: ttmEps,
+          });
+        }
       }
     }
   }

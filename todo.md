@@ -1450,3 +1450,13 @@
 ## YTD Performance Final Fix
 - [ ] Chart vs. Karte Diskrepanz analysieren (Production)
 - [ ] Gewichtung und Berechnung synchronisieren
+
+
+## P/E Ratio Discrepancy Debugging (NVIDIA)
+- [x] Tabelle zeigt P/E 53.5, Chart zeigt 169.4 (Juli 2024?) - 3x Diskrepanz!
+- [x] ROOT CAUSE: Chart verwendet Quarterly EPS statt TTM (Trailing Twelve Months) EPS!
+- [x] Beispiel: $130 / $0.68 (Q2) = 191 (falsch) vs. $130 / $2.72 (TTM) = 48 (korrekt)
+- [x] Fix: calculateHistoricalPE() summiert jetzt letzte 4 Quartale für TTM EPS
+- [x] Chart-Titel geändert: "Forward P/E" → "Trailing P/E (TTM)"
+- [x] Testen mit NVIDIA: Chart zeigt jetzt korrekte Werte (66.2, 55.1, 89.0 statt 169)
+- [x] Verifiziert: TTM EPS Berechnung funktioniert (sum of last 4 quarters)
