@@ -169,6 +169,13 @@
       "when": 1762626002871,
       "tag": "0023_brainy_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1762638765055,
+      "tag": "0024_stormy_starhawk",
+      "breakpoints": true
     }
   ]
 }

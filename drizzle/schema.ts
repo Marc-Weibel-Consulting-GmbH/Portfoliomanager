@@ -54,7 +54,8 @@ export const stocks = mysqlTable("stocks", {
   week52Low: varchar("week52Low", { length: 50 }),
   lastDataRefresh: timestamp("lastDataRefresh"),
   exchangeRateToChf: varchar("exchangeRateToChf", { length: 50 }),
-  category: varchar("category", { length: 100 }),
+  category: varchar("category", { length: 100 }), // Investment type: Dividendenaktien, Wachstumsaktien, ETF
+  sector: varchar("sector", { length: 100 }), // Industry sector: Automotive, Healthcare, Technology, etc.
   moat1: text("moat1"),
   moat2: text("moat2"),
   moat3: text("moat3"),

@@ -754,17 +754,18 @@ export default function Home() {
     // Table
     autoTable(doc, {
       startY: 70,
-      head: [['Titel', 'Ticker', 'Kurs', 'YTD %', 'P/E', 'PEG', 'Div.%', 'Port.%', 'Kategorie']],
+      headers: ['Titel', 'Ticker', 'Kurs', 'YTD %', 'P/E', 'PEG', 'Div. %', 'Port. %', 'Kategorie', 'Branche'],
       body: filteredStocks.map(stock => [
         stock.companyName,
         stock.ticker,
-        `${parseFloat(stock.currentPrice || '0').toFixed(2)} ${stock.currency}`,
+        stock.currentPrice ? parseFloat(stock.currentPrice).toFixed(2) : '-',
         stock.ytdPerformance ? `${parseFloat(stock.ytdPerformance) >= 0 ? '+' : ''}${parseFloat(stock.ytdPerformance).toFixed(1)}` : '-',
         stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : '-',
         stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(1) : '-',
         stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : '-',
         parseFloat(stock.portfolioWeight || '0').toFixed(2),
-        stock.category || '-'
+        stock.category || '-',
+        stock.sector || '-'
       ]),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [37, 99, 235] },
@@ -2343,12 +2344,33 @@ export default function Home() {
                   />
                   <Select value={formData.category || ""} onValueChange={(v) => setFormData({ ...formData, category: v })}>
                     <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                      <SelectValue placeholder="Kategorie wählen" />
+                      <SelectValue placeholder="Kategorie wählen (Investment-Typ)" />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                      {categories.map(cat => (
-                        <SelectItem key={cat} value={cat} className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">{cat}</SelectItem>
-                      ))}
+                      <SelectItem value="Dividendenaktien" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Dividendenaktien</SelectItem>
+                      <SelectItem value="Wachstumsaktien" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Wachstumsaktien</SelectItem>
+                      <SelectItem value="ETF" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">ETF</SelectItem>
+                      <SelectItem value="Value" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Value</SelectItem>
+                      <SelectItem value="Andere" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Andere</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={formData.sector || ""} onValueChange={(v) => setFormData({ ...formData, sector: v })}>
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                      <SelectValue placeholder="Branche wählen (optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                      <SelectItem value="Automotive" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Automotive</SelectItem>
+                      <SelectItem value="Healthcare" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Healthcare</SelectItem>
+                      <SelectItem value="Technology" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Technology</SelectItem>
+                      <SelectItem value="Finance" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Finance</SelectItem>
+                      <SelectItem value="Consumer" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Consumer</SelectItem>
+                      <SelectItem value="Energy" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Energy</SelectItem>
+                      <SelectItem value="Industrials" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Industrials</SelectItem>
+                      <SelectItem value="Materials" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Materials</SelectItem>
+                      <SelectItem value="Real Estate" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Real Estate</SelectItem>
+                      <SelectItem value="Utilities" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Utilities</SelectItem>
+                      <SelectItem value="Telecommunications" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Telecommunications</SelectItem>
+                      <SelectItem value="Andere" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Andere</SelectItem>
                     </SelectContent>
                   </Select>
                   <Textarea
@@ -2452,6 +2474,9 @@ export default function Home() {
                       <th onClick={() => handleSort('category')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
                         Kategorie {sortField === 'category' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th onClick={() => handleSort('sector')} className="text-left py-2 px-2 text-slate-400 cursor-pointer hover:text-white">
+                        Branche {sortField === 'sector' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th className="text-center py-2 px-2 text-slate-400">Info</th>
                       <th className="text-left py-2 px-2 text-slate-400">Aktionen</th>
                     </tr>
@@ -2516,6 +2541,7 @@ export default function Home() {
                         </td>
                         <td className="py-2 px-2 text-slate-300">{parseFloat(stock.portfolioWeight || "0").toFixed(2)}%</td>
                         <td className="py-2 px-2 text-slate-400">{stock.category}</td>
+                        <td className="py-2 px-2 text-slate-400">{stock.sector || '-'}</td>
                         <td className="py-2 px-2 text-center">
                           {/* ETF: Open factsheet PDF, Stock: Show moats dialog */}
                           {stock.factsheetUrl ? (
@@ -2759,24 +2785,40 @@ export default function Home() {
                                       />
                                     </div>
                                     <div>
-                                      <label className="block text-sm font-medium text-slate-300 mb-1">Kategorie</label>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Kategorie (Investment-Typ)</label>
                                       <select
                                         value={formData.category || ""}
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         className="w-full bg-slate-700 border border-slate-600 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                       >
                                         <option value="">Kategorie wählen</option>
-                                        <option value="Technologie">Technologie</option>
-                                        <option value="E-Commerce">E-Commerce</option>
+                                        <option value="Dividendenaktien">Dividendenaktien</option>
+                                        <option value="Wachstumsaktien">Wachstumsaktien</option>
+                                        <option value="ETF">ETF</option>
+                                        <option value="Value">Value</option>
+                                        <option value="Andere">Andere</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-slate-300 mb-1">Branche (Sektor)</label>
+                                      <select
+                                        value={formData.sector || ""}
+                                        onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                                        className="w-full bg-slate-700 border border-slate-600 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      >
+                                        <option value="">Branche wählen (optional)</option>
                                         <option value="Automotive">Automotive</option>
                                         <option value="Healthcare">Healthcare</option>
-                                        <option value="Biotech">Biotech</option>
-                                        <option value="Energie">Energie</option>
-                                        <option value="Finanzdienstleistungen">Finanzdienstleistungen</option>
-                                        <option value="Infrastruktur">Infrastruktur</option>
-                                        <option value="Industrie">Industrie</option>
-                                        <option value="Konsumgüter">Konsumgüter</option>
-                                        <option value="Rohstoffe">Rohstoffe</option>
+                                        <option value="Technology">Technology</option>
+                                        <option value="Finance">Finance</option>
+                                        <option value="Consumer">Consumer</option>
+                                        <option value="Energy">Energy</option>
+                                        <option value="Industrials">Industrials</option>
+                                        <option value="Materials">Materials</option>
+                                        <option value="Real Estate">Real Estate</option>
+                                        <option value="Utilities">Utilities</option>
+                                        <option value="Telecommunications">Telecommunications</option>
+                                        <option value="Andere">Andere</option>
                                       </select>
                                     </div>
                                     <div>

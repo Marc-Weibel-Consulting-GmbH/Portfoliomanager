@@ -1542,3 +1542,16 @@
 - [x] Cron-Logik: Holt 31.12. Schlusskurse von EODHD und setzt als ytdStartPrice
 - [x] Admin-Route: trpc.admin.triggerYTDUpdate für manuellen Test hinzugefügt
 - [ ] Test: Manueller Trigger des Cron-Jobs über Admin-Panel
+
+
+## Kategorie & Branche Trennung (2025-11-08)
+- [x] Datenbank-Schema: Neue Spalte `sector` (Branche) hinzugefügt
+- [x] Kategorie-Werte: Dividendenaktien, Wachstumsaktien, ETF, Value, Andere
+- [x] Branchen-Werte: Automotive, Healthcare, Technology, Finance, Consumer, Energy, Industrials, Materials, Real Estate, Utilities, Telecommunications, Andere
+- [x] "Neue Aktie" Dialog: Beide Felder (Kategorie + Branche) hinzugefügt
+- [x] "Aktie bearbeiten" Dialog: Beide Felder anzeigen und editierbar
+- [x] Tabellen-Ansicht: Spalte "Branche" neben "Kategorie" hinzugefügt
+- [x] PDF-Export: Branche-Spalte in Export integriert
+- [ ] Navigation "Kategorien": Zeigt weiterhin Investment-Typen (Kategorie)
+- [ ] Filter-Logik: Optional - Separate Filter für Branche hinzufügen
+- [ ] Migration: Existierende category-Werte manuell auf neue Struktur mappen
