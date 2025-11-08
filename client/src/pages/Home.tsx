@@ -2505,7 +2505,7 @@ export default function Home() {
                                   </svg>
                                 </button>
                               </DialogTrigger>
-                              <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl [&>button]:text-white [&>button]:hover:text-gray-300">
+                              <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl max-h-[90vh] overflow-y-auto [&>button]:text-white [&>button]:hover:text-gray-300">
                                 <DialogHeader>
                                   <DialogTitle className="text-white text-xl">{stock.companyName}</DialogTitle>
                                 </DialogHeader>

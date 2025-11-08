@@ -1314,3 +1314,5 @@
   - [ ] Chart-Titel: "(10 Jahre)" entfernen da Timeframe variabel ist
 
 - [x] Fix AI Daily News TypeError - backend response format doesn't match frontend expectations (title property missing)
+
+- [x] Fix Info dialog scrolling - add max-height and overflow-y-auto to prevent vertical overflow
