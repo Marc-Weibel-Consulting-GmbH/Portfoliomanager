@@ -1869,14 +1869,15 @@ export const appRouter = router({
     getHistoricalData: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "tickers" in val && Array.isArray((val as any).tickers)) {
-          return val as { tickers: string[]; weights: number[]; years?: number };
+          return val as { tickers: string[]; weights: number[]; years?: number; ytdStartPrices?: number[] };
         }
         throw new Error("Invalid input: tickers and weights arrays required");
       })
       .query(async ({ input }) => {
-        const { tickers, weights, years = 5 } = input;
+        const { tickers, weights, years = 5, ytdStartPrices = [] } = input;
         
         console.log('[Chart] Using cached historical data');
+        console.log('[Chart] Received ytdStartPrices:', ytdStartPrices.slice(0, 5), '... (first 5)');
 
         const fromDate = new Date();
         fromDate.setFullYear(fromDate.getFullYear() - years);
@@ -1970,16 +1971,27 @@ export const appRouter = router({
           });
 
           // Calculate weighted portfolio performance for each date
-          // First, get the start price for each stock (first valid price)
-          const startPrices = stockPriceMaps.map(({ priceMap }) => {
+          // Use ytdStartPrices if provided (for YTD calculations), otherwise use first price
+          
+          // Get start price for each stock (ytdStartPrice or first valid price)
+          const startPrices = stockPriceMaps.map(({ priceMap }, idx) => {
+            // Use ytdStartPrice if provided and valid
+            if (ytdStartPrices[idx] && ytdStartPrices[idx] > 0) {
+              console.log(`[Chart] Using ytdStartPrice for stock ${idx}: ${ytdStartPrices[idx]}`);
+              return ytdStartPrices[idx];
+            }
+            // Otherwise use first valid price in data
             for (const date of allDates) {
               const price = priceMap.get(date);
-              if (price !== undefined && price > 0) return price;
+              if (price !== undefined && price > 0) {
+                console.log(`[Chart] Using first price for stock ${idx}: ${price}`);
+                return price;
+              }
             }
             return 0;
           });
+          console.log(`[Chart] Total start prices calculated: ${startPrices.filter(p => p > 0).length}/${startPrices.length}`);
 
-          // Calculate weighted portfolio performance (percentage-based)
           const portfolioValues = allDates.map(date => {
             let weightedPerformance = 0;
             let totalWeight = 0;
@@ -1989,7 +2001,7 @@ export const appRouter = router({
               const startPrice = startPrices[idx];
               
               if (currentPrice !== undefined && currentPrice > 0 && startPrice > 0) {
-                // Calculate percentage change for this stock
+                // Calculate percentage change for this stock from its start
                 const stockPerformance = ((currentPrice / startPrice) - 1) * 100;
                 // Weight it
                 weightedPerformance += stockPerformance * weight;
@@ -1997,19 +2009,18 @@ export const appRouter = router({
               }
             });
             
-            // Return weighted average performance
+            // Return weighted average performance (in %)
             return totalWeight > 0 ? weightedPerformance / totalWeight : 0;
           });
 
-          // Values are already percentages, just filter out invalid dates
           const validDates = allDates;
-          const percentageValues = portfolioValues;
+          const absoluteValues = portfolioValues;
 
           const timeSpanYears = ((new Date(validDates[validDates.length - 1]).getTime() - new Date(validDates[0]).getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toFixed(1);
           console.log(`[Chart] Returning ${validDates.length} data points spanning ${timeSpanYears} years`);
           return {
             dates: validDates,
-            values: percentageValues,
+            values: absoluteValues,
           };
         } catch (error: any) {
           console.error('[portfolioPerformance] Error:', error);

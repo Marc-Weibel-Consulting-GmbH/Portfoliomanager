@@ -1392,4 +1392,10 @@
 - [x] Cache-First Logik im Backend (DB → API Fallback mit Rate Limit Protection)
 - [x] populate-price-cache.ts Script erstellt und ausgeführt (106 Aktien gecached)
 - [x] Chart lädt jetzt sofort aus Cache ohne 106 API-Calls
-- [ ] YTD Performance-Diskrepanz lösen (Chart zeigt +25.14% statt +13.1% wie Performance & Dividende Karte)
+- [ ] YTD Performance-Diskrepanz lösen (Chart zeigt -7.44% statt +13.1%)
+  - [x] Problem identifiziert: Nur 14 von 106 Aktien hatten gecachte Daten
+  - [x] 80 von 106 Aktien in historicalPrices Cache geladen (66 neue + 14 alte)
+  - [x] ytdStartPrice-basierte Berechnung für 80 Aktien aktiviert
+  - [x] ROOT CAUSE gefunden: ytdStartPrices in DB sind falsch (zu niedrig)
+  - [ ] ytdStartPrices aus historicalPrices Cache (31.12.2024 Preise) neu berechnen
+  - [ ] Backend-Berechnung testen und Chart-Werte verifizieren

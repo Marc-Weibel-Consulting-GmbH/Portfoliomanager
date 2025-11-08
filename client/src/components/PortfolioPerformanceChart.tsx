@@ -19,13 +19,14 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
   const { data: allStocks } = trpc.stocks.list.useQuery();
   const portfolioStocks = stocks.length > 0 ? stocks : (allStocks || []);
 
-  // Calculate tickers and weights from portfolio
+  // Calculate tickers, weights, and ytdStartPrices from portfolio
   const tickers = portfolioStocks.map((s: any) => s.ticker);
   const totalValue = portfolioStocks.reduce((sum: number, s: any) => sum + (s.currentPrice || 0) * (s.shares || 1), 0);
   const weights = portfolioStocks.map((s: any) => {
     const value = (s.currentPrice || 0) * (s.shares || 1);
     return totalValue > 0 ? value / totalValue : 0;
   });
+  const ytdStartPrices = portfolioStocks.map((s: any) => parseFloat(s.ytdStartPrice || '0'));
 
   // Calculate years based on selected period
   const years = useMemo(() => {
@@ -44,10 +45,11 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
 
   // Debug logging (updated for EODHD_API_KEY fix)
   console.log('[PortfolioChart] Tickers:', tickers.length, 'Weights:', weights.length, 'Years:', years);
+  console.log('[PortfolioChart] YTD Start Prices:', ytdStartPrices.slice(0, 5), '... (first 5)');
   
   // Fetch portfolio historical data
   const { data: portfolioData, isLoading: isLoadingPortfolio, error: portfolioError } = trpc.portfolioPerformance.getHistoricalData.useQuery(
-    { tickers, weights, years },
+    { tickers, weights, years, ytdStartPrices },
     { 
       enabled: tickers.length > 0 && weights.length > 0,
       retry: 2,
@@ -112,7 +114,7 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     
     if (commonDates.length === 0) return [];
     
-    // Get values for common dates
+    // Get values for common dates (these are percentage values from backend)
     const portfolioValues = commonDates.map(date => {
       const index = portfolioData.dates.indexOf(date);
       return portfolioData.values[index] || 0;
@@ -123,9 +125,15 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
       return benchmarkData.values[index] || 0;
     });
     
-    // Normalize to start at 0% after filtering
+    // Normalize to start at 0% by subtracting the first value
+    // Backend returns % performance relative to each stock's first price
+    // We re-normalize to the first date in the filtered period
     const portfolioStart = portfolioValues[0] || 0;
     const benchmarkStart = benchmarkValues[0] || 0;
+    
+    console.log('[Frontend] First 5 portfolio values:', portfolioValues.slice(0, 5));
+    console.log('[Frontend] portfolioStart:', portfolioStart);
+    console.log('[Frontend] Last portfolio value:', portfolioValues[portfolioValues.length - 1]);
     
     return commonDates.map((date, index) => ({
       date: new Date(date).toLocaleDateString('de-CH', { 
