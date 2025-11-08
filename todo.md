@@ -1312,3 +1312,5 @@
   - [ ] News-Button von Hauptseite entfernen
   - [ ] Weißes Kreuz (X) zum Info-Dialog hinzufügen
   - [ ] Chart-Titel: "(10 Jahre)" entfernen da Timeframe variabel ist
+
+- [x] Fix AI Daily News TypeError - backend response format doesn't match frontend expectations (title property missing)

@@ -1,102 +1,74 @@
 import { invokeLLM } from "./llm";
 
-export interface DailyNewsItem {
+export interface DailyNewsSection {
   title: string;
-  source: string;
-  timestamp: string;
-  sentiment: "Positiv" | "Neutral" | "Negativ";
-  url?: string;
+  content: string;
 }
 
-export interface DailyNewsOverview {
-  earningsToday: DailyNewsItem[];
-  companyNews: DailyNewsItem[];
-  relatedArticles: DailyNewsItem[];
+export interface DailyNewsResponse {
+  earningsReleases: DailyNewsSection;
+  companyNews: DailyNewsSection;
+  relatedArticles: DailyNewsSection;
+  generatedAt: string;
 }
 
 /**
- * Generate AI-powered daily news overview for a stock
- * Similar to Swissquote's "KI-Tagesüberblick"
+ * Generates AI-powered daily news overview for a stock
+ * Similar to Swissquote's "KI-Tagesüberblick" format
  */
 export async function generateDailyNews(
   ticker: string,
   companyName: string
-): Promise<DailyNewsOverview> {
+): Promise<DailyNewsResponse> {
+  const today = new Date().toLocaleDateString("de-CH", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const systemPrompt = `Du bist ein Finanzjournalist, der täglich kompakte News-Übersichten für Aktieninvestoren erstellt. 
+Dein Stil ist sachlich, präzise und auf das Wesentliche konzentriert.
+Erstelle eine strukturierte Übersicht mit genau 3 Abschnitten:
+1. Heutige Quartalszahlen (falls vorhanden)
+2. Unternehmensnachrichten
+3. Verwandte Artikel
+
+Jeder Abschnitt sollte 2-3 Sätze umfassen. Verwende aktuelle Informationen (Stand ${today}).`;
+
+  const userPrompt = `Erstelle eine tägliche News-Übersicht für ${companyName} (${ticker}). 
+
+Struktur:
+1. **Heutige Quartalszahlen**: Gibt es heute Earnings Releases? Falls ja, kurze Zusammenfassung. Falls nein, schreibe "Keine Quartalszahlen heute."
+2. **Unternehmensnachrichten**: Die wichtigsten aktuellen Nachrichten zum Unternehmen (Produkte, Deals, Management-Wechsel, etc.)
+3. **Verwandte Artikel**: Marktanalysen, Analystenmeinungen oder Branchennews, die das Unternehmen betreffen
+
+Antworte im JSON-Format:
+{
+  "earningsReleases": "Text für Abschnitt 1",
+  "companyNews": "Text für Abschnitt 2",
+  "relatedArticles": "Text für Abschnitt 3"
+}`;
+
   try {
-    // Use LLM to generate structured news overview
     const response = await invokeLLM({
       messages: [
-        {
-          role: "system",
-          content: `Du bist ein Finanzanalyst der tägliche News-Überblicke für Aktien erstellt. 
-Generiere einen strukturierten Überblick mit drei Kategorien:
-1. Heutige Ergebnisveröffentlichungen (earnings releases)
-2. Unternehmensnachrichten (company news mit Kursbewegung)
-3. Verwandte Artikel (related news articles)
-
-Verwende echte, aktuelle Informationen wenn möglich. Wenn keine aktuellen Daten verfügbar sind, gib leere Arrays zurück.
-Sentiment: "Positiv", "Neutral", oder "Negativ"`,
-        },
-        {
-          role: "user",
-          content: `Erstelle einen täglichen News-Überblick für ${companyName} (${ticker}). Heute ist ${new Date().toLocaleDateString('de-DE')}.`,
-        },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
       ],
       response_format: {
         type: "json_schema",
         json_schema: {
-          name: "daily_news_overview",
+          name: "daily_news",
           strict: true,
           schema: {
             type: "object",
             properties: {
-              earningsToday: {
-                type: "array",
-                description: "Heutige Ergebnisveröffentlichungen",
-                items: {
-                  type: "object",
-                  properties: {
-                    title: { type: "string" },
-                    source: { type: "string" },
-                    timestamp: { type: "string" },
-                    sentiment: { type: "string", enum: ["Positiv", "Neutral", "Negativ"] },
-                  },
-                  required: ["title", "source", "timestamp", "sentiment"],
-                  additionalProperties: false,
-                },
-              },
-              companyNews: {
-                type: "array",
-                description: "Unternehmensnachrichten mit Kursbewegung",
-                items: {
-                  type: "object",
-                  properties: {
-                    title: { type: "string" },
-                    source: { type: "string" },
-                    timestamp: { type: "string" },
-                    sentiment: { type: "string", enum: ["Positiv", "Neutral", "Negativ"] },
-                  },
-                  required: ["title", "source", "timestamp", "sentiment"],
-                  additionalProperties: false,
-                },
-              },
-              relatedArticles: {
-                type: "array",
-                description: "Verwandte Artikel",
-                items: {
-                  type: "object",
-                  properties: {
-                    title: { type: "string" },
-                    source: { type: "string" },
-                    timestamp: { type: "string" },
-                    sentiment: { type: "string", enum: ["Positiv", "Neutral", "Negativ"] },
-                  },
-                  required: ["title", "source", "timestamp", "sentiment"],
-                  additionalProperties: false,
-                },
-              },
+              earningsReleases: { type: "string", description: "Heutige Quartalszahlen" },
+              companyNews: { type: "string", description: "Unternehmensnachrichten" },
+              relatedArticles: { type: "string", description: "Verwandte Artikel" },
             },
-            required: ["earningsToday", "companyNews", "relatedArticles"],
+            required: ["earningsReleases", "companyNews", "relatedArticles"],
             additionalProperties: false,
           },
         },
@@ -108,15 +80,40 @@ Sentiment: "Positiv", "Neutral", oder "Negativ"`,
       throw new Error("No content in LLM response");
     }
 
-    const overview: DailyNewsOverview = JSON.parse(content);
-    return overview;
-  } catch (error) {
-    console.error("[AI Daily News] Failed to generate news:", error);
-    // Return empty overview on error
+    const parsed = JSON.parse(content);
+
     return {
-      earningsToday: [],
-      companyNews: [],
-      relatedArticles: [],
+      earningsReleases: {
+        title: "Heutige Quartalszahlen",
+        content: parsed.earningsReleases,
+      },
+      companyNews: {
+        title: "Unternehmensnachrichten",
+        content: parsed.companyNews,
+      },
+      relatedArticles: {
+        title: "Verwandte Artikel",
+        content: parsed.relatedArticles,
+      },
+      generatedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error("[aiDailyNews] Error generating news:", error);
+    // Return fallback content on error
+    return {
+      earningsReleases: {
+        title: "Heutige Quartalszahlen",
+        content: "Keine Quartalszahlen heute verfügbar.",
+      },
+      companyNews: {
+        title: "Unternehmensnachrichten",
+        content: "Aktuell keine Unternehmensnachrichten verfügbar.",
+      },
+      relatedArticles: {
+        title: "Verwandte Artikel",
+        content: "Aktuell keine verwandten Artikel verfügbar.",
+      },
+      generatedAt: new Date().toISOString(),
     };
   }
 }
