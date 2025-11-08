@@ -40,6 +40,14 @@ const SWISS_DOMAIN_MAP: Record<string, string> = {
   'Givaudan': 'givaudan.com',
   'ABB': 'abb.com',
   'ABB Ltd': 'abb.com',
+  'Julius Baer Gruppe AG': 'juliusbaer.com',
+  'Julius Baer Group': 'juliusbaer.com',
+  'Julius Baer': 'juliusbaer.com',
+  'VP Bank AG': 'vpbank.com',
+  'VP Bank': 'vpbank.com',
+  'EFG International AG': 'efginternational.com',
+  'EFG International': 'efginternational.com',
+  'EFG': 'efginternational.com',
 };
 
 /**

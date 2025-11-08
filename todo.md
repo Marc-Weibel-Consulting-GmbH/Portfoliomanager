@@ -1283,3 +1283,9 @@
   - [x] Competitor Analyzer aktualisieren um Multi-API-Fallback zu nutzen
   - [x] Add Stock Mutation aktualisieren um Multi-API-Fallback zu nutzen
   - [ ] Testen mit problematischen Schweizer Aktien (VP Bank, EFG International)
+- [x] Schweizer Aktien Daten-Problem lösen (VP Bank, EFG, Julius Baer)
+  - [x] Alle APIs testen für Sharpe Ratio und PEG Daten (EODHD, Yahoo, Finnhub, FMP, Alpha Vantage)
+  - [x] Sharpe Ratio manuell berechnen falls keine API-Daten verfügbar (aus historischen Preisen via Yahoo)
+  - [x] PEG Ratio aus P/E und Wachstumsrate berechnen falls nicht verfügbar (aus EODHD quarterly earnings)
+  - [x] Logo-Loading für Schweizer Aktien fixen (Julius Baer, VP Bank, EFG zu Domain-Mapping hinzugefügt)
+  - [x] Data Merger priorisiert Yahoo für Sharpe, EODHD mit Berechnung für PEG

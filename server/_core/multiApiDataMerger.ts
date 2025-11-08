@@ -59,6 +59,33 @@ function getTickerVariants(ticker: string): {
 }
 
 /**
+ * Calculate earnings growth rate from quarterly data
+ */
+function calculateEarningsGrowth(quarterlyData: Record<string, any>): number | null {
+  try {
+    const quarters = Object.keys(quarterlyData).sort().reverse(); // Most recent first
+    if (quarters.length < 5) return null; // Need at least 5 quarters
+
+    // Get EPS for latest quarter and quarter from 1 year ago
+    const latestEPS = quarterlyData[quarters[0]]?.eps;
+    const yearAgoEPS = quarterlyData[quarters[4]]?.eps;
+
+    if (!latestEPS || !yearAgoEPS || yearAgoEPS <= 0) return null;
+
+    // Calculate year-over-year growth rate
+    const growthRate = ((latestEPS - yearAgoEPS) / Math.abs(yearAgoEPS)) * 100;
+
+    // Sanity check: growth rate should be reasonable (-100% to 1000%)
+    if (growthRate < -100 || growthRate > 1000) return null;
+
+    return growthRate;
+  } catch (error) {
+    console.error('[MultiAPI] Error calculating earnings growth:', error);
+    return null;
+  }
+}
+
+/**
  * Fetch data from EODHD API
  */
 async function fetchFromEODHD(ticker: string): Promise<Partial<CompleteStockData>> {
@@ -85,10 +112,27 @@ async function fetchFromEODHD(ticker: string): Promise<Partial<CompleteStockData
     const fundamentals = await fundamentalsRes.json();
     const quote = await quoteRes.json();
 
+    // Try to get PEG from API first
+    let peg = fundamentals.Highlights?.PEGRatio || null;
+    
+    // If PEG is 0 or null, calculate it from P/E and earnings growth
+    if (!peg || peg === 0) {
+      const pe = fundamentals.Highlights?.PERatio;
+      const quarterlyIncome = fundamentals.Financials?.Income_Statement?.quarterly;
+      
+      if (pe && quarterlyIncome) {
+        const growthRate = calculateEarningsGrowth(quarterlyIncome);
+        if (growthRate && growthRate > 0) {
+          peg = pe / growthRate;
+          console.log(`[MultiAPI] Calculated PEG for ${ticker}: ${peg.toFixed(2)} (P/E: ${pe}, Growth: ${growthRate.toFixed(1)}%)`);
+        }
+      }
+    }
+
     const data: Partial<CompleteStockData> = {
       currentPrice: quote.close || null,
       pe: fundamentals.Highlights?.PERatio || null,
-      peg: fundamentals.Highlights?.PEGRatio || null,
+      peg,
       sharpe: fundamentals.Technicals?.SharpeRatio || null,
       dividendYield: fundamentals.Highlights?.DividendYield
         ? fundamentals.Highlights.DividendYield * 100
