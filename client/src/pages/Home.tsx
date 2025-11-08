@@ -6,7 +6,7 @@ import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useMemo, useEffect } from "react";
-import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen } from "lucide-react";
+import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen, X } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
