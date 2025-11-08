@@ -1126,6 +1126,17 @@ export const appRouter = router({
         
         return analysis;
       }),
+    dailyNews: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "ticker" in val && "companyName" in val) {
+          return val as { ticker: string; companyName: string };
+        }
+        throw new Error("Invalid input: ticker and companyName required");
+      })
+      .query(async ({ input }) => {
+        const { generateDailyNews } = await import("./_core/aiDailyNews");
+        return await generateDailyNews(input.ticker, input.companyName);
+      }),
     importPrices: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null) return val;

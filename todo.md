@@ -1305,3 +1305,10 @@
 - [x] "Neue Aktie" Dialog Fixes
   - [x] Formular-Felder werden jetzt zurückgesetzt beim Öffnen (formData, tickerSearchQuery, suggestions)
   - [x] Schließen-Button (weißes X) hinzugefügt oben rechts mit DialogClose Component
+- [ ] KI-Tagesüberblick Feature (wie Swissquote)
+  - [ ] AI News Generation API erstellen (LLM + News Search)
+  - [ ] Drei Kategorien: Heutige Ergebnisse, Unternehmensnachrichten, Verwandte Artikel
+  - [ ] UI Component zwischen Chart und "Analysiere"-Button einfügen
+  - [ ] News-Button von Hauptseite entfernen
+  - [ ] Weißes Kreuz (X) zum Info-Dialog hinzufügen
+  - [ ] Chart-Titel: "(10 Jahre)" entfernen da Timeframe variabel ist

@@ -23,6 +23,7 @@ import { toast, Toaster } from 'sonner';
 import { PortfolioPerformanceChart } from '@/components/PortfolioPerformanceChart';
 import { PortfolioSentimentIndicator } from '@/components/PortfolioSentimentIndicator';
 import { StockLogo } from '@/components/StockLogo';
+import { DailyNewsSection } from '@/components/DailyNewsSection';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
 
 // AI-powered portfolio market analysis
@@ -1991,16 +1992,6 @@ export default function Home() {
             Analyzer
           </button>
           <button
-            onClick={() => setActiveTab("newsroom")}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === "newsroom"
-                ? "bg-purple-600 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
-          >
-            News
-          </button>
-          <button
             onClick={() => setActiveTab("transactions")}
             className={`px-4 py-2 rounded font-medium transition-colors ${
               activeTab === "transactions"
@@ -2606,7 +2597,7 @@ export default function Home() {
 
                                   {/* 10-Year Price Chart */}
                                   <div className="pt-4 border-t border-slate-700">
-                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Kursentwicklung (10 Jahre)</h4>
+                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Kursentwicklung</h4>
                                     <div className="bg-slate-700/50 rounded-lg p-4">
                                       <iframe
                                         src={`https://www.tradingview.com/widgetembed/?frameElementId=tradingview_chart&symbol=${(() => {
@@ -2631,6 +2622,9 @@ export default function Home() {
                                       />
                                     </div>
                                   </div>
+
+                                  {/* AI Daily News */}
+                                  <DailyNewsSection ticker={stock.ticker} companyName={stock.companyName} />
                                   
                                   {/* Owner-only: Competition Analyzer */}
                                   {user?.role === 'admin' && (
