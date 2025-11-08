@@ -552,24 +552,43 @@ export const appRouter = router({
         const { insertStock, getAllStocks, logTransaction, updateStock } = await import("./db");
         const { notifyTransaction } = await import("./services/whatsapp");
         const { invokeLLM } = await import("./_core/llm");
-        const { validateTicker } = await import("./_core/tickerValidator");
+        const { fetchCompleteStockData } = await import("./_core/multiApiDataMerger");
         const stockData = input as any;
         
-        // Validate ticker and find best variant
-        console.log(`[AddStock] Validating ticker ${stockData.ticker}...`);
-        const validation = await validateTicker(stockData.ticker);
+        // Fetch complete data using multi-API fallback
+        console.log(`[AddStock] Fetching complete data for ${stockData.ticker}...`);
+        const completeData = await fetchCompleteStockData(stockData.ticker);
         
-        console.log(`[AddStock] Validation result: ${validation.completeness}% complete (ticker: ${validation.ticker})`);
-        
-        // Use validated ticker (might be different from original)
-        if (validation.ticker !== stockData.ticker) {
-          console.log(`[AddStock] Using ${validation.ticker} instead of ${stockData.ticker}`);
-          stockData.ticker = validation.ticker;
+        // Use validated ticker from multi-API result
+        if (completeData.ticker !== stockData.ticker) {
+          console.log(`[AddStock] Using ${completeData.ticker} instead of ${stockData.ticker}`);
+          stockData.ticker = completeData.ticker;
         }
         
-        // Warn if data is incomplete (but still allow adding)
-        if (validation.completeness < 60) {
-          console.warn(`[AddStock] Warning: ${stockData.ticker} has incomplete data (${validation.completeness}%). Missing: ${validation.missingFields.join(', ')}`);
+        // Auto-fill missing data from multi-API result
+        if (!stockData.currentPrice && completeData.currentPrice) {
+          stockData.currentPrice = completeData.currentPrice.toString();
+          console.log(`[AddStock] Auto-filled currentPrice: ${stockData.currentPrice} (from ${completeData.dataSources.currentPrice})`);
+        }
+        if (!stockData.peRatio && completeData.pe) {
+          stockData.peRatio = completeData.pe.toString();
+          console.log(`[AddStock] Auto-filled peRatio: ${stockData.peRatio} (from ${completeData.dataSources.pe})`);
+        }
+        if (!stockData.pegRatio && completeData.peg) {
+          stockData.pegRatio = completeData.peg.toString();
+          console.log(`[AddStock] Auto-filled pegRatio: ${stockData.pegRatio} (from ${completeData.dataSources.peg})`);
+        }
+        if (!stockData.dividendYield && completeData.dividendYield) {
+          stockData.dividendYield = completeData.dividendYield.toString();
+          console.log(`[AddStock] Auto-filled dividendYield: ${stockData.dividendYield} (from ${completeData.dataSources.dividendYield})`);
+        }
+        if (!stockData.currency && completeData.currency) {
+          stockData.currency = completeData.currency;
+          console.log(`[AddStock] Auto-filled currency: ${stockData.currency}`);
+        }
+        if (!stockData.companyName && completeData.companyName) {
+          stockData.companyName = completeData.companyName;
+          console.log(`[AddStock] Auto-filled companyName: ${stockData.companyName}`);
         }
         
         // Set default values for required fields

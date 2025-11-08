@@ -1276,3 +1276,10 @@
   - Root Cause: fetchStockData verwendete denselben cleanTicker für FMP (braucht kein Suffix) und EODHD (braucht Suffix)
   - Fix: Separate Ticker erstellt - eodhdTicker (mit Suffix) und fmpTicker (ohne Suffix)
   - Fix: StockLogo entfernt jetzt alle Exchange-Suffixe für FMP API
+- [x] Multi-API-Fallback-Strategie für vollständige Aktiendaten
+  - [x] Unified Data Merger Utility erstellen die Daten aus mehreren APIs kombiniert
+  - [x] Fallback-Kette implementieren: EODHD → Yahoo Finance → FMP → Finnhub
+  - [x] Intelligentes Ticker-Mapping für jede API (z.B. VPBN.SW vs VPBN vs VPBN:SW)
+  - [x] Competitor Analyzer aktualisieren um Multi-API-Fallback zu nutzen
+  - [x] Add Stock Mutation aktualisieren um Multi-API-Fallback zu nutzen
+  - [ ] Testen mit problematischen Schweizer Aktien (VP Bank, EFG International)

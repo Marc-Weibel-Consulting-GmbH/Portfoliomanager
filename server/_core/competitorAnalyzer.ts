@@ -7,6 +7,7 @@ import { invokeLLM } from "./llm";
 import { fetchStockMetrics } from "./stockDataApi";
 import { fetchEODHDFundamentals } from "./eodhdApi";
 import { validateTicker } from "./tickerValidator";
+import { fetchCompleteStockData } from "./multiApiDataMerger";
 
 export interface CompetitorStock {
   ticker: string;
@@ -223,29 +224,40 @@ GOOGL`
       const validatedTicker = validation.ticker;
       console.log(`[CompetitorAnalyzer] Using ${validatedTicker} (${validation.completeness}% complete)`);
       
-      // Step 2: Fetch full metrics with validated ticker
-      const metrics = await fetchStockMetrics(validatedTicker, region);
-      const fundamentals = await fetchEODHDFundamentals(validatedTicker);
+      // Step 2: Fetch complete data using multi-API fallback
+      const completeData = await fetchCompleteStockData(validatedTicker);
       
-      // Yahoo Finance fallback for missing competitor data
-      const altPrice = metrics.currentPrice;
-      const altPegRatio = fundamentals.pegRatio || metrics.pegRatio;
-      const altPeRatio = fundamentals.peRatio || metrics.peRatio;
-      const altDividendYield = fundamentals.dividendYield || metrics.dividendYield;
-      const altBeta = fundamentals.beta || metrics.beta;
+      // Extract metrics from complete data
+      const altPrice = completeData.currentPrice;
+      const altPegRatio = completeData.peg;
+      const altPeRatio = completeData.pe;
+      const altDividendYield = completeData.dividendYield;
+      const altBeta = completeData.beta;
+      const altSharpe = completeData.sharpe;
+      const altVolatility = completeData.volatility;
+      const altCompanyName = completeData.companyName || validatedTicker;
+      
+      console.log(`[CompetitorAnalyzer] Complete data for ${validatedTicker}:`, {
+        price: altPrice,
+        pe: altPeRatio,
+        peg: altPegRatio,
+        sharpe: altSharpe,
+        dividend: altDividendYield,
+        sources: completeData.dataSources,
+      });
       
       const score = calculateScore({
-        sharpeRatio: metrics.sharpeRatio,
+        sharpeRatio: altSharpe,
         pegRatio: altPegRatio,
         dividendYield: altDividendYield,
-        volatility: metrics.volatility,
+        volatility: altVolatility,
       });
       
       // Only include if at least one metric is significantly better
-      // AND no metric is significantly worse (using fallback values)
+      // AND no metric is significantly worse
       const isBetter = (
-        (metrics.sharpeRatio !== null && currentStock.sharpeRatio !== null && 
-         metrics.sharpeRatio > currentStock.sharpeRatio * 1.1) || // 10% better Sharpe
+        (altSharpe !== null && currentStock.sharpeRatio !== null && 
+         altSharpe > currentStock.sharpeRatio * 1.1) || // 10% better Sharpe
         (altPegRatio !== null && currentStock.pegRatio !== null && currentStock.pegRatio > 0 &&
          altPegRatio < currentStock.pegRatio * 0.9) || // 10% lower PEG
         (altDividendYield !== null && currentStock.dividendYield !== null &&
@@ -253,8 +265,8 @@ GOOGL`
       );
       
       const isNotWorse = (
-        (metrics.sharpeRatio === null || currentStock.sharpeRatio === null || 
-         metrics.sharpeRatio >= currentStock.sharpeRatio * 0.7) && // Not 30% worse Sharpe
+        (altSharpe === null || currentStock.sharpeRatio === null || 
+         altSharpe >= currentStock.sharpeRatio * 0.7) && // Not 30% worse Sharpe
         (altPegRatio === null || currentStock.pegRatio === null || currentStock.pegRatio <= 0 ||
          altPegRatio <= currentStock.pegRatio * 1.5) && // Not 50% higher PEG
         (altDividendYield === null || currentStock.dividendYield === null ||
@@ -264,13 +276,13 @@ GOOGL`
       if (isBetter && isNotWorse && score > currentStock.score) {
         const tempCompetitor: CompetitorStock = {
           ticker: validatedTicker,
-          name: fundamentals.companyName || competitorTicker, // Use company name from EODHD API
+          name: altCompanyName,
           currentPrice: altPrice,
-          sharpeRatio: metrics.sharpeRatio,
+          sharpeRatio: altSharpe,
           pegRatio: altPegRatio,
           peRatio: altPeRatio,
           dividendYield: altDividendYield,
-          volatility: metrics.volatility,
+          volatility: altVolatility,
           beta: altBeta,
           score,
           reason: ""
