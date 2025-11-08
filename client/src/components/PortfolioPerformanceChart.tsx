@@ -231,8 +231,8 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
         </div>
       </CardHeader>
       <CardContent>
-        <div className="bg-slate-900/50 rounded-lg p-4">
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="bg-slate-900/50 rounded-lg p-4 flex justify-center">
+          <ResponsiveContainer width="90%" height={300}>
             <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
               <XAxis 

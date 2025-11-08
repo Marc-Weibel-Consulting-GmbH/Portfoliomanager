@@ -1963,16 +1963,14 @@ export default function Home() {
         </div>
 
         {/* Portfolio Performance Chart */}
-        <div className="max-w-5xl mx-auto">
-          <Card className="bg-slate-800 border-slate-700">
+        <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-400">Portfolio Performance</CardTitle>
             </CardHeader>
             <CardContent>
               <PortfolioPerformanceChart />
             </CardContent>
-          </Card>
-        </div>
+        </Card>
 
         <div className="flex gap-2 mb-4">
           <button

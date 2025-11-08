@@ -1352,3 +1352,5 @@
 - [x] Legend Format: Performance direkt hinter Label (Portfolio BIG +25.15% | S&P 500 +14.35%)
 
 - [x] Chart-Breite: Schwarzen Chart-Kasten schmaler machen für bessere Proportionen
+
+- [x] Chart-Breite: Schwarzes Chart-Element weniger breit machen (nicht den ganzen Kasten)
