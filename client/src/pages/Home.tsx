@@ -452,6 +452,8 @@ export default function Home() {
       });
       // Reset progress after showing completion
       setTimeout(() => setRefreshProgress(0), 2000);
+      // Invalidate all tRPC queries to force fresh data
+      await trpc.useUtils().invalidate();
       // Refetch immediately after mutation completes
       await refetchStocks();
     },

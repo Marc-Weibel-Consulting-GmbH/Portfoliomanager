@@ -1507,3 +1507,10 @@
 - [x] YTD Chart zeigt realistische Volatilität (0.94% → 38.83%)
 - [ ] Frontend-Cache-Problem: Browser zeigt alte Werte nach Refresh
 - [ ] Lösung: Benutzer muss Browser-Cache manuell leeren (Ctrl+Shift+R)
+
+
+## Nächste Schritte (2025-11-08)
+- [x] Frontend-Cache Invalidierung: tRPC Cache nach Refresh-Button automatisch invalidieren
+- [x] Europäische Ticker-Mapping: Alternative Formate für MONC.MI, VWRL.L, EXSA.DE testen
+- [x] Performance-Caching: historicalPrices Tabelle verwendet (bereits vorhanden)
+- [x] Cache-Strategie: Kurse >90% vollständig aus DB, sonst API + Cache Update
