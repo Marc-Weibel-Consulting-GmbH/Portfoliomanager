@@ -193,6 +193,7 @@ export async function calculateYTDPerformance(stocks: any[]): Promise<{ date: st
     return {
       ticker: stock.ticker,
       weight: parseFloat(stock.portfolioWeight || '0'),
+      ytdStartPrice: parseFloat(stock.ytdStartPrice || '0'), // YTD baseline from DB
       prices,
     };
   });
@@ -230,15 +231,14 @@ export async function calculateYTDPerformance(stocks: any[]): Promise<{ date: st
       map.set(date, lastPrice);
     });
 
-    return { ticker: stock.ticker, weight: stock.weight, priceMap: map };
+    return { ticker: stock.ticker, weight: stock.weight, ytdStartPrice: stock.ytdStartPrice, priceMap: map };
   });
 
   // Calculate daily portfolio performance
   const dailyPerformance: { date: string; performance: number }[] = [];
 
-  // Get first day prices for baseline
-  const firstDate = sortedDates[0];
-  const baselinePrices = priceMaps.map(pm => pm.priceMap.get(firstDate) || 0);
+  // Use ytdStartPrice from database as baseline (31.12.2024 close price)
+  const baselinePrices = priceMaps.map(pm => pm.ytdStartPrice || 0);
 
   for (const date of sortedDates) {
     let portfolioReturn = 0;

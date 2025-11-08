@@ -1524,3 +1524,11 @@
 - [ ] Fiscal.ai als Fallback für fehlende Kursdaten implementieren
 - [ ] Fiscal.ai als Fallback für fehlende Fundamentaldaten (P/E, PEG, Div.) implementieren
 - [ ] Fiscal.ai als Fallback in allen Data-Fetching-Endpoints integrieren
+
+
+## YTD Performance Wert-Diskrepanz (2025-11-08)
+- [x] Chart zeigt falsche Performance-Werte (stimmt nicht mit Performance-Karte überein)
+- [x] Problem identifiziert: Chart verwendete ersten Handelstag 2025 statt ytdStartPrice aus DB
+- [x] Fix: Chart verwendet jetzt stock.ytdStartPrice (31.12.2024) als Baseline
+- [x] ytdStartPrice-Werte mit Python-Script korrigiert (basierend auf Excel YTD %)
+- [ ] Test: Chart-Endwert muss exakt mit Performance-Karte übereinstimmen (~14.5%)
