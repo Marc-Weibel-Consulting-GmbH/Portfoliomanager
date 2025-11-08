@@ -1532,3 +1532,13 @@
 - [x] Fix: Chart verwendet jetzt stock.ytdStartPrice (31.12.2024) als Baseline
 - [x] ytdStartPrice-Werte mit Python-Script korrigiert (basierend auf Excel YTD %)
 - [ ] Test: Chart-Endwert muss exakt mit Performance-Karte übereinstimmen (~14.5%)
+
+
+## Refresh-Button-Schutz & Automatisches YTD-Update (2025-11-08)
+- [x] Refresh-Button: ytdStartPrice darf NICHT überschrieben werden (nur currentPrice aktualisieren)
+- [x] Code-Review: Alle Stellen gefunden wo ytdStartPrice gesetzt wird
+- [x] Fix: Refresh-Logik entfernt Auto-Setting von ytdStartPrice (Zeile 1020-1022)
+- [x] Cron-Job: Automatisches YTD-Update am 1. Januar (0:00 Uhr) erstellt
+- [x] Cron-Logik: Holt 31.12. Schlusskurse von EODHD und setzt als ytdStartPrice
+- [x] Admin-Route: trpc.admin.triggerYTDUpdate für manuellen Test hinzugefügt
+- [ ] Test: Manueller Trigger des Cron-Jobs über Admin-Panel

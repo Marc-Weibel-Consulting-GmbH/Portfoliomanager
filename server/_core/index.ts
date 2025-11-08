@@ -11,6 +11,7 @@ import { startPriceUpdater } from "../priceUpdater";
 import { initializeNewsUpdater } from "../newsUpdater";
 import { startChartDataUpdater } from "../chartDataUpdater";
 import { initializePEGUpdater } from "../pegUpdater";
+import { initYTDUpdater } from "../cron/ytdUpdater";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -220,6 +221,8 @@ async function startServer() {
     initializeNewsUpdater();
     // Start PEG ratio updater
     initializePEGUpdater();
+    // Start YTD updater (runs on January 1st)
+    initYTDUpdater();
   });
 }
 

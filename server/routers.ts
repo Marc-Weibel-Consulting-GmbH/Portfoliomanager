@@ -1016,12 +1016,8 @@ export const appRouter = router({
           if (metrics.currentPrice !== null) {
             updateData.currentPrice = metrics.currentPrice.toFixed(2);
             
-            // Set ytdStartPrice if not set
-            if (!stock.ytdStartPrice || stock.ytdStartPrice === "0") {
-              updateData.ytdStartPrice = metrics.currentPrice.toFixed(2);
-              updateData.ytdPerformance = "0.00";
-            } else {
-              // Recalculate YTD performance
+            // Recalculate YTD performance (do NOT set ytdStartPrice - only update via YTD cron job)
+            if (stock.ytdStartPrice && stock.ytdStartPrice !== "0") {
               const ytdStart = parseFloat(stock.ytdStartPrice);
               if (ytdStart > 0) {
                 const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
@@ -1660,6 +1656,18 @@ export const appRouter = router({
       const metrics = await calculateDataQualityMetrics();
       
       return metrics;
+    }),
+    
+    triggerYTDUpdate: protectedProcedure.mutation(async ({ ctx }) => {
+      // Only admin can trigger YTD update
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const { manualYTDUpdate } = await import("./cron/ytdUpdater");
+      await manualYTDUpdate();
+      
+      return { success: true, message: "YTD update completed" };
     }),
   }),
 
