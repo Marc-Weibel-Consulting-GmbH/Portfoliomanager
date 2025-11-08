@@ -1345,3 +1345,6 @@
 - [x] YTD-Berechnung: Chart zeigt 23.97% statt 13.1% wie in Kasten 3
 
 - [x] Layout Redesign: 3 Kästen oben (gleich breit), Portfolio Chart darunter (volle Breite)
+
+- [x] Chart Legend: Alles auf einer Zeile (Portfolio BIG | S&P 500 | Performance-Werte)
+- [ ] YTD Performance: Chart-Werte stimmen noch nicht mit Kasten 3 überein

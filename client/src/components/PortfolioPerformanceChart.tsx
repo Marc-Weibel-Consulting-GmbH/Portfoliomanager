@@ -247,10 +247,6 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
                 tickFormatter={(value) => `${value.toFixed(0)}%`}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="line"
-              />
               <Line 
                 type="monotone" 
                 dataKey="portfolio" 
@@ -272,18 +268,20 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
             </LineChart>
           </ResponsiveContainer>
           
-          <div className="mt-4 grid grid-cols-2 gap-4 text-center">
-            <div>
-              <div className="text-slate-400 text-xs">{portfolioName} Performance</div>
-              <div className={`font-semibold text-lg ${portfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {portfolioReturn >= 0 ? '+' : ''}{portfolioReturn.toFixed(2)}%
-              </div>
+          <div className="mt-4 flex items-center justify-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0.5 bg-blue-400"></div>
+              <span className="text-slate-300">{portfolioName}</span>
             </div>
-            <div>
-              <div className="text-slate-400 text-xs">{benchmarkOptions.find(b => b.value === selectedBenchmark)?.label} Performance</div>
-              <div className={`font-semibold text-lg ${benchmarkReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {benchmarkReturn >= 0 ? '+' : ''}{benchmarkReturn.toFixed(2)}%
-              </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0.5 bg-red-400"></div>
+              <span className="text-slate-300">{benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}</span>
+            </div>
+            <div className={`font-semibold ${portfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {portfolioReturn >= 0 ? '+' : ''}{portfolioReturn.toFixed(2)}%
+            </div>
+            <div className={`font-semibold ${benchmarkReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {benchmarkReturn >= 0 ? '+' : ''}{benchmarkReturn.toFixed(2)}%
             </div>
           </div>
         </div>
