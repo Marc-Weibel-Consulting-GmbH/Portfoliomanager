@@ -1356,3 +1356,6 @@
 - [x] Chart-Breite: Schwarzes Chart-Element weniger breit machen (nicht den ganzen Kasten)
 
 - [x] Chart-Breite: Gesamten schwarzen Kasten (bg-slate-900/50) schmaler machen, Legende bleibt darunter
+
+- [x] YTD Performance-Diskrepanz beheben: Chart soll gleichen Wert zeigen wie Performance & Dividende Karte (13.1% statt 25.14%)
+- [x] Chart default auf YTD stellen (statt Max)

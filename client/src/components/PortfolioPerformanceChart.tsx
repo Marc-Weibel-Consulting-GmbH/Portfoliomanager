@@ -13,7 +13,7 @@ type TimePeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | 'Max';
 
 export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfolio BIG' }: PortfolioPerformanceChartProps) {
   const [selectedBenchmark, setSelectedBenchmark] = useState('sp500');
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('5Y');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('YTD');
 
   // Get all stocks from the portfolio
   const { data: allStocks } = trpc.stocks.list.useQuery();
