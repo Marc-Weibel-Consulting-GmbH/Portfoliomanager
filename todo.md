@@ -1354,3 +1354,5 @@
 - [x] Chart-Breite: Schwarzen Chart-Kasten schmaler machen für bessere Proportionen
 
 - [x] Chart-Breite: Schwarzes Chart-Element weniger breit machen (nicht den ganzen Kasten)
+
+- [x] Chart-Breite: Gesamten schwarzen Kasten (bg-slate-900/50) schmaler machen, Legende bleibt darunter
