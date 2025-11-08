@@ -1298,3 +1298,7 @@
   - [x] Root Cause: EODHD liefert PEG = 0 für viele Aktien, Refresh-Prozess berechnet es nicht
   - [x] Earnings Growth Berechnung in eodhdApi.ts implementiert (aus quarterly earnings)
   - [x] Refresh-Prozess aktualisiert um PEG aus P/E und Earnings Growth zu berechnen wenn EODHD 0 liefert
+- [x] ABB Finanzdaten fehlen - Ticker-Problem untersuchen
+  - [x] Datenbank geprüft - ABB.N war gespeichert (falsches Format)
+  - [x] APIs getestet - ABBN.SW funktioniert perfekt (P/E: 28.49, PEG: 2.89, Div: 1.76%)
+  - [x] Ticker aktualisiert: ABB.N → ABBN.SW
