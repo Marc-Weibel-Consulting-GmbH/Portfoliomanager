@@ -343,9 +343,8 @@ export const appRouter = router({
       })
       .mutation(async ({ input: ticker }) => {
         try {
-          const apiKey = process.env.EODHD_API_KEY;
-          if (!apiKey) throw new Error("EODHD API key not configured");
-
+          const { getCompleteStockData } = await import("./_core/multiApiDataMerger");
+          
           // Special ticker mappings for API calls (UI ticker -> API ticker)
           const TICKER_API_MAP: Record<string, string> = {
             'ABBN': 'ABBN.SW', // Keep ABBN in UI for chart, use ABBN.SW for API
@@ -362,122 +361,45 @@ export const appRouter = router({
           else if (!cleanTicker.includes('.')) {
             cleanTicker = `${cleanTicker}.US`;
           }
+
+          // Use multi-API data merger for complete stock data (correct currency + Sharpe Ratio)
+          const completeData = await getCompleteStockData(cleanTicker);
           
-          // Create separate tickers for different APIs
-          // FMP (logos): No exchange suffix (e.g., "GIVN", "MESA", "IBM")
-          // EODHD (data): With exchange suffix (e.g., "GIVN.SW", "MESA.US", "IBM.US")
-          const eodhdTicker = cleanTicker; // Keep full ticker for EODHD
-          const fmpTicker = cleanTicker.replace(/\.(SW|US|PA|L|TO|NEO|BA|XETRA)$/, ''); // Strip exchange for FMP
-
-          // Fetch fundamentals from EODHD
-          const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${eodhdTicker}?api_token=${apiKey}`;
-          const fundamentalsRes = await fetch(fundamentalsUrl);
-          if (!fundamentalsRes.ok) throw new Error("Failed to fetch fundamentals");
-          const fundamentals = await fundamentalsRes.json();
-
-          // Fetch real-time quote
-          const quoteUrl = `https://eodhd.com/api/real-time/${eodhdTicker}?api_token=${apiKey}&fmt=json`;
-          const quoteRes = await fetch(quoteUrl);
-          if (!quoteRes.ok) throw new Error("Failed to fetch quote");
-          const quote = await quoteRes.json();
-
-          // Fetch historical price for YTD start (31.12.2024 or last available trading day)
+          // Fetch YTD data from EODHD (not available in multiApiDataMerger)
           let ytdStartPrice = null;
+          let ytdPerformance = null;
           try {
-            const historicalUrl = `https://eodhd.com/api/eod/${eodhdTicker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
-            const historicalRes = await fetch(historicalUrl);
-            if (historicalRes.ok) {
-              const historicalData = await historicalRes.json();
-              if (historicalData && historicalData.length > 0) {
-                // Get the last available trading day's close price
-                ytdStartPrice = historicalData[historicalData.length - 1].close;
+            const apiKey = process.env.EODHD_API_KEY;
+            if (apiKey) {
+              const historicalUrl = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=2024-12-27&to=2024-12-31&fmt=json`;
+              const historicalRes = await fetch(historicalUrl);
+              if (historicalRes.ok) {
+                const historicalData = await historicalRes.json();
+                if (historicalData && historicalData.length > 0) {
+                  ytdStartPrice = historicalData[historicalData.length - 1].close;
+                  if (ytdStartPrice && completeData.currentPrice) {
+                    ytdPerformance = ((completeData.currentPrice - ytdStartPrice) / ytdStartPrice) * 100;
+                  }
+                }
               }
             }
           } catch (err) {
-            console.warn('[fetchStockData] Failed to fetch historical price:', err);
-          }
-
-          // Calculate YTD Performance
-          let ytdPerformance = null;
-          if (ytdStartPrice && quote.close) {
-            ytdPerformance = ((quote.close - ytdStartPrice) / ytdStartPrice) * 100;
-          }
-
-          // Try to get Sharpe Ratio and Dividend Yield with fallback chain
-          let sharpeRatio = fundamentals.Technicals?.SharpeRatio || null;
-          let dividendYield = fundamentals.Highlights?.DividendYield ? fundamentals.Highlights.DividendYield * 100 : null;
-
-          // Fallback 1: Finnhub (only if values are null or undefined)
-          if (sharpeRatio === null || dividendYield === null) {
-            try {
-              const finnhubKey = process.env.FINNHUB_API_KEY;
-              if (finnhubKey) {
-                const finnhubUrl = `https://finnhub.io/api/v1/stock/metric?symbol=${cleanTicker}&metric=all&token=${finnhubKey}`;
-                const finnhubRes = await fetch(finnhubUrl);
-                if (finnhubRes.ok) {
-                  const finnhubData = await finnhubRes.json();
-                  if (!sharpeRatio && finnhubData.metric?.sharpeRatio) {
-                    sharpeRatio = finnhubData.metric.sharpeRatio;
-                    console.log(`[fetchStockData] Sharpe Ratio from Finnhub: ${sharpeRatio}`);
-                  }
-                  if (!dividendYield && finnhubData.metric?.dividendYieldIndicatedAnnual) {
-                    dividendYield = finnhubData.metric.dividendYieldIndicatedAnnual;
-                    console.log(`[fetchStockData] Dividend Yield from Finnhub: ${dividendYield}`);
-                  }
-                }
-              }
-            } catch (finnhubError) {
-              console.warn('[fetchStockData] Finnhub fallback failed:', finnhubError);
-            }
-          }
-
-          // Fallback 2: Yahoo Finance (only if values are still null or undefined)
-          if (sharpeRatio === null || dividendYield === null) {
-            try {
-              // Yahoo Finance uses different ticker format (e.g., NOVN.SW stays the same)
-              const yahooUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${cleanTicker}?modules=defaultKeyStatistics,summaryDetail`;
-              const yahooRes = await fetch(yahooUrl, {
-                headers: { 'User-Agent': 'Mozilla/5.0' }
-              });
-              if (yahooRes.ok) {
-                const yahooData = await yahooRes.json();
-                const keyStats = yahooData.quoteSummary?.result?.[0]?.defaultKeyStatistics;
-                const summaryDetail = yahooData.quoteSummary?.result?.[0]?.summaryDetail;
-                
-                if (!dividendYield && summaryDetail?.dividendYield?.raw) {
-                  dividendYield = summaryDetail.dividendYield.raw * 100;
-                  console.log(`[fetchStockData] Dividend Yield from Yahoo Finance: ${dividendYield}`);
-                }
-                // Yahoo doesn't provide Sharpe Ratio directly
-              }
-            } catch (yahooError) {
-              console.warn('[fetchStockData] Yahoo Finance fallback failed:', yahooError);
-            }
-          }
-
-          // Determine currency from exchange
-          let currency = 'USD';
-          if (cleanTicker.endsWith('.SW') || cleanTicker.endsWith('.N')) {
-            currency = 'CHF';
-          } else if (cleanTicker.endsWith('.PA')) {
-            currency = 'EUR';
-          } else if (cleanTicker.endsWith('.L')) {
-            currency = 'GBP';
+            console.warn('[fetchStockData] Failed to fetch YTD data:', err);
           }
 
           return {
             ticker: cleanTicker,
-            companyName: fundamentals.General?.Name || cleanTicker,
-            currentPrice: quote.close || 0,
+            companyName: completeData.companyName || cleanTicker,
+            currentPrice: completeData.currentPrice || 0,
             ytdStartPrice: ytdStartPrice,
             ytdPerformance: ytdPerformance,
-            peRatio: fundamentals.Highlights?.PERatio || null,
-            pegRatio: fundamentals.Highlights?.PEGRatio || null,
-            dividendYield: dividendYield,
-            sharpeRatio: sharpeRatio,
-            volatility: fundamentals.Technicals?.Volatility || null,
-            beta: fundamentals.Technicals?.Beta || null,
-            currency: currency,
+            peRatio: completeData.pe,
+            pegRatio: completeData.peg,
+            dividendYield: completeData.dividendYield,
+            sharpeRatio: completeData.sharpe,
+            volatility: completeData.volatility,
+            beta: completeData.beta,
+            currency: completeData.currency || 'USD',
           };
         } catch (error: any) {
           console.error("[fetchStockData] Error:", error);

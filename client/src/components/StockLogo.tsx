@@ -8,7 +8,7 @@ interface StockLogoProps {
 }
 
 // Tickers that get wrong logos from FinancialModelingPrep - skip to Clearbit
-const FMP_LOGO_BLACKLIST = new Set(['GIVN.SW', 'GIVN']);
+const FMP_LOGO_BLACKLIST = new Set(['GIVN.SW', 'GIVN', 'GF.SW', 'GF']);
 
 // Swiss company domain mapping for known companies
 const SWISS_DOMAIN_MAP: Record<string, string> = {
@@ -38,6 +38,9 @@ const SWISS_DOMAIN_MAP: Record<string, string> = {
   'Givaudan SA': 'givaudan.com',
   'Givaudan AG': 'givaudan.com',
   'Givaudan': 'givaudan.com',
+  'Georg Fischer AG': 'georgfischer.com',
+  'Georg Fischer': 'georgfischer.com',
+  'GF': 'georgfischer.com',
   'ABB': 'abb.com',
   'ABB Ltd': 'abb.com',
   'Julius Baer Gruppe AG': 'juliusbaer.com',

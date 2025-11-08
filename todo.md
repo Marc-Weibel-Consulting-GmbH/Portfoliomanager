@@ -1316,3 +1316,7 @@
 - [x] Fix AI Daily News TypeError - backend response format doesn't match frontend expectations (title property missing)
 
 - [x] Fix Info dialog scrolling - add max-height and overflow-y-auto to prevent vertical overflow
+
+- [x] Fix Swiss stock logos (GF.SW, GIVN.SW) - wrong/generic logos displayed
+- [x] Fix currency display for Swiss stocks - shows USD instead of CHF
+- [x] Fix Sharpe Ratio calculation for Swiss stocks (GF.SW, BAER.SW) - returns 0.00
