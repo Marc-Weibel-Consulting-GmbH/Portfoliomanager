@@ -76,6 +76,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
         beta: null,
         eps: null,
         bookValue: null,
+        earningsGrowth: null,
       };
     }
 

@@ -52,13 +52,7 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     { tickers, weights },
     { 
       enabled: selectedPeriod === 'YTD' && tickers.length > 0 && weights.length > 0,
-      retry: 2,
-      onError: (err) => {
-        console.error('[PortfolioChart] YTD data fetch failed:', err);
-      },
-      onSuccess: (data) => {
-        console.log('[PortfolioChart] YTD data loaded:', data?.dates?.length, 'dates');
-      }
+      retry: 2
     }
   );
 
@@ -67,13 +61,7 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     { tickers, weights, years },
     { 
       enabled: selectedPeriod !== 'YTD' && tickers.length > 0 && weights.length > 0,
-      retry: 2,
-      onError: (err) => {
-        console.error('[PortfolioChart] Portfolio data fetch failed:', err);
-      },
-      onSuccess: (data) => {
-        console.log('[PortfolioChart] Portfolio data loaded:', data?.dates?.length, 'dates');
-      }
+      retry: 2
     }
   );
 
@@ -82,13 +70,7 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     { benchmark: selectedBenchmark, years },
     { 
       enabled: !!selectedBenchmark,
-      retry: 2,
-      onError: (err) => {
-        console.error('[PortfolioChart] Benchmark data fetch failed:', err);
-      },
-      onSuccess: (data) => {
-        console.log('[PortfolioChart] Benchmark data loaded:', data?.dates?.length, 'dates');
-      }
+      retry: 2
     }
   );
 

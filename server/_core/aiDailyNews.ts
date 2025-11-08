@@ -79,6 +79,9 @@ Antworte im JSON-Format:
     if (!content) {
       throw new Error("No content in LLM response");
     }
+    if (typeof content !== 'string') {
+      throw new Error("Invalid LLM response format");
+    }
 
     const parsed = JSON.parse(content);
 

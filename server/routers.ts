@@ -6,7 +6,7 @@ import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
 import { callDataApi } from "./_core/dataApi";
 import { historicalPrices } from "../drizzle/schema";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 
 /**
  * Fetch dividend yield with 3-tier fallback: EODHD → Finnhub → Yahoo Finance
@@ -313,6 +313,21 @@ export const appRouter = router({
   }),
 
   stocks: router({
+    getHistoricalPE: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
+        const input = val as any;
+        if (typeof input.ticker !== 'string') throw new Error('Invalid ticker');
+        return {
+          ticker: input.ticker,
+          years: typeof input.years === 'number' ? input.years : 5,
+        };
+      })
+      .query(async ({ input }) => {
+        const { calculateHistoricalPE } = await import("./historical-pe");
+        return await calculateHistoricalPE(input.ticker, input.years);
+      }),
+
     getHistoricalMetrics: publicProcedure
       .input((val: unknown) => {
         if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
@@ -1920,8 +1935,8 @@ export const appRouter = router({
                 .where(
                   and(
                     eq(historicalPrices.ticker, cleanTicker),
-                    gte(historicalPrices.date, fromDateStr),
-                    lte(historicalPrices.date, toDateStr)
+                    sql`${historicalPrices.date} >= ${fromDateStr}`,
+                    sql`${historicalPrices.date} <= ${toDateStr}`
                   )
                 )
                 .orderBy(historicalPrices.date);
@@ -2398,6 +2413,7 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
 
         const content = llmResponse.choices[0]?.message?.content;
         if (!content) throw new Error("No LLM response");
+        if (typeof content !== 'string') throw new Error("Invalid LLM response format");
         
         const result = JSON.parse(content);
         console.log(`[WeeklyOverview] LLM filtered to ${result.stocks.length} stocks with important events`);

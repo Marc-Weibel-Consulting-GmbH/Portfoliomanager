@@ -75,7 +75,7 @@ export async function getHistoricalMetrics(ticker: string, days: number = 30) {
     connection = await mysql.createConnection(process.env.DATABASE_URL);
     const db = drizzle(connection);
 
-    const { eq, gte, desc } = await import('drizzle-orm');
+    const { eq, gte, desc, and } = await import('drizzle-orm');
 
     // Calculate date threshold
     const dateThreshold = new Date();
@@ -85,8 +85,10 @@ export async function getHistoricalMetrics(ticker: string, days: number = 30) {
     const results = await db
       .select()
       .from(historicalMetrics)
-      .where(eq(historicalMetrics.ticker, ticker))
-      .where(gte(historicalMetrics.recordedAt, dateThreshold))
+      .where(and(
+        eq(historicalMetrics.ticker, ticker),
+        gte(historicalMetrics.recordedAt, dateThreshold)
+      ))
       .orderBy(desc(historicalMetrics.recordedAt));
 
     return results;

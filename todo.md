@@ -1414,3 +1414,39 @@
 - [x] server/ytd-performance.ts erstellt mit ytdPerformance-Werten aus DB
 - [x] Frontend conditional logic für YTD-Periode implementiert
 - [ ] Manuell testen: Chart zeigt jetzt +14.5% YTD (wie Performance-Karte)
+
+## EODHD Historical P/E Chart Integration
+- [x] Aktuellen P/E Chart im Info-Dialog identifiziert (HistoricalTrendChart.tsx)
+- [x] Entscheidung: EODHD API statt Fiscal.ai (bereits konfiguriert, kostenlos)
+- [x] EODHD API Dokumentation geprüft - keine historischen P/E, aber Earnings!
+- [x] Lösung: P/E selbst berechnen (historische Preise / EPS aus Earnings)
+- [x] Backend-Endpoint erstellt: server/historical-pe.ts + trpc.stocks.getHistoricalPE
+- [x] Quarterly P/E Berechnung: EODHD Earnings + historicalPrices Cache
+- [x] ForwardPEChart Komponente mit Median-Linie erstellt
+- [x] HistoricalTrendChart durch ForwardPEChart ersetzt in Home.tsx
+- [ ] Testen: NVDA Dialog öffnen und Forward P/E Chart verifizieren
+- [ ] Fix: db.select() import fehlt in historical-pe.ts
+
+
+## PDF Export YTD Performance
+- [x] PDF Export um YTD Performance Spalte erweitern
+- [x] YTD Performance % neben anderen Metriken anzeigen (bereits in Übersicht vorhanden)
+
+## TypeScript Build Fixes
+- [x] TypeScript-Fehler in Forward P/E Chart behoben
+- [x] Date-Vergleiche mit sql template gefixed (historical-pe.ts, routers.ts)
+- [x] LLM content type guards hinzugefügt (aiDailyNews.ts, routers.ts)
+- [x] earningsGrowth property in eodhdApi.ts ergänzt
+- [x] historicalMetricsRecorder.ts DB query mit and() gefixed
+- [x] RefreshStockButton.tsx query name korrigiert (list statt getStocks)
+- [x] tRPC v11 deprecated callbacks entfernt (onError/onSuccess)
+- [x] Build erfolgreich (0 TypeScript-Fehler)
+
+## Forward P/E Chart Testing
+- [ ] NVIDIA Info-Dialog öffnen und Chart verifizieren
+- [ ] Median-Linie und Quarterly-Daten testen
+- [ ] Mit mehreren Aktien testen (US + Schweizer)
+
+## YTD Performance Final Fix
+- [ ] Chart vs. Karte Diskrepanz analysieren (Production)
+- [ ] Gewichtung und Berechnung synchronisieren

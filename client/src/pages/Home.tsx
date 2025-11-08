@@ -24,7 +24,7 @@ import { PortfolioPerformanceChart } from '@/components/PortfolioPerformanceChar
 import { PortfolioSentimentIndicator } from '@/components/PortfolioSentimentIndicator';
 import { StockLogo } from "@/components/StockLogo";
 import { RefreshStockButton } from "@/components/RefreshStockButton";
-import { HistoricalTrendChart } from "@/components/HistoricalTrendChart";
+import { ForwardPEChart } from "@/components/ForwardPEChart";
 import { DailyNewsSection } from '@/components/DailyNewsSection';
 import { WeeklyOverviewDialog } from '@/components/WeeklyOverviewDialog';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
@@ -752,11 +752,12 @@ export default function Home() {
     // Table
     autoTable(doc, {
       startY: 70,
-      head: [['Titel', 'Ticker', 'Kurs', 'P/E', 'PEG', 'Div.%', 'Port.%', 'Kategorie']],
+      head: [['Titel', 'Ticker', 'Kurs', 'YTD %', 'P/E', 'PEG', 'Div.%', 'Port.%', 'Kategorie']],
       body: filteredStocks.map(stock => [
         stock.companyName,
         stock.ticker,
         `${parseFloat(stock.currentPrice || '0').toFixed(2)} ${stock.currency}`,
+        stock.ytdPerformance ? `${parseFloat(stock.ytdPerformance) >= 0 ? '+' : ''}${parseFloat(stock.ytdPerformance).toFixed(1)}` : '-',
         stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : '-',
         stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(1) : '-',
         stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : '-',
@@ -2650,10 +2651,10 @@ export default function Home() {
                                     </div>
                                   </div>
 
-                                  {/* Historical Trend Charts */}
+                                  {/* Forward P/E Chart */}
                                   <div className="mt-6">
-                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Historische Entwicklung</h4>
-                                    <HistoricalTrendChart ticker={stock.ticker} />
+                                    <h4 className="text-md font-semibold text-blue-400 mb-3">Forward P/E Entwicklung</h4>
+                                    <ForwardPEChart ticker={stock.ticker} />
                                   </div>
 
                                   {/* AI Daily News Section */}

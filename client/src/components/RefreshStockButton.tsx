@@ -15,7 +15,7 @@ export function RefreshStockButton({ ticker }: RefreshStockButtonProps) {
   const refreshMutation = trpc.stocks.refreshStock.useMutation({
     onSuccess: () => {
       // Invalidate queries to refetch updated data
-      utils.stocks.getAllStocks.invalidate();
+      utils.stocks.list.invalidate();
       toast.success(`${ticker} erfolgreich aktualisiert!`);
       setIsRefreshing(false);
     },
