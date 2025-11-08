@@ -217,6 +217,7 @@ export default function Home() {
   
   // All useState hooks MUST be called before any early returns
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingStock, setEditingStock] = useState<any>(null);
@@ -515,10 +516,11 @@ export default function Home() {
   const filteredStocks = useMemo(() => {
     let filtered = stocks.filter(stock => {
       const matchesCategory = !selectedCategory || stock.category === selectedCategory;
+      const matchesSector = !selectedSector || stock.sector === selectedSector;
       const matchesSearch = !searchTerm || 
         stock.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         stock.ticker?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesSector && matchesSearch;
     });
 
     // Apply sorting
@@ -559,7 +561,7 @@ export default function Home() {
     }
 
     return filtered;
-  }, [stocks, selectedCategory, searchTerm, sortField, sortDirection, hasPaidAccess]);
+  }, [stocks, selectedCategory, selectedSector, searchTerm, sortField, sortDirection, hasPaidAccess]);
 
   const portfolioTotalWeight = useMemo(() => {
     return stocks.reduce((sum, stock) => sum + parseFloat(stock.portfolioWeight || '0'), 0);
@@ -612,6 +614,12 @@ export default function Home() {
   const categories = useMemo(() => {
     return categoriesData.map((c: any) => c.name).sort();
   }, [categoriesData]);
+
+  // Extract unique sectors from stocks
+  const sectors = useMemo(() => {
+    const uniqueSectors = new Set(stocks.map(s => s.sector).filter(Boolean));
+    return Array.from(uniqueSectors).sort();
+  }, [stocks]);
 
   const handleAddStock = () => {
     // Validation
@@ -2122,6 +2130,17 @@ export default function Home() {
               <SelectItem value="all" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Alle Kategorien</SelectItem>
               {categories.map(cat => (
                 <SelectItem key={cat} value={cat} className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedSector || "all"} onValueChange={(v) => setSelectedSector(v === "all" ? null : v)}>
+            <SelectTrigger className="w-full md:w-48 bg-slate-800 border-slate-700 text-white">
+              <SelectValue placeholder="Alle Branchen" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-700 text-white">
+              <SelectItem value="all" className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">Alle Branchen</SelectItem>
+              {sectors.map(sector => (
+                <SelectItem key={sector} value={sector} className="text-white hover:bg-slate-700 focus:bg-slate-700 focus:text-white">{sector}</SelectItem>
               ))}
             </SelectContent>
           </Select>

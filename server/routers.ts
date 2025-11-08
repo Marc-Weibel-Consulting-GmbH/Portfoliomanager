@@ -2000,6 +2000,7 @@ export const appRouter = router({
           const stockPriceMaps = validResults.map(r => {
             const priceMap = new Map<string, number>();
             let lastPrice = 0;
+            let hasStarted = false;
             
             // Sort data by date
             const sortedData = [...r.data].sort((a, b) => a.date.localeCompare(b.date));
@@ -2010,10 +2011,12 @@ export const appRouter = router({
               if (dataPoint) {
                 lastPrice = dataPoint.close;
                 priceMap.set(date, lastPrice);
-              } else if (lastPrice > 0) {
-                // Forward-fill: use last known price
+                hasStarted = true;
+              } else if (hasStarted && lastPrice > 0) {
+                // Forward-fill: use last known price (only AFTER stock has data)
                 priceMap.set(date, lastPrice);
               }
+              // If stock hasn't started yet (no data), don't add to priceMap
             });
             
             return { weight: r.weight, priceMap };
@@ -2044,18 +2047,18 @@ export const appRouter = router({
               const currentPrice = priceMap.get(date);
               const startPrice = startPrices[idx];
               
+              // Only include stocks that have data at this date
               if (currentPrice !== undefined && currentPrice > 0 && startPrice > 0) {
                 // Calculate percentage change for this stock from its start
                 const stockPerformance = ((currentPrice / startPrice) - 1) * 100;
                 // Weight it
                 weightedPerformance += stockPerformance * weight;
                 totalWeight += weight;
-                
-
               }
             });
             
-            // Return weighted average performance (in %)
+            // Normalize by actual weights present at this date
+            // This prevents drops when new stocks are added
             return totalWeight > 0 ? weightedPerformance / totalWeight : 0;
           });
 
