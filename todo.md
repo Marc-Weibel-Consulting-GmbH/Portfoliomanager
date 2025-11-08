@@ -1514,3 +1514,10 @@
 - [x] Europäische Ticker-Mapping: Alternative Formate für MONC.MI, VWRL.L, EXSA.DE testen
 - [x] Performance-Caching: historicalPrices Tabelle verwendet (bereits vorhanden)
 - [x] Cache-Strategie: Kurse >90% vollständig aus DB, sonst API + Cache Update
+
+
+## Fehler beheben & Fiscal.ai Fallback (2025-11-08)
+- [ ] Error beheben: "Cannot read properties of undefined (reading 'split')" in YTD calculation
+- [ ] Fiscal.ai als Fallback für fehlende Kursdaten implementieren
+- [ ] Fiscal.ai als Fallback für fehlende Fundamentaldaten (P/E, PEG, Div.) implementieren
+- [ ] Fiscal.ai als Fallback in allen Data-Fetching-Endpoints integrieren

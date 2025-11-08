@@ -45,9 +45,9 @@ async function fetchCachedPrices(ticker: string, fromDate: string, toDate: strin
       .orderBy(historicalPrices.date);
 
     return cached.map(row => ({
-      date: row.date,
+      date: typeof row.date === 'string' ? row.date : (row.date as Date)?.toISOString().split('T')[0] || '',
       close: parseFloat(row.close.toString()),
-    }));
+    })).filter(p => p.date); // Filter out entries with invalid dates
   } catch (error) {
     console.error(`[YTD Cache] Error fetching cached prices for ${ticker}:`, error);
     return [];
@@ -64,6 +64,12 @@ async function cachePrices(ticker: string, prices: DailyPrice[], source: string 
   try {
     // Insert or update prices
     for (const price of prices) {
+      // Skip invalid entries
+      if (!price.date || !price.close) {
+        console.warn(`[YTD Cache] Skipping invalid price entry for ${ticker}:`, price);
+        continue;
+      }
+      
       await db
         .insert(historicalPrices)
         .values({
@@ -122,10 +128,12 @@ async function fetchDailyPricesFromAPI(ticker: string, fromDate: string, toDate:
         console.log(`[YTD API] Using ticker variant ${variant} for ${ticker}`);
       }
 
-      const prices = data.map((d: any) => ({
-        date: d.date,
-        close: parseFloat(d.close),
-      }));
+      const prices = data
+        .filter((d: any) => d.date && d.close !== undefined && d.close !== null)
+        .map((d: any) => ({
+          date: d.date,
+          close: parseFloat(d.close),
+        }));
 
       // Cache the prices for future use
       await cachePrices(ticker, prices, 'eodhd');
