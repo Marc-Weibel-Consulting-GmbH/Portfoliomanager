@@ -1320,3 +1320,7 @@
 - [x] Fix Swiss stock logos (GF.SW, GIVN.SW) - wrong/generic logos displayed
 - [x] Fix currency display for Swiss stocks - shows USD instead of CHF
 - [x] Fix Sharpe Ratio calculation for Swiss stocks (GF.SW, BAER.SW) - returns 0.00
+
+- [x] Systematic audit: Check all stocks for currency and Sharpe Ratio bugs
+- [x] Bulk update: Fix all Swiss stocks (.SW) with correct CHF prices and Sharpe Ratios
+- [ ] Verify: ABB (ABBN.SW) shows CHF instead of USD and has Sharpe Ratio (user needs to run bulk update)

@@ -1402,6 +1402,92 @@ export const appRouter = router({
           },
         };
       }),
+    bulkUpdateSwissStocks: protectedProcedure.mutation(async ({ ctx }) => {
+      // Only admin can run bulk updates
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const { getDb } = await import("./db");
+      const { stocks } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const { getCompleteStockData } = await import("./_core/multiApiDataMerger");
+      
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Get all Swiss stocks
+      const allStocks = await db.select().from(stocks);
+      const swissStocks = allStocks.filter(s => s.ticker.endsWith('.SW'));
+
+      console.log(`[Bulk Update] Found ${swissStocks.length} Swiss stocks`);
+
+      let updatedCount = 0;
+      let failedCount = 0;
+      const results: any[] = [];
+
+      for (const stock of swissStocks) {
+        try {
+          console.log(`[${stock.ticker}] Fetching data...`);
+          
+          // Get complete data from multiApiDataMerger
+          const completeData = await getCompleteStockData(stock.ticker);
+
+          // Prepare update data
+          const updateData: any = {};
+
+          // Update price and currency
+          if (completeData.currentPrice !== null) {
+            updateData.currentPrice = completeData.currentPrice.toString();
+          }
+          if (completeData.currency) {
+            updateData.currency = completeData.currency;
+          }
+
+          // Update Sharpe Ratio
+          if (completeData.sharpe !== null && completeData.sharpe !== undefined) {
+            updateData.sharpeRatio = completeData.sharpe.toString();
+          }
+
+          // Update other metrics
+          if (completeData.pe !== null) updateData.peRatio = completeData.pe.toString();
+          if (completeData.peg !== null) updateData.pegRatio = completeData.peg.toString();
+          if (completeData.dividendYield !== null) updateData.dividendYield = completeData.dividendYield.toString();
+          if (completeData.beta !== null) updateData.beta = completeData.beta.toString();
+          if (completeData.volatility !== null) updateData.volatility = completeData.volatility.toString();
+
+          // Update timestamp
+          updateData.lastDataRefresh = new Date();
+
+          // Execute update
+          if (Object.keys(updateData).length > 1) {
+            await db.update(stocks)
+              .set(updateData)
+              .where(eq(stocks.ticker, stock.ticker));
+            
+            console.log(`  ✅ Updated ${stock.ticker}`);
+            updatedCount++;
+            results.push({ ticker: stock.ticker, status: 'success', updates: updateData });
+          }
+
+          // Rate limiting: wait 500ms between requests
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+        } catch (error: any) {
+          console.error(`  ❌ Failed ${stock.ticker}:`, error.message);
+          failedCount++;
+          results.push({ ticker: stock.ticker, status: 'failed', error: error.message });
+        }
+      }
+
+      return {
+        success: true,
+        total: swissStocks.length,
+        updated: updatedCount,
+        failed: failedCount,
+        results,
+      };
+    }),
   }),
 
   newsletter: router({

@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "../components/ui/alert";
 import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft, LogOut } from "lucide-react";
 import { NewsletterExport } from "../components/NewsletterExport";
 import Import from "./Import";
+import { SwissStockBulkUpdate } from "../components/SwissStockBulkUpdate";
 
 interface AdminProps {
   onBackClick?: () => void;
@@ -155,6 +156,21 @@ export function Admin({ onBackClick }: AdminProps) {
         </CardHeader>
         <CardContent>
           <Import onBackClick={() => {}} />
+        </CardContent>
+      </Card>
+
+      {/* Swiss Stock Bulk Update Card */}
+      <Card className="bg-slate-800 border-slate-700 mb-6">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            🇨🇭 Schweizer Aktien Bulk-Update
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            Aktualisiert alle Schweizer Aktien (.SW) mit korrekten CHF-Preisen und Sharpe Ratios von Yahoo Finance
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SwissStockBulkUpdate />
         </CardContent>
       </Card>
 
