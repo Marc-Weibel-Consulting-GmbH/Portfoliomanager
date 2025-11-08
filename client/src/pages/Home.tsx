@@ -521,7 +521,7 @@ export default function Home() {
         let bVal: any = b[sortField as keyof typeof b];
 
         // Handle numeric fields
-        if (['currentPrice', 'peRatio', 'pegRatio', 'sharpeRatio', 'dividendYield', 'portfolioWeight'].includes(sortField)) {
+        if (['currentPrice', 'ytdPerformance', 'peRatio', 'pegRatio', 'sharpeRatio', 'dividendYield', 'portfolioWeight'].includes(sortField)) {
           aVal = parseFloat(aVal || '0');
           bVal = parseFloat(bVal || '0');
         }

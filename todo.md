@@ -1289,3 +1289,7 @@
   - [x] PEG Ratio aus P/E und Wachstumsrate berechnen falls nicht verfügbar (aus EODHD quarterly earnings)
   - [x] Logo-Loading für Schweizer Aktien fixen (Julius Baer, VP Bank, EFG zu Domain-Mapping hinzugefügt)
   - [x] Data Merger priorisiert Yahoo für Sharpe, EODHD mit Berechnung für PEG
+- [x] Numerische Sortierung für P/E, PEG, Sharpe Ratio und Dividendenrendite fixen
+  - [x] Sortier-Logik in Stock-Table-Component gefunden (Home.tsx Zeile 524)
+  - [x] ytdPerformance zu numerischen Feldern hinzugefügt
+  - [x] Alle numerischen Spalten sortieren jetzt korrekt (parseFloat statt String-Vergleich)
