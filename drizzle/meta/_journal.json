@@ -162,6 +162,13 @@
       "when": 1762609884186,
       "tag": "0022_watery_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1762626002871,
+      "tag": "0023_brainy_serpent_society",
+      "breakpoints": true
     }
   ]
 }

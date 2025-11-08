@@ -286,3 +286,19 @@ export type Correlation = typeof correlations.$inferSelect;
 export type InsertCorrelation = typeof correlations.$inferInsert;
 export type AnalyzerReport = typeof analyzerReports.$inferSelect;
 export type InsertAnalyzerReport = typeof analyzerReports.$inferInsert;
+
+// Historical prices cache table - stores daily closing prices for chart performance
+export const historicalPrices = mysqlTable("historicalPrices", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  date: date("date").notNull(),
+  close: decimal("close", { precision: 18, scale: 6 }).notNull(),
+  source: varchar("source", { length: 50 }).notNull().default("yahoo"), // "yahoo", "eodhd", "manual"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  tickerDateIdx: index("ix_historical_prices_ticker_date").on(t.ticker, t.date),
+}));
+
+export type HistoricalPrice = typeof historicalPrices.$inferSelect;
+export type InsertHistoricalPrice = typeof historicalPrices.$inferInsert;

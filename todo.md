@@ -1384,3 +1384,12 @@
 
 - [ ] Yahoo Finance Fallback für Portfolio Chart implementieren (EODHD API-Key-Problem umgehen)
 - [ ] YTD Performance-Berechnung korrigieren (Chart zeigt +25.14% statt +13.1%)
+
+- [ ] Portfolio Chart auf Manus Data API (Yahoo Finance) umstellen (EODHD_API_KEY fehlt auf publizierter Seite)
+
+- [x] Chart lädt nicht auf öffentlicher Seite - EODHD_API_KEY fehlt trotz Secrets-Konfiguration
+- [x] Database Caching für historische Preise implementiert (historicalPrices Tabelle)
+- [x] Cache-First Logik im Backend (DB → API Fallback mit Rate Limit Protection)
+- [x] populate-price-cache.ts Script erstellt und ausgeführt (106 Aktien gecached)
+- [x] Chart lädt jetzt sofort aus Cache ohne 106 API-Calls
+- [ ] YTD Performance-Diskrepanz lösen (Chart zeigt +25.14% statt +13.1% wie Performance & Dividende Karte)

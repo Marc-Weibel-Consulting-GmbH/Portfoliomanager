@@ -4,6 +4,9 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
+import { callDataApi } from "./_core/dataApi";
+import { historicalPrices } from "../drizzle/schema";
+import { and, eq, gte, lte } from "drizzle-orm";
 
 /**
  * Fetch dividend yield with 3-tier fallback: EODHD → Finnhub → Yahoo Finance
@@ -1872,20 +1875,8 @@ export const appRouter = router({
       })
       .query(async ({ input }) => {
         const { tickers, weights, years = 5 } = input;
-        const apiKey = process.env.EODHD_API_KEY;
         
-        // Detailed logging for debugging
-        console.log('[Chart] Environment check:', {
-          hasKey: !!apiKey,
-          keyType: typeof apiKey,
-          keyLength: apiKey?.length || 0,
-          keyPreview: apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : 'undefined',
-          allEnvKeys: Object.keys(process.env).filter(k => k.includes('EODHD') || k.includes('API')).join(', ')
-        });
-        
-        if (!apiKey || apiKey.trim() === '') {
-          throw new Error(`EODHD API key not configured. Available env keys: ${Object.keys(process.env).filter(k => k.includes('API')).join(', ')}`);
-        }
+        console.log('[Chart] Using cached historical data');
 
         const fromDate = new Date();
         fromDate.setFullYear(fromDate.getFullYear() - years);
@@ -1893,38 +1884,52 @@ export const appRouter = router({
         const toDateStr = new Date().toISOString().split('T')[0];
 
         try {
-          // Fetch historical data for each ticker with batching to avoid rate limits
-          const BATCH_SIZE = 10;
-          const BATCH_DELAY_MS = 200; // 200ms delay between batches
-          
+          const { getDb } = await import("./db");
+          const db = await getDb();
+          if (!db) {
+            throw new Error('Database not available');
+          }
+
+          // Fetch cached data for all tickers
           const results: Array<{ ticker: string; data: any[]; weight: number } | null> = [];
           
-          for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
-            const batch = tickers.slice(i, i + BATCH_SIZE);
-            const batchPromises = batch.map(async (ticker, batchIndex) => {
-              const index = i + batchIndex;
-              const cleanTicker = ticker.replace(/\s+•\s+/, '.');
-              const url = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=${fromDateStr}&to=${toDateStr}&fmt=json`;
-              try {
-                const res = await fetch(url);
-                if (!res.ok) return null;
-                const data = await res.json();
-                return { ticker: cleanTicker, data, weight: weights[index] || 0 };
-              } catch (error) {
-                console.error(`[Chart] Failed to fetch ${cleanTicker}:`, error);
-                return null;
+          for (let i = 0; i < tickers.length; i++) {
+            const ticker = tickers[i];
+            const cleanTicker = ticker.replace(/\s+•\s+/, '.');
+            
+            try {
+              // Query cache for this ticker
+              const cachedPrices = await db
+                .select()
+                .from(historicalPrices)
+                .where(
+                  and(
+                    eq(historicalPrices.ticker, cleanTicker),
+                    gte(historicalPrices.date, fromDateStr),
+                    lte(historicalPrices.date, toDateStr)
+                  )
+                )
+                .orderBy(historicalPrices.date);
+              
+              if (cachedPrices.length > 0) {
+                console.log(`[Chart] Cache HIT for ${cleanTicker}: ${cachedPrices.length} records`);
+                const data = cachedPrices.map(p => ({
+                  date: typeof p.date === 'string' ? p.date : (p.date as Date).toISOString().split('T')[0],
+                  close: parseFloat(p.close as any)
+                }));
+                results.push({ ticker: cleanTicker, data, weight: weights[i] || 0 });
+              } else {
+                console.log(`[Chart] Cache MISS for ${cleanTicker}`);
+                results.push(null);
               }
-            });
-            
-            const batchResults = await Promise.all(batchPromises);
-            results.push(...batchResults);
-            
-            // Add delay between batches (except for the last batch)
-            if (i + BATCH_SIZE < tickers.length) {
-              await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+            } catch (error) {
+              console.error(`[Chart] Failed to fetch cached data for ${cleanTicker}:`, error);
+              results.push(null);
             }
           }
+          
           const validResults = results.filter((r): r is { ticker: string; data: any[]; weight: number } => r !== null && r.data && r.data.length > 0);
+          console.log(`[Chart] Valid cached results: ${validResults.length}/${results.length}`);
 
           if (validResults.length === 0) {
             return { dates: [], values: [] };
