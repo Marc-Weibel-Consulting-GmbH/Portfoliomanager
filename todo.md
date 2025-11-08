@@ -1343,3 +1343,5 @@
 
 - [x] UI Layout: Erste 3 Kästen schmaler und weniger hoch machen, Chart breiter
 - [x] YTD-Berechnung: Chart zeigt 23.97% statt 13.1% wie in Kasten 3
+
+- [x] Layout Redesign: 3 Kästen oben (gleich breit), Portfolio Chart darunter (volle Breite)
