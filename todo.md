@@ -1374,3 +1374,8 @@
 - [x] Chart-Breite: Gesamten schwarzen Kasten (bg-slate-900/50) schmaler machen, Legende bleibt darunter
 - [x] YTD Performance-Diskrepanz beheben: Chart soll gleichen Wert zeigen wie Performance & Dividende Karte (13.1% statt 25.14%)
 - [x] Chart default auf YTD stellen (statt Max)
+
+- [x] Chart lädt nicht auf öffentlicher Seite nach Login - API Batching + Error Handling implementiert
+- [x] KI-Wochenüberblick Backend: Finnhub News API + EODHD Preise + LLM Filter
+- [x] KI-Wochenüberblick Frontend: Button + Dialog + Loading States
+- [x] KI-Wochenüberblick getestet und funktioniert (NVIDIA, J&J Events angezeigt)
