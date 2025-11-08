@@ -1348,3 +1348,7 @@
 
 - [x] Chart Legend: Alles auf einer Zeile (Portfolio BIG | S&P 500 | Performance-Werte)
 - [ ] YTD Performance: Chart-Werte stimmen noch nicht mit Kasten 3 überein
+
+- [x] Legend Format: Performance direkt hinter Label (Portfolio BIG +25.15% | S&P 500 +14.35%)
+
+- [x] Chart-Breite: Schwarzen Chart-Kasten schmaler machen für bessere Proportionen

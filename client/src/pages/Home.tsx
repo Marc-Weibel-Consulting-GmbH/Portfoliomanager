@@ -1962,15 +1962,17 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Full-width Portfolio Performance Chart */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Portfolio Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PortfolioPerformanceChart />
-          </CardContent>
-        </Card>
+        {/* Portfolio Performance Chart */}
+        <div className="max-w-5xl mx-auto">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-slate-400">Portfolio Performance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PortfolioPerformanceChart />
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="flex gap-2 mb-4">
           <button

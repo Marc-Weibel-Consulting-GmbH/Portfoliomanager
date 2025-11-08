@@ -268,20 +268,20 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
             </LineChart>
           </ResponsiveContainer>
           
-          <div className="mt-4 flex items-center justify-center gap-6 text-sm">
+          <div className="mt-4 flex items-center justify-center gap-8 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-8 h-0.5 bg-blue-400"></div>
               <span className="text-slate-300">{portfolioName}</span>
+              <span className={`font-semibold ml-1 ${portfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {portfolioReturn >= 0 ? '+' : ''}{portfolioReturn.toFixed(2)}%
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-0.5 bg-red-400"></div>
               <span className="text-slate-300">{benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}</span>
-            </div>
-            <div className={`font-semibold ${portfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {portfolioReturn >= 0 ? '+' : ''}{portfolioReturn.toFixed(2)}%
-            </div>
-            <div className={`font-semibold ${benchmarkReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {benchmarkReturn >= 0 ? '+' : ''}{benchmarkReturn.toFixed(2)}%
+              <span className={`font-semibold ml-1 ${benchmarkReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {benchmarkReturn >= 0 ? '+' : ''}{benchmarkReturn.toFixed(2)}%
+              </span>
             </div>
           </div>
         </div>
