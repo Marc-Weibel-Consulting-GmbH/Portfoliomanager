@@ -1479,3 +1479,10 @@
 - [ ] Frontend: ForwardPEChart anpassen für Fiscal.ai Datenformat
 - [ ] Testen: NVIDIA (Fiscal.ai) vs Meta (TTM Fallback)
 - [ ] Chart-Titel dynamisch anpassen (Forward P/E vs Trailing P/E TTM)
+
+## YTD Performance Chart - Realistische Darstellung
+- [x] Lineare Interpolation durch tägliche historische Kurse ersetzen
+- [x] EODHD API Integration für tägliche Kursdaten (01.01.2025 - heute)
+- [x] Tägliche Portfolio-Performance berechnen (gewichtet über alle Aktien)
+- [x] Chart zeigt reale Marktschwankungen statt gerader Linie (221 Handelstage, 0.94% → 38.83%)
+- [ ] Performance-Karte zeigt korrekten Wert für ALLE 106 Aktien (Frontend lädt nur Teilmenge)

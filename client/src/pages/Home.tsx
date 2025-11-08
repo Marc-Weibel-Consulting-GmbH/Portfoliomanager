@@ -1932,17 +1932,27 @@ export default function Home() {
                   <div className="text-xs text-slate-400 mb-1">YTD Performance (gewichtet)</div>
                   <div className={`text-2xl font-bold ${(() => {
                     const ytdPerf = stocks.reduce((sum, stock) => {
-                      const ytd = parseFloat(stock.ytdPerformance || "0");
+                      const currentPrice = parseFloat(stock.currentPrice || "0");
+                      const ytdStartPrice = parseFloat(stock.ytdStartPrice || "0");
                       const weight = parseFloat(stock.portfolioWeight || "0");
-                      return sum + (ytd * weight / 100);
+                      if (currentPrice > 0 && ytdStartPrice > 0 && weight > 0) {
+                        const stockYTD = ((currentPrice - ytdStartPrice) / ytdStartPrice) * 100;
+                        return sum + (stockYTD * weight / 100);
+                      }
+                      return sum;
                     }, 0);
                     return ytdPerf >= 0 ? 'text-green-400' : 'text-red-400';
                   })()}`}>
                     {(() => {
                       const ytdPerf = stocks.reduce((sum, stock) => {
-                        const ytd = parseFloat(stock.ytdPerformance || "0");
+                        const currentPrice = parseFloat(stock.currentPrice || "0");
+                        const ytdStartPrice = parseFloat(stock.ytdStartPrice || "0");
                         const weight = parseFloat(stock.portfolioWeight || "0");
-                        return sum + (ytd * weight / 100);
+                        if (currentPrice > 0 && ytdStartPrice > 0 && weight > 0) {
+                          const stockYTD = ((currentPrice - ytdStartPrice) / ytdStartPrice) * 100;
+                          return sum + (stockYTD * weight / 100);
+                        }
+                        return sum;
                       }, 0);
                       return ytdPerf >= 0 ? `+${ytdPerf.toFixed(1)}%` : `${ytdPerf.toFixed(1)}%`;
                     })()}
