@@ -1555,3 +1555,11 @@
 - [ ] Navigation "Kategorien": Zeigt weiterhin Investment-Typen (Kategorie)
 - [ ] Filter-Logik: Optional - Separate Filter für Branche hinzufügen
 - [ ] Migration: Existierende category-Werte manuell auf neue Struktur mappen
+
+
+## 3-Jahres-Chart Performance-Problem (2025-11-08)
+- [x] Problem: Chart zeigt dramatischen Einbruch im Oktober 2024 (165% → 0% → Erholung)
+- [x] Ursache identifiziert: Intersection-Logik verwarf alle Daten vor neuen Aktien
+- [x] Fix: Union-Logik mit Forward-Fill für fehlende Kurse implementiert
+- [x] Fix: Dynamische Gewichtung - nur Aktien die zu diesem Zeitpunkt existierten
+- [ ] Test: Chart visuell überprüfen - sollte glatte Kurve ohne Sprünge zeigen

@@ -267,32 +267,58 @@ export async function calculatePortfolioPerformance(
       return [];
     }
 
-    // Find common date range (intersection of all dates)
-    const dateArrays = validStocks.map((s) => s.data.map((d) => d.date));
-    const commonDates = dateArrays.reduce((acc, dates) => {
-      return acc.filter((date) => dates.includes(date));
+    // Use UNION of all dates (not intersection) to avoid data loss when stocks are added
+    const allDatesSet = new Set<string>();
+    validStocks.forEach((s) => {
+      s.data.forEach((d) => allDatesSet.add(d.date));
     });
 
-    if (commonDates.length === 0) {
+    const allDates = Array.from(allDatesSet).sort();
+
+    if (allDates.length === 0) {
       return [];
     }
 
-    // Sort dates chronologically
-    commonDates.sort();
+    // Build price maps with forward-fill for missing dates
+    const stockPriceMaps = validStocks.map((stock) => {
+      const priceMap = new Map<string, number>();
+      let lastKnownPrice: number | null = null;
+
+      for (const date of allDates) {
+        const priceData = stock.data.find((d) => d.date === date);
+        if (priceData) {
+          lastKnownPrice = priceData.close;
+          priceMap.set(date, priceData.close);
+        } else if (lastKnownPrice !== null) {
+          // Forward-fill: use last known price
+          priceMap.set(date, lastKnownPrice);
+        }
+        // If no price available yet (stock not added), don't include in portfolio
+      }
+
+      return { ...stock, priceMap };
+    });
 
     // Calculate portfolio value for each date
     const portfolioPerformance: PortfolioPerformancePoint[] = [];
     const initialValue = 10000; // Start with CHF 10,000
     let firstPortfolioValue: number | null = null;
 
-    for (const date of commonDates) {
+    for (const date of allDates) {
       let portfolioValue = 0;
+      let totalWeight = 0; // Track actual weight of stocks present on this date
 
-      for (const stock of validStocks) {
-        const priceData = stock.data.find((d) => d.date === date);
-        if (priceData) {
-          portfolioValue += priceData.close * stock.weight;
+      for (const stockMap of stockPriceMaps) {
+        const price = stockMap.priceMap.get(date);
+        if (price !== undefined) {
+          portfolioValue += price * stockMap.weight;
+          totalWeight += stockMap.weight;
         }
+      }
+
+      // Skip dates where no stocks have data yet
+      if (totalWeight === 0) {
+        continue;
       }
 
       // Store first portfolio value for normalization
