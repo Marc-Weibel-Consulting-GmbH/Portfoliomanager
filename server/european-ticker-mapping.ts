@@ -30,6 +30,12 @@ const EUROPEAN_TICKER_MAP: Record<string, string[]> = {
  * @returns Array of ticker variants to try, ordered by likelihood
  */
 export function getEODHDTickerVariants(ticker: string): string[] {
+  // Handle undefined or null ticker
+  if (!ticker || typeof ticker !== 'string') {
+    console.warn('[Ticker Mapping] Invalid ticker:', ticker);
+    return [];
+  }
+  
   // Handle .US suffix (EODHD uses plain ticker for US stocks)
   if (ticker.endsWith('.US')) {
     const baseTicker = ticker.replace('.US', '');
