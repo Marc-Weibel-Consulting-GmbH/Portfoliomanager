@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useMemo, useEffect } from "react";
 import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen, X } from "lucide-react";
@@ -28,6 +29,14 @@ import { ForwardPEChart } from "@/components/ForwardPEChart";
 import { DailyNewsSection } from '@/components/DailyNewsSection';
 import { WeeklyOverviewDialog } from '@/components/WeeklyOverviewDialog';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
+
+// Score threshold helper
+function getScoreLabel(score: number): string {
+  if (score >= 80) return 'Sehr gut (≥80)';
+  if (score >= 60) return 'Gut (60-79)';
+  if (score >= 40) return 'Mittel (40-59)';
+  return 'Schwach (<40)';
+}
 
 // AI-powered portfolio market analysis
 async function analyzePortfolioMarket(stocks: any[]) {
@@ -2546,15 +2555,25 @@ export default function Home() {
                             };
                             
                             return (
-                              <button
-                                onClick={() => {
-                                  setSelectedScoreDetail(score);
-                                  setShowScoreDetail(true);
-                                }}
-                                className={`px-2 py-1 rounded text-white text-xs font-bold ${colorMap[score.color]} hover:opacity-80 cursor-pointer`}
-                              >
-                                {score.totalScore.toFixed(0)}
-                              </button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedScoreDetail(score);
+                                      setShowScoreDetail(true);
+                                    }}
+                                    className={`px-2 py-1 rounded text-white text-xs font-bold ${colorMap[score.color]} hover:opacity-80 cursor-pointer`}
+                                  >
+                                    {score.totalScore.toFixed(0)}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-700 border-slate-600 text-white">
+                                  <div className="text-sm">
+                                    <div className="font-semibold">Score: {score.totalScore.toFixed(0)}</div>
+                                    <div className="text-slate-300">{getScoreLabel(score.totalScore)}</div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
                             );
                           })()}
                         </td>

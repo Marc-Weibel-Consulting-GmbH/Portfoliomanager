@@ -49,8 +49,23 @@ export function ForwardPEChart({ ticker }: ForwardPEChartProps) {
     );
   }
 
-  // Prepare chart data
-  const chartData = data.data.map((point) => ({
+  // Prepare chart data - reduce to monthly points and reverse to chronological order
+  const allData = data.data
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort chronologically
+  
+  // Sample to monthly data points to reduce clutter
+  const monthlyData: typeof data.data = [];
+  let lastMonth = '';
+  
+  allData.forEach((point) => {
+    const monthKey = new Date(point.date).toISOString().slice(0, 7); // YYYY-MM
+    if (monthKey !== lastMonth) {
+      monthlyData.push(point);
+      lastMonth = monthKey;
+    }
+  });
+  
+  const chartData = monthlyData.map((point) => ({
     date: new Date(point.date).toLocaleDateString('de-DE', { 
       year: 'numeric',
       month: 'short',
@@ -124,7 +139,7 @@ export function ForwardPEChart({ ticker }: ForwardPEChartProps) {
             {data.source === 'fiscal' ? 'Forward P/E (Fiscal.ai)' : 'Trailing P/E (TTM)'} Entwicklung
           </CardTitle>
           <CardDescription className="text-slate-400 text-xs">
-            {data.data.length} {data.source === 'fiscal' ? 'Datenpunkte' : 'Quartale'} über {years} Jahre • Median: {data.median.toFixed(2)}
+            {chartData.length} Datenpunkte über {years} Jahre • Median: {data.median.toFixed(2)}
             {data.source === 'fiscal' && ' • Quelle: Fiscal.ai Pro'}
           </CardDescription>
         </CardHeader>
