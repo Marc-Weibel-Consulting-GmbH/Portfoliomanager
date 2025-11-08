@@ -1895,7 +1895,13 @@ export const appRouter = router({
         const { getAllStocks } = await import("./db");
         const stocks = await getAllStocks();
         const { calculateYTDPerformance } = await import("./ytd-performance");
-        return await calculateYTDPerformance(stocks);
+        const dailyData = await calculateYTDPerformance(stocks);
+        
+        // Transform to { dates, values } format expected by chart
+        return {
+          dates: dailyData.map(d => d.date),
+          values: dailyData.map(d => d.performance),
+        };
       }),
 
     getHistoricalData: protectedProcedure

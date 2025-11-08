@@ -1520,6 +1520,7 @@
 - [x] Error beheben: "Cannot read properties of undefined (reading 'split')" in YTD calculation
 - [x] Error beheben: "Cannot read properties of undefined (reading 'endsWith')" in ticker mapping
 - [x] YTD Route angepasst: Lädt Stocks aus DB statt (tickers, weights) Parameter
+- [x] YTD Datenformat angepasst: Transformiert [{date, performance}] zu {dates[], values[]} für Chart
 - [ ] Fiscal.ai als Fallback für fehlende Kursdaten implementieren
 - [ ] Fiscal.ai als Fallback für fehlende Fundamentaldaten (P/E, PEG, Div.) implementieren
 - [ ] Fiscal.ai als Fallback in allen Data-Fetching-Endpoints integrieren
