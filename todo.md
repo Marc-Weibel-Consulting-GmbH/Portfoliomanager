@@ -1734,3 +1734,21 @@
   - [x] Math.round(scoreValue) in Score-Display hinzugefügt
 - [x] "Portfolio auswählen" Dropdown muss VOR "Zurück" Button im Header erscheinen
   - [x] Button-Reihenfolge geändert: Dropdown -> Zurück -> Speichern -> andere Buttons
+
+## Zusammensetzung-Berechnung Bug
+- [x] Negative Cash-Werte (-4.4%) nicht erlaubt
+  - [x] Math.max(0, remainingCash) hinzugefügt
+- [ ] Summe aller Kategorien muss 100% ergeben (aktuell: 78.3% + 11.1% + 40.9% = 130.3%)
+  - [x] ETF-Kategorisierung exklusiv (nicht in Dividenden/Wachstum gezählt)
+  - [ ] Problem: isDividendStock/isGrowthStock Flags möglicherweise falsch
+- [x] Prozentsatz-Berechnung überprüfen (Basis: totalAmount vs. totalInvested)
+  - [x] Basis ist jetzt totalInvested (ohne Cash)
+
+## Neue Probleme
+- [x] Portfolio laden Fehler: "ei[] is not a function"
+  - [x] Array-Check hinzugefügt (if (!Array.isArray(stocksDataResult)))
+  - [x] Bessere Fehlermeldungen mit console.error
+- [x] Score-Werte stimmen nicht überein zwischen Hauptseite und OptimizerResults
+  - [x] trpc.score.calculateAll.useQuery() in OptimizerResults hinzugefügt
+  - [x] Score-Display verwendet jetzt scoreData?.totalScore (dynamisch)
+  - [x] Alte trpc.scoring.calculateScores.useQuery() entfernt

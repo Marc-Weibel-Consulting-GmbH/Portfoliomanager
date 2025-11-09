@@ -50,7 +50,6 @@ interface OptimizedPosition {
 
 export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
-  const { data: stockScores = [] } = trpc.scoring.calculateScores.useQuery();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictData, setConflictData] = useState<any>(null);
@@ -82,6 +81,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
     tickerSearchQuery,
     { enabled: tickerSearchQuery.length >= 2 }
   );
+
+  // Fetch dynamic scores (same as Home page)
+  const { data: stockScores = [] } = trpc.score.calculateAll.useQuery();
 
   // Fetch stock data mutation for auto-fill
   const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
@@ -864,22 +866,30 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   }, [optimizedPortfolio.positions, editablePositions]);
 
   // Calculate composition for display portfolio
+  // Calculate composition amounts (ETFs are exclusive, not counted in dividend/growth)
+  const etfAmount = displayPortfolio.positions
+    .filter((p: any) => p.category === 'ETF')
+    .reduce((sum, p) => sum + p.investmentAmount, 0);
   const dividendAmount = displayPortfolio.positions
-    .filter((p: any) => p.isDividendStock)
+    .filter((p: any) => p.isDividendStock && p.category !== 'ETF')
     .reduce((sum, p) => sum + p.investmentAmount, 0);
   const growthAmount = displayPortfolio.positions
     .filter((p: any) => p.isGrowthStock && !p.isDividendStock && p.category !== 'ETF')
     .reduce((sum, p) => sum + p.investmentAmount, 0);
-  const etfAmount = displayPortfolio.positions
-    .filter((p: any) => p.category === 'ETF')
-    .reduce((sum, p) => sum + p.investmentAmount, 0);
   
-  // Use actual total invested amount (works for both optimized and loaded portfolios)
-  const totalAmount = displayPortfolio.totalInvested + displayPortfolio.remainingCash;
-  const dividendPercent = totalAmount > 0 ? (dividendAmount / totalAmount) * 100 : 0;
-  const growthPercent = totalAmount > 0 ? (growthAmount / totalAmount) * 100 : 0;
-  const etfPercent = totalAmount > 0 ? (etfAmount / totalAmount) * 100 : 0;
-  const cashPercent = totalAmount > 0 ? (displayPortfolio.remainingCash / totalAmount) * 100 : 0;
+  // Use total invested amount as base (100%)
+  const totalInvestedAmount = displayPortfolio.totalInvested;
+  const remainingCashAmount = Math.max(0, displayPortfolio.remainingCash); // No negative cash
+  
+  // Calculate percentages based on total invested (not including cash)
+  const dividendPercent = totalInvestedAmount > 0 ? (dividendAmount / totalInvestedAmount) * 100 : 0;
+  const growthPercent = totalInvestedAmount > 0 ? (growthAmount / totalInvestedAmount) * 100 : 0;
+  const etfPercent = totalInvestedAmount > 0 ? (etfAmount / totalInvestedAmount) * 100 : 0;
+  
+  // Cash is separate (not part of 100%)
+  const cashPercent = (totalInvestedAmount + remainingCashAmount) > 0 
+    ? (remainingCashAmount / (totalInvestedAmount + remainingCashAmount)) * 100 
+    : 0;
 
   // Prepare data for performance chart
   const tickers = displayPortfolio.positions.map(p => p.ticker);
@@ -1321,6 +1331,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                         // Fetch full stock data from database
                         const tickers = data.stocks.map((s: any) => s.ticker).filter(Boolean);
                         const stocksDataResult = await trpc.stocks.getByTickers.query({ tickers });
+                        
+                        // Ensure stocksDataResult is an array
+                        if (!Array.isArray(stocksDataResult)) {
+                          console.error('[Portfolio Load] stocksDataResult is not an array:', stocksDataResult);
+                          toast.error('Portfolio konnte nicht geladen werden: Ungültige Daten');
+                          return;
+                        }
+                        
                         const stocksMap = new Map(stocksDataResult.map(s => [s.ticker, s]));
                         
                         // Enrich loaded stocks
@@ -1493,7 +1511,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     </td>
                     <td className="p-3 text-center">
                       {(() => {
-                        const scoreValue = pos.score || 0;
+                        // Use dynamic score from stockScores query (same as Home page)
+                        const scoreData = stockScores.find((s: any) => s.ticker === pos.ticker);
+                        const scoreValue = scoreData?.totalScore || 0;
                         if (scoreValue === 0) return <span className="text-slate-500">-</span>;
                         
                         // Color based on score value
