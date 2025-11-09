@@ -1589,3 +1589,7 @@
 ## Navigation & Portfolio Verbesserungen (2025-11-09)
 - [x] "Performance" Button aus Navigation entfernen
 - [x] Geladene Portfolios zeigen dieselben Spalten wie Frontseite (Company, Ticker, Kurs, YTD%, P/E, PEG, Sharpe, Div%, Gewicht%, Score)
+
+## Optimizer Fixes (2025-11-09)
+- [x] Add missing columns to optimizer results table (Logo, P/E, PEG, Sharpe)
+- [x] Remove target conflict warnings (dividend, Sharpe) - keep only diversification warning

@@ -37,6 +37,9 @@ interface OptimizedPosition {
   dividendYield: string;
   ytdPerformance: string;
   peRatio: string;
+  pegRatio?: string;
+  sharpeRatio?: string;
+  logoUrl?: string;
   shares: number;
   investmentAmount: number;
   portfolioWeight: number;
@@ -415,6 +418,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         dividendYield: stock.dividendYield,
         ytdPerformance: stock.ytdPerformance,
         peRatio: stock.peRatio,
+        pegRatio: stock.pegRatio,
+        sharpeRatio: stock.sharpeRatio,
+        logoUrl: stock.logoUrl,
         shares,
         investmentAmount: actualInvestment,
         portfolioWeight,
@@ -627,50 +633,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
     }
   }, [optimizedPortfolio, hideDiversificationWarning]);
 
-  // Detect conflicts and show dialog
-  useEffect(() => {
-    if (!optimizedPortfolio.positions.length || showConflictDialog) return;
-
-    // Calculate Sharpe Ratio for current portfolio
-    const weights: Record<string, number> = {};
-    const totalInvested = optimizedPortfolio.totalInvested;
-    optimizedPortfolio.positions.forEach(pos => {
-      weights[pos.ticker] = pos.investmentAmount / totalInvested;
-    });
-
-    const { sharpeRatio } = calculateSharpeRatio(
-      optimizedPortfolio.positions.map(p => ({
-        ticker: p.ticker,
-        ytdPerformance: p.ytdPerformance,
-        dividendYield: p.dividendYield,
-        currentPrice: p.currentPrice,
-      })),
-      weights
-    );
-
-    // Define thresholds
-    const dividendDiff = Math.abs(optimizedPortfolio.avgDividendYield - currentInputs.expectedDividendYield);
-    const targetSharpe = 1.5; // Good Sharpe Ratio target
-    const sharpeDiff = targetSharpe - sharpeRatio;
-
-    // Check if there's a conflict (dividend off by >0.5% OR sharpe below 1.0)
-    const hasConflict = dividendDiff > 0.5 || sharpeRatio < 1.0;
-
-    // Show conflict dialog ONLY on initial optimization (strategy is 'balanced')
-    // Once user chooses a strategy, don't show again
-    if (hasConflict && optimizationStrategy === "balanced") {
-      // Show conflict dialog
-      setConflictData({
-        targetDividend: currentInputs.expectedDividendYield,
-        achievedDividend: optimizedPortfolio.avgDividendYield,
-        targetSharpe,
-        achievedSharpe: sharpeRatio,
-        currentPositions: currentInputs.numberOfPositions,
-        suggestedPositions: Math.max(10, Math.floor(currentInputs.numberOfPositions * 0.75)),
-      });
-      setShowConflictDialog(true);
-    }
-  }, [optimizedPortfolio, currentInputs, showConflictDialog, optimizationStrategy]);
+  // Conflict detection removed - only diversification warning remains
 
   // Calculate Sharpe-optimized portfolio
   const sharpeOptimizedPortfolio = useMemo(() => {
@@ -763,6 +726,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
           dividendYield: stock.dividendYield,
           ytdPerformance: stock.ytdPerformance,
           peRatio: stock.peRatio,
+          pegRatio: stock.pegRatio,
+          sharpeRatio: stock.sharpeRatio,
+          logoUrl: stock.logoUrl,
           shares: wp.shares,
           investmentAmount: wp.amount,
           portfolioWeight: (wp.amount / currentInputs.investmentAmount) * 100,
@@ -974,18 +940,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
 
   return (
     <div className="container mx-auto px-4 space-y-4">
-      {/* Conflict Resolution Dialog */}
-      {conflictData && (
-        <ConflictResolutionDialog
-          open={showConflictDialog}
-          onClose={() => setShowConflictDialog(false)}
-          onResolve={(strategy) => {
-            setOptimizationStrategy(strategy);
-            setShowConflictDialog(false);
-          }}
-          conflict={conflictData}
-        />
-      )}
+      {/* Conflict Resolution Dialog - REMOVED (only diversification warning remains) */}
 
       {/* Portfolio Adjustment Dialog */}
       <PortfolioAdjustmentDialog
@@ -1829,7 +1784,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     portfolioWeight: (investmentAmount / currentInputs.investmentAmount) * 100,
                     dividendYield: addStockFormData.dividendYield || '0',
                     ytdPerformance: addStockFormData.ytdPerformance || '0',
-                    peRatio: '0',
+                    peRatio: addStockFormData.peRatio || '0',
+                    pegRatio: addStockFormData.pegRatio || '0',
+                    sharpeRatio: addStockFormData.sharpeRatio || '0',
+                    logoUrl: addStockFormData.logoUrl,
                     score: 0,
                     isDividendStock: parseFloat(addStockFormData.dividendYield || '0') >= 2,
                     isGrowthStock: parseFloat(addStockFormData.dividendYield || '0') < 2,
