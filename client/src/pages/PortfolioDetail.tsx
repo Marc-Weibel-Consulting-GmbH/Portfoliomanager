@@ -29,7 +29,7 @@ export default function PortfolioDetail() {
   // Fetch live performance if portfolio is live
   const { data: livePerformance } = trpc.savedPortfolios.calculateLivePerformance.useQuery(
     { id: portfolioId! },
-    { enabled: !!portfolioId && !!portfolio?.isLive }
+    { enabled: !!portfolioId && Boolean(portfolio?.isLive) }
   );
 
   // Toggle live mutation
@@ -114,25 +114,26 @@ export default function PortfolioDetail() {
               {/* Live Toggle */}
               <Button
                 onClick={() => {
+                  const isCurrentlyLive = Boolean(portfolio.isLive);
                   console.log('[PortfolioDetail] Toggling live status:', {
                     portfolioId: portfolio.id,
-                    currentStatus: portfolio.isLive,
-                    newStatus: !portfolio.isLive
+                    currentStatus: isCurrentlyLive,
+                    newStatus: !isCurrentlyLive
                   });
                   toggleLiveMutation.mutate({
                     id: portfolio.id,
-                    isLive: !portfolio.isLive
+                    isLive: !isCurrentlyLive
                   });
                 }}
-                variant={portfolio.isLive ? "default" : "outline"}
-                className={portfolio.isLive ? "bg-green-600 hover:bg-green-700" : ""}
+                variant={Boolean(portfolio.isLive) ? "default" : "outline"}
+                className={Boolean(portfolio.isLive) ? "bg-green-600 hover:bg-green-700 text-white" : "text-slate-300"}
               >
-                {portfolio.isLive && <span className="w-2 h-2 bg-white rounded-full animate-pulse mr-2" />}
-                {portfolio.isLive ? "Live" : "Test"}
+                {Boolean(portfolio.isLive) && <span className="w-2 h-2 bg-white rounded-full animate-pulse mr-2" />}
+                {Boolean(portfolio.isLive) ? "Live" : "Test"}
               </Button>
 
               {/* Add Transaction Button (only if live) */}
-              {portfolio.isLive && (
+              {Boolean(portfolio.isLive) && (
                 <Button
                   onClick={() => setIsTransactionModalOpen(true)}
                   className="bg-blue-600 hover:bg-blue-700"
@@ -185,7 +186,7 @@ export default function PortfolioDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {portfolio.isLive && livePerformance?.performance !== null ? (
+              {Boolean(portfolio.isLive) && livePerformance?.performance !== null ? (
                 <div>
                   <p className={`text-3xl font-bold ${
                     (livePerformance?.performance || 0) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -210,7 +211,7 @@ export default function PortfolioDetail() {
         </div>
 
         {/* Live Performance Chart */}
-        {portfolio.isLive && transactions.length > 0 && livePerformance && (
+        {Boolean(portfolio.isLive) && transactions.length > 0 && livePerformance && (
           <div className="mb-8">
             <LivePerformanceChart
               transactions={transactions}
@@ -221,7 +222,7 @@ export default function PortfolioDetail() {
         )}
 
         {/* Transaction History */}
-        {portfolio.isLive && (
+        {Boolean(portfolio.isLive) && (
           <div className="mb-8">
             <TransactionHistory
               portfolioId={portfolio.id}
@@ -276,7 +277,7 @@ export default function PortfolioDetail() {
       </div>
 
       {/* Transaction Modal */}
-      {portfolio.isLive && (
+      {Boolean(portfolio.isLive) && (
         <TransactionModal
           isOpen={isTransactionModalOpen}
           onClose={() => setIsTransactionModalOpen(false)}
