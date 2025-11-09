@@ -174,7 +174,6 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   userId: int("userId").notNull(), // References users.id
   name: varchar("name", { length: 255 }).notNull(), // User-defined portfolio name
   description: text("description"), // Optional description
-  tags: varchar("tags", { length: 500 }), // Comma-separated tags (e.g., "Konservativ,Dividenden,Tech")
   portfolioData: text("portfolioData").notNull(), // JSON string with stocks and weights
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

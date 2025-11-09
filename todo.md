@@ -1589,16 +1589,3 @@
 ## Navigation & Portfolio Verbesserungen (2025-11-09)
 - [x] "Performance" Button aus Navigation entfernen
 - [x] Geladene Portfolios zeigen dieselben Spalten wie Frontseite (Company, Ticker, Kurs, YTD%, P/E, PEG, Sharpe, Div%, Gewicht%, Score)
-
-## Portfolio Tags & Filterung (2025-11-09)
-- [ ] Tags-Feld zur Datenbank hinzufügen (savedPortfolios Tabelle)
-- [ ] Tag-Input im "Portfolio speichern" Dialog
-- [ ] Tag-Filter im "Portfolio laden" Dialog
-- [ ] Vordefinierte Tags (Konservativ, Tech-fokussiert, Dividenden, Wachstum, etc.)
-
-## Optimiertes Portfolio Tabelle Bugs (2025-11-09)
-- [ ] Logo fehlt in optimierter Portfolio-Tabelle (nur farbige Kreise sichtbar)
-- [ ] Score-Werte fehlen (nur farbige Badges ohne Zahlen)
-- [ ] P/E Spalte fehlt in optimierter Portfolio-Tabelle
-- [ ] PEG Spalte fehlt in optimierter Portfolio-Tabelle
-- [ ] Sharpe Spalte fehlt in optimierter Portfolio-Tabelle

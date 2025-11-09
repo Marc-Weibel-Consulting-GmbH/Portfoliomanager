@@ -176,13 +176,6 @@
       "when": 1762638765055,
       "tag": "0024_stormy_starhawk",
       "breakpoints": true
-    },
-    {
-      "idx": 25,
-      "version": "5",
-      "when": 1762676947572,
-      "tag": "0025_fat_vampiro",
-      "breakpoints": true
     }
   ]
 }
