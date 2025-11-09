@@ -1585,3 +1585,7 @@
 - [x] Kategorien-Dropdown enthält auch Branchen (sollte nur Kategorien zeigen)
 - [ ] Forward P/E im Chart stimmt nicht mit P/E in Aktienliste überein (NESN.SW zeigt 8.84 statt 19.8)
 - [ ] 3-Jahres-Chart zeigt immer noch großen Drawdown im November 2024 (Benchmark-Intersection Problem)
+
+## Navigation & Portfolio Verbesserungen (2025-11-09)
+- [x] "Performance" Button aus Navigation entfernen
+- [x] Geladene Portfolios zeigen dieselben Spalten wie Frontseite (Company, Ticker, Kurs, YTD%, P/E, PEG, Sharpe, Div%, Gewicht%, Score)

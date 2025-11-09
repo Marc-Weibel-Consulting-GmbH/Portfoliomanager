@@ -159,44 +159,35 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="space-y-3 max-h-96 overflow-y-auto">
+    <div className="space-y-6 max-h-[600px] overflow-y-auto">
       {savedPortfolios.map((portfolio: any) => {
         const data = JSON.parse(portfolio.portfolioData);
-        const stockCount = data.stocks?.length || 0;
+        const stocks = data.stocks || [];
         
         return (
-          <div
-            key={portfolio.id}
-            onClick={() => handleLoad(portfolio)}
-            className="p-4 bg-slate-700 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors cursor-pointer"
-          >
-            <div className="flex items-start justify-between">
+          <div key={portfolio.id} className="bg-slate-700 rounded-lg border border-slate-600 p-4">
+            {/* Portfolio Header */}
+            <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
-                <h3 className="font-semibold text-white mb-1">{portfolio.name}</h3>
+                <h3 className="font-semibold text-white text-lg mb-1">{portfolio.name}</h3>
                 {portfolio.description && (
                   <p className="text-sm text-slate-400 mb-2">{portfolio.description}</p>
                 )}
                 <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <span>{stockCount} Aktien</span>
+                  <span>{stocks.length} Aktien</span>
                   <span>Gespeichert: {new Date(portfolio.createdAt).toLocaleDateString('de-DE')}</span>
                 </div>
               </div>
               <div className="flex gap-2 ml-4">
                 <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleLoad(portfolio);
-                  }}
+                  onClick={() => handleLoad(portfolio)}
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Laden
                 </Button>
                 <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(portfolio.id, portfolio.name);
-                  }}
+                  onClick={() => handleDelete(portfolio.id, portfolio.name)}
                   size="sm"
                   variant="outline"
                   className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
@@ -204,6 +195,71 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
+            </div>
+
+            {/* Portfolio Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-600">
+                    <th className="text-left py-2 px-2 text-slate-400">Titel</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Ticker</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Kurs</th>
+                    <th className="text-left py-2 px-2 text-slate-400">YTD %</th>
+                    <th className="text-left py-2 px-2 text-slate-400">P/E</th>
+                    <th className="text-left py-2 px-2 text-slate-400">PEG</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Sharpe</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Div. %</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Gewicht %</th>
+                    <th className="text-center py-2 px-2 text-slate-400">Score</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Kategorie</th>
+                    <th className="text-left py-2 px-2 text-slate-400">Branche</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stocks.map((stock: any, idx: number) => {
+                    const ytd = parseFloat(stock.ytdPerformance || '0');
+                    const sharpe = parseFloat(stock.sharpeRatio || '0');
+                    const score = stock.score || 0;
+                    
+                    return (
+                      <tr key={idx} className="border-b border-slate-700 hover:bg-slate-600/50">
+                        <td className="py-2 px-2 text-slate-300">{stock.companyName}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.ticker}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.currentPrice} {stock.currency || 'USD'}</td>
+                        <td className="py-2 px-2">
+                          <span className={ytd >= 0 ? 'text-green-400' : 'text-red-400'}>
+                            {ytd >= 0 ? '+' : ''}{ytd.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-slate-300">{stock.peRatio || '-'}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.pegRatio || '-'}</td>
+                        <td className="py-2 px-2">
+                          <span className={sharpe >= 1 ? 'text-green-400' : sharpe >= 0 ? 'text-yellow-400' : 'text-red-400'}>
+                            {stock.sharpeRatio || '-'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-slate-300">{stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) + '%' : '-'}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.portfolioWeight ? parseFloat(stock.portfolioWeight).toFixed(1) + '%' : '-'}</td>
+                        <td className="py-2 px-2 text-center">
+                          {score > 0 ? (
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                              score >= 80 ? 'bg-green-600 text-white' :
+                              score >= 60 ? 'bg-yellow-600 text-white' :
+                              score >= 40 ? 'bg-orange-600 text-white' :
+                              'bg-red-600 text-white'
+                            }`}>
+                              {score}
+                            </span>
+                          ) : '-'}
+                        </td>
+                        <td className="py-2 px-2 text-slate-300">{stock.category || '-'}</td>
+                        <td className="py-2 px-2 text-slate-300">{stock.sector || '-'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         );
@@ -2046,16 +2102,7 @@ export default function Home() {
           >
             Transactions
           </button>
-          <button
-            onClick={() => setActiveTab("performance")}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === "performance"
-                ? "bg-green-600 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
-          >
-            Performance
-          </button>
+
           <button
             onClick={() => setActiveTab("research")}
             className={`px-4 py-2 rounded font-medium transition-colors ${
