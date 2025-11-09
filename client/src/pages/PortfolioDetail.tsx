@@ -253,18 +253,18 @@ export default function PortfolioDetail() {
                     <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                       <td className="py-3 px-2 text-white font-mono font-semibold">{stock.ticker}</td>
                       <td className="py-3 px-2 text-slate-300">{stock.name}</td>
-                      <td className="py-3 px-2 text-slate-300 text-right">{stock.weight?.toFixed(1)}%</td>
+                      <td className="py-3 px-2 text-slate-300 text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
                       <td className="py-3 px-2 text-slate-300 text-right">
-                        CHF {parseFloat(stock.currentPrice || 0).toFixed(2)}
+                        CHF {(parseFloat(stock.currentPrice) || 0).toFixed(2)}
                       </td>
                       <td className="py-3 px-2 text-green-400 text-right">
-                        {stock.dividendYield?.toFixed(2)}%
+                        {(parseFloat(stock.dividendYield) || 0).toFixed(2)}%
                       </td>
                       <td className={`py-3 px-2 text-right font-semibold ${
-                        (stock.ytdPerformance || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                        (parseFloat(stock.ytdPerformance) || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
-                        {(stock.ytdPerformance || 0) >= 0 ? '+' : ''}
-                        {stock.ytdPerformance?.toFixed(1)}%
+                        {(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}
+                        {(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%
                       </td>
                     </tr>
                   ))}

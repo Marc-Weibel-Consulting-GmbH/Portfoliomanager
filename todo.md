@@ -1828,3 +1828,4 @@
 ## CRITICAL BUGS (Nov 9, 2025 - 10:02)
 - [x] portfolioData.map is not a function - PortfolioDetail crashes when loading → FIXED: Added safe JSON parsing
 - [ ] Live Toggle funktioniert immer noch nicht - Mutation wird nicht ausgeführt → Added debug logging
+- [x] stock.dividendYield?.toFixed is not a function - Type conversion error in portfolio holdings table → FIXED: Added parseFloat
