@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Reviews from "./pages/Reviews";
 import Categories from "./pages/Categories";
 import Sectors from "./pages/Sectors";
+import PortfolioDetail from "./pages/PortfolioDetail";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -25,6 +26,7 @@ function Router() {
         {() => <Reviews />}
       </Route>
       <Route path="/stock/:ticker" component={StockDetail} />
+      <Route path="/portfolio/:id" component={PortfolioDetail} />
       <Route path="/categories" component={Categories} />
       <Route path="/sectors" component={Sectors} />
       <Route path="/404" component={NotFound} />

@@ -1815,3 +1815,11 @@
 - [x] Performance Chart for Live Portfolios - IRR over time visualization
 - [x] Finnhub Dividend Calendar API integration
 - [x] Automatic dividend notifications via WhatsApp (infrastructure ready)
+
+
+## CRITICAL - UI Integration Issues (Nov 9, 2025 - 09:52)
+- [x] Live Toggle funktioniert IMMER NOCH NICHT - Button reagiert nicht auf Klicks → FIXED: Neuer Button auf Detail-Seite
+- [x] Transaction Modal ist nicht in UI integriert - User kann keine Transaktionen erfassen → FIXED: Auf Detail-Seite
+- [x] Transaction History ist nicht sichtbar - Komponente existiert aber nicht eingebunden → FIXED: Auf Detail-Seite
+- [x] Performance Chart ist nicht sichtbar - Komponente existiert aber nicht eingebunden → FIXED: Auf Detail-Seite
+- [x] Portfolio Detail Page fehlt - Brauche dedizierte Seite für Portfolio-Details mit allen Features → CREATED

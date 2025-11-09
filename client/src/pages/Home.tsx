@@ -1822,34 +1822,12 @@ export default function Home() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            // Load portfolio and show OptimizerResults
-                            try {
-                              const data = JSON.parse(portfolio.portfolioData);
-                              
-                              if (data.stocks) {
-                                // Use saved inputs or create default inputs from portfolio data
-                                const inputs = data.inputs || {
-                                  investmentAmount: data.totalInvested || 10000,
-                                  expectedDividendYield: data.avgDividendYield || 2.0,
-                                  numberOfPositions: data.numberOfPositions || data.stocks.length,
-                                  investorType: "balanced" as const
-                                };
-                                
-                                setOptimizerInputs(inputs);
-                                setShowOptimizerResults(true);
-                                toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde geladen` });
-                              } else {
-                                toast.error('Fehler', { description: 'Portfolio-Daten sind unvollständig' });
-                              }
-                            } catch (error) {
-                              console.error('Failed to load portfolio:', error);
-                              toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden' });
-                            }
+                            window.location.href = `/portfolio/${portfolio.id}`;
                           }}
                           className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
                           style={{pointerEvents: 'auto', zIndex: 10}}
                         >
-                          Laden
+                          Details
                         </button>
                         <Button
                           onClick={async () => {
