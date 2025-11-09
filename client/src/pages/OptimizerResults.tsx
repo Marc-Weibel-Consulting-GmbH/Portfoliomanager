@@ -37,6 +37,9 @@ interface OptimizedPosition {
   dividendYield: string;
   ytdPerformance: string;
   peRatio: string;
+  pegRatio?: string;
+  sharpeRatio?: string;
+  logoUrl?: string;
   shares: number;
   investmentAmount: number;
   portfolioWeight: number;
@@ -415,6 +418,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         dividendYield: stock.dividendYield,
         ytdPerformance: stock.ytdPerformance,
         peRatio: stock.peRatio,
+        pegRatio: stock.pegRatio,
+        sharpeRatio: stock.sharpeRatio,
+        logoUrl: stock.logoUrl,
         shares,
         investmentAmount: actualInvestment,
         portfolioWeight,
@@ -763,6 +769,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
           dividendYield: stock.dividendYield,
           ytdPerformance: stock.ytdPerformance,
           peRatio: stock.peRatio,
+          pegRatio: stock.pegRatio,
+          sharpeRatio: stock.sharpeRatio,
+          logoUrl: stock.logoUrl,
           shares: wp.shares,
           investmentAmount: wp.amount,
           portfolioWeight: (wp.amount / currentInputs.investmentAmount) * 100,
@@ -1415,6 +1424,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
+                  <th className="text-left p-3 text-slate-400 font-medium"></th>
                   <th className="text-left p-3 text-slate-400 font-medium">Ticker</th>
                   <th className="text-left p-3 text-slate-400 font-medium">Unternehmen</th>
                   <th className="text-left p-3 text-slate-400 font-medium">Kategorie</th>
@@ -1422,6 +1432,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   <th className="text-right p-3 text-slate-400 font-medium">Kurs</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Total CHF</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Gewicht</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">P/E</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">PEG</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">Sharpe</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Div. %</th>
                   <th className="text-right p-3 text-slate-400 font-medium">YTD %</th>
                   <th className="text-center p-3 text-slate-400 font-medium">Score</th>
@@ -1430,6 +1443,17 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
               <tbody>
                 {displayPortfolio.positions.map((pos) => (
                   <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
+                    <td className="p-3">
+                      <img 
+                        src={pos.logoUrl || `https://logo.clearbit.com/${pos.companyName?.toLowerCase().replace(/\s+/g, '')}.com`} 
+                        alt={pos.companyName} 
+                        className="w-8 h-8 rounded object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </td>
                     <td className="p-3 text-blue-400 font-medium">{pos.ticker}</td>
                     <td className="p-3 text-white">{pos.companyName}</td>
                     <td className="p-3 text-slate-300">{pos.category}</td>
@@ -1442,6 +1466,18 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     </td>
                     <td className="p-3 text-right text-slate-300">
                       {(pos.portfolioWeight || 0).toFixed(2)}%
+                    </td>
+                    <td className="p-3 text-right text-slate-300">
+                      {pos.peRatio || '-'}
+                    </td>
+                    <td className="p-3 text-right text-slate-300">
+                      {pos.pegRatio || '-'}
+                    </td>
+                    <td className={`p-3 text-right font-medium ${
+                      parseFloat(pos.sharpeRatio || '0') >= 1 ? 'text-green-400' : 
+                      parseFloat(pos.sharpeRatio || '0') >= 0 ? 'text-yellow-400' : 'text-red-400'
+                    }`}>
+                      {pos.sharpeRatio || '-'}
                     </td>
                     <td className="p-3 text-right text-green-400">
                       {pos.dividendYield}%
@@ -1829,7 +1865,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     portfolioWeight: (investmentAmount / currentInputs.investmentAmount) * 100,
                     dividendYield: addStockFormData.dividendYield || '0',
                     ytdPerformance: addStockFormData.ytdPerformance || '0',
-                    peRatio: '0',
+                    peRatio: addStockFormData.peRatio || '0',
+                    pegRatio: addStockFormData.pegRatio || '0',
+                    sharpeRatio: addStockFormData.sharpeRatio || '0',
+                    logoUrl: addStockFormData.logoUrl,
                     score: 0,
                     isDividendStock: parseFloat(addStockFormData.dividendYield || '0') >= 2,
                     isGrowthStock: parseFloat(addStockFormData.dividendYield || '0') < 2,

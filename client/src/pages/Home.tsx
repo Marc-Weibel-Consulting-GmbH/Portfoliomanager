@@ -114,6 +114,20 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
   const { data: savedPortfolios = [], refetch } = trpc.savedPortfolios.list.useQuery();
   const deleteMutation = trpc.savedPortfolios.delete.useMutation();
   const { refetch: refetchStocks } = trpc.stocks.list.useQuery();
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  
+  // Extract all unique tags from saved portfolios
+  const allTags = Array.from(new Set(
+    savedPortfolios
+      .filter(p => p.tags)
+      .flatMap(p => p.tags!.split(','))
+      .map(tag => tag.trim())
+  ));
+  
+  // Filter portfolios by selected tag
+  const filteredPortfolios = selectedTagFilter
+    ? savedPortfolios.filter(p => p.tags && p.tags.split(',').map(t => t.trim()).includes(selectedTagFilter))
+    : savedPortfolios;
 
   const handleLoad = async (portfolio: any) => {
     try {
@@ -159,8 +173,39 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="space-y-6 max-h-[600px] overflow-y-auto">
-      {savedPortfolios.map((portfolio: any) => {
+    <div className="space-y-4">
+      {/* Tag Filter */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-2 pb-4 border-b border-slate-600">
+          <button
+            onClick={() => setSelectedTagFilter(null)}
+            className={`px-3 py-1 rounded-full text-sm transition-colors ${
+              selectedTagFilter === null
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            Alle ({savedPortfolios.length})
+          </button>
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTagFilter(tag)}
+              className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                selectedTagFilter === tag
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {tag} ({savedPortfolios.filter(p => p.tags && p.tags.split(',').map(t => t.trim()).includes(tag)).length})
+            </button>
+          ))}
+        </div>
+      )}
+      
+      {/* Portfolio List */}
+      <div className="space-y-6 max-h-[500px] overflow-y-auto">
+      {filteredPortfolios.map((portfolio: any) => {
         const data = JSON.parse(portfolio.portfolioData);
         const stocks = data.stocks || [];
         
@@ -172,6 +217,15 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
                 <h3 className="font-semibold text-white text-lg mb-1">{portfolio.name}</h3>
                 {portfolio.description && (
                   <p className="text-sm text-slate-400 mb-2">{portfolio.description}</p>
+                )}
+                {portfolio.tags && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {portfolio.tags.split(',').map((tag: string, idx: number) => (
+                      <span key={idx} className="px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded text-xs">
+                        {tag.trim()}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 <div className="flex items-center gap-4 text-xs text-slate-500">
                   <span>{stocks.length} Aktien</span>
@@ -264,6 +318,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -321,6 +376,7 @@ export default function Home() {
   const [showWeeklyOverview, setShowWeeklyOverview] = useState(false);
   const [portfolioName, setPortfolioName] = useState('');
   const [portfolioDescription, setPortfolioDescription] = useState('');
+  const [portfolioTags, setPortfolioTags] = useState<string[]>([]);
   
   // Query for saved portfolios - MUST be at top level (not conditional)
   const { data: savedPortfoliosData = [], refetch: refetchSavedPortfolios } = trpc.savedPortfolios.list.useQuery();
@@ -3307,12 +3363,43 @@ export default function Home() {
                 className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Tags (optional)</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {['Konservativ', 'Wachstum', 'Dividenden', 'Tech-fokussiert', 'Value', 'Balanced', 'Defensiv', 'Aggressiv'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      if (portfolioTags.includes(tag)) {
+                        setPortfolioTags(portfolioTags.filter(t => t !== tag));
+                      } else {
+                        setPortfolioTags([...portfolioTags, tag]);
+                      }
+                    }}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                      portfolioTags.includes(tag)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              {portfolioTags.length > 0 && (
+                <div className="text-sm text-slate-400">
+                  Ausgewählt: {portfolioTags.join(', ')}
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2">
               <Button
                 onClick={() => {
                   setIsSavePortfolioDialogOpen(false);
                   setPortfolioName('');
                   setPortfolioDescription('');
+                  setPortfolioTags([]);
                 }}
                 variant="outline"
                 className="border-slate-600 text-white hover:bg-slate-700"
@@ -3341,6 +3428,7 @@ export default function Home() {
                     await savePortfolioMutation.mutateAsync({
                       name: portfolioName,
                       description: portfolioDescription || undefined,
+                      tags: portfolioTags.length > 0 ? portfolioTags.join(',') : undefined,
                       portfolioData,
                     });
                     
@@ -3348,6 +3436,7 @@ export default function Home() {
                     setIsSavePortfolioDialogOpen(false);
                     setPortfolioName('');
                     setPortfolioDescription('');
+                    setPortfolioTags([]);
                   } catch (error) {
                     console.error('Failed to save portfolio:', error);
                     toast.error('Fehler', { description: 'Portfolio konnte nicht gespeichert werden' });
