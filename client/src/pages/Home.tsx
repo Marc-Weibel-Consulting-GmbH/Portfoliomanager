@@ -208,6 +208,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
                         };
                         
                         setOptimizerInputs(reconstructedInputs);
+                        setOptimizerInitialStocks(stocks); // Pass the actual stock data
                         setShowOptimizerResults(true);
                         setActiveTab('optimizer');
                         toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde in den Optimizer geladen` });
@@ -348,6 +349,7 @@ export default function Home() {
   const [infoFormData, setInfoFormData] = useState<any>({});
   const [finanzenFormData, setFinanzenFormData] = useState<any>({});
   const [optimizerInputs, setOptimizerInputs] = useState<any>(null);
+  const [optimizerInitialStocks, setOptimizerInitialStocks] = useState<any>(null);
   const [showOptimizerResults, setShowOptimizerResults] = useState(false);
   const [refreshProgress, setRefreshProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1720,10 +1722,12 @@ export default function Home() {
       return (
         <OptimizerResults
           inputs={optimizerInputs}
+          initialStocks={optimizerInitialStocks}
           onBack={() => {
             // Go back to portfolio optimizer start (where saved portfolios are shown)
             setShowOptimizerResults(false);
             setOptimizerInputs(null);
+            setOptimizerInitialStocks(null); // Clear initial stocks
             refetchSavedPortfolios(); // Refresh saved portfolios list
           }}
           onPortfolioSaved={() => {

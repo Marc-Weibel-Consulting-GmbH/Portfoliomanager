@@ -50,3 +50,10 @@
 - [x] For LIVE portfolios: Navigate to Portfolio Detail page
 - [x] Remove "Details" button (functionality merged into "Laden")
 - [x] Reconstruct OptimizerInputs from saved portfolio data
+
+
+## Bug Fix (Nov 9, 2025 - 23:30)
+- [x] OptimizerResults doesn't show saved portfolio data
+- [x] Add initialStocks prop to OptimizerResults interface
+- [x] When initialStocks provided, skip optimization and use preloaded data
+- [x] Update Laden button to pass portfolio stocks as initialStocks

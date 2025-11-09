@@ -27,6 +27,7 @@ interface OptimizerResultsProps {
   inputs: OptimizerInputs;
   onBack: () => void;
   onPortfolioSaved?: () => void;
+  initialStocks?: OptimizedPosition[];
 }
 
 interface OptimizedPosition {
@@ -48,7 +49,7 @@ interface OptimizedPosition {
   isGrowthStock: boolean;
 }
 
-export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: OptimizerResultsProps) {
+export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, initialStocks }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
@@ -66,7 +67,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   });
   
   // Editable portfolio state (separate from optimized suggestion)
-  const [editablePositions, setEditablePositions] = useState<OptimizedPosition[] | null>(null);
+  const [editablePositions, setEditablePositions] = useState<OptimizedPosition[] | null>(initialStocks || null);
   const [showAddStockDialog, setShowAddStockDialog] = useState(false);
   const [addStockFormData, setAddStockFormData] = useState<any>({});
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");
@@ -154,6 +155,23 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
     avgDividendYield: number;
     avgYtdPerformance: number;
   } => {
+    // If initialStocks provided, skip optimization and use preloaded data
+    if (initialStocks && initialStocks.length > 0) {
+      const totalInvested = initialStocks.reduce((sum, stock) => sum + stock.investmentAmount, 0);
+      const totalShares = initialStocks.reduce((sum, stock) => sum + stock.shares, 0);
+      const avgDividendYield = initialStocks.reduce((sum, stock) => sum + parseFloat(stock.dividendYield || '0'), 0) / initialStocks.length;
+      const avgYtdPerformance = initialStocks.reduce((sum, stock) => sum + parseFloat(stock.ytdPerformance || '0'), 0) / initialStocks.length;
+      
+      return {
+        positions: initialStocks,
+        totalInvested,
+        remainingCash: currentInputs.investmentAmount - totalInvested,
+        totalShares,
+        avgDividendYield,
+        avgYtdPerformance
+      };
+    }
+    
     if (!allStocks.length) return { 
       positions: [], 
       totalInvested: 0, 
