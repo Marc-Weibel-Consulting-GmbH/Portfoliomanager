@@ -82,55 +82,39 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     if (!activePortfolioData || !activePortfolioData.dates || activePortfolioData.dates.length === 0) return [];
     if (!benchmarkData || !benchmarkData.dates || benchmarkData.dates.length === 0) return [];
     
-    // Find common dates
-    let commonDates = activePortfolioData.dates.filter(date => benchmarkData.dates.includes(date));
+    // Use portfolio dates as primary (backend already filtered correctly)
+    // Fill missing benchmark values with forward-fill
+    const portfolioDates = activePortfolioData.dates;
     
-    if (commonDates.length === 0) return [];
+    if (portfolioDates.length === 0) return [];
     
-    // Filter dates based on selected period
-    const now = new Date();
-    const cutoffDate = new Date();
+    // Build benchmark value map with forward-fill for missing dates
+    const benchmarkMap = new Map<string, number>();
+    let lastBenchmarkValue = 0;
     
-    if (selectedPeriod === 'YTD') {
-      cutoffDate.setMonth(0, 1); // January 1st of current year
-    } else if (selectedPeriod === '1M') {
-      cutoffDate.setMonth(now.getMonth() - 1);
-    } else if (selectedPeriod === '3M') {
-      cutoffDate.setMonth(now.getMonth() - 3);
-    } else if (selectedPeriod === '6M') {
-      cutoffDate.setMonth(now.getMonth() - 6);
-    } else if (selectedPeriod === '1Y') {
-      cutoffDate.setFullYear(now.getFullYear() - 1);
-    } else if (selectedPeriod === '3Y') {
-      cutoffDate.setFullYear(now.getFullYear() - 3);
-    } else if (selectedPeriod === '5Y') {
-      cutoffDate.setFullYear(now.getFullYear() - 5);
-    }
-    // 'Max' uses all available dates
+    portfolioDates.forEach(date => {
+      const benchmarkIndex = benchmarkData.dates.indexOf(date);
+      if (benchmarkIndex >= 0) {
+        lastBenchmarkValue = benchmarkData.values[benchmarkIndex] || lastBenchmarkValue;
+      }
+      benchmarkMap.set(date, lastBenchmarkValue);
+    });
     
-    if (selectedPeriod !== 'Max') {
-      commonDates = commonDates.filter(date => new Date(date) >= cutoffDate);
-    }
-    
-    if (commonDates.length === 0) return [];
-    
-    // Get values for common dates (these are percentage values from backend)
-    const portfolioValues = commonDates.map(date => {
-      const index = activePortfolioData.dates.indexOf(date);
+    // Get values for all portfolio dates
+    const portfolioValues = portfolioDates.map((date, index) => {
       return activePortfolioData.values[index] || 0;
     });
     
-    const benchmarkValues = commonDates.map(date => {
-      const index = benchmarkData.dates.indexOf(date);
-      return benchmarkData.values[index] || 0;
+    const benchmarkValues = portfolioDates.map(date => {
+      return benchmarkMap.get(date) || 0;
     });
+    
+    const commonDates = portfolioDates;
     
     // For YTD: Backend already returns values from 0% to ytdPerformance%, no normalization needed
     // For other periods: Normalize to start at 0% by subtracting the first value
     const portfolioStart = selectedPeriod === 'YTD' ? 0 : (portfolioValues[0] || 0);
     const benchmarkStart = selectedPeriod === 'YTD' ? 0 : (benchmarkValues[0] || 0);
-    
-  // Debug logs removed
     
     return commonDates.map((date, index) => ({
       date: new Date(date).toLocaleDateString('de-CH', { 

@@ -183,6 +183,31 @@ export async function calculateHistoricalPE(
   current: number | null;
   source: 'fiscal' | 'ttm';
 }> {
+  // Get current P/E from database (matches table display)
+  const db = await getDb();
+  let currentPEFromDB: number | null = null;
+  
+  if (db) {
+    const { stocks } = await import("../drizzle/schema");
+    const stockData = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+    console.log(`[P/E Chart] DB query result for ${ticker}:`, stockData.length > 0 ? { peRatio: stockData[0].peRatio, ticker: stockData[0].ticker } : 'No data');
+    if (stockData.length > 0 && stockData[0].peRatio) {
+      currentPEFromDB = parseFloat(stockData[0].peRatio);
+      console.log(`[P/E Chart] Current P/E from DB for ${ticker}: ${currentPEFromDB}`);
+      
+      // Write to debug file
+      const fs = await import('fs');
+      fs.writeFileSync('/home/ubuntu/pe-debug.json', JSON.stringify({
+        ticker,
+        peRatio: stockData[0].peRatio,
+        parsed: currentPEFromDB,
+        timestamp: new Date().toISOString()
+      }, null, 2));
+    } else {
+      console.log(`[P/E Chart] No P/E found in DB for ${ticker}`);
+    }
+  }
+  
   // Remove exchange suffix for Fiscal.ai (they use base tickers)
   const baseTicker = ticker.split('.')[0];
   
@@ -208,7 +233,8 @@ export async function calculateHistoricalPE(
     }));
     
     const median = calculateMedianPE(recentData);
-    const current = peData.length > 0 ? peData[peData.length - 1].pe : null;
+    // Use database P/E as current value (matches table)
+    const current = currentPEFromDB !== null ? currentPEFromDB : (peData.length > 0 ? peData[peData.length - 1].pe : null);
     
     return {
       data: peData,
@@ -221,6 +247,11 @@ export async function calculateHistoricalPE(
   // Fallback to TTM calculation
   console.log(`[P/E Chart] Fiscal.ai not available for ${baseTicker}, using TTM fallback`);
   const ttmResult = await calculateTTMPE(ticker, years);
+  
+  // Override current P/E with database value if available
+  if (currentPEFromDB !== null) {
+    ttmResult.current = currentPEFromDB;
+  }
   
   return {
     ...ttmResult,

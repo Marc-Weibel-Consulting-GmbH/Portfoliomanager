@@ -618,11 +618,10 @@ export default function Home() {
     }
   }, [portfolioTotalWeight, stocks.length]);
 
-  // Load categories from database
-  const { data: categoriesData = [] } = trpc.categories.list.useQuery();
+  // Define actual stock categories (not sectors)
   const categories = useMemo(() => {
-    return categoriesData.map((c: any) => c.name).sort();
-  }, [categoriesData]);
+    return ['Dividendenaktien', 'Wachstumsaktien', 'ETF', 'Value', 'Andere'].sort();
+  }, []);
 
   // Extract unique sectors from stocks
   const sectors = useMemo(() => {

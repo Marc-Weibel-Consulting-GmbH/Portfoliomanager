@@ -2025,7 +2025,7 @@ export const appRouter = router({
           // Calculate weighted portfolio performance for each date
           // Use ytdStartPrices if provided (for YTD calculations), otherwise use first price
           
-          // Get start price for each stock (first valid price in data)
+          // Get start price for each stock (first valid price in their data)
           const startPrices = stockPriceMaps.map(({ priceMap }, idx) => {
             // Use first valid price in historical data
             for (const date of allDates) {
@@ -2036,12 +2036,13 @@ export const appRouter = router({
             }
             return 0;
           });
-          console.log(`[Chart] Total start prices calculated: ${startPrices.filter(p => p > 0).length}/${startPrices.length}`);
-          console.log(`[Chart] First date: ${allDates[0]}, Last date: ${allDates[allDates.length - 1]}`);
 
-          const portfolioValues = allDates.map(date => {
+
+          const portfolioValues = allDates.map((date, dateIdx) => {
             let weightedPerformance = 0;
             let totalWeight = 0;
+            
+
             
             stockPriceMaps.forEach(({ weight, priceMap }, idx) => {
               const currentPrice = priceMap.get(date);
@@ -2054,6 +2055,8 @@ export const appRouter = router({
                 // Weight it
                 weightedPerformance += stockPerformance * weight;
                 totalWeight += weight;
+                
+
               }
             });
             
@@ -2067,6 +2070,8 @@ export const appRouter = router({
 
           const timeSpanYears = ((new Date(validDates[validDates.length - 1]).getTime() - new Date(validDates[0]).getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toFixed(1);
           console.log(`[Chart] Returning ${validDates.length} data points spanning ${timeSpanYears} years`);
+          
+
           return {
             dates: validDates,
             values: absoluteValues,

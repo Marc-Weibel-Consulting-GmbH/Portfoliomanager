@@ -1580,3 +1580,8 @@
 - [ ] Script auf alle 106 existierenden Aktien anwenden
 - [ ] Datenbank mit zugewiesenen Werten aktualisieren
 - [ ] Verifizierung: Stichproben prüfen (NVDA → Technology, Mercedes → Automotive, etc.)
+
+## Neue Bugs (2025-11-08)
+- [x] Kategorien-Dropdown enthält auch Branchen (sollte nur Kategorien zeigen)
+- [ ] Forward P/E im Chart stimmt nicht mit P/E in Aktienliste überein (NESN.SW zeigt 8.84 statt 19.8)
+- [ ] 3-Jahres-Chart zeigt immer noch großen Drawdown im November 2024 (Benchmark-Intersection Problem)

@@ -1,0 +1,26 @@
+{
+  "query": "\nSELECT date, close\nFROM historicalPrices\nWHERE ticker = 'NVDA'\nAND (date = '2022-11-08' OR date = '2024-06-07' OR date = '2024-06-10' OR date = '2025-11-07')\nORDER BY date;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute \nSELECT date, close\nFROM historicalPrices\nWHERE ticker = 'NVDA'\nAND (date = '2022-11-08' OR date = '2024-06-07' OR date = '2024-06-10' OR date = '2025-11-07')\nORDER BY date;\n",
+  "rows": [
+    {
+      "date": "2022-11-08",
+      "close": "14.602000"
+    },
+    {
+      "date": "2024-06-07",
+      "close": "120.888000"
+    },
+    {
+      "date": "2024-06-10",
+      "close": "121.790001"
+    },
+    {
+      "date": "2025-11-07",
+      "close": "188.149994"
+    }
+  ],
+  "messages": [],
+  "stdout": "date\tclose\n2022-11-08\t14.602000\n2024-06-07\t120.888000\n2024-06-10\t121.790001\n2025-11-07\t188.149994\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}

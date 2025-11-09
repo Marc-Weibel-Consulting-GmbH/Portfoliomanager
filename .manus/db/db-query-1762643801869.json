@@ -1,0 +1,35 @@
+{
+  "query": "\nSELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker IN ('SGKN.SW', 'NVDA', 'NEE', 'JNJ', 'TSLA')\nAND date = '2022-11-08'\nORDER BY ticker;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute \nSELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker IN ('SGKN.SW', 'NVDA', 'NEE', 'JNJ', 'TSLA')\nAND date = '2022-11-08'\nORDER BY ticker;\n",
+  "rows": [
+    {
+      "ticker": "JNJ",
+      "date": "2022-11-08",
+      "close": "173.839996"
+    },
+    {
+      "ticker": "NEE",
+      "date": "2022-11-08",
+      "close": "78.269997"
+    },
+    {
+      "ticker": "NVDA",
+      "date": "2022-11-08",
+      "close": "14.602000"
+    },
+    {
+      "ticker": "SGKN.SW",
+      "date": "2022-11-08",
+      "close": "464.000000"
+    },
+    {
+      "ticker": "TSLA",
+      "date": "2022-11-08",
+      "close": "191.300003"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tdate\tclose\nJNJ\t2022-11-08\t173.839996\nNEE\t2022-11-08\t78.269997\nNVDA\t2022-11-08\t14.602000\nSGKN.SW\t2022-11-08\t464.000000\nTSLA\t2022-11-08\t191.300003\n",
+  "stderr": "",
+  "execution_time_ms": 50
+}
