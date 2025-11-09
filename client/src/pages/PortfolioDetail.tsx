@@ -279,14 +279,16 @@ export default function PortfolioDetail() {
       {/* Transaction Modal */}
       {Boolean(portfolio.isLive) && (
         <TransactionModal
-          isOpen={isTransactionModalOpen}
+          open={isTransactionModalOpen}
           onClose={() => setIsTransactionModalOpen(false)}
           portfolioId={portfolio.id}
-          availableTickers={portfolioData.map((s: any) => s.ticker).filter(Boolean)}
+          portfolioStocks={portfolioData.map((s: any) => ({
+            ticker: s.ticker || '',
+            companyName: s.name || s.ticker || ''
+          }))}
           onSuccess={() => {
             refetchTransactions();
             refetchPortfolios();
-            setIsTransactionModalOpen(false);
           }}
         />
       )}

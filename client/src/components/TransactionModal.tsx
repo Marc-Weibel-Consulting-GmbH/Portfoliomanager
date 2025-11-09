@@ -13,11 +13,12 @@ interface TransactionModalProps {
   onClose: () => void;
   portfolioId: number;
   portfolioStocks: Array<{ ticker: string; companyName: string }>;
+  onSuccess?: () => void;
 }
 
 type TransactionType = "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
 
-export function TransactionModal({ open, onClose, portfolioId, portfolioStocks }: TransactionModalProps) {
+export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, onSuccess }: TransactionModalProps) {
   const [transactionType, setTransactionType] = useState<TransactionType>("buy");
   const [ticker, setTicker] = useState("");
   const [shares, setShares] = useState("");
@@ -29,8 +30,9 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks }
 
   const createTransactionMutation = trpc.portfolioTransactions.create.useMutation({
     onSuccess: () => {
-      toast.success("Transaktion erfolgreich erfasst!");
-      handleClose();
+      toast.success("Transaktion erfolgreich erfasst");
+      onSuccess?.();
+      onClose();
     },
     onError: (error) => {
       toast.error("Fehler beim Speichern: " + error.message);

@@ -1832,3 +1832,4 @@
 - [x] Live Toggle Button ist nicht sichtbar auf Detail-Seite - nur leerer Rahmen oben rechts → FIXED: Added Boolean() conversion and text-white class
 - [x] Live Toggle funktioniert nicht auf Hauptseite → Will work after fixing SQL error
 - [x] SQL Error in togglePortfolioLive: "and is not defined" - Missing import from drizzle-orm → FIXED
+- [x] TransactionModal crash: "Cannot read properties of undefined (reading 'map')" - portfolioData not passed to modal → FIXED: Changed props from isOpen/availableTickers to open/portfolioStocks
