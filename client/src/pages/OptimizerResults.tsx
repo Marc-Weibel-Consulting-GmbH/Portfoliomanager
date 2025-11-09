@@ -868,13 +868,17 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
     .filter((p: any) => p.isDividendStock)
     .reduce((sum, p) => sum + p.investmentAmount, 0);
   const growthAmount = displayPortfolio.positions
-    .filter((p: any) => p.isGrowthStock && !p.isDividendStock)
+    .filter((p: any) => p.isGrowthStock && !p.isDividendStock && p.category !== 'ETF')
+    .reduce((sum, p) => sum + p.investmentAmount, 0);
+  const etfAmount = displayPortfolio.positions
+    .filter((p: any) => p.category === 'ETF')
     .reduce((sum, p) => sum + p.investmentAmount, 0);
   
   // Use actual total invested amount (works for both optimized and loaded portfolios)
   const totalAmount = displayPortfolio.totalInvested + displayPortfolio.remainingCash;
   const dividendPercent = totalAmount > 0 ? (dividendAmount / totalAmount) * 100 : 0;
   const growthPercent = totalAmount > 0 ? (growthAmount / totalAmount) * 100 : 0;
+  const etfPercent = totalAmount > 0 ? (etfAmount / totalAmount) * 100 : 0;
   const cashPercent = totalAmount > 0 ? (displayPortfolio.remainingCash / totalAmount) * 100 : 0;
 
   // Prepare data for performance chart
@@ -1026,7 +1030,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left: Portfolio Selector */}
             <div className="space-y-2">
-              <label className="text-slate-400 text-xs font-medium">Portfolio Auswahl</label>
+              <label className="text-slate-400 text-sm font-semibold">Portfolio-Auswahl</label>
               <Select
                 value={selectedPortfolioId || ""}
                 onValueChange={async (value) => {
@@ -1080,8 +1084,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                           toast.error('Portfolio-Daten haben ungültiges Format');
                         }
                       } catch (error) {
-                        console.error('Failed to parse portfolio data:', error);
-                        toast.error('Portfolio konnte nicht geladen werden');
+                        console.error('[Portfolio Load] Error:', error);
+                        console.error('[Portfolio Load] Portfolio data:', portfolio.portfolioData);
+                        toast.error(`Portfolio konnte nicht geladen werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
                       }
                     }
                   }
@@ -1124,8 +1129,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
 
             {/* Middle: Composition */}
             <div className="space-y-2">
-              <label className="text-slate-400 text-xs font-medium">Zusammensetzung</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="text-slate-400 text-sm font-semibold">Zusammensetzung</label>
+              <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-900 p-2 rounded text-center">
                   <p className="text-xs text-slate-400">Dividenden</p>
                   <p className="text-sm font-bold text-blue-400">{(dividendPercent || 0).toFixed(1)}%</p>
@@ -1138,12 +1143,16 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   <p className="text-xs text-slate-400">Cash</p>
                   <p className="text-sm font-bold text-yellow-400">{(cashPercent || 0).toFixed(1)}%</p>
                 </div>
+                <div className="bg-slate-900 p-2 rounded text-center">
+                  <p className="text-xs text-slate-400">ETF</p>
+                  <p className="text-sm font-bold text-purple-400">{(etfPercent || 0).toFixed(1)}%</p>
+                </div>
               </div>
             </div>
 
             {/* Right: Stats */}
             <div className="space-y-2">
-              <label className="text-slate-400 text-xs font-medium">Performance & Kennzahlen</label>
+              <label className="text-slate-400 text-sm font-semibold">Performance & Kennzahlen</label>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-900 p-2 rounded">
                   <p className="text-xs text-slate-400">Investiert</p>
@@ -1173,21 +1182,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2 justify-end">
-        <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
-          <Save className="w-4 h-4 mr-2" />
-          Speichern
-        </Button>
-        <Button onClick={() => setShowLoadDialog(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <FolderOpen className="w-4 h-4 mr-2" />
-          Laden
-        </Button>
-        <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
-          <Download className="w-4 h-4 mr-2" />
-          PDF Export
-        </Button>
-      </div>
+
 
       {/* Performance Chart */}
       <Card className="bg-slate-800 border-slate-700">
@@ -1316,6 +1311,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
               <ArrowLeft className="w-4 h-4 mr-2" />
               Zurück
             </Button>
+            <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
+              <Save className="w-4 h-4 mr-2" />
+              Speichern
+            </Button>
             {savedPortfolios && savedPortfolios.length > 0 && (
               <Select
                 value={selectedPortfolioId || ""}
@@ -1365,10 +1364,11 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                       } else {
                         toast.error('Portfolio-Daten haben ungültiges Format');
                       }
-                    } catch (error) {
-                      console.error('Failed to parse portfolio data:', error);
-                      toast.error('Portfolio konnte nicht geladen werden');
-                    }
+                      } catch (error) {
+                        console.error('[Portfolio Load 2] Error:', error);
+                        console.error('[Portfolio Load 2] Portfolio data:', portfolio.portfolioData);
+                        toast.error(`Portfolio konnte nicht geladen werden: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+                      }
                   }
                 }}
               >
@@ -1409,6 +1409,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
             </Button>
             <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
               Portfolio anpassen
+            </Button>
+            <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Download className="w-4 h-4 mr-2" />
+              PDF Export
             </Button>
           </div>
         </CardHeader>
@@ -1482,19 +1486,19 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     </td>
                     <td className="p-3 text-center">
                       {(() => {
-                        const score = stockScores.find((s: any) => s.ticker === pos.ticker) as any;
-                        if (!score) return <span className="text-slate-500">-</span>;
+                        const scoreValue = pos.score || 0;
+                        if (scoreValue === 0) return <span className="text-slate-500">-</span>;
                         
-                        const colorMap = {
-                          red: 'bg-red-500',
-                          orange: 'bg-orange-500',
-                          yellow: 'bg-yellow-500',
-                          green: 'bg-green-500',
-                        };
+                        // Color based on score value
+                        let bgColor = 'bg-slate-500';
+                        if (scoreValue >= 70) bgColor = 'bg-green-500';
+                        else if (scoreValue >= 50) bgColor = 'bg-yellow-500';
+                        else if (scoreValue >= 30) bgColor = 'bg-orange-500';
+                        else bgColor = 'bg-red-500';
                         
                         return (
-                          <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg font-bold text-white ${colorMap[score.color as keyof typeof colorMap] || 'bg-slate-500'}`}>
-                            {score.score}
+                          <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg font-bold text-white ${bgColor}`}>
+                            {scoreValue}
                           </span>
                         );
                       })()}

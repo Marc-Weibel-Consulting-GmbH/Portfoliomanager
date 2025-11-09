@@ -1674,3 +1674,53 @@
 - [x] Portfolio-Speicherung muss alle Felder inkludieren (logoUrl, score, peRatio, pegRatio, sharpeRatio)
   - [x] Alle Felder werden beim Speichern inkludiert (Zeile 1552-1569)
   - [x] Enrichment beim Laden stellt sicher dass DB-Werte verwendet werden
+
+## Aktuelles Problem (tRPC Errors) - BEHOBEN
+- [x] tRPC Client Error: "Unexpected token '<', "<!doctype "... is not valid JSON"
+  - [x] Ursache: Server war gecrasht nach Schema-Änderungen
+  - [x] Lösung: Server neu gestartet
+- [x] Server gibt HTML statt JSON zurück
+  - [x] Vite dev server antwortete statt Express
+  - [x] Nach Neustart: tRPC gibt jetzt JSON zurück
+- [x] Server läuft jetzt stabil auf Port 3000
+
+## Aktuelle Probleme (Score & Portfolio Loading)
+- [ ] Score-Spalte nicht sichtbar in OptimizerResults Tabelle
+- [ ] Portfolio laden schlägt fehl mit "Portfolio konnte nicht geladen werden"
+- [ ] Enrichment-Logik hat möglicherweise einen Fehler beim Laden
+
+## Neue Probleme (Branchen & Alerts)
+- [x] Branchen-Verwaltung zeigt "Keine Branchen gefunden" obwohl Aktien Branchen haben
+  - [x] sql import hinzugefügt zu db.ts
+  - [x] getAllUniqueSectors funktioniert jetzt
+- [x] Kurs (currentPrice) als Metrik für Alerts hinzufügen
+  - [x] currentPrice zu metricLabels in AlertManagement.tsx hinzugefügt
+
+## Zusätzliche Probleme
+- [x] PEG und Sharpe Werte haben zu viele Dezimalstellen (z.B. "0.080846031315952671")
+  - [x] Sharpe Ratio auf 1 Dezimalstelle runden
+  - [x] Script round-sharpe-ratios.mjs ausgeführt (76 Aktien aktualisiert)
+- [ ] Portfolio Loading Error: "hooks[lastArg] is not a function"
+  - Noch nicht gelöst, besseres Error-Logging hinzugefügt
+- [x] Score stimmt nicht überein zwischen Frontseite und OptimizerResults
+  - [x] Frontseite: Dynamische Berechnung (scoring.ts)
+  - [x] OptimizerResults: DB-Scores synchronisiert
+  - [x] Script sync-scores.mjs ausgeführt (107 Aktien aktualisiert)
+  - [x] Beide verwenden jetzt gleiche Berechnung
+
+## Portfolio-Seite Bugs
+- [x] Titel "Portfolio-Auswahl" mit gleicher Größe/Fonts wie "Portfolio Performance"
+  - [x] Label geändert zu text-sm font-semibold
+- [x] Zusammensetzung: ETF als 4. Kategorie hinzufügen
+  - [x] etfAmount und etfPercent Berechnung hinzugefügt
+  - [x] ETF-Kategorie filtert nach category === 'ETF'
+- [x] Zusammensetzung: 2x2 Grid-Layout (analog zu Performance & Kennzahlen)
+  - [x] Grid von grid-cols-3 zu grid-cols-2 geändert
+  - [x] ETF als 4. Karte hinzugefügt (purple-400)
+- [x] Buttons umorganisieren:
+  - [x] "Speichern" nach "Zurück" verschieben (im Header)
+  - [x] "Laden" Button entfernen (automatisches Laden via Dropdown)
+  - [x] "PDF Export" neben "Portfolio anpassen" (im Header)
+  - [x] Alte Button-Sektion (Zeile 1177-1191) entfernt
+- [x] P/E und PEG Ratio auf 1 Dezimalstelle runden
+  - [x] Script round-pe-peg.mjs ausgeführt (82 Aktien aktualisiert)

@@ -1,4 +1,4 @@
-import { eq, desc, lt } from "drizzle-orm";
+import { eq, sql, isNotNull, ne, desc, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, stocks, users, news, transactions, savedPortfolios, categories } from "../drizzle/schema";
 import { ENV } from './_core/env';

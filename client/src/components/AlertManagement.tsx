@@ -51,6 +51,7 @@ export function AlertManagement() {
   };
 
   const metricLabels: Record<string, string> = {
+    currentPrice: 'Kurs',
     sharpeRatio: 'Sharpe Ratio',
     peRatio: 'KGV (PE)',
     dividendYield: 'Dividende (%)',
