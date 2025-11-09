@@ -2169,8 +2169,12 @@ export const appRouter = router({
           const closes = data.chart.result[0].indicators.quote[0].close;
 
           // Convert timestamps to dates and filter out null values
+          // Limit to max 500 data points to prevent memory issues
+          const maxPoints = 500;
+          const step = Math.max(1, Math.floor(timestamps.length / maxPoints));
+          
           const validData: Array<{ date: string; close: number }> = [];
-          for (let i = 0; i < timestamps.length; i++) {
+          for (let i = 0; i < timestamps.length; i += step) {
             if (closes[i] !== null && closes[i] !== undefined) {
               const date = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
               validData.push({ date, close: closes[i] });

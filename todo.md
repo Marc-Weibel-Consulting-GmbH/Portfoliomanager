@@ -1630,3 +1630,9 @@
 - [x] Add industry/sector field to database schema and UI (sector field exists, Sectors page created)
 - [x] Implement manual data refresh buttons in admin panel (prices, news, charts)
 - [x] Test all features thoroughly before checkpoint (dev server running, main page works)
+
+## SMI Benchmark Crash (2025-11-09)
+- [x] Diagnose server crash when selecting SMI as benchmark (too many data points)
+- [x] Fix root cause of crash (limit to 500 data points max)
+- [x] Implement proper error handling for benchmark selection (already has try-catch)
+- [x] Test SMI and other benchmarks (working without crashes)
