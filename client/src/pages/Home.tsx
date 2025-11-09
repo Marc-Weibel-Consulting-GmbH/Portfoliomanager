@@ -325,6 +325,7 @@ export default function Home() {
   // Query for saved portfolios - MUST be at top level (not conditional)
   const { data: savedPortfoliosData = [], refetch: refetchSavedPortfolios } = trpc.savedPortfolios.list.useQuery();
   const deletePortfolioMutation = trpc.savedPortfolios.delete.useMutation();
+  const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation();
   const savePortfolioMutation = trpc.savedPortfolios.create.useMutation({
     onSuccess: () => {
       refetchSavedPortfolios();
@@ -1788,18 +1789,23 @@ export default function Home() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={async () => {
+                            console.log('[Home] Live toggle clicked for portfolio:', portfolio.id, 'Current isLive:', portfolio.isLive);
                             const newLiveStatus = !Boolean(portfolio.isLive);
+                            console.log('[Home] New live status will be:', newLiveStatus);
                             try {
-                              await trpc.savedPortfolios.toggleLive.mutate({
+                              console.log('[Home] Calling toggleLive mutation...');
+                              await toggleLiveMutation.mutateAsync({
                                 id: portfolio.id,
                                 isLive: newLiveStatus
                               });
+                              console.log('[Home] Mutation success!');
                               toast.success(
                                 newLiveStatus ? 'Live-Tracking aktiviert' : 'Live-Tracking deaktiviert',
                                 { description: newLiveStatus ? 'Performance wird ab jetzt gemessen' : 'Live-Tracking gestoppt' }
                               );
                               refetchSavedPortfolios();
                             } catch (error) {
+                              console.error('[Home] Mutation error:', error);
                               toast.error('Fehler', { description: 'Status konnte nicht geändert werden' });
                             }
                           }}

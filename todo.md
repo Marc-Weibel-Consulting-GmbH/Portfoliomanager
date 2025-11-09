@@ -1845,3 +1845,9 @@
 - [x] Live Toggle Button auf Hauptseite reagiert nicht auf Klicks → FIXED: Removed e.preventDefault/stopPropagation and style overrides
 - [x] Button ist sichtbar aber nicht klickbar → FIXED
 - [x] In Detail-Seite funktioniert der Toggle korrekt → Already working
+
+
+## Live Toggle Mutation Error (Nov 9, 2025 - 12:50)
+- [x] Button funktioniert jetzt (onClick wird ausgeführt) → Confirmed
+- [x] Aber Mutation wirft Fehler: "Status konnte nicht geändert werden" → FIXED: hooks[lastArg] is not a function
+- [x] Server-seitiger Fehler in toggleLive Mutation → FIXED: Used useMutation() hook instead of direct .mutate()
