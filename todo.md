@@ -1,6 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
+- [ ] Fix chart timeframe calculation in production (3M shows 1 year instead of 3 months)
 - [x] Trigger auto-fill when selecting company from search suggestions (not from ticker field)
 - [x] Fix "Daten laden" button not appearing in add stock dialog
 - [x] Implement stock search API endpoint for company name lookup
