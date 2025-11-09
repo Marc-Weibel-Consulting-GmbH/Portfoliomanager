@@ -24,73 +24,32 @@ ChartJS.register(
   Filler
 );
 
+import { trpc } from "@/lib/trpc";
+
 interface LivePerformanceChartProps {
-  transactions: Array<{
-    transactionDate: Date | string;
-    transactionType: string;
-    totalAmount: string;
-  }>;
-  currentValue: number;
+  portfolioId: number;
   liveStartDate: Date | string;
 }
 
-export function LivePerformanceChart({ transactions, currentValue, liveStartDate }: LivePerformanceChartProps) {
+export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerformanceChartProps) {
+  // Fetch historical performance data from backend
+  const { data: historyData, isLoading } = trpc.savedPortfolios.getLivePerformanceHistory.useQuery(
+    { id: portfolioId },
+    { enabled: !!portfolioId }
+  );
+
   const chartData = useMemo(() => {
-    if (transactions.length === 0) {
+    if (!historyData || historyData.dataPoints.length === 0) {
       return { labels: [], datasets: [] };
     }
 
-    // Sort transactions by date
-    const sortedTransactions = [...transactions].sort(
-      (a, b) => new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
-    );
-
-    // Calculate cumulative invested capital and portfolio value over time
-    const dataPoints: Array<{ date: Date; invested: number; value: number; performance: number }> = [];
-    let cumulativeInvested = 0;
-    let cumulativeValue = 0;
-
-    sortedTransactions.forEach((tx, index) => {
-      const amount = parseFloat(tx.totalAmount);
-      
-      // Update cumulative invested (deposits and buys increase, withdrawals and sells decrease)
-      if (tx.transactionType === "buy" || tx.transactionType === "deposit") {
-        cumulativeInvested += Math.abs(amount);
-      } else if (tx.transactionType === "sell" || tx.transactionType === "withdrawal") {
-        cumulativeInvested -= Math.abs(amount);
-      }
-      // Dividends don't change invested capital
-
-      // Estimate portfolio value at this point
-      // For simplicity, assume linear growth between start and current value
-      const progress = index / (sortedTransactions.length - 1 || 1);
-      cumulativeValue = cumulativeInvested + (currentValue - cumulativeInvested) * progress;
-
-      // Calculate performance percentage
-      const performance = cumulativeInvested > 0 
-        ? ((cumulativeValue / cumulativeInvested) - 1) * 100 
-        : 0;
-
-      dataPoints.push({
-        date: new Date(tx.transactionDate),
-        invested: cumulativeInvested,
-        value: cumulativeValue,
-        performance
-      });
-    });
-
-    // Add current value as final data point
-    dataPoints.push({
-      date: new Date(),
-      invested: cumulativeInvested,
-      value: currentValue,
-      performance: cumulativeInvested > 0 ? ((currentValue / cumulativeInvested) - 1) * 100 : 0
-    });
+    const dataPoints = historyData.dataPoints;
 
     // Format labels and data
-    const labels = dataPoints.map(dp => 
-      dp.date.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' })
-    );
+    const labels = dataPoints.map(dp => {
+      const date = new Date(dp.date);
+      return date.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' });
+    });
 
     const performanceData = dataPoints.map(dp => dp.performance);
     const valueData = dataPoints.map(dp => dp.value);
@@ -132,7 +91,7 @@ export function LivePerformanceChart({ transactions, currentValue, liveStartDate
         }
       ]
     };
-  }, [transactions, currentValue]);
+  }, [historyData]);
 
   const options = {
     responsive: true,
@@ -213,6 +172,16 @@ export function LivePerformanceChart({ transactions, currentValue, liveStartDate
       }
     }
   };
+
+  if (isLoading) {
+    return (
+      <Card className="bg-slate-800 border-slate-700">
+        <CardContent className="p-8 text-center text-slate-400">
+          Lade Performance-Daten...
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (chartData.labels.length === 0) {
     return (

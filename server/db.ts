@@ -470,6 +470,49 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
   
   const liveStartDate = isLive ? new Date() : null;
   
+  // If switching TO live, create initial buy transactions for all positions
+  if (isLive) {
+    try {
+      // Get portfolio data
+      const portfolio = await getSavedPortfolioById(id, userId);
+      if (portfolio && portfolio.portfolioData) {
+        const portfolioData = JSON.parse(portfolio.portfolioData);
+        const stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+        
+        console.log('[ToggleLive] Creating initial buy transactions for', stocks.length, 'positions');
+        
+        // Create initial buy transaction for each position
+        const { portfolioTransactions } = await import("../drizzle/schema");
+        for (const stock of stocks) {
+          const ticker = stock.ticker || stock.symbol;
+          const shares = parseFloat(stock.shares || '0');
+          const currentPrice = parseFloat(stock.currentPrice || stock.price || '0');
+          
+          if (ticker && shares > 0 && currentPrice > 0) {
+            const totalAmount = (shares * currentPrice).toFixed(2);
+            
+            await db.insert(portfolioTransactions).values({
+              portfolioId: id,
+              transactionType: 'buy',
+              ticker: ticker,
+              shares: shares.toString(),
+              pricePerShare: currentPrice.toString(),
+              totalAmount: totalAmount,
+              fees: '0',
+              notes: 'Initial position when switched to live',
+              transactionDate: liveStartDate,
+            });
+            
+            console.log(`[ToggleLive] Created initial buy: ${ticker} x ${shares} @ ${currentPrice}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[ToggleLive] Failed to create initial transactions:', error);
+      // Continue anyway - don't fail the toggle operation
+    }
+  }
+  
   const result = await db.update(savedPortfolios)
     .set({ 
       isLive: isLive ? 1 : 0,
@@ -486,21 +529,26 @@ export async function createPortfolioTransaction(transaction: any) {
   console.log("[DB] createPortfolioTransaction called with:", JSON.stringify(transaction, null, 2));
   const db = await getDb();
   if (!db) {
+    const error = new Error("Database not available");
     console.error("[DB] Database not available");
-    return null;
+    throw error;
   }
   
   try {
     const { portfolioTransactions } = await import("../drizzle/schema");
     console.log("[DB] Inserting into portfolioTransactions table...");
+    console.log("[DB] Transaction data:", transaction);
     const result = await db.insert(portfolioTransactions).values(transaction);
-    console.log("[DB] Insert result:", result);
+    console.log("[DB] Insert result:", JSON.stringify(result, null, 2));
     const returnValue = { id: Number((result as any).insertId), ...transaction };
     console.log("[DB] Returning:", returnValue);
     return returnValue;
-  } catch (error) {
-    console.error("[Database] Failed to create portfolio transaction:", error);
-    return null;
+  } catch (error: any) {
+    console.error("[Database] Failed to create portfolio transaction:");
+    console.error("[Database] Error message:", error.message);
+    console.error("[Database] Error stack:", error.stack);
+    console.error("[Database] Full error:", JSON.stringify(error, null, 2));
+    throw new Error(`Failed to create transaction: ${error.message}`);
   }
 }
 

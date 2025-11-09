@@ -146,7 +146,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
       totalAmount: finalTotalAmount,
       fees: fees || "0",
       notes: notes || null,
-      transactionDate: new Date(transactionDate).toISOString(),
+      transactionDate: new Date(transactionDate),
     };
 
     console.log("[Frontend] Submitting transaction:", transactionData);

@@ -116,9 +116,15 @@ export default function PortfolioDetail() {
       const holdings = holdingsByTicker[ticker] || { shares: 0, totalInvested: 0 };
       const currentPrice = parseFloat(stock.currentPrice || stock.price || dbStock?.currentPrice || '0');
       
-      // Use shares from portfolio data first (from optimizer), then fall back to transactions
-      const shares = parseFloat(stock.shares || '0') || holdings.shares;
-      const totalInvested = parseFloat(stock.investmentAmount || '0') || holdings.totalInvested;
+      // For live portfolios: prioritize transaction-based shares
+      // For test portfolios: use optimizer shares
+      const hasTransactions = holdings.shares > 0 || holdings.totalInvested > 0;
+      const shares = (portfolio.isLive && hasTransactions) 
+        ? holdings.shares 
+        : (parseFloat(stock.shares || '0') || holdings.shares);
+      const totalInvested = (portfolio.isLive && hasTransactions)
+        ? holdings.totalInvested
+        : (parseFloat(stock.investmentAmount || '0') || holdings.totalInvested);
       const currentValue = shares * currentPrice;
       
       return {
@@ -280,8 +286,7 @@ export default function PortfolioDetail() {
         {Boolean(portfolio.isLive) && transactions.length > 0 && livePerformance && (
           <div className="mb-8">
             <LivePerformanceChart
-              transactions={transactions}
-              currentValue={livePerformance.currentValue || 0}
+              portfolioId={portfolio.id}
               liveStartDate={portfolio.liveStartDate}
             />
           </div>

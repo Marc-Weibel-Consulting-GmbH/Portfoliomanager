@@ -1,0 +1,19 @@
+{
+  "query": "SELECT id, portfolioId, transactionType, ticker, shares, totalAmount, createdAt FROM portfolioTransactions ORDER BY createdAt DESC LIMIT 10",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, portfolioId, transactionType, ticker, shares, totalAmount, createdAt FROM portfolioTransactions ORDER BY createdAt DESC LIMIT 10",
+  "rows": [
+    {
+      "id": "1",
+      "portfolioId": "1",
+      "transactionType": "buy",
+      "ticker": "AAPL",
+      "shares": "10",
+      "totalAmount": "1500.00",
+      "createdAt": "2025-11-09 19:01:50"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tportfolioId\ttransactionType\tticker\tshares\ttotalAmount\tcreatedAt\n1\t1\tbuy\tAAPL\t10\t1500.00\t2025-11-09 19:01:50\n",
+  "stderr": "",
+  "execution_time_ms": 49
+}

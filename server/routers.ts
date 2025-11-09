@@ -1981,7 +1981,6 @@ export const appRouter = router({
       })
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getPortfolioTransactions } = await import("./db");
-        const { calculateIRR, calculatePortfolioValue } = await import("./irrCalculator");
         
         // Get portfolio and transactions
         const portfolio = await getSavedPortfolioById(input, ctx.user.id);
@@ -1991,28 +1990,170 @@ export const appRouter = router({
         
         const transactions = await getPortfolioTransactions(input);
         if (transactions.length === 0) {
-          return { performance: 0, currentValue: 0, cash: 0 };
+          return { performance: 0, currentValue: 0, totalInvested: 0 };
         }
         
-        // Calculate current portfolio value
-        const { currentValue, holdings, cash } = await calculatePortfolioValue(input, transactions);
+        // Calculate total invested and current value
+        let totalInvested = 0;
+        const holdings: Record<string, number> = {};
         
-        // Build cashflows for IRR calculation
-        const cashflows = transactions.map(tx => ({
-          date: new Date(tx.transactionDate),
-          amount: parseFloat(tx.totalAmount),
-        }));
+        // Process transactions to calculate holdings and total invested
+        transactions.forEach((tx: any) => {
+          const shares = parseFloat(tx.shares || '0');
+          const price = parseFloat(tx.pricePerShare || '0');
+          const amount = parseFloat(tx.totalAmount || '0');
+          
+          if (tx.transactionType === 'buy') {
+            holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+            totalInvested += amount;
+          } else if (tx.transactionType === 'sell') {
+            holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+            totalInvested -= amount; // Reduce invested amount on sell
+          } else if (tx.transactionType === 'deposit') {
+            totalInvested += amount;
+          } else if (tx.transactionType === 'withdrawal') {
+            totalInvested += amount; // amount is negative for withdrawals
+          }
+        });
         
-        // Calculate IRR
-        const irr = calculateIRR(cashflows, currentValue);
+        // Fetch current prices and calculate current value
+        const { getStockByTicker } = await import("./db");
+        let currentValue = 0;
+        
+        for (const [ticker, shares] of Object.entries(holdings)) {
+          if (shares > 0) {
+            const stock = await getStockByTicker(ticker);
+            const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
+            currentValue += shares * currentPrice;
+          }
+        }
+        
+        // Calculate simple return: (Current Value - Total Invested) / Total Invested * 100
+        const performance = totalInvested > 0 
+          ? ((currentValue - totalInvested) / totalInvested) * 100 
+          : 0;
         
         return {
-          performance: irr,
+          performance,
           currentValue,
-          cash,
+          totalInvested,
           holdings,
           transactionCount: transactions.length,
         };
+      }),
+
+    getLivePerformanceHistory: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, getPortfolioTransactions } = await import("./db");
+        const { getDb } = await import("./db");
+        
+        // Get portfolio
+        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        if (!portfolio || !portfolio.isLive || !portfolio.liveStartDate) {
+          return { dataPoints: [] };
+        }
+        
+        const transactions = await getPortfolioTransactions(input);
+        if (transactions.length === 0) {
+          return { dataPoints: [] };
+        }
+        
+        const db = await getDb();
+        if (!db) {
+          return { dataPoints: [] };
+        }
+        
+        // Generate all days from liveStartDate to today
+        const startDate = new Date(portfolio.liveStartDate);
+        const today = new Date();
+        const days: Date[] = [];
+        
+        for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
+          days.push(new Date(d));
+        }
+        
+        // Calculate holdings and invested amount for each day
+        const dataPoints = [];
+        
+        for (const day of days) {
+          // Get transactions up to this day
+          const txUpToDay = transactions.filter(
+            (tx: any) => new Date(tx.transactionDate) <= day
+          );
+          
+          // Calculate holdings and total invested
+          let totalInvested = 0;
+          const holdings: Record<string, number> = {};
+          
+          txUpToDay.forEach((tx: any) => {
+            const shares = parseFloat(tx.shares || '0');
+            const amount = parseFloat(tx.totalAmount || '0');
+            
+            if (tx.transactionType === 'buy') {
+              holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+              totalInvested += amount;
+            } else if (tx.transactionType === 'sell') {
+              holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+              totalInvested -= amount;
+            } else if (tx.transactionType === 'deposit') {
+              totalInvested += amount;
+            } else if (tx.transactionType === 'withdrawal') {
+              totalInvested += amount; // negative
+            }
+          });
+          
+          // Get historical prices for this day
+          const dayStr = day.toISOString().split('T')[0];
+          let portfolioValue = 0;
+          
+          for (const [ticker, shares] of Object.entries(holdings)) {
+            if (shares > 0) {
+              // Try to get historical price for this day
+              const priceData = await db
+                .select()
+                .from(historicalPrices)
+                .where(
+                  and(
+                    eq(historicalPrices.ticker, ticker),
+                    eq(historicalPrices.date, dayStr)
+                  )
+                )
+                .limit(1);
+              
+              let price = 0;
+              if (priceData.length > 0) {
+                price = parseFloat(priceData[0].close || '0');
+              } else {
+                // Fallback: use current price from stocks table
+                const { getStockByTicker } = await import("./db");
+                const stock = await getStockByTicker(ticker);
+                price = stock ? parseFloat(stock.currentPrice || '0') : 0;
+              }
+              
+              portfolioValue += shares * price;
+            }
+          }
+          
+          // Calculate performance
+          const performance = totalInvested > 0
+            ? ((portfolioValue - totalInvested) / totalInvested) * 100
+            : 0;
+          
+          dataPoints.push({
+            date: dayStr,
+            invested: totalInvested,
+            value: portfolioValue,
+            performance
+          });
+        }
+        
+        return { dataPoints };
       }),
   }),
 
