@@ -215,10 +215,10 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
     // Start price updater
     startPriceUpdater().catch(console.error);
-    // Start chart data updater
-    startChartDataUpdater().catch(console.error);
-    // Start news updater
-    initializeNewsUpdater();
+    // Chart data updater disabled to prevent memory leaks
+    // startChartDataUpdater().catch(console.error);
+    // News updater disabled to reduce memory usage
+    // initializeNewsUpdater();
     // Start PEG ratio updater
     initializePEGUpdater();
     // Start YTD updater (runs on January 1st)

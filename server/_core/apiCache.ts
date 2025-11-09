@@ -11,6 +11,7 @@ interface CacheEntry<T> {
 
 class ApiCache {
   private cache: Map<string, CacheEntry<any>> = new Map();
+  private readonly MAX_CACHE_SIZE = 100; // Limit cache to 100 entries
 
   /**
    * Get cached data if available and not expired
@@ -36,12 +37,22 @@ class ApiCache {
    * Store data in cache with TTL
    */
   set<T>(key: string, data: T, ttlMs: number): void {
+    // If cache is full, remove oldest entry
+    if (this.cache.size >= this.MAX_CACHE_SIZE) {
+      const oldestKey = Array.from(this.cache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp)[0]?.[0];
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+        console.log(`[Cache] Evicted oldest entry: ${oldestKey}`);
+      }
+    }
+    
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
       ttl: ttlMs,
     });
-    console.log(`[Cache] SET: ${key} (TTL: ${Math.round(ttlMs / 1000)}s)`);
+    console.log(`[Cache] SET: ${key} (TTL: ${Math.round(ttlMs / 1000)}s, size: ${this.cache.size})`);
   }
 
   /**

@@ -1593,3 +1593,8 @@
 ## Optimizer Fixes (2025-11-09)
 - [x] Add missing columns to optimizer results table (Logo, P/E, PEG, Sharpe)
 - [x] Remove target conflict warnings (dividend, Sharpe) - keep only diversification warning
+
+## Server Stability Issues (2025-11-09)
+- [x] Fix recurring tRPC "HTML instead of JSON" errors (server crashes)
+- [x] Identify root cause of frequent server restarts (News Updater + high RAM usage)
+- [x] Implement proper error handling and recovery (News Updater disabled, Drizzle Studio stopped, Node memory limit set)
