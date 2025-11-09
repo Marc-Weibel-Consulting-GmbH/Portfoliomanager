@@ -313,6 +313,23 @@ export const appRouter = router({
   }),
 
   stocks: router({
+    getAll: publicProcedure.query(async () => {
+      const { getAllStocks } = await import("./db");
+      return await getAllStocks();
+    }),
+
+    getByTicker: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "ticker" in val && typeof val.ticker === "string") {
+          return { ticker: val.ticker };
+        }
+        throw new Error("Invalid ticker");
+      })
+      .query(async ({ input }) => {
+        const { getStockByTicker } = await import("./db");
+        return await getStockByTicker(input.ticker);
+      }),
+
     getHistoricalPE: publicProcedure
       .input((val: unknown) => {
         if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
@@ -2612,11 +2629,14 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         throw new Error("Invalid transaction data");
       })
       .mutation(async ({ input, ctx }) => {
+        console.log("[Transaction] Creating transaction:", JSON.stringify(input, null, 2));
         const { createPortfolioTransaction } = await import("./db");
-        return await createPortfolioTransaction({
+        const result = await createPortfolioTransaction({
           ...input,
           portfolioId: input.portfolioId,
         });
+        console.log("[Transaction] Result:", result);
+        return result;
       }),
 
     list: protectedProcedure

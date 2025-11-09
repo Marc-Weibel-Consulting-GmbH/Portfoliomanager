@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRoute, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -16,15 +16,20 @@ export default function PortfolioDetail() {
 
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
+  const utils = trpc.useUtils();
+
   // Fetch portfolio details
-  const { data: portfolios = [], refetch: refetchPortfolios } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.savedPortfolios.list.useQuery();
   const portfolio = portfolios.find((p: any) => p.id === portfolioId);
 
   // Fetch transactions
-  const { data: transactions = [], refetch: refetchTransactions } = trpc.portfolioTransactions.list.useQuery(
+  const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
     { portfolioId: portfolioId! },
     { enabled: !!portfolioId }
   );
+
+  // Fetch all stocks to get company names
+  const { data: allStocks = [] } = trpc.stocks.getAll.useQuery();
 
   // Fetch live performance if portfolio is live
   const { data: livePerformance } = trpc.savedPortfolios.calculateLivePerformance.useQuery(
@@ -32,10 +37,34 @@ export default function PortfolioDetail() {
     { enabled: !!portfolioId && Boolean(portfolio?.isLive) }
   );
 
+  // Calculate holdings from transactions
+  const holdingsByTicker = useMemo(() => {
+    const holdings: Record<string, { shares: number; totalInvested: number }> = {};
+    
+    transactions.forEach((tx: any) => {
+      if (!holdings[tx.ticker]) {
+        holdings[tx.ticker] = { shares: 0, totalInvested: 0 };
+      }
+      
+      const shares = parseFloat(tx.shares || '0');
+      const price = parseFloat(tx.pricePerShare || '0');
+      
+      if (tx.transactionType === 'buy') {
+        holdings[tx.ticker].shares += shares;
+        holdings[tx.ticker].totalInvested += shares * price;
+      } else if (tx.transactionType === 'sell') {
+        holdings[tx.ticker].shares -= shares;
+        // Don't subtract from totalInvested - it represents total amount invested
+      }
+    });
+    
+    return holdings;
+  }, [transactions]);
+
   // Toggle live mutation
   const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation({
     onSuccess: () => {
-      refetchPortfolios();
+      utils.savedPortfolios.list.invalidate();
       toast.success("Status aktualisiert");
     },
     onError: () => {
@@ -62,12 +91,49 @@ export default function PortfolioDetail() {
     );
   }
 
-  // Parse portfolio data safely
+  // Parse portfolio data safely and enrich with stock names from database
   let portfolioData: any[] = [];
   try {
     const parsed = JSON.parse(portfolio.portfolioData);
     // Handle both formats: array of stocks or object with stocks property
-    portfolioData = Array.isArray(parsed) ? parsed : (parsed.stocks || []);
+    const rawData = Array.isArray(parsed) ? parsed : (parsed.stocks || []);
+    
+    // Ensure each stock has ticker, name, and other fields
+    portfolioData = rawData.map((stock: any) => {
+      const ticker = stock.ticker || stock.symbol || '';
+      // Find stock in database to get company name
+      const dbStock = allStocks.find((s: any) => s.ticker === ticker);
+      
+      // Determine currency based on ticker suffix
+      let currency = dbStock?.currency || 'CHF';
+      if (ticker.endsWith('.SW')) {
+        currency = 'CHF';
+      } else if (ticker.endsWith('.US') || (!ticker.includes('.') && ticker.length <= 5)) {
+        currency = 'USD';
+      }
+      
+      // Get holdings from transactions
+      const holdings = holdingsByTicker[ticker] || { shares: 0, totalInvested: 0 };
+      const currentPrice = parseFloat(stock.currentPrice || stock.price || dbStock?.currentPrice || '0');
+      
+      // Use shares from portfolio data first (from optimizer), then fall back to transactions
+      const shares = parseFloat(stock.shares || '0') || holdings.shares;
+      const totalInvested = parseFloat(stock.investmentAmount || '0') || holdings.totalInvested;
+      const currentValue = shares * currentPrice;
+      
+      return {
+        ticker,
+        name: dbStock?.companyName || stock.name || stock.companyName || ticker,
+        shares,
+        weight: stock.weight || stock.portfolioWeight || 0,
+        currentPrice,
+        totalInvested,
+        currentValue,
+        dividendYield: stock.dividendYield || dbStock?.dividendYield || 0,
+        ytdPerformance: stock.ytdPerformance || stock.performance || dbStock?.ytdPerformance || 0,
+        currency
+      };
+    });
   } catch (error) {
     console.error('Failed to parse portfolio data:', error);
     portfolioData = [];
@@ -243,8 +309,11 @@ export default function PortfolioDetail() {
                   <tr className="border-b border-slate-700">
                     <th className="text-left py-3 px-2 text-slate-400 font-medium">Ticker</th>
                     <th className="text-left py-3 px-2 text-slate-400 font-medium">Name</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Stückzahl</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Gewicht</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Preis</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Total investiert</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Dividende</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">YTD</th>
                   </tr>
@@ -254,9 +323,18 @@ export default function PortfolioDetail() {
                     <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                       <td className="py-3 px-2 text-white font-mono font-semibold">{stock.ticker}</td>
                       <td className="py-3 px-2 text-slate-300">{stock.name}</td>
+                      <td className="py-3 px-2 text-white text-right font-semibold">
+                        {stock.shares ? stock.shares.toFixed(2) : '0.00'}
+                      </td>
                       <td className="py-3 px-2 text-slate-300 text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
                       <td className="py-3 px-2 text-slate-300 text-right">
-                        CHF {(parseFloat(stock.currentPrice) || 0).toFixed(2)}
+                        {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-2 text-blue-400 text-right font-semibold">
+                        {stock.currency || 'CHF'} {stock.totalInvested ? stock.totalInvested.toFixed(2) : '0.00'}
+                      </td>
+                      <td className="py-3 px-2 text-green-400 text-right font-semibold">
+                        {stock.currency || 'CHF'} {stock.currentValue ? stock.currentValue.toFixed(2) : '0.00'}
                       </td>
                       <td className="py-3 px-2 text-green-400 text-right">
                         {(parseFloat(stock.dividendYield) || 0).toFixed(2)}%
@@ -284,11 +362,12 @@ export default function PortfolioDetail() {
           portfolioId={portfolio.id}
           portfolioStocks={portfolioData.map((s: any) => ({
             ticker: s.ticker || '',
-            companyName: s.name || s.ticker || ''
+            companyName: s.name || s.ticker || '',
+            shares: s.shares || 0
           }))}
           onSuccess={() => {
-            refetchTransactions();
-            refetchPortfolios();
+            utils.portfolioTransactions.list.invalidate();
+            utils.savedPortfolios.list.invalidate();
           }}
         />
       )}

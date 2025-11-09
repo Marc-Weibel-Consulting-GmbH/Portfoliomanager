@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ interface TransactionModalProps {
   open: boolean;
   onClose: () => void;
   portfolioId: number;
-  portfolioStocks: Array<{ ticker: string; companyName: string }>;
+  portfolioStocks: Array<{ ticker: string; companyName: string; shares: number }>;
   onSuccess?: () => void;
 }
 
@@ -27,6 +27,41 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
   const [fees, setFees] = useState("0");
   const [notes, setNotes] = useState("");
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Fetch all transactions for this portfolio to calculate current holdings
+  const { data: allTransactions = [] } = trpc.portfolioTransactions.list.useQuery(
+    { portfolioId },
+    { enabled: !!portfolioId }
+  );
+
+  // Calculate current holdings for selected ticker
+  // Priority: 1) Portfolio data (from optimizer), 2) Transactions
+  const currentHoldings = useMemo(() => {
+    if (!ticker) {
+      return 0;
+    }
+    
+    // First check portfolio data (from optimizer)
+    const portfolioStock = portfolioStocks.find(s => s.ticker === ticker);
+    if (portfolioStock && portfolioStock.shares > 0) {
+      return portfolioStock.shares;
+    }
+    
+    // Fallback to transaction-based calculation
+    let totalShares = 0;
+    allTransactions.forEach((tx: any) => {
+      if (tx.ticker === ticker) {
+        const txShares = parseFloat(tx.shares || "0");
+        if (tx.transactionType === "buy") {
+          totalShares += txShares;
+        } else if (tx.transactionType === "sell") {
+          totalShares -= txShares;
+        }
+      }
+    });
+    
+    return totalShares;
+  }, [ticker, portfolioStocks, allTransactions]);
 
   // Fetch current stock price when ticker is selected for sell
   const { data: stockData } = trpc.stocks.getByTicker.useQuery(
@@ -102,7 +137,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
       finalTotalAmount = (-Math.abs(parseFloat(finalTotalAmount))).toString();
     }
 
-    createTransactionMutation.mutate({
+    const transactionData = {
       portfolioId,
       transactionType,
       ticker: ticker || null,
@@ -112,7 +147,10 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
       fees: fees || "0",
       notes: notes || null,
       transactionDate: new Date(transactionDate).toISOString(),
-    });
+    };
+
+    console.log("[Frontend] Submitting transaction:", transactionData);
+    createTransactionMutation.mutate(transactionData);
   };
 
   const requiresTicker = transactionType === "buy" || transactionType === "sell" || transactionType === "dividend";
@@ -159,6 +197,16 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
                   ))}
                 </SelectContent>
               </Select>
+              {transactionType === "sell" && ticker && (
+                <p className="text-sm text-slate-400 mt-2">
+                  Aktueller Bestand: <span className="font-semibold text-white">{currentHoldings.toFixed(2)}</span> Aktien
+                  {stockData?.currentPrice && (
+                    <span className="ml-3">
+                      Aktueller Kurs: <span className="font-semibold text-white">{parseFloat(stockData.currentPrice).toFixed(2)} {stockData.currency || 'CHF'}</span>
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
           )}
 

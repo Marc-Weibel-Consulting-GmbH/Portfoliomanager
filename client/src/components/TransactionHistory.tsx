@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,13 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const { data: transactions = [], isLoading } = trpc.portfolioTransactions.list.useQuery({ portfolioId });
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('[TransactionHistory] Portfolio ID:', portfolioId);
+    console.log('[TransactionHistory] Transactions loaded:', transactions);
+    console.log('[TransactionHistory] Transaction count:', transactions.length);
+  }, [portfolioId, transactions]);
 
   // Get unique tickers for filter
   const uniqueTickers = useMemo(() => {

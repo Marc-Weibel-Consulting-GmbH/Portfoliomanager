@@ -178,13 +178,28 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
                   <span>Gespeichert: {new Date(portfolio.createdAt).toLocaleDateString('de-DE')}</span>
                 </div>
               </div>
-              <div className="flex gap-2 ml-4">
+              
+              <div className="flex gap-2">
                 <Button
-                  onClick={() => handleLoad(portfolio)}
+                  onClick={() => {
+                    // Load portfolio into optimizer
+                    const portfolioData = JSON.parse(portfolio.portfolioData);
+                    const stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+                    // TODO: Load into optimizer state
+                    toast.info('Portfolio wird geladen...');
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  Laden
+                </Button>
+                <Button
+                  onClick={() => setLocation(`/portfolio/${portfolio.id}`)}
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Laden
+                  Details
                 </Button>
                 <Button
                   onClick={() => handleDelete(portfolio.id, portfolio.name)}
@@ -1825,9 +1840,24 @@ export default function Home() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            window.location.href = `/portfolio/${portfolio.id}`;
+                            // Load portfolio into optimizer results view
+                            const data = JSON.parse(portfolio.portfolioData);
+                            // Switch to optimizer results view and show this portfolio
+                            setActiveTab('optimizer-results');
+                            toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde geladen` });
                           }}
                           className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
+                          style={{pointerEvents: 'auto', zIndex: 10}}
+                        >
+                          Laden
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.location.href = `/portfolio/${portfolio.id}`;
+                          }}
+                          className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-700 text-white rounded-md transition-colors cursor-pointer"
                           style={{pointerEvents: 'auto', zIndex: 10}}
                         >
                           Details

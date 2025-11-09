@@ -483,13 +483,21 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
 
 // Portfolio transactions
 export async function createPortfolioTransaction(transaction: any) {
+  console.log("[DB] createPortfolioTransaction called with:", JSON.stringify(transaction, null, 2));
   const db = await getDb();
-  if (!db) return null;
+  if (!db) {
+    console.error("[DB] Database not available");
+    return null;
+  }
   
   try {
     const { portfolioTransactions } = await import("../drizzle/schema");
+    console.log("[DB] Inserting into portfolioTransactions table...");
     const result = await db.insert(portfolioTransactions).values(transaction);
-    return { id: Number((result as any).insertId), ...transaction };
+    console.log("[DB] Insert result:", result);
+    const returnValue = { id: Number((result as any).insertId), ...transaction };
+    console.log("[DB] Returning:", returnValue);
+    return returnValue;
   } catch (error) {
     console.error("[Database] Failed to create portfolio transaction:", error);
     return null;
