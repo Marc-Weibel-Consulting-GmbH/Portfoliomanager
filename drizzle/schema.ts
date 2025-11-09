@@ -177,12 +177,33 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   name: varchar("name", { length: 255 }).notNull(), // User-defined portfolio name
   description: text("description"), // Optional description
   portfolioData: text("portfolioData").notNull(), // JSON string with stocks and weights
+  isLive: tinyint("isLive").notNull().default(0), // 1 = Live tracking enabled, 0 = Test mode
+  liveStartDate: timestamp("liveStartDate"), // Date when live tracking started
+  livePerformance: varchar("livePerformance", { length: 50 }), // IRR/MWR performance (e.g., "12.5")
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type SavedPortfolio = typeof savedPortfolios.$inferSelect;
 export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
+
+// Portfolio transactions table - tracks buys, sells, dividends for live portfolios
+export const portfolioTransactions = mysqlTable("portfolioTransactions", {
+  id: int("id").autoincrement().primaryKey(),
+  portfolioId: int("portfolioId").notNull(), // References savedPortfolios.id
+  transactionType: mysqlEnum("transactionType", ["buy", "sell", "dividend", "deposit", "withdrawal"]).notNull(),
+  ticker: varchar("ticker", { length: 50 }), // null for deposit/withdrawal
+  shares: varchar("shares", { length: 50 }), // Number of shares (for buy/sell)
+  pricePerShare: varchar("pricePerShare", { length: 50 }), // Price per share in CHF
+  totalAmount: varchar("totalAmount", { length: 50 }).notNull(), // Total amount in CHF (negative for withdrawals)
+  fees: varchar("fees", { length: 50 }).default("0"), // Transaction fees in CHF
+  notes: text("notes"), // Optional user notes
+  transactionDate: timestamp("transactionDate").notNull(), // Date of the transaction
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PortfolioTransaction = typeof portfolioTransactions.$inferSelect;
+export type InsertPortfolioTransaction = typeof portfolioTransactions.$inferInsert;
 
 // Historical metrics table - tracks Sharpe Ratio, PE, and other metrics over time
 export const historicalMetrics = mysqlTable("historicalMetrics", {

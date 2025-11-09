@@ -1762,3 +1762,17 @@
 - [x] Fix composition calculation showing 100% dividends when growth stocks exist
 - [ ] Add colored portfolio type tags (Dividenden-Portfolio, Wachstums-Portfolio, etc.)
 - [x] Normalize portfolio weights to always equal 100% (currently 104.42%)
+- [ ] Display cash position as last row in portfolio table (if cash > 0)
+- [ ] Add live portfolio tracking toggle (ON/OFF button with green indicator)
+- [ ] Implement IRR/MWR performance calculation for live portfolios
+- [ ] Create transactions table for tracking buys, sells, dividends, deposits, withdrawals
+- [ ] Record liveStartDate when portfolio goes live
+
+## Live Portfolio Tracking (Nov 9, 2025)
+- [x] Display cash position as last row in portfolio table (if cash > 0)
+- [x] Extend database schema for live tracking (isLive, liveStartDate, livePerformance)
+- [x] Create portfolioTransactions table for tracking buys, sells, dividends, deposits, withdrawals
+- [ ] Add live portfolio tracking toggle (ON/OFF button with green indicator)
+- [ ] Implement transaction recording UI
+- [ ] Implement IRR/MWR performance calculation for live portfolios
+- [ ] Display live performance in portfolio cards

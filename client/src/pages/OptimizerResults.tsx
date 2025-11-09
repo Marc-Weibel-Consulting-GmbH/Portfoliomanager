@@ -1569,6 +1569,28 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     </td>
                   </tr>
                 ))}
+                {displayPortfolio.remainingCash > 0 && (
+                  <tr key="cash" className="border-b border-slate-700 bg-slate-800/50">
+                    <td className="p-3">
+                      <div className="w-8 h-8 rounded bg-green-600 flex items-center justify-center text-xs text-white font-bold">$</div>
+                    </td>
+                    <td className="p-3 text-blue-400 font-medium">CASH</td>
+                    <td className="p-3 text-white">Cash Position</td>
+                    <td className="p-3 text-slate-300">Liquidität</td>
+                    <td className="p-3 text-right text-white font-medium">-</td>
+                    <td className="p-3 text-right text-slate-300">-</td>
+                    <td className="p-3 text-right text-white font-medium">
+                      CHF {displayPortfolio.remainingCash?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
+                    </td>
+                    <td className="p-3 text-right text-slate-300">{cashPercent.toFixed(2)}%</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-center"><span className="text-slate-500">-</span></td>
+                  </tr>
+                )}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-600 font-bold">
