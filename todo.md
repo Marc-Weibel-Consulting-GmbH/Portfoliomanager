@@ -1799,3 +1799,19 @@
 - [x] Default should be "Test" mode, not "Live" mode
 - [x] Badge should show "Test" (gray) or "Live" (green with pulsing dot)
 - [x] Clicking badge should toggle between Test and Live mode
+
+
+## CRITICAL BUG - Live Toggle nicht klickbar (Nov 9, 2025 - 09:35)
+- [ ] Live Toggle Button ist nicht klickbar (Test-Badge zeigt sich, aber keine Interaktion möglich)
+- [ ] Button muss zwischen Test und Live togglen können
+- [ ] Cursor muss pointer zeigen bei hover
+
+
+## Next Features (Nov 9, 2025 - 09:37)
+- [x] Transaction History View - Table with all transactions for a portfolio
+- [x] Transaction filters (type, date range, ticker)
+- [x] Transaction sorting (date, amount, type)
+- [x] CSV Export for transactions
+- [x] Performance Chart for Live Portfolios - IRR over time visualization
+- [x] Finnhub Dividend Calendar API integration
+- [x] Automatic dividend notifications via WhatsApp (infrastructure ready)

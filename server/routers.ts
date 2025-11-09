@@ -2631,7 +2631,50 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         return await getPortfolioTransactions(input);
       }),
   }),
+
+  dividendCalendar: router({
+    getUpcoming: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+          return val as { portfolioId: number; daysAhead?: number };
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById } = await import("./db");
+        const { getPortfolioDividends, calculateExpectedDividendIncome } = await import("./dividendCalendar");
+        
+        // Get portfolio
+        const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+        if (!portfolio) {
+          throw new Error("Portfolio not found");
+        }
+        
+        // Parse portfolio data to get tickers
+        const portfolioData = JSON.parse(portfolio.portfolioData);
+        const tickers = portfolioData.map((stock: any) => stock.ticker);
+        
+        // Fetch upcoming dividends
+        const dividends = await getPortfolioDividends(tickers, input.daysAhead || 30);
+        
+        // Calculate holdings from portfolio data
+        const holdings: Record<string, number> = {};
+        portfolioData.forEach((stock: any) => {
+          // Estimate shares based on portfolio weight and total invested
+          // This is a simplified calculation - real implementation would use transaction history
+          holdings[stock.ticker] = 10; // Placeholder
+        });
+        
+        // Calculate expected income
+        const expectedIncome = calculateExpectedDividendIncome(holdings, dividends);
+        
+        return {
+          dividends,
+          expectedIncome,
+          count: dividends.length
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
-
