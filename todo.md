@@ -1780,3 +1780,8 @@
 ## Bugs to Fix (Nov 9, 2025)
 - [x] "Zurück" button on Portfolio Optimizer overview shows Newsroom instead of Aktienliste (fixed: aktien → portfolio)
 - [x] Add Live toggle to portfolio cards on overview page
+
+## Critical Bugs (Nov 9, 2025 - High Priority)
+- [ ] Live toggle shows "0Live" instead of proper button with green indicator
+- [ ] Cash position not displaying in portfolio table (should show at end)
+- [ ] Portfolio 4 weight normalization not working (104% instead of 100%)

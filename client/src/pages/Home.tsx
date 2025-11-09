@@ -1767,7 +1767,7 @@ export default function Home() {
                           onClick={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            const newLiveStatus = !portfolio.isLive;
+                            const newLiveStatus = !Boolean(portfolio.isLive);
                             try {
                               await trpc.savedPortfolios.toggleLive.mutate({
                                 id: portfolio.id,
@@ -1783,13 +1783,13 @@ export default function Home() {
                             }
                           }}
                           className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
-                            portfolio.isLive
+                            Boolean(portfolio.isLive)
                               ? 'bg-green-600 hover:bg-green-700 text-white'
                               : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                           }`}
                           style={{pointerEvents: 'auto', zIndex: 10}}
                         >
-                          {portfolio.isLive && <span className="w-2 h-2 bg-white rounded-full animate-pulse" />}
+                          {Boolean(portfolio.isLive) && <span className="w-2 h-2 bg-white rounded-full animate-pulse" />}
                           Live
                         </button>
                       </div>
