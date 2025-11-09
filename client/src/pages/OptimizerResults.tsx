@@ -85,6 +85,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   // Fetch dynamic scores (same as Home page)
   const { data: stockScores = [] } = trpc.score.calculateAll.useQuery();
 
+  // Get tRPC utils for imperative queries
+  const utils = trpc.useUtils();
+
   // Fetch stock data mutation for auto-fill
   const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
     onSuccess: (data: any) => {
@@ -848,11 +851,20 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         : 0
     );
     
+    // Normalize portfolio weights to ensure they sum to 100%
+    const totalWeight = editablePositions.reduce((sum, p) => sum + (p.portfolioWeight || 0), 0);
+    const normalizedPositions = totalWeight > 0 && Math.abs(totalWeight - 100) > 0.01
+      ? editablePositions.map(p => ({
+          ...p,
+          portfolioWeight: (p.portfolioWeight / totalWeight) * 100
+        }))
+      : editablePositions;
+    
     return {
-      positions: editablePositions,
+      positions: normalizedPositions,
       totalInvested,
       remainingCash: currentInputs.investmentAmount - totalInvested,
-      totalShares: editablePositions.reduce((sum, p) => sum + p.shares, 0),
+      totalShares: normalizedPositions.reduce((sum, p) => sum + p.shares, 0),
       avgDividendYield,
       avgYtdPerformance,
     };
@@ -874,7 +886,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
     .filter((p: any) => p.isDividendStock && p.category !== 'ETF')
     .reduce((sum, p) => sum + p.investmentAmount, 0);
   const growthAmount = displayPortfolio.positions
-    .filter((p: any) => p.isGrowthStock && !p.isDividendStock && p.category !== 'ETF')
+    .filter((p: any) => !p.isDividendStock && p.category !== 'ETF')
     .reduce((sum, p) => sum + p.investmentAmount, 0);
   
   // Use total invested amount as base (100%)
@@ -898,10 +910,17 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   // Convert time period to years
   const timePeriodToYears = (period: string) => {
     switch (period) {
-      case '1m': return 0.1;
-      case '3m': return 0.25;
-      case '6m': return 0.5;
-      case 'ytd': return new Date().getMonth() / 12;
+      case '1m': return 1/12;  // 1 month
+      case '3m': return 3/12;  // 3 months
+      case '6m': return 6/12;  // 6 months
+      case 'ytd': {
+        // Calculate months from start of year to now
+        const now = new Date();
+        const monthsSinceYearStart = now.getMonth() + 1; // +1 because getMonth() is 0-indexed
+        const dayOfMonth = now.getDate();
+        // Add fractional month based on day of month
+        return (monthsSinceYearStart + (dayOfMonth / 30)) / 12;
+      }
       case '1y': return 1;
       case '3y': return 3;
       case '5y': return 5;
@@ -1056,7 +1075,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                         if (data.stocks && Array.isArray(data.stocks)) {
                           // Fetch full stock data from database for enrichment
                           const tickers = data.stocks.map((s: any) => s.ticker).filter(Boolean);
-                          const stocksDataResult = await trpc.stocks.getByTickers.query({ tickers });
+                          const stocksDataResult = await utils.stocks.getByTickers.fetch({ tickers });
                           const stocksMap = new Map(stocksDataResult.map(s => [s.ticker, s]));
                           
                           // Enrich loaded stocks with database data
@@ -1330,7 +1349,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                       if (data.stocks && Array.isArray(data.stocks)) {
                         // Fetch full stock data from database
                         const tickers = data.stocks.map((s: any) => s.ticker).filter(Boolean);
-                        const stocksDataResult = await trpc.stocks.getByTickers.query({ tickers });
+                        const stocksDataResult = await utils.stocks.getByTickers.fetch({ tickers });
                         
                         // Ensure stocksDataResult is an array
                         if (!Array.isArray(stocksDataResult)) {
@@ -1677,7 +1696,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                             if (data.stocks && Array.isArray(data.stocks)) {
                               // Fetch full stock data from database for each ticker
                               const tickers = data.stocks.map((s: any) => s.ticker).filter(Boolean);
-                              const stocksDataResult = await trpc.stocks.getByTickers.query({ tickers });
+                              const stocksDataResult = await utils.stocks.getByTickers.fetch({ tickers });
                               const stocksMap = new Map(stocksDataResult.map(s => [s.ticker, s]));
                               
                               // Enrich loaded stocks with database data

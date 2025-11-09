@@ -31,10 +31,10 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
   // Calculate years based on selected period
   const years = useMemo(() => {
     switch (selectedPeriod) {
-      case '1M': return 0.1;
-      case '3M': return 0.25;
-      case '6M': return 0.5;
-      case 'YTD': return 1;
+      case '1M': return 1/12;
+      case '3M': return 3/12;
+      case '6M': return 6/12;
+      case 'YTD': return (new Date().getMonth() + 1) / 12;
       case '1Y': return 1;
       case '3Y': return 3;
       case '5Y': return 5;

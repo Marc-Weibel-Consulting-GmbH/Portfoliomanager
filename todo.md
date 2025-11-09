@@ -1752,3 +1752,9 @@
   - [x] trpc.score.calculateAll.useQuery() in OptimizerResults hinzugefügt
   - [x] Score-Display verwendet jetzt scoreData?.totalScore (dynamisch)
   - [x] Alte trpc.scoring.calculateScores.useQuery() entfernt
+
+## Kritische Portfolio-Bugs
+- [ ] Portfolio laden: "hooks[lastArg] is not a function" (Zeile 926)
+- [ ] Zusammensetzung ergibt nur ~85% statt 100%
+- [ ] Portfolio Gewicht = 104.42% (darf max 100% sein)
+- [ ] Chart-Zeiträume YTD, 6M, 3M, 1M zeigen falsche Daten (Portfolio + Startseite)
