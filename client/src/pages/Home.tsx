@@ -2241,14 +2241,7 @@ export default function Home() {
             <Download className="w-4 h-4 mr-2" />
             PDF Export
           </Button>
-          {user?.role === 'admin' && (
-            <Button onClick={() => window.location.href = '/categories'} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              Kategorien
-            </Button>
-          )}
+
           {isAuthenticated && (
             <div className="relative">
               <Button 

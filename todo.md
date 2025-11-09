@@ -1613,3 +1613,14 @@
 - [x] Disable incremental TypeScript compilation
 - [ ] Implement comprehensive error handling for all tRPC procedures
 - [ ] Add server health monitoring and auto-recovery
+
+## Portfolio Loading Bugs & Navigation (2025-11-09)
+- [x] Move "Kategorien" button from main nav to Admin section
+- [x] Add "Branchen" button to Admin section
+- [ ] Fix portfolio loading value mismatch (41'160 shows as 33'719)
+- [x] Fix missing logos in loaded portfolios (save logoUrl in portfolio data)
+- [x] Round all dividend yields to 1 decimal place (not 15 decimals)
+- [x] Fix score display (save all fields in portfolio data)
+- [x] Fix "Portfolio anpassen" - recalculation does nothing (reset editablePositions)
+- [x] Add auto-fill for stock search when adding stocks (already implemented with ticker search)
+- [ ] Add industry/sector selection when adding stocks (requires database schema change - currently only category exists)

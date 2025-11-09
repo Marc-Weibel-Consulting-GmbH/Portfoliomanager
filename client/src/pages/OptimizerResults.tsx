@@ -949,6 +949,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         currentInputs={adjustedInputs}
         onAdjust={(newInputs) => {
           setAdjustedInputs(newInputs);
+          setEditablePositions(null); // Reset to show new optimization
           setShowAdjustmentDialog(false);
         }}
       />
@@ -1384,7 +1385,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                       {(pos.portfolioWeight || 0).toFixed(2)}%
                     </td>
                     <td className="p-3 text-right text-green-400">
-                      {pos.dividendYield}%
+                      {parseFloat(pos.dividendYield || '0').toFixed(1)}%
                     </td>
                     <td className={`p-3 text-right font-medium ${
                       parseFloat(pos.ytdPerformance) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -1475,9 +1476,20 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   stocks: displayPortfolio.positions.map(pos => ({
                     ticker: pos.ticker,
                     companyName: pos.companyName,
+                    category: pos.category,
+                    currentPrice: pos.currentPrice,
+                    dividendYield: pos.dividendYield,
+                    ytdPerformance: pos.ytdPerformance,
+                    peRatio: pos.peRatio,
+                    pegRatio: pos.pegRatio,
+                    sharpeRatio: pos.sharpeRatio,
+                    logoUrl: pos.logoUrl,
                     shares: pos.shares,
                     investmentAmount: pos.investmentAmount,
                     portfolioWeight: pos.portfolioWeight,
+                    score: pos.score,
+                    isDividendStock: pos.isDividendStock,
+                    isGrowthStock: pos.isGrowthStock,
                   })),
                   totalInvested: displayPortfolio.totalInvested,
                   numberOfPositions: displayPortfolio.positions.length,
