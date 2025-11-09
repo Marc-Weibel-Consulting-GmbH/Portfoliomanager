@@ -1606,3 +1606,10 @@
 - [ ] Implement price alert management UI (set target prices, alert conditions)
 - [ ] Integrate WhatsApp notifications for price alerts
 - [ ] Add watchlist navigation to main menu
+
+## Persistent Server Crash Issues (2025-11-09)
+- [x] Diagnose why tRPC errors still occur despite memory optimizations (TypeScript compiler OOM kills)
+- [x] Increase Node memory limit to 1024MB
+- [x] Disable incremental TypeScript compilation
+- [ ] Implement comprehensive error handling for all tRPC procedures
+- [ ] Add server health monitoring and auto-recovery
