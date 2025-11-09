@@ -456,3 +456,20 @@ export async function updateStockSector(ticker: string, sector: string) {
     throw error;
   }
 }
+
+export async function togglePortfolioLive(id: number, userId: number, isLive: boolean) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const liveStartDate = isLive ? new Date() : null;
+  
+  const result = await db.update(savedPortfolios)
+    .set({ 
+      isLive: isLive ? 1 : 0,
+      liveStartDate: liveStartDate,
+      updatedAt: new Date()
+    })
+    .where(and(eq(savedPortfolios.id, id), eq(savedPortfolios.userId, userId)));
+  
+  return { success: true, isLive, liveStartDate };
+}

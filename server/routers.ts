@@ -1942,6 +1942,18 @@ export const appRouter = router({
         }
         return { success: true };
       }),
+
+    toggleLive: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number" && "isLive" in val && typeof val.isLive === "boolean") {
+          return val as { id: number; isLive: boolean };
+        }
+        throw new Error("Invalid toggle data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { togglePortfolioLive } = await import("./db");
+        return await togglePortfolioLive(input.id, ctx.user.id, input.isLive);
+      }),
   }),
 
   portfolioPerformance: router({

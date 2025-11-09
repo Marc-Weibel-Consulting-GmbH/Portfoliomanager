@@ -1760,7 +1760,40 @@ export default function Home() {
                     </div>
                   </CardContent>
                   <div className="px-6 pb-6">
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-2 justify-between items-center">
+                      {/* Live Toggle */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const newLiveStatus = !portfolio.isLive;
+                            try {
+                              await trpc.savedPortfolios.toggleLive.mutate({
+                                id: portfolio.id,
+                                isLive: newLiveStatus
+                              });
+                              toast.success(
+                                newLiveStatus ? 'Live-Tracking aktiviert' : 'Live-Tracking deaktiviert',
+                                { description: newLiveStatus ? 'Performance wird ab jetzt gemessen' : 'Live-Tracking gestoppt' }
+                              );
+                              refetchSavedPortfolios();
+                            } catch (error) {
+                              toast.error('Fehler', { description: 'Status konnte nicht geändert werden' });
+                            }
+                          }}
+                          className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                            portfolio.isLive
+                              ? 'bg-green-600 hover:bg-green-700 text-white'
+                              : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                          }`}
+                          style={{pointerEvents: 'auto', zIndex: 10}}
+                        >
+                          {portfolio.isLive && <span className="w-2 h-2 bg-white rounded-full animate-pulse" />}
+                          Live
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
                         <button
                           onClick={(e) => {
                             e.preventDefault();
@@ -1812,6 +1845,7 @@ export default function Home() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -1820,7 +1854,7 @@ export default function Home() {
 
             <div className="flex gap-4 justify-center">
               <Button
-                onClick={() => setActiveTab("aktien")}
+                onClick={() => setActiveTab("portfolio")}
                 variant="outline"
                 className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
               >

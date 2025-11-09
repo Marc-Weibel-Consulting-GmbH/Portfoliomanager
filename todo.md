@@ -1776,3 +1776,7 @@
 - [ ] Implement transaction recording UI
 - [ ] Implement IRR/MWR performance calculation for live portfolios
 - [ ] Display live performance in portfolio cards
+
+## Bugs to Fix (Nov 9, 2025)
+- [x] "Zurück" button on Portfolio Optimizer overview shows Newsroom instead of Aktienliste (fixed: aktien → portfolio)
+- [x] Add Live toggle to portfolio cards on overview page
