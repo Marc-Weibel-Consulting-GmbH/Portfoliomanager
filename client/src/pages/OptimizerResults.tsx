@@ -1030,7 +1030,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left: Portfolio Selector */}
             <div className="space-y-2">
-              <label className="text-slate-400 text-sm font-semibold">Portfolio-Auswahl</label>
+              <h3 className="text-slate-300 text-base font-bold">Portfolio-Auswahl</h3>
               <Select
                 value={selectedPortfolioId || ""}
                 onValueChange={async (value) => {
@@ -1129,7 +1129,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
 
             {/* Middle: Composition */}
             <div className="space-y-2">
-              <label className="text-slate-400 text-sm font-semibold">Zusammensetzung</label>
+              <h3 className="text-slate-300 text-base font-bold">Zusammensetzung</h3>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-900 p-2 rounded text-center">
                   <p className="text-xs text-slate-400">Dividenden</p>
@@ -1152,7 +1152,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
 
             {/* Right: Stats */}
             <div className="space-y-2">
-              <label className="text-slate-400 text-sm font-semibold">Performance & Kennzahlen</label>
+              <h3 className="text-slate-300 text-base font-bold">Performance & Kennzahlen</h3>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-900 p-2 rounded">
                   <p className="text-xs text-slate-400">Investiert</p>
@@ -1307,14 +1307,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
             }
           </CardTitle>
           <div className="flex gap-2 items-center flex-wrap">
-            <Button onClick={onBack} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Zurück
-            </Button>
-            <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
-              <Save className="w-4 h-4 mr-2" />
-              Speichern
-            </Button>
             {savedPortfolios && savedPortfolios.length > 0 && (
               <Select
                 value={selectedPortfolioId || ""}
@@ -1388,6 +1380,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                 </SelectContent>
               </Select>
             )}
+            <Button onClick={onBack} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück
+            </Button>
+            <Button onClick={() => setShowSaveDialog(true)} className="bg-green-600 hover:bg-green-700 text-white">
+              <Save className="w-4 h-4 mr-2" />
+              Speichern
+            </Button>
             <Button 
               onClick={() => {
                 setEditablePositions([...optimizedPortfolio.positions]);
@@ -1438,7 +1438,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                 </tr>
               </thead>
               <tbody>
-                {displayPortfolio.positions.map((pos) => (
+                {displayPortfolio.positions
+                  .sort((a, b) => {
+                    // ETFs go to bottom
+                    if (a.category === 'ETF' && b.category !== 'ETF') return 1;
+                    if (a.category !== 'ETF' && b.category === 'ETF') return -1;
+                    return 0;
+                  })
+                  .map((pos) => (
                   <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
                     <td className="p-3">
                       {pos.logoUrl ? (
@@ -1498,7 +1505,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                         
                         return (
                           <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg font-bold text-white ${bgColor}`}>
-                            {scoreValue}
+                            {Math.round(scoreValue)}
                           </span>
                         );
                       })()}

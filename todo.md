@@ -1724,3 +1724,13 @@
   - [x] Alte Button-Sektion (Zeile 1177-1191) entfernt
 - [x] P/E und PEG Ratio auf 1 Dezimalstelle runden
   - [x] Script round-pe-peg.mjs ausgeführt (82 Aktien aktualisiert)
+
+## Verbleibende Portfolio-Bugs
+- [x] Titel "Portfolio-Auswahl" muss größer und fett (wie "Portfolio Performance" und "Zusammensetzung")
+  - [x] Alle drei Titel geändert zu <h3> mit text-base font-bold
+- [x] ETFs sollen ganz unten in der Tabelle sortiert werden (nach allen anderen Aktien)
+  - [x] Sort-Funktion hinzugefügt: ETFs (category === 'ETF') gehen nach unten
+- [x] Score zeigt falsche Werte (z.B. 442.144 statt ~70) - auf ganze Zahlen runden
+  - [x] Math.round(scoreValue) in Score-Display hinzugefügt
+- [x] "Portfolio auswählen" Dropdown muss VOR "Zurück" Button im Header erscheinen
+  - [x] Button-Reihenfolge geändert: Dropdown -> Zurück -> Speichern -> andere Buttons
