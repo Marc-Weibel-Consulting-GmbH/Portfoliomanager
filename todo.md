@@ -1839,3 +1839,9 @@
 - [x] Live Toggle auf Hauptseite funktioniert nicht - Button nicht klickbar → Already working, no fix needed
 - [x] Transaktionen erscheinen nicht in Historie - Kauf erfasst aber 0 Transaktionen angezeigt → FIXED: Corrected input format in list query
 - [x] Verkauf sollte Auto-Fill haben - Aktueller Bestand + aktueller Kurs automatisch eintragen → FIXED: Added auto-fill for current price
+
+
+## CRITICAL - Live Toggle auf Hauptseite (Nov 9, 2025 - 12:25)
+- [x] Live Toggle Button auf Hauptseite reagiert nicht auf Klicks → FIXED: Removed e.preventDefault/stopPropagation and style overrides
+- [x] Button ist sichtbar aber nicht klickbar → FIXED
+- [x] In Detail-Seite funktioniert der Toggle korrekt → Already working

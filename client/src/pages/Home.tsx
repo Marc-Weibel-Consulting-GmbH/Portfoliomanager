@@ -1787,9 +1787,7 @@ export default function Home() {
                       {/* Live Toggle */}
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+                          onClick={async () => {
                             const newLiveStatus = !Boolean(portfolio.isLive);
                             try {
                               await trpc.savedPortfolios.toggleLive.mutate({
@@ -1810,7 +1808,6 @@ export default function Home() {
                               ? 'bg-green-600 hover:bg-green-700 text-white'
                               : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
                           }`}
-                          style={{pointerEvents: 'auto', zIndex: 10}}
                           type="button"
                         >
                           {Boolean(portfolio.isLive) && <span className="w-2 h-2 bg-white rounded-full animate-pulse" />}
