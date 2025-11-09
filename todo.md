@@ -1,7 +1,7 @@
 # Portfolio BIG - TODO
 
 ## In Arbeit
-- [ ] Fix chart timeframe calculation in production (3M shows 1 year instead of 3 months)
+- [x] Fix chart timeframe calculation in production (3M shows 1 year instead of 3 months)
 - [x] Trigger auto-fill when selecting company from search suggestions (not from ticker field)
 - [x] Fix "Daten laden" button not appearing in add stock dialog
 - [x] Implement stock search API endpoint for company name lookup
@@ -1759,3 +1759,6 @@
 - [ ] Zusammensetzung ergibt nur ~85% statt 100%
 - [ ] Portfolio Gewicht = 104.42% (darf max 100% sein)
 - [ ] Chart-Zeiträume YTD, 6M, 3M, 1M zeigen falsche Daten (Portfolio + Startseite)
+- [x] Fix composition calculation showing 100% dividends when growth stocks exist
+- [ ] Add colored portfolio type tags (Dividenden-Portfolio, Wachstums-Portfolio, etc.)
+- [x] Normalize portfolio weights to always equal 100% (currently 104.42%)

@@ -1097,10 +1097,19 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                               sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
                               score: dbStock?.score || stock.score || 0,
                               category: dbStock?.category || stock.category || '',
-                              isDividendStock: divYield >= 1.0,
-                              isGrowthStock: divYield < 1.0
+                              isDividendStock: divYield >= 2.5,
+                              isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                             };
                           });
+                          
+                          // Normalize weights to 100%
+                          const totalWeight = enrichedStocks.reduce((sum, s) => sum + s.portfolioWeight, 0);
+                          if (totalWeight > 0 && Math.abs(totalWeight - 100) > 0.01) {
+                            enrichedStocks.forEach(s => {
+                              s.portfolioWeight = (s.portfolioWeight / totalWeight) * 100;
+                            });
+                          }
+                          
                           setEditablePositions(enrichedStocks);
                           setLoadedPortfolioMetadata({
                             totalInvested: data.totalInvested,
@@ -1379,10 +1388,19 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                             sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
                             score: dbStock?.score || stock.score || 0,
                             category: dbStock?.category || stock.category || '',
-                            isDividendStock: divYield >= 1.0,
-                            isGrowthStock: divYield < 1.0
+                            isDividendStock: divYield >= 2.5,
+                            isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                           };
                         });
+                        
+                        // Normalize weights to 100%
+                        const totalWeight = enrichedStocks.reduce((sum, s) => sum + s.portfolioWeight, 0);
+                        if (totalWeight > 0 && Math.abs(totalWeight - 100) > 0.01) {
+                          enrichedStocks.forEach(s => {
+                            s.portfolioWeight = (s.portfolioWeight / totalWeight) * 100;
+                          });
+                        }
+                        
                         setEditablePositions(enrichedStocks);
                         setLoadedPortfolioMetadata({
                           totalInvested: data.totalInvested,
@@ -1718,10 +1736,19 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                                   sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
                                   score: dbStock?.score || stock.score || 0,
                                   category: dbStock?.category || stock.category || '',
-                                  isDividendStock: divYield >= 1.0,
-                                  isGrowthStock: divYield < 1.0
+                                isDividendStock: divYield >= 2.5,
+                                isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                                 };
                               });
+                              
+                              // Normalize weights to 100%
+                              const totalWeight = enrichedStocks.reduce((sum, s) => sum + s.portfolioWeight, 0);
+                              if (totalWeight > 0 && Math.abs(totalWeight - 100) > 0.01) {
+                                enrichedStocks.forEach(s => {
+                                  s.portfolioWeight = (s.portfolioWeight / totalWeight) * 100;
+                                });
+                              }
+                              
                               setEditablePositions(enrichedStocks);
                               setLoadedPortfolioMetadata({
                                 totalInvested: data.totalInvested,
