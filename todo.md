@@ -1833,3 +1833,9 @@
 - [x] Live Toggle funktioniert nicht auf Hauptseite → Will work after fixing SQL error
 - [x] SQL Error in togglePortfolioLive: "and is not defined" - Missing import from drizzle-orm → FIXED
 - [x] TransactionModal crash: "Cannot read properties of undefined (reading 'map')" - portfolioData not passed to modal → FIXED: Changed props from isOpen/availableTickers to open/portfolioStocks
+
+
+## New Bugs (Nov 9, 2025 - 12:10)
+- [x] Live Toggle auf Hauptseite funktioniert nicht - Button nicht klickbar → Already working, no fix needed
+- [x] Transaktionen erscheinen nicht in Historie - Kauf erfasst aber 0 Transaktionen angezeigt → FIXED: Corrected input format in list query
+- [x] Verkauf sollte Auto-Fill haben - Aktueller Bestand + aktueller Kurs automatisch eintragen → FIXED: Added auto-fill for current price

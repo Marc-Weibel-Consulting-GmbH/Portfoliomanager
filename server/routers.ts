@@ -2622,13 +2622,13 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
     list: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
-          return val.portfolioId;
+          return { portfolioId: val.portfolioId };
         }
         throw new Error("Invalid portfolio ID");
       })
       .query(async ({ input }) => {
         const { getPortfolioTransactions } = await import("./db");
-        return await getPortfolioTransactions(input);
+        return await getPortfolioTransactions(input.portfolioId);
       }),
   }),
 

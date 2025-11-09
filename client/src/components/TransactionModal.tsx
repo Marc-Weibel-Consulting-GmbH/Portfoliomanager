@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,19 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
   const [fees, setFees] = useState("0");
   const [notes, setNotes] = useState("");
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Fetch current stock price when ticker is selected for sell
+  const { data: stockData } = trpc.stocks.getByTicker.useQuery(
+    { ticker: ticker || "" },
+    { enabled: !!ticker && transactionType === "sell" }
+  );
+
+  // Auto-fill price when selling
+  useEffect(() => {
+    if (transactionType === "sell" && stockData?.currentPrice) {
+      setPricePerShare(stockData.currentPrice.toString());
+    }
+  }, [transactionType, stockData]);
 
   const createTransactionMutation = trpc.portfolioTransactions.create.useMutation({
     onSuccess: () => {
