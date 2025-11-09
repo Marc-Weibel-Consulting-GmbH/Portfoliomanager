@@ -182,24 +182,45 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
               <div className="flex gap-2">
                 <Button
                   onClick={() => {
-                    // Load portfolio into optimizer
-                    const portfolioData = JSON.parse(portfolio.portfolioData);
-                    const stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
-                    // TODO: Load into optimizer state
-                    toast.info('Portfolio wird geladen...');
+                    if (portfolio.isLive) {
+                      // For LIVE portfolios: Navigate to detail page
+                      setLocation(`/portfolio/${portfolio.id}`);
+                    } else {
+                      // For TEST portfolios: Load into optimizer
+                      try {
+                        const portfolioData = JSON.parse(portfolio.portfolioData);
+                        const stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+                        
+                        // Reconstruct optimizer inputs from portfolio data
+                        const totalInvestment = stocks.reduce((sum: number, stock: any) => {
+                          return sum + parseFloat(stock.investmentAmount || stock.totalInvested || '0');
+                        }, 0);
+                        
+                        const avgDividendYield = stocks.reduce((sum: number, stock: any) => {
+                          return sum + parseFloat(stock.dividendYield || '0');
+                        }, 0) / stocks.length;
+                        
+                        const reconstructedInputs = {
+                          investmentAmount: totalInvestment,
+                          expectedDividendYield: avgDividendYield,
+                          numberOfPositions: stocks.length,
+                          investorType: 'balanced' as const
+                        };
+                        
+                        setOptimizerInputs(reconstructedInputs);
+                        setShowOptimizerResults(true);
+                        setActiveTab('optimizer');
+                        toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde in den Optimizer geladen` });
+                      } catch (error) {
+                        console.error('Failed to load portfolio:', error);
+                        toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden' });
+                      }
+                    }
                   }}
-                  size="sm"
-                  variant="outline"
-                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                >
-                  Laden
-                </Button>
-                <Button
-                  onClick={() => setLocation(`/portfolio/${portfolio.id}`)}
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Details
+                  Laden
                 </Button>
                 <Button
                   onClick={() => handleDelete(portfolio.id, portfolio.name)}

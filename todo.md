@@ -42,3 +42,11 @@
 - [ ] Use current price as entry price
 - [ ] Set transaction date to liveStartDate
 - [ ] This ensures holdings calculation works correctly and live performance starts at 0%
+
+
+## New Task (Nov 9, 2025 - 23:15)
+- [x] Implement "Laden" button with dual functionality
+- [x] For TEST portfolios: Load into OptimizerResults
+- [x] For LIVE portfolios: Navigate to Portfolio Detail page
+- [x] Remove "Details" button (functionality merged into "Laden")
+- [x] Reconstruct OptimizerInputs from saved portfolio data
