@@ -1007,37 +1007,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         </Dialog>
       )}
 
-      {/* Dividend Yield Warning - only show for optimized portfolios, not loaded ones */}
-      {!selectedPortfolioId && Math.abs(displayPortfolio.avgDividendYield - currentInputs.expectedDividendYield) > 0.5 && (
-        <Card className="bg-yellow-500/10 border-yellow-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="text-2xl">⚠️</div>
-              <div className="flex-1">
-                <h3 className="text-yellow-400 font-bold mb-1">
-                  Ziel-Dividendenrendite nicht vollständig erreichbar
-                </h3>
-                <p className="text-slate-300 text-sm mb-2">
-                  Die durchschnittliche Dividendenrendite von <strong>{(displayPortfolio.avgDividendYield || 0).toFixed(2)}%</strong> weicht von Ihrer Vorgabe (<strong>{currentInputs.expectedDividendYield}%</strong>) ab.
-                </p>
-                <p className="text-slate-400 text-xs">
-                  💡 <strong>Grund:</strong> Unter Einhaltung der 5% Maximalgewichtung (1% Minimum) pro Position und Berücksichtigung Ihres Anlegertyps ({currentInputs.investorType === 'conservative' ? 'Konservativ' : currentInputs.investorType === 'balanced' ? 'Ausgewogen' : 'Dynamisch'}) ist dies die bestmögliche Annäherung.
-                </p>
-                <p className="text-slate-400 text-xs mt-2">
-                  <strong>Tipp:</strong> Passen Sie die Ziel-Dividende an oder wählen Sie mehr Positionen für bessere Flexibilität.
-                </p>
-                <Button
-                  onClick={() => setShowAdjustmentDialog(true)}
-                  className="mt-3 bg-blue-600 hover:bg-blue-700"
-                  size="sm"
-                >
-                  Portfolio anpassen
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Dividend Yield Warning - REMOVED per user request */}
 
       {/* Compact Portfolio Header */}
       <Card className="bg-slate-800 border-slate-700">
@@ -1370,6 +1340,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
+                  <th className="text-left p-3 text-slate-400 font-medium">Logo</th>
                   <th className="text-left p-3 text-slate-400 font-medium">Ticker</th>
                   <th className="text-left p-3 text-slate-400 font-medium">Unternehmen</th>
                   <th className="text-left p-3 text-slate-400 font-medium">Kategorie</th>
@@ -1379,12 +1350,26 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                   <th className="text-right p-3 text-slate-400 font-medium">Gewicht</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Div. %</th>
                   <th className="text-right p-3 text-slate-400 font-medium">YTD %</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">P/E</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">PEG</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">Sharpe</th>
                   <th className="text-center p-3 text-slate-400 font-medium">Score</th>
                 </tr>
               </thead>
               <tbody>
                 {displayPortfolio.positions.map((pos) => (
                   <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
+                    <td className="p-3">
+                      {pos.logoUrl ? (
+                        <img src={pos.logoUrl} alt={pos.companyName} className="w-8 h-8 rounded" onError={(e) => {
+                          e.currentTarget.src = `https://logo.clearbit.com/${pos.ticker.replace('.US', '').replace('.SW', '')}.com`;
+                        }} />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-slate-400">
+                          {pos.ticker.substring(0, 2)}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-3 text-blue-400 font-medium">{pos.ticker}</td>
                     <td className="p-3 text-white">{pos.companyName}</td>
                     <td className="p-3 text-slate-300">{pos.category}</td>
@@ -1405,6 +1390,18 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                       parseFloat(pos.ytdPerformance) >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
                       {parseFloat(pos.ytdPerformance) >= 0 ? '+' : ''}{pos.ytdPerformance}%
+                    </td>
+                    <td className="p-3 text-right text-slate-300">
+                      {pos.peRatio || '-'}
+                    </td>
+                    <td className="p-3 text-right text-slate-300">
+                      {pos.pegRatio || '-'}
+                    </td>
+                    <td className={`p-3 text-right font-medium ${
+                      parseFloat(pos.sharpeRatio || '0') >= 1 ? 'text-green-400' : 
+                      parseFloat(pos.sharpeRatio || '0') >= 0 ? 'text-yellow-400' : 'text-red-400'
+                    }`}>
+                      {pos.sharpeRatio || '-'}
                     </td>
                     <td className="p-3 text-center">
                       {(() => {
@@ -1430,7 +1427,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-600 font-bold">
-                  <td colSpan={5} className="p-3 text-white">Total</td>
+                  <td colSpan={6} className="p-3 text-white">Total</td>
                   <td className="p-3 text-right text-white">
                     CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
                   </td>
