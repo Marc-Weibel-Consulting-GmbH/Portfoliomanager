@@ -1602,10 +1602,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                 <tr className="border-t-2 border-slate-600 font-bold">
                   <td colSpan={6} className="p-3 text-white">Total</td>
                   <td className="p-3 text-right text-white">
-                    CHF {displayPortfolio.totalInvested?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
+                    CHF {((displayPortfolio.totalInvested || 0) + (displayPortfolio.remainingCash || 0)).toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="p-3 text-right text-white">
-                    {((displayPortfolio.totalInvested / currentInputs.investmentAmount) * 100 || 0).toFixed(2)}%
+                    {(((displayPortfolio.totalInvested || 0) + (displayPortfolio.remainingCash || 0)) / currentInputs.investmentAmount * 100 || 0).toFixed(2)}%
                   </td>
                   <td colSpan={2}></td>
                 </tr>
