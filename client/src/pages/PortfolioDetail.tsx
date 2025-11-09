@@ -62,7 +62,16 @@ export default function PortfolioDetail() {
     );
   }
 
-  const portfolioData = JSON.parse(portfolio.portfolioData);
+  // Parse portfolio data safely
+  let portfolioData: any[] = [];
+  try {
+    const parsed = JSON.parse(portfolio.portfolioData);
+    // Handle both formats: array of stocks or object with stocks property
+    portfolioData = Array.isArray(parsed) ? parsed : (parsed.stocks || []);
+  } catch (error) {
+    console.error('Failed to parse portfolio data:', error);
+    portfolioData = [];
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 p-8">
@@ -105,6 +114,11 @@ export default function PortfolioDetail() {
               {/* Live Toggle */}
               <Button
                 onClick={() => {
+                  console.log('[PortfolioDetail] Toggling live status:', {
+                    portfolioId: portfolio.id,
+                    currentStatus: portfolio.isLive,
+                    newStatus: !portfolio.isLive
+                  });
                   toggleLiveMutation.mutate({
                     id: portfolio.id,
                     isLive: !portfolio.isLive
@@ -267,7 +281,7 @@ export default function PortfolioDetail() {
           isOpen={isTransactionModalOpen}
           onClose={() => setIsTransactionModalOpen(false)}
           portfolioId={portfolio.id}
-          availableTickers={portfolioData.map((s: any) => s.ticker)}
+          availableTickers={portfolioData.map((s: any) => s.ticker).filter(Boolean)}
           onSuccess={() => {
             refetchTransactions();
             refetchPortfolios();

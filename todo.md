@@ -1823,3 +1823,8 @@
 - [x] Transaction History ist nicht sichtbar - Komponente existiert aber nicht eingebunden → FIXED: Auf Detail-Seite
 - [x] Performance Chart ist nicht sichtbar - Komponente existiert aber nicht eingebunden → FIXED: Auf Detail-Seite
 - [x] Portfolio Detail Page fehlt - Brauche dedizierte Seite für Portfolio-Details mit allen Features → CREATED
+
+
+## CRITICAL BUGS (Nov 9, 2025 - 10:02)
+- [x] portfolioData.map is not a function - PortfolioDetail crashes when loading → FIXED: Added safe JSON parsing
+- [ ] Live Toggle funktioniert immer noch nicht - Mutation wird nicht ausgeführt → Added debug logging
