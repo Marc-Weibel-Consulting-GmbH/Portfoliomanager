@@ -1954,6 +1954,49 @@ export const appRouter = router({
         const { togglePortfolioLive } = await import("./db");
         return await togglePortfolioLive(input.id, ctx.user.id, input.isLive);
       }),
+
+    calculateLivePerformance: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, getPortfolioTransactions } = await import("./db");
+        const { calculateIRR, calculatePortfolioValue } = await import("./irrCalculator");
+        
+        // Get portfolio and transactions
+        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        if (!portfolio || !portfolio.isLive || !portfolio.liveStartDate) {
+          return { performance: null, error: "Portfolio is not in live mode" };
+        }
+        
+        const transactions = await getPortfolioTransactions(input);
+        if (transactions.length === 0) {
+          return { performance: 0, currentValue: 0, cash: 0 };
+        }
+        
+        // Calculate current portfolio value
+        const { currentValue, holdings, cash } = await calculatePortfolioValue(input, transactions);
+        
+        // Build cashflows for IRR calculation
+        const cashflows = transactions.map(tx => ({
+          date: new Date(tx.transactionDate),
+          amount: parseFloat(tx.totalAmount),
+        }));
+        
+        // Calculate IRR
+        const irr = calculateIRR(cashflows, currentValue);
+        
+        return {
+          performance: irr,
+          currentValue,
+          cash,
+          holdings,
+          transactionCount: transactions.length,
+        };
+      }),
   }),
 
   portfolioPerformance: router({
@@ -2547,6 +2590,45 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         const { updateStockSector } = await import("./db");
         await updateStockSector(input.ticker, input.sector);
         return { success: true };
+      }),
+  }),
+
+  portfolioTransactions: router({
+    create: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "portfolioId" in val && "transactionType" in val) {
+          return val as {
+            portfolioId: number;
+            transactionType: "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
+            ticker: string | null;
+            shares: string | null;
+            pricePerShare: string | null;
+            totalAmount: string;
+            fees: string;
+            notes: string | null;
+            transactionDate: string;
+          };
+        }
+        throw new Error("Invalid transaction data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { createPortfolioTransaction } = await import("./db");
+        return await createPortfolioTransaction({
+          ...input,
+          portfolioId: input.portfolioId,
+        });
+      }),
+
+    list: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+          return val.portfolioId;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input }) => {
+        const { getPortfolioTransactions } = await import("./db");
+        return await getPortfolioTransactions(input);
       }),
   }),
 });

@@ -324,8 +324,15 @@ export async function createSavedPortfolio(portfolio: InsertSavedPortfolio) {
   if (!db) return null;
   
   try {
-    const result = await db.insert(savedPortfolios).values(portfolio);
-    return { id: Number((result as any).insertId), ...portfolio };
+    // Calculate portfolio type based on composition
+    const { calculatePortfolioType } = await import("./portfolioTypeCalculator");
+    const portfolioType = calculatePortfolioType(portfolio.portfolioData);
+    
+    const result = await db.insert(savedPortfolios).values({
+      ...portfolio,
+      portfolioType,
+    });
+    return { id: Number((result as any).insertId), ...portfolio, portfolioType };
   } catch (error) {
     console.error("[Database] Failed to create saved portfolio:", error);
     return null;
@@ -472,4 +479,37 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
     .where(and(eq(savedPortfolios.id, id), eq(savedPortfolios.userId, userId)));
   
   return { success: true, isLive, liveStartDate };
+}
+
+// Portfolio transactions
+export async function createPortfolioTransaction(transaction: any) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  try {
+    const { portfolioTransactions } = await import("../drizzle/schema");
+    const result = await db.insert(portfolioTransactions).values(transaction);
+    return { id: Number((result as any).insertId), ...transaction };
+  } catch (error) {
+    console.error("[Database] Failed to create portfolio transaction:", error);
+    return null;
+  }
+}
+
+export async function getPortfolioTransactions(portfolioId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  try {
+    const { portfolioTransactions } = await import("../drizzle/schema");
+    const transactions = await db
+      .select()
+      .from(portfolioTransactions)
+      .where(eq(portfolioTransactions.portfolioId, portfolioId))
+      .orderBy(sql`${portfolioTransactions.transactionDate} DESC`);
+    return transactions;
+  } catch (error) {
+    console.error("[Database] Failed to get portfolio transactions:", error);
+    return [];
+  }
 }

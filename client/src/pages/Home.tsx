@@ -1712,7 +1712,19 @@ export default function Home() {
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <CardTitle className="text-white text-xl">{portfolio.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-white text-xl">{portfolio.name}</CardTitle>
+                          {portfolio.portfolioType && (
+                            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                              portfolio.portfolioType === 'Dividenden' ? 'bg-green-600/20 text-green-400 border border-green-600/30' :
+                              portfolio.portfolioType === 'Wachstum' ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30' :
+                              portfolio.portfolioType === 'ETF' ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30' :
+                              'bg-purple-600/20 text-purple-400 border border-purple-600/30'
+                            }`}>
+                              {portfolio.portfolioType}
+                            </span>
+                          )}
+                        </div>
                         {portfolio.description && (
                           <p className="text-slate-400 text-sm mt-2">{portfolio.description}</p>
                         )}
@@ -1757,6 +1769,17 @@ export default function Home() {
                           {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{portfolio.avgYtdPerformance?.toFixed(1) || '0.0'}%
                         </p>
                       </div>
+                      {portfolio.isLive && portfolio.liveStartDate && (
+                        <div>
+                          <p className="text-slate-400 text-sm">Live Performance</p>
+                          <p className="text-blue-400 font-semibold text-lg">
+                            {portfolio.livePerformance ? `${portfolio.livePerformance >= 0 ? '+' : ''}${portfolio.livePerformance.toFixed(1)}%` : 'Berechne...'}
+                          </p>
+                          <p className="text-slate-500 text-xs">
+                            seit {new Date(portfolio.liveStartDate).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                   <div className="px-6 pb-6">
@@ -1790,7 +1813,7 @@ export default function Home() {
                           style={{pointerEvents: 'auto', zIndex: 10}}
                         >
                           {Boolean(portfolio.isLive) && <span className="w-2 h-2 bg-white rounded-full animate-pulse" />}
-                          Live
+                          {Boolean(portfolio.isLive) ? 'Live' : 'Test'}
                         </button>
                       </div>
                       <div className="flex gap-2">
@@ -2050,7 +2073,6 @@ export default function Home() {
                       }
                       return sum;
                     }, 0);
-                    console.log('[Performance Card] Stocks loaded:', stocks.length, 'YTD:', ytdPerf.toFixed(2) + '%');
                     return ytdPerf >= 0 ? 'text-green-400' : 'text-red-400';
                   })()}`}>
                     {(() => {

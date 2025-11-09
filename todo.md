@@ -1785,3 +1785,17 @@
 - [ ] Live toggle shows "0Live" instead of proper button with green indicator
 - [ ] Cash position not displaying in portfolio table (should show at end)
 - [ ] Portfolio 4 weight normalization not working (104% instead of 100%)
+
+
+## Feature Implementation (Nov 9, 2025 - 09:20)
+- [x] Remove debug console.logs from OptimizerResults and Home
+- [x] Add portfolio type tags (Dividenden, Wachstum, Balanced, ETF) with colors
+- [x] Create transaction recording modal (buy, sell, dividend, deposit, withdrawal)
+- [x] Implement IRR/MWR performance calculation algorithm
+- [x] Display live performance on portfolio cards (e.g., "+5.2% seit 05.11.2025")
+
+## Live Toggle Bug (Nov 9, 2025 - 09:25) - CRITICAL
+- [x] Live badge is not clickable (should be toggle button)
+- [x] Default should be "Test" mode, not "Live" mode
+- [x] Badge should show "Test" (gray) or "Live" (green with pulsing dot)
+- [x] Clicking badge should toggle between Test and Live mode

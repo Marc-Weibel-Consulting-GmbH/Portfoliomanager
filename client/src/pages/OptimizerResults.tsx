@@ -853,7 +853,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
     
     // ALWAYS normalize portfolio weights to ensure they sum to 100%
     const totalWeight = editablePositions.reduce((sum, p) => sum + (p.portfolioWeight || 0), 0);
-    console.log('[Display Portfolio] Total weight before normalization:', totalWeight);
     const normalizedPositions = totalWeight > 0
       ? editablePositions.map(p => ({
           ...p,
@@ -861,7 +860,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         }))
       : editablePositions;
     const newTotal = normalizedPositions.reduce((sum, p) => sum + (p.portfolioWeight || 0), 0);
-    console.log('[Display Portfolio] Total weight after normalization:', newTotal);
     
     return {
       positions: normalizedPositions,
@@ -1107,13 +1105,11 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                           
                           // ALWAYS normalize weights to 100%
                           const totalWeight = enrichedStocks.reduce((sum, s) => sum + s.portfolioWeight, 0);
-                          console.log('[Portfolio Load] Total weight before normalization:', totalWeight);
                           if (totalWeight > 0) {
                             enrichedStocks.forEach(s => {
                               s.portfolioWeight = (s.portfolioWeight / totalWeight) * 100;
                             });
                             const newTotal = enrichedStocks.reduce((sum, s) => sum + s.portfolioWeight, 0);
-                            console.log('[Portfolio Load] Total weight after normalization:', newTotal);
                           }
                           
                           setEditablePositions(enrichedStocks);
