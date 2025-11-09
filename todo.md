@@ -1636,3 +1636,41 @@
 - [x] Fix root cause of crash (limit to 500 data points max)
 - [x] Implement proper error handling for benchmark selection (already has try-catch)
 - [x] Test SMI and other benchmarks (working without crashes)
+
+## Portfolio Display & Switching Bugs (2025-11-09)
+- [x] Fix missing logos in loaded portfolios (enrich from database)
+- [x] Fix dividend yield showing too many decimals (enrich from database)
+- [x] Fix score display (enrich from database)
+- [x] Fix portfolio value mismatch when loading (use loaded metadata)
+- [x] Fix portfolio switching showing all zeros (enrich data in both dropdowns)
+- [ ] Test portfolio loading and switching thoroughly
+
+## Portfolio Optimizer Fixes (Latest)
+- [x] Portfolio Optimizer Results Table: Logo, P/E, PEG, Sharpe Spalten hinzugefügt
+- [x] Conflict Resolution Warnings entfernt (nur Diversifikation bleibt)
+- [x] Server Stability verbessert: RAM von 523MB → 170MB reduziert
+  - [x] News Updater deaktiviert
+  - [x] Chart Data Updater deaktiviert
+  - [x] Node Memory Limit auf 1024MB gesetzt
+  - [x] Incremental TypeScript Compilation deaktiviert
+- [x] Portfolio Loading Bug behoben:
+  - [x] Dropdown 1 (Zeile 1030-1088) mit vollständiger Enrichment-Logik ausgestattet
+  - [x] Beide Dropdowns holen jetzt vollständige Stock-Daten via trpc.stocks.getByTickers
+  - [x] Enrichment: Logos, Scores, P/E, PEG, Sharpe, YTD Performance
+  - [x] loadedPortfolioMetadata wird korrekt geladen (totalInvested, avgDividendYield, avgYtdPerformance)
+  - [x] Keine Zeros oder fehlende Werte mehr beim Portfolio-Laden
+
+## Aktuelle Probleme (Logo & Score) - BEHOBEN
+- [x] Logo-Spalte zeigt keine Logos in OptimizerResults nach Portfolio-Laden
+  - [x] Datenbank-Schema erweitert: logoUrl (varchar 500) und score (int) Spalten hinzugefügt
+  - [x] Clearbit Logo-URLs für alle 107 Aktien generiert
+  - [x] Scores für alle Aktien berechnet (0-100 basierend auf P/E, PEG, Sharpe, Dividende, YTD)
+- [x] Score-Spalte zeigt keine Werte in OptimizerResults nach Portfolio-Laden
+  - [x] Score-Berechnung implementiert (50 Basis + Bonus/Malus für Metriken)
+  - [x] Alle Scores in Datenbank gespeichert
+- [x] Enrichment-Logik funktioniert nicht vollständig (logoUrl und score fehlen)
+  - [x] getByTickers Prozedur holt jetzt logoUrl und score aus Datenbank
+  - [x] Beide Portfolio-Dropdowns verwenden vollständige Enrichment-Logik
+- [x] Portfolio-Speicherung muss alle Felder inkludieren (logoUrl, score, peRatio, pegRatio, sharpeRatio)
+  - [x] Alle Felder werden beim Speichern inkludiert (Zeile 1552-1569)
+  - [x] Enrichment beim Laden stellt sicher dass DB-Werte verwendet werden

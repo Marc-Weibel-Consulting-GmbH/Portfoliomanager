@@ -68,6 +68,8 @@ export const stocks = mysqlTable("stocks", {
   financialHighlight2: text("financialHighlight2"),
   financialHighlight3: text("financialHighlight3"),
   factsheetUrl: varchar("factsheetUrl", { length: 500 }), // ETF factsheet PDF URL
+  logoUrl: varchar("logoUrl", { length: 500 }), // Company logo URL
+  score: int("score").default(0), // Calculated score based on metrics (0-100)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

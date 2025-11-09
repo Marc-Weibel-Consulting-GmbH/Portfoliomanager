@@ -1029,7 +1029,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
               <label className="text-slate-400 text-xs font-medium">Portfolio Auswahl</label>
               <Select
                 value={selectedPortfolioId || ""}
-                onValueChange={(value) => {
+                onValueChange={async (value) => {
                   if (value === "current") {
                     setSelectedPortfolioId(null);
                     setEditablePositions(null);
@@ -1040,7 +1040,40 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                       try {
                         const data = JSON.parse(portfolio.portfolioData);
                         if (data.stocks && Array.isArray(data.stocks)) {
-                          setEditablePositions(data.stocks);
+                          // Fetch full stock data from database for enrichment
+                          const tickers = data.stocks.map((s: any) => s.ticker).filter(Boolean);
+                          const stocksDataResult = await trpc.stocks.getByTickers.query({ tickers });
+                          const stocksMap = new Map(stocksDataResult.map(s => [s.ticker, s]));
+                          
+                          // Enrich loaded stocks with database data
+                          const enrichedStocks = data.stocks.map((stock: any) => {
+                            const dbStock = stocksMap.get(stock.ticker);
+                            const divYield = dbStock?.dividendYield || parseFloat(stock.dividendYield || '0');
+                            return {
+                              ticker: stock.ticker,
+                              companyName: stock.companyName || dbStock?.companyName || '',
+                              shares: stock.shares || 0,
+                              investmentAmount: stock.investmentAmount || 0,
+                              portfolioWeight: stock.portfolioWeight || 0,
+                              currentPrice: dbStock?.currentPrice || stock.currentPrice || 0,
+                              logoUrl: dbStock?.logoUrl || stock.logoUrl || '',
+                              dividendYield: divYield,
+                              ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || 0,
+                              peRatio: dbStock?.peRatio || stock.peRatio || null,
+                              pegRatio: dbStock?.pegRatio || stock.pegRatio || null,
+                              sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
+                              score: dbStock?.score || stock.score || 0,
+                              category: dbStock?.category || stock.category || '',
+                              isDividendStock: divYield >= 1.0,
+                              isGrowthStock: divYield < 1.0
+                            };
+                          });
+                          setEditablePositions(enrichedStocks);
+                          setLoadedPortfolioMetadata({
+                            totalInvested: data.totalInvested,
+                            avgDividendYield: data.avgDividendYield,
+                            avgYtdPerformance: data.avgYtdPerformance,
+                          });
                           setSelectedPortfolioId(value);
                           toast.success(`Portfolio "${portfolio.name}" geladen!`);
                         } else {
@@ -1286,15 +1319,48 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
             {savedPortfolios && savedPortfolios.length > 0 && (
               <Select
                 value={selectedPortfolioId || ""}
-                onValueChange={(value) => {
+                onValueChange={async (value) => {
                   const portfolio = savedPortfolios.find(p => p.id.toString() === value);
                   if (portfolio) {
                     setSelectedPortfolioId(value);
-                    // Load the selected portfolio
+                    // Load the selected portfolio with enrichment
                     try {
                       const data = JSON.parse(portfolio.portfolioData);
                       if (data.stocks && Array.isArray(data.stocks)) {
-                        setEditablePositions(data.stocks);
+                        // Fetch full stock data from database
+                        const tickers = data.stocks.map((s: any) => s.ticker).filter(Boolean);
+                        const stocksDataResult = await trpc.stocks.getByTickers.query({ tickers });
+                        const stocksMap = new Map(stocksDataResult.map(s => [s.ticker, s]));
+                        
+                        // Enrich loaded stocks
+                        const enrichedStocks = data.stocks.map((stock: any) => {
+                          const dbStock = stocksMap.get(stock.ticker);
+                          const divYield = dbStock?.dividendYield || parseFloat(stock.dividendYield || '0');
+                          return {
+                            ticker: stock.ticker,
+                            companyName: stock.companyName || dbStock?.companyName || '',
+                            shares: stock.shares || 0,
+                            investmentAmount: stock.investmentAmount || 0,
+                            portfolioWeight: stock.portfolioWeight || 0,
+                            currentPrice: dbStock?.currentPrice || stock.currentPrice || 0,
+                            logoUrl: dbStock?.logoUrl || stock.logoUrl || '',
+                            dividendYield: divYield,
+                            ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || 0,
+                            peRatio: dbStock?.peRatio || stock.peRatio || null,
+                            pegRatio: dbStock?.pegRatio || stock.pegRatio || null,
+                            sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
+                            score: dbStock?.score || stock.score || 0,
+                            category: dbStock?.category || stock.category || '',
+                            isDividendStock: divYield >= 1.0,
+                            isGrowthStock: divYield < 1.0
+                          };
+                        });
+                        setEditablePositions(enrichedStocks);
+                        setLoadedPortfolioMetadata({
+                          totalInvested: data.totalInvested,
+                          avgDividendYield: data.avgDividendYield,
+                          avgYtdPerformance: data.avgYtdPerformance,
+                        });
                         toast.success(`Portfolio "${portfolio.name}" geladen!`);
                       } else {
                         toast.error('Portfolio-Daten haben ungültiges Format');
@@ -1574,15 +1640,34 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       <Button
-                        onClick={() => {
+                        onClick={async () => {
                           try {
                             const data = JSON.parse(portfolio.portfolioData);
                             if (data.stocks && Array.isArray(data.stocks)) {
-                              // Add isDividendStock and isGrowthStock flags based on dividend yield
+                              // Fetch full stock data from database for each ticker
+                              const tickers = data.stocks.map((s: any) => s.ticker).filter(Boolean);
+                              const stocksDataResult = await trpc.stocks.getByTickers.query({ tickers });
+                              const stocksMap = new Map(stocksDataResult.map(s => [s.ticker, s]));
+                              
+                              // Enrich loaded stocks with database data
                               const enrichedStocks = data.stocks.map((stock: any) => {
-                                const divYield = parseFloat(stock.dividendYield || '0');
+                                const dbStock = stocksMap.get(stock.ticker);
+                                const divYield = dbStock?.dividendYield || parseFloat(stock.dividendYield || '0');
                                 return {
-                                  ...stock,
+                                  ticker: stock.ticker,
+                                  companyName: stock.companyName || dbStock?.companyName || '',
+                                  shares: stock.shares || 0,
+                                  investmentAmount: stock.investmentAmount || 0,
+                                  portfolioWeight: stock.portfolioWeight || 0,
+                                  currentPrice: dbStock?.currentPrice || stock.currentPrice || 0,
+                                  logoUrl: dbStock?.logoUrl || stock.logoUrl || '',
+                                  dividendYield: divYield,
+                                  ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || 0,
+                                  peRatio: dbStock?.peRatio || stock.peRatio || null,
+                                  pegRatio: dbStock?.pegRatio || stock.pegRatio || null,
+                                  sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
+                                  score: dbStock?.score || stock.score || 0,
+                                  category: dbStock?.category || stock.category || '',
                                   isDividendStock: divYield >= 1.0,
                                   isGrowthStock: divYield < 1.0
                                 };

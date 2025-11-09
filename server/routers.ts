@@ -419,6 +419,27 @@ export const appRouter = router({
         const updatedStock = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
         return updatedStock[0] || null;
       }),
+    getByTickers: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "tickers" in val) {
+          const input = val as any;
+          if (Array.isArray(input.tickers)) return { tickers: input.tickers as string[] };
+        }
+        throw new Error("Invalid input: tickers array required");
+      })
+      .query(async ({ input }) => {
+        const { getDb } = await import("./db");
+        const { stocks } = await import("../drizzle/schema");
+        const { inArray } = await import("drizzle-orm");
+        
+        const db = await getDb();
+        if (!db) return [];
+        
+        if (input.tickers.length === 0) return [];
+        
+        const result = await db.select().from(stocks).where(inArray(stocks.ticker, input.tickers));
+        return result;
+      }),
     searchTicker: publicProcedure
       .input((val: unknown) => {
         if (typeof val === "string") return val;
