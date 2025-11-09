@@ -57,3 +57,11 @@
 - [x] Add initialStocks prop to OptimizerResults interface
 - [x] When initialStocks provided, skip optimization and use preloaded data
 - [x] Update Laden button to pass portfolio stocks as initialStocks
+
+
+## URGENT Bug (Nov 10, 2025)
+- [x] Laden button navigates to wrong page (stocks frontpage with news)
+- [x] Should navigate to OptimizerResults for TEST portfolios
+- [x] Should navigate to Portfolio Detail page for LIVE portfolios
+- [x] Remove news section from stocks frontpage (user deleted from navigation)
+- [x] Removed duplicate Details button (functionality merged into Laden)

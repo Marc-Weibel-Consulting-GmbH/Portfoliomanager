@@ -207,10 +207,18 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
                           investorType: 'balanced' as const
                         };
                         
+                        console.log('[Laden] Portfolio data:', portfolioData);
+                        console.log('[Laden] Stocks array:', stocks);
+                        console.log('[Laden] Reconstructed inputs:', reconstructedInputs);
+                        
                         setOptimizerInputs(reconstructedInputs);
                         setOptimizerInitialStocks(stocks); // Pass the actual stock data
                         setShowOptimizerResults(true);
                         setActiveTab('optimizer');
+                        
+                        console.log('[Laden] State set - optimizerInputs:', reconstructedInputs);
+                        console.log('[Laden] State set - initialStocks:', stocks);
+                        console.log('[Laden] State set - showOptimizerResults: true');
                         toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde in den Optimizer geladen` });
                       } catch (error) {
                         console.error('Failed to load portfolio:', error);
@@ -1865,27 +1873,52 @@ export default function Home() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            // Load portfolio into optimizer results view
-                            const data = JSON.parse(portfolio.portfolioData);
-                            // Switch to optimizer results view and show this portfolio
-                            setActiveTab('optimizer-results');
-                            toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde geladen` });
+                            
+                            if (portfolio.isLive) {
+                              // For LIVE portfolios: Navigate to detail page
+                              setLocation(`/portfolio/${portfolio.id}`);
+                            } else {
+                              // For TEST portfolios: Load into optimizer
+                              try {
+                                const portfolioData = JSON.parse(portfolio.portfolioData);
+                                const stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+                                
+                                // Reconstruct optimizer inputs from portfolio data
+                                const totalInvestment = stocks.reduce((sum: number, stock: any) => {
+                                  return sum + parseFloat(stock.investmentAmount || stock.totalInvested || '0');
+                                }, 0);
+                                
+                                const avgDividendYield = stocks.reduce((sum: number, stock: any) => {
+                                  return sum + parseFloat(stock.dividendYield || '0');
+                                }, 0) / stocks.length;
+                                
+                                const reconstructedInputs = {
+                                  investmentAmount: totalInvestment,
+                                  expectedDividendYield: avgDividendYield,
+                                  numberOfPositions: stocks.length,
+                                  investorType: 'balanced' as const
+                                };
+                                
+                                console.log('[Laden2] Portfolio data:', portfolioData);
+                                console.log('[Laden2] Stocks array:', stocks);
+                                console.log('[Laden2] Reconstructed inputs:', reconstructedInputs);
+                                
+                                setOptimizerInputs(reconstructedInputs);
+                                setOptimizerInitialStocks(stocks);
+                                setShowOptimizerResults(true);
+                                
+                                console.log('[Laden2] State set - showOptimizerResults: true');
+                                toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde in den Optimizer geladen` });
+                              } catch (error) {
+                                console.error('Failed to load portfolio:', error);
+                                toast.error('Fehler', { description: 'Portfolio konnte nicht geladen werden' });
+                              }
+                            }
                           }}
                           className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors cursor-pointer"
                           style={{pointerEvents: 'auto', zIndex: 10}}
                         >
                           Laden
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            window.location.href = `/portfolio/${portfolio.id}`;
-                          }}
-                          className="px-3 py-1.5 text-sm bg-slate-600 hover:bg-slate-700 text-white rounded-md transition-colors cursor-pointer"
-                          style={{pointerEvents: 'auto', zIndex: 10}}
-                        >
-                          Details
                         </button>
                         <Button
                           onClick={async () => {

@@ -155,8 +155,13 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     avgDividendYield: number;
     avgYtdPerformance: number;
   } => {
+    console.log('[OptimizerResults] useMemo triggered');
+    console.log('[OptimizerResults] initialStocks:', initialStocks);
+    console.log('[OptimizerResults] initialStocks length:', initialStocks?.length);
+    
     // If initialStocks provided, skip optimization and use preloaded data
     if (initialStocks && initialStocks.length > 0) {
+      console.log('[OptimizerResults] Using initialStocks - skipping optimization');
       const totalInvested = initialStocks.reduce((sum, stock) => sum + stock.investmentAmount, 0);
       const totalShares = initialStocks.reduce((sum, stock) => sum + stock.shares, 0);
       const avgDividendYield = initialStocks.reduce((sum, stock) => sum + parseFloat(stock.dividendYield || '0'), 0) / initialStocks.length;
