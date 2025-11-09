@@ -430,3 +430,29 @@ export async function deleteCategory(id: number) {
     return false;
   }
 }
+
+// Sector management functions
+export async function getAllUniqueSectors() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  try {
+    const result = await db.select({ sector: stocks.sector }).from(stocks).where(sql`${stocks.sector} IS NOT NULL AND ${stocks.sector} != ''`).groupBy(stocks.sector);
+    return result.map(r => r.sector).filter(Boolean);
+  } catch (error) {
+    console.error("[Database] Failed to get unique sectors:", error);
+    return [];
+  }
+}
+
+export async function updateStockSector(ticker: string, sector: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  try {
+    await db.update(stocks).set({ sector }).where(eq(stocks.ticker, ticker));
+  } catch (error) {
+    console.error("[Database] Failed to update stock sector:", error);
+    throw error;
+  }
+}

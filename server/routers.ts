@@ -1669,6 +1669,41 @@ export const appRouter = router({
       
       return { success: true, message: "YTD update completed" };
     }),
+    
+    refreshPrices: protectedProcedure.query(async ({ ctx }) => {
+      // Only admin can refresh prices
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      const { refreshAllStocks } = await import("./_core/dailyRefreshCron");
+      await refreshAllStocks();
+      
+      return { success: true, message: "Prices refreshed successfully" };
+    }),
+    
+    refreshCharts: protectedProcedure.query(async ({ ctx }) => {
+      // Only admin can refresh charts
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      // Charts are updated via refreshAllStocks
+      const { refreshAllStocks } = await import("./_core/dailyRefreshCron");
+      await refreshAllStocks();
+      
+      return { success: true, message: "Charts refreshed successfully" };
+    }),
+    
+    refreshNews: protectedProcedure.query(async ({ ctx }) => {
+      // Only admin can refresh news
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+
+      // News updates are disabled (memory optimization)
+      return { success: true, message: "News updates are currently disabled for memory optimization" };
+    }),
   }),
 
   newsletter: router({
@@ -2452,6 +2487,30 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         throw new Error(`Failed to generate overview: ${error.message}`);
       }
     }),
+  }),
+
+  sectors: router({  
+    list: publicProcedure.query(async () => {
+      const { getAllUniqueSectors } = await import("./db");
+      return await getAllUniqueSectors();
+    }),
+    updateStockSector: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "ticker" in val && "sector" in val) {
+          return val as { ticker: string; sector: string };
+        }
+        throw new Error("Invalid input: ticker and sector are required");
+      })
+      .mutation(async ({ input, ctx }) => {
+        // Only admins can manage sectors
+        if (ctx.user.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const { updateStockSector } = await import("./db");
+        await updateStockSector(input.ticker, input.sector);
+        return { success: true };
+      }),
   }),
 });
 

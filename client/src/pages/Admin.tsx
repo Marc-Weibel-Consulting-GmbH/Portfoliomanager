@@ -158,7 +158,7 @@ export function Admin({ onBackClick }: AdminProps) {
           Kategorien
         </Button>
         <Button 
-          onClick={() => window.location.href = '/industries'} 
+          onClick={() => window.location.href = '/sectors'} 
           className="bg-purple-600 hover:bg-purple-700 text-white flex-1"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -168,6 +168,73 @@ export function Admin({ onBackClick }: AdminProps) {
           Branchen
         </Button>
       </div>
+
+      {/* Manual Data Refresh */}
+      <Card className="bg-slate-800 border-slate-700 mb-6">
+        <CardHeader>
+          <CardTitle className="text-white">Manuelle Daten-Aktualisierung</CardTitle>
+          <CardDescription className="text-slate-400">
+            Aktualisieren Sie Kurse, Charts und News manuell (Auto-Updates sind deaktiviert)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button
+              onClick={() => {
+                setMessage({ type: "success", text: "Kurse werden aktualisiert..." });
+                utils.admin.refreshPrices.fetch().then(() => {
+                  setMessage({ type: "success", text: "Kurse erfolgreich aktualisiert!" });
+                }).catch((error) => {
+                  setMessage({ type: "error", text: `Fehler: ${error.message}` });
+                });
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+              Kurse aktualisieren
+            </Button>
+            <Button
+              onClick={() => {
+                setMessage({ type: "success", text: "Charts werden aktualisiert..." });
+                utils.admin.refreshCharts.fetch().then(() => {
+                  setMessage({ type: "success", text: "Charts erfolgreich aktualisiert!" });
+                }).catch((error) => {
+                  setMessage({ type: "error", text: `Fehler: ${error.message}` });
+                });
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              Charts aktualisieren
+            </Button>
+            <Button
+              onClick={() => {
+                setMessage({ type: "success", text: "News werden aktualisiert..." });
+                utils.admin.refreshNews.fetch().then(() => {
+                  setMessage({ type: "success", text: "News erfolgreich aktualisiert!" });
+                }).catch((error) => {
+                  setMessage({ type: "error", text: `Fehler: ${error.message}` });
+                });
+              }}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
+                <path d="M18 14h-8" />
+                <path d="M15 18h-5" />
+                <path d="M10 6h8v4h-8V6Z" />
+              </svg>
+              News aktualisieren
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Excel Import Section */}
       <Card className="bg-slate-800 border-slate-700 mb-6">

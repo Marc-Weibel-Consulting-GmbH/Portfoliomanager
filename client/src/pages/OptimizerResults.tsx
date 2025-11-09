@@ -73,6 +73,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");
   const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
+  const [loadedPortfolioMetadata, setLoadedPortfolioMetadata] = useState<any>(null);
   const [selectedBenchmark, setSelectedBenchmark] = useState<string>('sp500');
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>('5y');
 
@@ -826,24 +827,32 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
 
   // Use editable positions if available, otherwise use optimized portfolio
   const displayPortfolio = editablePositions ? (() => {
-    const totalInvested = editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0);
+    // Use loaded metadata if available (from saved portfolio), otherwise calculate
+    const totalInvested = loadedPortfolioMetadata?.totalInvested ?? editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0);
+    const avgDividendYield = loadedPortfolioMetadata?.avgDividendYield ?? (
+      editablePositions.length > 0 && totalInvested > 0
+        ? editablePositions.reduce((sum, p) => {
+            const divYield = parseFloat(p.dividendYield || '0');
+            return sum + (divYield * p.investmentAmount);
+          }, 0) / totalInvested
+        : 0
+    );
+    const avgYtdPerformance = loadedPortfolioMetadata?.avgYtdPerformance ?? (
+      editablePositions.length > 0 && totalInvested > 0
+        ? editablePositions.reduce((sum, p) => {
+            const ytdPerf = parseFloat(p.ytdPerformance || '0');
+            return sum + (ytdPerf * p.investmentAmount);
+          }, 0) / totalInvested
+        : 0
+    );
+    
     return {
       positions: editablePositions,
       totalInvested,
       remainingCash: currentInputs.investmentAmount - totalInvested,
       totalShares: editablePositions.reduce((sum, p) => sum + p.shares, 0),
-      avgDividendYield: editablePositions.length > 0 && totalInvested > 0
-        ? editablePositions.reduce((sum, p) => {
-            const divYield = parseFloat(p.dividendYield || '0');
-            return sum + (divYield * p.investmentAmount);
-          }, 0) / totalInvested
-        : 0,
-      avgYtdPerformance: editablePositions.length > 0 && totalInvested > 0
-        ? editablePositions.reduce((sum, p) => {
-            const ytdPerf = parseFloat(p.ytdPerformance || '0');
-            return sum + (ytdPerf * p.investmentAmount);
-          }, 0) / totalInvested
-        : 0,
+      avgDividendYield,
+      avgYtdPerformance,
     };
   })() : optimizedPortfolio;
   
@@ -950,6 +959,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
         onAdjust={(newInputs) => {
           setAdjustedInputs(newInputs);
           setEditablePositions(null); // Reset to show new optimization
+          setLoadedPortfolioMetadata(null); // Reset loaded metadata
           setShowAdjustmentDialog(false);
         }}
       />
@@ -1578,6 +1588,11 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved }: O
                                 };
                               });
                               setEditablePositions(enrichedStocks);
+                              setLoadedPortfolioMetadata({
+                                totalInvested: data.totalInvested,
+                                avgDividendYield: data.avgDividendYield,
+                                avgYtdPerformance: data.avgYtdPerformance,
+                              });
                               setSelectedPortfolioId(portfolio.id.toString());
                               setShowLoadDialog(false);
                               toast.success(`Portfolio "${portfolio.name}" geladen!`);

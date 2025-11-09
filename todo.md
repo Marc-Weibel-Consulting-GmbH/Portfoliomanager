@@ -1624,3 +1624,9 @@
 - [x] Fix "Portfolio anpassen" - recalculation does nothing (reset editablePositions)
 - [x] Add auto-fill for stock search when adding stocks (already implemented with ticker search)
 - [ ] Add industry/sector selection when adding stocks (requires database schema change - currently only category exists)
+
+## Next Steps Implementation (2025-11-09)
+- [x] Test portfolio value correction (use loaded metadata instead of recalculating)
+- [x] Add industry/sector field to database schema and UI (sector field exists, Sectors page created)
+- [x] Implement manual data refresh buttons in admin panel (prices, news, charts)
+- [x] Test all features thoroughly before checkpoint (dev server running, main page works)
