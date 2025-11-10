@@ -2293,6 +2293,106 @@ export const appRouter = router({
         };
       }),
 
+    getHoldingsWithChfPerformance: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker } = await import("./db");
+        const { getStockCurrency, convertToCHF } = await import("./fxHelper");
+        
+        // Get portfolio and transactions
+        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        if (!portfolio || !portfolio.isLive || !portfolio.liveStartDate) {
+          return [];
+        }
+        
+        const transactions = await getPortfolioTransactions(input);
+        if (transactions.length === 0) {
+          return [];
+        }
+        
+        // Calculate holdings from transactions
+        const holdingsByTicker: Record<string, { shares: number; totalInvestedLocal: number; totalBought: number; avgBuyPrice: number; currency: string }> = {};
+        
+        for (const tx of transactions) {
+          const ticker = tx.ticker;
+          if (!holdingsByTicker[ticker]) {
+            const currency = await getStockCurrency(ticker);
+            holdingsByTicker[ticker] = { 
+              shares: 0, 
+              totalInvestedLocal: 0, 
+              totalBought: 0, 
+              avgBuyPrice: 0,
+              currency 
+            };
+          }
+          
+          const shares = parseFloat(tx.shares || '0');
+          const price = parseFloat(tx.pricePerShare || '0');
+          const amount = shares * price;
+          
+          if (tx.transactionType === 'buy') {
+            holdingsByTicker[ticker].shares += shares;
+            holdingsByTicker[ticker].totalBought += shares;
+            holdingsByTicker[ticker].totalInvestedLocal += amount;
+            // Calculate average buy price
+            holdingsByTicker[ticker].avgBuyPrice = holdingsByTicker[ticker].totalInvestedLocal / holdingsByTicker[ticker].totalBought;
+          } else if (tx.transactionType === 'sell') {
+            holdingsByTicker[ticker].shares -= shares;
+            // Reduce totalInvested proportionally based on average buy price
+            const costBasis = shares * holdingsByTicker[ticker].avgBuyPrice;
+            holdingsByTicker[ticker].totalInvestedLocal -= costBasis;
+          }
+        }
+        
+        // Calculate CHF-converted performance for each holding
+        const liveStartDate = new Date(portfolio.liveStartDate);
+        const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        const holdingsWithPerformance = [];
+        
+        for (const [ticker, holding] of Object.entries(holdingsByTicker)) {
+          if (holding.shares <= 0) continue;
+          
+          const stock = await getStockByTicker(ticker);
+          const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
+          
+          // Current value in local currency
+          const currentValueLocal = holding.shares * currentPrice;
+          
+          // Convert to CHF using today's rate
+          const currentValueCHF = await convertToCHF(currentValueLocal, holding.currency, todayStr);
+          
+          // Convert invested amount to CHF using live start date rate
+          const totalInvestedCHF = await convertToCHF(holding.totalInvestedLocal, holding.currency, liveStartDateStr);
+          
+          // Calculate CHF performance
+          const performanceCHF = totalInvestedCHF > 0
+            ? ((currentValueCHF - totalInvestedCHF) / totalInvestedCHF) * 100
+            : 0;
+          
+          holdingsWithPerformance.push({
+            ticker,
+            shares: holding.shares,
+            currency: holding.currency,
+            currentPrice,
+            currentValueLocal,
+            currentValueCHF,
+            totalInvestedLocal: holding.totalInvestedLocal,
+            totalInvestedCHF,
+            performanceCHF,
+            avgBuyPrice: holding.avgBuyPrice
+          });
+        }
+        
+        return holdingsWithPerformance;
+      }),
+
     getLivePerformanceHistory: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {

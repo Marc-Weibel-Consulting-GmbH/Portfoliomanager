@@ -41,6 +41,12 @@ export default function PortfolioDetail() {
     { enabled: !!portfolioId && Boolean(portfolio?.isLive) }
   );
 
+  // Fetch CHF-converted holdings with performance
+  const { data: chfHoldings = [] } = trpc.savedPortfolios.getHoldingsWithChfPerformance.useQuery(
+    { id: portfolioId! },
+    { enabled: !!portfolioId && Boolean(portfolio?.isLive) }
+  );
+
   // Fetch dividend calendar
   const { data: dividendCalendar, isLoading: isDividendLoading } = trpc.dividendCalendar.getUpcoming.useQuery(
     { portfolioId: portfolioId!, daysAhead: 365 },
@@ -395,7 +401,7 @@ export default function PortfolioDetail() {
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Dividende</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">YTD</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Live Perf.</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">{Boolean(portfolio.isLive) ? 'Live Perf. (CHF)' : 'Live Perf.'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -411,10 +417,26 @@ export default function PortfolioDetail() {
                         {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(2)}
                       </td>
                       <td className="py-3 px-2 text-blue-400 text-right font-semibold">
-                        {stock.currency || 'CHF'} {stock.totalInvested ? Math.round(stock.totalInvested).toLocaleString('de-CH') : '0'}
+                        {(() => {
+                          if (Boolean(portfolio.isLive)) {
+                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                            if (chfHolding) {
+                              return `CHF ${Math.round(chfHolding.totalInvestedCHF).toLocaleString('de-CH')}`;
+                            }
+                          }
+                          return `${stock.currency || 'CHF'} ${stock.totalInvested ? Math.round(stock.totalInvested).toLocaleString('de-CH') : '0'}`;
+                        })()}
                       </td>
                       <td className="py-3 px-2 text-green-400 text-right font-semibold">
-                        {stock.currency || 'CHF'} {stock.currentValue ? Math.round(stock.currentValue).toLocaleString('de-CH') : '0'}
+                        {(() => {
+                          if (Boolean(portfolio.isLive)) {
+                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                            if (chfHolding) {
+                              return `CHF ${Math.round(chfHolding.currentValueCHF).toLocaleString('de-CH')}`;
+                            }
+                          }
+                          return `${stock.currency || 'CHF'} ${stock.currentValue ? Math.round(stock.currentValue).toLocaleString('de-CH') : '0'}`;
+                        })()}
                       </td>
                       <td className="py-3 px-2 text-green-400 text-right">
                         {(parseFloat(stock.dividendYield) || 0).toFixed(1)}%
@@ -426,14 +448,29 @@ export default function PortfolioDetail() {
                         {(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%
                       </td>
                       <td className={`py-3 px-2 text-right font-semibold ${
-                        stock.currentValue >= stock.totalInvested ? 'text-green-400' : 'text-red-400'
+                        (() => {
+                          if (Boolean(portfolio.isLive)) {
+                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                            if (chfHolding) {
+                              return chfHolding.performanceCHF >= 0 ? 'text-green-400' : 'text-red-400';
+                            }
+                          }
+                          return stock.currentValue >= stock.totalInvested ? 'text-green-400' : 'text-red-400';
+                        })()
                       }`}>
-                        {stock.totalInvested > 0 ? (
-                          <>
-                            {((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100) >= 0 ? '+' : ''}
-                            {(((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100) || 0).toFixed(1)}%
-                          </>
-                        ) : '-'}
+                        {(() => {
+                          if (Boolean(portfolio.isLive)) {
+                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                            if (chfHolding) {
+                              return `${chfHolding.performanceCHF >= 0 ? '+' : ''}${chfHolding.performanceCHF.toFixed(1)}%`;
+                            }
+                          }
+                          if (stock.totalInvested > 0) {
+                            const perf = ((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100);
+                            return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
+                          }
+                          return '-';
+                        })()}
                       </td>
                     </tr>
                   ))}
