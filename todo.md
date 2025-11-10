@@ -84,3 +84,20 @@
 - [ ] Memory problem: TypeScript compilation crashes (exit code 137)
 - [ ] Checkpoint publishing fails ("Veröffentlichen" spins indefinitely)
 - [ ] Build process needs memory optimization
+
+
+## UI Improvements (Nov 10, 2025 - 02:30)
+
+### Transaktionen (Live Portfolio) Page
+- [x] Add live performance per stock (% gain/loss)
+- [x] Add Cash Position at bottom
+- [x] Add Total portfolio value at bottom
+- [x] Round all amounts to whole numbers
+- [x] Format amounts with thousand separator (')
+
+### Portfolio Optimizer Page
+- [x] Set default time frame to YTD (instead of 5Y)
+- [x] Round Sharpe Ratio to 1 decimal place
+- [x] Round Div. Rendite to 1 decimal place
+- [x] Round P/E to 1 decimal place
+- [x] Round PEG to 1 decimal place

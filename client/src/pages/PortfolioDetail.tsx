@@ -321,6 +321,7 @@ export default function PortfolioDetail() {
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Dividende</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">YTD</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Live Perf.</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -336,13 +337,13 @@ export default function PortfolioDetail() {
                         {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(2)}
                       </td>
                       <td className="py-3 px-2 text-blue-400 text-right font-semibold">
-                        {stock.currency || 'CHF'} {stock.totalInvested ? stock.totalInvested.toFixed(2) : '0.00'}
+                        {stock.currency || 'CHF'} {stock.totalInvested ? Math.round(stock.totalInvested).toLocaleString('de-CH') : '0'}
                       </td>
                       <td className="py-3 px-2 text-green-400 text-right font-semibold">
-                        {stock.currency || 'CHF'} {stock.currentValue ? stock.currentValue.toFixed(2) : '0.00'}
+                        {stock.currency || 'CHF'} {stock.currentValue ? Math.round(stock.currentValue).toLocaleString('de-CH') : '0'}
                       </td>
                       <td className="py-3 px-2 text-green-400 text-right">
-                        {(parseFloat(stock.dividendYield) || 0).toFixed(2)}%
+                        {(parseFloat(stock.dividendYield) || 0).toFixed(1)}%
                       </td>
                       <td className={`py-3 px-2 text-right font-semibold ${
                         (parseFloat(stock.ytdPerformance) || 0) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -350,8 +351,95 @@ export default function PortfolioDetail() {
                         {(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}
                         {(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%
                       </td>
+                      <td className={`py-3 px-2 text-right font-semibold ${
+                        stock.currentValue >= stock.totalInvested ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {stock.totalInvested > 0 ? (
+                          <>
+                            {((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100) >= 0 ? '+' : ''}
+                            {(((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100) || 0).toFixed(1)}%
+                          </>
+                        ) : '-'}
+                      </td>
                     </tr>
                   ))}
+                  {/* Cash Position Row */}
+                  <tr className="border-t-2 border-slate-600">
+                    <td className="py-3 px-2 text-white font-semibold" colSpan={2}>Cash Position</td>
+                    <td className="py-3 px-2 text-right" colSpan={3}></td>
+                    <td className="py-3 px-2 text-right" colSpan={1}></td>
+                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold" colSpan={1}>
+                      CHF {(() => {
+                        const deposits = transactions
+                          .filter((tx: any) => tx.transactionType === 'deposit')
+                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
+                        const withdrawals = transactions
+                          .filter((tx: any) => tx.transactionType === 'withdrawal')
+                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
+                        const invested = portfolioData.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+                        const cash = deposits - withdrawals - invested;
+                        return Math.round(cash).toLocaleString('de-CH');
+                      })()}
+                    </td>
+                    <td colSpan={3}></td>
+                  </tr>
+                  {/* Total Row */}
+                  <tr className="border-t border-slate-600 bg-slate-700/30">
+                    <td className="py-3 px-2 text-white font-bold" colSpan={2}>TOTAL</td>
+                    <td className="py-3 px-2 text-right" colSpan={3}></td>
+                    <td className="py-3 px-2 text-blue-400 text-right font-bold">
+                      CHF {Math.round(portfolioData.reduce((sum, s) => sum + (s.totalInvested || 0), 0)).toLocaleString('de-CH')}
+                    </td>
+                    <td className="py-3 px-2 text-green-400 text-right font-bold">
+                      CHF {(() => {
+                        const stocksValue = portfolioData.reduce((sum, s) => sum + (s.currentValue || 0), 0);
+                        const deposits = transactions
+                          .filter((tx: any) => tx.transactionType === 'deposit')
+                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
+                        const withdrawals = transactions
+                          .filter((tx: any) => tx.transactionType === 'withdrawal')
+                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
+                        const invested = portfolioData.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+                        const cash = deposits - withdrawals - invested;
+                        const total = stocksValue + cash;
+                        return Math.round(total).toLocaleString('de-CH');
+                      })()}
+                    </td>
+                    <td colSpan={1}></td>
+                    <td colSpan={1}></td>
+                    <td className={`py-3 px-2 text-right font-bold ${
+                      (() => {
+                        const stocksValue = portfolioData.reduce((sum, s) => sum + (s.currentValue || 0), 0);
+                        const deposits = transactions
+                          .filter((tx: any) => tx.transactionType === 'deposit')
+                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
+                        const withdrawals = transactions
+                          .filter((tx: any) => tx.transactionType === 'withdrawal')
+                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
+                        const invested = portfolioData.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+                        const cash = deposits - withdrawals - invested;
+                        const total = stocksValue + cash;
+                        const totalInvested = deposits - withdrawals;
+                        return total >= totalInvested ? 'text-green-400' : 'text-red-400';
+                      })()
+                    }`}>
+                      {(() => {
+                        const stocksValue = portfolioData.reduce((sum, s) => sum + (s.currentValue || 0), 0);
+                        const deposits = transactions
+                          .filter((tx: any) => tx.transactionType === 'deposit')
+                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
+                        const withdrawals = transactions
+                          .filter((tx: any) => tx.transactionType === 'withdrawal')
+                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
+                        const invested = portfolioData.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+                        const cash = deposits - withdrawals - invested;
+                        const total = stocksValue + cash;
+                        const totalInvested = deposits - withdrawals;
+                        const perf = totalInvested > 0 ? ((total - totalInvested) / totalInvested * 100) : 0;
+                        return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
+                      })()}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>

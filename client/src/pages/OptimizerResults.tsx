@@ -98,7 +98,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
   const [loadedPortfolioMetadata, setLoadedPortfolioMetadata] = useState<any>(null);
   const [selectedBenchmark, setSelectedBenchmark] = useState<string>('sp500');
-  const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>('5y');
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>('ytd');
 
   // Ticker search query for auto-complete
   const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
@@ -1583,16 +1583,16 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                       {parseFloat(pos.ytdPerformance) >= 0 ? '+' : ''}{pos.ytdPerformance}%
                     </td>
                     <td className="p-3 text-right text-slate-300">
-                      {pos.peRatio || '-'}
+                      {pos.peRatio ? parseFloat(pos.peRatio).toFixed(1) : '-'}
                     </td>
                     <td className="p-3 text-right text-slate-300">
-                      {pos.pegRatio || '-'}
+                      {pos.pegRatio ? parseFloat(pos.pegRatio).toFixed(1) : '-'}
                     </td>
                     <td className={`p-3 text-right font-medium ${
                       parseFloat(pos.sharpeRatio || '0') >= 1 ? 'text-green-400' : 
                       parseFloat(pos.sharpeRatio || '0') >= 0 ? 'text-yellow-400' : 'text-red-400'
                     }`}>
-                      {pos.sharpeRatio || '-'}
+                      {pos.sharpeRatio ? parseFloat(pos.sharpeRatio).toFixed(1) : '-'}
                     </td>
                     <td className="p-3 text-center">
                       {(() => {
