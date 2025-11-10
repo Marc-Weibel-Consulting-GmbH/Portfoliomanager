@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { Download, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +22,13 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
   const [filterTicker, setFilterTicker] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    date: "",
+    shares: "",
+    pricePerShare: "",
+    currency: "CHF"
+  });
 
   const { data: transactions = [], isLoading } = trpc.portfolioTransactions.list.useQuery({ portfolioId });
   const utils = trpc.useUtils();
@@ -33,6 +42,28 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
       toast.error(`Fehler beim Stornieren: ${error.message}`);
     },
   });
+
+  const updateTransaction = trpc.portfolioTransactions.update.useMutation({
+    onSuccess: () => {
+      toast.success("Transaktion aktualisiert");
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      utils.savedPortfolios.get.invalidate({ id: portfolioId });
+      setEditingTransaction(null);
+    },
+    onError: (error) => {
+      toast.error(`Fehler beim Aktualisieren: ${error.message}`);
+    },
+  });
+
+  const handleEditTransaction = (tx: any) => {
+    setEditingTransaction(tx);
+    setEditForm({
+      date: tx.transactionDate?.split('T')[0] || "",
+      shares: tx.shares?.toString() || "",
+      pricePerShare: tx.pricePerShare?.toString() || "",
+      currency: tx.currency || "CHF"
+    });
+  };
   
   // Debug logging
   useEffect(() => {
@@ -157,6 +188,37 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
     }
   };
 
+  const handleSaveEdit = () => {
+    if (!editingTransaction) return;
+    
+    // Validate inputs
+    if (!editForm.date || !editForm.shares || !editForm.pricePerShare) {
+      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
+      return;
+    }
+    
+    const shares = parseFloat(editForm.shares);
+    const price = parseFloat(editForm.pricePerShare);
+    
+    if (isNaN(shares) || shares <= 0) {
+      toast.error("Ungültige Anzahl Aktien");
+      return;
+    }
+    
+    if (isNaN(price) || price <= 0) {
+      toast.error("Ungültiger Preis");
+      return;
+    }
+    
+    updateTransaction.mutate({
+      transactionId: editingTransaction.id,
+      transactionDate: editForm.date,
+      shares: editForm.shares,
+      pricePerShare: editForm.pricePerShare,
+      currency: editForm.currency
+    });
+  };
+
   if (isLoading) {
     return (
       <Card className="bg-slate-800 border-slate-700">
@@ -168,6 +230,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
   }
 
   return (
+    <>
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
         <div className="flex justify-between items-center">
@@ -334,14 +397,24 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                       {tx.notes || "-"}
                     </td>
                     <td className="py-3 px-2 text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                        onClick={() => handleDeleteTransaction(tx.id)}
-                      >
-                        Storno
-                      </Button>
+                      <div className="flex gap-2 justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                          onClick={() => handleEditTransaction(tx)}
+                        >
+                          Bearbeiten
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                          onClick={() => handleDeleteTransaction(tx.id)}
+                        >
+                          Storno
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -364,5 +437,76 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
         </div>
       </CardContent>
     </Card>
+
+    {/* Edit Transaction Dialog */}
+    <Dialog open={!!editingTransaction} onOpenChange={() => setEditingTransaction(null)}>
+      <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle>Transaktion bearbeiten</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 mt-4">
+          <div>
+            <Label>Datum</Label>
+            <Input
+              type="date"
+              value={editForm.date}
+              onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+              className="bg-slate-700 border-slate-600 text-white"
+            />
+          </div>
+          <div>
+            <Label>Anzahl Aktien</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={editForm.shares}
+              onChange={(e) => setEditForm({ ...editForm, shares: e.target.value })}
+              className="bg-slate-700 border-slate-600 text-white"
+            />
+          </div>
+          <div>
+            <Label>Preis pro Aktie</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={editForm.pricePerShare}
+              onChange={(e) => setEditForm({ ...editForm, pricePerShare: e.target.value })}
+              className="bg-slate-700 border-slate-600 text-white"
+            />
+          </div>
+          <div>
+            <Label>Währung</Label>
+            <Select value={editForm.currency} onValueChange={(value) => setEditForm({ ...editForm, currency: value })}>
+              <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectItem value="CHF">CHF</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="EUR">EUR</SelectItem>
+                <SelectItem value="GBP">GBP</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2 justify-end mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setEditingTransaction(null)}
+              className="border-slate-600 text-white hover:bg-slate-700"
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={updateTransaction.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {updateTransaction.isPending ? "Speichern..." : "Speichern"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

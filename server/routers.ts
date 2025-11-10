@@ -3288,6 +3288,80 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         
         return { success: true };
       }),
+
+    update: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "transactionId" in val) {
+          return val as {
+            transactionId: number;
+            transactionDate?: string;
+            shares?: string;
+            pricePerShare?: string;
+            currency?: string;
+          };
+        }
+        throw new Error("Invalid update data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { portfolioTransactions } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const { getFxRate } = await import("./fxHelper");
+        
+        const db = await getDb();
+        if (!db) {
+          throw new Error("Database not available");
+        }
+        
+        // Build update object
+        const updates: any = {};
+        
+        if (input.transactionDate) {
+          updates.transactionDate = new Date(input.transactionDate);
+        }
+        
+        if (input.shares) {
+          updates.shares = input.shares;
+        }
+        
+        if (input.pricePerShare) {
+          updates.pricePerShare = input.pricePerShare;
+        }
+        
+        if (input.currency) {
+          updates.currency = input.currency;
+        }
+        
+        // Recalculate totalAmount and FX rate if shares or price changed
+        if (input.shares || input.pricePerShare) {
+          // Get current transaction to get missing values
+          const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
+          
+          const shares = parseFloat(input.shares || currentTx.shares || '0');
+          const price = parseFloat(input.pricePerShare || currentTx.pricePerShare || '0');
+          const currency = input.currency || currentTx.currency || 'CHF';
+          const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
+          
+          updates.totalAmount = (shares * price).toFixed(2);
+          
+          // Get FX rate for the transaction date
+          if (currency !== 'CHF') {
+            const fxRate = await getFxRate(date, `${currency}CHF`);
+            updates.fxRate = fxRate.toFixed(4);
+            updates.totalAmountCHF = (shares * price * fxRate).toFixed(2);
+          } else {
+            updates.fxRate = '1.0000';
+            updates.totalAmountCHF = updates.totalAmount;
+          }
+        }
+        
+        // Update the transaction
+        await db.update(portfolioTransactions)
+          .set(updates)
+          .where(eq(portfolioTransactions.id, input.transactionId));
+        
+        return { success: true };
+      }),
   }),
 
   dividendCalendar: router({

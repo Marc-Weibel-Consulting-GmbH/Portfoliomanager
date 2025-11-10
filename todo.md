@@ -569,3 +569,24 @@
 - [x] Total investiert in Portfolio Positionen: CHF 48'622 (includes later buys)
 - [x] Discrepancy explained: CHF 48'622 - CHF 45'010 = CHF 3'612 from 2 later buy transactions
 - [x] All initial capital accounted for
+
+## Transaction Edit Functionality (Nov 10, 2025 - 21:10)
+- [ ] Add "Bearbeiten" button next to "Storno" button in transaction history
+- [ ] Create edit modal with form fields:
+  - [ ] Datum (date picker)
+  - [ ] Anzahl (number input)
+  - [ ] Kurs (price per share, number input)
+  - [ ] Währung (currency dropdown: CHF, USD, EUR, GBP)
+- [ ] Create tRPC mutation: portfolioTransactions.update
+- [ ] Recalculate totalAmount, totalAmountCHF, fxRate on save
+- [ ] Invalidate relevant queries after successful update
+- [ ] Show success/error toast notifications
+
+## Transaction Edit Functionality & MONC.MI Fix (Nov 10, 2025 - 13:30)
+- [x] Add edit button to transaction table
+- [x] Create edit modal with form fields (date, shares, price, currency)
+- [x] Implement tRPC update mutation with FX rate recalculation
+- [x] Add form validation (required fields, positive numbers)
+- [x] Fix MONC.MI missing CHF amount (fxRate was null)
+- [x] Update all EUR transactions with missing fxRate to 0.9300
+- [x] Verify CHF amounts display correctly in transaction history
