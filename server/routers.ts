@@ -2199,19 +2199,35 @@ export const appRouter = router({
         // Calculate total invested and current value
         let totalInvested = 0;
         const holdings: Record<string, number> = {};
+        const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
         
-        // Process transactions to calculate holdings and total invested
+        // Process transactions to calculate holdings, cost basis, and total invested
         transactions.forEach((tx: any) => {
           const shares = parseFloat(tx.shares || '0');
           const price = parseFloat(tx.pricePerShare || '0');
-          const amount = parseFloat(tx.totalAmount || '0');
+          // Use totalAmountCHF for consistent CHF calculations
+          const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
           
           if (tx.transactionType === 'buy') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+            // Track cost basis for this ticker
+            if (!costBasis[tx.ticker]) {
+              costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
+            }
+            costBasis[tx.ticker].totalCost += amount;
+            costBasis[tx.ticker].totalShares += shares;
             totalInvested += amount;
           } else if (tx.transactionType === 'sell') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
-            totalInvested -= amount; // Reduce invested amount on sell
+            // Reduce totalInvested by the cost basis of sold shares (not sell amount)
+            if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
+              const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
+              const soldCost = shares * avgCost;
+              totalInvested -= soldCost;
+              // Update cost basis
+              costBasis[tx.ticker].totalCost -= soldCost;
+              costBasis[tx.ticker].totalShares -= shares;
+            }
           } else if (tx.transactionType === 'deposit') {
             totalInvested += amount;
           } else if (tx.transactionType === 'withdrawal') {
@@ -2279,9 +2295,25 @@ export const appRouter = router({
           }
         }
         
-        // Calculate performance from live start date: (Current Value - Live Start Value) / Live Start Value * 100
-        const performance = liveStartValueCHF > 0 
-          ? ((currentValueCHF - liveStartValueCHF) / liveStartValueCHF) * 100 
+        // Fetch realized gains for this portfolio
+        let totalRealizedGains = 0;
+        if (db) {
+          const { realizedGains } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          
+          const gains = await db
+            .select()
+            .from(realizedGains)
+            .where(eq(realizedGains.portfolioId, portfolioId));
+          
+          // Sum all realized gains (totalGainCHF includes stock gain + FX gain - fees)
+          totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.totalGainCHF || '0'), 0);
+        }
+        
+        // Calculate performance including realized gains:
+        // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
+        const performance = totalInvested > 0 
+          ? ((currentValueCHF + totalRealizedGains - totalInvested) / totalInvested) * 100 
           : 0;
         
         return {
@@ -2289,6 +2321,7 @@ export const appRouter = router({
           currentValue: currentValueCHF,
           liveStartValue: liveStartValueCHF,
           totalInvested,
+          totalRealizedGains,
           holdings,
           transactionCount: transactions.length,
         };

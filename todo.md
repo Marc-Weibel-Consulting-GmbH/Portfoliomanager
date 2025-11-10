@@ -427,3 +427,31 @@
 - [x] Fix: Gebühren werden jetzt bei Verkäufen subtrahiert (buy: +fees, sell: -fees)
 - [x] TransactionHistory Tabelle erweitert mit FX-Details (FW-Betrag, FX-Rate, CHF-Betrag, Gebühren, Netto)
 - [ ] Alte Transaktionen in DB korrigieren (totalAmountCHF muss neu berechnet werden)
+
+## CRITICAL: tRPC Fehler - Server gibt HTML statt JSON zurück (Nov 10, 2025)
+- [x] Fehler: "Unexpected token '<', "<!doctype "... is not valid JSON"
+- [x] Server wurde neu gestartet und antwortet jetzt mit HTTP 200
+- [x] Problem war temporärer Server-Crash
+
+## CRITICAL: Live Performance falsch bei Teilverkauf (Nov 10, 2025)
+- [ ] JNJ: Zeigt -80.5% statt positiv (YTD +29.8%)
+- [ ] MONC.MI: Zeigt -10.4% statt positiv (YTD +8.5%)
+- [ ] EOSE: Zeigt -34.7% statt positiv (YTD +356.5%)
+- [ ] TSM: Zeigt -4.5% statt positiv (YTD +42.7%)
+- [ ] Problem: Live Performance berücksichtigt realisierte Gewinne aus Teilverkauf nicht korrekt
+- [ ] Fix: Cost Basis muss nach Teilverkauf angepasst werden
+
+
+## CRITICAL: Live Performance berücksichtigt realisierte Gewinne nicht (Nov 10, 2025)
+- [ ] Problem: Performance = (Current Value - Total Invested) / Total Invested
+- [ ] Fehlt: Realisierte Gewinne aus Teilverkauf werden ignoriert!
+- [ ] Beispiel JNJ: Unrealisiert -CHF 69, ABER realisiert +CHF 278 = Gesamt +CHF 209 (+25.6%)
+- [ ] Aktuell zeigt: -80.5% (falsch!)
+- [ ] Fix: Performance = (Current Value + Realized Gains - Total Invested) / Total Invested × 100
+- [ ] calculateLivePerformance muss realizedGains Tabelle abfragen und summieren
+
+## Alte Transaktionen korrigieren (Nov 10, 2025)
+- [ ] JNJ Verkauf 1: Währung von CHF auf USD ändern (16 Aktien × USD 200)
+- [ ] MONC.MI Verkauf: Währung von CHF auf EUR ändern (12 Aktien × EUR 60)
+- [ ] Fehlende currency und fxRate Daten für alte Transaktionen nachtragen
+- [ ] totalAmountCHF für alte Verkäufe neu berechnen (mit korrekten Gebührenabzug)
