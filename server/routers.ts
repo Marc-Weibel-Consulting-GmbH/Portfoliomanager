@@ -3298,6 +3298,8 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
             shares?: string;
             pricePerShare?: string;
             currency?: string;
+            fees?: string;
+            notes?: string;
           };
         }
         throw new Error("Invalid update data");
@@ -3330,6 +3332,14 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         
         if (input.currency) {
           updates.currency = input.currency;
+        }
+        
+        if (input.fees !== undefined) {
+          updates.fees = input.fees;
+        }
+        
+        if (input.notes !== undefined) {
+          updates.notes = input.notes;
         }
         
         // Recalculate totalAmount and FX rate if shares or price changed

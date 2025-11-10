@@ -595,3 +595,10 @@
 - [x] Fix TypeError: tx.transactionDate?.split is not a function
 - [x] transactionDate is a Date object, not a string
 - [x] Convert Date to ISO string format for date input field
+
+## Enhancement: Complete Transaction Edit Form (Nov 10, 2025 - 19:50)
+- [x] Add fees field to edit form (pre-filled with existing value)
+- [x] Add notes field to edit form (pre-filled with existing value)
+- [x] Update edit form state to include fees and notes
+- [x] Update backend mutation to accept fees and notes updates
+- [x] All fields should be pre-filled so user only changes what's needed

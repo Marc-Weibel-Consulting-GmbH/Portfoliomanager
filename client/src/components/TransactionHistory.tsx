@@ -27,7 +27,9 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
     date: "",
     shares: "",
     pricePerShare: "",
-    currency: "CHF"
+    currency: "CHF",
+    fees: "",
+    notes: ""
   });
 
   const { data: transactions = [], isLoading } = trpc.portfolioTransactions.list.useQuery({ portfolioId });
@@ -72,7 +74,9 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
       date: dateStr,
       shares: tx.shares?.toString() || "",
       pricePerShare: tx.pricePerShare?.toString() || "",
-      currency: tx.currency || "CHF"
+      currency: tx.currency || "CHF",
+      fees: tx.fees?.toString() || "0",
+      notes: tx.notes || ""
     });
   };
   
@@ -226,7 +230,9 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
       transactionDate: editForm.date,
       shares: editForm.shares,
       pricePerShare: editForm.pricePerShare,
-      currency: editForm.currency
+      currency: editForm.currency,
+      fees: editForm.fees,
+      notes: editForm.notes
     });
   };
 
@@ -498,6 +504,26 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                 <SelectItem value="GBP">GBP</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Gebühren (CHF)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={editForm.fees}
+              onChange={(e) => setEditForm({ ...editForm, fees: e.target.value })}
+              className="bg-slate-700 border-slate-600 text-white"
+            />
+          </div>
+          <div>
+            <Label>Notizen</Label>
+            <Input
+              type="text"
+              value={editForm.notes}
+              onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+              className="bg-slate-700 border-slate-600 text-white"
+              placeholder="Optional"
+            />
           </div>
           <div className="flex gap-2 justify-end mt-6">
             <Button
