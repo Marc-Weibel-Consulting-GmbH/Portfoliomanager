@@ -2012,8 +2012,8 @@ export const appRouter = router({
               .from(realizedGains)
               .where(eq(realizedGains.portfolioId, portfolio.id));
             
-            // Sum all realized gains (totalGainCHF includes stock gain + FX gain - fees)
-            totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.totalGainCHF || '0'), 0);
+            // Sum all realized gains (realizedGain is in CHF, includes stock gain + FX gain)
+            totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.realizedGain || '0'), 0);
             
             // Calculate performance including realized gains:
             // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
@@ -2343,8 +2343,8 @@ export const appRouter = router({
             .from(realizedGains)
             .where(eq(realizedGains.portfolioId, input));
           
-          // Sum all realized gains (totalGainCHF includes stock gain + FX gain - fees)
-          totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.totalGainCHF || '0'), 0);
+          // Sum all realized gains (realizedGain is in CHF, includes stock gain + FX gain)
+          totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.realizedGain || '0'), 0);
         }
         
         // Calculate performance including realized gains:
@@ -2436,7 +2436,7 @@ export const appRouter = router({
           // Group realized gains by ticker
           gains.forEach((gain) => {
             const ticker = gain.ticker;
-            const totalGain = parseFloat(gain.totalGainCHF || '0');
+            const totalGain = parseFloat(gain.realizedGain || '0');
             realizedGainsByTicker[ticker] = (realizedGainsByTicker[ticker] || 0) + totalGain;
           });
         }

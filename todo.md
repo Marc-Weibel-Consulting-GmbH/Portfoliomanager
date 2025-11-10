@@ -479,3 +479,18 @@
 - [x] Error: "portfolioId is not defined" on /portfolio/90001
 - [x] Found: calculateLivePerformance procedure used undefined portfolioId variable
 - [x] Fixed: Changed portfolioId to input parameter (line 2344 in routers.ts)
+
+## CRITICAL: Live Performance Calculations Still Wrong (Nov 10, 2025 - 17:30)
+- [x] Overall portfolio shows -17.1% but should be +5.1%
+- [x] Current: CHF 53'107, Invested: CHF 51'988, Realized Gains: CHF 784.90
+- [x] Expected: (53107 + 784.90 - 51988) / 51988 = +5.1%
+- [x] Individual stocks show wrong performance:
+  - [x] JNJ: shows -80.5% but has +CHF 211.81 realized gains
+  - [x] EOSE: shows -34.7% but has +CHF 362.18 realized gains
+  - [x] MONC.MI: shows -10.4% but has +CHF 43.03 realized gains
+  - [x] TSM: shows -4.5% (needs verification)
+- [x] Debug: Check if realized gains are being fetched correctly
+- [x] Debug: Check if totalInvested calculation is correct
+- [x] Fix: Changed totalGainCHF to realizedGain column name (column didn't exist)
+- [x] Fix: Applied same fix to calculateLivePerformance and getHoldingsWithChfPerformance
+- [x] Remove "Realisierte Gewinne" button (redundant with Jahresübersicht)
