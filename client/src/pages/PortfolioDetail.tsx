@@ -94,7 +94,6 @@ export default function PortfolioDetail() {
   // Calculate portfolio summary (deposits, cash, invested in stocks)
   const portfolioSummary = useMemo(() => {
     let totalDeposits = 0;
-    let totalInvestedInStocks = 0;
     let totalBuyAmounts = 0;
     let totalSellProceeds = 0;
     let totalDividends = 0;
@@ -108,12 +107,18 @@ export default function PortfolioDetail() {
         totalDeposits -= Math.abs(amount);
       } else if (tx.transactionType === 'buy') {
         totalBuyAmounts += amount;
-        totalInvestedInStocks += amount;
       } else if (tx.transactionType === 'sell') {
         totalSellProceeds += amount;
-        // Reduce invested by cost basis (already handled in holdingsByTicker)
       } else if (tx.transactionType === 'dividend') {
         totalDividends += amount;
+      }
+    });
+
+    // Calculate total invested in stocks from holdings (current cost basis)
+    let totalInvestedInStocks = 0;
+    Object.values(holdingsByTicker).forEach((holding: any) => {
+      if (holding.shares > 0) {
+        totalInvestedInStocks += holding.totalInvested;
       }
     });
 
@@ -124,7 +129,7 @@ export default function PortfolioDetail() {
       totalInvestedInStocks,
       cashPosition
     };
-  }, [transactions]);
+  }, [transactions, holdingsByTicker]);
 
   // Toggle live mutation
   const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation({
@@ -348,13 +353,13 @@ export default function PortfolioDetail() {
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-slate-400">Investiert (Aktien)</span>
                   <span className="text-sm font-semibold text-white">
-                    CHF {(livePerformance?.totalInvested ?? portfolioSummary.totalInvestedInStocks)?.toLocaleString('de-CH') || '0'}
+                    CHF {(livePerformance?.totalInvested ?? portfolioSummary.totalInvestedInStocks)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-slate-400">Cash</span>
                   <span className="text-sm font-semibold text-white">
-                    CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH') || '0'}
+                    CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-700">
@@ -363,7 +368,7 @@ export default function PortfolioDetail() {
                     CHF {(
                       (livePerformance?.totalInvested ?? portfolioSummary.totalInvestedInStocks) + 
                       (livePerformance?.cashPosition ?? portfolioSummary.cashPosition)
-                    )?.toLocaleString('de-CH') || '0'}
+                    )?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                   </span>
                 </div>
               </div>
@@ -466,6 +471,16 @@ export default function PortfolioDetail() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Cash Position Row - First */}
+                  <tr className="border-b-2 border-slate-600 bg-slate-700/20">
+                    <td className="py-3 px-2 text-yellow-400 font-semibold" colSpan={2}>💰 Cash</td>
+                    <td className="py-3 px-2 text-right" colSpan={3}></td>
+                    <td className="py-3 px-2 text-right" colSpan={1}></td>
+                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold" colSpan={1}>
+                      CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </td>
+                    <td colSpan={3}></td>
+                  </tr>
                   {portfolioData.filter((stock: any) => stock.shares > 0).map((stock: any, index: number) => (
                     <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                       <td className="py-3 px-2 text-white font-mono font-semibold">{stock.ticker}</td>
@@ -535,42 +550,7 @@ export default function PortfolioDetail() {
                       </td>
                     </tr>
                   ))}
-                  {/* Cash Position Row */}
-                  <tr className="border-t-2 border-slate-600">
-                    <td className="py-3 px-2 text-white font-semibold" colSpan={2}>Cash Position</td>
-                    <td className="py-3 px-2 text-right" colSpan={3}></td>
-                    <td className="py-3 px-2 text-right" colSpan={1}></td>
-                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold" colSpan={1}>
-                      CHF {(() => {
-                        const deposits = transactions
-                          .filter((tx: any) => tx.transactionType === 'deposit')
-                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
-                        const withdrawals = transactions
-                          .filter((tx: any) => tx.transactionType === 'withdrawal')
-                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const buyAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'buy')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        const sellAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'sell')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        // Treat all buys as implicit deposits (portfolio may have existed before going live)
-                        const totalCapital = deposits - withdrawals + buyAmounts;
-                        const cash = totalCapital - buyAmounts + sellAmounts;
-                        console.log('[Cash Debug]', { deposits, withdrawals, buyAmounts, sellAmounts, totalCapital, cash });
-                        return Math.round(cash).toLocaleString('de-CH');
-                      })()}
-                    </td>
-                    <td colSpan={3}></td>
-                  </tr>
+
                   {/* Total Row */}
                   <tr className="border-t border-slate-600 bg-slate-700/30">
                     <td className="py-3 px-2 text-white font-bold" colSpan={2}>TOTAL</td>

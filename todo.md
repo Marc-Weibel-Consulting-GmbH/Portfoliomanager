@@ -639,3 +639,18 @@
 - [x] Total shows deposits (CHF 5'826) instead of Invested + Cash (CHF 50'000)
 - [x] Should display: Investiert CHF 44'173.22, Cash CHF 5'826.47, Total CHF 50'000
 - [x] Total = Invested + Cash (not deposits)
+
+
+## CRITICAL: Portfolio Card Total Still Wrong (Nov 10, 2025 - 20:27)
+- [x] Total still shows wrong value (not Invested + Cash)
+- [x] Should be: Investiert CHF 44'173.22 + Cash CHF 5'826.47 = Total CHF 50'000
+- [x] Review and fix the Portfolio card calculation logic in PortfolioDetail.tsx
+- [x] Fixed portfolioSummary to calculate totalInvestedInStocks from holdings (cost basis)
+- [x] Total now correctly shows Invested + Cash
+
+## Feature: Cash Position in Portfolio Table (Nov 10, 2025 - 20:27)
+- [x] Add Cash as first row in Portfolio Positionen table
+- [x] Show current cash balance from live start date
+- [x] Buys reduce cash, sells increase cash
+- [ ] Warning when buy exceeds available cash
+- [ ] Suggest which stocks to sell to cover deficit
