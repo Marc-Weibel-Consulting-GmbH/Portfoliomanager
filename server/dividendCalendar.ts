@@ -63,10 +63,10 @@ export async function fetchUpcomingDividends(from: string, to: string): Promise<
 /**
  * Get upcoming dividends for specific tickers in a portfolio
  * @param tickers Array of stock tickers
- * @param daysAhead Number of days to look ahead (default: 30)
+ * @param daysAhead Number of days to look ahead (default: 365 for next 12 months)
  * @returns Array of dividend events for the specified tickers
  */
-export async function getPortfolioDividends(tickers: string[], daysAhead: number = 30): Promise<DividendEvent[]> {
+export async function getPortfolioDividends(tickers: string[], daysAhead: number = 365): Promise<DividendEvent[]> {
   const today = new Date();
   const futureDate = new Date();
   futureDate.setDate(today.getDate() + daysAhead);

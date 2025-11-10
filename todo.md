@@ -281,3 +281,9 @@
 #### 5. Transaktions-Erfassung anpassen
 - [ ] Bei Kauf/Verkauf: Wechselkurs vom Transaktionsdatum speichern
 - [ ] Verkaufs-Pop-up: Zeige Aktiengewinn UND Währungsgewinn separat
+
+## FIX: Dividenden-Kalender Zeitraum (Nov 10, 2025 - 14:00)
+- [x] Problem: Dividenden-Kalender zeigt nur aktuelles Kalenderjahr → Ende Jahr keine Events
+- [x] Lösung: Zeitraum auf "nächste 12 Monate ab heute" ändern
+- [x] Server-Endpoint angepasst (dividendCalendar.ts)
+- [x] Von/Bis-Datum dynamisch berechnet (heute bis heute + 365 Tage)
