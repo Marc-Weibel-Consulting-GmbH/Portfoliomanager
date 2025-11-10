@@ -602,3 +602,11 @@
 - [x] Update edit form state to include fees and notes
 - [x] Update backend mutation to accept fees and notes updates
 - [x] All fields should be pre-filled so user only changes what's needed
+
+## Bug: Transaction Edit Form Shows Wrong Fields (Nov 10, 2025 - 19:55)
+- [x] Edit form shows shares/price for deposit/withdrawal (should show amount only)
+- [x] Make form conditional based on transaction type
+- [x] Buy/Sell: date, shares, price, currency, fees, notes
+- [x] Deposit/Withdrawal: date, amount, currency, notes
+- [x] Dividend: date, ticker, amount, currency, notes
+- [x] Update validation logic for each transaction type

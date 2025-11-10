@@ -24,9 +24,11 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({
+    transactionType: "" as "buy" | "sell" | "dividend" | "deposit" | "withdrawal" | "",
     date: "",
     shares: "",
     pricePerShare: "",
+    totalAmount: "",
     currency: "CHF",
     fees: "",
     notes: ""
@@ -71,9 +73,11 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
     }
     
     setEditForm({
+      transactionType: tx.transactionType || "",
       date: dateStr,
       shares: tx.shares?.toString() || "",
       pricePerShare: tx.pricePerShare?.toString() || "",
+      totalAmount: tx.totalAmount?.toString() || "",
       currency: tx.currency || "CHF",
       fees: tx.fees?.toString() || "0",
       notes: tx.notes || ""
@@ -206,34 +210,64 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
   const handleSaveEdit = () => {
     if (!editingTransaction) return;
     
-    // Validate inputs
-    if (!editForm.date || !editForm.shares || !editForm.pricePerShare) {
-      toast.error("Bitte füllen Sie alle Pflichtfelder aus");
+    // Validate date (required for all types)
+    if (!editForm.date) {
+      toast.error("Bitte geben Sie ein Datum ein");
       return;
     }
     
-    const shares = parseFloat(editForm.shares);
-    const price = parseFloat(editForm.pricePerShare);
-    
-    if (isNaN(shares) || shares <= 0) {
-      toast.error("Ungültige Anzahl Aktien");
-      return;
+    // Validate based on transaction type
+    if (editForm.transactionType === 'buy' || editForm.transactionType === 'sell') {
+      // Buy/Sell: validate shares and price
+      if (!editForm.shares || !editForm.pricePerShare) {
+        toast.error("Bitte füllen Sie Anzahl und Preis aus");
+        return;
+      }
+      
+      const shares = parseFloat(editForm.shares);
+      const price = parseFloat(editForm.pricePerShare);
+      
+      if (isNaN(shares) || shares <= 0) {
+        toast.error("Ungültige Anzahl Aktien");
+        return;
+      }
+      
+      if (isNaN(price) || price <= 0) {
+        toast.error("Ungültiger Preis");
+        return;
+      }
+      
+      updateTransaction.mutate({
+        transactionId: editingTransaction.id,
+        transactionDate: editForm.date,
+        shares: editForm.shares,
+        pricePerShare: editForm.pricePerShare,
+        currency: editForm.currency,
+        fees: editForm.fees,
+        notes: editForm.notes
+      });
+    } else if (editForm.transactionType === 'deposit' || editForm.transactionType === 'withdrawal' || editForm.transactionType === 'dividend') {
+      // Deposit/Withdrawal/Dividend: validate amount
+      if (!editForm.totalAmount) {
+        toast.error("Bitte geben Sie einen Betrag ein");
+        return;
+      }
+      
+      const amount = parseFloat(editForm.totalAmount);
+      
+      if (isNaN(amount) || amount <= 0) {
+        toast.error("Ungültiger Betrag");
+        return;
+      }
+      
+      updateTransaction.mutate({
+        transactionId: editingTransaction.id,
+        transactionDate: editForm.date,
+        totalAmount: editForm.totalAmount,
+        currency: editForm.currency,
+        notes: editForm.notes
+      });
     }
-    
-    if (isNaN(price) || price <= 0) {
-      toast.error("Ungültiger Preis");
-      return;
-    }
-    
-    updateTransaction.mutate({
-      transactionId: editingTransaction.id,
-      transactionDate: editForm.date,
-      shares: editForm.shares,
-      pricePerShare: editForm.pricePerShare,
-      currency: editForm.currency,
-      fees: editForm.fees,
-      notes: editForm.notes
-    });
   };
 
   if (isLoading) {
@@ -462,6 +496,18 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
           <DialogTitle>Transaktion bearbeiten</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-4">
+          {/* Transaction Type (read-only) */}
+          <div>
+            <Label>Typ</Label>
+            <Input
+              type="text"
+              value={getTypeLabel(editForm.transactionType)}
+              disabled
+              className="bg-slate-700 border-slate-600 text-slate-400"
+            />
+          </div>
+
+          {/* Date (all types) */}
           <div>
             <Label>Datum</Label>
             <Input
@@ -471,26 +517,48 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
               className="bg-slate-700 border-slate-600 text-white"
             />
           </div>
-          <div>
-            <Label>Anzahl Aktien</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={editForm.shares}
-              onChange={(e) => setEditForm({ ...editForm, shares: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white"
-            />
-          </div>
-          <div>
-            <Label>Preis pro Aktie</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={editForm.pricePerShare}
-              onChange={(e) => setEditForm({ ...editForm, pricePerShare: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white"
-            />
-          </div>
+
+          {/* Buy/Sell specific fields */}
+          {(editForm.transactionType === 'buy' || editForm.transactionType === 'sell') && (
+            <>
+              <div>
+                <Label>Anzahl Aktien</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editForm.shares}
+                  onChange={(e) => setEditForm({ ...editForm, shares: e.target.value })}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <Label>Preis pro Aktie</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editForm.pricePerShare}
+                  onChange={(e) => setEditForm({ ...editForm, pricePerShare: e.target.value })}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Deposit/Withdrawal/Dividend specific fields */}
+          {(editForm.transactionType === 'deposit' || editForm.transactionType === 'withdrawal' || editForm.transactionType === 'dividend') && (
+            <div>
+              <Label>Betrag</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={editForm.totalAmount}
+                onChange={(e) => setEditForm({ ...editForm, totalAmount: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+          )}
+
+          {/* Currency (all types) */}
           <div>
             <Label>Währung</Label>
             <Select value={editForm.currency} onValueChange={(value) => setEditForm({ ...editForm, currency: value })}>
@@ -505,16 +573,22 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Gebühren (CHF)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={editForm.fees}
-              onChange={(e) => setEditForm({ ...editForm, fees: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white"
-            />
-          </div>
+
+          {/* Fees (only for buy/sell) */}
+          {(editForm.transactionType === 'buy' || editForm.transactionType === 'sell') && (
+            <div>
+              <Label>Gebühren (CHF)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={editForm.fees}
+                onChange={(e) => setEditForm({ ...editForm, fees: e.target.value })}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+          )}
+
+          {/* Notes (all types) */}
           <div>
             <Label>Notizen</Label>
             <Input

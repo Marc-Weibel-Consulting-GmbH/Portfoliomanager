@@ -3297,6 +3297,7 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
             transactionDate?: string;
             shares?: string;
             pricePerShare?: string;
+            totalAmount?: string;
             currency?: string;
             fees?: string;
             notes?: string;
@@ -3342,8 +3343,27 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           updates.notes = input.notes;
         }
         
-        // Recalculate totalAmount and FX rate if shares or price changed
-        if (input.shares || input.pricePerShare) {
+        // Handle totalAmount for deposit/withdrawal/dividend
+        if (input.totalAmount !== undefined) {
+          updates.totalAmount = input.totalAmount;
+          
+          // Get current transaction for currency and date if not provided
+          const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
+          const currency = input.currency || currentTx.currency || 'CHF';
+          const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
+          
+          // Calculate CHF amount with FX rate
+          if (currency !== 'CHF') {
+            const fxRate = await getFxRate(date, `${currency}CHF`);
+            updates.fxRate = fxRate.toFixed(4);
+            updates.totalAmountCHF = (parseFloat(input.totalAmount) * fxRate).toFixed(2);
+          } else {
+            updates.fxRate = '1.0000';
+            updates.totalAmountCHF = input.totalAmount;
+          }
+        }
+        // Recalculate totalAmount and FX rate if shares or price changed (buy/sell)
+        else if (input.shares || input.pricePerShare) {
           // Get current transaction to get missing values
           const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
           
