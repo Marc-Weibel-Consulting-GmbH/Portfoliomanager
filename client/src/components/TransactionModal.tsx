@@ -74,6 +74,12 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     { enabled: !!ticker && (transactionType === "buy" || transactionType === "sell") }
   );
 
+  // Fetch current FX rate for currency conversion
+  const { data: fxData } = trpc.fx.getCurrentRate.useQuery(
+    { currency: stockData?.currency || "CHF" },
+    { enabled: !!stockData?.currency && stockData.currency !== "CHF" }
+  );
+
   // Auto-fill price when selling
   useEffect(() => {
     if (transactionType === "sell" && stockData?.currentPrice) {
@@ -329,10 +335,16 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
               <p className="text-xl font-bold text-white">
                 {stockData?.currency || 'CHF'} {(parseFloat(shares) * parseFloat(pricePerShare) + parseFloat(fees || "0")).toFixed(2)}
               </p>
-              {stockData?.currency && stockData.currency !== 'CHF' && (
-                <p className="text-xs text-slate-400 mt-1">
-                  Wird in CHF konvertiert beim Speichern
-                </p>
+              {stockData?.currency && stockData.currency !== 'CHF' && fxData && (
+                <div className="mt-2 pt-2 border-t border-slate-600">
+                  <p className="text-sm text-slate-400">Voraussichtlicher Betrag in CHF:</p>
+                  <p className="text-lg font-semibold text-green-400">
+                    CHF {((parseFloat(shares) * parseFloat(pricePerShare) + parseFloat(fees || "0")) * fxData.rate).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Wechselkurs: 1 {stockData.currency} = {fxData.rate.toFixed(4)} CHF
+                  </p>
+                </div>
               )}
             </div>
           )}

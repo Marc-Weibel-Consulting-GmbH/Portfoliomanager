@@ -3370,6 +3370,31 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         };
       }),
   }),
+
+  fx: router({
+    getCurrentRate: publicProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "currency" in val && typeof val.currency === "string") {
+          return val as { currency: string; date?: string };
+        }
+        throw new Error("Invalid currency");
+      })
+      .query(async ({ input }) => {
+        const { getFxRate } = await import("./fxHelper");
+        
+        const date = input.date || new Date().toISOString().split('T')[0];
+        const currencyPair = input.currency === 'CHF' ? 'CHFCHF' : input.currency + 'CHF';
+        
+        const rate = await getFxRate(date, currencyPair);
+        
+        return {
+          currency: input.currency,
+          date,
+          rate,
+          currencyPair
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

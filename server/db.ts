@@ -571,7 +571,21 @@ export async function createPortfolioTransaction(transaction: any) {
     console.log("[DB] Transaction data:", transaction);
     const result = await db.insert(portfolioTransactions).values(transaction);
     console.log("[DB] Insert result:", JSON.stringify(result, null, 2));
-    const transactionId = Number((result as any).insertId);
+    console.log("[DB] Insert result keys:", Object.keys(result));
+    console.log("[DB] Insert result[0]:", (result as any)[0]);
+    
+    // Extract insertId from Drizzle result
+    let transactionId: number;
+    if ((result as any).insertId) {
+      transactionId = Number((result as any).insertId);
+    } else if ((result as any)[0]?.insertId) {
+      transactionId = Number((result as any)[0].insertId);
+    } else {
+      console.error("[DB] Could not extract insertId from result:", result);
+      throw new Error("Failed to get transaction ID");
+    }
+    
+    console.log("[DB] Extracted transactionId:", transactionId);
     const returnValue: any = { id: transactionId, ...transaction };
     
     // If this is a sell transaction, calculate realized gain/loss
@@ -616,8 +630,10 @@ export async function createPortfolioTransaction(transaction: any) {
       const avgBuyDateStr = new Date(avgBuyDate).toISOString().split('T')[0];
       const sellDateStr = new Date(transaction.transactionDate).toISOString().split('T')[0];
       
-      const buyFxRate = await getFxRate(currency, avgBuyDateStr);
-      const sellFxRate = await getFxRate(currency, sellDateStr);
+      // Get FX rates (currency pair format: USDCHF, EURCHF, etc.)
+      const currencyPair = currency === 'CHF' ? 'CHFCHF' : currency + 'CHF';
+      const buyFxRate = await getFxRate(avgBuyDateStr, currencyPair);
+      const sellFxRate = await getFxRate(sellDateStr, currencyPair);
       
       // Calculate stock gain in local currency
       const stockGainLocal = (sellPrice - avgCostBasis) * sharesSold;
