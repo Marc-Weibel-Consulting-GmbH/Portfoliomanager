@@ -2205,23 +2205,32 @@ export const appRouter = router({
           }
         });
         
-        // Fetch current prices and calculate current value
+        // Fetch current prices and calculate current value (in CHF)
         const { getStockByTicker } = await import("./db");
         const { getDb } = await import("./db");
+        const { getStockCurrency, convertToCHF, getCurrentFxRate } = await import("./fxHelper");
         const db = await getDb();
         
-        let currentValue = 0;
-        let liveStartValue = 0;
+        let currentValueCHF = 0;
+        let liveStartValueCHF = 0;
         
         // Get live start date for baseline calculation
         const liveStartDate = new Date(portfolio.liveStartDate);
         const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
         
         for (const [ticker, shares] of Object.entries(holdings)) {
           if (shares > 0) {
             const stock = await getStockByTicker(ticker);
             const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
-            currentValue += shares * currentPrice;
+            
+            // Get currency for this stock
+            const currency = await getStockCurrency(ticker);
+            
+            // Convert current value to CHF
+            const currentValueLocal = shares * currentPrice;
+            const currentValueInCHF = await convertToCHF(currentValueLocal, currency, todayStr);
+            currentValueCHF += currentValueInCHF;
             
             // Get price at live start date from historicalPrices table
             if (db) {
@@ -2244,22 +2253,27 @@ export const appRouter = router({
                 ? parseFloat(historicalPrice[0].close)
                 : currentPrice;
               
-              liveStartValue += shares * liveStartPrice;
+              // Convert live start value to CHF using historical FX rate
+              const liveStartValueLocal = shares * liveStartPrice;
+              const liveStartValueInCHF = await convertToCHF(liveStartValueLocal, currency, liveStartDateStr);
+              liveStartValueCHF += liveStartValueInCHF;
             } else {
               // Fallback: use current price if no DB access
-              liveStartValue += shares * currentPrice;
+              const fallbackValueInCHF = await convertToCHF(currentValueLocal, currency, todayStr);
+              liveStartValueCHF += fallbackValueInCHF;
             }
           }
         }
         
         // Calculate performance from live start date: (Current Value - Live Start Value) / Live Start Value * 100
-        const performance = liveStartValue > 0 
-          ? ((currentValue - liveStartValue) / liveStartValue) * 100 
+        const performance = liveStartValueCHF > 0 
+          ? ((currentValueCHF - liveStartValueCHF) / liveStartValueCHF) * 100 
           : 0;
         
         return {
           performance,
-          currentValue,
+          currentValue: currentValueCHF,
+          liveStartValue: liveStartValueCHF,
           totalInvested,
           holdings,
           transactionCount: transactions.length,

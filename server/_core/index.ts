@@ -13,6 +13,7 @@ import { startChartDataUpdater } from "../chartDataUpdater";
 import { initializePEGUpdater } from "../pegUpdater";
 import { initYTDUpdater } from "../cron/ytdUpdater";
 import { initDividendCaptureJob } from "../dividendCaptureJob";
+import { initFxRatesCron } from "../fxRatesFetchJob";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -226,6 +227,8 @@ async function startServer() {
     initYTDUpdater();
     // Start dividend capture job (runs daily at 6:00 AM)
     initDividendCaptureJob();
+    // Start FX rates updater (runs daily at 6:30 AM)
+    initFxRatesCron();
   });
 }
 

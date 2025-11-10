@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "c0d4ca58-8aa8-452a-860a-861b11318fa8",
-  "prevId": "76aebdf7-1ddd-4122-a640-888d74a02449",
+  "id": "95db47e2-ad50-467a-b236-c20bebd724fe",
+  "prevId": "c0d4ca58-8aa8-452a-860a-861b11318fa8",
   "tables": {
     "alertHistory": {
       "name": "alertHistory",
@@ -323,6 +323,68 @@
       "compositePrimaryKeys": {
         "correlations_id": {
           "name": "correlations_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "exchangeRates": {
+      "name": "exchangeRates",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "currencyPair": {
+          "name": "currencyPair",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rate": {
+          "name": "rate",
+          "type": "decimal(10,6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "ix_exchangeRates_date_pair": {
+          "name": "ix_exchangeRates_date_pair",
+          "columns": [
+            "date",
+            "currencyPair"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "exchangeRates_id": {
+          "name": "exchangeRates_id",
           "columns": [
             "id"
           ]

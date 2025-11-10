@@ -276,13 +276,27 @@ export const alertHistory = mysqlTable("alertHistory", {
   triggeredAt: timestamp("triggeredAt").defaultNow().notNull(),
 });
 
-export type AlertHistoryRecord = typeof alertHistory.$inferSelect;
-export type InsertAlertHistory = typeof alertHistory.$inferInsert;
+export type RealizedGain = typeof realizedGains.$inferSelect;
+export type InsertRealizedGain = typeof realizedGains.$inferInsert;
+
+// Exchange Rates Table (for currency conversion)
+export const exchangeRates = mysqlTable("exchangeRates", {
+  id: int("id").autoincrement().primaryKey(),
+  date: date("date").notNull(),
+  currencyPair: varchar("currencyPair", { length: 16 }).notNull(), // e.g., "USDCHF", "EURCHF"
+  rate: decimal("rate", { precision: 10, scale: 6 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  datePairIdx: index("ix_exchangeRates_date_pair").on(t.date, t.currencyPair),
+}));
+
+export type ExchangeRate = typeof exchangeRates.$inferSelect;
+export type InsertExchangeRate = typeof exchangeRates.$inferInsert;
 
 
 // ============================================
 // Analyzer_Test Tables (Nov 7, 2024)
-// ============================================
+// ================================================
 
 export const securities = mysqlTable("securities", {
   symbol: varchar("symbol", { length: 16 }).primaryKey(),

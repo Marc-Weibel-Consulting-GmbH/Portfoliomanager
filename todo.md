@@ -231,3 +231,53 @@
 - [x] Portfolio-Übersicht (Total investiert vs. Aktueller Wert)
 - [x] Visuelle Darstellung mit Farben (grün/rot)
 - [x] Berechnungsformel erklärt
+## CRITICAL: Live Performance Bug bei Teilverkäufen (Nov 10, 2025 - 12:30)
+- [ ] Live Performance zeigt -39.2% nach Teilverkauf von EOS (109 von 209 Aktien)
+- [ ] Problem: Performance-Berechnung verwendet ursprüngliche Aktienanzahl statt aktueller Bestand
+- [ ] Verkauf: 109 Aktien zu CHF 18.26 = CHF 1'990.34
+- [ ] Verbleibend: 100 Aktien (sollte in Performance-Berechnung verwendet werden)
+- [ ] Fix: calculateLivePerformance muss aktuelle Holdings aus Transaktionen verwenden
+- [ ] Verkäufe sollten erfolgsneutral sein (nur Transaktionskosten beeinflussen Performance)
+
+## NEW: Währungsumrechnung für Performance-Berechnungen (Nov 10, 2025 - 13:00)
+
+### Problem:
+- Alle Performance-Berechnungen verwenden Originalwährungen (USD, EUR) statt CHF
+- EOS: Kauf am 29.10 zu USD 14.37, Verkauf zu CHF 18.26 → Währungsmix!
+- Wechselkursentwicklung wird nicht berücksichtigt
+- Realisierte Gewinne müssen für Steuer-Reporting aufgeteilt werden (Aktiengewinn vs. Währungsgewinn)
+
+### Lösung:
+
+#### 1. Historische Wechselkurse
+- [x] Neue Tabelle `exchangeRates` (id, date, currencyPair, rate, createdAt)
+- [x] Currency pairs: USDCHF, EURCHF, GBPCHF
+- [x] Täglicher Cron-Job zum Abrufen aktueller Wechselkurse (6:30 Uhr)
+- [x] API: Yahoo Finance für FX-Daten
+- [x] Backfill-Funktion: Historische Kurse ab beliebigem Datum laden
+
+#### 2. Realisierte Gewinne aufteilen
+- [x] `realizedGains` Tabelle erweitert:
+  - [x] `stockGainLocal` - Gewinn/Verlust in Originalwährung (USD/EUR)
+  - [x] `fxGain` - Währungsgewinn/-verlust (CHF)
+  - [x] `currency` - Originalwährung des Titels
+  - [x] `buyFxRate` - Wechselkurs beim Kauf
+  - [x] `sellFxRate` - Wechselkurs beim Verkauf
+  - [x] Historische Wechselkurse ab 29.10.2025 backfilled
+
+#### 3. Performance-Berechnung in CHF
+- [ ] Alle Kurse zu CHF umrechnen mit historischen Wechselkursen
+- [ ] Live Performance: Baseline = Kurs × FX-Rate am Live-Start-Datum
+- [ ] Aktueller Wert = Kurs × aktueller FX-Rate
+- [ ] Holdings-Berechnung: totalInvested in CHF
+
+#### 4. Jahres-Performance-Report erweitern
+- [ ] Separate Zeilen für:
+  - [ ] Realisierte Aktiengewinne (in Originalwährung)
+  - [ ] Realisierte Währungsgewinne (CHF)
+  - [ ] Total realisierte Gewinne (CHF)
+- [ ] Unrealisierte Gewinne ebenfalls aufteilen
+
+#### 5. Transaktions-Erfassung anpassen
+- [ ] Bei Kauf/Verkauf: Wechselkurs vom Transaktionsdatum speichern
+- [ ] Verkaufs-Pop-up: Zeige Aktiengewinn UND Währungsgewinn separat
