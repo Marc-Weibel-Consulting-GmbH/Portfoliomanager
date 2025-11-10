@@ -628,3 +628,9 @@
 - [ ] Show warning when buy exceeds available cash
 - [ ] Suggest which stocks to sell to cover cash deficit
 - [ ] Sell suggestion algorithm: prioritize stocks with lowest performance or highest weight
+
+## Bug: yearSummary not defined in PortfolioDetail (Nov 10, 2025 - 20:16)
+- [x] ReferenceError: yearSummary is not defined at line 400
+- [x] Portfolio card uses yearSummary but it's not loaded
+- [x] Created portfolioSummary memo to calculate from transactions
+- [x] Use livePerformance data when available, fallback to portfolioSummary

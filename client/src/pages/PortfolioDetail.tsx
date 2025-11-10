@@ -91,6 +91,41 @@ export default function PortfolioDetail() {
     return holdings;
   }, [transactions]);
 
+  // Calculate portfolio summary (deposits, cash, invested in stocks)
+  const portfolioSummary = useMemo(() => {
+    let totalDeposits = 0;
+    let totalInvestedInStocks = 0;
+    let totalBuyAmounts = 0;
+    let totalSellProceeds = 0;
+    let totalDividends = 0;
+
+    transactions.forEach((tx: any) => {
+      const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+      
+      if (tx.transactionType === 'deposit') {
+        totalDeposits += amount;
+      } else if (tx.transactionType === 'withdrawal') {
+        totalDeposits -= Math.abs(amount);
+      } else if (tx.transactionType === 'buy') {
+        totalBuyAmounts += amount;
+        totalInvestedInStocks += amount;
+      } else if (tx.transactionType === 'sell') {
+        totalSellProceeds += amount;
+        // Reduce invested by cost basis (already handled in holdingsByTicker)
+      } else if (tx.transactionType === 'dividend') {
+        totalDividends += amount;
+      }
+    });
+
+    const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends;
+
+    return {
+      totalDeposits,
+      totalInvestedInStocks,
+      cashPosition
+    };
+  }, [transactions]);
+
   // Toggle live mutation
   const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation({
     onSuccess: () => {
@@ -313,19 +348,19 @@ export default function PortfolioDetail() {
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-slate-400">Investiert (Aktien)</span>
                   <span className="text-sm font-semibold text-white">
-                    CHF {yearSummary?.totalInvested?.toLocaleString('de-CH') || '0'}
+                    CHF {(livePerformance?.totalInvested ?? portfolioSummary.totalInvestedInStocks)?.toLocaleString('de-CH') || '0'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-slate-400">Cash</span>
                   <span className="text-sm font-semibold text-white">
-                    CHF {yearSummary?.cashPosition?.toLocaleString('de-CH') || '0'}
+                    CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH') || '0'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-700">
                   <span className="text-xs text-slate-400">Total</span>
                   <span className="text-lg font-bold text-white">
-                    CHF {yearSummary?.totalDeposits?.toLocaleString('de-CH') || '0'}
+                    CHF {(livePerformance?.totalDeposits ?? portfolioSummary.totalDeposits)?.toLocaleString('de-CH') || '0'}
                   </span>
                 </div>
               </div>
