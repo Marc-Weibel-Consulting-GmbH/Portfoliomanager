@@ -101,3 +101,20 @@
 - [x] Round Div. Rendite to 1 decimal place
 - [x] Round P/E to 1 decimal place
 - [x] Round PEG to 1 decimal place
+
+
+## CRITICAL Bug (Nov 10, 2025 - 08:38)
+- [x] Homepage JSON parsing error: "Unexpected token '<', "<!doctype "... is not valid JSON"
+- [x] Server returning HTML error page instead of JSON for tRPC queries
+- [x] Fixed: Server was crashed due to memory issues, restarted successfully
+
+
+## CRITICAL Calculation Errors (Nov 10, 2025 - 08:45)
+- [x] Cash Position shows CHF -251'049 (negative, impossible)
+- [x] Swiss Re sold on 09.11 at cost price shows -54.2% Live Performance (should be 0%)
+- [x] Total portfolio value CHF 2'348 with CHF 261'049 invested shows -76.5% (unrealistic)
+- [x] Sell transactions not properly adding proceeds to cash
+- [x] Live Performance calculation incorrect for positions with sells
+- [x] Fixed: cash = deposits - withdrawals + sell_proceeds - current_invested
+- [x] Fixed: Sold positions (0 shares) no longer appear in table
+- [x] Fixed: totalInvested reduces proportionally when selling (using avg buy price)
