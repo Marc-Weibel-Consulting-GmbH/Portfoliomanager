@@ -294,9 +294,22 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     </td>
                     {/* Betrag in CHF (vor Gebühren) */}
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
-                      {tx.totalAmountCHF 
-                        ? `CHF ${(parseFloat(tx.totalAmountCHF) + parseFloat(tx.fees || '0')).toFixed(2)}`
-                        : "-"}
+                      {(() => {
+                        // If totalAmountCHF exists, use it
+                        if (tx.totalAmountCHF) {
+                          return `CHF ${(parseFloat(tx.totalAmountCHF) + parseFloat(tx.fees || '0')).toFixed(2)}`;
+                        }
+                        // Otherwise, calculate from totalAmount and fxRate
+                        if (tx.totalAmount && tx.fxRate) {
+                          const amountCHF = parseFloat(tx.totalAmount) * parseFloat(tx.fxRate) + parseFloat(tx.fees || '0');
+                          return `CHF ${amountCHF.toFixed(2)}`;
+                        }
+                        // If currency is CHF, use totalAmount directly
+                        if (tx.totalAmount && tx.currency === 'CHF') {
+                          return `CHF ${(parseFloat(tx.totalAmount) + parseFloat(tx.fees || '0')).toFixed(2)}`;
+                        }
+                        return "-";
+                      })()}
                     </td>
                     {/* Realisierter Gewinn (nur bei Verkauf) */}
                     <td className="py-3 px-2 text-sm text-right">

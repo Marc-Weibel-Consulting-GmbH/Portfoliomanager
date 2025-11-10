@@ -559,3 +559,13 @@
   - Cash position = effectiveDeposits - buyAmounts + sellAmounts
   - Total value = stock value + cash
   - Performance = (total value + realized gains - total invested) / total invested × 100
+
+## Initial Positions Display Issues (Nov 10, 2025 - 20:00)
+- [x] MONC.MI shows no "Betrag (CHF)" value despite having "Netto (CHF)" CHF 3'732.48
+- [x] Problem: totalAmountCHF was NULL/empty for MONC.MI transaction
+- [x] Fix: Calculate from totalAmount * fxRate when totalAmountCHF is missing
+- [x] Sum of initial positions: ~CHF 40'000 (manual count)
+- [x] Frontseite shows: CHF 45'010 (correct sum from DB)
+- [x] Total investiert in Portfolio Positionen: CHF 48'622 (includes later buys)
+- [x] Discrepancy explained: CHF 48'622 - CHF 45'010 = CHF 3'612 from 2 later buy transactions
+- [x] All initial capital accounted for
