@@ -6,6 +6,8 @@ interface PerformanceSummary {
   year: number;
   unrealizedGains: number;
   realizedGains: number;
+  realizedStockGains?: number;
+  realizedFxGains?: number;
   dividendIncome: number;
   totalFees: number;
   netPerformance: number;
@@ -106,9 +108,26 @@ export default function AnnualPerformanceSummary({
                 <p className={`text-2xl font-bold ${summary.realizedGains >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {formatCurrency(summary.realizedGains)}
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Aus Verkäufen
-                </p>
+                {summary.realizedStockGains !== undefined && summary.realizedFxGains !== undefined ? (
+                  <div className="text-xs text-slate-400 mt-2 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Aktiengewinne:</span>
+                      <span className={summary.realizedStockGains >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        {formatCurrency(summary.realizedStockGains)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Währungsgewinne:</span>
+                      <span className={summary.realizedFxGains >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        {formatCurrency(summary.realizedFxGains)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-1">
+                    Aus Verkäufen
+                  </p>
+                )}
               </div>
 
               {/* Dividend Income */}

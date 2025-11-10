@@ -1925,16 +1925,19 @@ export const appRouter = router({
               }
             });
             
-            // Fetch current prices and historical prices
+            // Fetch current prices and historical prices (in CHF)
             const db = await getDb();
             if (!db) {
               return portfolio;
             }
             
-            let currentValue = 0;
-            let liveStartValue = 0;
+            const { getStockCurrency, convertToCHF } = await import("./fxHelper");
+            
+            let currentValueCHF = 0;
+            let liveStartValueCHF = 0;
             const liveStartDate = new Date(portfolio.liveStartDate);
             const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+            const todayStr = new Date().toISOString().split('T')[0];
             
             const { historicalPrices } = await import("../drizzle/schema");
             const { eq, and } = await import("drizzle-orm");
@@ -1943,7 +1946,14 @@ export const appRouter = router({
               if (shares > 0) {
                 const stock = await getStockByTicker(ticker);
                 const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
-                currentValue += shares * currentPrice;
+                
+                // Get currency for this stock
+                const currency = await getStockCurrency(ticker);
+                
+                // Convert current value to CHF
+                const currentValueLocal = shares * currentPrice;
+                const currentValueInCHF = await convertToCHF(currentValueLocal, currency, todayStr);
+                currentValueCHF += currentValueInCHF;
                 
                 // Get historical price at live start date
                 const historicalPrice = await db
@@ -1961,13 +1971,16 @@ export const appRouter = router({
                   ? parseFloat(historicalPrice[0].close)
                   : currentPrice;
                 
-                liveStartValue += shares * liveStartPrice;
+                // Convert live start value to CHF
+                const liveStartValueLocal = shares * liveStartPrice;
+                const liveStartValueInCHF = await convertToCHF(liveStartValueLocal, currency, liveStartDateStr);
+                liveStartValueCHF += liveStartValueInCHF;
               }
             }
             
-            // Calculate performance
-            const performance = liveStartValue > 0 
-              ? ((currentValue - liveStartValue) / liveStartValue) * 100 
+            // Calculate performance in CHF
+            const performance = liveStartValueCHF > 0 
+              ? ((currentValueCHF - liveStartValueCHF) / liveStartValueCHF) * 100 
               : 0;
             
             return { ...portfolio, livePerformance: performance };
@@ -3176,9 +3189,11 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           }
         });
         
-        // Get realized gains for the year
+        // Get realized gains for the year with FX breakdown
         const db = await getDb();
         let realizedGainsTotal = 0;
+        let realizedStockGainsTotal = 0;
+        let realizedFxGainsTotal = 0;
         
         if (db) {
           const realizedGainsData = await db
@@ -3194,6 +3209,16 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           
           realizedGainsTotal = realizedGainsData.reduce(
             (sum, rg) => sum + parseFloat(rg.realizedGain || '0'),
+            0
+          );
+          
+          realizedStockGainsTotal = realizedGainsData.reduce(
+            (sum, rg) => sum + parseFloat(rg.stockGainLocal || '0') * parseFloat(rg.sellFxRate || '1'),
+            0
+          );
+          
+          realizedFxGainsTotal = realizedGainsData.reduce(
+            (sum, rg) => sum + parseFloat(rg.fxGain || '0'),
             0
           );
         }
@@ -3223,6 +3248,8 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           year,
           unrealizedGains,
           realizedGains: realizedGainsTotal,
+          realizedStockGains: realizedStockGainsTotal,
+          realizedFxGains: realizedFxGainsTotal,
           dividendIncome,
           totalFees,
           netPerformance,

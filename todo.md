@@ -287,3 +287,28 @@
 - [x] Lösung: Zeitraum auf "nächste 12 Monate ab heute" ändern
 - [x] Server-Endpoint angepasst (dividendCalendar.ts)
 - [x] Von/Bis-Datum dynamisch berechnet (heute bis heute + 365 Tage)
+
+## Währungsumrechnung - Verbleibende Aufgaben (Nov 10, 2025 - 14:15)
+
+### 1. Frontend-Tabelle CHF-Konvertierung
+- [ ] Problem: "Live Perf." Spalte in Portfolio-Positionen verwendet noch Originalwährung
+- [ ] Lösung: holdingsByTicker Berechnung auf CHF umstellen
+- [ ] Wechselkurse vom Live-Start-Datum und heute abrufen
+- [ ] totalInvested und currentValue in CHF berechnen
+- [ ] Performance = (currentValueCHF - liveStartValueCHF) / liveStartValueCHF * 100
+
+### 2. Verkaufs-Pop-up Währungsaufteilung
+- [x] RealizedGainModal erweitert mit FX-Breakdown-Sektion:
+  - [x] Aktiengewinn: (Verkaufspreis - Kaufpreis) in Originalwährung
+  - [x] Aktiengewinn in CHF (mit aktuellem Wechselkurs)
+  - [x] Währungsgewinn: Differenz durch FX-Entwicklung in CHF
+  - [x] Wechselkurse beim Kauf und Verkauf angezeigt
+- [x] Berechnung in createPortfolioTransaction angepasst
+- [x] realizedGains Tabelle mit stockGainLocal, fxGain, currency, buyFxRate, sellFxRate gefüllt
+
+### 3. Jahres-Performance-Report finalisieren
+- [ ] AnnualPerformanceSummary erweitern:
+  - [ ] Separate Zeile "Aktiengewinne/-verluste (realisiert)"
+  - [ ] Separate Zeile "Währungsgewinne/-verluste"
+  - [ ] Summe aus realizedGains.stockGainLocal und realizedGains.fxGain
+- [ ] Server-Endpoint annualPerformance anpassen

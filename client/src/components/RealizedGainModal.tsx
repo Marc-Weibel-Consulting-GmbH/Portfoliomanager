@@ -13,6 +13,12 @@ interface RealizedGainModalProps {
     avgCostBasis: number;
     sellPrice: number;
     shares: number;
+    stockGainLocal?: number;
+    stockGainCHF?: number;
+    fxGain?: number;
+    currency?: string;
+    buyFxRate?: number;
+    sellFxRate?: number;
   };
 }
 
@@ -72,22 +78,56 @@ export function RealizedGainModal({
             </div>
             <div className="flex justify-between text-slate-300">
               <span>Ø Kaufpreis:</span>
-              <span className="font-mono">CHF {realizedGain.avgCostBasis.toFixed(2)}</span>
+              <span className="font-mono">{realizedGain.currency || 'CHF'} {realizedGain.avgCostBasis.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-300">
               <span>Verkaufspreis:</span>
-              <span className="font-mono">CHF {realizedGain.sellPrice.toFixed(2)}</span>
+              <span className="font-mono">{realizedGain.currency || 'CHF'} {realizedGain.sellPrice.toFixed(2)}</span>
             </div>
             <div className="border-t border-slate-700 pt-3"></div>
             <div className="flex justify-between text-slate-400">
               <span>Ursprüngliche Kosten:</span>
-              <span className="font-mono">CHF {totalCostBasis.toFixed(2)}</span>
+              <span className="font-mono">{realizedGain.currency || 'CHF'} {totalCostBasis.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-400">
               <span>Verkaufserlös:</span>
-              <span className="font-mono">CHF {totalSaleAmount.toFixed(2)}</span>
+              <span className="font-mono">{realizedGain.currency || 'CHF'} {totalSaleAmount.toFixed(2)}</span>
             </div>
           </div>
+
+          {/* FX Breakdown (only if currency data available) */}
+          {realizedGain.currency && realizedGain.currency !== 'CHF' && (
+            <div className="space-y-3 text-sm bg-slate-900 p-4 rounded-lg">
+              <div className="text-slate-300 font-semibold mb-2">Gewinn/Verlust Aufteilung:</div>
+              <div className="flex justify-between text-slate-300">
+                <span>Aktiengewinn ({realizedGain.currency}):</span>
+                <span className={`font-mono ${(realizedGain.stockGainLocal || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {(realizedGain.stockGainLocal || 0) >= 0 ? '+' : ''}{realizedGain.currency} {(realizedGain.stockGainLocal || 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>Aktiengewinn (CHF):</span>
+                <span className={`font-mono ${(realizedGain.stockGainCHF || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {(realizedGain.stockGainCHF || 0) >= 0 ? '+' : ''}CHF {(realizedGain.stockGainCHF || 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span>Währungsgewinn/-verlust:</span>
+                <span className={`font-mono ${(realizedGain.fxGain || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {(realizedGain.fxGain || 0) >= 0 ? '+' : ''}CHF {(realizedGain.fxGain || 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="border-t border-slate-700 pt-2 mt-2"></div>
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Wechselkurs beim Kauf:</span>
+                <span className="font-mono">{realizedGain.currency}/CHF {(realizedGain.buyFxRate || 0).toFixed(4)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Wechselkurs beim Verkauf:</span>
+                <span className="font-mono">{realizedGain.currency}/CHF {(realizedGain.sellFxRate || 0).toFixed(4)}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end">

@@ -605,19 +605,46 @@ export async function createPortfolioTransaction(transaction: any) {
       const sellPrice = parseFloat(transaction.pricePerShare || '0');
       const sharesSold = parseFloat(transaction.shares || '0');
       
-      // Calculate realized gain/loss
-      const realizedGain = (sellPrice - avgCostBasis) * sharesSold;
+      // Get stock currency and FX rates for gain/loss breakdown
+      const { getStockCurrency, getFxRate } = await import("./fxHelper");
+      const currency = await getStockCurrency(transaction.ticker);
+      
+      // Get average buy date (weighted by shares) for FX rate calculation
+      const avgBuyDate = buyTransactions.length > 0 
+        ? buyTransactions[0].transactionDate 
+        : transaction.transactionDate;
+      const avgBuyDateStr = new Date(avgBuyDate).toISOString().split('T')[0];
+      const sellDateStr = new Date(transaction.transactionDate).toISOString().split('T')[0];
+      
+      const buyFxRate = await getFxRate(currency, avgBuyDateStr);
+      const sellFxRate = await getFxRate(currency, sellDateStr);
+      
+      // Calculate stock gain in local currency
+      const stockGainLocal = (sellPrice - avgCostBasis) * sharesSold;
+      
+      // Calculate FX gain: (sellPrice * sellFxRate - avgCostBasis * buyFxRate) * shares - stockGainLocal * sellFxRate
+      const avgCostBasisCHF = avgCostBasis * buyFxRate;
+      const sellPriceCHF = sellPrice * sellFxRate;
+      const totalGainCHF = (sellPriceCHF - avgCostBasisCHF) * sharesSold;
+      const stockGainCHF = stockGainLocal * sellFxRate;
+      const fxGain = totalGainCHF - stockGainCHF;
+      
       const realizedGainPercent = avgCostBasis > 0 ? ((sellPrice - avgCostBasis) / avgCostBasis) * 100 : 0;
       
       console.log("[DB] Realized gain calculation:", {
         avgCostBasis,
         sellPrice,
         sharesSold,
-        realizedGain,
-        realizedGainPercent
+        stockGainLocal,
+        stockGainCHF,
+        fxGain,
+        totalGainCHF,
+        buyFxRate,
+        sellFxRate,
+        currency
       });
       
-      // Save realized gain/loss to database
+      // Save realized gain/loss to database with FX breakdown
       await db.insert(realizedGains).values({
         portfolioId: transaction.portfolioId,
         transactionId: transactionId,
@@ -625,18 +652,29 @@ export async function createPortfolioTransaction(transaction: any) {
         shares: transaction.shares,
         avgCostBasis: avgCostBasis.toFixed(2),
         sellPrice: sellPrice.toFixed(2),
-        realizedGain: realizedGain.toFixed(2),
+        realizedGain: totalGainCHF.toFixed(2),
         realizedGainPercent: realizedGainPercent.toFixed(2),
         transactionDate: transaction.transactionDate,
+        stockGainLocal: stockGainLocal.toFixed(2),
+        fxGain: fxGain.toFixed(2),
+        currency: currency,
+        buyFxRate: buyFxRate.toFixed(4),
+        sellFxRate: sellFxRate.toFixed(4),
       });
       
       // Add realized gain data to return value for UI display
       returnValue.realizedGain = {
-        amount: realizedGain,
+        amount: totalGainCHF,
         percent: realizedGainPercent,
         avgCostBasis: avgCostBasis,
         sellPrice: sellPrice,
         shares: sharesSold,
+        stockGainLocal: stockGainLocal,
+        stockGainCHF: stockGainCHF,
+        fxGain: fxGain,
+        currency: currency,
+        buyFxRate: buyFxRate,
+        sellFxRate: sellFxRate,
       };
       
       console.log("[DB] Realized gain saved successfully");
