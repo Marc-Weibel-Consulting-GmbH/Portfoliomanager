@@ -712,12 +712,37 @@ export async function getPortfolioTransactions(portfolioId: number) {
   if (!db) return [];
   
   try {
-    const { portfolioTransactions } = await import("../drizzle/schema");
+    const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");
+    
+    // Get transactions with realized gains data (LEFT JOIN)
     const transactions = await db
-      .select()
+      .select({
+        id: portfolioTransactions.id,
+        portfolioId: portfolioTransactions.portfolioId,
+        transactionType: portfolioTransactions.transactionType,
+        ticker: portfolioTransactions.ticker,
+        shares: portfolioTransactions.shares,
+        pricePerShare: portfolioTransactions.pricePerShare,
+        currency: portfolioTransactions.currency,
+        totalAmount: portfolioTransactions.totalAmount,
+        fxRate: portfolioTransactions.fxRate,
+        totalAmountCHF: portfolioTransactions.totalAmountCHF,
+        fees: portfolioTransactions.fees,
+        notes: portfolioTransactions.notes,
+        transactionDate: portfolioTransactions.transactionDate,
+        createdAt: portfolioTransactions.createdAt,
+        // Add realized gain data from join
+        realizedGain: realizedGains.realizedGain,
+        realizedGainPercent: realizedGains.realizedGainPercent,
+      })
       .from(portfolioTransactions)
+      .leftJoin(
+        realizedGains,
+        eq(portfolioTransactions.id, realizedGains.transactionId)
+      )
       .where(eq(portfolioTransactions.portfolioId, portfolioId))
       .orderBy(sql`${portfolioTransactions.transactionDate} DESC`);
+    
     return transactions;
   } catch (error) {
     console.error("[Database] Failed to get portfolio transactions:", error);

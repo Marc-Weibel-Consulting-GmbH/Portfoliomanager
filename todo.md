@@ -407,3 +407,23 @@
 - [x] Annual Performance Modal zeigt jetzt Daten korrekt an
 - [x] Fehlerbehandlung im Modal verbessert (zeigt Fehler statt automatisch zu schließen)
 - [x] calculateLivePerformance Logik inline in annualPerformance.getSummary implementiert
+
+## Transaktionshistorie erweitern mit FX-Details (Nov 10, 2025)
+- [ ] Datenbank-Schema erweitern: currency, fxRate Felder zu portfolioTransactions
+- [ ] TransactionModal: Währung und FX-Rate beim Speichern erfassen
+- [ ] TransactionHistory: Neue Spalten hinzufügen:
+  - Betrag in Fremdwährung (z.B. USD 3'200)
+  - FX-Kurs (z.B. 0.8900)
+  - Betrag in CHF (z.B. CHF 2'848)
+  - Realisierter Gewinn CHF (nur bei Verkauf, z.B. +CHF 450)
+  - Transaktionskosten CHF (z.B. -CHF 50)
+  - Nettobetrag CHF (z.B. CHF 2'798) - wird Cash-Konto gutgeschrieben
+- [ ] Fix: JNJ Verkauf zeigt CHF 200 statt USD 200 - Währung korrigieren
+
+## CRITICAL: Nettobetrag Berechnung falsch (Nov 10, 2025)
+- [x] Verkauf JNJ: Nettobetrag zeigt CHF 2'628.88 statt CHF 2'528.88
+- [x] Gebühren werden ADDIERT statt SUBTRAHIERT bei Verkäufen
+- [x] Problem gefunden: TransactionModal Preview addiert Gebühren für alle Transaktionstypen
+- [x] Fix: Gebühren werden jetzt bei Verkäufen subtrahiert (buy: +fees, sell: -fees)
+- [x] TransactionHistory Tabelle erweitert mit FX-Details (FW-Betrag, FX-Rate, CHF-Betrag, Gebühren, Netto)
+- [ ] Alte Transaktionen in DB korrigieren (totalAmountCHF muss neu berechnet werden)

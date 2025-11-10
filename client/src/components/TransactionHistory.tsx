@@ -243,16 +243,19 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                   <th className="text-left py-3 px-2 text-slate-400 font-medium">Ticker</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">Anzahl</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">Preis</th>
+                  <th className="text-right py-3 px-2 text-slate-400 font-medium">Betrag (FW)</th>
+                  <th className="text-center py-3 px-2 text-slate-400 font-medium">FX Rate</th>
+                  <th className="text-right py-3 px-2 text-slate-400 font-medium">Betrag (CHF)</th>
+                  <th className="text-right py-3 px-2 text-slate-400 font-medium">Real. Gewinn</th>
+                  <th className="text-right py-3 px-2 text-slate-400 font-medium">Gebühren</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">
                     <button
                       onClick={() => toggleSort("amount")}
-                      className="flex items-center gap-1 hover:text-white transition-colors ml-auto"
-                    >
-                      Betrag (CHF)
+                      className="flex items-center gap-1 hover:text-white transition-colors ml-auto">
+                      Netto (CHF)
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-center py-3 px-2 text-slate-400 font-medium">FX Rate</th>
                   <th className="text-left py-3 px-2 text-slate-400 font-medium">Notizen</th>
                   <th className="text-center py-3 px-2 text-slate-400 font-medium">Aktion</th>
                 </tr>
@@ -279,14 +282,41 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
                       {tx.pricePerShare ? `${tx.currency || 'CHF'} ${parseFloat(tx.pricePerShare).toFixed(2)}` : "-"}
                     </td>
+                    {/* Betrag in Fremdwährung */}
+                    <td className="py-3 px-2 text-slate-300 text-sm text-right">
+                      {(tx.transactionType === 'buy' || tx.transactionType === 'sell') && tx.totalAmount && tx.currency
+                        ? `${tx.currency} ${parseFloat(tx.totalAmount).toFixed(2)}`
+                        : "-"}
+                    </td>
+                    {/* FX Rate */}
+                    <td className="py-3 px-2 text-slate-400 text-sm text-center">
+                      {tx.fxRate && tx.currency !== 'CHF' ? parseFloat(tx.fxRate).toFixed(4) : '-'}
+                    </td>
+                    {/* Betrag in CHF (vor Gebühren) */}
+                    <td className="py-3 px-2 text-slate-300 text-sm text-right">
+                      {tx.totalAmountCHF 
+                        ? `CHF ${(parseFloat(tx.totalAmountCHF) + parseFloat(tx.fees || '0')).toFixed(2)}`
+                        : "-"}
+                    </td>
+                    {/* Realisierter Gewinn (nur bei Verkauf) */}
+                    <td className="py-3 px-2 text-sm text-right">
+                      {tx.transactionType === 'sell' && tx.realizedGain
+                        ? <span className={parseFloat(tx.realizedGain) >= 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                            {parseFloat(tx.realizedGain) >= 0 ? '+' : ''}CHF {parseFloat(tx.realizedGain).toFixed(2)}
+                          </span>
+                        : <span className="text-slate-500">-</span>}
+                    </td>
+                    {/* Gebühren */}
+                    <td className="py-3 px-2 text-red-400 text-sm text-right">
+                      {tx.fees && parseFloat(tx.fees) > 0 ? `-CHF ${parseFloat(tx.fees).toFixed(2)}` : '-'}
+                    </td>
+                    {/* Nettobetrag in CHF */}
                     <td className={`py-3 px-2 text-sm text-right font-semibold ${
                       parseFloat(tx.totalAmountCHF || tx.totalAmount) >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
                       CHF {parseFloat(tx.totalAmountCHF || tx.totalAmount).toFixed(2)}
                     </td>
-                    <td className="py-3 px-2 text-slate-400 text-sm text-center">
-                      {tx.fxRate && tx.currency !== 'CHF' ? parseFloat(tx.fxRate).toFixed(4) : '-'}
-                    </td>
+                    {/* Notizen */}
                     <td className="py-3 px-2 text-slate-400 text-sm truncate max-w-xs">
                       {tx.notes || "-"}
                     </td>

@@ -179,7 +179,12 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
       ticker: ticker || null,
       shares: shares || null,
       pricePerShare: pricePerShare || null,
-      totalAmount: finalTotalAmount,
+      currency: stockData?.currency || "CHF",
+      fxRate: (stockData?.currency && stockData.currency !== 'CHF' && fxData) ? fxData.rate.toString() : "1.0",
+      totalAmountCHF: finalTotalAmount,
+      totalAmount: (transactionType === "buy" || transactionType === "sell") 
+        ? (parseFloat(shares) * parseFloat(pricePerShare)).toFixed(2)
+        : finalTotalAmount,
       fees: fees || "0",
       notes: notes || null,
       transactionDate: new Date(transactionDate),
@@ -381,7 +386,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
                   CHF {(
                     (stockData?.currency && stockData.currency !== 'CHF' && fxData
                       ? parseFloat(shares) * parseFloat(pricePerShare) * fxData.rate
-                      : parseFloat(shares) * parseFloat(pricePerShare)) + parseFloat(fees || "0")
+                      : parseFloat(shares) * parseFloat(pricePerShare)) + (transactionType === "buy" ? parseFloat(fees || "0") : -parseFloat(fees || "0"))
                   ).toFixed(2)}
                 </p>
               </div>
