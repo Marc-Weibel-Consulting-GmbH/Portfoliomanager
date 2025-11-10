@@ -2266,7 +2266,7 @@ export const appRouter = router({
         transactions.forEach((tx: any) => {
           const shares = parseFloat(tx.shares || '0');
           const price = parseFloat(tx.pricePerShare || '0');
-          const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+          const amount = parseFloat(tx.totalAmountCHF || '0');
           const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
           const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
           

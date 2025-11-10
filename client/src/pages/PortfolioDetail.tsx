@@ -116,7 +116,7 @@ export default function PortfolioDetail() {
 
     // Calculate total invested in stocks from holdings (current cost basis in CHF)
     let totalInvestedInStocks = 0;
-    if (portfolio.isLive && chfHoldings.length > 0) {
+    if (portfolio?.isLive && chfHoldings.length > 0) {
       // For live portfolios, sum totalInvestedCHF from chfHoldings
       chfHoldings.forEach((holding: any) => {
         totalInvestedInStocks += parseFloat(holding.totalInvestedCHF || '0');
@@ -137,7 +137,7 @@ export default function PortfolioDetail() {
       totalInvestedInStocks,
       cashPosition
     };
-  }, [transactions, holdingsByTicker]);
+  }, [transactions, holdingsByTicker, chfHoldings, portfolio?.isLive]);
 
   // Toggle live mutation
   const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation({

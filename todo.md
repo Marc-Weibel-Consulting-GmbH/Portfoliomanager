@@ -675,8 +675,14 @@
 
 
 ## Bug: Portfolio Card Shows Wrong Investiert Value (Nov 10, 2025 - 21:00)
-- [x] Portfolio card shows "Investiert (Aktien)" CHF 40'221.95
+- [x] Portfolio card showed "Investiert (Aktien)" CHF 40'221.95
 - [x] Should show CHF 44'174 (matching Portfolio Positionen table)
-- [x] Frontend portfolioSummary now sums totalInvestedCHF from chfHoldings
-- [x] Backend livePerformance.totalInvested is correct (CHF 44'174)
-- [x] Frontend now uses CHF values from backend instead of recalculating
+- [x] Problem: Backend used tx.totalAmount (local currency) as fallback instead of only tx.totalAmountCHF
+- [x] Fixed calculateLivePerformance to only use totalAmountCHF (no fallback to totalAmount)
+- [x] Now correctly shows CHF 44'174
+
+
+## Bug: TypeError portfolio.isLive undefined (Nov 10, 2025 - 21:05)
+- [x] portfolioSummary useMemo accesses portfolio.isLive before portfolio is loaded
+- [x] Added null check with portfolio?.isLive
+- [x] Added chfHoldings and portfolio?.isLive to dependencies
