@@ -634,3 +634,8 @@
 - [x] Portfolio card uses yearSummary but it's not loaded
 - [x] Created portfolioSummary memo to calculate from transactions
 - [x] Use livePerformance data when available, fallback to portfolioSummary
+
+## Bug: Portfolio Card Shows Wrong Total (Nov 10, 2025 - 20:20)
+- [x] Total shows deposits (CHF 5'826) instead of Invested + Cash (CHF 50'000)
+- [x] Should display: Investiert CHF 44'173.22, Cash CHF 5'826.47, Total CHF 50'000
+- [x] Total = Invested + Cash (not deposits)

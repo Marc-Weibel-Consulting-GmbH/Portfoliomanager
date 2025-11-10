@@ -360,7 +360,10 @@ export default function PortfolioDetail() {
                 <div className="flex justify-between items-center pt-2 border-t border-slate-700">
                   <span className="text-xs text-slate-400">Total</span>
                   <span className="text-lg font-bold text-white">
-                    CHF {(livePerformance?.totalDeposits ?? portfolioSummary.totalDeposits)?.toLocaleString('de-CH') || '0'}
+                    CHF {(
+                      (livePerformance?.totalInvested ?? portfolioSummary.totalInvestedInStocks) + 
+                      (livePerformance?.cashPosition ?? portfolioSummary.cashPosition)
+                    )?.toLocaleString('de-CH') || '0'}
                   </span>
                 </div>
               </div>
