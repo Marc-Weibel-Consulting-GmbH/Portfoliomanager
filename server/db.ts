@@ -481,29 +481,59 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
         
         console.log('[ToggleLive] Creating initial buy transactions for', stocks.length, 'positions');
         
+        // Get historical prices for the live start date
+        const { historicalPrices, portfolioTransactions } = await import("../drizzle/schema");
+        const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+        
         // Create initial buy transaction for each position
-        const { portfolioTransactions } = await import("../drizzle/schema");
         for (const stock of stocks) {
           const ticker = stock.ticker || stock.symbol;
           const shares = parseFloat(stock.shares || '0');
-          const currentPrice = parseFloat(stock.currentPrice || stock.price || '0');
           
-          if (ticker && shares > 0 && currentPrice > 0) {
-            const totalAmount = (shares * currentPrice).toFixed(2);
+          if (ticker && shares > 0) {
+            // Try to get historical price for the live start date
+            let priceToUse = parseFloat(stock.currentPrice || stock.price || '0');
             
-            await db.insert(portfolioTransactions).values({
-              portfolioId: id,
-              transactionType: 'buy',
-              ticker: ticker,
-              shares: shares.toString(),
-              pricePerShare: currentPrice.toString(),
-              totalAmount: totalAmount,
-              fees: '0',
-              notes: 'Initial position when switched to live',
-              transactionDate: liveStartDate,
-            });
+            try {
+              const historicalPrice = await db
+                .select()
+                .from(historicalPrices)
+                .where(
+                  and(
+                    eq(historicalPrices.ticker, ticker),
+                    eq(historicalPrices.date, liveStartDateStr)
+                  )
+                )
+                .limit(1);
+              
+              if (historicalPrice[0]?.close) {
+                priceToUse = parseFloat(historicalPrice[0].close);
+                console.log(`[ToggleLive] Using historical price for ${ticker} on ${liveStartDateStr}: ${priceToUse}`);
+              } else {
+                console.log(`[ToggleLive] No historical price found for ${ticker} on ${liveStartDateStr}, using current price: ${priceToUse}`);
+              }
+            } catch (err) {
+              console.error(`[ToggleLive] Error fetching historical price for ${ticker}:`, err);
+              // Fall back to current price
+            }
             
-            console.log(`[ToggleLive] Created initial buy: ${ticker} x ${shares} @ ${currentPrice}`);
+            if (priceToUse > 0) {
+              const totalAmount = (shares * priceToUse).toFixed(2);
+              
+              await db.insert(portfolioTransactions).values({
+                portfolioId: id,
+                transactionType: 'buy',
+                ticker: ticker,
+                shares: shares.toString(),
+                pricePerShare: priceToUse.toString(),
+                totalAmount: totalAmount,
+                fees: '0',
+                notes: `Initial position (price from ${liveStartDateStr})`,
+                transactionDate: liveStartDate,
+              });
+              
+              console.log(`[ToggleLive] Created initial buy: ${ticker} x ${shares} @ ${priceToUse}`);
+            }
           }
         }
       }

@@ -2059,19 +2059,98 @@ export const appRouter = router({
         throw new Error("Invalid update data");
       })
       .mutation(async ({ input, ctx }) => {
-        const { getDb } = await import("./db");
+        const { getDb, getSavedPortfolioById } = await import("./db");
         const db = await getDb();
         if (!db) {
           throw new Error("Database not available");
         }
         
-        const { savedPortfolios } = await import("../drizzle/schema");
+        const { savedPortfolios, portfolioTransactions, historicalPrices } = await import("../drizzle/schema");
         const { eq, and } = await import("drizzle-orm");
+        
+        // Get portfolio to check if it's live and has data
+        const portfolio = await getSavedPortfolioById(input.id, ctx.user.id);
+        if (!portfolio || !portfolio.isLive) {
+          throw new Error("Portfolio not found or not in live mode");
+        }
+        
+        const newLiveStartDate = new Date(input.liveStartDate);
+        const newLiveStartDateStr = newLiveStartDate.toISOString().split('T')[0];
+        
+        // Delete all existing initial transactions (those with notes containing "Initial position")
+        await db
+          .delete(portfolioTransactions)
+          .where(
+            and(
+              eq(portfolioTransactions.portfolioId, input.id),
+              eq(portfolioTransactions.transactionType, 'buy')
+            )
+          );
+        
+        console.log('[UpdateLiveStartDate] Deleted existing initial transactions');
+        
+        // Recreate initial transactions with new date and historical prices
+        if (portfolio.portfolioData) {
+          const portfolioData = JSON.parse(portfolio.portfolioData);
+          const stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+          
+          console.log('[UpdateLiveStartDate] Creating new initial transactions for', stocks.length, 'positions with date', newLiveStartDateStr);
+          
+          for (const stock of stocks) {
+            const ticker = stock.ticker || stock.symbol;
+            const shares = parseFloat(stock.shares || '0');
+            
+            if (ticker && shares > 0) {
+              // Try to get historical price for the new live start date
+              let priceToUse = parseFloat(stock.currentPrice || stock.price || '0');
+              
+              try {
+                const historicalPrice = await db
+                  .select()
+                  .from(historicalPrices)
+                  .where(
+                    and(
+                      eq(historicalPrices.ticker, ticker),
+                      eq(historicalPrices.date, newLiveStartDateStr)
+                    )
+                  )
+                  .limit(1);
+                
+                if (historicalPrice[0]?.close) {
+                  priceToUse = parseFloat(historicalPrice[0].close);
+                  console.log(`[UpdateLiveStartDate] Using historical price for ${ticker} on ${newLiveStartDateStr}: ${priceToUse}`);
+                } else {
+                  console.log(`[UpdateLiveStartDate] No historical price found for ${ticker} on ${newLiveStartDateStr}, using current price: ${priceToUse}`);
+                }
+              } catch (err) {
+                console.error(`[UpdateLiveStartDate] Error fetching historical price for ${ticker}:`, err);
+              }
+              
+              if (priceToUse > 0) {
+                const totalAmount = (shares * priceToUse).toFixed(2);
+                
+                await db.insert(portfolioTransactions).values({
+                  portfolioId: input.id,
+                  transactionType: 'buy',
+                  ticker: ticker,
+                  shares: shares.toString(),
+                  pricePerShare: priceToUse.toString(),
+                  totalAmount: totalAmount,
+                  fees: '0',
+                  notes: `Initial position (price from ${newLiveStartDateStr})`,
+                  transactionDate: newLiveStartDate,
+                });
+                
+                console.log(`[UpdateLiveStartDate] Created initial buy: ${ticker} x ${shares} @ ${priceToUse}`);
+              }
+            }
+          }
+        }
         
         // Update the liveStartDate
         await db
           .update(savedPortfolios)
-          .set({ liveStartDate: new Date(input.liveStartDate) })
+          .set({ liveStartDate: newLiveStartDate })
           .where(
             and(
               eq(savedPortfolios.id, input.id),

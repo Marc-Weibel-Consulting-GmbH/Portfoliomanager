@@ -178,3 +178,13 @@
 - [x] Fixed: Added type check before calling toFixed() in Home.tsx
 - [x] Fixed: Updated savedPortfolios.list to calculate live performance for each portfolio
 - [x] Both overview and detail views now show synchronized live performance
+
+## NEW: Initial Transactions beim Live-Tracking (Nov 10, 2025 - 12:00)
+- [x] Problem: Keine Transaktionen beim Umschalten auf LIVE → Performance kann nicht berechnet werden
+- [x] Lösung: Automatisch initiale Kauf-Transaktionen erstellen beim Aktivieren von LIVE
+- [x] Transaktionen basieren auf Portfolio-Daten (Optimizer-Ergebnisse)
+- [x] Kurse vom Live-Start-Datum verwenden (aus historicalPrices Tabelle)
+- [x] Anzahl Aktien aus portfolioData.shares verwenden
+- [x] Transaktionsdatum = liveStartDate
+- [x] updateLiveStartDate löscht alte Transaktionen und erstellt neue mit neuem Datum
+- [x] Historische Kurse werden für jedes neue Datum geladen
