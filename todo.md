@@ -232,12 +232,25 @@
 - [x] Visuelle Darstellung mit Farben (grün/rot)
 - [x] Berechnungsformel erklärt
 ## CRITICAL: Live Performance Bug bei Teilverkäufen (Nov 10, 2025 - 12:30)
-- [ ] Live Performance zeigt -39.2% nach Teilverkauf von EOS (109 von 209 Aktien)
-- [ ] Problem: Performance-Berechnung verwendet ursprüngliche Aktienanzahl statt aktueller Bestand
-- [ ] Verkauf: 109 Aktien zu CHF 18.26 = CHF 1'990.34
-- [ ] Verbleibend: 100 Aktien (sollte in Performance-Berechnung verwendet werden)
-- [ ] Fix: calculateLivePerformance muss aktuelle Holdings aus Transaktionen verwenden
-- [ ] Verkäufe sollten erfolgsneutral sein (nur Transaktionskosten beeinflussen Performance)
+- [x] Live Performance zeigt -39.2% nach Teilverkauf von EOS (109 von 209 Aktien)
+- [x] Problem: Performance-Berechnung verwendet ursprüngliche Aktienanzahl statt aktueller Bestand
+- [x] Verkauf: 109 Aktien zu CHF 18.26 = CHF 1'990.34
+- [x] Verbleibend: 100 Aktien (sollte in Performance-Berechnung verwendet werden)
+- [x] Fix: calculateLivePerformance muss aktuelle Holdings aus Transaktionen verwenden
+- [x] Verkäufe sollten erfolgsneutral sein (nur Transaktionskosten beeinflussen Performance)
+- [x] Implemented formula: Performance = (Current Value + Realized Gains - Total Invested) / Total Invested × 100
+
+## CRITICAL: Live Performance Inconsistencies (Nov 10, 2025 - 17:15)
+- [x] Live Performance shows different values at three locations
+- [x] Location 1: Portfolio Optimizer overview card
+- [x] Location 2: Portfolio Detail header
+- [x] Location 3: Individual stock positions in table
+- [x] Error: "portfolioId is not defined" when calling calculateLivePerformance
+- [x] Fix: Ensure all three locations use same calculation method
+- [x] Fix: Individual stock performance must include realized gains per ticker
+- [x] Fix: Pass portfolioId parameter correctly to all queries
+- [x] All three locations now use: (currentValue + realizedGains - totalInvested) / totalInvested × 100
+- [x] Individual stock performance includes realized gains per ticker from realizedGains table
 
 ## NEW: Währungsumrechnung für Performance-Berechnungen (Nov 10, 2025 - 13:00)
 

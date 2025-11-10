@@ -1915,14 +1915,39 @@ export const appRouter = router({
               return { ...portfolio, livePerformance: 0 };
             }
             
-            // Calculate holdings from transactions
+            // Calculate holdings and total invested from transactions
             const holdings: Record<string, number> = {};
+            const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
+            let totalInvested = 0;
+            
             transactions.forEach((tx: any) => {
               const shares = parseFloat(tx.shares || '0');
+              const price = parseFloat(tx.pricePerShare || '0');
+              const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+              
               if (tx.transactionType === 'buy') {
                 holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+                totalInvested += amount;
+                // Track cost basis
+                if (!costBasis[tx.ticker]) {
+                  costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
+                }
+                costBasis[tx.ticker].totalCost += amount;
+                costBasis[tx.ticker].totalShares += shares;
               } else if (tx.transactionType === 'sell') {
                 holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+                // Reduce totalInvested by cost basis of sold shares
+                if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
+                  const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
+                  const soldCost = shares * avgCost;
+                  totalInvested -= soldCost;
+                  costBasis[tx.ticker].totalCost -= soldCost;
+                  costBasis[tx.ticker].totalShares -= shares;
+                }
+              } else if (tx.transactionType === 'deposit') {
+                totalInvested += amount;
+              } else if (tx.transactionType === 'withdrawal') {
+                totalInvested += amount; // amount is negative
               }
             });
             
@@ -1940,7 +1965,7 @@ export const appRouter = router({
             const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
             const todayStr = new Date().toISOString().split('T')[0];
             
-            const { historicalPrices } = await import("../drizzle/schema");
+            const { historicalPrices, realizedGains } = await import("../drizzle/schema");
             const { eq, and } = await import("drizzle-orm");
             
             for (const [ticker, shares] of Object.entries(holdings)) {
@@ -1979,9 +2004,21 @@ export const appRouter = router({
               }
             }
             
-            // Calculate performance in CHF
-            const performance = liveStartValueCHF > 0 
-              ? ((currentValueCHF - liveStartValueCHF) / liveStartValueCHF) * 100 
+            // Fetch realized gains for this portfolio
+            let totalRealizedGains = 0;
+            
+            const gains = await db
+              .select()
+              .from(realizedGains)
+              .where(eq(realizedGains.portfolioId, portfolio.id));
+            
+            // Sum all realized gains (totalGainCHF includes stock gain + FX gain - fees)
+            totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.totalGainCHF || '0'), 0);
+            
+            // Calculate performance including realized gains:
+            // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
+            const performance = totalInvested > 0 
+              ? ((currentValueCHF + totalRealizedGains - totalInvested) / totalInvested) * 100 
               : 0;
             
             return { ...portfolio, livePerformance: performance };
@@ -2334,17 +2371,17 @@ export const appRouter = router({
         }
         throw new Error("Invalid portfolio ID");
       })
-      .query(async ({ input, ctx }) => {
-        const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker } = await import("./db");
+      .query(async ({ input: portfolioId, ctx }) => {
+        const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("./db");
         const { getStockCurrency, convertToCHF } = await import("./fxHelper");
         
         // Get portfolio and transactions
-        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
         if (!portfolio || !portfolio.isLive || !portfolio.liveStartDate) {
           return [];
         }
         
-        const transactions = await getPortfolioTransactions(input);
+        const transactions = await getPortfolioTransactions(portfolioId);
         if (transactions.length === 0) {
           return [];
         }
@@ -2383,6 +2420,27 @@ export const appRouter = router({
           }
         }
         
+        // Fetch realized gains per ticker for this portfolio
+        const db = await getDb();
+        const realizedGainsByTicker: Record<string, number> = {};
+        
+        if (db) {
+          const { realizedGains } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          
+          const gains = await db
+            .select()
+            .from(realizedGains)
+            .where(eq(realizedGains.portfolioId, portfolioId));
+          
+          // Group realized gains by ticker
+          gains.forEach((gain) => {
+            const ticker = gain.ticker;
+            const totalGain = parseFloat(gain.totalGainCHF || '0');
+            realizedGainsByTicker[ticker] = (realizedGainsByTicker[ticker] || 0) + totalGain;
+          });
+        }
+        
         // Calculate CHF-converted performance for each holding
         const liveStartDate = new Date(portfolio.liveStartDate);
         const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
@@ -2405,9 +2463,13 @@ export const appRouter = router({
           // Convert invested amount to CHF using live start date rate
           const totalInvestedCHF = await convertToCHF(holding.totalInvestedLocal, holding.currency, liveStartDateStr);
           
-          // Calculate CHF performance
+          // Get realized gains for this ticker
+          const realizedGains = realizedGainsByTicker[ticker] || 0;
+          
+          // Calculate CHF performance including realized gains:
+          // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
           const performanceCHF = totalInvestedCHF > 0
-            ? ((currentValueCHF - totalInvestedCHF) / totalInvestedCHF) * 100
+            ? ((currentValueCHF + realizedGains - totalInvestedCHF) / totalInvestedCHF) * 100
             : 0;
           
           holdingsWithPerformance.push({
