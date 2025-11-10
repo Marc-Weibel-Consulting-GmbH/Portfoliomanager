@@ -342,3 +342,13 @@
 - [x] Add "Storno" (delete/cancel) button to transaction history rows
 - [x] Realized Gains History shows no data despite completed sell transactions (backfilled 5 entries)
 - [x] Auto-fill current stock price when buying and selling
+
+
+## Annual Performance Bug (Nov 10, 2025 - 13:30)
+- [x] Fix portfolioData.forEach error in annualPerformance.getSummary endpoint (portfolioData is JSON string, not array)
+
+## Transaction Amount Display Bug (Nov 10, 2025 - 13:45)
+- [x] Fix "Betrag" column showing USD amount as CHF (e.g., USD 1990.34 displayed as CHF 1990.34)
+- [x] Add FX rate column to transaction history to show exchange rate used
+- [x] Added fxRate and totalAmountCHF columns to database schema
+- [x] Backfilled existing transactions with FX rates (0.88 for USD)

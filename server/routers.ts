@@ -3273,7 +3273,14 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         const transactions = await getPortfolioTransactions(input.portfolioId);
         
         // Parse portfolio data
-        const portfolioData = JSON.parse(portfolio.portfolioData);
+        let portfolioData: any[] = [];
+        try {
+          const parsed = JSON.parse(portfolio.portfolioData);
+          portfolioData = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.error('[AnnualPerformance] Failed to parse portfolio data:', e);
+          portfolioData = [];
+        }
         
         // Calculate current holdings
         const holdings: Record<string, { shares: number; totalInvested: number; currentValue: number }> = {};

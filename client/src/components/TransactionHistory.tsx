@@ -248,10 +248,11 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                       onClick={() => toggleSort("amount")}
                       className="flex items-center gap-1 hover:text-white transition-colors ml-auto"
                     >
-                      Betrag
+                      Betrag (CHF)
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
+                  <th className="text-center py-3 px-2 text-slate-400 font-medium">FX Rate</th>
                   <th className="text-left py-3 px-2 text-slate-400 font-medium">Notizen</th>
                   <th className="text-center py-3 px-2 text-slate-400 font-medium">Aktion</th>
                 </tr>
@@ -279,9 +280,12 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                       {tx.pricePerShare ? `${tx.currency || 'CHF'} ${parseFloat(tx.pricePerShare).toFixed(2)}` : "-"}
                     </td>
                     <td className={`py-3 px-2 text-sm text-right font-semibold ${
-                      parseFloat(tx.totalAmount) >= 0 ? 'text-green-400' : 'text-red-400'
+                      parseFloat(tx.totalAmountCHF || tx.totalAmount) >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
-                      CHF {parseFloat(tx.totalAmount).toFixed(2)}
+                      CHF {parseFloat(tx.totalAmountCHF || tx.totalAmount).toFixed(2)}
+                    </td>
+                    <td className="py-3 px-2 text-slate-400 text-sm text-center">
+                      {tx.fxRate && tx.currency !== 'CHF' ? parseFloat(tx.fxRate).toFixed(4) : '-'}
                     </td>
                     <td className="py-3 px-2 text-slate-400 text-sm truncate max-w-xs">
                       {tx.notes || "-"}

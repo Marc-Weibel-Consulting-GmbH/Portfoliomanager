@@ -197,7 +197,9 @@ export const portfolioTransactions = mysqlTable("portfolioTransactions", {
   shares: varchar("shares", { length: 50 }), // Number of shares (for buy/sell)
   pricePerShare: varchar("pricePerShare", { length: 50 }), // Price per share in original currency
   currency: varchar("currency", { length: 10 }).default("CHF"), // Currency of the transaction (USD, EUR, CHF, etc.)
-  totalAmount: varchar("totalAmount", { length: 50 }).notNull(), // Total amount in CHF (negative for withdrawals)
+  totalAmount: varchar("totalAmount", { length: 50 }).notNull(), // Total amount in original currency
+  fxRate: varchar("fxRate", { length: 50 }), // Exchange rate to CHF (e.g., 0.88 for USD/CHF)
+  totalAmountCHF: varchar("totalAmountCHF", { length: 50 }), // Total amount converted to CHF
   fees: varchar("fees", { length: 50 }).default("0"), // Transaction fees in CHF
   notes: text("notes"), // Optional user notes
   transactionDate: timestamp("transactionDate").notNull(), // Date of the transaction
