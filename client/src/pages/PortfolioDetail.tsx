@@ -70,13 +70,14 @@ export default function PortfolioDetail() {
       
       const shares = parseFloat(tx.shares || '0');
       const price = parseFloat(tx.pricePerShare || '0');
-      const amount = shares * price;
+      // Use totalAmount from transaction (includes fees) if available, otherwise calculate
+      const amount = parseFloat(tx.totalAmount || '0') || (shares * price);
       
       if (tx.transactionType === 'buy') {
         holdings[tx.ticker].shares += shares;
         holdings[tx.ticker].totalBought += shares;
         holdings[tx.ticker].totalInvested += amount;
-        // Calculate average buy price
+        // Calculate average buy price (cost per share including fees)
         holdings[tx.ticker].avgBuyPrice = holdings[tx.ticker].totalInvested / holdings[tx.ticker].totalBought;
       } else if (tx.transactionType === 'sell') {
         holdings[tx.ticker].shares -= shares;

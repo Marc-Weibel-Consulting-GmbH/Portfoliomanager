@@ -2404,13 +2404,14 @@ export const appRouter = router({
           
           const shares = parseFloat(tx.shares || '0');
           const price = parseFloat(tx.pricePerShare || '0');
-          const amount = shares * price;
+          // Use totalAmount from transaction (includes fees) if available, otherwise calculate
+          const amount = parseFloat(tx.totalAmount || '0') || (shares * price);
           
           if (tx.transactionType === 'buy') {
             holdingsByTicker[ticker].shares += shares;
             holdingsByTicker[ticker].totalBought += shares;
             holdingsByTicker[ticker].totalInvestedLocal += amount;
-            // Calculate average buy price
+            // Calculate average buy price (cost per share including fees)
             holdingsByTicker[ticker].avgBuyPrice = holdingsByTicker[ticker].totalInvestedLocal / holdingsByTicker[ticker].totalBought;
           } else if (tx.transactionType === 'sell') {
             holdingsByTicker[ticker].shares -= shares;

@@ -494,3 +494,14 @@
 - [x] Fix: Changed totalGainCHF to realizedGain column name (column didn't exist)
 - [x] Fix: Applied same fix to calculateLivePerformance and getHoldingsWithChfPerformance
 - [x] Remove "Realisierte Gewinne" button (redundant with Jahresübersicht)
+
+## CRITICAL: JNJ shows -55.4% after selling half (Nov 10, 2025 - 18:00)
+- [x] JNJ: Sold 11 of 21 shares, now shows -55.4% loss
+- [x] Verbleibend: 10 Aktien zu USD 186.57 = CHF 1'504
+- [x] Total investiert zeigt: CHF 3'846 (ursprünglich für 21 Aktien)
+- [x] Problem: totalInvestedCHF sollte nur Cost Basis der verbleibenden 10 Aktien sein (ca. CHF 1'836)
+- [x] Problem: Realisierte Gewinne werden nicht korrekt in Performance eingerechnet
+- [x] Fix: Changed amount calculation to use tx.totalAmount (includes fees) instead of shares * price
+- [x] Fix: Applied to both backend (getHoldingsWithChfPerformance) and frontend (PortfolioDetail)
+- [x] Fix: This ensures avgBuyPrice is calculated correctly with fees included
+- [ ] Test: Nach Fix sollte JNJ positive Performance zeigen (ca. +20-30%)
