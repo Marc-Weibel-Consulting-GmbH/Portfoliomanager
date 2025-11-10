@@ -54,7 +54,7 @@ export default function PortfolioDetail() {
   );
 
   // Fetch annual performance summary
-  const { data: annualPerformance, isLoading: isPerformanceLoading } = trpc.annualPerformance.getSummary.useQuery(
+  const { data: annualPerformance, isLoading: isPerformanceLoading, error: performanceError } = trpc.annualPerformance.getSummary.useQuery(
     { portfolioId: portfolioId! },
     { enabled: !!portfolioId && showAnnualPerformance }
   );
@@ -670,6 +670,7 @@ export default function PortfolioDetail() {
         onClose={() => setShowAnnualPerformance(false)}
         summary={annualPerformance || null}
         isLoading={isPerformanceLoading}
+        error={performanceError}
       />
     </div>
   );

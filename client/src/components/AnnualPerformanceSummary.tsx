@@ -21,6 +21,7 @@ interface AnnualPerformanceSummaryProps {
   onClose: () => void;
   summary: PerformanceSummary | null;
   isLoading: boolean;
+  error?: Error | null;
 }
 
 export default function AnnualPerformanceSummary({
@@ -28,10 +29,12 @@ export default function AnnualPerformanceSummary({
   onClose,
   summary,
   isLoading,
+  error,
 }: AnnualPerformanceSummaryProps) {
-  if (!summary && !isLoading) {
-    return null;
-  }
+  // Don't auto-close the modal - let user close it manually
+  // if (!summary && !isLoading && !error) {
+  //   return null;
+  // }
 
   const formatCurrency = (amount: number) => {
     const sign = amount >= 0 ? '+' : '';
@@ -56,6 +59,19 @@ export default function AnnualPerformanceSummary({
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-slate-400">Lade Performance-Daten...</div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="text-red-400 text-center">
+              <p className="font-semibold mb-2">Fehler beim Laden der Daten</p>
+              <p className="text-sm text-slate-400">{error.message || 'Ein unbekannter Fehler ist aufgetreten'}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded"
+            >
+              Schließen
+            </button>
           </div>
         ) : summary ? (
           <div className="space-y-6">

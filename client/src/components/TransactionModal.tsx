@@ -158,7 +158,14 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
         return;
       }
       
-      finalTotalAmount = (sharesNum * priceNum + (transactionType === "buy" ? feesNum : -feesNum)).toFixed(2);
+      // Convert to CHF if foreign currency
+      let amountInCHF = sharesNum * priceNum;
+      if (stockData?.currency && stockData.currency !== 'CHF' && fxData) {
+        amountInCHF = sharesNum * priceNum * fxData.rate;
+      }
+      
+      // Add fees for buy, subtract for sell
+      finalTotalAmount = (amountInCHF + (transactionType === "buy" ? feesNum : -feesNum)).toFixed(2);
     }
 
     // For withdrawals, make amount negative

@@ -394,3 +394,16 @@
 - [x] Simplified to reuse calculateLivePerformance (already working correctly)
 - [x] Added debugPerformance endpoint for future troubleshooting
 - [ ] Verify calculations match portfolio positions exactly
+
+## CRITICAL: Realisierte Gewinne Berechnung falsch (Nov 10, 2025)
+- [x] Verkaufserlös zeigt EUR 663.12 statt EUR 770.00 (12 Aktien × EUR 60)
+- [x] Differenz: EUR 106.88 fehlt in der Berechnung
+- [x] Problem identifiziert: FX-Konvertierung fehlte in TransactionModal handleSubmit
+- [x] Fix: Preis wird jetzt korrekt in CHF konvertiert (shares × price × fx_rate) vor Gebührenabzug
+- [x] Gebühren werden korrekt behandelt: +fees bei Kauf, -fees bei Verkauf
+
+## Annual Performance Modal Fix (Nov 10, 2025)
+- [x] Fix "calculateLivePerformance is not a function" error in annualPerformance.getSummary endpoint
+- [x] Annual Performance Modal zeigt jetzt Daten korrekt an
+- [x] Fehlerbehandlung im Modal verbessert (zeigt Fehler statt automatisch zu schließen)
+- [x] calculateLivePerformance Logik inline in annualPerformance.getSummary implementiert

@@ -3255,9 +3255,10 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         throw new Error("Invalid portfolio ID");
       })
       .query(async ({ input, ctx }) => {
-        const { getSavedPortfolioById, getPortfolioTransactions, getDb, calculateLivePerformance } = await import("./db");
-        const { realizedGains } = await import("../drizzle/schema");
-        const { eq, and, gte, lte, sql } = await import("drizzle-orm");
+        const { getSavedPortfolioById, getPortfolioTransactions, getDb, getStockByTicker } = await import("./db");
+        const { realizedGains, historicalPrices } = await import("../drizzle/schema");
+        const { eq, and, gte, lte } = await import("drizzle-orm");
+        const { getStockCurrency, convertToCHF } = await import("./fxHelper");
         
         // Get database instance
         const db = await getDb();
@@ -3272,11 +3273,80 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         const yearStart = new Date(year, 0, 1);
         const yearEnd = new Date(year, 11, 31, 23, 59, 59);
         
-        // Use live performance calculation which already works correctly
-        const livePerf = await calculateLivePerformance(input.portfolioId, ctx.user.id);
-        
-        // Get all transactions for year-specific calculations
+        // Calculate live performance inline (same logic as calculateLivePerformance procedure)
         const transactions = await getPortfolioTransactions(input.portfolioId);
+        
+        let totalInvested = 0;
+        const holdings: Record<string, number> = {};
+        
+        // Process transactions to calculate holdings and total invested
+        transactions.forEach((tx: any) => {
+          const shares = parseFloat(tx.shares || '0');
+          const amount = parseFloat(tx.totalAmount || '0');
+          
+          if (tx.transactionType === 'buy') {
+            holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+            totalInvested += amount;
+          } else if (tx.transactionType === 'sell') {
+            holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+            totalInvested -= amount;
+          } else if (tx.transactionType === 'deposit') {
+            totalInvested += amount;
+          } else if (tx.transactionType === 'withdrawal') {
+            totalInvested += amount;
+          }
+        });
+        
+        let currentValueCHF = 0;
+        let unrealizedGains = 0;
+        
+        if (portfolio.liveStartDate) {
+          const liveStartDate = new Date(portfolio.liveStartDate);
+          const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+          const todayStr = new Date().toISOString().split('T')[0];
+          let liveStartValueCHF = 0;
+          
+          for (const [ticker, shares] of Object.entries(holdings)) {
+            if (shares > 0) {
+              const stock = await getStockByTicker(ticker);
+              const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
+              const currency = await getStockCurrency(ticker);
+              
+              const currentValueLocal = shares * currentPrice;
+              const currentValueInCHF = await convertToCHF(currentValueLocal, currency, todayStr);
+              currentValueCHF += currentValueInCHF;
+              
+              if (db) {
+                const historicalPrice = await db
+                  .select()
+                  .from(historicalPrices)
+                  .where(
+                    and(
+                      eq(historicalPrices.ticker, ticker),
+                      eq(historicalPrices.date, liveStartDateStr)
+                    )
+                  )
+                  .limit(1);
+                
+                const liveStartPrice = historicalPrice[0]?.close 
+                  ? parseFloat(historicalPrice[0].close)
+                  : currentPrice;
+                
+                const liveStartValueLocal = shares * liveStartPrice;
+                const liveStartValueInCHF = await convertToCHF(liveStartValueLocal, currency, liveStartDateStr);
+                liveStartValueCHF += liveStartValueInCHF;
+              }
+            }
+          }
+          
+          unrealizedGains = currentValueCHF - liveStartValueCHF;
+        }
+        
+        const livePerf = {
+          currentValue: currentValueCHF,
+          totalInvested,
+          unrealizedGains,
+        };
         
         // Get realized gains for the year with FX breakdown
         let realizedGainsTotal = 0;
@@ -3340,25 +3410,25 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           .reduce((sum: number, tx: any) => sum + parseFloat(tx.fees || '0'), 0);
         
         // Use values from live performance calculation
-        const totalInvested = livePerf.totalInvested;
-        const currentValue = livePerf.currentValue;
-        const unrealizedGains = livePerf.unrealizedGains;
+        const finalTotalInvested = livePerf.totalInvested;
+        const finalCurrentValue = livePerf.currentValue;
+        const finalUnrealizedGains = livePerf.unrealizedGains;
         
         // Calculate net performance
-        const netPerformance = unrealizedGains + realizedGainsTotal + dividendIncome - totalFees;
-        const returnOnInvestment = totalInvested > 0 ? (netPerformance / totalInvested) * 100 : 0;
+        const netPerformance = finalUnrealizedGains + realizedGainsTotal + dividendIncome - totalFees;
+        const returnOnInvestment = finalTotalInvested > 0 ? (netPerformance / finalTotalInvested) * 100 : 0;
         
         return {
           year,
-          unrealizedGains,
+          unrealizedGains: finalUnrealizedGains,
           realizedGains: realizedGainsTotal,
           realizedStockGains: realizedStockGainsTotal,
           realizedFxGains: realizedFxGainsTotal,
           dividendIncome,
           totalFees,
           netPerformance,
-          totalInvested,
-          currentValue,
+          totalInvested: finalTotalInvested,
+          currentValue: finalCurrentValue,
           returnOnInvestment
         };
       }),
