@@ -87,6 +87,17 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     }
   }, [transactionType, stockData]);
 
+  const resetForm = () => {
+    setTransactionType("buy");
+    setTicker("");
+    setShares("");
+    setPricePerShare("");
+    setTotalAmount("");
+    setFees("0");
+    setNotes("");
+    setTransactionDate(new Date().toISOString().split('T')[0]);
+  };
+
   const createTransactionMutation = trpc.portfolioTransactions.create.useMutation({
     onSuccess: (data: any) => {
       // If this was a sell transaction and we have realized gain data, show the modal
@@ -98,10 +109,12 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
           ...data.realizedGain
         });
         setShowRealizedGainModal(true);
+        resetForm(); // Reset form after successful save
         onSuccess?.();
         onClose(); // Close transaction modal
       } else {
         toast.success("Transaktion erfolgreich erfasst");
+        resetForm(); // Reset form after successful save
         onSuccess?.();
         onClose();
       }
@@ -112,15 +125,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
   });
 
   const handleClose = () => {
-    // Reset form
-    setTransactionType("buy");
-    setTicker("");
-    setShares("");
-    setPricePerShare("");
-    setTotalAmount("");
-    setFees("0");
-    setNotes("");
-    setTransactionDate(new Date().toISOString().split('T')[0]);
+    resetForm();
     onClose();
   };
 
@@ -254,7 +259,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
           {requiresShares && (
             <div>
               <Label htmlFor="pricePerShare">
-                Preis pro Aktie ({stockData?.currency || 'CHF'}) *
+                Kurs pro Aktie ({stockData?.currency || 'CHF'}) *
               </Label>
               <Input
                 id="pricePerShare"
@@ -266,8 +271,8 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
                 placeholder="z.B. 150.50"
               />
               {stockData?.currency && stockData.currency !== 'CHF' && (
-                <p className="text-xs text-amber-400 mt-1">
-                  ⚠️ Preis in {stockData.currency} eingeben (wird automatisch in CHF konvertiert)
+                <p className="text-xs text-slate-400 mt-1">
+                  Preis in Fremdwährung ({stockData.currency})
                 </p>
               )}
             </div>
@@ -330,22 +335,58 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
 
           {/* Calculated Total (for buy/sell) */}
           {requiresShares && shares && pricePerShare && (
-            <div className="bg-slate-700/50 p-3 rounded-md">
-              <p className="text-sm text-slate-400">Gesamtbetrag (inkl. Gebühren):</p>
-              <p className="text-xl font-bold text-white">
-                {stockData?.currency || 'CHF'} {(parseFloat(shares) * parseFloat(pricePerShare) + parseFloat(fees || "0")).toFixed(2)}
-              </p>
+            <div className="bg-slate-700/50 p-4 rounded-md space-y-2">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-slate-400">Betrag ({stockData?.currency || 'CHF'}):</p>
+                <p className="text-base font-semibold text-white">
+                  {stockData?.currency || 'CHF'} {(parseFloat(shares) * parseFloat(pricePerShare)).toFixed(2)}
+                </p>
+              </div>
+              
               {stockData?.currency && stockData.currency !== 'CHF' && fxData && (
-                <div className="mt-2 pt-2 border-t border-slate-600">
-                  <p className="text-sm text-slate-400">Voraussichtlicher Betrag in CHF:</p>
-                  <p className="text-lg font-semibold text-green-400">
-                    CHF {((parseFloat(shares) * parseFloat(pricePerShare) + parseFloat(fees || "0")) * fxData.rate).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Wechselkurs: 1 {stockData.currency} = {fxData.rate.toFixed(4)} CHF
-                  </p>
-                </div>
+                <>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-slate-400">FX Rate (1 {stockData.currency} = X CHF):</p>
+                    <p className="text-base font-semibold text-blue-400">
+                      {fxData.rate.toFixed(4)} CHF
+                    </p>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-600">
+                    <p className="text-sm text-slate-400">Betrag (CHF) - konvertiert:</p>
+                    <p className="text-base font-semibold text-green-400">
+                      CHF {(parseFloat(shares) * parseFloat(pricePerShare) * fxData.rate).toFixed(2)}
+                    </p>
+                  </div>
+                </>
               )}
+              
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-slate-400">Gebühren (CHF):</p>
+                <p className="text-base font-semibold text-white">
+                  CHF {parseFloat(fees || "0").toFixed(2)}
+                </p>
+              </div>
+              
+              <div className="flex justify-between items-center pt-2 border-t border-slate-600">
+                <p className="text-sm font-semibold text-slate-300">Nettobetrag (CHF):</p>
+                <p className="text-xl font-bold text-white">
+                  CHF {(
+                    (stockData?.currency && stockData.currency !== 'CHF' && fxData
+                      ? parseFloat(shares) * parseFloat(pricePerShare) * fxData.rate
+                      : parseFloat(shares) * parseFloat(pricePerShare)) + parseFloat(fees || "0")
+                  ).toFixed(2)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Show FX conversion info when no calculation yet */}
+          {requiresShares && (!shares || !pricePerShare) && stockData?.currency && stockData.currency !== 'CHF' && fxData && (
+            <div className="bg-blue-900/20 border border-blue-700/50 p-3 rounded-md">
+              <p className="text-xs text-blue-300">
+                💱 Aktueller Wechselkurs: 1 {stockData.currency} = {fxData.rate.toFixed(4)} CHF
+              </p>
             </div>
           )}
 

@@ -352,3 +352,15 @@
 - [x] Add FX rate column to transaction history to show exchange rate used
 - [x] Added fxRate and totalAmountCHF columns to database schema
 - [x] Backfilled existing transactions with FX rates (0.88 for USD)
+
+## Transaction Modal UX Improvements (Nov 10, 2025 - 14:00)
+- [x] Clear form after successful transaction save (reset all fields)
+- [x] Fix price column in transaction history to show correct currency (USD 18.26 instead of CHF 18.26)
+- [x] Restructure modal to show FX conversion flow:
+  * Anzahl Aktien
+  * Kurs pro Aktie (USD/EUR/CHF) - in Fremdwährung
+  * Betrag (USD/EUR/CHF) - in Fremdwährung
+  * FX Rate (1 USD = X CHF)
+  * Betrag (CHF) - konvertiert
+  * Gebühren (CHF)
+  * Nettobetrag (CHF)
