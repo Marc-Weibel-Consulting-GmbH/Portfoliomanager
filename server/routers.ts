@@ -3149,6 +3149,32 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         const { getPortfolioTransactions } = await import("./db");
         return await getPortfolioTransactions(input.portfolioId);
       }),
+
+    delete: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "transactionId" in val && typeof val.transactionId === "number") {
+          return { transactionId: val.transactionId };
+        }
+        throw new Error("Invalid transaction ID");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        
+        const db = await getDb();
+        if (!db) {
+          throw new Error("Database not available");
+        }
+        
+        // Delete associated realized gains first (if any)
+        await db.delete(realizedGains).where(eq(realizedGains.transactionId, input.transactionId));
+        
+        // Delete the transaction
+        await db.delete(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId));
+        
+        return { success: true };
+      }),
   }),
 
   dividendCalendar: router({

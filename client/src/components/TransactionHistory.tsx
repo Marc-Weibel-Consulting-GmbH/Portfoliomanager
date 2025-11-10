@@ -22,6 +22,17 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const { data: transactions = [], isLoading } = trpc.portfolioTransactions.list.useQuery({ portfolioId });
+  const utils = trpc.useUtils();
+  const deleteTransaction = trpc.portfolioTransactions.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Transaktion storniert");
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      utils.savedPortfolios.getById.invalidate({ id: portfolioId });
+    },
+    onError: (error) => {
+      toast.error(`Fehler beim Stornieren: ${error.message}`);
+    },
+  });
   
   // Debug logging
   useEffect(() => {
@@ -140,6 +151,12 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
     }
   };
 
+  const handleDeleteTransaction = (transactionId: number) => {
+    if (confirm("Möchten Sie diese Transaktion wirklich stornieren? Diese Aktion kann nicht rückgängig gemacht werden.")) {
+      deleteTransaction.mutate({ transactionId });
+    }
+  };
+
   if (isLoading) {
     return (
       <Card className="bg-slate-800 border-slate-700">
@@ -236,6 +253,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     </button>
                   </th>
                   <th className="text-left py-3 px-2 text-slate-400 font-medium">Notizen</th>
+                  <th className="text-center py-3 px-2 text-slate-400 font-medium">Aktion</th>
                 </tr>
               </thead>
               <tbody>
@@ -258,7 +276,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                       {tx.shares || "-"}
                     </td>
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
-                      {tx.pricePerShare ? `CHF ${parseFloat(tx.pricePerShare).toFixed(2)}` : "-"}
+                      {tx.pricePerShare ? `${tx.currency || 'CHF'} ${parseFloat(tx.pricePerShare).toFixed(2)}` : "-"}
                     </td>
                     <td className={`py-3 px-2 text-sm text-right font-semibold ${
                       parseFloat(tx.totalAmount) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -267,6 +285,16 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     </td>
                     <td className="py-3 px-2 text-slate-400 text-sm truncate max-w-xs">
                       {tx.notes || "-"}
+                    </td>
+                    <td className="py-3 px-2 text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                        onClick={() => handleDeleteTransaction(tx.id)}
+                      >
+                        Storno
+                      </Button>
                     </td>
                   </tr>
                 ))}

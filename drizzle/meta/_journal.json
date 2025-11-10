@@ -232,6 +232,13 @@
       "when": 1762773169486,
       "tag": "0032_slim_harrier",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1762776963218,
+      "tag": "0033_optimal_human_cannonball",
+      "breakpoints": true
     }
   ]
 }

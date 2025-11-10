@@ -80,9 +80,9 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     { enabled: !!stockData?.currency && stockData.currency !== "CHF" }
   );
 
-  // Auto-fill price when selling
+  // Auto-fill price when buying or selling
   useEffect(() => {
-    if (transactionType === "sell" && stockData?.currentPrice) {
+    if ((transactionType === "buy" || transactionType === "sell") && stockData?.currentPrice) {
       setPricePerShare(stockData.currentPrice.toString());
     }
   }, [transactionType, stockData]);

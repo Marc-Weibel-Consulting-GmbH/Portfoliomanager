@@ -330,3 +330,15 @@
 - [x] portfolioData.forEach error on portfolio detail page (portfolioData is not an array)
 - [x] Dividend calendar shows no data after EODHD API migration
 - [x] React hooks order error: useMemo called after conditional return
+
+
+## Dividend Calendar Fix (Nov 10, 2025 - 13:10)
+- [ ] Switch from EODHD to Financial Modeling Prep API for upcoming dividends
+- [ ] FMP has dedicated calendar API with actual upcoming dividends (not just historical)
+
+
+## Transaction History Bugs (Nov 10, 2025 - 13:15)
+- [x] Fix currency display: Shows "CHF 18.26" instead of "USD 18.26" for USD transactions
+- [x] Add "Storno" (delete/cancel) button to transaction history rows
+- [x] Realized Gains History shows no data despite completed sell transactions (backfilled 5 entries)
+- [x] Auto-fill current stock price when buying and selling
