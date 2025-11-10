@@ -215,9 +215,14 @@ export const realizedGains = mysqlTable("realizedGains", {
   shares: varchar("shares", { length: 50 }).notNull(), // Number of shares sold
   avgCostBasis: varchar("avgCostBasis", { length: 50 }).notNull(), // Average purchase price per share
   sellPrice: varchar("sellPrice", { length: 50 }).notNull(), // Sell price per share
-  realizedGain: varchar("realizedGain", { length: 50 }).notNull(), // Total realized gain/loss (can be negative)
+  realizedGain: varchar("realizedGain", { length: 50 }).notNull(), // Total realized gain/loss in CHF (can be negative)
   realizedGainPercent: varchar("realizedGainPercent", { length: 50 }).notNull(), // Gain/loss as percentage
   transactionDate: timestamp("transactionDate").notNull(), // Date of the sell transaction
+  stockGainLocal: varchar("stockGainLocal", { length: 50 }), // Stock gain in local currency (USD, EUR, etc.)
+  fxGain: varchar("fxGain", { length: 50 }), // FX gain/loss from currency conversion to CHF
+  currency: varchar("currency", { length: 10 }), // Currency of the stock (USD, EUR, etc.)
+  buyFxRate: varchar("buyFxRate", { length: 50 }), // FX rate at time of purchase
+  sellFxRate: varchar("sellFxRate", { length: 50 }), // FX rate at time of sale
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (t) => ({
   portfolioIdx: index("ix_realized_gains_portfolio").on(t.portfolioId),

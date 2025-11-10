@@ -68,10 +68,10 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     return totalShares;
   }, [ticker, portfolioStocks, allTransactions]);
 
-  // Fetch current stock price when ticker is selected for sell
+  // Fetch current stock price and currency when ticker is selected
   const { data: stockData } = trpc.stocks.getByTicker.useQuery(
     { ticker: ticker || "" },
-    { enabled: !!ticker && transactionType === "sell" }
+    { enabled: !!ticker && (transactionType === "buy" || transactionType === "sell") }
   );
 
   // Auto-fill price when selling
@@ -247,7 +247,9 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
           {/* Price Per Share */}
           {requiresShares && (
             <div>
-              <Label htmlFor="pricePerShare">Preis pro Aktie (CHF) *</Label>
+              <Label htmlFor="pricePerShare">
+                Preis pro Aktie ({stockData?.currency || 'CHF'}) *
+              </Label>
               <Input
                 id="pricePerShare"
                 type="number"
@@ -257,6 +259,11 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
                 className="bg-slate-700 border-slate-600"
                 placeholder="z.B. 150.50"
               />
+              {stockData?.currency && stockData.currency !== 'CHF' && (
+                <p className="text-xs text-amber-400 mt-1">
+                  ⚠️ Preis in {stockData.currency} eingeben (wird automatisch in CHF konvertiert)
+                </p>
+              )}
             </div>
           )}
 
@@ -320,8 +327,13 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
             <div className="bg-slate-700/50 p-3 rounded-md">
               <p className="text-sm text-slate-400">Gesamtbetrag (inkl. Gebühren):</p>
               <p className="text-xl font-bold text-white">
-                CHF {(parseFloat(shares) * parseFloat(pricePerShare) + parseFloat(fees || "0")).toFixed(2)}
+                {stockData?.currency || 'CHF'} {(parseFloat(shares) * parseFloat(pricePerShare) + parseFloat(fees || "0")).toFixed(2)}
               </p>
+              {stockData?.currency && stockData.currency !== 'CHF' && (
+                <p className="text-xs text-slate-400 mt-1">
+                  Wird in CHF konvertiert beim Speichern
+                </p>
+              )}
             </div>
           )}
 

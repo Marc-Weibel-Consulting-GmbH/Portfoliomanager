@@ -3312,13 +3312,24 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
             0
           );
           
+          // Calculate stock gains and FX gains separately (with null checks for backward compatibility)
           realizedStockGainsTotal = realizedGainsData.reduce(
-            (sum, rg) => sum + parseFloat(rg.stockGainLocal || '0') * parseFloat(rg.sellFxRate || '1'),
+            (sum, rg) => {
+              if (rg.stockGainLocal && rg.sellFxRate) {
+                return sum + parseFloat(rg.stockGainLocal) * parseFloat(rg.sellFxRate);
+              }
+              return sum;
+            },
             0
           );
           
           realizedFxGainsTotal = realizedGainsData.reduce(
-            (sum, rg) => sum + parseFloat(rg.fxGain || '0'),
+            (sum, rg) => {
+              if (rg.fxGain) {
+                return sum + parseFloat(rg.fxGain);
+              }
+              return sum;
+            },
             0
           );
         }
