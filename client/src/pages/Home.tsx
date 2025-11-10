@@ -374,6 +374,7 @@ export default function Home() {
   const { data: savedPortfoliosData = [], refetch: refetchSavedPortfolios } = trpc.savedPortfolios.list.useQuery();
   const deletePortfolioMutation = trpc.savedPortfolios.delete.useMutation();
   const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation();
+  const updateLiveStartDateMutation = trpc.savedPortfolios.updateLiveStartDate.useMutation();
   const savePortfolioMutation = trpc.savedPortfolios.create.useMutation({
     onSuccess: () => {
       refetchSavedPortfolios();
@@ -1824,7 +1825,9 @@ export default function Home() {
                         <div>
                           <p className="text-slate-400 text-sm">Live Performance</p>
                           <p className="text-blue-400 font-semibold text-lg">
-                            {portfolio.livePerformance ? `${portfolio.livePerformance >= 0 ? '+' : ''}${portfolio.livePerformance.toFixed(1)}%` : 'Berechne...'}
+                            {typeof portfolio.livePerformance === 'number' 
+                              ? `${portfolio.livePerformance >= 0 ? '+' : ''}${portfolio.livePerformance.toFixed(1)}%`
+                              : 'Wird geladen...'}
                           </p>
                           <p className="text-slate-500 text-xs">
                             seit {new Date(portfolio.liveStartDate).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -1869,6 +1872,32 @@ export default function Home() {
                           {Boolean(portfolio.isLive) && <span className="w-2 h-2 bg-white rounded-full animate-pulse" />}
                           {Boolean(portfolio.isLive) ? 'Live' : 'Test'}
                         </button>
+                        
+                        {/* Live Start Date Picker - only show when portfolio is live */}
+                        {Boolean(portfolio.isLive) && portfolio.liveStartDate && (
+                          <input
+                            type="date"
+                            value={new Date(portfolio.liveStartDate).toISOString().split('T')[0]}
+                            onChange={async (e) => {
+                              const newDate = e.target.value;
+                              if (!newDate) return;
+                              
+                              try {
+                                await updateLiveStartDateMutation.mutateAsync({
+                                  id: portfolio.id,
+                                  liveStartDate: newDate
+                                });
+                                toast.success('Live-Start-Datum aktualisiert');
+                                refetchSavedPortfolios();
+                              } catch (error) {
+                                console.error('Error updating live start date:', error);
+                                toast.error('Fehler beim Aktualisieren des Datums');
+                              }
+                            }}
+                            className="px-2 py-1 text-xs bg-slate-700 border border-slate-600 rounded text-slate-300 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <button

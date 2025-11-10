@@ -79,6 +79,18 @@ export default function PortfolioDetail() {
     }
   });
 
+  // Update live start date mutation
+  const updateLiveStartDateMutation = trpc.savedPortfolios.updateLiveStartDate.useMutation({
+    onSuccess: () => {
+      utils.savedPortfolios.list.invalidate();
+      utils.savedPortfolios.calculateLivePerformance.invalidate();
+      toast.success("Live-Start-Datum aktualisiert");
+    },
+    onError: () => {
+      toast.error("Fehler beim Aktualisieren des Datums");
+    }
+  });
+
   if (!portfolioId || !portfolio) {
     return (
       <div className="min-h-screen bg-slate-900 p-8">
@@ -210,6 +222,23 @@ export default function PortfolioDetail() {
                 {Boolean(portfolio.isLive) && <span className="w-2 h-2 bg-white rounded-full animate-pulse mr-2" />}
                 {Boolean(portfolio.isLive) ? "Live" : "Test"}
               </Button>
+
+              {/* Live Start Date Picker - only show when portfolio is live */}
+              {Boolean(portfolio.isLive) && portfolio.liveStartDate && (
+                <input
+                  type="date"
+                  value={new Date(portfolio.liveStartDate).toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    if (!newDate) return;
+                    updateLiveStartDateMutation.mutate({
+                      id: portfolio.id,
+                      liveStartDate: newDate
+                    });
+                  }}
+                  className="px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded text-slate-300 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              )}
 
               {/* Add Transaction Button (only if live) */}
               {Boolean(portfolio.isLive) && (
@@ -397,7 +426,10 @@ export default function PortfolioDetail() {
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
+                        // Treat all buys as implicit deposits (portfolio may have existed before going live)
+                        const totalCapital = deposits - withdrawals + buyAmounts;
+                        const cash = totalCapital - buyAmounts + sellAmounts;
+                        console.log('[Cash Debug]', { deposits, withdrawals, buyAmounts, sellAmounts, totalCapital, cash });
                         return Math.round(cash).toLocaleString('de-CH');
                       })()}
                     </td>
@@ -435,7 +467,9 @@ export default function PortfolioDetail() {
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
+                        // Treat all buys as implicit deposits
+                        const totalCapital = deposits - withdrawals + buyAmounts;
+                        const cash = totalCapital - buyAmounts + sellAmounts;
                         const total = stocksValue + cash;
                         return Math.round(total).toLocaleString('de-CH');
                       })()}
@@ -467,9 +501,10 @@ export default function PortfolioDetail() {
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
+                        // Treat all buys as implicit deposits
+                        const totalCapital = deposits - withdrawals + buyAmounts;
+                        const cash = totalCapital - buyAmounts + sellAmounts;
                         const totalValue = stocksValue + cash;
-                        const totalCapital = deposits - withdrawals;
                         return totalValue >= totalCapital ? 'text-green-400' : 'text-red-400';
                       })()
                     }`}>
@@ -497,9 +532,10 @@ export default function PortfolioDetail() {
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
+                        // Treat all buys as implicit deposits
+                        const totalCapital = deposits - withdrawals + buyAmounts;
+                        const cash = totalCapital - buyAmounts + sellAmounts;
                         const totalValue = stocksValue + cash;
-                        const totalCapital = deposits - withdrawals;
                         const perf = totalCapital > 0 ? ((totalValue - totalCapital) / totalCapital * 100) : 0;
                         return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
                       })()}

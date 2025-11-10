@@ -1898,8 +1898,87 @@ export const appRouter = router({
 
   savedPortfolios: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      const { getSavedPortfolios } = await import("./db");
-      return await getSavedPortfolios(ctx.user.id);
+      const { getSavedPortfolios, getPortfolioTransactions, getStockByTicker, getDb } = await import("./db");
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      
+      // Calculate live performance for each live portfolio
+      const portfoliosWithPerformance = await Promise.all(
+        portfolios.map(async (portfolio) => {
+          if (!portfolio.isLive || !portfolio.liveStartDate) {
+            return portfolio;
+          }
+          
+          try {
+            const transactions = await getPortfolioTransactions(portfolio.id);
+            if (transactions.length === 0) {
+              return { ...portfolio, livePerformance: 0 };
+            }
+            
+            // Calculate holdings from transactions
+            const holdings: Record<string, number> = {};
+            transactions.forEach((tx: any) => {
+              const shares = parseFloat(tx.shares || '0');
+              if (tx.transactionType === 'buy') {
+                holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+              } else if (tx.transactionType === 'sell') {
+                holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+              }
+            });
+            
+            // Fetch current prices and historical prices
+            const db = await getDb();
+            if (!db) {
+              return portfolio;
+            }
+            
+            let currentValue = 0;
+            let liveStartValue = 0;
+            const liveStartDate = new Date(portfolio.liveStartDate);
+            const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+            
+            const { historicalPrices } = await import("../drizzle/schema");
+            const { eq, and } = await import("drizzle-orm");
+            
+            for (const [ticker, shares] of Object.entries(holdings)) {
+              if (shares > 0) {
+                const stock = await getStockByTicker(ticker);
+                const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
+                currentValue += shares * currentPrice;
+                
+                // Get historical price at live start date
+                const historicalPrice = await db
+                  .select()
+                  .from(historicalPrices)
+                  .where(
+                    and(
+                      eq(historicalPrices.ticker, ticker),
+                      eq(historicalPrices.date, liveStartDateStr)
+                    )
+                  )
+                  .limit(1);
+                
+                const liveStartPrice = historicalPrice[0]?.close 
+                  ? parseFloat(historicalPrice[0].close)
+                  : currentPrice;
+                
+                liveStartValue += shares * liveStartPrice;
+              }
+            }
+            
+            // Calculate performance
+            const performance = liveStartValue > 0 
+              ? ((currentValue - liveStartValue) / liveStartValue) * 100 
+              : 0;
+            
+            return { ...portfolio, livePerformance: performance };
+          } catch (error) {
+            console.error(`Error calculating live performance for portfolio ${portfolio.id}:`, error);
+            return portfolio;
+          }
+        })
+      );
+      
+      return portfoliosWithPerformance;
     }),
 
     get: protectedProcedure
@@ -1972,6 +2051,37 @@ export const appRouter = router({
         return await togglePortfolioLive(input.id, ctx.user.id, input.isLive);
       }),
 
+    updateLiveStartDate: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number" && "liveStartDate" in val && typeof val.liveStartDate === "string") {
+          return val as { id: number; liveStartDate: string };
+        }
+        throw new Error("Invalid update data");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        if (!db) {
+          throw new Error("Database not available");
+        }
+        
+        const { savedPortfolios } = await import("../drizzle/schema");
+        const { eq, and } = await import("drizzle-orm");
+        
+        // Update the liveStartDate
+        await db
+          .update(savedPortfolios)
+          .set({ liveStartDate: new Date(input.liveStartDate) })
+          .where(
+            and(
+              eq(savedPortfolios.id, input.id),
+              eq(savedPortfolios.userId, ctx.user.id)
+            )
+          );
+        
+        return { success: true };
+      }),
+
     calculateLivePerformance: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
@@ -2018,19 +2128,54 @@ export const appRouter = router({
         
         // Fetch current prices and calculate current value
         const { getStockByTicker } = await import("./db");
+        const { getDb } = await import("./db");
+        const db = await getDb();
+        
         let currentValue = 0;
+        let liveStartValue = 0;
+        
+        // Get live start date for baseline calculation
+        const liveStartDate = new Date(portfolio.liveStartDate);
+        const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
         
         for (const [ticker, shares] of Object.entries(holdings)) {
           if (shares > 0) {
             const stock = await getStockByTicker(ticker);
             const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
             currentValue += shares * currentPrice;
+            
+            // Get price at live start date from historicalPrices table
+            if (db) {
+              const { historicalPrices } = await import("../drizzle/schema");
+              const { eq, and } = await import("drizzle-orm");
+              
+              const historicalPrice = await db
+                .select()
+                .from(historicalPrices)
+                .where(
+                  and(
+                    eq(historicalPrices.ticker, ticker),
+                    eq(historicalPrices.date, liveStartDateStr)
+                  )
+                )
+                .limit(1);
+              
+              // Use historical price if available, otherwise use current price (assumes no change)
+              const liveStartPrice = historicalPrice[0]?.close 
+                ? parseFloat(historicalPrice[0].close)
+                : currentPrice;
+              
+              liveStartValue += shares * liveStartPrice;
+            } else {
+              // Fallback: use current price if no DB access
+              liveStartValue += shares * currentPrice;
+            }
           }
         }
         
-        // Calculate simple return: (Current Value - Total Invested) / Total Invested * 100
-        const performance = totalInvested > 0 
-          ? ((currentValue - totalInvested) / totalInvested) * 100 
+        // Calculate performance from live start date: (Current Value - Live Start Value) / Live Start Value * 100
+        const performance = liveStartValue > 0 
+          ? ((currentValue - liveStartValue) / liveStartValue) * 100 
           : 0;
         
         return {

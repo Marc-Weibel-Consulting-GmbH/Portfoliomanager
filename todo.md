@@ -143,3 +143,38 @@
 - [ ] Reduce TypeScript compilation memory usage
 - [ ] Note: Server runs functionally, TypeScript background errors don't affect runtime
 - [ ] This is a code quality improvement, not a critical bug
+
+
+## CRITICAL: Cash Position Still Incorrect (Nov 10, 2025 - 11:05)
+- [x] Cash shows CHF -243'397 because initial buys (261k) are not counted as deposits
+- [x] Debug shows: deposits=10k (missing initial 261k), buyAmounts=261k, sellAmounts=7.6k
+- [x] Fix: Treat initial buys as implicit deposits (portfolio existed before going live)
+- [x] New formula: totalCapital = deposits + buyAmounts - withdrawals
+- [x] Cash calculation: cash = totalCapital - currentlyInvestedInStocks + sellProceeds
+- [x] Result: Cash now shows CHF 17'652 (correct!)
+
+## NEW: Live Performance Calculation Fix (Nov 10, 2025 - 11:15)
+- [x] Live Performance shows -3.8% but should be 0% (prices haven't changed since 09.11.2025)
+- [x] Problem: Performance uses buy prices as baseline instead of live start date prices
+- [x] Fix: Use prices at liveStartDate as baseline for performance calculation
+- [x] Updated calculateLivePerformance to use historical prices from liveStartDate
+- [x] Fetches historical prices for liveStartDate from historicalPrices table
+- [x] Performance now calculated as: (Current Value - Live Start Value) / Live Start Value × 100
+- [x] Add manual live start date field to portfolio UI (date picker next to LIVE button)
+- [x] Sync Live Performance between overview and detail views
+
+### Implementation Steps:
+- [x] Add liveStartDate field to database schema (savedPortfolios table) - ALREADY EXISTS!
+- [x] Add date picker UI next to LIVE button (both overview and detail views) - DONE!
+- [x] Update calculateLivePerformance to use liveStartDate as baseline - DONE!
+- [x] Fetch historical prices for liveStartDate from historicalPrices table - DONE!
+- [x] Trigger recalculation when liveStartDate is changed - DONE!
+- [x] Added updateLiveStartDate mutation in server/routers.ts
+- [x] Date picker invalidates performance queries on change
+
+## CRITICAL: TypeError when toggling Live Tracking (Nov 10, 2025 - 11:30)
+- [x] TypeError: portfolio.livePerformance.toFixed is not a function
+- [x] Error occurs when switching live tracking on/off
+- [x] Fixed: Added type check before calling toFixed() in Home.tsx
+- [x] Fixed: Updated savedPortfolios.list to calculate live performance for each portfolio
+- [x] Both overview and detail views now show synchronized live performance
