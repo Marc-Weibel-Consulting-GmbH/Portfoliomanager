@@ -2468,10 +2468,10 @@ export const appRouter = router({
           const realizedGains = realizedGainsByTicker[ticker] || 0;
           
           // Calculate CHF performance including realized gains:
-          // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
-          const performanceCHF = totalInvestedCHF > 0
-            ? ((currentValueCHF + realizedGains - totalInvestedCHF) / totalInvestedCHF) * 100
-            : 0;
+            // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
+            const performanceCHF = totalInvestedCHF > 0
+              ? ((currentValueCHF + realizedGains - totalInvestedCHF) / totalInvestedCHF) * 100
+              : 0;
           
           holdingsWithPerformance.push({
             ticker,

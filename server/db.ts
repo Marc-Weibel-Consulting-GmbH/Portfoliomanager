@@ -741,7 +741,7 @@ export async function getPortfolioTransactions(portfolioId: number) {
         eq(portfolioTransactions.id, realizedGains.transactionId)
       )
       .where(eq(portfolioTransactions.portfolioId, portfolioId))
-      .orderBy(sql`${portfolioTransactions.transactionDate} DESC`);
+      .orderBy(sql`${portfolioTransactions.transactionDate} ASC, ${portfolioTransactions.id} ASC`);
     
     return transactions;
   } catch (error) {

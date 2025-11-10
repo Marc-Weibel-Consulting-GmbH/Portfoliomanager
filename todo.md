@@ -505,3 +505,16 @@
 - [x] Fix: Applied to both backend (getHoldingsWithChfPerformance) and frontend (PortfolioDetail)
 - [x] Fix: This ensures avgBuyPrice is calculated correctly with fees included
 - [ ] Test: Nach Fix sollte JNJ positive Performance zeigen (ca. +20-30%)
+
+## CRITICAL: All performance errors still present (Nov 10, 2025 - 18:15)
+- [x] User reports ALL errors still exist after multiple fix attempts
+- [x] Need systematic debugging approach:
+  1. Extract actual DB values for JNJ transactions
+  2. Manually calculate expected totalInvested, realized gains, performance
+  3. Compare with actual calculation in code
+  4. Identify exact discrepancy
+  5. Implement verified fix
+- [x] Root cause found: getPortfolioTransactions sorted DESC instead of ASC
+- [x] This caused sells to be processed BEFORE buys, leading to wrong calculations
+- [x] Fix: Changed ORDER BY from DESC to ASC in db.ts line 744
+- [x] Also fixed: Use tx.totalAmount (includes fees) instead of shares * price
