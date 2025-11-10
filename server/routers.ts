@@ -1919,6 +1919,9 @@ export const appRouter = router({
             const holdings: Record<string, number> = {};
             const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
             let totalInvested = 0;
+            let totalDeposits = 0;
+            let totalBuyAmounts = 0;
+            let totalSellAmounts = 0;
             
             transactions.forEach((tx: any) => {
               const shares = parseFloat(tx.shares || '0');
@@ -1928,6 +1931,7 @@ export const appRouter = router({
               if (tx.transactionType === 'buy') {
                 holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
                 totalInvested += amount;
+                totalBuyAmounts += amount;
                 // Track cost basis
                 if (!costBasis[tx.ticker]) {
                   costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
@@ -1936,6 +1940,7 @@ export const appRouter = router({
                 costBasis[tx.ticker].totalShares += shares;
               } else if (tx.transactionType === 'sell') {
                 holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+                totalSellAmounts += amount; // Sell amount is positive (proceeds)
                 // Reduce totalInvested by cost basis of sold shares
                 if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
                   const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
@@ -1946,8 +1951,10 @@ export const appRouter = router({
                 }
               } else if (tx.transactionType === 'deposit') {
                 totalInvested += amount;
+                totalDeposits += amount;
               } else if (tx.transactionType === 'withdrawal') {
                 totalInvested += amount; // amount is negative
+                totalDeposits += amount; // amount is negative
               }
             });
             
@@ -2004,6 +2011,12 @@ export const appRouter = router({
               }
             }
             
+            // Calculate cash position
+            // Cash = Total Deposits + Sell Proceeds - Buy Costs
+            // If no deposits/withdrawals, treat buy amounts as implicit deposits
+            const effectiveDeposits = totalDeposits > 0 ? totalDeposits : totalBuyAmounts;
+            const cashPosition = effectiveDeposits - totalBuyAmounts + totalSellAmounts;
+            
             // Fetch realized gains for this portfolio
             let totalRealizedGains = 0;
             
@@ -2015,10 +2028,13 @@ export const appRouter = router({
             // Sum all realized gains (realizedGain is in CHF, includes stock gain + FX gain)
             totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.realizedGain || '0'), 0);
             
+            // Add cash position to current value
+            const totalCurrentValue = currentValueCHF + cashPosition;
+            
             // Calculate performance including realized gains:
-            // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
+            // Performance = (Current Value + Cash + Realized Gains - Total Invested) / Total Invested * 100
             const performance = totalInvested > 0 
-              ? ((currentValueCHF + totalRealizedGains - totalInvested) / totalInvested) * 100 
+              ? ((totalCurrentValue + totalRealizedGains - totalInvested) / totalInvested) * 100 
               : 0;
             
             return { ...portfolio, livePerformance: performance };
@@ -3373,23 +3389,44 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         const transactions = await getPortfolioTransactions(input.portfolioId);
         
         let totalInvested = 0;
+        let totalDeposits = 0;
+        let totalBuyAmounts = 0;
+        let totalSellAmounts = 0;
         const holdings: Record<string, number> = {};
+        const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
         
         // Process transactions to calculate holdings and total invested
         transactions.forEach((tx: any) => {
           const shares = parseFloat(tx.shares || '0');
-          const amount = parseFloat(tx.totalAmount || '0');
+          const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
           
           if (tx.transactionType === 'buy') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
             totalInvested += amount;
+            totalBuyAmounts += amount;
+            // Track cost basis
+            if (!costBasis[tx.ticker]) {
+              costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
+            }
+            costBasis[tx.ticker].totalCost += amount;
+            costBasis[tx.ticker].totalShares += shares;
           } else if (tx.transactionType === 'sell') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
-            totalInvested -= amount;
+            totalSellAmounts += amount;
+            // Reduce totalInvested by cost basis of sold shares
+            if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
+              const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
+              const soldCost = shares * avgCost;
+              totalInvested -= soldCost;
+              costBasis[tx.ticker].totalCost -= soldCost;
+              costBasis[tx.ticker].totalShares -= shares;
+            }
           } else if (tx.transactionType === 'deposit') {
             totalInvested += amount;
+            totalDeposits += amount;
           } else if (tx.transactionType === 'withdrawal') {
             totalInvested += amount;
+            totalDeposits += amount;
           }
         });
         
@@ -3438,8 +3475,15 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           unrealizedGains = currentValueCHF - liveStartValueCHF;
         }
         
+        // Calculate cash position
+        const effectiveDeposits = totalDeposits > 0 ? totalDeposits : totalBuyAmounts;
+        const cashPosition = effectiveDeposits - totalBuyAmounts + totalSellAmounts;
+        
+        // Add cash to current value
+        const totalCurrentValue = currentValueCHF + cashPosition;
+        
         const livePerf = {
-          currentValue: currentValueCHF,
+          currentValue: totalCurrentValue,
           totalInvested,
           unrealizedGains,
         };

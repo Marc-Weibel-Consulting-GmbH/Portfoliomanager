@@ -1,0 +1,20 @@
+{
+  "query": "SELECT transactionType, COUNT(*) as count, SUM(CAST(totalAmountCHF AS DECIMAL(10,2))) as total FROM portfolioTransactions WHERE portfolioId = 90001 GROUP BY transactionType",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT transactionType, COUNT(*) as count, SUM(CAST(totalAmountCHF AS DECIMAL(10,2))) as total FROM portfolioTransactions WHERE portfolioId = 90001 GROUP BY transactionType",
+  "rows": [
+    {
+      "transactionType": "sell",
+      "count": "4",
+      "total": "2986.55"
+    },
+    {
+      "transactionType": "buy",
+      "count": "12",
+      "total": "41627.05"
+    }
+  ],
+  "messages": [],
+  "stdout": "transactionType\tcount\ttotal\nsell\t4\t2986.55\nbuy\t12\t41627.05\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

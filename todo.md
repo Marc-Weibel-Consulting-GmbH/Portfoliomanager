@@ -518,3 +518,44 @@
 - [x] This caused sells to be processed BEFORE buys, leading to wrong calculations
 - [x] Fix: Changed ORDER BY from DESC to ASC in db.ts line 744
 - [x] Also fixed: Use tx.totalAmount (includes fees) instead of shares * price
+
+## CRITICAL: Portfolio Value Inconsistencies Across Three Locations (Nov 10, 2025 - 19:00)
+
+### Expected Values (from Portfolio Positionen - CORRECT):
+- [ ] Total investiert: CHF 48'622
+- [ ] Aktueller Wert: CHF 53'040
+- [ ] Cash Position: CHF 3'748
+- [ ] Live Performance: +2.0%
+
+### Location 1: Startseite Portfolio-Karte (FIXED):
+- [x] Total investiert: CHF 45'010.01 ❌ (Differenz: -CHF 3'612)
+- [x] Live Performance: -3.5% ❌ (sollte +2.0% sein)
+- [x] Problem: Cash Position (CHF 3'748) fehlte in currentValueCHF
+- [x] Fix: Added cash position calculation to savedPortfolios.list
+- [x] Query: savedPortfolios.list → livePerformance calculation
+
+### Location 2: Portfolio Positionen (CORRECT):
+- [x] Total investiert: CHF 48'622 ✅
+- [x] Aktueller Wert: CHF 53'040 ✅
+- [x] Cash Position: CHF 3'748 ✅
+- [x] Live Performance: +2.0% ✅
+- [x] Query: getHoldingsWithChfPerformance
+
+### Location 3: Jahresübersicht (FIXED):
+- [x] Total investiert: CHF 48'295.45 ❌ (Differenz: -CHF 326.55)
+- [x] Aktueller Wert: CHF 42'381.592 ❌ (Differenz: -CHF 10'658.41)
+- [x] Performance: +4.23% ❌ (sollte +2.0% sein?)
+- [x] Problem 1: Used totalAmount (local currency) instead of totalAmountCHF
+- [x] Problem 2: Reduced totalInvested by sell proceeds instead of cost basis
+- [x] Problem 3: Cash position missing from currentValue
+- [x] Fix: Implemented cost basis tracking and cash position calculation
+- [x] Query: annualPerformance.getSummary
+
+### Root Cause Analysis Completed:
+- [x] savedPortfolios.list now includes cash position in currentValue
+- [x] annualPerformance.getSummary now uses correct cost basis tracking
+- [x] All three locations now use consistent calculation method:
+  - Cost basis tracking for sells
+  - Cash position = effectiveDeposits - buyAmounts + sellAmounts
+  - Total value = stock value + cash
+  - Performance = (total value + realized gains - total invested) / total invested × 100
