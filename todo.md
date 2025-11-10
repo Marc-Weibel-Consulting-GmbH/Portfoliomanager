@@ -72,3 +72,15 @@
 - [x] Missing financial metrics (YTD, P/E, PEG, Sharpe) in loaded portfolio data
 - [x] LIVE portfolio "Laden" button does nothing (should navigate to /portfolio/:id)
 - [x] Live Performance shows "Berechne..." indefinitely (calculation hangs or fails)
+
+
+## Bug Fix (Nov 10, 2025 - 02:15)
+- [x] Fix LIVE Portfolio Einzahlung/Auszahlung Speicherfehler
+- [x] Error: "Unexpected token '<', "<!doctype "... is not valid JSON"
+- [x] Backend returns HTML error page instead of JSON response
+- [x] Fixed transactionDate type mismatch (string vs Date)
+
+## CRITICAL Issues (Nov 10, 2025 - 02:20)
+- [ ] Memory problem: TypeScript compilation crashes (exit code 137)
+- [ ] Checkpoint publishing fails ("Veröffentlichen" spins indefinitely)
+- [ ] Build process needs memory optimization

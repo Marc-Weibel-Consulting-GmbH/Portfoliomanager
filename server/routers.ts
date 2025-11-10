@@ -2764,7 +2764,7 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
             totalAmount: string;
             fees: string;
             notes: string | null;
-            transactionDate: string;
+            transactionDate: string | Date;
           };
         }
         throw new Error("Invalid transaction data");
@@ -2772,8 +2772,15 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
       .mutation(async ({ input, ctx }) => {
         console.log("[Transaction] Creating transaction:", JSON.stringify(input, null, 2));
         const { createPortfolioTransaction } = await import("./db");
+        
+        // Normalize transactionDate to Date object
+        const transactionDate = typeof input.transactionDate === 'string' 
+          ? new Date(input.transactionDate) 
+          : input.transactionDate;
+        
         const result = await createPortfolioTransaction({
           ...input,
+          transactionDate,
           portfolioId: input.portfolioId,
         });
         console.log("[Transaction] Result:", result);
