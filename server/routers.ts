@@ -2341,7 +2341,7 @@ export const appRouter = router({
           const gains = await db
             .select()
             .from(realizedGains)
-            .where(eq(realizedGains.portfolioId, portfolioId));
+            .where(eq(realizedGains.portfolioId, input));
           
           // Sum all realized gains (totalGainCHF includes stock gain + FX gain - fees)
           totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.totalGainCHF || '0'), 0);

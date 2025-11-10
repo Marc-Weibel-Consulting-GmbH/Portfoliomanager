@@ -474,3 +474,8 @@
 - [x] Fix: Change procedure call from getById to get in TransactionHistory.tsx
 - [x] Error: "getDb is not defined" in a procedure
 - [x] Fix: Added missing getDb import to realizedGainsHistory.getAll procedure
+
+## CRITICAL: Portfolio Detail Page Error (Nov 10, 2025 - 17:24)
+- [x] Error: "portfolioId is not defined" on /portfolio/90001
+- [x] Found: calculateLivePerformance procedure used undefined portfolioId variable
+- [x] Fixed: Changed portfolioId to input parameter (line 2344 in routers.ts)
