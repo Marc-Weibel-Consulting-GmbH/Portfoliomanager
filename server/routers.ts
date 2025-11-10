@@ -2259,15 +2259,27 @@ export const appRouter = router({
         const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
         
         // Process transactions
+        // For live portfolios, all buy transactions on the liveStartDate are treated as initial positions (implicit deposits)
+        const liveStartDate = new Date(portfolio.liveStartDate);
+        const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+        
         transactions.forEach((tx: any) => {
           const shares = parseFloat(tx.shares || '0');
           const price = parseFloat(tx.pricePerShare || '0');
           const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+          const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+          const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
           
           if (tx.transactionType === 'buy') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
             totalBuyAmounts += amount;
             totalInvestedInStocks += amount;
+            
+            // Treat initial positions as implicit deposits (capital brought into the portfolio)
+            if (isInitialPosition) {
+              totalDeposits += amount;
+            }
+            
             if (!costBasis[tx.ticker]) {
               costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
             }
@@ -2301,9 +2313,7 @@ export const appRouter = router({
         let currentValueCHF = 0;
         let liveStartValueCHF = 0;
         
-        // Get live start date for baseline calculation
-        const liveStartDate = new Date(portfolio.liveStartDate);
-        const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+        // liveStartDate and liveStartDateStr already declared above
         const todayStr = new Date().toISOString().split('T')[0];
         
         for (const [ticker, shares] of Object.entries(holdings)) {
@@ -2413,7 +2423,7 @@ export const appRouter = router({
         }
         
         // Calculate holdings from transactions
-        const holdingsByTicker: Record<string, { shares: number; totalInvestedLocal: number; totalBought: number; avgBuyPrice: number; currency: string }> = {};
+        const holdingsByTicker: Record<string, { shares: number; totalInvestedLocal: number; totalInvestedCHF: number; totalBought: number; avgBuyPrice: number; avgBuyPriceCHF: number; currency: string }> = {};
         
         for (const tx of transactions) {
           const ticker = tx.ticker;
@@ -2422,8 +2432,10 @@ export const appRouter = router({
             holdingsByTicker[ticker] = { 
               shares: 0, 
               totalInvestedLocal: 0, 
+              totalInvestedCHF: 0,
               totalBought: 0, 
               avgBuyPrice: 0,
+              avgBuyPriceCHF: 0,
               currency 
             };
           }
@@ -2431,19 +2443,24 @@ export const appRouter = router({
           const shares = parseFloat(tx.shares || '0');
           const price = parseFloat(tx.pricePerShare || '0');
           // Use totalAmount from transaction (includes fees) if available, otherwise calculate
-          const amount = parseFloat(tx.totalAmount || '0') || (shares * price);
+          const amountLocal = parseFloat(tx.totalAmount || '0') || (shares * price);
+          const amountCHF = parseFloat(tx.totalAmountCHF || '0') || amountLocal;
           
           if (tx.transactionType === 'buy') {
             holdingsByTicker[ticker].shares += shares;
             holdingsByTicker[ticker].totalBought += shares;
-            holdingsByTicker[ticker].totalInvestedLocal += amount;
+            holdingsByTicker[ticker].totalInvestedLocal += amountLocal;
+            holdingsByTicker[ticker].totalInvestedCHF += amountCHF;
             // Calculate average buy price (cost per share including fees)
             holdingsByTicker[ticker].avgBuyPrice = holdingsByTicker[ticker].totalInvestedLocal / holdingsByTicker[ticker].totalBought;
+            holdingsByTicker[ticker].avgBuyPriceCHF = holdingsByTicker[ticker].totalInvestedCHF / holdingsByTicker[ticker].totalBought;
           } else if (tx.transactionType === 'sell') {
             holdingsByTicker[ticker].shares -= shares;
             // Reduce totalInvested proportionally based on average buy price
-            const costBasis = shares * holdingsByTicker[ticker].avgBuyPrice;
-            holdingsByTicker[ticker].totalInvestedLocal -= costBasis;
+            const costBasisLocal = shares * holdingsByTicker[ticker].avgBuyPrice;
+            const costBasisCHF = shares * holdingsByTicker[ticker].avgBuyPriceCHF;
+            holdingsByTicker[ticker].totalInvestedLocal -= costBasisLocal;
+            holdingsByTicker[ticker].totalInvestedCHF -= costBasisCHF;
           }
         }
         
@@ -2469,8 +2486,7 @@ export const appRouter = router({
         }
         
         // Calculate CHF-converted performance for each holding
-        const liveStartDate = new Date(portfolio.liveStartDate);
-        const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
+        // liveStartDate and liveStartDateStr already declared at the start of this procedure
         const todayStr = new Date().toISOString().split('T')[0];
         
         const holdingsWithPerformance = [];
@@ -2487,8 +2503,8 @@ export const appRouter = router({
           // Convert to CHF using today's rate
           const currentValueCHF = await convertToCHF(currentValueLocal, holding.currency, todayStr);
           
-          // Convert invested amount to CHF using live start date rate
-          const totalInvestedCHF = await convertToCHF(holding.totalInvestedLocal, holding.currency, liveStartDateStr);
+          // Use totalInvestedCHF from transactions (already converted with historical FX rates)
+          const totalInvestedCHF = holding.totalInvestedCHF;
           
           // Get realized gains for this ticker
           const realizedGains = realizedGainsByTicker[ticker] || 0;

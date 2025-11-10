@@ -654,3 +654,21 @@
 - [x] Buys reduce cash, sells increase cash
 - [ ] Warning when buy exceeds available cash
 - [ ] Suggest which stocks to sell to cover deficit
+
+
+## CRITICAL: Portfolio Calculation Wrong (Nov 10, 2025 - 20:40)
+- [x] Deposits show CHF 5'826 but should be CHF 50'000
+- [x] Initial buy transactions (10 stocks) total CHF 40'222 but not counted as deposits
+- [x] Cash Position shows CHF -34'395 (negative!) instead of CHF 5'826
+- [x] Fixed by treating initial positions (with "Initial position" notes) as implicit deposits
+- [x] Total Deposits now includes: explicit deposits + initial buy transactions
+- [x] Cash Position now correctly calculated as: deposits - buys + sells + dividends
+
+
+## Bug: FX Rate Inconsistency Between Transactions and Display (Nov 10, 2025 - 20:45)
+- [x] Transaction totalAmountCHF values don't match displayed "Total investiert" values
+- [x] Transactions store historical FX rates (e.g., MONC.MI: 0.9300 EUR/CHF)
+- [x] Display was recalculating with liveStartDate FX rates instead of using stored values
+- [x] Fixed getHoldingsWithChfPerformance to track totalInvestedCHF from transactions
+- [x] Frontend now displays totalInvestedCHF from backend correctly
+- [x] All calculations now use consistent FX rates from transaction time
