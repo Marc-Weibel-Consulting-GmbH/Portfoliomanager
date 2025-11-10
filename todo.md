@@ -590,3 +590,8 @@
 - [x] Fix MONC.MI missing CHF amount (fxRate was null)
 - [x] Update all EUR transactions with missing fxRate to 0.9300
 - [x] Verify CHF amounts display correctly in transaction history
+
+## Bug Fix: Transaction Edit Modal Error (Nov 10, 2025 - 19:48)
+- [x] Fix TypeError: tx.transactionDate?.split is not a function
+- [x] transactionDate is a Date object, not a string
+- [x] Convert Date to ISO string format for date input field

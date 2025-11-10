@@ -57,8 +57,19 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
 
   const handleEditTransaction = (tx: any) => {
     setEditingTransaction(tx);
+    
+    // Convert transactionDate to YYYY-MM-DD format
+    let dateStr = "";
+    if (tx.transactionDate) {
+      if (typeof tx.transactionDate === 'string') {
+        dateStr = tx.transactionDate.split('T')[0];
+      } else if (tx.transactionDate instanceof Date) {
+        dateStr = tx.transactionDate.toISOString().split('T')[0];
+      }
+    }
+    
     setEditForm({
-      date: tx.transactionDate?.split('T')[0] || "",
+      date: dateStr,
       shares: tx.shares?.toString() || "",
       pricePerShare: tx.pricePerShare?.toString() || "",
       currency: tx.currency || "CHF"
