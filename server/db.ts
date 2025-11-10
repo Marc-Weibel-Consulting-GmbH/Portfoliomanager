@@ -566,12 +566,82 @@ export async function createPortfolioTransaction(transaction: any) {
   }
   
   try {
-    const { portfolioTransactions } = await import("../drizzle/schema");
+    const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");
     console.log("[DB] Inserting into portfolioTransactions table...");
     console.log("[DB] Transaction data:", transaction);
     const result = await db.insert(portfolioTransactions).values(transaction);
     console.log("[DB] Insert result:", JSON.stringify(result, null, 2));
-    const returnValue = { id: Number((result as any).insertId), ...transaction };
+    const transactionId = Number((result as any).insertId);
+    const returnValue: any = { id: transactionId, ...transaction };
+    
+    // If this is a sell transaction, calculate realized gain/loss
+    if (transaction.transactionType === 'sell' && transaction.ticker) {
+      console.log("[DB] Calculating realized gain/loss for sell transaction...");
+      
+      // Get all buy transactions for this ticker in this portfolio
+      const buyTransactions = await db
+        .select()
+        .from(portfolioTransactions)
+        .where(
+          and(
+            eq(portfolioTransactions.portfolioId, transaction.portfolioId),
+            eq(portfolioTransactions.ticker, transaction.ticker),
+            eq(portfolioTransactions.transactionType, 'buy')
+          )
+        );
+      
+      // Calculate average cost basis (weighted average of all buys)
+      let totalShares = 0;
+      let totalCost = 0;
+      
+      for (const buy of buyTransactions) {
+        const shares = parseFloat(buy.shares || '0');
+        const price = parseFloat(buy.pricePerShare || '0');
+        totalShares += shares;
+        totalCost += shares * price;
+      }
+      
+      const avgCostBasis = totalShares > 0 ? totalCost / totalShares : 0;
+      const sellPrice = parseFloat(transaction.pricePerShare || '0');
+      const sharesSold = parseFloat(transaction.shares || '0');
+      
+      // Calculate realized gain/loss
+      const realizedGain = (sellPrice - avgCostBasis) * sharesSold;
+      const realizedGainPercent = avgCostBasis > 0 ? ((sellPrice - avgCostBasis) / avgCostBasis) * 100 : 0;
+      
+      console.log("[DB] Realized gain calculation:", {
+        avgCostBasis,
+        sellPrice,
+        sharesSold,
+        realizedGain,
+        realizedGainPercent
+      });
+      
+      // Save realized gain/loss to database
+      await db.insert(realizedGains).values({
+        portfolioId: transaction.portfolioId,
+        transactionId: transactionId,
+        ticker: transaction.ticker,
+        shares: transaction.shares,
+        avgCostBasis: avgCostBasis.toFixed(2),
+        sellPrice: sellPrice.toFixed(2),
+        realizedGain: realizedGain.toFixed(2),
+        realizedGainPercent: realizedGainPercent.toFixed(2),
+        transactionDate: transaction.transactionDate,
+      });
+      
+      // Add realized gain data to return value for UI display
+      returnValue.realizedGain = {
+        amount: realizedGain,
+        percent: realizedGainPercent,
+        avgCostBasis: avgCostBasis,
+        sellPrice: sellPrice,
+        shares: sharesSold,
+      };
+      
+      console.log("[DB] Realized gain saved successfully");
+    }
+    
     console.log("[DB] Returning:", returnValue);
     return returnValue;
   } catch (error: any) {

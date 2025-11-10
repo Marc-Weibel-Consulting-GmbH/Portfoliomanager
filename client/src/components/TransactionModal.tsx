@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { RealizedGainModal } from "@/components/RealizedGainModal";
 
 interface TransactionModalProps {
   open: boolean;
@@ -27,6 +28,10 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
   const [fees, setFees] = useState("0");
   const [notes, setNotes] = useState("");
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // State for realized gain modal
+  const [showRealizedGainModal, setShowRealizedGainModal] = useState(false);
+  const [realizedGainData, setRealizedGainData] = useState<any>(null);
 
   // Fetch all transactions for this portfolio to calculate current holdings
   const { data: allTransactions = [] } = trpc.portfolioTransactions.list.useQuery(
@@ -77,10 +82,23 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
   }, [transactionType, stockData]);
 
   const createTransactionMutation = trpc.portfolioTransactions.create.useMutation({
-    onSuccess: () => {
-      toast.success("Transaktion erfolgreich erfasst");
-      onSuccess?.();
-      onClose();
+    onSuccess: (data: any) => {
+      // If this was a sell transaction and we have realized gain data, show the modal
+      if (transactionType === 'sell' && data.realizedGain) {
+        const selectedStock = portfolioStocks.find(s => s.ticker === ticker);
+        setRealizedGainData({
+          ticker,
+          companyName: selectedStock?.companyName,
+          ...data.realizedGain
+        });
+        setShowRealizedGainModal(true);
+        onSuccess?.();
+        onClose(); // Close transaction modal
+      } else {
+        toast.success("Transaktion erfolgreich erfasst");
+        onSuccess?.();
+        onClose();
+      }
     },
     onError: (error) => {
       toast.error("Fehler beim Speichern: " + error.message);
@@ -155,9 +173,9 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
 
   const requiresTicker = transactionType === "buy" || transactionType === "sell" || transactionType === "dividend";
   const requiresShares = transactionType === "buy" || transactionType === "sell";
-
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
+    <>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-lg">
         <DialogHeader>
           <DialogTitle>Transaktion erfassen</DialogTitle>
@@ -323,5 +341,20 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
         </div>
       </DialogContent>
     </Dialog>
+    
+    {/* Realized Gain/Loss Modal */}
+    {realizedGainData && (
+      <RealizedGainModal
+        isOpen={showRealizedGainModal}
+        onClose={() => {
+          setShowRealizedGainModal(false);
+          setRealizedGainData(null);
+        }}
+        ticker={realizedGainData.ticker}
+        companyName={realizedGainData.companyName}
+        realizedGain={realizedGainData}
+      />
+    )}
+    </>
   );
 }

@@ -188,3 +188,34 @@
 - [x] Transaktionsdatum = liveStartDate
 - [x] updateLiveStartDate löscht alte Transaktionen und erstellt neue mit neuem Datum
 - [x] Historische Kurse werden für jedes neue Datum geladen
+
+## NEW: Realisierte Gewinne/Verluste & Dividenden-Tracking (Nov 10, 2025 - 13:00)
+
+### 1. Realisierte Gewinne/Verluste beim Verkauf
+- [x] Neue Tabelle `realizedGains` erstellt
+- [x] Bei Verkauf: Gewinn/Verlust berechnen (durchschnittlicher Kaufpreis vs. Verkaufspreis)
+- [x] Pop-up nach Verkauf mit Gewinn/Verlust-Anzeige (grün für Gewinn, rot für Verlust)
+- [x] Realisierte Gewinne in DB speichern
+- [x] UI Design: RealizedGainModal mit Betrag, Prozent, Details
+
+### 2. Automatische Dividenden-Erfassung
+- [ ] Transaktionstyp "dividend" zur portfolioTransactions Tabelle hinzufügen
+- [ ] Cron-Job für tägliche Dividenden-Prüfung (z.B. 6:00 Uhr)
+- [ ] API-Integration für Dividenden-Daten (EODHD oder Finnhub)
+- [ ] Automatische Transaktion erstellen bei Ex-Dividenden-Datum
+- [ ] Betrag = Dividende pro Aktie × Anzahl Aktien im Portfolio
+
+### 3. Dividenden-Kalender
+- [ ] Button "Dividendenkalender" neben "Ø Dividende" Karte
+- [ ] Modal mit Tabelle: Ticker, Firma, Ex-Datum, Zahltag, Dividende/Aktie, Erwarteter Ertrag
+- [ ] API-Abruf für bevorstehende Dividenden (aktuelles Jahr)
+- [ ] Nur Aktien anzeigen, die sich im Portfolio befinden
+- [ ] Sortierung nach Ex-Datum (nächste zuerst)
+
+### 4. Jahres-Performance-Zusammenfassung
+- [ ] Neue Seite oder Modal "Jahresübersicht"
+- [ ] Unrealisierte Gewinne/Verluste (aktueller Wert - Kaufwert)
+- [ ] Realisierte Gewinne/Verluste (aus realizedGains Tabelle)
+- [ ] Dividendenerträge (Summe aller dividend Transaktionen)
+- [ ] Kosten (Summe aller Gebühren aus Transaktionen)
+- [ ] Gesamt-Performance = (Unrealisiert + Realisiert + Dividenden - Kosten) / Investiert × 100

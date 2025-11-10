@@ -206,6 +206,27 @@ export const portfolioTransactions = mysqlTable("portfolioTransactions", {
 export type PortfolioTransaction = typeof portfolioTransactions.$inferSelect;
 export type InsertPortfolioTransaction = typeof portfolioTransactions.$inferInsert;
 
+// Realized gains/losses table - tracks realized gains/losses from sell transactions
+export const realizedGains = mysqlTable("realizedGains", {
+  id: int("id").autoincrement().primaryKey(),
+  portfolioId: int("portfolioId").notNull(), // References savedPortfolios.id
+  transactionId: int("transactionId").notNull(), // References portfolioTransactions.id (the sell transaction)
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  shares: varchar("shares", { length: 50 }).notNull(), // Number of shares sold
+  avgCostBasis: varchar("avgCostBasis", { length: 50 }).notNull(), // Average purchase price per share
+  sellPrice: varchar("sellPrice", { length: 50 }).notNull(), // Sell price per share
+  realizedGain: varchar("realizedGain", { length: 50 }).notNull(), // Total realized gain/loss (can be negative)
+  realizedGainPercent: varchar("realizedGainPercent", { length: 50 }).notNull(), // Gain/loss as percentage
+  transactionDate: timestamp("transactionDate").notNull(), // Date of the sell transaction
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  portfolioIdx: index("ix_realized_gains_portfolio").on(t.portfolioId),
+  tickerIdx: index("ix_realized_gains_ticker").on(t.ticker),
+}));
+
+export type RealizedGain = typeof realizedGains.$inferSelect;
+export type InsertRealizedGain = typeof realizedGains.$inferInsert;
+
 // Historical metrics table - tracks Sharpe Ratio, PE, and other metrics over time
 export const historicalMetrics = mysqlTable("historicalMetrics", {
   id: int("id").autoincrement().primaryKey(),
