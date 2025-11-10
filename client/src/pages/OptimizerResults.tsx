@@ -68,6 +68,29 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   
   // Editable portfolio state (separate from optimized suggestion)
   const [editablePositions, setEditablePositions] = useState<OptimizedPosition[] | null>(initialStocks || null);
+  
+  // Update initialStocks with current prices when allStocks is loaded
+  useEffect(() => {
+    if (initialStocks && initialStocks.length > 0 && allStocks.length > 0) {
+      console.log('[OptimizerResults] Updating initialStocks with current prices');
+      const updatedStocks = initialStocks.map(stock => {
+        const currentStock = allStocks.find(s => s.ticker === stock.ticker);
+        if (currentStock) {
+          return {
+            ...stock,
+            currentPrice: currentStock.currentPrice || stock.currentPrice,
+            dividendYield: currentStock.dividendYield || stock.dividendYield,
+            ytdPerformance: currentStock.ytdPerformance || stock.ytdPerformance,
+            peRatio: currentStock.peRatio || stock.peRatio,
+            pegRatio: currentStock.pegRatio || stock.pegRatio,
+            sharpeRatio: currentStock.sharpeRatio || stock.sharpeRatio,
+          };
+        }
+        return stock;
+      });
+      setEditablePositions(updatedStocks);
+    }
+  }, [initialStocks, allStocks]);
   const [showAddStockDialog, setShowAddStockDialog] = useState(false);
   const [addStockFormData, setAddStockFormData] = useState<any>({});
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");

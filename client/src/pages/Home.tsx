@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { trpc } from "@/lib/trpc";
 import React, { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen, X } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
@@ -314,6 +315,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
 }
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery(undefined, {
     enabled: isAuthenticated || !!user,

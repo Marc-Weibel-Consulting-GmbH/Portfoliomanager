@@ -65,3 +65,10 @@
 - [x] Should navigate to Portfolio Detail page for LIVE portfolios
 - [x] Remove news section from stocks frontpage (user deleted from navigation)
 - [x] Removed duplicate Details button (functionality merged into Laden)
+
+
+## CRITICAL Bugs (Nov 10, 2025 - 16:45)
+- [x] Portfolio Analyzer shows CHF 0.00 for all stock prices when loading TEST portfolio
+- [x] Missing financial metrics (YTD, P/E, PEG, Sharpe) in loaded portfolio data
+- [x] LIVE portfolio "Laden" button does nothing (should navigate to /portfolio/:id)
+- [x] Live Performance shows "Berechne..." indefinitely (calculation hangs or fails)

@@ -517,6 +517,7 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
     .set({ 
       isLive: isLive ? 1 : 0,
       liveStartDate: liveStartDate,
+      livePerformance: isLive ? 0 : null,
       updatedAt: new Date()
     })
     .where(and(eq(savedPortfolios.id, id), eq(savedPortfolios.userId, userId)));
