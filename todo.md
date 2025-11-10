@@ -672,3 +672,11 @@
 - [x] Fixed getHoldingsWithChfPerformance to track totalInvestedCHF from transactions
 - [x] Frontend now displays totalInvestedCHF from backend correctly
 - [x] All calculations now use consistent FX rates from transaction time
+
+
+## Bug: Portfolio Card Shows Wrong Investiert Value (Nov 10, 2025 - 21:00)
+- [x] Portfolio card shows "Investiert (Aktien)" CHF 40'221.95
+- [x] Should show CHF 44'174 (matching Portfolio Positionen table)
+- [x] Frontend portfolioSummary now sums totalInvestedCHF from chfHoldings
+- [x] Backend livePerformance.totalInvested is correct (CHF 44'174)
+- [x] Frontend now uses CHF values from backend instead of recalculating

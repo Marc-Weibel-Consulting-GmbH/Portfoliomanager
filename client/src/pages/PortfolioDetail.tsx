@@ -114,13 +114,21 @@ export default function PortfolioDetail() {
       }
     });
 
-    // Calculate total invested in stocks from holdings (current cost basis)
+    // Calculate total invested in stocks from holdings (current cost basis in CHF)
     let totalInvestedInStocks = 0;
-    Object.values(holdingsByTicker).forEach((holding: any) => {
-      if (holding.shares > 0) {
-        totalInvestedInStocks += holding.totalInvested;
-      }
-    });
+    if (portfolio.isLive && chfHoldings.length > 0) {
+      // For live portfolios, sum totalInvestedCHF from chfHoldings
+      chfHoldings.forEach((holding: any) => {
+        totalInvestedInStocks += parseFloat(holding.totalInvestedCHF || '0');
+      });
+    } else {
+      // Fallback: sum from holdingsByTicker (in local currency, not accurate for multi-currency)
+      Object.values(holdingsByTicker).forEach((holding: any) => {
+        if (holding.shares > 0) {
+          totalInvestedInStocks += holding.totalInvested;
+        }
+      });
+    }
 
     const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends;
 
