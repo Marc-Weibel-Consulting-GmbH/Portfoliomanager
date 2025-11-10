@@ -113,34 +113,18 @@ export default function PortfolioDetail() {
     }
   });
 
-  if (!portfolioId || !portfolio) {
-    return (
-      <div className="min-h-screen bg-slate-900 p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center py-12">
-            <p className="text-slate-400 text-lg">Portfolio nicht gefunden</p>
-            <Button
-              onClick={() => setLocation("/")}
-              variant="outline"
-              className="mt-4"
-            >
-              Zurück zur Übersicht
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Parse portfolio data safely and enrich with stock names from database
-  let portfolioData: any[] = [];
-  try {
-    const parsed = JSON.parse(portfolio.portfolioData);
-    // Handle both formats: array of stocks or object with stocks property
-    const rawData = Array.isArray(parsed) ? parsed : (parsed.stocks || []);
+  // MUST be before early return to maintain hooks order
+  const portfolioData = useMemo(() => {
+    if (!portfolio?.portfolioData) return [];
     
-    // Ensure each stock has ticker, name, and other fields
-    portfolioData = rawData.map((stock: any) => {
+    try {
+      const parsed = JSON.parse(portfolio.portfolioData);
+      // Handle both formats: array of stocks or object with stocks property
+      const rawData = Array.isArray(parsed) ? parsed : (parsed.stocks || []);
+      
+      // Ensure each stock has ticker, name, and other fields
+      return rawData.map((stock: any) => {
       const ticker = stock.ticker || stock.symbol || '';
       // Find stock in database to get company name
       const dbStock = allStocks.find((s: any) => s.ticker === ticker);
@@ -180,10 +164,30 @@ export default function PortfolioDetail() {
         ytdPerformance: stock.ytdPerformance || stock.performance || dbStock?.ytdPerformance || 0,
         currency
       };
-    });
-  } catch (error) {
-    console.error('Failed to parse portfolio data:', error);
-    portfolioData = [];
+      });
+    } catch (error) {
+      console.error('Failed to parse portfolio data:', error);
+      return [];
+    }
+  }, [portfolio?.portfolioData, allStocks, holdingsByTicker, portfolio?.isLive]);
+
+  if (!portfolioId || !portfolio) {
+    return (
+      <div className="min-h-screen bg-slate-900 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-12">
+            <p className="text-slate-400 text-lg">Portfolio nicht gefunden</p>
+            <Button
+              onClick={() => setLocation("/")}
+              variant="outline"
+              className="mt-4"
+            >
+              Zurück zur Übersicht
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

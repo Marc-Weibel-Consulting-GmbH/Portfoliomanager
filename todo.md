@@ -321,3 +321,12 @@
 - [x] Add navigation link to Realized Gains History
 - [ ] Sortable and filterable by date, ticker, gain/loss
 - [ ] Export to CSV for tax reporting
+
+
+## CRITICAL Bugs (Nov 10, 2025 - 12:59)
+- [ ] portfolioData.forEach error on portfolio detail page (portfolioData is not an array)
+- [ ] Dividend calendar shows no data after EODHD API migration
+
+- [x] portfolioData.forEach error on portfolio detail page (portfolioData is not an array)
+- [x] Dividend calendar shows no data after EODHD API migration
+- [x] React hooks order error: useMemo called after conditional return

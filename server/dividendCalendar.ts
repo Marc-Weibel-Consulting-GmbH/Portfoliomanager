@@ -25,8 +25,16 @@ async function fetchTickerDividends(ticker: string): Promise<DividendEvent[]> {
   }
 
   try {
+    // Determine exchange suffix for EODHD API
+    let tickerWithExchange = ticker;
+    if (!ticker.includes('.')) {
+      // No suffix - assume US stock
+      tickerWithExchange = `${ticker}.US`;
+    }
+    // If ticker already has suffix (.SW, .US, etc.), use as-is
+    
     // Fetch dividend history from EODHD
-    const url = `https://eodhd.com/api/div/${ticker}.US?api_token=${apiKey}&fmt=json`;
+    const url = `https://eodhd.com/api/div/${tickerWithExchange}?api_token=${apiKey}&fmt=json`;
     const response = await fetch(url);
     
     if (!response.ok) {
