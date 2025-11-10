@@ -468,3 +468,9 @@
 - [ ] MONC.MI Verkauf: Währung von CHF auf EUR ändern (12 Aktien × EUR 60)
 - [ ] Fehlende currency und fxRate Daten für alte Transaktionen nachtragen
 - [ ] totalAmountCHF für alte Verkäufe neu berechnen (mit korrekten Gebührenabzug)
+
+## CRITICAL: Realized Gains Page Errors (Nov 10, 2025 - 17:22)
+- [x] Error: "No procedure found on path 'savedPortfolios.getById'"
+- [x] Fix: Change procedure call from getById to get in TransactionHistory.tsx
+- [x] Error: "getDb is not defined" in a procedure
+- [x] Fix: Added missing getDb import to realizedGainsHistory.getAll procedure

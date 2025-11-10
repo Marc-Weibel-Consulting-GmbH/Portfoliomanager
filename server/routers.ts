@@ -3563,6 +3563,7 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         throw new Error("Invalid portfolioId");
       })
       .query(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
 
