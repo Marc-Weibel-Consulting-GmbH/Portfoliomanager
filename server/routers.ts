@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
 import { callDataApi } from "./_core/dataApi";
@@ -3254,10 +3255,12 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         throw new Error("Invalid portfolio ID");
       })
       .query(async ({ input, ctx }) => {
-        const { getSavedPortfolioById, getPortfolioTransactions } = await import("./db");
-        const { getDb } = await import("./db");
+        const { getSavedPortfolioById, getPortfolioTransactions, getDb, calculateLivePerformance } = await import("./db");
         const { realizedGains } = await import("../drizzle/schema");
         const { eq, and, gte, lte, sql } = await import("drizzle-orm");
+        
+        // Get database instance
+        const db = await getDb();
         
         // Get portfolio
         const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
@@ -3269,61 +3272,13 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         const yearStart = new Date(year, 0, 1);
         const yearEnd = new Date(year, 11, 31, 23, 59, 59);
         
-        // Get all transactions
+        // Use live performance calculation which already works correctly
+        const livePerf = await calculateLivePerformance(input.portfolioId, ctx.user.id);
+        
+        // Get all transactions for year-specific calculations
         const transactions = await getPortfolioTransactions(input.portfolioId);
         
-        // Parse portfolio data
-        let portfolioData: any[] = [];
-        try {
-          const parsed = JSON.parse(portfolio.portfolioData);
-          portfolioData = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          console.error('[AnnualPerformance] Failed to parse portfolio data:', e);
-          portfolioData = [];
-        }
-        
-        // Calculate current holdings
-        const holdings: Record<string, { shares: number; totalInvested: number; currentValue: number }> = {};
-        
-        transactions.forEach((tx: any) => {
-          if (!holdings[tx.ticker]) {
-            holdings[tx.ticker] = { shares: 0, totalInvested: 0, currentValue: 0 };
-          }
-          
-          const shares = parseFloat(tx.shares || '0');
-          const price = parseFloat(tx.pricePerShare || '0');
-          
-          if (tx.transactionType === 'buy') {
-            holdings[tx.ticker].shares += shares;
-            holdings[tx.ticker].totalInvested += shares * price;
-          } else if (tx.transactionType === 'sell') {
-            holdings[tx.ticker].shares -= shares;
-            // Don't reduce totalInvested - we want to track total capital deployed
-          }
-        });
-        
-        // Add current values from portfolio data
-        portfolioData.forEach((stock: any) => {
-          if (holdings[stock.ticker]) {
-            holdings[stock.ticker].currentValue = stock.currentValue || 0;
-          }
-        });
-        
-        // Calculate unrealized gains
-        let unrealizedGains = 0;
-        let totalInvested = 0;
-        let currentValue = 0;
-        
-        Object.values(holdings).forEach(holding => {
-          if (holding.shares > 0) {
-            unrealizedGains += holding.currentValue - holding.totalInvested;
-            totalInvested += holding.totalInvested;
-            currentValue += holding.currentValue;
-          }
-        });
-        
         // Get realized gains for the year with FX breakdown
-        const db = await getDb();
         let realizedGainsTotal = 0;
         let realizedStockGainsTotal = 0;
         let realizedFxGainsTotal = 0;
@@ -3383,6 +3338,11 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
             return txDate >= yearStart && txDate <= yearEnd;
           })
           .reduce((sum: number, tx: any) => sum + parseFloat(tx.fees || '0'), 0);
+        
+        // Use values from live performance calculation
+        const totalInvested = livePerf.totalInvested;
+        const currentValue = livePerf.currentValue;
+        const unrealizedGains = livePerf.unrealizedGains;
         
         // Calculate net performance
         const netPerformance = unrealizedGains + realizedGainsTotal + dividendIncome - totalFees;
@@ -3538,6 +3498,98 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         });
 
         return result;
+      }),
+    
+    // Debug endpoint for performance calculations
+    debugPerformance: protectedProcedure
+      .input(z.object({ portfolioId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, getPortfolioTransactions, calculateLivePerformance } = await import("./db");
+        
+        const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+        if (!portfolio) {
+          throw new Error("Portfolio not found");
+        }
+        
+        const transactions = await getPortfolioTransactions(input.portfolioId);
+        const livePerf = await calculateLivePerformance(input.portfolioId, ctx.user.id);
+        
+        // Calculate holdings step by step
+        const holdings: Record<string, any> = {};
+        const steps: string[] = [];
+        
+        transactions.forEach((tx: any, index: number) => {
+          if (!tx.ticker) return;
+          
+          if (!holdings[tx.ticker]) {
+            holdings[tx.ticker] = { 
+              shares: 0, 
+              totalInvestedCHF: 0, 
+              totalBought: 0, 
+              avgBuyPrice: 0 
+            };
+          }
+          
+          const shares = parseFloat(tx.shares || '0');
+          const price = parseFloat(tx.pricePerShare || '0');
+          const amount = shares * price;
+          const amountCHF = parseFloat(tx.totalAmountCHF || '0');
+          const fxRate = parseFloat(tx.fxRate || '1');
+          
+          if (tx.transactionType === 'buy') {
+            const before = { ...holdings[tx.ticker] };
+            holdings[tx.ticker].shares += shares;
+            holdings[tx.ticker].totalBought += shares;
+            holdings[tx.ticker].totalInvested += amount;
+            holdings[tx.ticker].avgBuyPrice = holdings[tx.ticker].totalInvested / holdings[tx.ticker].totalBought;
+            
+            steps.push(
+              `TX${index + 1}: BUY ${tx.ticker} | ` +
+              `${shares} shares @ ${price} ${tx.currency || 'CHF'} = ${amount.toFixed(2)} | ` +
+              `FX ${fxRate} → CHF ${amountCHF.toFixed(2)} | ` +
+              `Before: ${before.shares} shares, invested ${before.totalInvested.toFixed(2)} | ` +
+              `After: ${holdings[tx.ticker].shares} shares, invested ${holdings[tx.ticker].totalInvested.toFixed(2)}, avg ${holdings[tx.ticker].avgBuyPrice.toFixed(2)}`
+            );
+          } else if (tx.transactionType === 'sell') {
+            const before = { ...holdings[tx.ticker] };
+            const costBasis = shares * holdings[tx.ticker].avgBuyPrice;
+            holdings[tx.ticker].shares -= shares;
+            holdings[tx.ticker].totalInvested -= costBasis;
+            
+            steps.push(
+              `TX${index + 1}: SELL ${tx.ticker} | ` +
+              `${shares} shares @ ${price} ${tx.currency || 'CHF'} = ${amount.toFixed(2)} | ` +
+              `FX ${fxRate} → CHF ${amountCHF.toFixed(2)} | ` +
+              `Cost basis: ${costBasis.toFixed(2)} (${shares} × ${before.avgBuyPrice.toFixed(2)}) | ` +
+              `Before: ${before.shares} shares, invested ${before.totalInvested.toFixed(2)} | ` +
+              `After: ${holdings[tx.ticker].shares} shares, invested ${holdings[tx.ticker].totalInvested.toFixed(2)}`
+            );
+          }
+        });
+        
+        // Calculate totals
+        let totalInvestedCalc = 0;
+        Object.values(holdings).forEach((h: any) => {
+          if (h.shares > 0) {
+            totalInvestedCalc += h.totalInvested;
+          }
+        });
+        
+        steps.push('');
+        steps.push('=== SUMMARY ===');
+        steps.push(`Total invested (calculated): ${totalInvestedCalc.toFixed(2)}`);
+        steps.push(`Total invested (livePerf): ${livePerf.totalInvested.toFixed(2)}`);
+        steps.push(`Current value (livePerf): ${livePerf.currentValue.toFixed(2)}`);
+        steps.push(`Unrealized gains (livePerf): ${livePerf.unrealizedGains.toFixed(2)}`);
+        steps.push(`Performance (livePerf): ${livePerf.returnOnInvestment.toFixed(2)}%`);
+        
+        return {
+          steps,
+          holdings,
+          livePerf,
+          totalInvestedCalc,
+          transactionCount: transactions.length
+        };
       }),
   }),
 });

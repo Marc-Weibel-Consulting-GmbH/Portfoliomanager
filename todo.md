@@ -364,3 +364,33 @@
   * Betrag (CHF) - konvertiert
   * Gebühren (CHF)
   * Nettobetrag (CHF)
+
+## CRITICAL: Annual Performance Bug (Nov 10, 2025 - 14:05)
+- [ ] Aktueller Wert shows CHF 0.00 (should show current portfolio value)
+- [ ] Unrealisierte Gewinne shows CHF 45'999.53 but current value is 0 (impossible)
+- [ ] Total investiert shows CHF 45'999.53 (correct)
+- [ ] Fix calculation in annualPerformance endpoint to properly calculate current portfolio value
+
+## Annual Performance Calculation Bug (Nov 10, 2025 - 14:25)
+- [ ] Jahresübersicht shows -17.68% but Live Performance shows +2.7% (inconsistent)
+- [ ] Total investiert shows CHF 45'999.53 but should match current capital
+- [ ] Aktueller Wert shows CHF 37'468 but Portfolio Positionen shows CHF 46'836
+- [ ] Problem: Using historical buy costs instead of current invested capital
+- [ ] Fix: Use same calculation logic as Portfolio Detail view for consistency
+
+## Live Performance Calculation Bug (Nov 10, 2025 - 15:00)
+- [ ] EOS shows -26.3% live performance but should show correct unrealized gains only
+- [ ] Problem: "Total investiert" uses original buy amount, not adjusted for sells
+- [ ] Solution: Total investiert = Average cost basis × Current shares (not original shares)
+- [ ] When selling, reduce "Total investiert" proportionally to maintain correct cost basis
+- [ ] Example: EOS bought 209 shares for CHF 2'642, bought 100 more for CHF 1'876, sold 139 shares
+  * Average cost basis = (2'642 + 1'876) / 309 = CHF 14.62 per share
+  * Current shares = 170
+  * Total investiert should be = 14.62 × 170 = CHF 2'485 (not CHF 3'395)
+
+
+## Annual Performance Calculation Simplification (Nov 10, 2025 - 15:30)
+- [x] Removed complex manual calculation logic
+- [x] Simplified to reuse calculateLivePerformance (already working correctly)
+- [x] Added debugPerformance endpoint for future troubleshooting
+- [ ] Verify calculations match portfolio positions exactly
