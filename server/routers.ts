@@ -3033,8 +3033,8 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         throw new Error("Invalid portfolio ID");
       })
       .query(async ({ input, ctx }) => {
-        const { getSavedPortfolioById } = await import("./db");
-        const { getPortfolioDividends, calculateExpectedDividendIncome } = await import("./dividendCalendar");
+        const { getSavedPortfolioById, getPortfolioTransactions } = await import("./db");
+        const { getPortfolioDividends } = await import("./dividendCalendar");
         
         // Get portfolio
         const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
@@ -3042,28 +3042,179 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           throw new Error("Portfolio not found");
         }
         
-        // Parse portfolio data to get tickers
+        // Parse portfolio data to get tickers and company names
         const portfolioData = JSON.parse(portfolio.portfolioData);
         const tickers = portfolioData.map((stock: any) => stock.ticker);
         
-        // Fetch upcoming dividends
-        const dividends = await getPortfolioDividends(tickers, input.daysAhead || 30);
-        
-        // Calculate holdings from portfolio data
+        // Get actual holdings from transactions
+        const transactions = await getPortfolioTransactions(input.portfolioId);
         const holdings: Record<string, number> = {};
-        portfolioData.forEach((stock: any) => {
-          // Estimate shares based on portfolio weight and total invested
-          // This is a simplified calculation - real implementation would use transaction history
-          holdings[stock.ticker] = 10; // Placeholder
+        
+        transactions.forEach((tx: any) => {
+          if (!holdings[tx.ticker]) {
+            holdings[tx.ticker] = 0;
+          }
+          const shares = parseFloat(tx.shares || '0');
+          if (tx.transactionType === 'buy') {
+            holdings[tx.ticker] += shares;
+          } else if (tx.transactionType === 'sell') {
+            holdings[tx.ticker] -= shares;
+          }
         });
         
-        // Calculate expected income
-        const expectedIncome = calculateExpectedDividendIncome(holdings, dividends);
+        // Fetch upcoming dividends
+        const dividends = await getPortfolioDividends(tickers, input.daysAhead || 365);
+        
+        // Enrich dividend data with company names and expected income
+        const enrichedDividends = dividends.map(div => {
+          const stock = portfolioData.find((s: any) => s.ticker.toUpperCase() === div.ticker.toUpperCase());
+          const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
+          
+          // Convert to CHF if needed (simplified - would need real exchange rates)
+          const amountInCHF = div.currency === 'USD' ? div.amount * 0.88 : div.amount;
+          const expectedIncome = shares * amountInCHF;
+          
+          return {
+            ticker: div.ticker,
+            companyName: stock?.name || div.ticker,
+            exDividendDate: div.exDividendDate,
+            paymentDate: div.paymentDate,
+            amount: div.amount,
+            currency: div.currency,
+            shares,
+            expectedIncome
+          };
+        }).filter(div => div.shares > 0); // Only show dividends for stocks we own
+        
+        const totalExpectedIncome = enrichedDividends.reduce((sum, div) => sum + div.expectedIncome, 0);
+        
+        return enrichedDividends;
+      }),
+  }),
+
+  annualPerformance: router({
+    getSummary: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+          return val as { portfolioId: number; year?: number };
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, getPortfolioTransactions } = await import("./db");
+        const { getDb } = await import("./db");
+        const { realizedGains } = await import("../drizzle/schema");
+        const { eq, and, gte, lte, sql } = await import("drizzle-orm");
+        
+        // Get portfolio
+        const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+        if (!portfolio) {
+          throw new Error("Portfolio not found");
+        }
+        
+        const year = input.year || new Date().getFullYear();
+        const yearStart = new Date(year, 0, 1);
+        const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+        
+        // Get all transactions
+        const transactions = await getPortfolioTransactions(input.portfolioId);
+        
+        // Parse portfolio data
+        const portfolioData = JSON.parse(portfolio.portfolioData);
+        
+        // Calculate current holdings
+        const holdings: Record<string, { shares: number; totalInvested: number; currentValue: number }> = {};
+        
+        transactions.forEach((tx: any) => {
+          if (!holdings[tx.ticker]) {
+            holdings[tx.ticker] = { shares: 0, totalInvested: 0, currentValue: 0 };
+          }
+          
+          const shares = parseFloat(tx.shares || '0');
+          const price = parseFloat(tx.pricePerShare || '0');
+          
+          if (tx.transactionType === 'buy') {
+            holdings[tx.ticker].shares += shares;
+            holdings[tx.ticker].totalInvested += shares * price;
+          } else if (tx.transactionType === 'sell') {
+            holdings[tx.ticker].shares -= shares;
+            // Don't reduce totalInvested - we want to track total capital deployed
+          }
+        });
+        
+        // Add current values from portfolio data
+        portfolioData.forEach((stock: any) => {
+          if (holdings[stock.ticker]) {
+            holdings[stock.ticker].currentValue = stock.currentValue || 0;
+          }
+        });
+        
+        // Calculate unrealized gains
+        let unrealizedGains = 0;
+        let totalInvested = 0;
+        let currentValue = 0;
+        
+        Object.values(holdings).forEach(holding => {
+          if (holding.shares > 0) {
+            unrealizedGains += holding.currentValue - holding.totalInvested;
+            totalInvested += holding.totalInvested;
+            currentValue += holding.currentValue;
+          }
+        });
+        
+        // Get realized gains for the year
+        const db = await getDb();
+        let realizedGainsTotal = 0;
+        
+        if (db) {
+          const realizedGainsData = await db
+            .select()
+            .from(realizedGains)
+            .where(
+              and(
+                eq(realizedGains.portfolioId, input.portfolioId),
+                gte(realizedGains.transactionDate, yearStart),
+                lte(realizedGains.transactionDate, yearEnd)
+              )
+            );
+          
+          realizedGainsTotal = realizedGainsData.reduce(
+            (sum, rg) => sum + parseFloat(rg.realizedGain || '0'),
+            0
+          );
+        }
+        
+        // Calculate dividend income for the year
+        const dividendIncome = transactions
+          .filter((tx: any) => {
+            if (tx.transactionType !== 'dividend') return false;
+            const txDate = new Date(tx.transactionDate);
+            return txDate >= yearStart && txDate <= yearEnd;
+          })
+          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
+        
+        // Calculate total fees for the year
+        const totalFees = transactions
+          .filter((tx: any) => {
+            const txDate = new Date(tx.transactionDate);
+            return txDate >= yearStart && txDate <= yearEnd;
+          })
+          .reduce((sum: number, tx: any) => sum + parseFloat(tx.fees || '0'), 0);
+        
+        // Calculate net performance
+        const netPerformance = unrealizedGains + realizedGainsTotal + dividendIncome - totalFees;
+        const returnOnInvestment = totalInvested > 0 ? (netPerformance / totalInvested) * 100 : 0;
         
         return {
-          dividends,
-          expectedIncome,
-          count: dividends.length
+          year,
+          unrealizedGains,
+          realizedGains: realizedGainsTotal,
+          dividendIncome,
+          totalFees,
+          netPerformance,
+          totalInvested,
+          currentValue,
+          returnOnInvestment
         };
       }),
   }),

@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionModal } from "@/components/TransactionModal";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { LivePerformanceChart } from "@/components/LivePerformanceChart";
-import { ArrowLeft, Plus, TrendingUp } from "lucide-react";
+import DividendCalendarModal from "@/components/DividendCalendarModal";
+import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
+import { ArrowLeft, Plus, TrendingUp, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 export default function PortfolioDetail() {
@@ -15,6 +17,8 @@ export default function PortfolioDetail() {
   const portfolioId = params?.id ? parseInt(params.id) : null;
 
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [showDividendCalendar, setShowDividendCalendar] = useState(false);
+  const [showAnnualPerformance, setShowAnnualPerformance] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -35,6 +39,18 @@ export default function PortfolioDetail() {
   const { data: livePerformance } = trpc.savedPortfolios.calculateLivePerformance.useQuery(
     { id: portfolioId! },
     { enabled: !!portfolioId && Boolean(portfolio?.isLive) }
+  );
+
+  // Fetch dividend calendar
+  const { data: dividendCalendar, isLoading: isDividendLoading } = trpc.dividendCalendar.getUpcoming.useQuery(
+    { portfolioId: portfolioId!, daysAhead: 365 },
+    { enabled: !!portfolioId && showDividendCalendar }
+  );
+
+  // Fetch annual performance summary
+  const { data: annualPerformance, isLoading: isPerformanceLoading } = trpc.annualPerformance.getSummary.useQuery(
+    { portfolioId: portfolioId! },
+    { enabled: !!portfolioId && showAnnualPerformance }
   );
 
   // Calculate holdings from transactions
@@ -240,11 +256,22 @@ export default function PortfolioDetail() {
                 />
               )}
 
-              {/* Add Transaction Button (only if live) */}
+              {/* Annual Performance Button */}
+              {Boolean(portfolio.isLive) && (
+                <Button
+                  onClick={() => setShowAnnualPerformance(true)}
+                  variant="outline"
+                  className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Jahresübersicht
+                </Button>
+              )}
+              {/* Add Transaction Button */}
               {Boolean(portfolio.isLive) && (
                 <Button
                   onClick={() => setIsTransactionModalOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Transaktion erfassen
@@ -278,7 +305,18 @@ export default function PortfolioDetail() {
 
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="pb-3">
-              <CardTitle className="text-slate-400 text-sm font-normal">Ø Dividende</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-slate-400 text-sm font-normal">Ø Dividende</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDividendCalendar(true)}
+                  className="text-green-400 hover:text-green-300 hover:bg-green-400/10 h-8 px-2"
+                >
+                  <Calendar className="w-4 h-4 mr-1" />
+                  Kalender
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-green-400">
@@ -565,6 +603,22 @@ export default function PortfolioDetail() {
           }}
         />
       )}
+
+      {/* Dividend Calendar Modal */}
+      <DividendCalendarModal
+        isOpen={showDividendCalendar}
+        onClose={() => setShowDividendCalendar(false)}
+        dividends={dividendCalendar || []}
+        isLoading={isDividendLoading}
+      />
+
+      {/* Annual Performance Summary Modal */}
+      <AnnualPerformanceSummary
+        isOpen={showAnnualPerformance}
+        onClose={() => setShowAnnualPerformance(false)}
+        summary={annualPerformance || null}
+        isLoading={isPerformanceLoading}
+      />
     </div>
   );
 }

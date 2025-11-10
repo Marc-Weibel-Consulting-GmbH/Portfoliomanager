@@ -199,23 +199,35 @@
 - [x] UI Design: RealizedGainModal mit Betrag, Prozent, Details
 
 ### 2. Automatische Dividenden-Erfassung
-- [ ] Transaktionstyp "dividend" zur portfolioTransactions Tabelle hinzufügen
-- [ ] Cron-Job für tägliche Dividenden-Prüfung (z.B. 6:00 Uhr)
-- [ ] API-Integration für Dividenden-Daten (EODHD oder Finnhub)
-- [ ] Automatische Transaktion erstellen bei Ex-Dividenden-Datum
-- [ ] Betrag = Dividende pro Aktie × Anzahl Aktien im Portfolio
+- [x] Transaktionstyp "dividend" zur portfolioTransactions Tabelle hinzugefügt
+- [x] Cron-Job für tägliche Dividenden-Prüfung (6:00 Uhr)
+- [x] API-Integration für Dividenden-Daten (Finnhub)
+- [x] Automatische Transaktion erstellen bei Ex-Dividenden-Datum
+- [x] Betrag = Dividende pro Aktie × Anzahl Aktien im Portfolio
+- [x] Prüfung auf Duplikate (keine doppelten Dividenden-Transaktionen)
+- [x] Nur Live-Portfolios werden geprüft
+- [x] Verwendung echter Transaktionsdaten für Aktienanzahl
 
 ### 3. Dividenden-Kalender
-- [ ] Button "Dividendenkalender" neben "Ø Dividende" Karte
-- [ ] Modal mit Tabelle: Ticker, Firma, Ex-Datum, Zahltag, Dividende/Aktie, Erwarteter Ertrag
-- [ ] API-Abruf für bevorstehende Dividenden (aktuelles Jahr)
-- [ ] Nur Aktien anzeigen, die sich im Portfolio befinden
-- [ ] Sortierung nach Ex-Datum (nächste zuerst)
+- [x] Server-Endpoint für Dividenden-Daten (Finnhub API)
+- [x] Button "Dividendenkalender" neben "Ø Dividende" Karte
+- [x] Modal mit Tabelle: Ticker, Firma, Ex-Datum, Zahltag, Dividende/Aktie, Erwarteter Ertrag
+- [x] API-Abruf für bevorstehende Dividenden (nächste 12 Monate)
+- [x] Nur Aktien anzeigen, die sich im Portfolio befinden
+- [x] Sortierung nach Ex-Datum (nächste zuerst)
+- [x] Berechnung des erwarteten Ertrags (Dividende × Anzahl Aktien im Portfolio)
+- [x] Summary Card mit Gesamtertrag
+- [x] Verwendung echter Transaktionsdaten für Aktienanzahl
 
 ### 4. Jahres-Performance-Zusammenfassung
-- [ ] Neue Seite oder Modal "Jahresübersicht"
-- [ ] Unrealisierte Gewinne/Verluste (aktueller Wert - Kaufwert)
-- [ ] Realisierte Gewinne/Verluste (aus realizedGains Tabelle)
-- [ ] Dividendenerträge (Summe aller dividend Transaktionen)
-- [ ] Kosten (Summe aller Gebühren aus Transaktionen)
-- [ ] Gesamt-Performance = (Unrealisiert + Realisiert + Dividenden - Kosten) / Investiert × 100
+- [x] Modal "Jahresübersicht" mit Button in Portfolio-Detail
+- [x] Unrealisierte Gewinne/Verluste (aktueller Wert - Kaufwert)
+- [x] Realisierte Gewinne/Verluste (aus realizedGains Tabelle)
+- [x] Dividendenerträge (aus dividend Transaktionen)
+- [x] Kosten (Gebühren aus allen Transaktionen)
+- [x] Netto-Performance (Summe aller Komponenten)
+- [x] ROI in Prozent
+- [x] Hinweis für Steuer-Reporting (realisierte Gewinne + Dividenden)
+- [x] Portfolio-Übersicht (Total investiert vs. Aktueller Wert)
+- [x] Visuelle Darstellung mit Farben (grün/rot)
+- [x] Berechnungsformel erklärt

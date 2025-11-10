@@ -12,6 +12,7 @@ import { initializeNewsUpdater } from "../newsUpdater";
 import { startChartDataUpdater } from "../chartDataUpdater";
 import { initializePEGUpdater } from "../pegUpdater";
 import { initYTDUpdater } from "../cron/ytdUpdater";
+import { initDividendCaptureJob } from "../dividendCaptureJob";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -223,6 +224,8 @@ async function startServer() {
     initializePEGUpdater();
     // Start YTD updater (runs on January 1st)
     initYTDUpdater();
+    // Start dividend capture job (runs daily at 6:00 AM)
+    initDividendCaptureJob();
   });
 }
 
