@@ -312,3 +312,12 @@
   - [ ] Separate Zeile "Währungsgewinne/-verluste"
   - [ ] Summe aus realizedGains.stockGainLocal und realizedGains.fxGain
 - [ ] Server-Endpoint annualPerformance anpassen
+
+
+## NEW: Realized Gains History Page (Nov 10, 2025)
+- [x] Create dedicated page showing all sell transactions
+- [x] Backend endpoint with full transaction details including costs
+- [x] Table columns: Date, Ticker, Shares Sold, Avg Buy Price, Sell Price, Stock Gain, FX Gain, Total Gain (CHF), Buy Fees, Sell Fees, Net Profit
+- [x] Add navigation link to Realized Gains History
+- [ ] Sortable and filterable by date, ticker, gain/loss
+- [ ] Export to CSV for tax reporting

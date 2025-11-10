@@ -273,6 +273,17 @@ export default function PortfolioDetail() {
                   Jahresübersicht
                 </Button>
               )}
+              {/* Realized Gains History Button */}
+              {Boolean(portfolio.isLive) && (
+                <Button
+                  onClick={() => setLocation(`/portfolio/${portfolioId}/realized-gains`)}
+                  variant="outline"
+                  className="text-green-400 border-green-400 hover:bg-green-400/10"
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Realisierte Gewinne
+                </Button>
+              )}
               {/* Add Transaction Button */}
               {Boolean(portfolio.isLive) && (
                 <Button

@@ -3395,6 +3395,118 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         };
       }),
   }),
+
+  realizedGainsHistory: router({
+    getAll: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+          return val as { portfolioId: number };
+        }
+        throw new Error("Invalid portfolioId");
+      })
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const { realizedGains, portfolioTransactions, stocks } = await import("../drizzle/schema");
+        const { eq, and, desc } = await import("drizzle-orm");
+
+        // Get all realized gains for this portfolio with transaction details
+        const gains = await db
+          .select({
+            id: realizedGains.id,
+            portfolioId: realizedGains.portfolioId,
+            transactionId: realizedGains.transactionId,
+            ticker: realizedGains.ticker,
+            shares: realizedGains.shares,
+            avgCostBasis: realizedGains.avgCostBasis,
+            sellPrice: realizedGains.sellPrice,
+            realizedGain: realizedGains.realizedGain,
+            realizedGainPercent: realizedGains.realizedGainPercent,
+            transactionDate: realizedGains.transactionDate,
+            stockGainLocal: realizedGains.stockGainLocal,
+            fxGain: realizedGains.fxGain,
+            currency: realizedGains.currency,
+            buyFxRate: realizedGains.buyFxRate,
+            sellFxRate: realizedGains.sellFxRate,
+            sellFees: portfolioTransactions.fees,
+          })
+          .from(realizedGains)
+          .leftJoin(portfolioTransactions, eq(realizedGains.transactionId, portfolioTransactions.id))
+          .where(eq(realizedGains.portfolioId, input.portfolioId))
+          .orderBy(desc(realizedGains.transactionDate));
+
+        // Get buy fees for each ticker (sum of all buy transaction fees)
+        const buyFeesMap = new Map<string, number>();
+        const buyTransactions = await db
+          .select({
+            ticker: portfolioTransactions.ticker,
+            fees: portfolioTransactions.fees,
+          })
+          .from(portfolioTransactions)
+          .where(
+            and(
+              eq(portfolioTransactions.portfolioId, input.portfolioId),
+              eq(portfolioTransactions.transactionType, "buy")
+            )
+          );
+
+        buyTransactions.forEach(tx => {
+          if (tx.ticker) {
+            const currentFees = buyFeesMap.get(tx.ticker) || 0;
+            buyFeesMap.set(tx.ticker, currentFees + parseFloat(tx.fees || "0"));
+          }
+        });
+
+        // Get stock names
+        const tickers = [...new Set(gains.map(g => g.ticker))];
+        const stockNames = new Map<string, string>();
+        
+        for (const ticker of tickers) {
+          const [stock] = await db
+            .select({ name: stocks.name })
+            .from(stocks)
+            .where(eq(stocks.ticker, ticker))
+            .limit(1);
+          
+          if (stock) {
+            stockNames.set(ticker, stock.name);
+          }
+        }
+
+        // Calculate net profit for each gain
+        const result = gains.map(gain => {
+          const sellFees = parseFloat(gain.sellFees || "0");
+          const buyFees = buyFeesMap.get(gain.ticker) || 0;
+          const totalFees = buyFees + sellFees;
+          const totalGain = parseFloat(gain.realizedGain || "0");
+          const netProfit = totalGain - totalFees;
+
+          return {
+            id: gain.id,
+            transactionDate: gain.transactionDate,
+            ticker: gain.ticker,
+            stockName: stockNames.get(gain.ticker) || gain.ticker,
+            shares: parseFloat(gain.shares || "0"),
+            avgCostBasis: parseFloat(gain.avgCostBasis || "0"),
+            sellPrice: parseFloat(gain.sellPrice || "0"),
+            stockGainLocal: parseFloat(gain.stockGainLocal || "0"),
+            fxGain: parseFloat(gain.fxGain || "0"),
+            totalGain,
+            currency: gain.currency || "CHF",
+            buyFxRate: parseFloat(gain.buyFxRate || "1"),
+            sellFxRate: parseFloat(gain.sellFxRate || "1"),
+            buyFees,
+            sellFees,
+            totalFees,
+            netProfit,
+            realizedGainPercent: parseFloat(gain.realizedGainPercent || "0"),
+          };
+        });
+
+        return result;
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
