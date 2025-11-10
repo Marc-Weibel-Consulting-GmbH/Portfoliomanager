@@ -610,3 +610,21 @@
 - [x] Deposit/Withdrawal: date, amount, currency, notes
 - [x] Dividend: date, ticker, amount, currency, notes
 - [x] Update validation logic for each transaction type
+
+## Bug: Portfolio Summary Shows Wrong Values (Nov 10, 2025 - 20:05)
+- [x] "Total investiert" shows CHF 45'010 instead of CHF 50'000 (missing deposit)
+- [x] Live Performance starts at -14.8% instead of 0%
+- [x] Rename "Total investiert" card to "Portfolio"
+- [x] Show three values: Betrag investiert (in Aktien) / Cash / Total
+- [x] Total investiert = sum of all deposits (not sum of buys)
+- [x] Cash = deposits - withdrawals - buys + sells + dividends
+- [x] Betrag in Aktien = current market value of all positions
+- [x] Live Performance = (Current Total Value - Total Deposits) / Total Deposits
+
+## Feature: Cash Position Tracking (Nov 10, 2025 - 20:15)
+- [ ] Add Cash position as first row in portfolio positions table
+- [ ] Show current cash balance (deposits - buys + sells + dividends)
+- [ ] Validate cash availability when adding buy transactions
+- [ ] Show warning when buy exceeds available cash
+- [ ] Suggest which stocks to sell to cover cash deficit
+- [ ] Sell suggestion algorithm: prioritize stocks with lowest performance or highest weight

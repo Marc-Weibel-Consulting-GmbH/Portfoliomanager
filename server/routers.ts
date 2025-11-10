@@ -1918,10 +1918,11 @@ export const appRouter = router({
             // Calculate holdings and total invested from transactions
             const holdings: Record<string, number> = {};
             const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
-            let totalInvested = 0;
-            let totalDeposits = 0;
-            let totalBuyAmounts = 0;
-            let totalSellAmounts = 0;
+            let totalDeposits = 0;  // Net capital from user (deposits - withdrawals)
+            let totalInvestedInStocks = 0;  // Cost basis of current stock positions
+            let totalBuyAmounts = 0;  // Total spent on buys
+            let totalSellProceeds = 0;  // Total received from sells
+            let totalDividends = 0;  // Total dividends received
             
             transactions.forEach((tx: any) => {
               const shares = parseFloat(tx.shares || '0');
@@ -1930,8 +1931,8 @@ export const appRouter = router({
               
               if (tx.transactionType === 'buy') {
                 holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
-                totalInvested += amount;
                 totalBuyAmounts += amount;
+                totalInvestedInStocks += amount;
                 // Track cost basis
                 if (!costBasis[tx.ticker]) {
                   costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
@@ -1940,21 +1941,21 @@ export const appRouter = router({
                 costBasis[tx.ticker].totalShares += shares;
               } else if (tx.transactionType === 'sell') {
                 holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
-                totalSellAmounts += amount; // Sell amount is positive (proceeds)
-                // Reduce totalInvested by cost basis of sold shares
+                totalSellProceeds += amount;
+                // Reduce invested in stocks by cost basis of sold shares
                 if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
                   const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
                   const soldCost = shares * avgCost;
-                  totalInvested -= soldCost;
+                  totalInvestedInStocks -= soldCost;
                   costBasis[tx.ticker].totalCost -= soldCost;
                   costBasis[tx.ticker].totalShares -= shares;
                 }
               } else if (tx.transactionType === 'deposit') {
-                totalInvested += amount;
                 totalDeposits += amount;
               } else if (tx.transactionType === 'withdrawal') {
-                totalInvested += amount; // amount is negative
-                totalDeposits += amount; // amount is negative
+                totalDeposits -= Math.abs(amount);  // Reduce deposits by withdrawal amount
+              } else if (tx.transactionType === 'dividend') {
+                totalDividends += amount;
               }
             });
             
@@ -2012,10 +2013,8 @@ export const appRouter = router({
             }
             
             // Calculate cash position
-            // Cash = Total Deposits + Sell Proceeds - Buy Costs
-            // If no deposits/withdrawals, treat buy amounts as implicit deposits
-            const effectiveDeposits = totalDeposits > 0 ? totalDeposits : totalBuyAmounts;
-            const cashPosition = effectiveDeposits - totalBuyAmounts + totalSellAmounts;
+            // Cash = Deposits - Buys + Sells + Dividends
+            const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends;
             
             // Fetch realized gains for this portfolio
             let totalRealizedGains = 0;
@@ -2028,13 +2027,14 @@ export const appRouter = router({
             // Sum all realized gains (realizedGain is in CHF, includes stock gain + FX gain)
             totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.realizedGain || '0'), 0);
             
-            // Add cash position to current value
+            // Total current value = Market value of stocks + Cash
             const totalCurrentValue = currentValueCHF + cashPosition;
             
-            // Calculate performance including realized gains:
-            // Performance = (Current Value + Cash + Realized Gains - Total Invested) / Total Invested * 100
-            const performance = totalInvested > 0 
-              ? ((totalCurrentValue + totalRealizedGains - totalInvested) / totalInvested) * 100 
+            // Calculate performance:
+            // Performance = (Total Current Value - Total Deposits) / Total Deposits * 100
+            // This shows how much the portfolio has grown relative to the capital invested
+            const performance = totalDeposits > 0 
+              ? ((totalCurrentValue - totalDeposits) / totalDeposits) * 100 
               : 0;
             
             return { ...portfolio, livePerformance: performance };
@@ -2249,42 +2249,46 @@ export const appRouter = router({
           return { performance: 0, currentValue: 0, totalInvested: 0 };
         }
         
-        // Calculate total invested and current value
-        let totalInvested = 0;
+        // Calculate deposits and current value
+        let totalDeposits = 0;
+        let totalInvestedInStocks = 0;
+        let totalBuyAmounts = 0;
+        let totalSellProceeds = 0;
+        let totalDividends = 0;
         const holdings: Record<string, number> = {};
         const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
         
-        // Process transactions to calculate holdings, cost basis, and total invested
+        // Process transactions
         transactions.forEach((tx: any) => {
           const shares = parseFloat(tx.shares || '0');
           const price = parseFloat(tx.pricePerShare || '0');
-          // Use totalAmountCHF for consistent CHF calculations
           const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
           
           if (tx.transactionType === 'buy') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
-            // Track cost basis for this ticker
+            totalBuyAmounts += amount;
+            totalInvestedInStocks += amount;
             if (!costBasis[tx.ticker]) {
               costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
             }
             costBasis[tx.ticker].totalCost += amount;
             costBasis[tx.ticker].totalShares += shares;
-            totalInvested += amount;
           } else if (tx.transactionType === 'sell') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
-            // Reduce totalInvested by the cost basis of sold shares (not sell amount)
+            totalSellProceeds += amount;
             if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
               const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
               const soldCost = shares * avgCost;
-              totalInvested -= soldCost;
-              // Update cost basis
+              totalInvestedInStocks -= soldCost;
               costBasis[tx.ticker].totalCost -= soldCost;
               costBasis[tx.ticker].totalShares -= shares;
             }
           } else if (tx.transactionType === 'deposit') {
-            totalInvested += amount;
+            totalDeposits += amount;
           } else if (tx.transactionType === 'withdrawal') {
-            totalInvested += amount; // amount is negative for withdrawals
+            totalDeposits -= Math.abs(amount);
+          } else if (tx.transactionType === 'dividend') {
+            totalDividends += amount;
           }
         });
         
@@ -2363,17 +2367,23 @@ export const appRouter = router({
           totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.realizedGain || '0'), 0);
         }
         
-        // Calculate performance including realized gains:
-        // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
-        const performance = totalInvested > 0 
-          ? ((currentValueCHF + totalRealizedGains - totalInvested) / totalInvested) * 100 
+        // Calculate cash position and total value
+        const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends;
+        const totalCurrentValue = currentValueCHF + cashPosition;
+        
+        // Calculate performance:
+        // Performance = (Total Current Value - Total Deposits) / Total Deposits * 100
+        const performance = totalDeposits > 0 
+          ? ((totalCurrentValue - totalDeposits) / totalDeposits) * 100 
           : 0;
         
         return {
           performance,
-          currentValue: currentValueCHF,
+          currentValue: totalCurrentValue,
           liveStartValue: liveStartValueCHF,
-          totalInvested,
+          totalInvested: totalInvestedInStocks,
+          totalDeposits,
+          cashPosition,
           totalRealizedGains,
           holdings,
           transactionCount: transactions.length,
@@ -3492,10 +3502,11 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         // Calculate live performance inline (same logic as calculateLivePerformance procedure)
         const transactions = await getPortfolioTransactions(input.portfolioId);
         
-        let totalInvested = 0;
-        let totalDeposits = 0;
+        let totalDeposits = 0;  // Net capital from user
+        let totalInvestedInStocks = 0;  // Cost basis of current positions
         let totalBuyAmounts = 0;
-        let totalSellAmounts = 0;
+        let totalSellProceeds = 0;
+        let totalDividends = 0;
         const holdings: Record<string, number> = {};
         const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
         
@@ -3506,8 +3517,8 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           
           if (tx.transactionType === 'buy') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
-            totalInvested += amount;
             totalBuyAmounts += amount;
+            totalInvestedInStocks += amount;
             // Track cost basis
             if (!costBasis[tx.ticker]) {
               costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
@@ -3516,21 +3527,21 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
             costBasis[tx.ticker].totalShares += shares;
           } else if (tx.transactionType === 'sell') {
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
-            totalSellAmounts += amount;
-            // Reduce totalInvested by cost basis of sold shares
+            totalSellProceeds += amount;
+            // Reduce invested in stocks by cost basis of sold shares
             if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
               const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
               const soldCost = shares * avgCost;
-              totalInvested -= soldCost;
+              totalInvestedInStocks -= soldCost;
               costBasis[tx.ticker].totalCost -= soldCost;
               costBasis[tx.ticker].totalShares -= shares;
             }
           } else if (tx.transactionType === 'deposit') {
-            totalInvested += amount;
             totalDeposits += amount;
           } else if (tx.transactionType === 'withdrawal') {
-            totalInvested += amount;
-            totalDeposits += amount;
+            totalDeposits -= Math.abs(amount);
+          } else if (tx.transactionType === 'dividend') {
+            totalDividends += amount;
           }
         });
         
@@ -3580,15 +3591,17 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         }
         
         // Calculate cash position
-        const effectiveDeposits = totalDeposits > 0 ? totalDeposits : totalBuyAmounts;
-        const cashPosition = effectiveDeposits - totalBuyAmounts + totalSellAmounts;
+        // Cash = Deposits - Buys + Sells + Dividends
+        const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends;
         
-        // Add cash to current value
+        // Total current value = Market value of stocks + Cash
         const totalCurrentValue = currentValueCHF + cashPosition;
         
         const livePerf = {
           currentValue: totalCurrentValue,
-          totalInvested,
+          totalInvested: totalInvestedInStocks,
+          totalDeposits,
+          cashPosition,
           unrealizedGains,
         };
         
@@ -3654,13 +3667,15 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           .reduce((sum: number, tx: any) => sum + parseFloat(tx.fees || '0'), 0);
         
         // Use values from live performance calculation
-        const finalTotalInvested = livePerf.totalInvested;
-        const finalCurrentValue = livePerf.currentValue;
+        const finalTotalInvested = livePerf.totalInvested;  // Cost basis of stocks
+        const finalTotalDeposits = livePerf.totalDeposits;  // Total capital from user
+        const finalCurrentValue = livePerf.currentValue;  // Market value + cash
+        const finalCashPosition = livePerf.cashPosition;
         const finalUnrealizedGains = livePerf.unrealizedGains;
         
-        // Calculate net performance
+        // Calculate net performance and ROI based on total deposits
         const netPerformance = finalUnrealizedGains + realizedGainsTotal + dividendIncome - totalFees;
-        const returnOnInvestment = finalTotalInvested > 0 ? (netPerformance / finalTotalInvested) * 100 : 0;
+        const returnOnInvestment = finalTotalDeposits > 0 ? ((finalCurrentValue - finalTotalDeposits) / finalTotalDeposits) * 100 : 0;
         
         return {
           year,
@@ -3672,6 +3687,8 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
           totalFees,
           netPerformance,
           totalInvested: finalTotalInvested,
+          totalDeposits: finalTotalDeposits,
+          cashPosition: finalCashPosition,
           currentValue: finalCurrentValue,
           returnOnInvestment
         };

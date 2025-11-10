@@ -306,12 +306,29 @@ export default function PortfolioDetail() {
 
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="pb-3">
-              <CardTitle className="text-slate-400 text-sm font-normal">Total investiert</CardTitle>
+              <CardTitle className="text-slate-400 text-sm font-normal">Portfolio</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-white">
-                CHF {portfolio.totalInvested?.toLocaleString('de-CH') || '0'}
-              </p>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-400">Investiert (Aktien)</span>
+                  <span className="text-sm font-semibold text-white">
+                    CHF {yearSummary?.totalInvested?.toLocaleString('de-CH') || '0'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-400">Cash</span>
+                  <span className="text-sm font-semibold text-white">
+                    CHF {yearSummary?.cashPosition?.toLocaleString('de-CH') || '0'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-slate-700">
+                  <span className="text-xs text-slate-400">Total</span>
+                  <span className="text-lg font-bold text-white">
+                    CHF {yearSummary?.totalDeposits?.toLocaleString('de-CH') || '0'}
+                  </span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
