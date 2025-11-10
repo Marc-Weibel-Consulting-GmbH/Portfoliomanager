@@ -383,17 +383,21 @@ export default function PortfolioDetail() {
                         const withdrawals = transactions
                           .filter((tx: any) => tx.transactionType === 'withdrawal')
                           .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const sellProceeds = transactions
+                        const buyAmounts = transactions
+                          .filter((tx: any) => tx.transactionType === 'buy')
+                          .reduce((sum: number, tx: any) => {
+                            const shares = parseFloat(tx.shares || '0');
+                            const price = parseFloat(tx.pricePerShare || '0');
+                            return sum + (shares * price);
+                          }, 0);
+                        const sellAmounts = transactions
                           .filter((tx: any) => tx.transactionType === 'sell')
                           .reduce((sum: number, tx: any) => {
                             const shares = parseFloat(tx.shares || '0');
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const currentlyInvested = portfolioData
-                          .filter((s: any) => s.shares > 0)
-                          .reduce((sum, s) => sum + (s.totalInvested || 0), 0);
-                        const cash = deposits - withdrawals + sellProceeds - currentlyInvested;
+                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
                         return Math.round(cash).toLocaleString('de-CH');
                       })()}
                     </td>
@@ -417,17 +421,21 @@ export default function PortfolioDetail() {
                         const withdrawals = transactions
                           .filter((tx: any) => tx.transactionType === 'withdrawal')
                           .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const sellProceeds = transactions
+                        const buyAmounts = transactions
+                          .filter((tx: any) => tx.transactionType === 'buy')
+                          .reduce((sum: number, tx: any) => {
+                            const shares = parseFloat(tx.shares || '0');
+                            const price = parseFloat(tx.pricePerShare || '0');
+                            return sum + (shares * price);
+                          }, 0);
+                        const sellAmounts = transactions
                           .filter((tx: any) => tx.transactionType === 'sell')
                           .reduce((sum: number, tx: any) => {
                             const shares = parseFloat(tx.shares || '0');
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const currentlyInvested = portfolioData
-                          .filter((s: any) => s.shares > 0)
-                          .reduce((sum, s) => sum + (s.totalInvested || 0), 0);
-                        const cash = deposits - withdrawals + sellProceeds - currentlyInvested;
+                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
                         const total = stocksValue + cash;
                         return Math.round(total).toLocaleString('de-CH');
                       })()}
@@ -445,20 +453,24 @@ export default function PortfolioDetail() {
                         const withdrawals = transactions
                           .filter((tx: any) => tx.transactionType === 'withdrawal')
                           .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const sellProceeds = transactions
+                        const buyAmounts = transactions
+                          .filter((tx: any) => tx.transactionType === 'buy')
+                          .reduce((sum: number, tx: any) => {
+                            const shares = parseFloat(tx.shares || '0');
+                            const price = parseFloat(tx.pricePerShare || '0');
+                            return sum + (shares * price);
+                          }, 0);
+                        const sellAmounts = transactions
                           .filter((tx: any) => tx.transactionType === 'sell')
                           .reduce((sum: number, tx: any) => {
                             const shares = parseFloat(tx.shares || '0');
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const currentlyInvested = portfolioData
-                          .filter((s: any) => s.shares > 0)
-                          .reduce((sum, s) => sum + (s.totalInvested || 0), 0);
-                        const cash = deposits - withdrawals + sellProceeds - currentlyInvested;
-                        const total = stocksValue + cash;
-                        const totalInvested = deposits - withdrawals;
-                        return total >= totalInvested ? 'text-green-400' : 'text-red-400';
+                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
+                        const totalValue = stocksValue + cash;
+                        const totalCapital = deposits - withdrawals;
+                        return totalValue >= totalCapital ? 'text-green-400' : 'text-red-400';
                       })()
                     }`}>
                       {(() => {
@@ -471,20 +483,24 @@ export default function PortfolioDetail() {
                         const withdrawals = transactions
                           .filter((tx: any) => tx.transactionType === 'withdrawal')
                           .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const sellProceeds = transactions
+                        const buyAmounts = transactions
+                          .filter((tx: any) => tx.transactionType === 'buy')
+                          .reduce((sum: number, tx: any) => {
+                            const shares = parseFloat(tx.shares || '0');
+                            const price = parseFloat(tx.pricePerShare || '0');
+                            return sum + (shares * price);
+                          }, 0);
+                        const sellAmounts = transactions
                           .filter((tx: any) => tx.transactionType === 'sell')
                           .reduce((sum: number, tx: any) => {
                             const shares = parseFloat(tx.shares || '0');
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        const currentlyInvested = portfolioData
-                          .filter((s: any) => s.shares > 0)
-                          .reduce((sum, s) => sum + (s.totalInvested || 0), 0);
-                        const cash = deposits - withdrawals + sellProceeds - currentlyInvested;
-                        const total = stocksValue + cash;
-                        const totalInvested = deposits - withdrawals;
-                        const perf = totalInvested > 0 ? ((total - totalInvested) / totalInvested * 100) : 0;
+                        const cash = deposits - withdrawals - buyAmounts + sellAmounts;
+                        const totalValue = stocksValue + cash;
+                        const totalCapital = deposits - withdrawals;
+                        const perf = totalCapital > 0 ? ((totalValue - totalCapital) / totalCapital * 100) : 0;
                         return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
                       })()}
                     </td>

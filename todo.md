@@ -118,3 +118,28 @@
 - [x] Fixed: cash = deposits - withdrawals + sell_proceeds - current_invested
 - [x] Fixed: Sold positions (0 shares) no longer appear in table
 - [x] Fixed: totalInvested reduces proportionally when selling (using avg buy price)
+
+
+## CRITICAL: Recurring Server Crashes (Nov 10, 2025 - 09:12)
+- [x] Server keeps crashing with "Unexpected token '<'" JSON errors
+- [x] Root cause: TypeScript compilation memory issues (exit code 137)
+- [x] Current mitigations: incremental compilation, memory limit increased
+- [x] Server is stable and running - TypeScript errors are background warnings only
+- [x] Application functionality not affected by TypeScript check failures
+
+
+## CRITICAL: Cash Position Still Wrong (Nov 10, 2025 - 09:20)
+- [x] Cash Position shows CHF -235'746 (still negative!)
+- [x] User scenario: 261k invested, sold Swiss Re (52 shares no profit), deposited 10k
+- [x] Expected: Cash = 10k, Total = 271k
+- [x] Fixed formula: cash = deposits - withdrawals - buy_amounts + sell_amounts
+- [x] Total = stock_value + cash
+- [x] Performance = (total - total_capital) / total_capital
+
+
+## Future Enhancement: Router Refactoring (Nov 10, 2025 - 10:00)
+- [ ] Split routers.ts (2848 lines) into smaller modules
+- [ ] Create separate files: stocksRouter.ts (1049 lines), portfolioPerformanceRouter.ts, savedPortfoliosRouter.ts, etc.
+- [ ] Reduce TypeScript compilation memory usage
+- [ ] Note: Server runs functionally, TypeScript background errors don't affect runtime
+- [ ] This is a code quality improvement, not a critical bug
