@@ -173,6 +173,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       setShowSaveDialog(false);
       setPortfolioName('');
       setPortfolioDescription('');
+      setSelectedPortfolioId(null); // Clear after saving as new
       onPortfolioSaved?.(); // Notify parent to refresh portfolio list
     },
     onError: (error) => {
@@ -1720,7 +1721,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       </Card>
 
       {/* Save Portfolio Dialog */}
-      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+      <Dialog open={showSaveDialog} onOpenChange={(open) => {
+        if (open) {
+          console.log('[SaveDialog] Opening with selectedPortfolioId:', selectedPortfolioId);
+          console.log('[SaveDialog] portfolioName:', portfolioName);
+          console.log('[SaveDialog] portfolioDescription:', portfolioDescription);
+        }
+        setShowSaveDialog(open);
+      }}>
         <DialogContent className="bg-slate-800 border-slate-700 text-white">
           <DialogHeader>
             <DialogTitle>Portfolio speichern</DialogTitle>
@@ -1819,8 +1827,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     description: portfolioDescription,
                     portfolioData: JSON.stringify(portfolioDataObj),
                   });
-                  // Clear selectedPortfolioId after saving as new
-                  setSelectedPortfolioId(null);
                 }}
                 className={selectedPortfolioId ? "flex-1 bg-green-600 hover:bg-green-700" : "w-full bg-green-600 hover:bg-green-700"}
                 disabled={!portfolioName.trim() || saveMutation.isPending || !displayPortfolio || displayPortfolio.positions.length === 0}

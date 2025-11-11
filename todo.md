@@ -943,3 +943,12 @@
 - [x] Root cause: portfolioName and portfolioDescription not set when loading
 - [x] Fixed: Added setPortfolioName and setPortfolioDescription when loading (line 1938-1939)
 - [x] Now "Überschreiben" button will be enabled after loading portfolio
+
+
+## DEBUG: Save Dialog Only Shows One Button (Nov 11, 2025 - 10:50)
+- [ ] User sees only "Speichern" button, not "Überschreiben" + "Als neu speichern"
+- [ ] This means selectedPortfolioId is null/empty when dialog opens
+- [x] Fixed: Moved setSelectedPortfolioId(null) to saveMutation.onSuccess
+- [x] Removed premature setSelectedPortfolioId(null) before mutation
+- [ ] Need to add console.log to verify selectedPortfolioId value
+- [ ] Check if selectedPortfolioId is being cleared somewhere else
