@@ -1955,7 +1955,7 @@ export default function Home() {
                           onClick={async () => {
                             if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
                               try {
-                                await deletePortfolioMutation.mutateAsync(portfolio.id);
+                                await deletePortfolioMutation.mutateAsync({ id: portfolio.id });
                                 toast.success('Gelöscht', { description: `Portfolio "${portfolio.name}" wurde gelöscht` });
                                 refetchSavedPortfolios();
                               } catch (error) {

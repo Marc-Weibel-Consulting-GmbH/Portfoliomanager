@@ -372,7 +372,23 @@ export async function deleteSavedPortfolio(id: number, userId: number) {
       return false;
     }
     
+    console.log(`[Database] Deleting portfolio ${id} and all associated data...`);
+    
+    // Import necessary tables
+    const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");
+    
+    // Delete all realized gains for this portfolio
+    const deletedGains = await db.delete(realizedGains).where(eq(realizedGains.portfolioId, id));
+    console.log(`[Database] Deleted realized gains for portfolio ${id}`);
+    
+    // Delete all transactions for this portfolio
+    const deletedTransactions = await db.delete(portfolioTransactions).where(eq(portfolioTransactions.portfolioId, id));
+    console.log(`[Database] Deleted transactions for portfolio ${id}`);
+    
+    // Finally delete the portfolio itself
     await db.delete(savedPortfolios).where(eq(savedPortfolios.id, id));
+    console.log(`[Database] Deleted portfolio ${id}`);
+    
     return true;
   } catch (error) {
     console.error("[Database] Failed to delete saved portfolio:", error);

@@ -2263,6 +2263,11 @@ export const appRouter = router({
         const liveStartDate = new Date(portfolio.liveStartDate);
         const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
         
+        console.log('\n========== [calculateLivePerformance] START ==========');
+        console.log('[calculateLivePerformance] Portfolio ID:', input);
+        console.log('[calculateLivePerformance] Live Start Date:', liveStartDateStr);
+        console.log('[calculateLivePerformance] Total Transactions:', transactions.length);
+        console.log('\n[calculateLivePerformance] Processing transactions...');
         transactions.forEach((tx: any) => {
           const shares = parseFloat(tx.shares || '0');
           const price = parseFloat(tx.pricePerShare || '0');
@@ -2271,13 +2276,16 @@ export const appRouter = router({
           const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
           
           if (tx.transactionType === 'buy') {
+            console.log(`[calculateLivePerformance] BUY ${tx.ticker}: ${shares} shares @ ${price} ${tx.currency}, totalAmountCHF=${amount}`);
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
             totalBuyAmounts += amount;
             totalInvestedInStocks += amount;
+            console.log(`[calculateLivePerformance]   → totalInvestedInStocks now: ${totalInvestedInStocks}`);
             
             // Treat initial positions as implicit deposits (capital brought into the portfolio)
             if (isInitialPosition) {
               totalDeposits += amount;
+              console.log(`[calculateLivePerformance]   → Initial position, totalDeposits now: ${totalDeposits}`);
             }
             
             if (!costBasis[tx.ticker]) {
@@ -2286,21 +2294,31 @@ export const appRouter = router({
             costBasis[tx.ticker].totalCost += amount;
             costBasis[tx.ticker].totalShares += shares;
           } else if (tx.transactionType === 'sell') {
+            console.log(`[calculateLivePerformance] SELL ${tx.ticker}: ${shares} shares @ ${price} ${tx.currency}, totalAmountCHF=${amount}`);
             holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
             totalSellProceeds += amount;
+            console.log(`[calculateLivePerformance]   → totalSellProceeds now: ${totalSellProceeds}`);
             if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
               const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
               const soldCost = shares * avgCost;
+              console.log(`[calculateLivePerformance]   → Avg cost: ${avgCost.toFixed(2)}, Sold cost: ${soldCost.toFixed(2)}`);
               totalInvestedInStocks -= soldCost;
+              console.log(`[calculateLivePerformance]   → totalInvestedInStocks reduced to: ${totalInvestedInStocks}`);
               costBasis[tx.ticker].totalCost -= soldCost;
               costBasis[tx.ticker].totalShares -= shares;
             }
           } else if (tx.transactionType === 'deposit') {
+            console.log(`[calculateLivePerformance] DEPOSIT: CHF ${amount}`);
             totalDeposits += amount;
+            console.log(`[calculateLivePerformance]   → totalDeposits now: ${totalDeposits}`);
           } else if (tx.transactionType === 'withdrawal') {
+            console.log(`[calculateLivePerformance] WITHDRAWAL: CHF ${amount}`);
             totalDeposits -= Math.abs(amount);
+            console.log(`[calculateLivePerformance]   → totalDeposits now: ${totalDeposits}`);
           } else if (tx.transactionType === 'dividend') {
+            console.log(`[calculateLivePerformance] DIVIDEND ${tx.ticker}: CHF ${amount}`);
             totalDividends += amount;
+            console.log(`[calculateLivePerformance]   → totalDividends now: ${totalDividends}`);
           }
         });
         
@@ -2387,6 +2405,37 @@ export const appRouter = router({
           ? ((totalCurrentValue - totalDeposits) / totalDeposits) * 100 
           : 0;
         
+        console.log('\n[calculateLivePerformance] ========== FINAL SUMMARY ==========');
+        console.log('[calculateLivePerformance] Transaction Totals:');
+        console.log(`  - Total Buy Amounts:      CHF ${totalBuyAmounts.toFixed(2)}`);
+        console.log(`  - Total Sell Proceeds:    CHF ${totalSellProceeds.toFixed(2)}`);
+        console.log(`  - Total Deposits:         CHF ${totalDeposits.toFixed(2)}`);
+        console.log(`  - Total Dividends:        CHF ${totalDividends.toFixed(2)}`);
+        console.log('\n[calculateLivePerformance] Current Holdings:');
+        Object.entries(holdings).forEach(([ticker, shares]) => {
+          if (shares > 0) {
+            const basis = costBasis[ticker];
+            const avgCost = basis ? basis.totalCost / basis.totalShares : 0;
+            console.log(`  - ${ticker}: ${shares.toFixed(2)} shares, Avg Cost: CHF ${avgCost.toFixed(2)}, Total Cost: CHF ${(basis?.totalCost || 0).toFixed(2)}`);
+          }
+        });
+        console.log('\n[calculateLivePerformance] Calculated Values:');
+        console.log(`  - Total Invested in Stocks: CHF ${totalInvestedInStocks.toFixed(2)}`);
+        console.log(`  - Current Stock Value:      CHF ${currentValueCHF.toFixed(2)}`);
+        console.log(`  - Live Start Stock Value:   CHF ${liveStartValueCHF.toFixed(2)}`);
+        console.log(`  - Cash Position:            CHF ${cashPosition.toFixed(2)}`);
+        console.log(`  - Total Current Value:      CHF ${totalCurrentValue.toFixed(2)}`);
+        console.log(`  - Total Realized Gains:     CHF ${totalRealizedGains.toFixed(2)}`);
+        console.log(`  - Performance:              ${performance.toFixed(2)}%`);
+        console.log('\n[calculateLivePerformance] Formula Check:');
+        console.log(`  Cash = Deposits - BuyAmounts + SellProceeds + Dividends`);
+        console.log(`  Cash = ${totalDeposits.toFixed(2)} - ${totalBuyAmounts.toFixed(2)} + ${totalSellProceeds.toFixed(2)} + ${totalDividends.toFixed(2)}`);
+        console.log(`  Cash = ${cashPosition.toFixed(2)} ✓`);
+        console.log(`\n  Performance = (CurrentValue - Deposits) / Deposits * 100`);
+        console.log(`  Performance = (${totalCurrentValue.toFixed(2)} - ${totalDeposits.toFixed(2)}) / ${totalDeposits.toFixed(2)} * 100`);
+        console.log(`  Performance = ${performance.toFixed(2)}% ✓`);
+        console.log('========== [calculateLivePerformance] END ==========\n');
+        
         return {
           performance,
           currentValue: totalCurrentValue,
@@ -2398,6 +2447,170 @@ export const appRouter = router({
           holdings,
           transactionCount: transactions.length,
         };
+      }),
+
+    validateCalculations: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
+          return val.id;
+        }
+        throw new Error("Invalid portfolio ID");
+      })
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, getPortfolioTransactions } = await import("./db");
+        
+        console.log('\n========== [validateCalculations] START ==========');
+        console.log('[validateCalculations] Portfolio ID:', input);
+        
+        // Get portfolio
+        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        if (!portfolio) {
+          return { error: "Portfolio not found" };
+        }
+        
+        if (!portfolio.isLive || !portfolio.liveStartDate) {
+          return { error: "Portfolio is not in live mode" };
+        }
+        
+        // Get all transactions
+        const transactions = await getPortfolioTransactions(input);
+        console.log('[validateCalculations] Total transactions:', transactions.length);
+        
+        // Initialize tracking variables
+        const validation: any = {
+          portfolioId: input,
+          liveStartDate: portfolio.liveStartDate,
+          transactionCount: transactions.length,
+          transactions: [],
+          calculations: {},
+          warnings: [],
+          errors: []
+        };
+        
+        // Process each transaction
+        let runningDeposits = 0;
+        let runningBuys = 0;
+        let runningSells = 0;
+        let runningDividends = 0;
+        let runningInvested = 0;
+        const holdings: Record<string, number> = {};
+        const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
+        
+        const liveStartDateStr = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
+        
+        transactions.forEach((tx: any, index: number) => {
+          const shares = parseFloat(tx.shares || '0');
+          const price = parseFloat(tx.pricePerShare || '0');
+          const amount = parseFloat(tx.totalAmountCHF || '0');
+          const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+          const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
+          
+          const txValidation: any = {
+            index: index + 1,
+            date: txDateStr,
+            type: tx.transactionType,
+            ticker: tx.ticker,
+            shares,
+            price,
+            currency: tx.currency,
+            fxRate: parseFloat(tx.fxRate || '1'),
+            amountCHF: amount,
+            isInitialPosition
+          };
+          
+          // Validate transaction data
+          if (shares <= 0 && tx.transactionType !== 'deposit' && tx.transactionType !== 'withdrawal') {
+            validation.warnings.push(`Transaction #${index + 1}: Invalid shares (${shares})`);
+          }
+          if (price <= 0 && tx.transactionType !== 'deposit' && tx.transactionType !== 'withdrawal') {
+            validation.warnings.push(`Transaction #${index + 1}: Invalid price (${price})`);
+          }
+          if (amount === 0) {
+            validation.warnings.push(`Transaction #${index + 1}: Zero amount`);
+          }
+          
+          // Process transaction
+          if (tx.transactionType === 'buy') {
+            runningBuys += amount;
+            runningInvested += amount;
+            holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+            
+            if (isInitialPosition) {
+              runningDeposits += amount;
+              txValidation.note = 'Initial position (counted as deposit)';
+            }
+            
+            if (!costBasis[tx.ticker]) {
+              costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
+            }
+            costBasis[tx.ticker].totalCost += amount;
+            costBasis[tx.ticker].totalShares += shares;
+            
+          } else if (tx.transactionType === 'sell') {
+            runningSells += amount;
+            holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+            
+            if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
+              const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
+              const soldCost = shares * avgCost;
+              runningInvested -= soldCost;
+              costBasis[tx.ticker].totalCost -= soldCost;
+              costBasis[tx.ticker].totalShares -= shares;
+              
+              txValidation.avgCost = avgCost;
+              txValidation.soldCost = soldCost;
+              txValidation.realizedGain = amount - soldCost;
+            }
+            
+          } else if (tx.transactionType === 'deposit') {
+            runningDeposits += amount;
+          } else if (tx.transactionType === 'withdrawal') {
+            runningDeposits -= Math.abs(amount);
+          } else if (tx.transactionType === 'dividend') {
+            runningDividends += amount;
+          }
+          
+          txValidation.runningTotals = {
+            deposits: runningDeposits,
+            buys: runningBuys,
+            sells: runningSells,
+            dividends: runningDividends,
+            invested: runningInvested
+          };
+          
+          validation.transactions.push(txValidation);
+        });
+        
+        // Calculate expected values
+        const expectedCash = runningDeposits - runningBuys + runningSells + runningDividends;
+        
+        validation.calculations = {
+          totalDeposits: runningDeposits,
+          totalBuyAmounts: runningBuys,
+          totalSellProceeds: runningSells,
+          totalDividends: runningDividends,
+          totalInvestedInStocks: runningInvested,
+          expectedCash,
+          formula: `Cash = ${runningDeposits.toFixed(2)} - ${runningBuys.toFixed(2)} + ${runningSells.toFixed(2)} + ${runningDividends.toFixed(2)} = ${expectedCash.toFixed(2)}`
+        };
+        
+        validation.holdings = Object.entries(holdings)
+          .filter(([_, shares]) => shares > 0)
+          .map(([ticker, shares]) => ({
+            ticker,
+            shares,
+            costBasis: costBasis[ticker]?.totalCost || 0,
+            avgCost: costBasis[ticker] ? costBasis[ticker].totalCost / costBasis[ticker].totalShares : 0
+          }));
+        
+        console.log('[validateCalculations] Validation complete');
+        console.log('[validateCalculations] Expected Cash:', expectedCash.toFixed(2));
+        console.log('[validateCalculations] Total Invested:', runningInvested.toFixed(2));
+        console.log('[validateCalculations] Warnings:', validation.warnings.length);
+        console.log('[validateCalculations] Errors:', validation.errors.length);
+        console.log('========== [validateCalculations] END ==========\n');
+        
+        return validation;
       }),
 
     getHoldingsWithChfPerformance: protectedProcedure
@@ -2455,12 +2668,15 @@ export const appRouter = router({
             holdingsByTicker[ticker].avgBuyPrice = holdingsByTicker[ticker].totalInvestedLocal / holdingsByTicker[ticker].totalBought;
             holdingsByTicker[ticker].avgBuyPriceCHF = holdingsByTicker[ticker].totalInvestedCHF / holdingsByTicker[ticker].totalBought;
           } else if (tx.transactionType === 'sell') {
+            console.log(`[getHoldingsWithChfPerformance] SELL ${ticker}: ${shares} shares`);
             holdingsByTicker[ticker].shares -= shares;
             // Reduce totalInvested proportionally based on average buy price
             const costBasisLocal = shares * holdingsByTicker[ticker].avgBuyPrice;
             const costBasisCHF = shares * holdingsByTicker[ticker].avgBuyPriceCHF;
+            console.log(`[getHoldingsWithChfPerformance]   → Cost basis for ${shares} shares: CHF ${costBasisCHF}`);
             holdingsByTicker[ticker].totalInvestedLocal -= costBasisLocal;
             holdingsByTicker[ticker].totalInvestedCHF -= costBasisCHF;
+            console.log(`[getHoldingsWithChfPerformance]   → ${ticker} totalInvestedCHF now: ${holdingsByTicker[ticker].totalInvestedCHF}`);
           }
         }
         
@@ -2528,6 +2744,9 @@ export const appRouter = router({
             avgBuyPrice: holding.avgBuyPrice
           });
         }
+        
+        const totalInvestedAllHoldings = holdingsWithPerformance.reduce((sum, h) => sum + h.totalInvestedCHF, 0);
+        console.log(`[getHoldingsWithChfPerformance] SUMMARY: Total invested across all holdings: CHF ${totalInvestedAllHoldings.toFixed(2)}`);
         
         return holdingsWithPerformance;
       }),

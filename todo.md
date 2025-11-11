@@ -686,3 +686,79 @@
 - [x] portfolioSummary useMemo accesses portfolio.isLive before portfolio is loaded
 - [x] Added null check with portfolio?.isLive
 - [x] Added chfHoldings and portfolio?.isLive to dependencies
+
+
+## Investigation: Portfolio card still shows CHF 40'221.95 (Nov 10, 2025 - 21:15)
+- [x] User reports value still wrong after fix and server restart
+- [x] All transactions have totalAmountCHF populated
+- [x] Database shows total CHF 40'221.95 (correct for stocks only)
+- [x] Added detailed logging to both calculation paths
+- [x] Found: Both methods calculate CHF 40'221.95 correctly from DB
+- [x] Issue: Cash (CHF 5'826) not shown in "Total investiert" column
+- [x] Cash should appear in BOTH "Total investiert" and "Aktueller Wert" columns
+- [x] Correct TOTAL should be: CHF 40'221 (stocks) + CHF 5'826 (cash) = CHF 46'047
+
+
+## DEBUGGING STRATEGY IMPLEMENTATION (Nov 11, 2025)
+
+### Phase 1: Debugging Infrastructure
+- [x] Add detailed console logging to calculateLivePerformance
+- [x] Add detailed console logging to transaction processing
+- [x] Add detailed console logging to cost basis calculations
+- [x] Create validation endpoint (portfolio.validateCalculations)
+- [ ] Add SQL reference queries for independent validation (optional)
+
+### Phase 2: Test Portfolio Creation
+- [x] Fixed delete portfolio mutation (ID format issue)
+- [x] Fixed cascade delete (realizedGains, portfolioTransactions)
+- [ ] User deletes all existing portfolios
+- [ ] User creates ONE test portfolio in TEST mode
+- [ ] Document expected values (shares, prices, total invested)
+
+### Phase 3: Test Mode Validation
+- [ ] Verify all transactions imported correctly
+- [ ] Validate cost basis calculation
+- [ ] Validate cash position
+- [ ] Compare with expected values
+
+### Phase 4: Live Mode Performance
+- [ ] Switch test portfolio to LIVE mode
+- [ ] Validate Total Deposits calculation
+- [ ] Validate Current Stock Value
+- [ ] Validate Cash Position formula
+- [ ] Validate Performance % calculation
+- [ ] Test with console logs and validation endpoint
+
+### Phase 5: Transaction Testing
+- [ ] Test BUY transaction (new position)
+- [ ] Test SELL transaction (partial)
+- [ ] Test SELL transaction (complete)
+- [ ] Test DIVIDEND transaction
+- [ ] Validate realized gains calculation
+
+### Phase 6: Save Checkpoint
+- [ ] All tests passed
+- [ ] Documentation updated
+- [ ] Save checkpoint with test results
+
+## URGENT: Fix Delete Portfolio Error (Nov 11, 2025)
+- [x] Delete button exists but shows error "portfolio kann nicht gelöscht werden"
+- [x] Need to delete associated data first (transactions, realized gains, etc.)
+- [x] Fix delete mutation to cascade delete all related records
+- [x] Fixed: deleteSavedPortfolio now deletes realizedGains and portfolioTransactions first
+
+
+## URGENT: Delete Portfolio ID Error (Nov 11, 2025)
+- [x] Delete button sends invalid portfolio ID
+- [x] Error: "Invalid portfolio ID" in console
+- [x] Check Home.tsx delete button implementation
+- [x] Verify correct ID is passed to savedPortfolios.delete mutation
+- [x] Fixed: Changed from `portfolio.id` to `{ id: portfolio.id }`
+
+
+## Server Restart Procedure (Nov 11, 2025)
+- [x] Server crashes with 502 Bad Gateway due to TypeScript memory issues
+- [x] Use webdev_restart_server to restart
+- [x] Wait 10 seconds for server to fully start
+- [x] User needs to reload page (F5) after restart
+- [ ] Consider splitting routers.ts to reduce memory usage (future improvement)
