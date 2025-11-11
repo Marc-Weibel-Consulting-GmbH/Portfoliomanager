@@ -1013,3 +1013,17 @@
 - [x] selectedPortfolioId not passed from overview to OptimizerResults
 - [x] Changes made after loading portfolio from overview are not auto-saved
 - [x] Need to pass portfolio ID and auto-load in OptimizerResults when coming from overview
+
+
+## Portfolio Switching Issue (Nov 11, 2025 - 17:40)
+- [x] Total amount doesn't update when switching between portfolios in OptimizerResults dropdown
+- [x] displayPortfolio useMemo needs to invalidate when portfolio is switched
+- [x] Need to add selectedPortfolioId to useMemo dependencies
+- [x] Removed confusing "Vorschlag laden" button that was overwriting loaded portfolios
+
+
+## Cash Display Issue (Nov 11, 2025 - 18:00)
+- [x] When adjusting portfolio total (e.g. 110'000), actual invested amount is less due to rounding (e.g. 108'380)
+- [x] Need to display remaining cash as separate row in portfolio table
+- [x] Cash should be calculated as: target amount - total invested
+- [x] Cash row should show in table with special styling (green, with 💰 emoji)

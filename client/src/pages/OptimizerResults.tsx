@@ -964,9 +964,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
         }, 0) / totalInvested
       : 0;
     
-    // Calculate portfolio weights based on actual total investment (no cash)
-    const grandTotal = totalInvested;
+    // Calculate portfolio weights based on total including cash
     const remainingCash = Math.max(0, currentInputs.investmentAmount - totalInvested);
+    const grandTotal = totalInvested + remainingCash;
     
     const positionsWithCorrectWeights = editablePositions.map(p => {
       const newWeight = grandTotal > 0 ? (p.investmentAmount / grandTotal) * 100 : 0;
@@ -1634,6 +1634,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                           });
                         }
                         
+                        console.log('[Portfolio Load] About to setEditablePositions with', enrichedStocks.length, 'positions');
+                        console.log('[Portfolio Load] First position:', enrichedStocks[0]?.ticker, enrichedStocks[0]?.investmentAmount);
+                        console.log('[Portfolio Load] Total invested:', enrichedStocks.reduce((sum, s) => sum + s.investmentAmount, 0));
                         setEditablePositions(enrichedStocks);
                         setLoadedPortfolioMetadata({
                           totalInvested: data.totalInvested,
@@ -1678,18 +1681,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
               <Save className="w-4 h-4 mr-2" />
               Speichern
             </Button>
-            <Button 
-              onClick={() => {
-                setEditablePositions([...optimizedPortfolio.positions]);
-                toast.success('Portfolio-Vorschlag wiederhergestellt!');
-              }} 
-              variant="outline" 
-              className="bg-orange-600 border-orange-500 text-white hover:bg-orange-700"
-              disabled={!editablePositions || JSON.stringify(editablePositions) === JSON.stringify(optimizedPortfolio.positions)}
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Vorschlag laden
-            </Button>
+
             <Button 
               onClick={() => setShowAddStockDialog(true)} 
               className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -1848,6 +1840,24 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                 )}
               </tbody>
               <tfoot>
+                {displayPortfolio.remainingCash > 0 && (
+                  <tr className="border-t border-slate-700">
+                    <td colSpan={2} className="p-3 text-slate-300">💰 Cash</td>
+                    <td className="p-3 text-center text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-slate-400">-</td>
+                    <td className="p-3 text-right text-green-400 font-semibold">
+                      CHF {displayPortfolio.remainingCash.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3 text-right text-slate-300">
+                      {(displayPortfolio.remainingCash / (displayPortfolio.totalInvested + displayPortfolio.remainingCash) * 100).toFixed(2)}%
+                    </td>
+                    <td colSpan={6}></td>
+                  </tr>
+                )}
                 <tr className="border-t-2 border-slate-600 font-bold">
                   <td colSpan={8} className="p-3 text-white">Total</td>
                   <td className="p-3 text-right text-white">
