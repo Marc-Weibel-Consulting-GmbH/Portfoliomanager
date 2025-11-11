@@ -2085,7 +2085,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
               </Select>
             </div>
             <div>
-              <label className="text-sm text-slate-400 mb-1 block">Aktueller Kurs (CHF)</label>
+              <label className="text-sm text-slate-400 mb-1 block">Aktueller Kurs ({addStockFormData.currency || 'CHF'})</label>
               <Input
                 type="number"
                 step="0.01"

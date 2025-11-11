@@ -997,3 +997,11 @@
 - [x] Server running successfully on port 3000 (PID 549017)
 - [x] FX rates cron job completed successfully
 - [x] TypeScript checker still gets killed but server runs fine
+
+
+## CRITICAL: Apple Stock Price Shows CHF Instead of USD (Nov 11, 2025 - 11:30)
+- [x] Problem: When adding Apple (AAPL), price shows as "269.43 CHF" instead of "USD 269.43"
+- [x] Dialog shows "Aktueller Kurs (CHF)" instead of "Aktueller Kurs (USD)"
+- [x] Fixed: Label now shows actual currency from addStockFormData.currency
+- [x] Changed line 2088: "Aktueller Kurs ({addStockFormData.currency || 'CHF'})"
+- [x] Now displays: "Aktueller Kurs (USD)" for Apple, "Aktueller Kurs (EUR)" for European stocks
