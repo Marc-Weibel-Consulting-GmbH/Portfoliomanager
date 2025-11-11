@@ -69,6 +69,26 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   // Editable portfolio state (separate from optimized suggestion)
   const [editablePositions, setEditablePositions] = useState<OptimizedPosition[] | null>(initialStocks || null);
   
+  // Fetch FX rates for currency conversion (MUST be declared before useEffect that uses it)
+  const { data: fxRates } = trpc.stocks.getFxRates.useQuery();
+  
+  // Helper function to get FX rate for a currency
+  const getFxRate = (currency: string | undefined): string => {
+    if (!currency || currency === 'CHF') return '1.0000';
+    if (!fxRates) {
+      console.log('[getFxRate] fxRates not loaded yet, returning 1.0000 for', currency);
+      return '1.0000';
+    }
+    
+    let rate = '1.0000';
+    if (currency === 'USD') rate = fxRates.USDCHF.toFixed(4);
+    else if (currency === 'EUR') rate = fxRates.EURCHF.toFixed(4);
+    else if (currency === 'GBP') rate = fxRates.GBPCHF.toFixed(4);
+    
+    console.log(`[getFxRate] ${currency} -> ${rate}`);
+    return rate;
+  };
+  
   // Update initialStocks with current prices when allStocks is loaded
   useEffect(() => {
     if (initialStocks && initialStocks.length > 0 && allStocks.length > 0) {
@@ -92,7 +112,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       });
       setEditablePositions(updatedStocks);
     }
-  }, [initialStocks, allStocks]);
+  }, [initialStocks, allStocks, fxRates]);
   const [showAddStockDialog, setShowAddStockDialog] = useState(false);
   const [addStockFormData, setAddStockFormData] = useState<any>({});
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");
@@ -111,30 +131,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   // Fetch dynamic scores (same as Home page)
   const { data: stockScores = [] } = trpc.score.calculateAll.useQuery();
   
-  // Fetch FX rates for currency conversion
-  const { data: fxRates } = trpc.stocks.getFxRates.useQuery();
-  
   // Debug: Log fxRates when they change
   useEffect(() => {
     console.log('[FX Rates] Loaded:', fxRates);
   }, [fxRates]);
-  
-  // Helper function to get FX rate for a currency
-  const getFxRate = (currency: string | undefined): string => {
-    if (!currency || currency === 'CHF') return '1.0000';
-    if (!fxRates) {
-      console.log('[getFxRate] fxRates not loaded yet, returning 1.0000 for', currency);
-      return '1.0000';
-    }
-    
-    let rate = '1.0000';
-    if (currency === 'USD') rate = fxRates.USDCHF.toFixed(4);
-    else if (currency === 'EUR') rate = fxRates.EURCHF.toFixed(4);
-    else if (currency === 'GBP') rate = fxRates.GBPCHF.toFixed(4);
-    
-    console.log(`[getFxRate] ${currency} -> ${rate}`);
-    return rate;
-  };
 
   // Get tRPC utils for imperative queries
   const utils = trpc.useUtils();

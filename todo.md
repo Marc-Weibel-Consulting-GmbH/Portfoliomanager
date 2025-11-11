@@ -855,3 +855,21 @@
 - [x] Solution: Add fxRates to useMemo dependencies to re-run optimizer when loaded
 - [x] Applied: Added fxRates to optimizedPortfolio useMemo dependencies (line 704)
 - [x] FX rates now display correctly: USD ~0.88, EUR ~0.93, CHF 1.0000
+
+
+## CRITICAL: FX Rates Display Issue in Table (Nov 11, 2025 - 04:58)
+- [x] Problem: All FX rates show 1.0000 in portfolio table, even though logs show correct values (USD 0.8041, EUR 0.9297)
+- [x] Debug logs show: optimizedPortfolio positions have correct fxRate values
+- [x] But finalPositions (display portfolio) shows currency=undefined → defaults to CHF → fxRate=1.0000
+- [x] Root cause: useEffect updates initialStocks BEFORE fxRates loaded → currency/fxRate = undefined
+- [x] Solution: Add fxRates to useEffect dependencies (line 95) to re-run when FX rates load
+- [x] Applied: editablePositions now update when fxRates become available
+
+
+## CRITICAL: ReferenceError - fxRates before initialization (Nov 11, 2025 - 05:52)
+- [x] Error: Cannot access 'fxRates' before initialization at OptimizerResults
+- [x] Caused by adding fxRates to useEffect dependencies (line 95)
+- [x] useEffect runs before fxRates query is declared
+- [x] Solution: Move fxRates query declaration BEFORE the useEffect (now line 73)
+- [x] Also moved getFxRate helper function to avoid similar issues
+- [x] Fixed: fxRates and getFxRate now declared before any useEffect that uses them
