@@ -775,6 +775,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
           companyName: stock.companyName,
           category: stock.category,
           currentPrice: stock.currentPrice,
+          currency: stock.currency || 'USD',
           dividendYield: stock.dividendYield,
           ytdPerformance: stock.ytdPerformance,
           peRatio: stock.peRatio,
@@ -1563,9 +1564,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
                     <td className="p-3">
                       {pos.logoUrl ? (
-                        <img src={pos.logoUrl} alt={pos.companyName} className="w-8 h-8 rounded" onError={(e) => {
-                          e.currentTarget.src = `https://logo.clearbit.com/${pos.ticker.replace('.US', '').replace('.SW', '')}.com`;
-                        }} />
+                        <img 
+                          src={pos.logoUrl} 
+                          alt={pos.companyName} 
+                          className="w-8 h-8 rounded" 
+                          crossOrigin="anonymous"
+                          onError={(e) => {
+                            e.currentTarget.src = `https://logo.clearbit.com/${pos.ticker.replace('.US', '').replace('.SW', '')}.com`;
+                          }} />
                       ) : (
                         <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-slate-400">
                           {pos.ticker.substring(0, 2)}
@@ -1583,7 +1589,13 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                       {pos.currency || 'CHF'} {(pos.shares * parseFloat(pos.currentPrice || '0')).toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="p-3 text-right text-slate-300">
-                      {pos.currency === 'CHF' ? '1.0000' : (pos.fxRate || '1.0000')}
+                      {(() => {
+                        if (pos.currency === 'CHF') return '1.0000';
+                        const fwAmount = pos.shares * parseFloat(pos.currentPrice || '0');
+                        if (fwAmount === 0) return '1.0000';
+                        const fxRate = pos.investmentAmount / fwAmount;
+                        return fxRate.toFixed(4);
+                      })()}
                     </td>
                     <td className="p-3 text-right text-white font-medium">
                        CHF {pos.investmentAmount?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}

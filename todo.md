@@ -784,3 +784,18 @@
 - [x] Fixed: Added currency and fxRate to enrichedStocks (3 locations)
 - [x] Fixed: Zusammensetzung % now based on grandTotal (incl. cash)
 - [x] Fixed: YTD chart uses fromDate = 01.01.2025 (ytd flag)
+
+
+## URGENT: Fix Currency Display in TEST Mode (Nov 11, 2025)
+- [x] All prices show CHF instead of original currency (EUR, USD)
+- [x] MONC.MI shows "CHF 56.42" instead of "EUR 56.42"
+- [x] VGK.US shows "CHF 79.97" instead of "USD 79.97"
+- [x] Need to use original FX price (currentPrice / fxRate) instead of CHF price
+- [x] Fixed: Added currency field to optimizer position creation
+- [x] Fixed: FX rate calculated as investmentAmount / (shares * currentPrice)
+
+
+## URGENT: Fix Infinite Logo Warnings (Nov 11, 2025)
+- [x] Clearbit logo loading causes infinite tracking prevention warnings
+- [x] Add crossOrigin="anonymous" to img tags
+- [x] Fixed: Added crossOrigin="anonymous" to logo img in OptimizerResults
