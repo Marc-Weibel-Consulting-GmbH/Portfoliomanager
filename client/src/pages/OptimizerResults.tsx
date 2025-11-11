@@ -80,6 +80,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
             ...stock,
             currentPrice: currentStock.currentPrice || stock.currentPrice,
             currency: currentStock.currency || stock.currency || 'USD',
+            fxRate: getFxRate(currentStock.currency || stock.currency),
             dividendYield: currentStock.dividendYield || stock.dividendYield,
             ytdPerformance: currentStock.ytdPerformance || stock.ytdPerformance,
             peRatio: currentStock.peRatio || stock.peRatio,
@@ -109,6 +110,21 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
 
   // Fetch dynamic scores (same as Home page)
   const { data: stockScores = [] } = trpc.score.calculateAll.useQuery();
+  
+  // Fetch FX rates for currency conversion
+  const { data: fxRates } = trpc.stocks.getFxRates.useQuery();
+  
+  // Helper function to get FX rate for a currency
+  const getFxRate = (currency: string | undefined): string => {
+    if (!currency || currency === 'CHF') return '1.0000';
+    if (!fxRates) return '1.0000';
+    
+    if (currency === 'USD') return fxRates.USDCHF.toFixed(4);
+    if (currency === 'EUR') return fxRates.EURCHF.toFixed(4);
+    if (currency === 'GBP') return fxRates.GBPCHF.toFixed(4);
+    
+    return '1.0000';
+  };
 
   // Get tRPC utils for imperative queries
   const utils = trpc.useUtils();
@@ -468,6 +484,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
         companyName: stock.companyName,
         category: stock.category,
         currentPrice: stock.currentPrice,
+        currency: stock.currency || 'USD',
+        fxRate: getFxRate(stock.currency),
         dividendYield: stock.dividendYield,
         ytdPerformance: stock.ytdPerformance,
         peRatio: stock.peRatio,
@@ -778,6 +796,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
           category: stock.category,
           currentPrice: stock.currentPrice,
           currency: stock.currency || 'USD',
+          fxRate: getFxRate(stock.currency),
           dividendYield: stock.dividendYield,
           ytdPerformance: stock.ytdPerformance,
           peRatio: stock.peRatio,
@@ -904,10 +923,13 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     const remainingCash = currentInputs.investmentAmount - totalInvested;
     const grandTotal = totalInvested + remainingCash;
     
-    const positionsWithCorrectWeights = editablePositions.map(p => ({
-      ...p,
-      portfolioWeight: grandTotal > 0 ? (p.investmentAmount / grandTotal) * 100 : 0
-    }));
+    const positionsWithCorrectWeights = editablePositions.map(p => {
+      console.log(`[DisplayPortfolio] ${p.ticker}: currency=${p.currency}`);
+      return {
+        ...p,
+        portfolioWeight: grandTotal > 0 ? (p.investmentAmount / grandTotal) * 100 : 0
+      };
+    });
     
     return {
       positions: positionsWithCorrectWeights,
@@ -922,6 +944,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   // Initialize editable positions from optimized portfolio on first render
   useEffect(() => {
     if (!editablePositions && optimizedPortfolio.positions.length > 0) {
+      console.log('[useEffect] Setting editablePositions from optimizedPortfolio');
+      console.log('[useEffect] First position currency:', optimizedPortfolio.positions[0]?.currency);
       setEditablePositions([...optimizedPortfolio.positions]);
     }
   }, [optimizedPortfolio.positions, editablePositions]);

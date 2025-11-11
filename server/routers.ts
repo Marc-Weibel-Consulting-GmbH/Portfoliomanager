@@ -558,6 +558,31 @@ export const appRouter = router({
       const { getAllStocks } = await import("./db");
       return await getAllStocks();
     }),
+    getFxRates: publicProcedure.query(async () => {
+      const db = await (await import("./db")).getDb();
+      if (!db) return { USDCHF: 0.88, EURCHF: 0.93, GBPCHF: 1.12 };
+      
+      const { exchangeRates } = await import("../drizzle/schema");
+      const { eq, desc } = await import("drizzle-orm");
+      
+      // Get latest rates for each currency pair
+      const rates = await db.select().from(exchangeRates)
+        .orderBy(desc(exchangeRates.date))
+        .limit(10);
+      
+      const ratesMap: Record<string, number> = {};
+      for (const rate of rates) {
+        if (!ratesMap[rate.currencyPair]) {
+          ratesMap[rate.currencyPair] = parseFloat(rate.rate);
+        }
+      }
+      
+      return {
+        USDCHF: ratesMap.USDCHF || 0.88,
+        EURCHF: ratesMap.EURCHF || 0.93,
+        GBPCHF: ratesMap.GBPCHF || 1.12
+      };
+    }),
     byCategory: publicProcedure
       .input((val: unknown) => {
         if (typeof val === "string") return val;

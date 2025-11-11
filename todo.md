@@ -825,3 +825,23 @@
 - [x] Fix logo warnings: Use gradient icons instead of loading external logos
 - [x] Fix currency race condition: useEffect now preserves currency field when updating prices
 
+
+
+## CRITICAL: Currency Display Still Shows CHF (Nov 11, 2025 - 03:20)
+- [x] Console logs show correct currency data (EUR, USD, CHF)
+- [x] But table rendering displays "CHF" for ALL positions
+- [x] Data is correct in state, but rendering logic uses wrong source
+- [x] Need to find which table is being rendered (displayPortfolio vs editablePositions)
+- [x] Fixed: Added currency field to finalPositions creation (line 471)
+- [x] Bug was in reduce_positions strategy - currency field missing
+
+
+## CRITICAL: FX Rates Show 1.0000 for All Currencies (Nov 11, 2025 - 03:30)
+- [x] Currencies display correctly (EUR, USD, CHF) ✅
+- [x] But FX column shows 1.0000 for ALL positions ❌
+- [x] Need to calculate FX rate from investmentAmount / (shares * currentPrice)
+- [x] Or fetch from exchangeRates table (USDCHF, EURCHF)
+- [x] Expected: USD/CHF ~0.88, EUR/CHF ~0.93, CHF/CHF 1.0000
+- [x] Fixed: Added getFxRates endpoint to fetch from exchangeRates table
+- [x] Fixed: Added getFxRate helper function to assign correct rate by currency
+- [x] Fixed: Added fxRate to finalPositions and optimizer positions
