@@ -79,6 +79,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
           return {
             ...stock,
             currentPrice: currentStock.currentPrice || stock.currentPrice,
+            currency: currentStock.currency || stock.currency || 'USD',
             dividendYield: currentStock.dividendYield || stock.dividendYield,
             ytdPerformance: currentStock.ytdPerformance || stock.ytdPerformance,
             peRatio: currentStock.peRatio || stock.peRatio,
@@ -770,6 +771,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       .filter(wp => wp.shares > 0 && wp.amount > 0) // Filter out 0% positions
       .map(wp => {
         const stock = selectedStocks.find(s => s.ticker === wp.ticker)!;
+        console.log(`[Optimizer] Stock ${stock.ticker}: currency=${stock.currency}, price=${stock.currentPrice}`);
         return {
           ticker: stock.ticker,
           companyName: stock.companyName,
@@ -1563,20 +1565,9 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   .map((pos) => (
                   <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
                     <td className="p-3">
-                      {pos.logoUrl ? (
-                        <img 
-                          src={pos.logoUrl} 
-                          alt={pos.companyName} 
-                          className="w-8 h-8 rounded" 
-                          crossOrigin="anonymous"
-                          onError={(e) => {
-                            e.currentTarget.src = `https://logo.clearbit.com/${pos.ticker.replace('.US', '').replace('.SW', '')}.com`;
-                          }} />
-                      ) : (
-                        <div className="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs text-slate-400">
-                          {pos.ticker.substring(0, 2)}
-                        </div>
-                      )}
+                      <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg">
+                        {pos.ticker.substring(0, 2)}
+                      </div>
                     </td>
                     <td className="p-3 text-blue-400 font-medium">{pos.ticker}</td>
                     <td className="p-3 text-white">{pos.companyName}</td>

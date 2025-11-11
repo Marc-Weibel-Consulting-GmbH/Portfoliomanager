@@ -799,3 +799,29 @@
 - [x] Clearbit logo loading causes infinite tracking prevention warnings
 - [x] Add crossOrigin="anonymous" to img tags
 - [x] Fixed: Added crossOrigin="anonymous" to logo img in OptimizerResults
+
+
+## URGENT: Currency Still Showing CHF (Nov 11, 2025)
+- [ ] Despite adding currency field to optimizer positions, still shows CHF
+- [ ] Need to check if allStocks query includes currency field
+- [ ] Need to verify stock.currency is populated from database
+- [ ] Hard reload doesn't fix the issue
+
+
+## DEBUGGING STRATEGY IMPLEMENTATION (Nov 11, 2025)
+- [x] Add detailed console logging to calculateLivePerformance
+- [x] Add detailed console logging to transaction processing
+- [x] Add detailed console logging to cost basis calculations
+- [x] Create validation endpoint (portfolio.validateCalculations)
+- [x] Fix delete portfolio mutation (ID format issue)
+- [x] Fix cascade delete (realizedGains, portfolioTransactions)
+
+## TEST MODE DISPLAY FIXES (Nov 11, 2025)
+- [x] Fix portfolio weight calculation to include cash in total
+- [x] Add FX columns (Kurs FW, Betrag FW, FX, Betrag CHF) like LIVE mode
+- [x] Fix Zusammensetzung % to include cash in total (ETF 19.9% not 41.9%)
+- [x] Fix YTD chart to start at 01.01.2025 (ytd flag in backend)
+- [x] Fix currency display: MONC.MI shows EUR, VGK.US shows USD (not CHF)
+- [x] Fix logo warnings: Use gradient icons instead of loading external logos
+- [x] Fix currency race condition: useEffect now preserves currency field when updating prices
+
