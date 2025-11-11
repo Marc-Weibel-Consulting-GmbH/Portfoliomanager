@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Download, TrendingUp, HelpCircle, Save, FolderOpen, Plus, RotateCcw } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp, HelpCircle, Save, FolderOpen, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -183,9 +183,12 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   });
 
   const updateMutation = trpc.savedPortfolios.update.useMutation({
-    onSuccess: () => {
-      toast.success('Portfolio erfolgreich aktualisiert!');
-      setShowSaveDialog(false);
+    onSuccess: (data, variables) => {
+      // Only show toast if it's a manual save (from dialog)
+      if (!variables.isAutoSave) {
+        toast.success('Portfolio erfolgreich aktualisiert!');
+        setShowSaveDialog(false);
+      }
       onPortfolioSaved?.(); // Notify parent to refresh portfolio list
     },
     onError: (error) => {
@@ -194,6 +197,84 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   });
 
   const { data: savedPortfolios = [], refetch: refetchPortfolios } = trpc.savedPortfolios.list.useQuery();
+  
+  // Track if this is the first change to trigger save dialog for new portfolios
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Auto-save when editablePositions changes
+  useEffect(() => {
+    if (!editablePositions || editablePositions.length === 0) return;
+    
+    // If a portfolio is loaded, auto-save
+    if (selectedPortfolioId) {
+      // Debounce auto-save by 1 second to avoid too frequent saves
+      const timeoutId = setTimeout(() => {
+        const portfolioDataObj = {
+          inputs: currentInputs,
+          stocks: editablePositions.map(pos => ({
+            ticker: pos.ticker,
+            companyName: pos.companyName,
+            category: pos.category,
+            currency: pos.currency,
+            fxRate: pos.fxRate,
+            currentPrice: pos.currentPrice,
+            dividendYield: pos.dividendYield,
+            ytdPerformance: pos.ytdPerformance,
+            peRatio: pos.peRatio,
+            pegRatio: pos.pegRatio,
+            sharpeRatio: pos.sharpeRatio,
+            logoUrl: pos.logoUrl,
+            shares: pos.shares,
+            investmentAmount: pos.investmentAmount,
+            portfolioWeight: pos.portfolioWeight,
+            score: pos.score,
+            isDividendStock: pos.isDividendStock,
+            isGrowthStock: pos.isGrowthStock,
+          })),
+          totalInvested: editablePositions.reduce((sum, p) => sum + (p.investmentAmount || 0), 0),
+          numberOfPositions: editablePositions.length,
+          avgDividendYield: editablePositions.length > 0
+            ? editablePositions.reduce((sum, p) => sum + parseFloat(p.dividendYield || '0'), 0) / editablePositions.length
+            : 0,
+          avgYtdPerformance: editablePositions.length > 0
+            ? editablePositions.reduce((sum, p) => sum + parseFloat(p.ytdPerformance || '0'), 0) / editablePositions.length
+            : 0,
+        };
+        
+        // Find the current portfolio to get its name
+        const currentPortfolio = savedPortfolios.find(p => p.id.toString() === selectedPortfolioId);
+        if (currentPortfolio) {
+          updateMutation.mutate({
+            id: parseInt(selectedPortfolioId),
+            name: currentPortfolio.name,
+            description: currentPortfolio.description || '',
+            portfolioData: JSON.stringify(portfolioDataObj),
+            isAutoSave: true,
+          });
+          console.log('[AutoSave] Portfolio updated:', currentPortfolio.name);
+        }
+      }, 1000); // 1 second debounce
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      // No portfolio loaded - mark as having unsaved changes
+      // This will trigger save dialog on first manual change
+      setHasUnsavedChanges(true);
+    }
+  }, [editablePositions, selectedPortfolioId, currentInputs, savedPortfolios]);
+  // Open save dialog automatically when user makes first change to a new portfolio
+  useEffect(() => {
+    if (hasUnsavedChanges && !selectedPortfolioId && editablePositions && editablePositions.length > 0) {
+      // Check if positions differ from optimized portfolio (user made a change)
+      const hasChanges = JSON.stringify(editablePositions) !== JSON.stringify(optimizedPortfolio.positions);
+      if (hasChanges && !showSaveDialog) {
+        console.log('[AutoSave] First change detected, opening save dialog');
+        setShowSaveDialog(true);
+        setHasUnsavedChanges(false); // Reset flag
+      }
+    }
+  }, [hasUnsavedChanges, selectedPortfolioId, editablePositions, optimizedPortfolio.positions, showSaveDialog]);
+  
   const loadMutation = trpc.savedPortfolios.delete.useMutation({
     onSuccess: () => {
       refetchPortfolios();
@@ -923,35 +1004,34 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   }
 
   // Use editable positions if available, otherwise use optimized portfolio
-  const displayPortfolio = editablePositions ? (() => {
-    // Use loaded metadata if available (from saved portfolio), otherwise calculate
-    const totalInvested = loadedPortfolioMetadata?.totalInvested ?? editablePositions.reduce((sum, p) => sum + p.investmentAmount, 0);
-    const avgDividendYield = loadedPortfolioMetadata?.avgDividendYield ?? (
-      editablePositions.length > 0 && totalInvested > 0
-        ? editablePositions.reduce((sum, p) => {
-            const divYield = parseFloat(p.dividendYield || '0');
-            return sum + (divYield * p.investmentAmount);
-          }, 0) / totalInvested
-        : 0
-    );
-    const avgYtdPerformance = loadedPortfolioMetadata?.avgYtdPerformance ?? (
-      editablePositions.length > 0 && totalInvested > 0
-        ? editablePositions.reduce((sum, p) => {
-            const ytdPerf = parseFloat(p.ytdPerformance || '0');
-            return sum + (ytdPerf * p.investmentAmount);
-          }, 0) / totalInvested
-        : 0
-    );
+  const displayPortfolio = useMemo(() => {
+    if (!editablePositions) return optimizedPortfolio;
     
-    // Calculate portfolio weights based on TOTAL including cash
-    const remainingCash = currentInputs.investmentAmount - totalInvested;
-    const grandTotal = totalInvested + remainingCash;
+    // ALWAYS recalculate from editablePositions (ignore cached metadata)
+    const totalInvested = editablePositions.reduce((sum, p) => sum + (p.investmentAmount || 0), 0);
+    const avgDividendYield = editablePositions.length > 0 && totalInvested > 0
+      ? editablePositions.reduce((sum, p) => {
+          const divYield = parseFloat(p.dividendYield || '0');
+          return sum + (divYield * p.investmentAmount);
+        }, 0) / totalInvested
+      : 0;
+    const avgYtdPerformance = editablePositions.length > 0 && totalInvested > 0
+      ? editablePositions.reduce((sum, p) => {
+          const ytdPerf = parseFloat(p.ytdPerformance || '0');
+          return sum + (ytdPerf * p.investmentAmount);
+        }, 0) / totalInvested
+      : 0;
+    
+    // Calculate portfolio weights based on actual total investment (no cash)
+    const grandTotal = totalInvested;
+    const remainingCash = Math.max(0, currentInputs.investmentAmount - totalInvested);
     
     const positionsWithCorrectWeights = editablePositions.map(p => {
-      console.log(`[DisplayPortfolio] ${p.ticker}: currency=${p.currency}`);
+      const newWeight = grandTotal > 0 ? (p.investmentAmount / grandTotal) * 100 : 0;
+      console.log(`[DisplayPortfolio] ${p.ticker}: investmentAmount=${p.investmentAmount}, grandTotal=${grandTotal}, newWeight=${newWeight.toFixed(2)}%`);
       return {
         ...p,
-        portfolioWeight: grandTotal > 0 ? (p.investmentAmount / grandTotal) * 100 : 0
+        portfolioWeight: newWeight
       };
     });
     
@@ -963,7 +1043,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       avgDividendYield,
       avgYtdPerformance,
     };
-  })() : optimizedPortfolio;
+  }, [editablePositions, currentInputs.investmentAmount, optimizedPortfolio]);
   
   // Initialize editable positions from optimized portfolio on first render
   useEffect(() => {
@@ -1094,8 +1174,41 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
         currentInputs={adjustedInputs}
         onAdjust={(newInputs) => {
           setAdjustedInputs(newInputs);
-          setEditablePositions(null); // Reset to show new optimization
-          setLoadedPortfolioMetadata(null); // Reset loaded metadata
+          
+          // If only investment amount changed, keep current positions and scale proportionally
+          if (editablePositions && 
+              newInputs.investmentAmount !== adjustedInputs.investmentAmount &&
+              newInputs.expectedDividendYield === adjustedInputs.expectedDividendYield &&
+              newInputs.numberOfPositions === adjustedInputs.numberOfPositions &&
+              newInputs.investorType === adjustedInputs.investorType) {
+            
+            // Calculate scaling factor
+            const currentTotal = editablePositions.reduce((sum, p) => sum + (p.investmentAmount || 0), 0);
+            const scaleFactor = newInputs.investmentAmount / currentTotal;
+            
+            // Scale all positions proportionally
+            const scaledPositions = editablePositions.map(p => {
+              const newInvestmentAmount = (p.investmentAmount || 0) * scaleFactor;
+              const currentPrice = parseFloat(p.currentPrice || '0');
+              const fxRate = parseFloat(p.fxRate || '1');
+              const newShares = Math.floor(newInvestmentAmount / (currentPrice * fxRate));
+              
+              return {
+                ...p,
+                shares: newShares,
+                investmentAmount: newShares * currentPrice * fxRate,
+              };
+            });
+            
+            setEditablePositions(scaledPositions);
+            console.log('[Adjust] Scaled positions proportionally, factor:', scaleFactor.toFixed(2));
+          } else {
+            // Other parameters changed, reset to new optimization
+            setEditablePositions(null);
+            setLoadedPortfolioMetadata(null);
+            console.log('[Adjust] Parameters changed, resetting to new optimization');
+          }
+          
           setShowAdjustmentDialog(false);
         }}
       />
@@ -1600,6 +1713,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   <th className="text-right p-3 text-slate-400 font-medium">PEG</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Sharpe</th>
                   <th className="text-center p-3 text-slate-400 font-medium">Score</th>
+                  <th className="text-center p-3 text-slate-400 font-medium">Aktion</th>
                 </tr>
               </thead>
               <tbody>
@@ -1676,6 +1790,21 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                           </span>
                         );
                       })()}
+                    </td>
+                    <td className="p-3 text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const updatedPositions = editablePositions.filter(p => p.ticker !== pos.ticker);
+                          setEditablePositions(updatedPositions);
+                          
+                          toast.success(`${pos.ticker} wurde entfernt`);
+                        }}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -2152,15 +2281,16 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   const currentPrice = parseFloat(addStockFormData.currentPrice);
                   const currency = addStockFormData.currency || 'USD';
                   const fxRate = getFxRate(currency);
-                  const investmentAmount = shares * currentPrice * fxRate;
+                  const fxRateNum = parseFloat(fxRate);
+                  const investmentAmount = shares * currentPrice * fxRateNum;
                   
                   const newPosition: OptimizedPosition = {
                     ticker: addStockFormData.ticker,
                     companyName: addStockFormData.companyName,
                     category: addStockFormData.category || 'Wachstumstitel',
                     currency: currency,
-                    fxRate: fxRate.toFixed(4),
-                    shares: Math.floor(investmentAmount / (parseFloat(addStockFormData.currentPrice || '1') * fxRate)),
+                    fxRate: fxRate,
+                    shares: Math.floor(investmentAmount / (parseFloat(addStockFormData.currentPrice || '1') * fxRateNum)),
                     currentPrice: addStockFormData.currentPrice || '0',
                     investmentAmount: investmentAmount,
                     portfolioWeight: (investmentAmount / currentInputs.investmentAmount) * 100,
@@ -2175,7 +2305,11 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     isGrowthStock: parseFloat(addStockFormData.dividendYield || '0') < 2,
                   };
                   
-                  setEditablePositions([...(editablePositions || optimizedPortfolio.positions), newPosition]);
+                  const updatedPositions = [...(editablePositions || optimizedPortfolio.positions), newPosition];
+                  console.log('[AddStock] Adding new position:', newPosition.ticker, 'Total positions:', updatedPositions.length);
+                  console.log('[AddStock] New position data:', JSON.stringify(newPosition, null, 2));
+                  setEditablePositions(updatedPositions);
+                  
                   setShowAddStockDialog(false);
                   setAddStockFormData({});
                   setTickerSearchQuery("");
