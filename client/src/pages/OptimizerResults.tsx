@@ -180,6 +180,17 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     },
   });
 
+  const updateMutation = trpc.savedPortfolios.update.useMutation({
+    onSuccess: () => {
+      toast.success('Portfolio erfolgreich aktualisiert!');
+      setShowSaveDialog(false);
+      onPortfolioSaved?.(); // Notify parent to refresh portfolio list
+    },
+    onError: (error) => {
+      toast.error('Fehler beim Aktualisieren: ' + error.message);
+    },
+  });
+
   const { data: savedPortfolios = [], refetch: refetchPortfolios } = trpc.savedPortfolios.list.useQuery();
   const loadMutation = trpc.savedPortfolios.delete.useMutation({
     onSuccess: () => {
@@ -791,7 +802,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       selectedStocks,
       optimizationResult.weights,
       currentInputs.investmentAmount,
-      0.05 // 5% max
+      0.05, // 5% max
+      (currency) => parseFloat(getFxRate(currency))
     );
 
     // Build full position objects and filter out 0% positions
@@ -1614,13 +1626,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                       {pos.currency || 'CHF'} {(pos.shares * parseFloat(pos.currentPrice || '0')).toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="p-3 text-right text-slate-300">
-                      {(() => {
-                        if (pos.currency === 'CHF') return '1.0000';
-                        const fwAmount = pos.shares * parseFloat(pos.currentPrice || '0');
-                        if (fwAmount === 0) return '1.0000';
-                        const fxRate = pos.investmentAmount / fwAmount;
-                        return fxRate.toFixed(4);
-                      })()}
+                      {pos.fxRate || '1.0000'}
                     </td>
                     <td className="p-3 text-right text-white font-medium">
                        CHF {pos.investmentAmount?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
@@ -1739,44 +1745,89 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                 rows={3}
               />
             </div>
-            <Button
-              onClick={() => {
-                const portfolioDataObj = {
-                  inputs: currentInputs, // Save optimizer inputs
-                  stocks: displayPortfolio.positions.map(pos => ({
-                    ticker: pos.ticker,
-                    companyName: pos.companyName,
-                    category: pos.category,
-                    currentPrice: pos.currentPrice,
-                    dividendYield: pos.dividendYield,
-                    ytdPerformance: pos.ytdPerformance,
-                    peRatio: pos.peRatio,
-                    pegRatio: pos.pegRatio,
-                    sharpeRatio: pos.sharpeRatio,
-                    logoUrl: pos.logoUrl,
-                    shares: pos.shares,
-                    investmentAmount: pos.investmentAmount,
-                    portfolioWeight: pos.portfolioWeight,
-                    score: pos.score,
-                    isDividendStock: pos.isDividendStock,
-                    isGrowthStock: pos.isGrowthStock,
-                  })),
-                  totalInvested: displayPortfolio.totalInvested,
-                  numberOfPositions: displayPortfolio.positions.length,
-                  avgDividendYield: displayPortfolio.avgDividendYield,
-                  avgYtdPerformance: displayPortfolio.avgYtdPerformance,
-                };
-                saveMutation.mutate({
-                  name: portfolioName,
-                  description: portfolioDescription,
-                  portfolioData: JSON.stringify(portfolioDataObj),
-                });
-              }}
-              className="w-full bg-green-600 hover:bg-green-700"
-              disabled={!portfolioName.trim() || saveMutation.isPending || !displayPortfolio || displayPortfolio.positions.length === 0}
-            >
-              {saveMutation.isPending ? 'Speichern...' : 'Speichern'}
-            </Button>
+            <div className="flex gap-3">
+              {selectedPortfolioId && (
+                <Button
+                  onClick={() => {
+                    const portfolioDataObj = {
+                      inputs: currentInputs,
+                      stocks: displayPortfolio.positions.map(pos => ({
+                        ticker: pos.ticker,
+                        companyName: pos.companyName,
+                        category: pos.category,
+                        currentPrice: pos.currentPrice,
+                        dividendYield: pos.dividendYield,
+                        ytdPerformance: pos.ytdPerformance,
+                        peRatio: pos.peRatio,
+                        pegRatio: pos.pegRatio,
+                        sharpeRatio: pos.sharpeRatio,
+                        logoUrl: pos.logoUrl,
+                        shares: pos.shares,
+                        investmentAmount: pos.investmentAmount,
+                        portfolioWeight: pos.portfolioWeight,
+                        score: pos.score,
+                        isDividendStock: pos.isDividendStock,
+                        isGrowthStock: pos.isGrowthStock,
+                      })),
+                      totalInvested: displayPortfolio.totalInvested,
+                      numberOfPositions: displayPortfolio.positions.length,
+                      avgDividendYield: displayPortfolio.avgDividendYield,
+                      avgYtdPerformance: displayPortfolio.avgYtdPerformance,
+                    };
+                    updateMutation.mutate({
+                      id: parseInt(selectedPortfolioId),
+                      name: portfolioName,
+                      description: portfolioDescription,
+                      portfolioData: JSON.stringify(portfolioDataObj),
+                    });
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  disabled={!portfolioName.trim() || updateMutation.isPending || !displayPortfolio || displayPortfolio.positions.length === 0}
+                >
+                  {updateMutation.isPending ? 'Überschreiben...' : 'Überschreiben'}
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  const portfolioDataObj = {
+                    inputs: currentInputs,
+                    stocks: displayPortfolio.positions.map(pos => ({
+                      ticker: pos.ticker,
+                      companyName: pos.companyName,
+                      category: pos.category,
+                      currentPrice: pos.currentPrice,
+                      dividendYield: pos.dividendYield,
+                      ytdPerformance: pos.ytdPerformance,
+                      peRatio: pos.peRatio,
+                      pegRatio: pos.pegRatio,
+                      sharpeRatio: pos.sharpeRatio,
+                      logoUrl: pos.logoUrl,
+                      shares: pos.shares,
+                      investmentAmount: pos.investmentAmount,
+                      portfolioWeight: pos.portfolioWeight,
+                      score: pos.score,
+                      isDividendStock: pos.isDividendStock,
+                      isGrowthStock: pos.isGrowthStock,
+                    })),
+                    totalInvested: displayPortfolio.totalInvested,
+                    numberOfPositions: displayPortfolio.positions.length,
+                    avgDividendYield: displayPortfolio.avgDividendYield,
+                    avgYtdPerformance: displayPortfolio.avgYtdPerformance,
+                  };
+                  saveMutation.mutate({
+                    name: portfolioName,
+                    description: portfolioDescription,
+                    portfolioData: JSON.stringify(portfolioDataObj),
+                  });
+                  // Clear selectedPortfolioId after saving as new
+                  setSelectedPortfolioId(null);
+                }}
+                className={selectedPortfolioId ? "flex-1 bg-green-600 hover:bg-green-700" : "w-full bg-green-600 hover:bg-green-700"}
+                disabled={!portfolioName.trim() || saveMutation.isPending || !displayPortfolio || displayPortfolio.positions.length === 0}
+              >
+                {saveMutation.isPending ? 'Speichern...' : (selectedPortfolioId ? 'Als neu speichern' : 'Speichern')}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

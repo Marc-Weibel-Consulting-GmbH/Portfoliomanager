@@ -873,3 +873,46 @@
 - [x] Solution: Move fxRates query declaration BEFORE the useEffect (now line 73)
 - [x] Also moved getFxRate helper function to avoid similar issues
 - [x] Fixed: fxRates and getFxRate now declared before any useEffect that uses them
+
+
+## CRITICAL: Server Crash - HTML instead of JSON (Nov 11, 2025 - 10:03)
+- [x] Error: Unexpected token '<', "<!doctype "... is not valid JSON
+- [x] Server returning HTML error page instead of JSON for tRPC queries
+- [x] Multiple errors at 09:02:55 and 09:02:59
+- [x] Root cause: Server process crashed (no process on port 3000)
+- [x] Solution: Restarted development server
+- [x] Server now running on port 3000 (PID 543253)
+- [x] FX rates cron job completed successfully
+
+
+## CRITICAL: FX Rates Not Displaying in Table (Nov 11, 2025 - 10:10)
+- [x] Logs show fxRate is calculated correctly (USD 0.8041, EUR 0.9297)
+- [x] Line 87-96: getFxRate returns correct values
+- [x] Line 100-109: DisplayPortfolio has correct currency values
+- [x] But table still shows all 1.0000 (CHF default)
+- [x] Root cause: Table ignores pos.fxRate and recalculates FX rate incorrectly (line 1617-1623)
+- [x] Wrong formula: fxRate = investmentAmount / (shares * price)
+- [x] Solution: Use pos.fxRate field directly (already calculated correctly)
+- [x] Fixed: Changed line 1617 from manual calculation to {pos.fxRate || '1.0000'}
+
+
+## NEW: CHF Amount Calculation & Cash Position (Nov 11, 2025 - 10:15)
+- [x] CHF amounts not converted with FX rates
+- [x] Root cause: weightsToPositions calculated shares using CHF/USD mix
+- [x] Fixed: weightsToPositions now accepts getFxRate function
+- [x] Fixed: Prices converted to CHF before calculating shares
+- [x] Formula: priceInCHF = price × fxRate, shares = amount / priceInCHF
+- [x] Cash position already implemented (line 1669-1692)
+- [x] Shows when displayPortfolio.remainingCash > 0
+- [x] Should appear automatically after CHF calculation fix
+
+## NEW: Improved Portfolio Save/Load Workflow (Nov 11, 2025 - 10:15)
+- [x] Problem: No way to overwrite existing portfolio after changes
+- [x] Solution: Added updateMutation for portfolio updates
+- [x] Solution: Save dialog now shows two buttons when portfolio loaded:
+  - [x] "Überschreiben" (blue) - updates existing portfolio
+  - [x] "Als neu speichern" (green) - creates new portfolio
+- [x] selectedPortfolioId tracks which portfolio is loaded
+- [ ] TODO: Add "Unsaved changes" detection
+- [ ] TODO: On "Zurück" click: Ask to save if changes detected
+- [ ] TODO: Ensure loaded data matches saved data exactly (currency, fxRate fields)

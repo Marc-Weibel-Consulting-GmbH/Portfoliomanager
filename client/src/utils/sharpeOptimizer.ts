@@ -127,7 +127,8 @@ export function weightsToPositions(
   stocks: Stock[],
   weights: PortfolioWeights,
   investmentAmount: number,
-  maxPositionPercent: number = 0.10
+  maxPositionPercent: number = 0.10,
+  getFxRate?: (currency: string | undefined) => number
 ): Array<{
   ticker: string;
   weight: number;
@@ -143,11 +144,15 @@ export function weightsToPositions(
     const currentPrice = parseFloat(stock.currentPrice || "0");
     if (currentPrice === 0) continue;
 
+    // Convert price to CHF if FX rate function provided
+    const fxRate = getFxRate ? getFxRate(stock.currency) : 1.0;
+    const priceInCHF = currentPrice * fxRate;
+
     // Apply max position constraint
     const constrainedWeight = Math.min(weight, maxPositionPercent);
     const amount = investmentAmount * constrainedWeight;
-    const shares = Math.floor(amount / currentPrice);
-    const actualAmount = shares * currentPrice;
+    const shares = Math.floor(amount / priceInCHF);
+    const actualAmount = shares * priceInCHF;
 
     positions.push({
       ticker: stock.ticker,
