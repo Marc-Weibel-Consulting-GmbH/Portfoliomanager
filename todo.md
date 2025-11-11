@@ -952,3 +952,36 @@
 - [x] Removed premature setSelectedPortfolioId(null) before mutation
 - [ ] Need to add console.log to verify selectedPortfolioId value
 - [ ] Check if selectedPortfolioId is being cleared somewhere else
+
+
+## THREE Save Workflow Issues (Nov 11, 2025 - 11:00)
+
+### Issue 1: Currency/FxRate Missing After Load
+- [x] Problem: Loaded portfolios have currency=undefined, fxRate missing
+- [x] Cause: currency and fxRate not saved in portfolioData
+- [x] Solution: Added currency and fxRate to portfolioDataObj when saving
+- [x] Fixed in both update mutation (line 1766-1767) and save mutation (line 1808-1809)
+- [x] Impact: After loading, positions will now have correct currency and fxRate values
+
+### Issue 2: Only One Button Shows (Should Be Two)
+- [ ] Problem: Save dialog shows only "Speichern" button, not "Überschreiben" + "Als neu speichern"
+- [ ] Cause: selectedPortfolioId is null/empty when dialog opens
+- [ ] Debug: Added console.log to check selectedPortfolioId value
+- [ ] Need: User to click "Speichern" and send [SaveDialog] logs
+
+### Issue 3: No Unsaved Changes Warning
+- [ ] Problem: No warning when clicking "Zurück" with unsaved changes
+- [ ] Solution: Implement unsaved changes detection
+- [ ] Solution: Show confirmation dialog before navigating away
+- [ ] Status: Not implemented yet
+
+
+## CRITICAL: Currency/FxRate Missing When Adding Stocks Manually (Nov 11, 2025 - 11:10)
+- [x] Problem: When adding Apple (AAPL) via "Aktie hinzufügen", currency=undefined
+- [x] Logs show: "Encountered two children with the same key, AAPL" (duplicate)
+- [x] Logs show: [DisplayPortfolio] AAPL.US: currency=undefined
+- [x] Cause: Manual stock addition doesn't set currency and fxRate fields
+- [x] Fixed: Added currency to fetchStockDataMutation response (line 159)
+- [x] Fixed: Added currency and fxRate to newPosition (line 2161-2162)
+- [x] Fixed: investmentAmount calculation now uses fxRate (line 2155)
+- [x] Fixed: shares calculation now uses fxRate (line 2163)

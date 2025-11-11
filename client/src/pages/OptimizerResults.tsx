@@ -156,6 +156,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
         ...prev,
         companyName: data.companyName || prev.companyName,
         ticker: data.ticker || prev.ticker,
+        currency: data.currency || 'USD',
         currentPrice: data.currentPrice?.toString() || prev.currentPrice,
         dividendYield: data.dividendYield?.toString() || prev.dividendYield,
         ytdPerformance: ytdPerformance || prev.ytdPerformance,
@@ -1763,6 +1764,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                         ticker: pos.ticker,
                         companyName: pos.companyName,
                         category: pos.category,
+                        currency: pos.currency,
+                        fxRate: pos.fxRate,
                         currentPrice: pos.currentPrice,
                         dividendYield: pos.dividendYield,
                         ytdPerformance: pos.ytdPerformance,
@@ -1803,6 +1806,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                       ticker: pos.ticker,
                       companyName: pos.companyName,
                       category: pos.category,
+                      currency: pos.currency,
+                      fxRate: pos.fxRate,
                       currentPrice: pos.currentPrice,
                       dividendYield: pos.dividendYield,
                       ytdPerformance: pos.ytdPerformance,
@@ -2145,13 +2150,17 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   
                   const shares = parseInt(addStockFormData.shares);
                   const currentPrice = parseFloat(addStockFormData.currentPrice);
-                  const investmentAmount = shares * currentPrice;
+                  const currency = addStockFormData.currency || 'USD';
+                  const fxRate = getFxRate(currency);
+                  const investmentAmount = shares * currentPrice * fxRate;
                   
                   const newPosition: OptimizedPosition = {
                     ticker: addStockFormData.ticker,
                     companyName: addStockFormData.companyName,
                     category: addStockFormData.category || 'Wachstumstitel',
-                    shares: Math.floor(investmentAmount / parseFloat(addStockFormData.currentPrice || '1')),
+                    currency: currency,
+                    fxRate: fxRate.toFixed(4),
+                    shares: Math.floor(investmentAmount / (parseFloat(addStockFormData.currentPrice || '1') * fxRate)),
                     currentPrice: addStockFormData.currentPrice || '0',
                     investmentAmount: investmentAmount,
                     portfolioWeight: (investmentAmount / currentInputs.investmentAmount) * 100,
