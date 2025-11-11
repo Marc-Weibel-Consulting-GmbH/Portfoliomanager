@@ -845,3 +845,13 @@
 - [x] Fixed: Added getFxRates endpoint to fetch from exchangeRates table
 - [x] Fixed: Added getFxRate helper function to assign correct rate by currency
 - [x] Fixed: Added fxRate to finalPositions and optimizer positions
+
+
+## CRITICAL: FX Rates Still Show 1.0000 (Nov 11, 2025 - 03:40)
+- [x] FX rates endpoint created but values still show 1.0000
+- [x] Likely fxRates query returns undefined or loads too late
+- [x] Need to add debug log to see fxRates value
+- [x] Root cause: getFxRate called BEFORE fxRates loaded, positions created with 1.0000
+- [x] Solution: Add fxRates to useMemo dependencies to re-run optimizer when loaded
+- [x] Applied: Added fxRates to optimizedPortfolio useMemo dependencies (line 704)
+- [x] FX rates now display correctly: USD ~0.88, EUR ~0.93, CHF 1.0000

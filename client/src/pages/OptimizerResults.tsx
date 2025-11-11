@@ -114,16 +114,26 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   // Fetch FX rates for currency conversion
   const { data: fxRates } = trpc.stocks.getFxRates.useQuery();
   
+  // Debug: Log fxRates when they change
+  useEffect(() => {
+    console.log('[FX Rates] Loaded:', fxRates);
+  }, [fxRates]);
+  
   // Helper function to get FX rate for a currency
   const getFxRate = (currency: string | undefined): string => {
     if (!currency || currency === 'CHF') return '1.0000';
-    if (!fxRates) return '1.0000';
+    if (!fxRates) {
+      console.log('[getFxRate] fxRates not loaded yet, returning 1.0000 for', currency);
+      return '1.0000';
+    }
     
-    if (currency === 'USD') return fxRates.USDCHF.toFixed(4);
-    if (currency === 'EUR') return fxRates.EURCHF.toFixed(4);
-    if (currency === 'GBP') return fxRates.GBPCHF.toFixed(4);
+    let rate = '1.0000';
+    if (currency === 'USD') rate = fxRates.USDCHF.toFixed(4);
+    else if (currency === 'EUR') rate = fxRates.EURCHF.toFixed(4);
+    else if (currency === 'GBP') rate = fxRates.GBPCHF.toFixed(4);
     
-    return '1.0000';
+    console.log(`[getFxRate] ${currency} -> ${rate}`);
+    return rate;
   };
 
   // Get tRPC utils for imperative queries
@@ -691,7 +701,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
           }, 0) / finalTotalInvested
         : 0,
     };
-  }, [allStocks, adjustedInputs, optimizationStrategy]);
+  }, [allStocks, adjustedInputs, optimizationStrategy, fxRates]);
 
   // Show diversification dialog automatically if needed
   useEffect(() => {
