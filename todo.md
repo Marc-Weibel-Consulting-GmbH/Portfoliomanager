@@ -772,3 +772,15 @@
 - [x] Fixed: Weight now calculated as (investmentAmount / grandTotal) * 100
 - [x] Fixed: Added FX columns (Kurs FW, Betrag FW, FX, Betrag CHF)
 - [x] Fixed: Cash row and footer colspan adjusted for new columns
+
+
+## URGENT: Fix TEST Mode Display Bugs (Nov 11, 2025)
+- [x] FX rates wrong: MONC.MI shows CHF price instead of EUR price
+- [x] Currency detection broken: Need to fetch stock currency from DB
+- [x] Zusammensetzung % wrong: ETF shows 41.9% instead of 19.9%
+- [x] Category percentages calculated incorrectly
+- [x] YTD Performance chart starts at 11/24 instead of 01.01.2025
+- [x] Chart shows 1-year performance instead of YTD
+- [x] Fixed: Added currency and fxRate to enrichedStocks (3 locations)
+- [x] Fixed: Zusammensetzung % now based on grandTotal (incl. cash)
+- [x] Fixed: YTD chart uses fromDate = 01.01.2025 (ytd flag)

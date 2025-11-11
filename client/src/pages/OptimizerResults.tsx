@@ -935,19 +935,16 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     .filter((p: any) => !p.isDividendStock && p.category !== 'ETF')
     .reduce((sum, p) => sum + p.investmentAmount, 0);
   
-  // Use total invested amount as base (100%)
+  // Use TOTAL including cash as base (100%)
   const totalInvestedAmount = displayPortfolio.totalInvested;
   const remainingCashAmount = Math.max(0, displayPortfolio.remainingCash); // No negative cash
+  const grandTotal = totalInvestedAmount + remainingCashAmount;
   
-  // Calculate percentages based on total invested (not including cash)
-  const dividendPercent = totalInvestedAmount > 0 ? (dividendAmount / totalInvestedAmount) * 100 : 0;
-  const growthPercent = totalInvestedAmount > 0 ? (growthAmount / totalInvestedAmount) * 100 : 0;
-  const etfPercent = totalInvestedAmount > 0 ? (etfAmount / totalInvestedAmount) * 100 : 0;
-  
-  // Cash is separate (not part of 100%)
-  const cashPercent = (totalInvestedAmount + remainingCashAmount) > 0 
-    ? (remainingCashAmount / (totalInvestedAmount + remainingCashAmount)) * 100 
-    : 0;
+  // Calculate percentages based on TOTAL including cash
+  const dividendPercent = grandTotal > 0 ? (dividendAmount / grandTotal) * 100 : 0;
+  const growthPercent = grandTotal > 0 ? (growthAmount / grandTotal) * 100 : 0;
+  const etfPercent = grandTotal > 0 ? (etfAmount / grandTotal) * 100 : 0;
+  const cashPercent = grandTotal > 0 ? (remainingCashAmount / grandTotal) * 100 : 0;
 
   // Prepare data for performance chart
   const tickers = displayPortfolio.positions.map(p => p.ticker);
@@ -976,13 +973,22 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
 
   // Fetch portfolio historical data
   const { data: portfolioData, isLoading: isLoadingPortfolio } = trpc.portfolioPerformance.getHistoricalData.useQuery(
-    { tickers, weights, years: timePeriodToYears(selectedTimePeriod) },
+    { 
+      tickers, 
+      weights, 
+      years: timePeriodToYears(selectedTimePeriod),
+      ytd: selectedTimePeriod === 'ytd'
+    },
     { enabled: tickers.length > 0 && weights.length > 0 }
   );
 
   // Fetch benchmark data
   const { data: benchmarkData, isLoading: isLoadingBenchmark } = trpc.portfolioPerformance.getBenchmarkData.useQuery(
-    { benchmark: selectedBenchmark, years: timePeriodToYears(selectedTimePeriod) },
+    { 
+      benchmark: selectedBenchmark, 
+      years: timePeriodToYears(selectedTimePeriod),
+      ytd: selectedTimePeriod === 'ytd'
+    },
     { enabled: !!selectedBenchmark }
   );
 
@@ -1143,6 +1149,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                               sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
                               score: dbStock?.score || stock.score || 0,
                               category: dbStock?.category || stock.category || '',
+                              currency: dbStock?.currency || stock.currency || 'CHF',
+                              fxRate: dbStock?.fxRate || stock.fxRate || '1.0000',
                               isDividendStock: divYield >= 2.5,
                               isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                             };
@@ -1435,6 +1443,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                             sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
                             score: dbStock?.score || stock.score || 0,
                             category: dbStock?.category || stock.category || '',
+                            currency: dbStock?.currency || stock.currency || 'CHF',
+                            fxRate: dbStock?.fxRate || stock.fxRate || '1.0000',
                             isDividendStock: divYield >= 2.5,
                             isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                           };
@@ -1815,6 +1825,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                                   sharpeRatio: dbStock?.sharpeRatio || stock.sharpeRatio || null,
                                   score: dbStock?.score || stock.score || 0,
                                   category: dbStock?.category || stock.category || '',
+                                  currency: dbStock?.currency || stock.currency || 'CHF',
+                                  fxRate: dbStock?.fxRate || stock.fxRate || '1.0000',
                                 isDividendStock: divYield >= 2.5,
                                 isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                                 };

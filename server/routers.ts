@@ -2893,18 +2893,23 @@ export const appRouter = router({
     getHistoricalData: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "tickers" in val && Array.isArray((val as any).tickers)) {
-          return val as { tickers: string[]; weights: number[]; years?: number; ytdStartPrices?: number[] };
+          return val as { tickers: string[]; weights: number[]; years?: number; ytd?: boolean; ytdStartPrices?: number[] };
         }
         throw new Error("Invalid input: tickers and weights arrays required");
       })
       .query(async ({ input }) => {
-        const { tickers, weights, years = 5, ytdStartPrices = [] } = input;
+        const { tickers, weights, years = 5, ytd = false, ytdStartPrices = [] } = input;
         
         console.log('[Chart] Using cached historical data');
+        console.log('[Chart] YTD mode:', ytd);
         console.log('[Chart] Received ytdStartPrices:', ytdStartPrices.slice(0, 5), '... (first 5)');
 
-        const fromDate = new Date();
-        fromDate.setFullYear(fromDate.getFullYear() - years);
+        // Calculate fromDate based on YTD flag
+        const fromDate = ytd ? new Date(new Date().getFullYear(), 0, 1) : (() => {
+          const d = new Date();
+          d.setFullYear(d.getFullYear() - years);
+          return d;
+        })();
         const fromDateStr = fromDate.toISOString().split('T')[0];
         const toDateStr = new Date().toISOString().split('T')[0];
 
@@ -3063,12 +3068,12 @@ export const appRouter = router({
     getBenchmarkData: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "benchmark" in val) {
-          return val as { benchmark: string; years?: number };
+          return val as { benchmark: string; years?: number; ytd?: boolean };
         }
         throw new Error("Invalid input: benchmark required");
       })
       .query(async ({ input }) => {
-        const { benchmark, years = 5 } = input;
+        const { benchmark, years = 5, ytd = false } = input;
 
         // Map benchmark names to Yahoo Finance tickers
         const benchmarkTickers: Record<string, string> = {
@@ -3082,8 +3087,12 @@ export const appRouter = router({
         const ticker = benchmarkTickers[benchmark];
         if (!ticker) throw new Error("Invalid benchmark");
 
-        const fromDate = new Date();
-        fromDate.setFullYear(fromDate.getFullYear() - years);
+        // Calculate fromDate based on YTD flag
+        const fromDate = ytd ? new Date(new Date().getFullYear(), 0, 1) : (() => {
+          const d = new Date();
+          d.setFullYear(d.getFullYear() - years);
+          return d;
+        })();
         const period1 = Math.floor(fromDate.getTime() / 1000);
         const period2 = Math.floor(Date.now() / 1000);
 
