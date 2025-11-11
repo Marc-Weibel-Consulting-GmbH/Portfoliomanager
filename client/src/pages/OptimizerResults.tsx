@@ -1935,6 +1935,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                                 avgYtdPerformance: data.avgYtdPerformance,
                               });
                               setSelectedPortfolioId(portfolio.id.toString());
+                              setPortfolioName(portfolio.name);
+                              setPortfolioDescription(portfolio.description || '');
                               setShowLoadDialog(false);
                               toast.success(`Portfolio "${portfolio.name}" geladen!`);
                             } else {

@@ -934,3 +934,12 @@
 - [ ] Update server/routers.ts to import and merge sub-routers
 - [ ] Test all endpoints still work
 - [ ] Verify TypeScript compilation succeeds without OOM
+
+
+## ISSUE: Save Workflow Not Working (Nov 11, 2025 - 10:40)
+- [x] User reports save workflow not implemented
+- [x] Backend update endpoint exists and is correct (line 2105-2116)
+- [x] updateSavedPortfolio function exists in db.ts (line 342)
+- [x] Root cause: portfolioName and portfolioDescription not set when loading
+- [x] Fixed: Added setPortfolioName and setPortfolioDescription when loading (line 1938-1939)
+- [x] Now "Überschreiben" button will be enabled after loading portfolio
