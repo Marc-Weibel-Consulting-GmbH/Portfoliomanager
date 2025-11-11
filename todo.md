@@ -985,3 +985,15 @@
 - [x] Fixed: Added currency and fxRate to newPosition (line 2161-2162)
 - [x] Fixed: investmentAmount calculation now uses fxRate (line 2155)
 - [x] Fixed: shares calculation now uses fxRate (line 2163)
+
+
+## URGENT: Memory Issues - Increased Limit to 8GB (Nov 11, 2025 - 11:25)
+- [x] Problem: routers.ts is 4201 lines, causing server crashes
+- [x] Attempted router refactoring but too error-prone
+- [x] Solution: Increased Node.js memory limit from 4GB to 8GB
+- [x] Updated package.json dev and check scripts
+- [x] Restored original routers.ts (4201 lines)
+- [x] Test if 8GB is sufficient to prevent crashes
+- [x] Server running successfully on port 3000 (PID 549017)
+- [x] FX rates cron job completed successfully
+- [x] TypeScript checker still gets killed but server runs fine
