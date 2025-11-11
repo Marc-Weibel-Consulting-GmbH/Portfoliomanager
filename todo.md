@@ -916,3 +916,21 @@
 - [ ] TODO: Add "Unsaved changes" detection
 - [ ] TODO: On "Zurück" click: Ask to save if changes detected
 - [ ] TODO: Ensure loaded data matches saved data exactly (currency, fxRate fields)
+
+
+## URGENT: Router Refactoring - Fix Memory Issues (Nov 11, 2025 - 10:35)
+- [x] Problem: routers.ts is 4198 lines - causes TypeScript OOM (exit code 137)
+- [x] Problem: Server crashes frequently due to memory issues
+- [x] Quick fix: Increased Node.js memory limit from 1024MB to 4096MB
+- [x] Updated package.json dev and check scripts
+- [ ] Long-term solution: Split routers.ts into smaller feature-based modules (optional)
+- [ ] Modules to create:
+  - [ ] server/routers/stocks.ts (stock data, search, analysis)
+  - [ ] server/routers/portfolios.ts (saved portfolios CRUD)
+  - [ ] server/routers/performance.ts (performance calculations, YTD, live)
+  - [ ] server/routers/dividends.ts (dividend tracking, capture)
+  - [ ] server/routers/scores.ts (stock scoring)
+  - [ ] server/routers/fxRates.ts (FX rates)
+- [ ] Update server/routers.ts to import and merge sub-routers
+- [ ] Test all endpoints still work
+- [ ] Verify TypeScript compilation succeeds without OOM
