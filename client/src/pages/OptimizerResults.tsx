@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -28,6 +28,8 @@ interface OptimizerResultsProps {
   onBack: () => void;
   onPortfolioSaved?: () => void;
   initialStocks?: OptimizedPosition[];
+  loadedPortfolioId?: string;
+  loadedPortfolioName?: string;
 }
 
 interface OptimizedPosition {
@@ -49,7 +51,7 @@ interface OptimizedPosition {
   isGrowthStock: boolean;
 }
 
-export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, initialStocks }: OptimizerResultsProps) {
+export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, initialStocks, loadedPortfolioId, loadedPortfolioName }: OptimizerResultsProps) {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
@@ -117,7 +119,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   const [addStockFormData, setAddStockFormData] = useState<any>({});
   const [tickerSearchQuery, setTickerSearchQuery] = useState("");
   const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(loadedPortfolioId || null);
   const [loadedPortfolioMetadata, setLoadedPortfolioMetadata] = useState<any>(null);
   const [selectedBenchmark, setSelectedBenchmark] = useState<string>('sp500');
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>('ytd');
@@ -188,10 +190,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       if (!variables.isAutoSave) {
         toast.success('Portfolio erfolgreich aktualisiert!');
         setShowSaveDialog(false);
+      } else {
+        console.log('[AutoSave] Save successful');
       }
       onPortfolioSaved?.(); // Notify parent to refresh portfolio list
+      refetchPortfolios(); // Refresh portfolio list to show updated data
     },
     onError: (error) => {
+      console.error('[AutoSave] Save failed:', error.message);
       toast.error('Fehler beim Aktualisieren: ' + error.message);
     },
   });
@@ -201,79 +207,15 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   // Track if this is the first change to trigger save dialog for new portfolios
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  // Auto-save when editablePositions changes
+  // Reset hasUnsavedChanges when a portfolio is loaded
   useEffect(() => {
-    if (!editablePositions || editablePositions.length === 0) return;
-    
-    // If a portfolio is loaded, auto-save
     if (selectedPortfolioId) {
-      // Debounce auto-save by 1 second to avoid too frequent saves
-      const timeoutId = setTimeout(() => {
-        const portfolioDataObj = {
-          inputs: currentInputs,
-          stocks: editablePositions.map(pos => ({
-            ticker: pos.ticker,
-            companyName: pos.companyName,
-            category: pos.category,
-            currency: pos.currency,
-            fxRate: pos.fxRate,
-            currentPrice: pos.currentPrice,
-            dividendYield: pos.dividendYield,
-            ytdPerformance: pos.ytdPerformance,
-            peRatio: pos.peRatio,
-            pegRatio: pos.pegRatio,
-            sharpeRatio: pos.sharpeRatio,
-            logoUrl: pos.logoUrl,
-            shares: pos.shares,
-            investmentAmount: pos.investmentAmount,
-            portfolioWeight: pos.portfolioWeight,
-            score: pos.score,
-            isDividendStock: pos.isDividendStock,
-            isGrowthStock: pos.isGrowthStock,
-          })),
-          totalInvested: editablePositions.reduce((sum, p) => sum + (p.investmentAmount || 0), 0),
-          numberOfPositions: editablePositions.length,
-          avgDividendYield: editablePositions.length > 0
-            ? editablePositions.reduce((sum, p) => sum + parseFloat(p.dividendYield || '0'), 0) / editablePositions.length
-            : 0,
-          avgYtdPerformance: editablePositions.length > 0
-            ? editablePositions.reduce((sum, p) => sum + parseFloat(p.ytdPerformance || '0'), 0) / editablePositions.length
-            : 0,
-        };
-        
-        // Find the current portfolio to get its name
-        const currentPortfolio = savedPortfolios.find(p => p.id.toString() === selectedPortfolioId);
-        if (currentPortfolio) {
-          updateMutation.mutate({
-            id: parseInt(selectedPortfolioId),
-            name: currentPortfolio.name,
-            description: currentPortfolio.description || '',
-            portfolioData: JSON.stringify(portfolioDataObj),
-            isAutoSave: true,
-          });
-          console.log('[AutoSave] Portfolio updated:', currentPortfolio.name);
-        }
-      }, 1000); // 1 second debounce
-      
-      return () => clearTimeout(timeoutId);
+      console.log('[Portfolio] selectedPortfolioId changed to:', selectedPortfolioId);
+      setHasUnsavedChanges(false);
     } else {
-      // No portfolio loaded - mark as having unsaved changes
-      // This will trigger save dialog on first manual change
-      setHasUnsavedChanges(true);
+      console.log('[Portfolio] selectedPortfolioId is null/undefined');
     }
-  }, [editablePositions, selectedPortfolioId, currentInputs, savedPortfolios]);
-  // Open save dialog automatically when user makes first change to a new portfolio
-  useEffect(() => {
-    if (hasUnsavedChanges && !selectedPortfolioId && editablePositions && editablePositions.length > 0) {
-      // Check if positions differ from optimized portfolio (user made a change)
-      const hasChanges = JSON.stringify(editablePositions) !== JSON.stringify(optimizedPortfolio.positions);
-      if (hasChanges && !showSaveDialog) {
-        console.log('[AutoSave] First change detected, opening save dialog');
-        setShowSaveDialog(true);
-        setHasUnsavedChanges(false); // Reset flag
-      }
-    }
-  }, [hasUnsavedChanges, selectedPortfolioId, editablePositions, optimizedPortfolio.positions, showSaveDialog]);
+  }, [selectedPortfolioId]);
   
   const loadMutation = trpc.savedPortfolios.delete.useMutation({
     onSuccess: () => {
@@ -1053,6 +995,73 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       setEditablePositions([...optimizedPortfolio.positions]);
     }
   }, [optimizedPortfolio.positions, editablePositions]);
+  
+  // Auto-save when editablePositions changes (ONLY for loaded portfolios)
+  useEffect(() => {
+    console.log('[AutoSave] useEffect triggered, selectedPortfolioId:', selectedPortfolioId, 'editablePositions:', editablePositions?.length);
+    
+    // Only auto-save if a portfolio is loaded
+    if (!selectedPortfolioId || !editablePositions || editablePositions.length === 0) {
+      console.log('[AutoSave] Skipping - no portfolio loaded or no positions');
+      return;
+    }
+    
+    console.log('[AutoSave] Starting debounce timer...');
+    
+    // Debounce auto-save by 1 second to avoid too frequent saves
+    const timeoutId = setTimeout(() => {
+      const portfolioDataObj = {
+        inputs: currentInputs,
+        stocks: editablePositions.map(pos => ({
+          ticker: pos.ticker,
+          companyName: pos.companyName,
+          category: pos.category,
+          currency: pos.currency,
+          fxRate: pos.fxRate,
+          currentPrice: pos.currentPrice,
+          dividendYield: pos.dividendYield,
+          ytdPerformance: pos.ytdPerformance,
+          peRatio: pos.peRatio,
+          pegRatio: pos.pegRatio,
+          sharpeRatio: pos.sharpeRatio,
+          logoUrl: pos.logoUrl,
+          shares: pos.shares,
+          investmentAmount: pos.investmentAmount,
+          portfolioWeight: pos.portfolioWeight,
+          score: pos.score,
+          isDividendStock: pos.isDividendStock,
+          isGrowthStock: pos.isGrowthStock,
+        })),
+        totalInvested: editablePositions.reduce((sum, p) => sum + (p.investmentAmount || 0), 0),
+        numberOfPositions: editablePositions.length,
+        avgDividendYield: editablePositions.length > 0
+          ? editablePositions.reduce((sum, p) => sum + parseFloat(p.dividendYield || '0'), 0) / editablePositions.length
+          : 0,
+        avgYtdPerformance: editablePositions.length > 0
+          ? editablePositions.reduce((sum, p) => sum + parseFloat(p.ytdPerformance || '0'), 0) / editablePositions.length
+          : 0,
+      };
+      
+      // Find the current portfolio to get its name
+      const currentPortfolio = savedPortfolios.find(p => p.id.toString() === selectedPortfolioId);
+      if (currentPortfolio) {
+        console.log('[AutoSave] Saving portfolio:', currentPortfolio.name, 'ID:', selectedPortfolioId);
+        console.log('[AutoSave] Total positions:', editablePositions.length);
+        console.log('[AutoSave] Total invested:', portfolioDataObj.totalInvested);
+        updateMutation.mutate({
+          id: parseInt(selectedPortfolioId),
+          name: currentPortfolio.name,
+          description: currentPortfolio.description || '',
+          portfolioData: JSON.stringify(portfolioDataObj),
+          isAutoSave: true,
+        });
+      } else {
+        console.warn('[AutoSave] Portfolio not found in savedPortfolios, ID:', selectedPortfolioId);
+      }
+    }, 1000); // 1 second debounce
+    
+    return () => clearTimeout(timeoutId);
+  }, [editablePositions, selectedPortfolioId, currentInputs]);
 
   // Calculate composition for display portfolio
   // Calculate composition amounts (ETFs are exclusive, not counted in dividend/growth)
@@ -1568,9 +1577,12 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
               <Select
                 value={selectedPortfolioId || ""}
                 onValueChange={async (value) => {
+                  console.log('[Portfolio Load] Starting load, value:', value);
                   const portfolio = savedPortfolios.find(p => p.id.toString() === value);
                   if (portfolio) {
+                    console.log('[Portfolio Load] Found portfolio:', portfolio.name, 'ID:', value);
                     setSelectedPortfolioId(value);
+                    console.log('[Portfolio Load] setSelectedPortfolioId called with:', value);
                     // Load the selected portfolio with enrichment
                     try {
                       const data = JSON.parse(portfolio.portfolioData);
@@ -1628,6 +1640,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                           avgDividendYield: data.avgDividendYield,
                           avgYtdPerformance: data.avgYtdPerformance,
                         });
+                        console.log('[Portfolio Load] Successfully loaded', enrichedStocks.length, 'positions');
+                        console.log('[Portfolio Load] selectedPortfolioId should now be:', value);
                         toast.success(`Portfolio "${portfolio.name}" geladen!`);
                       } else {
                         toast.error('Portfolio-Daten haben ungültiges Format');
@@ -1929,6 +1943,18 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
               )}
               <Button
                 onClick={() => {
+                  // Check for duplicate names (only when saving as new)
+                  const trimmedName = portfolioName.trim();
+                  const isDuplicate = savedPortfolios.some(p => 
+                    p.name.toLowerCase() === trimmedName.toLowerCase() && 
+                    p.id.toString() !== selectedPortfolioId
+                  );
+                  
+                  if (isDuplicate) {
+                    toast.error(`Ein Portfolio mit dem Namen "${trimmedName}" existiert bereits. Bitte wählen Sie einen anderen Namen.`);
+                    return;
+                  }
+                  
                   const portfolioDataObj = {
                     inputs: currentInputs,
                     stocks: displayPortfolio.positions.map(pos => ({
@@ -1957,7 +1983,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     avgYtdPerformance: displayPortfolio.avgYtdPerformance,
                   };
                   saveMutation.mutate({
-                    name: portfolioName,
+                    name: trimmedName,
                     description: portfolioDescription,
                     portfolioData: JSON.stringify(portfolioDataObj),
                   });

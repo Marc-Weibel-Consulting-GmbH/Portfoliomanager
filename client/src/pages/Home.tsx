@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { trpc } from "@/lib/trpc";
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen, X } from "lucide-react";
+import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen, X, Edit } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
@@ -360,6 +360,8 @@ export default function Home() {
   const [finanzenFormData, setFinanzenFormData] = useState<any>({});
   const [optimizerInputs, setOptimizerInputs] = useState<any>(null);
   const [optimizerInitialStocks, setOptimizerInitialStocks] = useState<any>(null);
+  const [loadedPortfolioId, setLoadedPortfolioId] = useState<string | null>(null);
+  const [loadedPortfolioName, setLoadedPortfolioName] = useState<string | null>(null);
   const [showOptimizerResults, setShowOptimizerResults] = useState(false);
   const [refreshProgress, setRefreshProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -369,12 +371,26 @@ export default function Home() {
   const [showWeeklyOverview, setShowWeeklyOverview] = useState(false);
   const [portfolioName, setPortfolioName] = useState('');
   const [portfolioDescription, setPortfolioDescription] = useState('');
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingPortfolio, setEditingPortfolio] = useState<any>(null);
+  const [editPortfolioName, setEditPortfolioName] = useState('');
+  const [editPortfolioDescription, setEditPortfolioDescription] = useState('');
   
   // Query for saved portfolios - MUST be at top level (not conditional)
   const { data: savedPortfoliosData = [], refetch: refetchSavedPortfolios } = trpc.savedPortfolios.list.useQuery();
   const deletePortfolioMutation = trpc.savedPortfolios.delete.useMutation();
   const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation();
   const updateLiveStartDateMutation = trpc.savedPortfolios.updateLiveStartDate.useMutation();
+  const updatePortfolioMutation = trpc.savedPortfolios.update.useMutation({
+    onSuccess: () => {
+      refetchSavedPortfolios();
+      toast.success('Portfolio aktualisiert');
+      setShowEditDialog(false);
+    },
+    onError: (error) => {
+      toast.error('Fehler beim Aktualisieren: ' + error.message);
+    },
+  });
   const savePortfolioMutation = trpc.savedPortfolios.create.useMutation({
     onSuccess: () => {
       refetchSavedPortfolios();
@@ -1734,9 +1750,13 @@ export default function Home() {
         <OptimizerResults
           inputs={optimizerInputs}
           initialStocks={optimizerInitialStocks}
+          loadedPortfolioId={loadedPortfolioId || undefined}
+          loadedPortfolioName={loadedPortfolioName || undefined}
           onBack={() => {
             // Go back to portfolio optimizer start (where saved portfolios are shown)
             setShowOptimizerResults(false);
+            setLoadedPortfolioId(null);
+            setLoadedPortfolioName(null);
             setOptimizerInputs(null);
             setOptimizerInitialStocks(null); // Clear initial stocks
             refetchSavedPortfolios(); // Refresh saved portfolios list
@@ -1936,9 +1956,11 @@ export default function Home() {
                                 
                                 setOptimizerInputs(reconstructedInputs);
                                 setOptimizerInitialStocks(stocks);
+                                setLoadedPortfolioId(portfolio.id.toString());
+                                setLoadedPortfolioName(portfolio.name);
                                 setShowOptimizerResults(true);
                                 
-                                console.log('[Laden2] State set - showOptimizerResults: true');
+                                console.log('[Laden2] State set - showOptimizerResults: true, portfolioId:', portfolio.id);
                                 toast.success('Portfolio geladen', { description: `"${portfolio.name}" wurde in den Optimizer geladen` });
                               } catch (error) {
                                 console.error('Failed to load portfolio:', error);
@@ -1951,6 +1973,24 @@ export default function Home() {
                         >
                           Laden
                         </button>
+                        <Button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[Edit] Button clicked for portfolio:', portfolio.id, portfolio.name);
+                            setEditingPortfolio(portfolio);
+                            setEditPortfolioName(portfolio.name);
+                            setEditPortfolioDescription(portfolio.description || '');
+                            setShowEditDialog(true);
+                            console.log('[Edit] Dialog should open now');
+                          }}
+                          size="sm"
+                          variant="outline"
+                          className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                          style={{pointerEvents: 'auto', zIndex: 10}}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                         <Button
                           onClick={async () => {
                             if (confirm(`Portfolio "${portfolio.name}" wirklich löschen?`)) {
@@ -2000,6 +2040,78 @@ export default function Home() {
               </Button>
             </div>
           </div>
+          
+          {/* Edit Portfolio Dialog */}
+          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+            <DialogContent className="bg-slate-800 border-slate-700 text-white">
+              <DialogHeader>
+                <DialogTitle>Portfolio bearbeiten</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Portfolio-Name</label>
+                  <Input
+                    value={editPortfolioName}
+                    onChange={(e) => setEditPortfolioName(e.target.value)}
+                    placeholder="z.B. Mein Dividenden-Portfolio"
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-2 block">Beschreibung (optional)</label>
+                  <Textarea
+                    value={editPortfolioDescription}
+                    onChange={(e) => setEditPortfolioDescription(e.target.value)}
+                    placeholder="Notizen zu diesem Portfolio..."
+                    className="bg-slate-700 border-slate-600 text-white"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    onClick={() => setShowEditDialog(false)}
+                    variant="outline"
+                    className="border-slate-600 text-slate-300"
+                  >
+                    Abbrechen
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!editingPortfolio) return;
+                      
+                      // Check for duplicate names
+                      const trimmedName = editPortfolioName.trim();
+                      const isDuplicate = savedPortfoliosData.some(p => 
+                        p.name.toLowerCase() === trimmedName.toLowerCase() && 
+                        p.id !== editingPortfolio.id
+                      );
+                      
+                      if (isDuplicate) {
+                        toast.error(`Ein Portfolio mit dem Namen "${trimmedName}" existiert bereits.`);
+                        return;
+                      }
+                      
+                      if (!trimmedName) {
+                        toast.error('Bitte geben Sie einen Portfolio-Namen ein.');
+                        return;
+                      }
+                      
+                      updatePortfolioMutation.mutate({
+                        id: editingPortfolio.id,
+                        name: trimmedName,
+                        description: editPortfolioDescription,
+                        portfolioData: editingPortfolio.portfolioData,
+                      });
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={!editPortfolioName.trim() || updatePortfolioMutation.isPending}
+                  >
+                    {updatePortfolioMutation.isPending ? 'Speichern...' : 'Speichern'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       );
     }
@@ -3739,6 +3851,7 @@ export default function Home() {
         open={showWeeklyOverview} 
         onOpenChange={setShowWeeklyOverview} 
       />
+
     </>
   );
 }

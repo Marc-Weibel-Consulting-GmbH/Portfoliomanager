@@ -1005,3 +1005,11 @@
 - [x] Fixed: Label now shows actual currency from addStockFormData.currency
 - [x] Changed line 2088: "Aktueller Kurs ({addStockFormData.currency || 'CHF'})"
 - [x] Now displays: "Aktueller Kurs (USD)" for Apple, "Aktueller Kurs (EUR)" for European stocks
+
+
+## CRITICAL: Portfolio Loading & Auto-Save Issues (Nov 11, 2025 - 17:20)
+- [x] Edit button in portfolio overview not working
+- [x] Double loading required: Portfolio selected in overview doesn't auto-load in detail page
+- [x] selectedPortfolioId not passed from overview to OptimizerResults
+- [x] Changes made after loading portfolio from overview are not auto-saved
+- [x] Need to pass portfolio ID and auto-load in OptimizerResults when coming from overview
