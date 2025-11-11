@@ -897,21 +897,20 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
         : 0
     );
     
-    // ALWAYS normalize portfolio weights to ensure they sum to 100%
-    const totalWeight = editablePositions.reduce((sum, p) => sum + (p.portfolioWeight || 0), 0);
-    const normalizedPositions = totalWeight > 0
-      ? editablePositions.map(p => ({
-          ...p,
-          portfolioWeight: (p.portfolioWeight / totalWeight) * 100
-        }))
-      : editablePositions;
-    const newTotal = normalizedPositions.reduce((sum, p) => sum + (p.portfolioWeight || 0), 0);
+    // Calculate portfolio weights based on TOTAL including cash
+    const remainingCash = currentInputs.investmentAmount - totalInvested;
+    const grandTotal = totalInvested + remainingCash;
+    
+    const positionsWithCorrectWeights = editablePositions.map(p => ({
+      ...p,
+      portfolioWeight: grandTotal > 0 ? (p.investmentAmount / grandTotal) * 100 : 0
+    }));
     
     return {
-      positions: normalizedPositions,
+      positions: positionsWithCorrectWeights,
       totalInvested,
-      remainingCash: currentInputs.investmentAmount - totalInvested,
-      totalShares: normalizedPositions.reduce((sum, p) => sum + p.shares, 0),
+      remainingCash,
+      totalShares: positionsWithCorrectWeights.reduce((sum, p) => sum + p.shares, 0),
       avgDividendYield,
       avgYtdPerformance,
     };
@@ -1529,8 +1528,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   <th className="text-left p-3 text-slate-400 font-medium">Unternehmen</th>
                   <th className="text-left p-3 text-slate-400 font-medium">Kategorie</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Stück</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Kurs</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Total CHF</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">Kurs FW</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">Betrag FW</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">FX</th>
+                  <th className="text-right p-3 text-slate-400 font-medium">Betrag CHF</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Gewicht</th>
                   <th className="text-right p-3 text-slate-400 font-medium">Div. %</th>
                   <th className="text-right p-3 text-slate-400 font-medium">YTD %</th>
@@ -1566,7 +1567,13 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     <td className="p-3 text-slate-300">{pos.category}</td>
                     <td className="p-3 text-right text-white font-medium">{pos.shares}</td>
                     <td className="p-3 text-right text-slate-300">
-                      CHF {parseFloat(pos.currentPrice || '0').toFixed(2)}
+                      {pos.currency || 'CHF'} {parseFloat(pos.currentPrice || '0').toFixed(2)}
+                    </td>
+                    <td className="p-3 text-right text-slate-300">
+                      {pos.currency || 'CHF'} {(pos.shares * parseFloat(pos.currentPrice || '0')).toLocaleString('de-CH', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3 text-right text-slate-300">
+                      {pos.currency === 'CHF' ? '1.0000' : (pos.fxRate || '1.0000')}
                     </td>
                     <td className="p-3 text-right text-white font-medium">
                        CHF {pos.investmentAmount?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
@@ -1627,6 +1634,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     <td className="p-3 text-slate-300">Liquidität</td>
                     <td className="p-3 text-right text-white font-medium">-</td>
                     <td className="p-3 text-right text-slate-300">-</td>
+                    <td className="p-3 text-right text-slate-300">-</td>
+                    <td className="p-3 text-right text-slate-300">-</td>
                     <td className="p-3 text-right text-white font-medium">
                       CHF {displayPortfolio.remainingCash?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
                     </td>
@@ -1642,14 +1651,14 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-600 font-bold">
-                  <td colSpan={6} className="p-3 text-white">Total</td>
+                  <td colSpan={8} className="p-3 text-white">Total</td>
                   <td className="p-3 text-right text-white">
                     CHF {((displayPortfolio.totalInvested || 0) + (displayPortfolio.remainingCash || 0)).toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="p-3 text-right text-white">
                     {(((displayPortfolio.totalInvested || 0) + (displayPortfolio.remainingCash || 0)) / currentInputs.investmentAmount * 100 || 0).toFixed(2)}%
                   </td>
-                  <td colSpan={2}></td>
+                  <td colSpan={6}></td>
                 </tr>
               </tfoot>
             </table>

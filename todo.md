@@ -762,3 +762,13 @@
 - [x] Wait 10 seconds for server to fully start
 - [x] User needs to reload page (F5) after restart
 - [ ] Consider splitting routers.ts to reduce memory usage (future improvement)
+
+
+## URGENT: Fix TEST Mode Portfolio Display (Nov 11, 2025)
+- [x] Div. % (weight) calculated wrong: uses only stocks total, should use total incl. cash
+- [x] Missing columns: Should show Stück | Kurs FW | Betrag FW | FX | Betrag CHF (like LIVE mode)
+- [x] Currently only shows: Stück | Kurs CHF | Total CHF
+- [x] Need to match LIVE mode column structure in OptimizerResults.tsx
+- [x] Fixed: Weight now calculated as (investmentAmount / grandTotal) * 100
+- [x] Fixed: Added FX columns (Kurs FW, Betrag FW, FX, Betrag CHF)
+- [x] Fixed: Cash row and footer colspan adjusted for new columns
