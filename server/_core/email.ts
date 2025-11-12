@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
+import { ENV } from './env';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(ENV.resendApiKey);
 
 export interface SendEmailOptions {
   to: string;
@@ -10,7 +11,7 @@ export interface SendEmailOptions {
 
 export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<boolean> {
   try {
-    const from = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+    const from = ENV.emailFrom || 'onboarding@resend.dev';
     
     const { data, error } = await resend.emails.send({
       from,

@@ -1,8 +1,9 @@
 import twilio from 'twilio';
+import { ENV } from '../_core/env';
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886'; // Twilio Sandbox default
+const accountSid = ENV.twilioAccountSid;
+const authToken = ENV.twilioAuthToken;
+const whatsappNumber = ENV.twilioWhatsappNumber || 'whatsapp:+14155238886'; // Twilio Sandbox default
 
 let twilioClient: ReturnType<typeof twilio> | null = null;
 

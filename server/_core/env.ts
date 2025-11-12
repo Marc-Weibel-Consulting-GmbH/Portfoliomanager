@@ -19,9 +19,3 @@ export const ENV = {
   emailFrom: process.env.EMAIL_FROM ?? "",
   ownerName: process.env.OWNER_NAME ?? "",
 };
-
-// Debug logging for production
-if (process.env.NODE_ENV === "production") {
-  console.log('[ENV] Stripe Secret Key available:', !!ENV.stripeSecretKey, 'Length:', ENV.stripeSecretKey?.length || 0);
-  console.log('[ENV] Finnhub API Key available:', !!ENV.finnhubApiKey, 'Length:', ENV.finnhubApiKey?.length || 0);
-}

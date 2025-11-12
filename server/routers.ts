@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { ENV } from "./_core/env";
 import { fxRouter } from "./routers/fxRouter";
 import { stocksRouter } from "./routers/stocksRouter";
 import { portfoliosRouter } from "./routers/portfoliosRouter";
@@ -28,7 +29,7 @@ async function fetchDividendYieldWithFallback(ticker: string, eodhDividendYield:
   // Fallback 1: Finnhub
   if (dividendYield === null || isNaN(dividendYield)) {
     try {
-      const finnhubKey = process.env.FINNHUB_API_KEY;
+      const finnhubKey = ENV.finnhubApiKey;
       if (finnhubKey) {
         const finnhubUrl = `https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${finnhubKey}`;
         const finnhubRes = await fetch(finnhubUrl);
@@ -1843,7 +1844,7 @@ export const appRouter = router({
         try {
           const Stripe = (await import("stripe")).default;
           
-          const stripeKey = process.env.STRIPE_SECRET_KEY;
+          const stripeKey = ENV.stripeSecretKey;
           if (!stripeKey) {
             throw new Error("STRIPE_SECRET_KEY is not configured");
           }
@@ -1870,10 +1871,6 @@ export const appRouter = router({
             ],
             mode: "payment",
             customer_email: user.email || undefined, // CRITICAL: Use current user's email, not saved customer
-            customer_creation: "always", // Always create new customer, don't use existing
-            payment_intent_data: {
-              setup_future_usage: undefined, // Don't save payment method for future use
-            },
             success_url: `${process.env.VITE_APP_URL || "http://localhost:3000"}?payment=success`,
             cancel_url: `${process.env.VITE_APP_URL || "http://localhost:3000"}?payment=cancelled`,
             client_reference_id: user.openId,
@@ -3426,7 +3423,7 @@ export const appRouter = router({
       const allStocks = await db.select().from(stocks);
       if (allStocks.length === 0) return { overview: [] };
 
-      const apiKey = process.env.FINNHUB_API_KEY;
+      const apiKey = ENV.finnhubApiKey;
       if (!apiKey) throw new Error("Finnhub API key not configured");
 
       // Get date range for current week
