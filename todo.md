@@ -1060,4 +1060,10 @@
 - [x] Extract realizedGainsHistory router (202 lines)
 - [x] Test after each extraction
 - [x] Reduced routers.ts from 4213 to 3550 lines (663 lines / 15.7% reduction)
-- [ ] Create checkpoint after successful refactoring
+- [x] Create checkpoint after successful refactoring (version: f448309e)
+
+## Stripe Payment Error (Nov 12, 2025)
+- [x] Fix Stripe checkout error: "Neither apiKey nor config.authenticator provided"
+- [x] Verify STRIPE_SECRET_KEY environment variable is set correctly
+- [x] Updated Stripe API version to 2024-11-20.acacia for stability
+- [ ] Test payment flow with new user account after publishing

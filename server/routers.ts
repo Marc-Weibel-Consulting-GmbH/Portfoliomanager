@@ -1842,8 +1842,14 @@ export const appRouter = router({
         
         try {
           const Stripe = (await import("stripe")).default;
-          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-            apiVersion: "2025-09-30.clover",
+          
+          const stripeKey = process.env.STRIPE_SECRET_KEY;
+          if (!stripeKey) {
+            throw new Error("STRIPE_SECRET_KEY is not configured");
+          }
+          
+          const stripe = new Stripe(stripeKey, {
+            apiVersion: "2024-11-20.acacia",
           });
           
           // Create Stripe checkout session
