@@ -1421,21 +1421,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   ))}
                 </SelectContent>
               </Select>
-              {selectedPortfolioId && (
-                <Button
-                  onClick={() => {
-                    setSelectedPortfolioId(null);
-                    setEditablePositions(null);
-                    toast.info('Zurück zum optimierten Portfolio');
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600 w-full"
-                >
-                  <RotateCcw className="w-3 h-3 mr-1" />
-                  Zurücksetzen
-                </Button>
-              )}
             </div>
 
             {/* Middle: Composition */}

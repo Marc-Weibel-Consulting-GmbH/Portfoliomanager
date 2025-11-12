@@ -2930,16 +2930,21 @@ export const appRouter = router({
         
         console.log('[Chart] Using cached historical data');
         console.log('[Chart] YTD mode:', ytd);
+        console.log('[Chart] Years parameter:', years);
         console.log('[Chart] Received ytdStartPrices:', ytdStartPrices.slice(0, 5), '... (first 5)');
 
         // Calculate fromDate based on YTD flag
         const fromDate = ytd ? new Date(new Date().getFullYear(), 0, 1) : (() => {
           const d = new Date();
-          d.setFullYear(d.getFullYear() - years);
+          // For fractional years (e.g., 0.5 for 6 months), calculate days instead
+          const daysToSubtract = Math.round(years * 365.25);
+          d.setDate(d.getDate() - daysToSubtract);
           return d;
         })();
         const fromDateStr = fromDate.toISOString().split('T')[0];
         const toDateStr = new Date().toISOString().split('T')[0];
+        
+        console.log('[Chart] Date range:', fromDateStr, 'to', toDateStr, `(${years} years = ${Math.round(years * 365.25)} days)`);
 
         try {
           const { getDb } = await import("./db");
@@ -3076,11 +3081,18 @@ export const appRouter = router({
             return totalWeight > 0 ? weightedPerformance / totalWeight : 0;
           });
 
-          const validDates = allDates;
-          const absoluteValues = portfolioValues;
+          // Final filtering: ensure we only return data within the requested time range
+          const filteredData = allDates
+            .map((date, idx) => ({ date, value: portfolioValues[idx] }))
+            .filter(item => item.date >= fromDateStr && item.date <= toDateStr);
+          
+          const validDates = filteredData.map(item => item.date);
+          const absoluteValues = filteredData.map(item => item.value);
 
-          const timeSpanYears = ((new Date(validDates[validDates.length - 1]).getTime() - new Date(validDates[0]).getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toFixed(1);
-          console.log(`[Chart] Returning ${validDates.length} data points spanning ${timeSpanYears} years`);
+          const timeSpanYears = validDates.length > 0 
+            ? ((new Date(validDates[validDates.length - 1]).getTime() - new Date(validDates[0]).getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toFixed(1)
+            : '0.0';
+          console.log(`[Chart] Returning ${validDates.length} data points spanning ${timeSpanYears} years (filtered from ${fromDateStr} to ${toDateStr})`);
           
 
           return {

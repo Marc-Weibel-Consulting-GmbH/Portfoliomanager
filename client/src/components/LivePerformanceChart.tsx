@@ -40,7 +40,7 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
 
   const chartData = useMemo(() => {
     if (!historyData || historyData.dataPoints.length === 0) {
-      return { labels: [], datasets: [] };
+      return { labels: [], datasets: [], latestPerformance: 0, latestValue: 0, latestInvested: 0 };
     }
 
     const dataPoints = historyData.dataPoints;
@@ -55,8 +55,16 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
     const valueData = dataPoints.map(dp => dp.value);
     const investedData = dataPoints.map(dp => dp.invested);
 
+    // Get latest values for legend
+    const latestPerformance = performanceData[performanceData.length - 1] || 0;
+    const latestValue = valueData[valueData.length - 1] || 0;
+    const latestInvested = investedData[investedData.length - 1] || 0;
+
     return {
       labels,
+      latestPerformance,
+      latestValue,
+      latestInvested,
       datasets: [
         {
           label: "Performance (%)",
@@ -102,13 +110,7 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
     },
     plugins: {
       legend: {
-        position: "top" as const,
-        labels: {
-          color: "rgb(203, 213, 225)",
-          font: {
-            size: 12
-          }
-        }
+        display: false  // Hide default legend, we'll use custom legend
       },
       tooltip: {
         backgroundColor: "rgba(15, 23, 42, 0.9)",
@@ -202,8 +204,35 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
         </p>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
-          <Line data={chartData} options={options} />
+        <div className="bg-slate-900/50 rounded-lg p-4">
+          <div className="h-80">
+            <Line data={chartData} options={options} />
+          </div>
+          
+          {/* Custom Legend */}
+          <div className="mt-4 flex items-center justify-center gap-6 text-sm flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0.5 bg-blue-400"></div>
+              <span className="text-slate-300">Performance</span>
+              <span className={`font-semibold ml-1 ${chartData.latestPerformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {chartData.latestPerformance >= 0 ? '+' : ''}{chartData.latestPerformance.toFixed(2)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0.5 bg-green-500"></div>
+              <span className="text-slate-300">Portfolio-Wert</span>
+              <span className="font-semibold ml-1 text-slate-200">
+                CHF {chartData.latestValue.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0.5 bg-slate-400 opacity-50" style={{ borderTop: '1px dashed rgb(148, 163, 184)' }}></div>
+              <span className="text-slate-300">Investiert</span>
+              <span className="font-semibold ml-1 text-slate-200">
+                CHF {chartData.latestInvested.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

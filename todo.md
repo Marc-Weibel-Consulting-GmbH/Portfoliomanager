@@ -1042,3 +1042,22 @@
 - [x] Changed date calculation from setFullYear to setDate for fractional years
 - [x] Added final date filtering to ensure only requested timeframe is returned
 - [x] Fixed PortfolioPerformanceChart to handle stocks without shares (equal weighting fallback)
+
+## Chart Legend Improvement (Nov 12, 2025)
+- [x] Update portfolio detail chart legend to match main page style
+- [x] Show portfolio name and performance percentage in legend header
+- [x] Match color coding and layout from main page chart
+- [x] Hide default Chart.js legend and use custom legend below chart
+- [ ] Fix recurring memory crash issues causing JSON parsing errors
+- [ ] Fix stock logos not displaying correctly
+- [x] Remove "Zurücksetzen" button from OptimizerResults portfolio selector
+
+## Router Refactoring to Fix Memory Issues (Nov 12, 2025)
+- [x] Create backup of routers.ts
+- [x] Extract dividendCalendar router (65 lines)
+- [x] Extract annualPerformance router (220 lines)
+- [x] Extract portfolioTransactions router (176 lines)
+- [x] Extract realizedGainsHistory router (202 lines)
+- [x] Test after each extraction
+- [x] Reduced routers.ts from 4213 to 3550 lines (663 lines / 15.7% reduction)
+- [ ] Create checkpoint after successful refactoring

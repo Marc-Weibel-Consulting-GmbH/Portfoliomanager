@@ -1,0 +1,180 @@
+import { router, protectedProcedure } from "../_core/trpc";
+
+export const portfolioTransactionsRouter = router({
+  create: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "portfolioId" in val && "transactionType" in val) {
+        return val as {
+          portfolioId: number;
+          transactionType: "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
+          ticker: string | null;
+          shares: string | null;
+          pricePerShare: string | null;
+          totalAmount: string;
+          fees: string;
+          notes: string | null;
+          transactionDate: string | Date;
+        };
+      }
+      throw new Error("Invalid transaction data");
+    })
+    .mutation(async ({ input, ctx }) => {
+      console.log("[Transaction] Creating transaction:", JSON.stringify(input, null, 2));
+      const { createPortfolioTransaction } = await import("../db");
+      
+      // Normalize transactionDate to Date object
+      const transactionDate = typeof input.transactionDate === 'string' 
+        ? new Date(input.transactionDate) 
+        : input.transactionDate;
+      
+      const result = await createPortfolioTransaction({
+        ...input,
+        transactionDate,
+        portfolioId: input.portfolioId,
+      });
+      console.log("[Transaction] Result:", result);
+      return result;
+    }),
+
+  list: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+        return { portfolioId: val.portfolioId };
+      }
+      throw new Error("Invalid portfolio ID");
+    })
+    .query(async ({ input }) => {
+      const { getPortfolioTransactions } = await import("../db");
+      return await getPortfolioTransactions(input.portfolioId);
+    }),
+
+  delete: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "transactionId" in val && typeof val.transactionId === "number") {
+        return { transactionId: val.transactionId };
+      }
+      throw new Error("Invalid transaction ID");
+    })
+    .mutation(async ({ input, ctx }) => {
+      const { getDb } = await import("../db");
+      const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      
+      // Delete associated realized gains first (if any)
+      await db.delete(realizedGains).where(eq(realizedGains.transactionId, input.transactionId));
+      
+      // Delete the transaction
+      await db.delete(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId));
+      
+      return { success: true };
+    }),
+
+  update: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "transactionId" in val) {
+        return val as {
+          transactionId: number;
+          transactionDate?: string;
+          shares?: string;
+          pricePerShare?: string;
+          totalAmount?: string;
+          currency?: string;
+          fees?: string;
+          notes?: string;
+        };
+      }
+      throw new Error("Invalid update data");
+    })
+    .mutation(async ({ input, ctx }) => {
+      const { getDb } = await import("../db");
+      const { portfolioTransactions } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const { getFxRate } = await import("../fxHelper");
+      
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      
+      // Build update object
+      const updates: any = {};
+      
+      if (input.transactionDate) {
+        updates.transactionDate = new Date(input.transactionDate);
+      }
+      
+      if (input.shares) {
+        updates.shares = input.shares;
+      }
+      
+      if (input.pricePerShare) {
+        updates.pricePerShare = input.pricePerShare;
+      }
+      
+      if (input.currency) {
+        updates.currency = input.currency;
+      }
+      
+      if (input.fees !== undefined) {
+        updates.fees = input.fees;
+      }
+      
+      if (input.notes !== undefined) {
+        updates.notes = input.notes;
+      }
+      
+      // Handle totalAmount for deposit/withdrawal/dividend
+      if (input.totalAmount !== undefined) {
+        updates.totalAmount = input.totalAmount;
+        
+        // Get current transaction for currency and date if not provided
+        const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
+        const currency = input.currency || currentTx.currency || 'CHF';
+        const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
+        
+        // Calculate CHF amount with FX rate
+        if (currency !== 'CHF') {
+          const fxRate = await getFxRate(date, `${currency}CHF`);
+          updates.fxRate = fxRate.toFixed(4);
+          updates.totalAmountCHF = (parseFloat(input.totalAmount) * fxRate).toFixed(2);
+        } else {
+          updates.fxRate = '1.0000';
+          updates.totalAmountCHF = input.totalAmount;
+        }
+      }
+      // Recalculate totalAmount and FX rate if shares or price changed (buy/sell)
+      else if (input.shares || input.pricePerShare) {
+        // Get current transaction to get missing values
+        const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
+        
+        const shares = parseFloat(input.shares || currentTx.shares || '0');
+        const price = parseFloat(input.pricePerShare || currentTx.pricePerShare || '0');
+        const currency = input.currency || currentTx.currency || 'CHF';
+        const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
+        
+        updates.totalAmount = (shares * price).toFixed(2);
+        
+        // Get FX rate for the transaction date
+        if (currency !== 'CHF') {
+          const fxRate = await getFxRate(date, `${currency}CHF`);
+          updates.fxRate = fxRate.toFixed(4);
+          updates.totalAmountCHF = (shares * price * fxRate).toFixed(2);
+        } else {
+          updates.fxRate = '1.0000';
+          updates.totalAmountCHF = updates.totalAmount;
+        }
+      }
+      
+      // Update the transaction
+      await db.update(portfolioTransactions)
+        .set(updates)
+        .where(eq(portfolioTransactions.id, input.transactionId));
+      
+      return { success: true };
+    }),
+});
