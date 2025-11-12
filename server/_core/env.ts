@@ -10,4 +10,12 @@ export const ENV = {
   eodhdApiKey: process.env.EODHD_API_KEY ?? "",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  finnhubApiKey: process.env.FINNHUB_API_KEY ?? "",
+  fiscalApiKey: process.env.FISCAL_API_KEY ?? "",
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ?? "",
+  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ?? "",
+  twilioWhatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER ?? "",
+  emailFrom: process.env.EMAIL_FROM ?? "",
+  ownerName: process.env.OWNER_NAME ?? "",
 };

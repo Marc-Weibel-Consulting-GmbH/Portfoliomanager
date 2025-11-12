@@ -29,7 +29,7 @@ async function fetchDividendYieldWithFallback(ticker: string, eodhDividendYield:
   // Fallback 1: Finnhub
   if (dividendYield === null || isNaN(dividendYield)) {
     try {
-      const finnhubKey = process.env.FINNHUB_API_KEY;
+      const finnhubKey = ENV.finnhubApiKey;
       if (finnhubKey) {
         const finnhubUrl = `https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${finnhubKey}`;
         const finnhubRes = await fetch(finnhubUrl);
@@ -3423,7 +3423,7 @@ export const appRouter = router({
       const allStocks = await db.select().from(stocks);
       if (allStocks.length === 0) return { overview: [] };
 
-      const apiKey = process.env.FINNHUB_API_KEY;
+      const apiKey = ENV.finnhubApiKey;
       if (!apiKey) throw new Error("Finnhub API key not configured");
 
       // Get date range for current week

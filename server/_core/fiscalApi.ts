@@ -3,7 +3,9 @@
  * Provides access to professional financial ratios including Forward P/E
  */
 
-const FISCAL_API_KEY = process.env.FISCAL_API_KEY;
+import { ENV } from './env';
+
+const FISCAL_API_KEY = ENV.fiscalApiKey;
 const FISCAL_API_BASE = 'https://api.fiscal.ai/v1';
 
 export interface FiscalPERatio {

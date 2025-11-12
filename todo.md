@@ -1153,3 +1153,23 @@
 - [x] Fix: Changed from dynamic import to static import at top of routers.ts
 - [x] Now using: `import { ENV } from "./_core/env";`
 - [ ] Deploy and test to verify fix
+
+## ALL API Keys Must Be in ENV Configuration (Nov 12, 2025 - 12:10)
+- [x] Finnhub API key not configured error in KI-Wochenüberblick
+- [x] Same root cause as Stripe: API keys not in server/_core/env.ts
+- [x] Added ALL API keys to ENV object:
+  - [x] FINNHUB_API_KEY → ENV.finnhubApiKey
+  - [x] FISCAL_API_KEY → ENV.fiscalApiKey
+  - [x] RESEND_API_KEY → ENV.resendApiKey
+  - [x] TWILIO_ACCOUNT_SID → ENV.twilioAccountSid
+  - [x] TWILIO_AUTH_TOKEN → ENV.twilioAuthToken
+  - [x] TWILIO_WHATSAPP_NUMBER → ENV.twilioWhatsappNumber
+  - [x] EMAIL_FROM → ENV.emailFrom
+  - [x] OWNER_NAME → ENV.ownerName
+- [x] Updated all code to use ENV.apiKeyName:
+  - [x] routers.ts (Finnhub)
+  - [x] multiApiDataMerger.ts (Finnhub)
+  - [x] fiscalApi.ts (Fiscal)
+  - [x] email.ts (Resend, EMAIL_FROM)
+  - [x] whatsapp.ts (Twilio)
+- [ ] Deploy and test all features
