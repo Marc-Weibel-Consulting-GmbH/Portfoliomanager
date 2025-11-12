@@ -6,7 +6,6 @@
 
 import { fetchStockMetrics } from './stockDataApi';
 import { fetchEODHDFundamentals } from './eodhdApi';
-import { ENV } from './env';
 
 export interface CompleteStockData {
   ticker: string;
@@ -195,7 +194,7 @@ async function fetchFromYahoo(ticker: string, region: string = 'US'): Promise<Pa
  */
 async function fetchFromFinnhub(ticker: string): Promise<Partial<CompleteStockData>> {
   try {
-    const apiKey = ENV.finnhubApiKey;
+    const apiKey = process.env.FINNHUB_API_KEY;
     if (!apiKey) {
       console.warn('[MultiAPI] Finnhub API key not configured');
       return {};

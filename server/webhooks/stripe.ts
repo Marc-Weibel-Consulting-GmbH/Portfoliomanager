@@ -1,9 +1,7 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
 import { sendEmail, generatePaymentConfirmationEmail } from "../_core/email";
-import { ENV } from "../_core/env";
-
-const stripe = new Stripe(ENV.stripeSecretKey || "", {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2024-11-20.acacia",
 });
 
@@ -21,7 +19,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      ENV.stripeWebhookSecret
+      process.env.STRIPE_WEBHOOK_SECRET || ""
     );
   } catch (err: any) {
     console.error("Webhook signature verification failed:", err.message);

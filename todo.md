@@ -1173,3 +1173,27 @@
   - [x] email.ts (Resend, EMAIL_FROM)
   - [x] whatsapp.ts (Twilio)
 - [ ] Deploy and test all features
+
+## ENV.stripeSecretKey Empty in Production (Nov 12, 2025 - 12:30)
+- [x] STRIPE_SECRET_KEY exists in Management UI Secrets
+- [x] Added to server/_core/env.ts as ENV.stripeSecretKey
+- [x] Checkpoint 820a77e5 deployed to production
+- [x] But ENV.stripeSecretKey is still empty/undefined in production
+- [x] Root cause: ENV object evaluated at import time, secrets loaded at runtime in production
+- [x] Solution: Reverted ALL API keys to use process.env directly:
+  - [x] routers.ts (Stripe, Finnhub)
+  - [x] multiApiDataMerger.ts (Finnhub)
+  - [x] fiscalApi.ts (Fiscal)
+  - [x] email.ts (Resend, EMAIL_FROM)
+  - [x] whatsapp.ts (Twilio)
+  - [x] webhooks/stripe.ts (Stripe)
+- [x] Kept ENV object only for non-secret config (appId, isProduction, etc.)
+- [ ] Deploy and test - this MUST fix all API key errors
+
+## Stripe Shows Owner's Saved Credit Card (Nov 12, 2025 - 12:45)
+- [x] customer_email correctly shows user's email (regula.frauchiger@bluewin.ch)
+- [x] But owner's credit card is still prefilled
+- [x] Root cause: Stripe finds existing Customer by email and shows saved payment methods
+- [x] Solution: Added customer_creation: "always" to force new customer creation
+- [x] Added setup_future_usage: undefined to prevent saving payment methods
+- [ ] Deploy and test on production
