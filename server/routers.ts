@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { ENV } from "./_core/env";
 import { fxRouter } from "./routers/fxRouter";
 import { stocksRouter } from "./routers/stocksRouter";
 import { portfoliosRouter } from "./routers/portfoliosRouter";
@@ -1842,7 +1843,6 @@ export const appRouter = router({
         
         try {
           const Stripe = (await import("stripe")).default;
-          const { ENV } = await import("../_core/env");
           
           const stripeKey = ENV.stripeSecretKey;
           if (!stripeKey) {

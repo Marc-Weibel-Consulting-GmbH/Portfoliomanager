@@ -1146,3 +1146,10 @@
 - [x] Fix: Added stripeSecretKey and stripeWebhookSecret to ENV object
 - [x] Updated all Stripe code to use ENV.stripeSecretKey instead of process.env
 - [ ] Deploy and test to verify fix works in production
+
+## ENV Import Path Error in Production (Nov 12, 2025 - 12:00)
+- [x] Error: "Cannot find module '/usr/src/app/_core/env' imported from /usr/src/app/dist/index.js"
+- [x] Import path `../_core/env` doesn't work in production build
+- [x] Fix: Changed from dynamic import to static import at top of routers.ts
+- [x] Now using: `import { ENV } from "./_core/env";`
+- [ ] Deploy and test to verify fix
