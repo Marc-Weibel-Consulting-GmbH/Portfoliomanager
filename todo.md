@@ -1027,3 +1027,18 @@
 - [x] Need to display remaining cash as separate row in portfolio table
 - [x] Cash should be calculated as: target amount - total invested
 - [x] Cash row should show in table with special styling (green, with 💰 emoji)
+
+
+## Logo and Chart Display Issues (Nov 11, 2025 - 18:05)
+- [x] Logos not displayed correctly in portfolio detail view
+- [x] Need to ensure logoUrl is loaded from database and passed to positions
+- [x] Charts for 1M, 3M, 6M time periods not displaying correctly
+- [x] Check if historical data exists for these periods
+- [x] Fix chart data calculation/filtering for shorter time periods (added selectedTimePeriod to useMemo dependencies)
+
+## Chart Time Period Fix (Nov 12, 2025)
+- [x] Fix chart time periods (1M, 3M, 6M) - currently showing 1 year of data instead of selected period
+- [x] Backend query needs to filter data based on years parameter correctly
+- [x] Changed date calculation from setFullYear to setDate for fractional years
+- [x] Added final date filtering to ensure only requested timeframe is returned
+- [x] Fixed PortfolioPerformanceChart to handle stocks without shares (equal weighting fallback)

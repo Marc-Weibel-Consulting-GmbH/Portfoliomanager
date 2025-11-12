@@ -1,0 +1,70 @@
+{
+  "query": "SELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as record_count\nFROM historicalPrices\nGROUP BY ticker\nLIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as record_count\nFROM historicalPrices\nGROUP BY ticker\nLIMIT 10;",
+  "rows": [
+    {
+      "ticker": "AAPL.US",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "758"
+    },
+    {
+      "ticker": "ABBN.SW",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "759"
+    },
+    {
+      "ticker": "ACWI.US",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "758"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "759"
+    },
+    {
+      "ticker": "AGG.US",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "758"
+    },
+    {
+      "ticker": "ALAB",
+      "earliest_date": "2024-03-13",
+      "latest_date": "2025-11-07",
+      "record_count": "417"
+    },
+    {
+      "ticker": "AMD",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "758"
+    },
+    {
+      "ticker": "AMGN",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "758"
+    },
+    {
+      "ticker": "AMZN",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "758"
+    },
+    {
+      "ticker": "ANET",
+      "earliest_date": "2022-11-01",
+      "latest_date": "2025-11-07",
+      "record_count": "758"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest_date\tlatest_date\trecord_count\nAAPL.US\t2022-11-01\t2025-11-07\t758\nABBN.SW\t2022-11-01\t2025-11-07\t759\nACWI.US\t2022-11-01\t2025-11-07\t758\nADEN.SW\t2022-11-01\t2025-11-07\t759\nAGG.US\t2022-11-01\t2025-11-07\t758\nALAB\t2024-03-13\t2025-11-07\t417\nAMD\t2022-11-01\t2025-11-07\t758\nAMGN\t2022-11-01\t2025-11-07\t758\nAMZN\t2022-11-01\t2025-11-07\t758\nANET\t2022-11-01\t2025-11-07\t758\n",
+  "stderr": "",
+  "execution_time_ms": 566
+}

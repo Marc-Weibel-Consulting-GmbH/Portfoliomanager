@@ -1142,27 +1142,72 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     
     if (commonDates.length === 0) return [];
     
-    // Get values for common dates
-    const portfolioValues = commonDates.map(date => {
+    // Filter dates by selected time period
+    const now = new Date();
+    let filteredDates = commonDates;
+    
+    switch (selectedTimePeriod) {
+      case '1m':
+        const oneMonthAgo = new Date(now);
+        oneMonthAgo.setMonth(now.getMonth() - 1);
+        filteredDates = commonDates.filter(d => new Date(d) >= oneMonthAgo);
+        break;
+      case '3m':
+        const threeMonthsAgo = new Date(now);
+        threeMonthsAgo.setMonth(now.getMonth() - 3);
+        filteredDates = commonDates.filter(d => new Date(d) >= threeMonthsAgo);
+        break;
+      case '6m':
+        const sixMonthsAgo = new Date(now);
+        sixMonthsAgo.setMonth(now.getMonth() - 6);
+        filteredDates = commonDates.filter(d => new Date(d) >= sixMonthsAgo);
+        break;
+      case 'ytd':
+        const yearStart = new Date(now.getFullYear(), 0, 1);
+        filteredDates = commonDates.filter(d => new Date(d) >= yearStart);
+        break;
+      case '1y':
+        const oneYearAgo = new Date(now);
+        oneYearAgo.setFullYear(now.getFullYear() - 1);
+        filteredDates = commonDates.filter(d => new Date(d) >= oneYearAgo);
+        break;
+      case '3y':
+        const threeYearsAgo = new Date(now);
+        threeYearsAgo.setFullYear(now.getFullYear() - 3);
+        filteredDates = commonDates.filter(d => new Date(d) >= threeYearsAgo);
+        break;
+      case '5y':
+        const fiveYearsAgo = new Date(now);
+        fiveYearsAgo.setFullYear(now.getFullYear() - 5);
+        filteredDates = commonDates.filter(d => new Date(d) >= fiveYearsAgo);
+        break;
+      default:
+        filteredDates = commonDates;
+    }
+    
+    if (filteredDates.length === 0) return [];
+    
+    // Get values for filtered dates
+    const portfolioValues = filteredDates.map(date => {
       const index = portfolioData.dates.indexOf(date);
       return portfolioData.values[index] || 0;
     });
     
-    const benchmarkValues = commonDates.map(date => {
+    const benchmarkValues = filteredDates.map(date => {
       const index = benchmarkData.dates.indexOf(date);
       return benchmarkData.values[index] || 0;
     });
     
-    // Normalize both to start at 0% (relative to first common date)
+    // Normalize both to start at 0% (relative to first filtered date)
     const portfolioStart = portfolioValues[0];
     const benchmarkStart = benchmarkValues[0];
     
-    return commonDates.map((date, index) => ({
+    return filteredDates.map((date, index) => ({
       date,
       portfolio: portfolioValues[index] - portfolioStart,
       benchmark: benchmarkValues[index] - benchmarkStart,
     }));
-  }, [portfolioData, benchmarkData]);
+  }, [portfolioData, benchmarkData, selectedTimePeriod]);
 
   const benchmarkOptions = [
     { value: 'sp500', label: 'S&P 500' },
@@ -1733,7 +1778,21 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   .map((pos) => (
                   <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
                     <td className="p-3">
-                      <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg">
+                      {pos.logoUrl ? (
+                        <img 
+                          src={pos.logoUrl} 
+                          alt={pos.ticker}
+                          className="w-8 h-8 rounded object-contain bg-white p-0.5"
+                          onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className={`w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg ${pos.logoUrl ? 'hidden' : ''}`}
+                      >
                         {pos.ticker.substring(0, 2)}
                       </div>
                     </td>

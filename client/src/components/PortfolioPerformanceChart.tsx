@@ -21,11 +21,24 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
 
   // Calculate tickers, weights, and ytdStartPrices from portfolio
   const tickers = portfolioStocks.map((s: any) => s.ticker);
-  const totalValue = portfolioStocks.reduce((sum: number, s: any) => sum + (s.currentPrice || 0) * (s.shares || 1), 0);
+  
+  // Calculate weights: use portfolioWeight if available, otherwise equal weighting
   const weights = portfolioStocks.map((s: any) => {
-    const value = (s.currentPrice || 0) * (s.shares || 1);
-    return totalValue > 0 ? value / totalValue : 0;
+    if (s.portfolioWeight !== undefined && s.portfolioWeight !== null) {
+      // Use existing portfolio weight (from database)
+      return parseFloat(s.portfolioWeight) / 100;
+    } else if (s.shares !== undefined && s.shares !== null) {
+      // Calculate from shares (optimizer portfolios)
+      const totalValue = portfolioStocks.reduce((sum: number, stock: any) => 
+        sum + (stock.currentPrice || 0) * (stock.shares || 0), 0);
+      const value = (s.currentPrice || 0) * (s.shares || 0);
+      return totalValue > 0 ? value / totalValue : 0;
+    } else {
+      // Equal weighting fallback
+      return 1 / portfolioStocks.length;
+    }
   });
+  
   const ytdStartPrices = portfolioStocks.map((s: any) => parseFloat(s.ytdStartPrice || '0'));
 
   // Calculate years based on selected period
