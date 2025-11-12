@@ -1129,3 +1129,11 @@
 - [x] Update password mutation with bcrypt verification
 - [x] Update notification preferences mutation (whatsappAlerts)
 - [x] Admin-only procedures with role check (already existed)
+
+## 🚨 CRITICAL SECURITY: Stripe Prefills Owner's Credit Card (Nov 12, 2025 - 11:30)
+- [x] URGENT: Owner's email and credit card are prefilled for ALL users during checkout
+- [x] Security risk: Any user could charge to owner's credit card
+- [x] Root cause: Missing `customer_email` in Stripe checkout session
+- [x] Fix: Added `customer_email: user.email` to checkout session creation
+- [ ] Test: Verify with different user account that NO payment data is prefilled
+- [ ] Deploy ASAP to production
