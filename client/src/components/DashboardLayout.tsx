@@ -241,11 +241,11 @@ function DashboardLayoutContent({
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-medium truncate leading-none">
-                      {user?.name || "-"}
+                    <p className="text-xs text-muted-foreground truncate leading-none mb-1">
+                      Eingeloggt als:
                     </p>
-                    <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {user?.email || "-"}
+                    <p className="text-sm font-medium truncate leading-none">
+                      {user?.username || user?.name || user?.email || "-"}
                     </p>
                   </div>
                 </button>

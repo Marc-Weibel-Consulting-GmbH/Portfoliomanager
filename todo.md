@@ -1080,5 +1080,52 @@
 - [x] User regula.frauchiger@bluewin.ch sees error message instead of checkout
 - [x] Verified STRIPE_SECRET_KEY is set in development environment
 - [x] Diagnosis: Secrets not transferred to production environment
-- [ ] Solution: Redeploy website via "Publish" button to sync secrets to production
-- [ ] Test payment flow after redeployment with non-owner user
+- [x] Deployed checkpoint 4fc4c455 to production
+- [x] Error persists even after deployment - secrets not syncing to production
+- [ ] Need to check if STRIPE_SECRET_KEY is in Management UI Settings > Secrets
+- [ ] May need to manually re-add secret or check deployment logs
+
+## CRITICAL: Recurring Server Crashes - JSON Parse Errors (Nov 12, 2025 - 11:01)
+- [ ] Error: "Unexpected token '<', "<!doctype "... is not valid JSON"
+- [ ] Server returns HTML error page instead of JSON for tRPC queries
+- [ ] Happens on homepage load with multiple simultaneous queries
+- [ ] Root cause: Memory issues (TypeScript compilation OOM - exit code 137)
+- [ ] Current memory limit: 8GB (NODE_OPTIONS='--max-old-space-size=8192')
+- [ ] Solution: Disable TypeScript checker in dev script to prevent crashes
+
+## NEW: Username Field for Registration (Nov 12, 2025 - 11:05)
+- [x] Add username field to users table in database schema
+- [x] Display username in header: "Eingeloggt als: [username]"
+- [ ] Username editable in Settings page (see below)
+
+## NEW: Settings and Admin Pages with Role-Based Access (Nov 12, 2025 - 11:15)
+
+### Navigation Structure:
+- [x] All users see: "Einstellungen" in navigation
+- [x] Only admin/owner sees: "Admin" in navigation
+- [x] Role-based menu rendering in Home.tsx navigation tabs
+
+### Settings Page (All Users):
+- [x] Tab 1: Profil-Einstellungen
+  - [x] Benutzername ändern
+  - [x] Email-Adresse ändern
+  - [x] Passwort ändern
+- [x] Tab 2: Benachrichtigungen
+  - [x] WhatsApp-Alerts aktivieren/deaktivieren
+  - [ ] Email-Benachrichtigungen aktivieren/deaktivieren (needs schema update)
+  - [ ] Newsletter abonnieren/abbestellen (needs schema update)
+  - [ ] Aktien-Alerts konfigurieren (future feature)
+
+### Admin Page (Owner Only):
+- [x] Admin page already exists with categories, alerts, analytics
+- [x] Kategorien/Branchen verwalten (already implemented)
+- [x] Alert-System konfigurieren (already implemented)
+- [x] Analytics Dashboard (already implemented)
+- [x] Newsletter-Verwaltung (already implemented)
+- [x] Technische Einstellungen (already implemented)
+
+### Backend:
+- [x] Update user profile mutation (username, email)
+- [x] Update password mutation with bcrypt verification
+- [x] Update notification preferences mutation (whatsappAlerts)
+- [x] Admin-only procedures with role check (already existed)

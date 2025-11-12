@@ -16,6 +16,7 @@ export const users = mysqlTable("users", {
    * This mirrors the Manus account and should be used for authentication lookups.
    */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
+  username: varchar("username", { length: 50 }),
   name: text("name"),
   firstName: varchar("firstName", { length: 255 }),
   lastName: varchar("lastName", { length: 255 }),

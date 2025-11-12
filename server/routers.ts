@@ -3255,6 +3255,92 @@ export const appRouter = router({
         
         return { success: true };
       }),
+    
+    updateProfile: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "username" in val && "email" in val) {
+          return val as { username: string; email: string };
+        }
+        throw new Error("Invalid input: username and email are required");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        await db.update(users)
+          .set({
+            username: input.username,
+            email: input.email,
+          })
+          .where(eq(users.openId, ctx.user.openId));
+        
+        return { success: true };
+      }),
+    
+    updatePassword: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null && "currentPassword" in val && "newPassword" in val) {
+          return val as { currentPassword: string; newPassword: string };
+        }
+        throw new Error("Invalid input: currentPassword and newPassword are required");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const bcrypt = await import("bcrypt");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        // Get current user with password
+        const [user] = await db.select().from(users).where(eq(users.openId, ctx.user.openId)).limit(1);
+        if (!user || !user.password) {
+          throw new Error("User not found or password not set");
+        }
+        
+        // Verify current password
+        const isValid = await bcrypt.compare(input.currentPassword, user.password);
+        if (!isValid) {
+          throw new Error("Aktuelles Passwort ist falsch");
+        }
+        
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(input.newPassword, 10);
+        
+        // Update password
+        await db.update(users)
+          .set({ password: hashedPassword })
+          .where(eq(users.openId, ctx.user.openId));
+        
+        return { success: true };
+      }),
+    
+    updateNotifications: protectedProcedure
+      .input((val: unknown) => {
+        if (typeof val === "object" && val !== null) {
+          return val as { whatsappAlerts?: boolean; emailNotifications?: boolean; newsletterSubscribed?: boolean };
+        }
+        throw new Error("Invalid input");
+      })
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        await db.update(users)
+          .set({
+            whatsappAlerts: input.whatsappAlerts ? 1 : 0,
+            // TODO: Add emailNotifications and newsletterSubscribed fields to schema
+          })
+          .where(eq(users.openId, ctx.user.openId));
+        
+        return { success: true };
+      }),
   }),
 
   scoring: router({
