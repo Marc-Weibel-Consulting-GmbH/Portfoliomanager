@@ -1,8 +1,9 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
+import { sendEmail, generatePaymentConfirmationEmail } from "../_core/email";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-09-30.clover",
+  apiVersion: "2024-11-20.acacia",
 });
 
 export async function handleStripeWebhook(req: Request, res: Response) {
@@ -71,6 +72,27 @@ export async function handleStripeWebhook(req: Request, res: Response) {
         }
 
         console.log(`Payment successful for user ${userId}`);
+        
+        // Send confirmation email
+        const userEmail = session.customer_details?.email || session.metadata?.userEmail;
+        const userName = session.customer_details?.name || session.metadata?.userName || '';
+        
+        if (userEmail) {
+          const emailHtml = generatePaymentConfirmationEmail(userName, userEmail);
+          const emailSent = await sendEmail({
+            to: userEmail,
+            subject: 'Zahlungsbestätigung - Portfolio BIG Vollzugriff freigeschaltet',
+            html: emailHtml,
+          });
+          
+          if (emailSent) {
+            console.log(`[Payment] Confirmation email sent to ${userEmail}`);
+          } else {
+            console.error(`[Payment] Failed to send confirmation email to ${userEmail}`);
+          }
+        } else {
+          console.warn(`[Payment] No email address found for user ${userId}`);
+        }
       } catch (error) {
         console.error("Error updating user payment status:", error);
         return res.status(500).send("Error processing payment");

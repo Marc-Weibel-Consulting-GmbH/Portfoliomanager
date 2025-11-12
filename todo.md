@@ -1067,3 +1067,18 @@
 - [x] Verify STRIPE_SECRET_KEY environment variable is set correctly
 - [x] Updated Stripe API version to 2024-11-20.acacia for stability
 - [ ] Test payment flow with new user account after publishing
+
+## Payment Confirmation Email (Nov 12, 2025) - PRIORITY
+- [x] Design professional email template for payment confirmation
+- [x] Implement Stripe webhook handler for checkout.session.completed event
+- [x] Send confirmation email with access details after successful payment
+- [x] Update user hasPaid status and paymentDate in database
+- [ ] Test complete payment flow with email delivery
+
+## CRITICAL: STRIPE_SECRET_KEY Configuration Error (Nov 12, 2025)
+- [x] Error: "STRIPE_SECRET_KEY is not configured" when clicking payment button
+- [x] User regula.frauchiger@bluewin.ch sees error message instead of checkout
+- [x] Verified STRIPE_SECRET_KEY is set in development environment
+- [x] Diagnosis: Secrets not transferred to production environment
+- [ ] Solution: Redeploy website via "Publish" button to sync secrets to production
+- [ ] Test payment flow after redeployment with non-owner user
