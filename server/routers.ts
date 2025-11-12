@@ -1842,8 +1842,9 @@ export const appRouter = router({
         
         try {
           const Stripe = (await import("stripe")).default;
+          const { ENV } = await import("../_core/env");
           
-          const stripeKey = process.env.STRIPE_SECRET_KEY;
+          const stripeKey = ENV.stripeSecretKey;
           if (!stripeKey) {
             throw new Error("STRIPE_SECRET_KEY is not configured");
           }

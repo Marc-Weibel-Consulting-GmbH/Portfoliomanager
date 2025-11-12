@@ -1137,3 +1137,12 @@
 - [x] Fix: Added `customer_email: user.email` to checkout session creation
 - [ ] Test: Verify with different user account that NO payment data is prefilled
 - [ ] Deploy ASAP to production
+
+## STRIPE_SECRET_KEY Not Available in Production (Nov 12, 2025 - 11:45)
+- [x] Secret exists in Management UI Settings > Secrets
+- [x] Secret value starts with sk_live_
+- [x] Latest version deployed (90596dec)
+- [x] Root cause: STRIPE_SECRET_KEY not defined in server/_core/env.ts
+- [x] Fix: Added stripeSecretKey and stripeWebhookSecret to ENV object
+- [x] Updated all Stripe code to use ENV.stripeSecretKey instead of process.env
+- [ ] Deploy and test to verify fix works in production
