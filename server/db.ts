@@ -511,7 +511,7 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
         console.log('[ToggleLive] Creating initial buy transactions for', stocks.length, 'positions');
         
         // Get historical prices for the live start date
-        const { historicalPrices, portfolioTransactions } = await import("../drizzle/schema");
+        const { historicalPrices, portfolioTransactions, stocks: stocksTable, fxRates } = await import("../drizzle/schema");
         const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
         
         // Create initial buy transaction for each position
@@ -520,6 +520,23 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
           const shares = parseFloat(stock.shares || '0');
           
           if (ticker && shares > 0) {
+            // Get stock currency from database
+            let currency = 'CHF';
+            try {
+              const stockInfo = await db
+                .select()
+                .from(stocksTable)
+                .where(eq(stocksTable.ticker, ticker))
+                .limit(1);
+              
+              if (stockInfo[0]?.currency) {
+                currency = stockInfo[0].currency;
+                console.log(`[ToggleLive] ${ticker} currency: ${currency}`);
+              }
+            } catch (err) {
+              console.error(`[ToggleLive] Error fetching currency for ${ticker}:`, err);
+            }
+            
             // Try to get historical price for the live start date
             let priceToUse = parseFloat(stock.currentPrice || stock.price || '0');
             
@@ -549,19 +566,52 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
             if (priceToUse > 0) {
               const totalAmount = (shares * priceToUse).toFixed(2);
               
+              // Get FX rate if not CHF
+              let fxRate = 1.0;
+              let totalAmountCHF = totalAmount;
+              
+              if (currency !== 'CHF') {
+                try {
+                  const fxPair = `${currency}CHF`;
+                  const fxRateData = await db
+                    .select()
+                    .from(fxRates)
+                    .where(
+                      and(
+                        eq(fxRates.pair, fxPair),
+                        eq(fxRates.date, liveStartDateStr)
+                      )
+                    )
+                    .limit(1);
+                  
+                  if (fxRateData[0]?.rate) {
+                    fxRate = parseFloat(fxRateData[0].rate);
+                    totalAmountCHF = (parseFloat(totalAmount) * fxRate).toFixed(2);
+                    console.log(`[ToggleLive] FX rate for ${fxPair} on ${liveStartDateStr}: ${fxRate}`);
+                  } else {
+                    console.warn(`[ToggleLive] No FX rate found for ${fxPair} on ${liveStartDateStr}`);
+                  }
+                } catch (err) {
+                  console.error(`[ToggleLive] Error fetching FX rate for ${currency}:`, err);
+                }
+              }
+              
               await db.insert(portfolioTransactions).values({
                 portfolioId: id,
                 transactionType: 'buy',
                 ticker: ticker,
                 shares: shares.toString(),
                 pricePerShare: priceToUse.toString(),
+                currency: currency,
                 totalAmount: totalAmount,
+                fxRate: fxRate.toString(),
+                totalAmountCHF: totalAmountCHF,
                 fees: '0',
                 notes: `Initial position (price from ${liveStartDateStr})`,
                 transactionDate: liveStartDate,
               });
               
-              console.log(`[ToggleLive] Created initial buy: ${ticker} x ${shares} @ ${priceToUse}`);
+              console.log(`[ToggleLive] Created initial buy: ${ticker} x ${shares} @ ${priceToUse} ${currency} (FX: ${fxRate}, CHF: ${totalAmountCHF})`);
             }
           }
         }

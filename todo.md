@@ -1436,3 +1436,14 @@
 - [x] Lösung implementiert: Beim Test→Live zuerst alte "Initial position" Transaktionen löschen
 - [x] Verwendet LIKE query auf notes Feld um Initial Transactions zu finden
 - [ ] Teste dass mehrfaches Togglen keine Duplikate erzeugt
+
+
+## BUG: Initial Transactions fehlen FX Rate und Originalwährung (Nov 13, 2025)
+- [x] Initial Transactions werden alle in CHF erstellt
+- [x] Betrag (FW) fehlt für Fremdwährungs-Aktien
+- [x] FX Rate Spalte ist leer
+- [x] Betrag (CHF) wird deshalb falsch berechnet
+- [x] Stock-Währung aus stocks Tabelle geholt
+- [x] FX Rate vom Live-Startdatum aus fxRates Tabelle geholt
+- [x] Transaktionen werden mit currency, fxRate, totalAmountCHF erstellt
+- [ ] Teste dass Fremdwährungs-Transaktionen korrekt angezeigt werden
