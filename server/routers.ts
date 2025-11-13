@@ -1846,7 +1846,8 @@ export const appRouter = router({
           
           const stripeKey = ENV.stripeSecretKey;
           if (!stripeKey) {
-            throw new Error("STRIPE_SECRET_KEY is not configured");
+            const debug = `DEBUG: process.env.STRIPE_SECRET_KEY=${process.env.STRIPE_SECRET_KEY ? 'SET(len:'+process.env.STRIPE_SECRET_KEY.length+')' : 'UNDEFINED'}, ENV.stripeSecretKey=${stripeKey}, NODE_ENV=${process.env.NODE_ENV}`;
+            throw new Error(`STRIPE_SECRET_KEY is not configured. ${debug}`);
           }
           
           const stripe = new Stripe(stripeKey, {
@@ -3424,7 +3425,10 @@ export const appRouter = router({
       if (allStocks.length === 0) return { overview: [] };
 
       const apiKey = ENV.finnhubApiKey;
-      if (!apiKey) throw new Error("Finnhub API key not configured");
+      if (!apiKey) {
+        const debug = `DEBUG: process.env.FINNHUB_API_KEY=${process.env.FINNHUB_API_KEY ? 'SET(len:'+process.env.FINNHUB_API_KEY.length+')' : 'UNDEFINED'}, ENV.finnhubApiKey=${apiKey}, NODE_ENV=${process.env.NODE_ENV}`;
+        throw new Error(`Finnhub API key not configured. ${debug}`);
+      }
 
       // Get date range for current week
       const now = new Date();
