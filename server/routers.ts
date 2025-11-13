@@ -10,6 +10,7 @@ import { dividendCalendarRouter } from "./routers/dividendCalendarRouter";
 import { annualPerformanceRouter } from "./routers/annualPerformanceRouter";
 import { portfolioTransactionsRouter } from "./routers/portfolioTransactionsRouter";
 import { realizedGainsHistoryRouter } from "./routers/realizedGainsHistoryRouter";
+import { secretsRouter } from "./routers/secretsRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -3672,6 +3673,7 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
   }),
 
   realizedGainsHistory: realizedGainsHistoryRouter,
+  secrets: secretsRouter,
 });
 
 export type AppRouter = typeof appRouter;

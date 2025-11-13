@@ -147,10 +147,10 @@ export function Admin({ onBackClick }: AdminProps) {
       )}
 
       {/* Quick Actions */}
-      <div className="flex gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Button 
           onClick={() => window.location.href = '/categories'} 
-          className="bg-indigo-600 hover:bg-indigo-700 text-white flex-1"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 6h16M4 12h16M4 18h16" />
@@ -159,13 +159,23 @@ export function Admin({ onBackClick }: AdminProps) {
         </Button>
         <Button 
           onClick={() => window.location.href = '/sectors'} 
-          className="bg-purple-600 hover:bg-purple-700 text-white flex-1"
+          className="bg-purple-600 hover:bg-purple-700 text-white"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
           Branchen
+        </Button>
+        <Button 
+          onClick={() => window.location.href = '/admin/secrets'} 
+          className="bg-amber-600 hover:bg-amber-700 text-white"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          API Secrets
         </Button>
       </div>
 

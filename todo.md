@@ -1209,3 +1209,33 @@
 - [ ] Deploy and access endpoint to see available environment variables - Ready for testing
 - [ ] Compare production env vars with development env vars - Awaiting production data
 - [ ] Identify if user-defined secrets are missing or renamed - Awaiting production data
+
+
+## SOLUTION: Explore BUILT_IN_FORGE_API for Secret Loading (Nov 13, 2025 - 04:30)
+- [ ] Investigate BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY usage
+- [ ] Find existing code that uses Forge API
+- [ ] Implement secret loading via Forge API at runtime
+- [ ] Test secret loading on production server
+- [ ] Verify all user-defined secrets (STRIPE, FINNHUB, RESEND, TWILIO) are accessible
+
+
+## SOLUTION: Database-Backed Secret Management (Nov 13, 2025 - 04:45)
+- [ ] Create app_secrets table in database schema
+- [ ] Implement encryption/decryption utilities using JWT_SECRET
+- [ ] Create secret loader that tries DB first, then falls back to process.env
+- [ ] Update ENV object to use database-backed loader
+- [ ] Create admin interface for managing secrets (CRUD)
+- [ ] Migrate existing secrets (STRIPE, FINNHUB, RESEND, TWILIO) to database
+- [ ] Test secret loading on production server
+- [ ] Verify all API integrations work on production
+
+
+## Database-backed Secrets Management (Nov 13, 2025 - 04:30)
+- [x] Created appSecrets table with encrypted storage
+- [x] Implemented AES-256-CBC encryption using JWT_SECRET as key
+- [x] Created secretsManager service with encrypt/decrypt/get/set/delete functions
+- [x] Created admin-only secrets router (list, set, delete)
+- [x] Created AdminSecrets page with UI for managing API keys
+- [x] Added "API Secrets" button to Admin panel
+- [x] Added route /admin/secrets to App.tsx
+- [x] Security: All secrets encrypted at rest, only admins can access

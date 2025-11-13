@@ -371,3 +371,17 @@ export const historicalPrices = mysqlTable("historicalPrices", {
 
 export type HistoricalPrice = typeof historicalPrices.$inferSelect;
 export type InsertHistoricalPrice = typeof historicalPrices.$inferInsert;
+
+
+// App secrets table for encrypted storage of API keys and credentials
+export const appSecrets = mysqlTable("appSecrets", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 255 }).notNull().unique(),
+  encryptedValue: text("encryptedValue").notNull(),
+  description: text("description"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AppSecret = typeof appSecrets.$inferSelect;
+export type InsertAppSecret = typeof appSecrets.$inferInsert;
