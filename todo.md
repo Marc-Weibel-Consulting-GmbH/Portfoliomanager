@@ -1239,3 +1239,7 @@
 - [x] Added "API Secrets" button to Admin panel
 - [x] Added route /admin/secrets to App.tsx
 - [x] Security: All secrets encrypted at rest, only admins can access
+
+
+## UI Improvement: AdminSecrets Navigation (Nov 13, 2025 - 04:35)
+- [x] Add "Zurück" button to AdminSecrets page header

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Trash2, Plus, Key, Shield } from "lucide-react";
+import { Trash2, Plus, Key, Shield, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -84,60 +84,69 @@ export default function AdminSecrets() {
             Verwalten Sie verschlüsselte API-Schlüssel und Secrets für externe Dienste
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Secret hinzufügen
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Neues Secret hinzufügen</DialogTitle>
-              <DialogDescription>
-                Fügen Sie einen neuen API-Schlüssel oder Secret hinzu. Der Wert wird verschlüsselt gespeichert.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="key">Key (z.B. FINNHUB_API_KEY)</Label>
-                <Input
-                  id="key"
-                  placeholder="API_KEY_NAME"
-                  value={newSecret.key}
-                  onChange={(e) => setNewSecret({ ...newSecret, key: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="value">Value (API-Schlüssel)</Label>
-                <Input
-                  id="value"
-                  type="password"
-                  placeholder="sk_live_..."
-                  value={newSecret.value}
-                  onChange={(e) => setNewSecret({ ...newSecret, value: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Beschreibung (optional)</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Beschreibung des Secrets..."
-                  value={newSecret.description}
-                  onChange={(e) => setNewSecret({ ...newSecret, description: e.target.value })}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                Abbrechen
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Zurück
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Secret hinzufügen
               </Button>
-              <Button onClick={handleAddSecret} disabled={setSecretMutation.isPending}>
-                {setSecretMutation.isPending ? "Speichert..." : "Speichern"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Neues Secret hinzufügen</DialogTitle>
+                <DialogDescription>
+                  Fügen Sie einen neuen API-Schlüssel oder Secret hinzu. Der Wert wird verschlüsselt gespeichert.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="key">Key (z.B. FINNHUB_API_KEY)</Label>
+                  <Input
+                    id="key"
+                    placeholder="API_KEY_NAME"
+                    value={newSecret.key}
+                    onChange={(e) => setNewSecret({ ...newSecret, key: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="value">Value (API-Schlüssel)</Label>
+                  <Input
+                    id="value"
+                    type="password"
+                    placeholder="sk_live_..."
+                    value={newSecret.value}
+                    onChange={(e) => setNewSecret({ ...newSecret, value: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Beschreibung (optional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Beschreibung des Secrets..."
+                    value={newSecret.description}
+                    onChange={(e) => setNewSecret({ ...newSecret, description: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Abbrechen
+                </Button>
+                <Button onClick={handleAddSecret} disabled={setSecretMutation.isPending}>
+                  {setSecretMutation.isPending ? "Speichert..." : "Speichern"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {isLoading ? (
