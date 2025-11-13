@@ -1193,5 +1193,5 @@
 ## CRITICAL: Stripe & Production Server Issues (Nov 13, 2025 - 02:35)
 - [x] Stripe autofills OWNER's credit card instead of customer's card - Fixed by removing customer_email
 - [x] Need to disable Stripe Link or prevent autofill - Removed customer_email parameter
-- [x] Production server API keys not working despite being configured - Fixed: Removed dotenv/config import
-- [x] FINNHUB_API_KEY not loading on production server - Manus platform injects env vars directly, dotenv was interfering
+- [x] Production server API keys not working despite being configured - Fixed: Converted ENV to getters for runtime evaluation
+- [x] FINNHUB_API_KEY not loading on production server - ENV object was evaluated at import time, now uses getters
