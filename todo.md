@@ -1427,3 +1427,12 @@
 - [x] Untersuche totalInvested Berechnung in PortfolioDetail
 - [x] Race Condition gefunden: chfHoldings Query wurde nie aktiviert
 - [x] Fix: enabled condition angepasst (!!portfolio check hinzugefügt)
+
+
+## BUG: Doppelte Initial Transactions beim Test↔Live Toggle (Nov 13, 2025)
+- [x] Beim Umschalten Test→Live→Test→Live werden Transaktionen mehrfach erstellt
+- [x] "Initial position" Transaktionen werden nicht gelöscht beim Live→Test Switch
+- [x] Führt zu doppelten/dreifachen Positionen
+- [x] Lösung implementiert: Beim Test→Live zuerst alte "Initial position" Transaktionen löschen
+- [x] Verwendet LIKE query auf notes Feld um Initial Transactions zu finden
+- [ ] Teste dass mehrfaches Togglen keine Duplikate erzeugt

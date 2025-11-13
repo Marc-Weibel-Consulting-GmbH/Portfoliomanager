@@ -489,6 +489,19 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
   // If switching TO live, create initial buy transactions for all positions
   if (isLive) {
     try {
+      // First, delete any existing "Initial position" transactions to avoid duplicates
+      const { portfolioTransactions } = await import("../drizzle/schema");
+      const { and, eq, like } = await import("drizzle-orm");
+      
+      console.log('[ToggleLive] Deleting old initial position transactions for portfolio', id);
+      await db.delete(portfolioTransactions)
+        .where(
+          and(
+            eq(portfolioTransactions.portfolioId, id),
+            like(portfolioTransactions.notes, '%Initial position%')
+          )
+        );
+      
       // Get portfolio data
       const portfolio = await getSavedPortfolioById(id, userId);
       if (portfolio && portfolio.portfolioData) {
