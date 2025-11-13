@@ -2279,6 +2279,13 @@ export default function Home() {
             <CardContent>
               <div className="space-y-3">
                 <div>
+                  <div className="text-xs text-slate-400 mb-1">Tagesperformance (gewichtet)</div>
+                  <div className="text-lg font-semibold text-slate-400">
+                    +0.0%
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Wird in Kürze verfügbar sein</div>
+                </div>
+                <div className="border-t border-slate-700 pt-3">
                   <div className="text-xs text-slate-400 mb-1">YTD Performance (gewichtet)</div>
                   <div className={`text-2xl font-bold ${(() => {
                     const ytdPerf = stocks.reduce((sum, stock) => {

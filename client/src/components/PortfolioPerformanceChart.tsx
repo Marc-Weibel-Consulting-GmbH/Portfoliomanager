@@ -87,6 +87,27 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     }
   );
 
+  // Calculate portfolio return from live prices (same as top-right card)
+  // MUST be before any early returns to follow Rules of Hooks
+  const portfolioReturn = useMemo(() => {
+    if (selectedPeriod === 'YTD' && portfolioStocks.length > 0) {
+      // Use same calculation as Home.tsx top-right card
+      const ytdPerf = portfolioStocks.reduce((sum: number, stock: any) => {
+        const currentPrice = parseFloat(stock.currentPrice || "0");
+        const ytdStartPrice = parseFloat(stock.ytdStartPrice || "0");
+        const weight = parseFloat(stock.portfolioWeight || "0");
+        if (currentPrice > 0 && ytdStartPrice > 0 && weight > 0) {
+          const stockYTD = ((currentPrice - ytdStartPrice) / ytdStartPrice) * 100;
+          return sum + (stockYTD * weight / 100);
+        }
+        return sum;
+      }, 0);
+      return ytdPerf;
+    }
+    // For other periods, return 0 as placeholder (will be overridden by chartData)
+    return 0;
+  }, [selectedPeriod, portfolioStocks]);
+
   // Combine and normalize data
   const chartData = useMemo(() => {
     // For YTD, use ytdData instead of portfolioData
@@ -227,7 +248,9 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
   }
 
   const latestPoint = chartData[chartData.length - 1];
-  const portfolioReturn = latestPoint?.portfolio || 0;
+  
+  // Use portfolioReturn from useMemo above for YTD, otherwise use chartData
+  const finalPortfolioReturn = selectedPeriod === 'YTD' ? portfolioReturn : (latestPoint?.portfolio || 0);
   const benchmarkReturn = latestPoint?.benchmark || 0;
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -331,8 +354,8 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
             <div className="flex items-center gap-2">
               <div className="w-8 h-0.5 bg-blue-400"></div>
               <span className="text-slate-300">{portfolioName}</span>
-              <span className={`font-semibold ml-1 ${portfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {portfolioReturn >= 0 ? '+' : ''}{portfolioReturn.toFixed(2)}%
+              <span className={`font-semibold ml-1 ${finalPortfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {finalPortfolioReturn >= 0 ? '+' : ''}{finalPortfolioReturn.toFixed(2)}%
               </span>
             </div>
             <div className="flex items-center gap-2">

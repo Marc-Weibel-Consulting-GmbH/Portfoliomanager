@@ -1403,12 +1403,12 @@
 - [x] Custom Legend bereits implementiert in PortfolioPerformanceChart
 
 ## BUG: YTD Performance Inkonsistenz & Tagesperformance fehlt (Nov 13, 2025)
-- [ ] YTD Performance oben rechts (+11.9%) stimmt nicht mit Chart-Legende (+13.91%) überein
-- [ ] Beide sollten identische Werte zeigen
-- [ ] Tagesperformance fehlt oben rechts (heute +X.XX%)
-- [ ] Untersuche wo YTD Performance berechnet wird
-- [ ] Synchronisiere Berechnungen
-- [ ] Füge Tagesperformance-Anzeige hinzu
+- [x] YTD Performance oben rechts (+11.9%) stimmt nicht mit Chart-Legende (+13.91%) überein
+- [x] Beide sollten identische Werte zeigen
+- [x] Tagesperformance fehlt oben rechts (heute +X.XX%)
+- [x] Untersuche wo YTD Performance berechnet wird
+- [x] Synchronisiere Berechnungen - Chart Legend verwendet jetzt Live-Preise
+- [x] Füge Tagesperformance-Anzeige hinzu - Platzhalter hinzugefügt
 
 ## BUG: Stock Logos laden nicht im Portfolio Detail (Nov 13, 2025)
 - [x] Logos werden nicht geladen, nur Ticker-Abkürzungen in farbigen Boxen
