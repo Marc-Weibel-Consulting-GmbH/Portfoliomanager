@@ -10,6 +10,7 @@ import DividendCalendarModal from "@/components/DividendCalendarModal";
 import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
 import { ArrowLeft, Plus, TrendingUp, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { StockLogo } from "@/components/StockLogo";
 
 export default function PortfolioDetail() {
   const [, params] = useRoute("/portfolio/:id");
@@ -491,7 +492,9 @@ export default function PortfolioDetail() {
                   </tr>
                   {portfolioData.filter((stock: any) => stock.shares > 0).map((stock: any, index: number) => (
                     <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                      <td className="py-3 px-2 text-white font-mono font-semibold">{stock.ticker}</td>
+                      <td className="py-3 px-2">
+                        <StockLogo ticker={stock.ticker} companyName={stock.name} size="sm" />
+                      </td>
                       <td className="py-3 px-2 text-slate-300">{stock.name}</td>
                       <td className="py-3 px-2 text-white text-right font-semibold">
                         {stock.shares ? stock.shares.toFixed(2) : '0.00'}
