@@ -11,6 +11,8 @@ import {
 /**
  * Secrets management router (admin only)
  * Allows admins to manage API keys and other secrets in the database
+ * 
+ * Last deployment: 2025-11-13 14:35 CET
  */
 export const secretsRouter = router({
   /**
