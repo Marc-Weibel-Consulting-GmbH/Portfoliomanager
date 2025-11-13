@@ -126,7 +126,7 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
             <TabsTrigger value="profile" className="data-[state=active]:bg-teal-600">
               Profil
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="data-[state=active]:bg-teal-600">
+            <TabsTrigger value="notifications" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
               Benachrichtigungen
             </TabsTrigger>
           </TabsList>

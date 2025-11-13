@@ -1333,3 +1333,9 @@
 - [x] Modify AdminSecrets to populate value field when editing
 - [x] Show current value in edit dialog
 - [x] Save checkpoint
+
+
+## UI Fix: Benachrichtigungen Button Contrast (Nov 13, 2025 - 14:45)
+- [x] Fix white text on light background in Settings page
+- [x] Change Benachrichtigungen button to use proper contrast
+- [ ] Save checkpoint
