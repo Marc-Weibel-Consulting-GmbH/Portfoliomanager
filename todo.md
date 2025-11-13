@@ -1188,3 +1188,10 @@
 - [x] Fix "Cannot find package 'bcrypt'" error in password change
 - [x] Install bcryptjs package (already in package.json)
 - [x] Check if bcrypt vs bcryptjs import is correct - Fixed: Changed import from 'bcrypt' to 'bcryptjs'
+
+
+## CRITICAL: Stripe & Production Server Issues (Nov 13, 2025 - 02:35)
+- [x] Stripe autofills OWNER's credit card instead of customer's card - Fixed by removing customer_email
+- [x] Need to disable Stripe Link or prevent autofill - Removed customer_email parameter
+- [ ] Production server API keys not working despite being configured
+- [ ] FINNHUB_API_KEY not loading on production server

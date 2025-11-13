@@ -1856,6 +1856,7 @@ export const appRouter = router({
           // Create Stripe checkout session
           const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],
+            payment_method_collection: "always",
             line_items: [
               {
                 price_data: {
@@ -1870,7 +1871,6 @@ export const appRouter = router({
               },
             ],
             mode: "payment",
-            customer_email: user.email || undefined, // CRITICAL: Use current user's email, not saved customer
             success_url: `${process.env.VITE_APP_URL || "http://localhost:3000"}?payment=success`,
             cancel_url: `${process.env.VITE_APP_URL || "http://localhost:3000"}?payment=cancelled`,
             client_reference_id: user.openId,
