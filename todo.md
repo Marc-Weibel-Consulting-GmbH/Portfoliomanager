@@ -1380,3 +1380,10 @@
 - [ ] "Lade Performance-Daten..." hängt
 - [ ] Untersuche welche Component den Fehler verursacht
 - [ ] Behebe den Fehler und teste die Lösung
+
+
+## BUG: Grafik lädt nicht in Portfolio Details (Nov 13, 2025)
+- [x] Chart/Grafik in Portfolio Details Seite lädt nicht
+- [x] Untersuche welche Grafik betroffen ist (LivePerformanceChart)
+- [x] Missing useMemo import in LivePerformanceChart.tsx
+- [x] Behebe das Lade-Problem - useMemo import hinzugefügt
