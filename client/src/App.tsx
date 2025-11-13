@@ -15,6 +15,7 @@ import Sectors from "./pages/Sectors";
 import PortfolioDetail from "./pages/PortfolioDetail";
 import RealizedGainsHistory from "./pages/RealizedGainsHistory";
 import AdminSecrets from "./pages/AdminSecrets";
+import TestSecrets from "./pages/TestSecrets";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/portfolio/:id" component={PortfolioDetail} />
       <Route path="/portfolio/:id/realized-gains" component={RealizedGainsHistory} />
       <Route path="/admin/secrets" component={AdminSecrets} />
+      <Route path="/admin/test-secrets" component={TestSecrets} />
       <Route path="/categories" component={Categories} />
       <Route path="/sectors" component={Sectors} />
       <Route path="/404" component={NotFound} />

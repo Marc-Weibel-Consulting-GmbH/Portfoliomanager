@@ -1,3 +1,5 @@
+import { getSecret } from "./secretsManager";
+
 // Debug: Log all environment variables on first access
 let debugLogged = false;
 function debugEnv() {
@@ -32,3 +34,29 @@ export const ENV = {
   get emailFrom() { return process.env.EMAIL_FROM ?? ""; },
   get ownerName() { return process.env.OWNER_NAME ?? ""; },
 };
+
+/**
+ * Get Stripe secret key with database fallback
+ * Tries process.env first, then falls back to database-stored secret
+ */
+export async function getStripeSecretKey(): Promise<string> {
+  debugEnv();
+  
+  // First try environment variable (platform secrets)
+  const envKey = process.env.STRIPE_SECRET_KEY;
+  if (envKey) {
+    console.log('[STRIPE] Using STRIPE_SECRET_KEY from environment');
+    return envKey;
+  }
+  
+  // Fallback to database secret
+  console.log('[STRIPE] Environment variable not found, checking database...');
+  const dbKey = await getSecret('STRIPE_SECRET_KEY');
+  if (dbKey) {
+    console.log('[STRIPE] Using STRIPE_SECRET_KEY from database');
+    return dbKey;
+  }
+  
+  console.warn('[STRIPE] STRIPE_SECRET_KEY not found in environment or database');
+  return '';
+}

@@ -11,6 +11,7 @@ import { annualPerformanceRouter } from "./routers/annualPerformanceRouter";
 import { portfolioTransactionsRouter } from "./routers/portfolioTransactionsRouter";
 import { realizedGainsHistoryRouter } from "./routers/realizedGainsHistoryRouter";
 import { secretsRouter } from "./routers/secretsRouter";
+import { testSecretsRouter } from "./routers/testSecretsRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -1873,11 +1874,11 @@ export const appRouter = router({
         
         try {
           const Stripe = (await import("stripe")).default;
+          const { getStripeSecretKey } = await import("./_core/env");
           
-          const stripeKey = ENV.stripeSecretKey;
+          const stripeKey = await getStripeSecretKey();
           if (!stripeKey) {
-            const debug = `DEBUG: process.env.STRIPE_SECRET_KEY=${process.env.STRIPE_SECRET_KEY ? 'SET(len:'+process.env.STRIPE_SECRET_KEY.length+')' : 'UNDEFINED'}, ENV.stripeSecretKey=${stripeKey}, NODE_ENV=${process.env.NODE_ENV}`;
-            throw new Error(`STRIPE_SECRET_KEY is not configured. ${debug}`);
+            throw new Error(`STRIPE_SECRET_KEY is not configured. Please add it via Admin > API Secrets or configure platform secrets.`);
           }
           
           const stripe = new Stripe(stripeKey, {
@@ -3674,6 +3675,7 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
 
   realizedGainsHistory: realizedGainsHistoryRouter,
   secrets: secretsRouter,
+  testSecrets: testSecretsRouter,
 });
 
 export type AppRouter = typeof appRouter;

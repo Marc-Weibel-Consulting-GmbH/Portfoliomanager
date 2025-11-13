@@ -1243,3 +1243,34 @@
 
 ## UI Improvement: AdminSecrets Navigation (Nov 13, 2025 - 04:35)
 - [x] Add "Zurück" button to AdminSecrets page header
+
+
+## Admin UX Improvements (Nov 13, 2025 - 04:40)
+- [x] Create reusable Breadcrumb component
+- [x] Add breadcrumb navigation to AdminSecrets page
+- [ ] Add breadcrumb navigation to Admin page
+- [ ] Add breadcrumb navigation to Categories page
+- [ ] Add breadcrumb navigation to Sectors page
+- [x] Implement edit functionality for existing secrets
+- [x] Add Edit button to each secret card
+- [x] Reuse same dialog for both add and edit operations
+
+
+## DB-Secrets Integration Test (Nov 13, 2025 - 04:45)
+- [x] Modify env.ts to load STRIPE_SECRET_KEY from getSecret()
+- [x] Create test endpoint to verify secret loading
+- [x] Create test page UI
+- [x] Add route to App.tsx
+- [x] Add timing test for initialization delay
+- [x] Add link to test page in Admin panel
+- [ ] Document how to add Stripe key via Admin UI
+- [ ] Test fallback mechanism (DB secret when env var is missing)
+- [ ] Save checkpoint
+
+
+## CRITICAL: Fix Stripe Payment with DB-Secrets (Nov 13, 2025 - 05:00)
+- [x] Find all Stripe code using ENV.stripeSecretKey
+- [x] Replace with await getStripeSecretKey()
+- [x] Update payment router to use async secret loading
+- [x] Update webhook handler to use async secret loading
+- [ ] Save checkpoint

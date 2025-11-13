@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Trash2, Plus, Key, Shield, ArrowLeft } from "lucide-react";
+import { Trash2, Plus, Key, Shield, ArrowLeft, Settings, Edit } from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,8 @@ export default function AdminSecrets() {
   const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newSecret, setNewSecret] = useState({
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [secretForm, setSecretForm] = useState({
     key: "",
     value: "",
     description: "",
@@ -39,10 +41,11 @@ export default function AdminSecrets() {
   const { data: secrets, isLoading } = trpc.secrets.list.useQuery();
   const setSecretMutation = trpc.secrets.set.useMutation({
     onSuccess: () => {
-      toast.success("Secret erfolgreich gespeichert");
+      toast.success(editingKey ? "Secret erfolgreich aktualisiert" : "Secret erfolgreich gespeichert");
       utils.secrets.list.invalidate();
       setIsAddDialogOpen(false);
-      setNewSecret({ key: "", value: "", description: "" });
+      setEditingKey(null);
+      setSecretForm({ key: "", value: "", description: "" });
     },
     onError: (error) => {
       toast.error(`Fehler: ${error.message}`);
@@ -58,12 +61,28 @@ export default function AdminSecrets() {
     },
   });
 
-  const handleAddSecret = () => {
-    if (!newSecret.key || !newSecret.value) {
+  const handleSaveSecret = () => {
+    if (!secretForm.key || !secretForm.value) {
       toast.error("Bitte Key und Value ausfüllen");
       return;
     }
-    setSecretMutation.mutate(newSecret);
+    setSecretMutation.mutate(secretForm);
+  };
+
+  const handleEditSecret = (secret: { key: string; description: string | null }) => {
+    setEditingKey(secret.key);
+    setSecretForm({
+      key: secret.key,
+      value: "", // Value is not retrieved for security
+      description: secret.description || "",
+    });
+    setIsAddDialogOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingKey(null);
+    setSecretForm({ key: "", value: "", description: "" });
+    setIsAddDialogOpen(true);
   };
 
   const handleDeleteSecret = (key: string) => {
@@ -74,6 +93,12 @@ export default function AdminSecrets() {
 
   return (
     <div className="container max-w-5xl py-8">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/" },
+          { label: "API Secrets", icon: <Key className="h-4 w-4" /> },
+        ]}
+      />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
@@ -94,16 +119,19 @@ export default function AdminSecrets() {
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={handleAddNew}>
                 <Plus className="h-4 w-4 mr-2" />
                 Secret hinzufügen
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Neues Secret hinzufügen</DialogTitle>
+                <DialogTitle>{editingKey ? "Secret bearbeiten" : "Neues Secret hinzufügen"}</DialogTitle>
                 <DialogDescription>
-                  Fügen Sie einen neuen API-Schlüssel oder Secret hinzu. Der Wert wird verschlüsselt gespeichert.
+                  {editingKey 
+                    ? "Aktualisieren Sie den API-Schlüssel. Der Wert wird verschlüsselt gespeichert."
+                    : "Fügen Sie einen neuen API-Schlüssel oder Secret hinzu. Der Wert wird verschlüsselt gespeichert."
+                  }
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -112,27 +140,34 @@ export default function AdminSecrets() {
                   <Input
                     id="key"
                     placeholder="API_KEY_NAME"
-                    value={newSecret.key}
-                    onChange={(e) => setNewSecret({ ...newSecret, key: e.target.value })}
+                    value={secretForm.key}
+                    onChange={(e) => setSecretForm({ ...secretForm, key: e.target.value })}
+                    disabled={!!editingKey}
                   />
+                  {editingKey && (
+                    <p className="text-xs text-muted-foreground">Der Key kann nicht geändert werden. Löschen Sie das Secret und erstellen Sie ein neues, falls nötig.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="value">Value (API-Schlüssel)</Label>
                   <Input
                     id="value"
                     type="password"
-                    placeholder="sk_live_..."
-                    value={newSecret.value}
-                    onChange={(e) => setNewSecret({ ...newSecret, value: e.target.value })}
+                    placeholder={editingKey ? "Neuen Wert eingeben..." : "sk_live_..."}
+                    value={secretForm.value}
+                    onChange={(e) => setSecretForm({ ...secretForm, value: e.target.value })}
                   />
+                  {editingKey && (
+                    <p className="text-xs text-muted-foreground">Geben Sie einen neuen Wert ein, um das Secret zu aktualisieren.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Beschreibung (optional)</Label>
                   <Textarea
                     id="description"
                     placeholder="Beschreibung des Secrets..."
-                    value={newSecret.description}
-                    onChange={(e) => setNewSecret({ ...newSecret, description: e.target.value })}
+                    value={secretForm.description}
+                    onChange={(e) => setSecretForm({ ...secretForm, description: e.target.value })}
                   />
                 </div>
               </div>
@@ -140,7 +175,7 @@ export default function AdminSecrets() {
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Abbrechen
                 </Button>
-                <Button onClick={handleAddSecret} disabled={setSecretMutation.isPending}>
+                <Button onClick={handleSaveSecret} disabled={setSecretMutation.isPending}>
                   {setSecretMutation.isPending ? "Speichert..." : "Speichern"}
                 </Button>
               </DialogFooter>
@@ -168,14 +203,23 @@ export default function AdminSecrets() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteSecret(secret.key)}
-                    disabled={deleteSecretMutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditSecret(secret)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteSecret(secret.key)}
+                      disabled={deleteSecretMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

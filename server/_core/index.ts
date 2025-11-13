@@ -1,4 +1,5 @@
 import express from "express";
+import "./secretsTimingTest"; // Start timing tests on server boot
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";

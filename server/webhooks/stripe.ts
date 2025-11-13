@@ -1,13 +1,25 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
 import { sendEmail, generatePaymentConfirmationEmail } from "../_core/email";
-import { ENV } from "../_core/env";
+import { ENV, getStripeSecretKey } from "../_core/env";
 
-const stripe = new Stripe(ENV.stripeSecretKey || "", {
-  apiVersion: "2024-11-20.acacia",
-});
+let stripe: Stripe | null = null;
+
+async function getStripe(): Promise<Stripe> {
+  if (!stripe) {
+    const key = await getStripeSecretKey();
+    if (!key) {
+      throw new Error("STRIPE_SECRET_KEY is not configured. Please add it via Admin > API Secrets.");
+    }
+    stripe = new Stripe(key, {
+      apiVersion: "2024-11-20.acacia",
+    });
+  }
+  return stripe;
+}
 
 export async function handleStripeWebhook(req: Request, res: Response) {
+  const stripeInstance = await getStripe();
   const sig = req.headers["stripe-signature"];
 
   if (!sig) {
@@ -18,7 +30,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
   try {
     // Verify webhook signature
-    event = stripe.webhooks.constructEvent(
+    event = stripeInstance.webhooks.constructEvent(
       req.body,
       sig,
       ENV.stripeWebhookSecret
