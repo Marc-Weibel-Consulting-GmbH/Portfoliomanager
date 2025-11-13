@@ -1274,3 +1274,11 @@
 - [x] Update payment router to use async secret loading
 - [x] Update webhook handler to use async secret loading
 - [ ] Save checkpoint
+
+
+## CRITICAL: Fix tRPC HTML Response Errors (Nov 13, 2025 - 05:12)
+- [x] Check server logs for crashes
+- [x] Fix Stripe payment_method_collection error (removed invalid option)
+- [x] Restart server to clear cached errors
+- [ ] Test Stripe payment flow
+- [ ] Save checkpoint
