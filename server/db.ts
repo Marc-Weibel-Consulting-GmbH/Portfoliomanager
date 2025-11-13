@@ -643,6 +643,49 @@ export async function createPortfolioTransaction(transaction: any) {
     console.error("[DB] Database not available");
     throw error;
   }
+
+  // Validation: Check for foreign currency transactions
+  if (transaction.currency && transaction.currency !== 'CHF') {
+    // Validate FX rate is present
+    if (!transaction.fxRate || transaction.fxRate === 0) {
+      console.warn(`[Validation] Missing FX rate for ${transaction.currency} transaction on ${transaction.ticker}`);
+      console.warn(`[Validation] Transaction data:`, transaction);
+      
+      // Try to fetch FX rate automatically
+      try {
+        const { getFxRate } = await import("./fxHelper");
+        const dateStr = new Date(transaction.transactionDate).toISOString().split('T')[0];
+        const currencyPair = transaction.currency + 'CHF';
+        const fxRate = await getFxRate(dateStr, currencyPair);
+        
+        if (fxRate && fxRate > 0) {
+          console.log(`[Validation] Auto-fetched FX rate: ${fxRate} for ${currencyPair} on ${dateStr}`);
+          transaction.fxRate = fxRate;
+          
+          // Recalculate totalAmountCHF if missing
+          if (!transaction.totalAmountCHF) {
+            const shares = parseFloat(transaction.shares || '0');
+            const price = parseFloat(transaction.pricePerShare || '0');
+            transaction.totalAmountCHF = (shares * price * fxRate).toFixed(2);
+            console.log(`[Validation] Calculated totalAmountCHF: ${transaction.totalAmountCHF}`);
+          }
+        } else {
+          throw new Error(`Could not fetch FX rate for ${currencyPair} on ${dateStr}`);
+        }
+      } catch (fxError) {
+        console.error(`[Validation] Failed to auto-fetch FX rate:`, fxError);
+        throw new Error(`Missing FX rate for ${transaction.currency} transaction. Please ensure exchange rates are available.`);
+      }
+    }
+    
+    // Validate currency is correct
+    if (!['USD', 'EUR', 'GBP', 'CHF'].includes(transaction.currency)) {
+      console.warn(`[Validation] Invalid currency: ${transaction.currency}`);
+      throw new Error(`Invalid currency: ${transaction.currency}. Supported currencies: USD, EUR, GBP, CHF`);
+    }
+    
+    console.log(`[Validation] Foreign currency transaction validated: ${transaction.currency}, FX rate: ${transaction.fxRate}`);
+  }
   
   try {
     const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");

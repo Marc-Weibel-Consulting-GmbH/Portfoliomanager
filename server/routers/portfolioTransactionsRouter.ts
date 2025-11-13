@@ -48,6 +48,56 @@ export const portfolioTransactionsRouter = router({
       return await getPortfolioTransactions(input.portfolioId);
     }),
 
+  deleteInitialTransactions: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+        return { portfolioId: val.portfolioId };
+      }
+      throw new Error("Invalid portfolio ID");
+    })
+    .mutation(async ({ input, ctx }) => {
+      const { getDb } = await import("../db");
+      const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
+      const { eq, and, like } = await import("drizzle-orm");
+      
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      
+      // Find all initial transactions for this portfolio
+      const initialTransactions = await db
+        .select()
+        .from(portfolioTransactions)
+        .where(
+          and(
+            eq(portfolioTransactions.portfolioId, input.portfolioId),
+            like(portfolioTransactions.notes, "%Initial position%")
+          )
+        );
+      
+      console.log(`[Bulk Delete] Found ${initialTransactions.length} initial transactions to delete`);
+      
+      // Delete associated realized gains first
+      for (const tx of initialTransactions) {
+        await db.delete(realizedGains).where(eq(realizedGains.transactionId, tx.id));
+      }
+      
+      // Delete all initial transactions
+      const result = await db
+        .delete(portfolioTransactions)
+        .where(
+          and(
+            eq(portfolioTransactions.portfolioId, input.portfolioId),
+            like(portfolioTransactions.notes, "%Initial position%")
+          )
+        );
+      
+      console.log(`[Bulk Delete] Deleted ${initialTransactions.length} initial transactions`);
+      
+      return { success: true, deletedCount: initialTransactions.length };
+    }),
+
   delete: protectedProcedure
     .input((val: unknown) => {
       if (typeof val === "object" && val !== null && "transactionId" in val && typeof val.transactionId === "number") {

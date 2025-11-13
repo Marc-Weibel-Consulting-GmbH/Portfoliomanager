@@ -1447,3 +1447,59 @@
 - [x] FX Rate vom Live-Startdatum aus fxRates Tabelle geholt
 - [x] Transaktionen werden mit currency, fxRate, totalAmountCHF erstellt
 - [ ] Teste dass Fremdwährungs-Transaktionen korrekt angezeigt werden
+
+
+## FEATURE: Bulk Delete für Initial Transactions (Nov 13, 2025)
+- [x] Button zum Löschen aller Initial Transactions für ein Portfolio
+- [x] Confirmation Dialog vor dem Löschen
+- [x] Nur für Live-Portfolios verfügbar
+- [x] Im Portfolio Detail oder Transaktionshistorie platzieren
+- [x] Toast-Benachrichtigung nach erfolgreichem Löschen
+
+## FEATURE: Transaction Validation (Nov 13, 2025)
+- [x] Validierung beim Erstellen von Transaktionen
+- [x] Prüfe ob FX Rate gesetzt ist für Fremdwährungs-Transaktionen
+- [x] Prüfe ob currency korrekt ist
+- [x] Zeige Warnung an, falls Daten fehlen
+- [x] Log Fehler für Debugging
+
+## FEATURE: Automatische FX Rate Updates (Nov 13, 2025)
+- [x] Täglicher Job zum Nachladen fehlender FX Rates
+- [x] Prüfe alle Transaktionen mit fehlenden FX Rates
+- [x] Hole historische Wechselkurse von API
+- [x] Update Transaktionen mit korrekten FX Rates
+- [x] Log erfolgreiche Updates
+
+## Implementation Progress (Nov 13, 2025 - 16:20)
+
+### Feature 1: Bulk Delete für Initial Transactions
+- [x] Backend endpoint bereits vorhanden (deleteInitialTransactions)
+- [x] Button im Portfolio Detail hinzugefügt
+- [x] Nur sichtbar wenn Initial Transactions vorhanden
+- [x] Confirmation Dialog mit Anzahl der zu löschenden Transaktionen
+- [x] Toast-Benachrichtigung nach erfolgreichem Löschen
+- [x] Invalidiert relevante Queries (transactions, portfolios, performance)
+- [x] Nur für Live-Portfolios verfügbar
+
+### Feature 2: Transaction Validation
+- [x] Validierung beim Erstellen von Transaktionen in createPortfolioTransaction
+- [x] Prüfe ob FX Rate gesetzt ist für Fremdwährungs-Transaktionen
+- [x] Auto-Fetch FX Rate falls fehlend (mit getFxRate Helper)
+- [x] Prüfe ob currency korrekt ist (USD, EUR, GBP, CHF)
+- [x] Berechne totalAmountCHF automatisch falls fehlend
+- [x] Zeige Warnung an, falls Daten fehlen (console.warn)
+- [x] Log Fehler für Debugging (console.error)
+- [x] Werfe Error bei ungültiger Währung oder fehlendem FX Rate
+
+### Feature 3: Automatische FX Rate Updates
+- [x] Neuer Cron-Job transactionFxUpdateJob.ts erstellt
+- [x] Läuft täglich um 7:00 Uhr (nach FX Rates Fetch um 6:30)
+- [x] Prüft alle Transaktionen mit fehlenden FX Rates
+- [x] Holt historische Wechselkurse von API (getFxRate Helper)
+- [x] Updated Transaktionen mit korrekten FX Rates
+- [x] Berechnet totalAmountCHF automatisch
+- [x] Log erfolgreiche Updates (console.log)
+- [x] Rate Limiting (100ms zwischen Updates)
+- [x] Läuft automatisch beim Server-Start (10s Verzögerung)
+- [x] Manuelle Trigger-Funktion verfügbar (manualUpdateMissingFxRates)
+- [x] Job in server/_core/index.ts registriert

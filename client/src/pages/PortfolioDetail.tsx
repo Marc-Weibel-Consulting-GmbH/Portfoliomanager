@@ -3,12 +3,22 @@ import { useRoute, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TransactionModal } from "@/components/TransactionModal";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { LivePerformanceChart } from "@/components/LivePerformanceChart";
 import DividendCalendarModal from "@/components/DividendCalendarModal";
 import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
-import { ArrowLeft, Plus, TrendingUp, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
@@ -20,8 +30,23 @@ export default function PortfolioDetail() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [showDividendCalendar, setShowDividendCalendar] = useState(false);
   const [showAnnualPerformance, setShowAnnualPerformance] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const utils = trpc.useUtils();
+
+  // Bulk delete mutation
+  const deleteInitialTransactions = trpc.portfolioTransactions.deleteInitialTransactions.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${data.deletedCount} Initial-Transaktionen erfolgreich gelöscht`);
+      utils.portfolioTransactions.list.invalidate();
+      utils.savedPortfolios.list.invalidate();
+      utils.savedPortfolios.calculateLivePerformance.invalidate();
+      setShowDeleteConfirm(false);
+    },
+    onError: (error) => {
+      toast.error(`Fehler beim Löschen: ${error.message}`);
+    },
+  });
 
   // Fetch portfolio details
   const { data: portfolios = [] } = trpc.savedPortfolios.list.useQuery();
@@ -336,6 +361,18 @@ export default function PortfolioDetail() {
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Transaktion erfassen
+                </Button>
+              )}
+
+              {/* Bulk Delete Initial Transactions Button */}
+              {Boolean(portfolio.isLive) && transactions.some((tx: any) => tx.notes?.includes('Initial position')) && (
+                <Button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  variant="outline"
+                  className="text-red-400 border-red-400 hover:bg-red-400/10"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Initial-Transaktionen löschen
                 </Button>
               )}
             </div>
@@ -709,6 +746,35 @@ export default function PortfolioDetail() {
         isLoading={isPerformanceLoading}
         error={performanceError}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent className="bg-slate-800 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Initial-Transaktionen löschen?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              Möchten Sie alle Initial-Transaktionen für dieses Portfolio löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+              <br /><br />
+              <strong className="text-yellow-400">
+                Anzahl zu löschender Transaktionen: {transactions.filter((tx: any) => tx.notes?.includes('Initial position')).length}
+              </strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600">
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteInitialTransactions.mutate({ portfolioId: portfolioId! })}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleteInitialTransactions.isPending}
+            >
+              {deleteInitialTransactions.isPending ? 'Lösche...' : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
