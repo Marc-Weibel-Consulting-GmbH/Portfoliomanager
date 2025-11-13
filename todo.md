@@ -1416,3 +1416,14 @@
 - [x] Untersuche Logo-Loading Logik in beiden Seiten - StockLogo Component fehlte
 - [x] Synchronisiere Logo-Loading zwischen Home und PortfolioDetail
 - [x] StockLogo Component importiert und verwendet
+
+
+## CRITICAL: Währungsumrechnung bei Live-Portfolios falsch (Nov 13, 2025)
+- [x] "Total investiert" zeigt Originalwährung statt CHF bei Live-Portfolios
+- [x] Label zeigt "CHF" aber Wert ist in USD/EUR
+- [x] "Aktueller Wert" wird korrekt in CHF umgerechnet
+- [x] Führt zu falschen negativen Performances (z.B. AAPL: -20.1% statt korrekt)
+- [x] Test-Portfolios funktionieren korrekt
+- [x] Untersuche totalInvested Berechnung in PortfolioDetail
+- [x] Race Condition gefunden: chfHoldings Query wurde nie aktiviert
+- [x] Fix: enabled condition angepasst (!!portfolio check hinzugefügt)

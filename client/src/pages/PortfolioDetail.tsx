@@ -39,13 +39,13 @@ export default function PortfolioDetail() {
   // Fetch live performance if portfolio is live
   const { data: livePerformance } = trpc.savedPortfolios.calculateLivePerformance.useQuery(
     { id: portfolioId! },
-    { enabled: !!portfolioId && Boolean(portfolio?.isLive) }
+    { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
 
   // Fetch CHF-converted holdings with performance
   const { data: chfHoldings = [] } = trpc.savedPortfolios.getHoldingsWithChfPerformance.useQuery(
     { id: portfolioId! },
-    { enabled: !!portfolioId && Boolean(portfolio?.isLive) }
+    { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
 
   // Fetch dividend calendar
