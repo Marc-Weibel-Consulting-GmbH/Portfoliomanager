@@ -975,6 +975,7 @@ export const appRouter = router({
         return { success: true };
       }),
     refreshData: protectedProcedure.mutation(async () => {
+      // Optimized refresh with parallel processing (Nov 13, 2025)
       console.log('[RefreshData] Starting refresh...');
       const { getAllStocks, updateStock } = await import("./db");
       

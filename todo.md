@@ -1372,3 +1372,11 @@
 - [x] Parallele Verarbeitung: 5 Aktien gleichzeitig
 - [x] Sofortige Response mit Background-Processing
 - [x] Reduzierte Delays: 200ms statt 1000ms
+
+
+## CRITICAL: React Error #321 auf Produktionsseite (Nov 13, 2025)
+- [ ] Minified React error #321 beim Laden der Performance-Daten
+- [ ] Fehler tritt auf der Aktien-Seite auf
+- [ ] "Lade Performance-Daten..." hängt
+- [ ] Untersuche welche Component den Fehler verursacht
+- [ ] Behebe den Fehler und teste die Lösung
