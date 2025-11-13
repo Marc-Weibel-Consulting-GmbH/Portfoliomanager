@@ -1173,3 +1173,18 @@
   - [x] email.ts (Resend, EMAIL_FROM)
   - [x] whatsapp.ts (Twilio)
 - [ ] Deploy and test all features
+
+
+## CRITICAL: TypeScript Memory Issues & Stripe Integration (Nov 12, 2025)
+- [x] Disable TypeScript watcher to free up RAM (crashes with exit code 137)
+- [x] Fix Stripe customer_email parameter (missing required param error) - Already implemented
+- [x] Create Settings page with username/password/notifications - Already implemented
+- [x] Implement role-based navigation (Settings for all, Admin for owner) - Already implemented
+- [x] Configure email confirmations via Resend - Already configured
+- [x] Configure WhatsApp notifications via Twilio - Already configured
+
+
+## CRITICAL: Password Change Error (Nov 13, 2025)
+- [x] Fix "Cannot find package 'bcrypt'" error in password change
+- [x] Install bcryptjs package (already in package.json)
+- [x] Check if bcrypt vs bcryptjs import is correct - Fixed: Changed import from 'bcrypt' to 'bcryptjs'

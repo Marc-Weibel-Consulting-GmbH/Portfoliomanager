@@ -3293,7 +3293,7 @@ export const appRouter = router({
         const { getDb } = await import("./db");
         const { users } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        const bcrypt = await import("bcrypt");
+        const bcrypt = await import("bcryptjs");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         
