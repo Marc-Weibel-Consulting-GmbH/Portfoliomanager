@@ -69,13 +69,26 @@ export default function AdminSecrets() {
     setSecretMutation.mutate(secretForm);
   };
 
-  const handleEditSecret = (secret: { key: string; description: string | null }) => {
+  const handleEditSecret = async (secret: { key: string; description: string | null }) => {
     setEditingKey(secret.key);
-    setSecretForm({
-      key: secret.key,
-      value: "", // Value is not retrieved for security
-      description: secret.description || "",
-    });
+    
+    // Fetch the current value
+    try {
+      const result = await utils.client.secrets.get.query({ key: secret.key });
+      setSecretForm({
+        key: secret.key,
+        value: result.value,
+        description: secret.description || "",
+      });
+    } catch (error) {
+      toast.error("Fehler beim Laden des Secrets");
+      setSecretForm({
+        key: secret.key,
+        value: "",
+        description: secret.description || "",
+      });
+    }
+    
     setIsAddDialogOpen(true);
   };
 

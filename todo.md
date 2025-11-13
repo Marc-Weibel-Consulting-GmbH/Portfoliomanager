@@ -1317,3 +1317,19 @@
 - [x] Add toggles for WhatsApp and Email alerts
 - [x] Add route to App.tsx
 - [x] Save checkpoint
+
+
+## DEBUG: Resend & Twilio Secrets Not Loading (Nov 13, 2025 - 06:25)
+- [ ] Check exact key names expected by getResendApiKey() and getTwilioCredentials()
+- [ ] Verify secrets are stored correctly in database
+- [ ] Add debug logging to secret loading functions
+- [ ] Test secret retrieval directly
+- [ ] Fix any issues found
+- [ ] Save checkpoint
+
+
+## UX: Show Secret Value When Editing (Nov 13, 2025 - 06:35)
+- [x] Add get endpoint to secrets router
+- [x] Modify AdminSecrets to populate value field when editing
+- [x] Show current value in edit dialog
+- [x] Save checkpoint

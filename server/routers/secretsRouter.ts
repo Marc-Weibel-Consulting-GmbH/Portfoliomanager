@@ -3,6 +3,7 @@ import { z } from "zod";
 import { adminProcedure, router } from "../_core/trpc";
 import {
   deleteSecret,
+  getSecret,
   listSecretKeys,
   setSecret,
 } from "../_core/secretsManager";
@@ -40,6 +41,22 @@ export const secretsRouter = router({
           message: "Failed to save secret",
         });
       }
+    }),
+
+  /**
+   * Get a secret value (decrypted)
+   */
+  get: adminProcedure
+    .input(z.object({ key: z.string() }))
+    .query(async ({ input }) => {
+      const value = await getSecret(input.key);
+      if (!value) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Secret not found",
+        });
+      }
+      return { key: input.key, value };
     }),
 
   /**
