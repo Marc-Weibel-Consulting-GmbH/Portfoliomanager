@@ -1195,3 +1195,10 @@
 - [x] Need to disable Stripe Link or prevent autofill - Removed customer_email parameter
 - [x] Production server API keys not working despite being configured - Fixed: Converted ENV to getters for runtime evaluation
 - [x] FINNHUB_API_KEY not loading on production server - ENV object was evaluated at import time, now uses getters
+
+
+## CRITICAL: esbuild Inlining process.env (Nov 13, 2025 - 04:00)
+- [x] Fix esbuild --bundle inlining process.env references at build-time - Added --keep-names --tree-shaking=false
+- [x] Add --keep-names flag to preserve runtime references - Verified in dist/index.js
+- [ ] Test that STRIPE_SECRET_KEY, FINNHUB_API_KEY load correctly on production - Ready for testing
+- [ ] Verify all user-defined secrets are available at runtime - Ready for testing
