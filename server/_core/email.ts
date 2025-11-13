@@ -1,7 +1,18 @@
 import { Resend } from 'resend';
-import { ENV } from './env';
+import { ENV, getResendApiKey } from './env';
 
-const resend = new Resend(ENV.resendApiKey);
+let resend: Resend | null = null;
+
+async function getResend(): Promise<Resend> {
+  if (!resend) {
+    const apiKey = await getResendApiKey();
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY is not configured. Please add it via Admin > API Secrets.');
+    }
+    resend = new Resend(apiKey);
+  }
+  return resend;
+}
 
 export interface SendEmailOptions {
   to: string;
@@ -11,9 +22,10 @@ export interface SendEmailOptions {
 
 export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<boolean> {
   try {
+    const resendInstance = await getResend();
     const from = ENV.emailFrom || 'onboarding@resend.dev';
     
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await resendInstance.emails.send({
       from,
       to,
       subject,

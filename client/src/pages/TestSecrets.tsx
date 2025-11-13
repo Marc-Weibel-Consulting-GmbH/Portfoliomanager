@@ -1,14 +1,20 @@
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, RefreshCw, Key, Database, Server } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Mail, MessageSquare, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { toast } from "sonner";
 
 export default function TestSecrets() {
   const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [testEmail, setTestEmail] = useState(user?.email || "");
+  const [testPhone, setTestPhone] = useState(user?.mobile || "");
 
   // Redirect if not admin
   if (isAuthenticated && user?.role !== "admin") {
@@ -16,125 +22,266 @@ export default function TestSecrets() {
     return null;
   }
 
-  const { data: testResult, isLoading, refetch } = trpc.testSecrets.testStripeKey.useQuery();
+  const { data: apiTests, isLoading: isLoadingTests, refetch: refetchTests } = trpc.testSecrets.testAllApis.useQuery();
+  const sendTestEmailMutation = trpc.testSecrets.sendTestEmail.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success("Test-Email erfolgreich gesendet!");
+      } else {
+        toast.error("Fehler beim Senden der Test-Email");
+      }
+    },
+    onError: (error) => {
+      toast.error(`Fehler: ${error.message}`);
+    },
+  });
+
+  const sendTestWhatsAppMutation = trpc.testSecrets.sendTestWhatsApp.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success("Test-WhatsApp-Nachricht erfolgreich gesendet!");
+      } else {
+        toast.error("Fehler beim Senden der WhatsApp-Nachricht");
+      }
+    },
+    onError: (error) => {
+      toast.error(`Fehler: ${error.message}`);
+    },
+  });
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "success":
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case "error":
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case "missing":
+        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+      default:
+        return <AlertCircle className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  const getStatusBadge = (status: string): "default" | "destructive" | "secondary" => {
+    switch (status) {
+      case "success":
+        return "default";
+      case "error":
+        return "destructive";
+      default:
+        return "secondary";
+    }
+  };
+
+  const apiNames: Record<string, string> = {
+    stripe: "Stripe (Payments)",
+    finnhub: "Finnhub (Stock Data)",
+    eodhd: "EODHD (Historical Prices)",
+    resend: "Resend (Email)",
+    twilio: "Twilio (WhatsApp)",
+  };
 
   return (
-    <div className="container max-w-4xl py-8">
+    <div className="container max-w-6xl py-8">
       <Breadcrumb
         items={[
           { label: "Admin", href: "/" },
-          { label: "Test Secrets", icon: <Key className="h-4 w-4" /> },
+          { label: "Test API Secrets" },
         ]}
       />
 
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Key className="h-8 w-8 text-primary" />
-            Secrets Test
+            <CheckCircle2 className="h-8 w-8 text-primary" />
+            API Secrets Testen
           </h1>
           <p className="text-muted-foreground mt-2">
-            Testen Sie, ob DB-Secrets als Fallback funktionieren
+            Überprüfen Sie die Verfügbarkeit und Funktionalität aller API-Keys
           </p>
         </div>
-        <Button onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Neu laden
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setLocation("/")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Zurück
+          </Button>
+          <Button onClick={() => refetchTests()} disabled={isLoadingTests}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingTests ? "animate-spin" : ""}`} />
+            Neu laden
+          </Button>
+        </div>
       </div>
 
-      {isLoading ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Teste Secret-Loading...</p>
-          </CardContent>
-        </Card>
-      ) : testResult ? (
-        <div className="space-y-6">
-          {/* Test Result Card */}
-          <Card className={testResult.hasKey ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950" : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950"}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {testResult.hasKey ? (
-                  <>
-                    <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
-                    <span className="text-green-900 dark:text-green-100">STRIPE_SECRET_KEY gefunden</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
-                    <span className="text-red-900 dark:text-red-100">STRIPE_SECRET_KEY nicht gefunden</span>
-                  </>
-                )}
-              </CardTitle>
-              <CardDescription className={testResult.hasKey ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}>
-                {testResult.hasKey 
-                  ? `Secret wurde erfolgreich geladen (${testResult.keyLength} Zeichen)`
-                  : "Kein Secret in Umgebungsvariablen oder Datenbank gefunden"
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Server className="h-5 w-5 text-muted-foreground" />
+      {/* API Tests Overview */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>API-Status Übersicht</CardTitle>
+          <CardDescription>
+            Zeigt an, welche API-Keys konfiguriert sind und ob sie funktionieren
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingTests ? (
+            <p className="text-muted-foreground">Lade API-Tests...</p>
+          ) : apiTests ? (
+            <div className="space-y-3">
+              {Object.entries(apiTests).map(([key, result]) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(result.status)}
                     <div>
-                      <p className="text-sm font-medium">Quelle</p>
-                      <p className="text-sm text-muted-foreground capitalize">{testResult.source}</p>
+                      <p className="font-medium">{apiNames[key] || key}</p>
+                      <p className="text-sm text-muted-foreground">{result.message}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Key className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">Key Prefix</p>
-                      <p className="text-sm text-muted-foreground font-mono">{testResult.keyPrefix}</p>
-                    </div>
+                    {result.source && (
+                      <Badge variant="outline" className="text-xs">
+                        {result.source === "environment" ? "Umgebung" : "Datenbank"}
+                      </Badge>
+                    )}
+                    <Badge variant={getStatusBadge(result.status)}>
+                      {result.status === "success"
+                        ? "OK"
+                        : result.status === "error"
+                        ? "Fehler"
+                        : "Fehlt"}
+                    </Badge>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Keine Testergebnisse verfügbar</p>
+          )}
+        </CardContent>
+      </Card>
 
-          {/* Instructions Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Anleitung: DB-Secret hinzufügen
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">So fügen Sie STRIPE_SECRET_KEY zur Datenbank hinzu:</p>
-                <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                  <li>Gehen Sie zu <a href="/admin/secrets" className="text-primary hover:underline">Admin → API Secrets</a></li>
-                  <li>Klicken Sie auf "Secret hinzufügen"</li>
-                  <li>Key: <code className="bg-muted px-1 py-0.5 rounded">STRIPE_SECRET_KEY</code></li>
-                  <li>Value: Ihr Stripe Secret Key (beginnt mit <code className="bg-muted px-1 py-0.5 rounded">sk_live_</code> oder <code className="bg-muted px-1 py-0.5 rounded">sk_test_</code>)</li>
-                  <li>Klicken Sie auf "Speichern"</li>
-                  <li>Laden Sie diese Seite neu, um zu testen</li>
-                </ol>
-              </div>
+      {/* Test Email */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Test-Email senden
+          </CardTitle>
+          <CardDescription>
+            Senden Sie eine Test-Email, um die Resend-Integration zu überprüfen
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="ihre-email@example.com"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              onClick={() => sendTestEmailMutation.mutate({ to: testEmail })}
+              disabled={
+                !testEmail ||
+                sendTestEmailMutation.isPending ||
+                apiTests?.resend?.status !== "success"
+              }
+            >
+              {sendTestEmailMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Sende...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Senden
+                </>
+              )}
+            </Button>
+          </div>
+          {apiTests?.resend?.status !== "success" && (
+            <p className="text-sm text-yellow-600 mt-2">
+              ⚠️ Resend API-Key fehlt oder ist ungültig. Bitte fügen Sie RESEND_API_KEY über
+              /admin/secrets hinzu.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-2">Erwartetes Verhalten:</p>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  <li>• <strong>Quelle: environment</strong> → Platform-Secret wird verwendet (höchste Priorität)</li>
-                  <li>• <strong>Quelle: database</strong> → DB-Secret wird als Fallback verwendet ✅</li>
-                  <li>• <strong>Quelle: none</strong> → Kein Secret gefunden (fügen Sie eins hinzu)</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Keine Daten verfügbar</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Test WhatsApp */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Test-WhatsApp-Nachricht senden
+          </CardTitle>
+          <CardDescription>
+            Senden Sie eine Test-Nachricht, um die Twilio-Integration zu überprüfen
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              type="tel"
+              placeholder="+41791234567"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              onClick={() => sendTestWhatsAppMutation.mutate({ to: testPhone })}
+              disabled={
+                !testPhone ||
+                sendTestWhatsAppMutation.isPending ||
+                apiTests?.twilio?.status !== "success"
+              }
+            >
+              {sendTestWhatsAppMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Sende...
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Senden
+                </>
+              )}
+            </Button>
+          </div>
+          {apiTests?.twilio?.status !== "success" && (
+            <p className="text-sm text-yellow-600 mt-2">
+              ⚠️ Twilio-Credentials fehlen oder sind ungültig. Bitte fügen Sie
+              TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN und TWILIO_WHATSAPP_NUMBER über /admin/secrets
+              hinzu.
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground mt-2">
+            Hinweis: Die Telefonnummer muss das Ländercode-Präfix enthalten (z.B. +41 für
+            Schweiz)
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Instructions */}
+      <Card className="mt-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="text-blue-900 dark:text-blue-100">
+            💡 So fügen Sie API-Keys hinzu
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-blue-800 dark:text-blue-200">
+          <ol className="list-decimal list-inside space-y-2">
+            <li>Gehen Sie zu <a href="/admin/secrets" className="underline font-medium">/admin/secrets</a></li>
+            <li>Klicken Sie auf "Secret hinzufügen"</li>
+            <li>Geben Sie den Key-Namen ein (z.B. FINNHUB_API_KEY)</li>
+            <li>Fügen Sie den API-Key-Wert ein</li>
+            <li>Speichern Sie - die API funktioniert sofort ohne Redeploy!</li>
+          </ol>
+        </CardContent>
+      </Card>
     </div>
   );
 }

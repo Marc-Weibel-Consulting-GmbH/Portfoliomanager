@@ -1,15 +1,21 @@
 import twilio from 'twilio';
-import { ENV } from '../_core/env';
-
-const accountSid = ENV.twilioAccountSid;
-const authToken = ENV.twilioAuthToken;
-const whatsappNumber = ENV.twilioWhatsappNumber || 'whatsapp:+14155238886'; // Twilio Sandbox default
+import { getTwilioCredentials } from '../_core/env';
 
 let twilioClient: ReturnType<typeof twilio> | null = null;
+let whatsappNumber: string = 'whatsapp:+14155238886'; // Default Twilio Sandbox
 
-// Initialize Twilio client only if credentials are available
-if (accountSid && authToken) {
-  twilioClient = twilio(accountSid, authToken);
+async function getTwilioClient(): Promise<ReturnType<typeof twilio> | null> {
+  if (!twilioClient) {
+    const credentials = await getTwilioCredentials();
+    if (!credentials.accountSid || !credentials.authToken) {
+      console.warn('[WhatsApp] Twilio credentials not configured');
+      return null;
+    }
+    twilioClient = twilio(credentials.accountSid, credentials.authToken);
+    whatsappNumber = credentials.whatsappNumber || whatsappNumber;
+    console.log('[WhatsApp] Twilio client initialized');
+  }
+  return twilioClient;
 }
 
 export interface WhatsAppNotification {
@@ -21,7 +27,8 @@ export interface WhatsAppNotification {
  * Send WhatsApp message via Twilio
  */
 export async function sendWhatsAppMessage(notification: WhatsAppNotification): Promise<boolean> {
-  if (!twilioClient) {
+  const client = await getTwilioClient();
+  if (!client) {
     console.warn('[WhatsApp] Twilio client not initialized. Skipping notification.');
     return false;
   }
@@ -32,7 +39,7 @@ export async function sendWhatsAppMessage(notification: WhatsAppNotification): P
       ? notification.to 
       : `whatsapp:${notification.to}`;
 
-    const message = await twilioClient.messages.create({
+    const message = await client.messages.create({
       from: whatsappNumber,
       to,
       body: notification.message,

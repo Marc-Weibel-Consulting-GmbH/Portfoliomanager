@@ -1282,3 +1282,38 @@
 - [x] Restart server to clear cached errors
 - [ ] Test Stripe payment flow
 - [ ] Save checkpoint
+
+
+## Error Monitoring Dashboard (Nov 13, 2025 - 05:16)
+- [x] Create in-memory log storage system
+- [x] Capture console.error and console.warn
+- [x] Create admin logs router with filtering
+- [x] Create /admin/logs UI page
+- [x] Add auto-refresh functionality
+- [x] Add link to Admin panel
+- [ ] Save checkpoint
+
+
+## Migrate All API Keys to DB-Secrets (Nov 13, 2025 - 05:50)
+- [x] Add getFinnhubApiKey() to env.ts
+- [x] Add getEodhdApiKey() to env.ts
+- [x] Add getResendApiKey() to env.ts
+- [x] Add getTwilioCredentials() to env.ts
+- [x] Update routers.ts to use getFinnhubApiKey()
+- [x] Update multiApiDataMerger.ts to use getFinnhubApiKey()
+- [x] Update ytd-performance.ts to use getEodhdApiKey()
+- [x] Update email.ts to use getResendApiKey()
+- [x] Update whatsapp.ts to use getTwilioCredentials()
+- [ ] Test all API integrations
+- [ ] Save checkpoint
+
+
+## Comprehensive API Testing & Notification Settings (Nov 13, 2025 - 06:02)
+- [x] Extend testSecrets router to test all APIs (Finnhub, EODHD, Resend, Twilio)
+- [x] Update TestSecrets UI to show all API test results
+- [x] Add test email and WhatsApp buttons
+- [x] Create notification settings router
+- [x] Create /settings/notifications page
+- [x] Add toggles for WhatsApp and Email alerts
+- [x] Add route to App.tsx
+- [x] Save checkpoint

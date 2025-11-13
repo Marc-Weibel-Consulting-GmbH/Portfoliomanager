@@ -12,6 +12,8 @@ import { portfolioTransactionsRouter } from "./routers/portfolioTransactionsRout
 import { realizedGainsHistoryRouter } from "./routers/realizedGainsHistoryRouter";
 import { secretsRouter } from "./routers/secretsRouter";
 import { testSecretsRouter } from "./routers/testSecretsRouter";
+import { logsRouter } from "./routers/logsRouter";
+import { notificationSettingsRouter } from "./routers/notificationSettingsRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -31,7 +33,8 @@ async function fetchDividendYieldWithFallback(ticker: string, eodhDividendYield:
   // Fallback 1: Finnhub
   if (dividendYield === null || isNaN(dividendYield)) {
     try {
-      const finnhubKey = ENV.finnhubApiKey;
+      const { getFinnhubApiKey } = await import("./_core/env");
+      const finnhubKey = await getFinnhubApiKey();
       if (finnhubKey) {
         const finnhubUrl = `https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${finnhubKey}`;
         const finnhubRes = await fetch(finnhubUrl);
@@ -3454,10 +3457,10 @@ export const appRouter = router({
       const allStocks = await db.select().from(stocks);
       if (allStocks.length === 0) return { overview: [] };
 
-      const apiKey = ENV.finnhubApiKey;
+      const { getFinnhubApiKey } = await import("./_core/env");
+      const apiKey = await getFinnhubApiKey();
       if (!apiKey) {
-        const debug = `DEBUG: process.env.FINNHUB_API_KEY=${process.env.FINNHUB_API_KEY ? 'SET(len:'+process.env.FINNHUB_API_KEY.length+')' : 'UNDEFINED'}, ENV.finnhubApiKey=${apiKey}, NODE_ENV=${process.env.NODE_ENV}`;
-        throw new Error(`Finnhub API key not configured. ${debug}`);
+        throw new Error(`Finnhub API key not configured. Please add it via Admin > API Secrets.`);
       }
 
       // Get date range for current week
@@ -3675,6 +3678,8 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
   realizedGainsHistory: realizedGainsHistoryRouter,
   secrets: secretsRouter,
   testSecrets: testSecretsRouter,
+  logs: logsRouter,
+  notificationSettings: notificationSettingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

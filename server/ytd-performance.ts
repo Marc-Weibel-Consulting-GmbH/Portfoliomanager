@@ -96,7 +96,8 @@ async function cachePrices(ticker: string, prices: DailyPrice[], source: string 
  * Fetch daily historical prices from EODHD API
  */
 async function fetchDailyPricesFromAPI(ticker: string, fromDate: string, toDate: string): Promise<DailyPrice[]> {
-  const apiKey = ENV.eodhdApiKey;
+  const { getEodhdApiKey } = await import('./_core/env');
+  const apiKey = await getEodhdApiKey();
   if (!apiKey) {
     console.warn('[YTD API] EODHD API key not configured');
     return [];

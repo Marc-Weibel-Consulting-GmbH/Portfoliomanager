@@ -195,7 +195,8 @@ async function fetchFromYahoo(ticker: string, region: string = 'US'): Promise<Pa
  */
 async function fetchFromFinnhub(ticker: string): Promise<Partial<CompleteStockData>> {
   try {
-    const apiKey = ENV.finnhubApiKey;
+    const { getFinnhubApiKey } = await import("./env");
+    const apiKey = await getFinnhubApiKey();
     if (!apiKey) {
       console.warn('[MultiAPI] Finnhub API key not configured');
       return {};

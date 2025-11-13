@@ -60,3 +60,108 @@ export async function getStripeSecretKey(): Promise<string> {
   console.warn('[STRIPE] STRIPE_SECRET_KEY not found in environment or database');
   return '';
 }
+
+/**
+ * Get Finnhub API key with database fallback
+ */
+export async function getFinnhubApiKey(): Promise<string> {
+  debugEnv();
+  
+  const envKey = process.env.FINNHUB_API_KEY;
+  if (envKey) {
+    console.log('[FINNHUB] Using FINNHUB_API_KEY from environment');
+    return envKey;
+  }
+  
+  console.log('[FINNHUB] Environment variable not found, checking database...');
+  const dbKey = await getSecret('FINNHUB_API_KEY');
+  if (dbKey) {
+    console.log('[FINNHUB] Using FINNHUB_API_KEY from database');
+    return dbKey;
+  }
+  
+  console.warn('[FINNHUB] FINNHUB_API_KEY not found in environment or database');
+  return '';
+}
+
+/**
+ * Get EODHD API key with database fallback
+ */
+export async function getEodhdApiKey(): Promise<string> {
+  debugEnv();
+  
+  const envKey = process.env.EODHD_API_KEY;
+  if (envKey) {
+    console.log('[EODHD] Using EODHD_API_KEY from environment');
+    return envKey;
+  }
+  
+  console.log('[EODHD] Environment variable not found, checking database...');
+  const dbKey = await getSecret('EODHD_API_KEY');
+  if (dbKey) {
+    console.log('[EODHD] Using EODHD_API_KEY from database');
+    return dbKey;
+  }
+  
+  console.warn('[EODHD] EODHD_API_KEY not found in environment or database');
+  return '';
+}
+
+/**
+ * Get Resend API key with database fallback
+ */
+export async function getResendApiKey(): Promise<string> {
+  const envKey = process.env.RESEND_API_KEY;
+  if (envKey) {
+    console.log('[RESEND] Using RESEND_API_KEY from environment');
+    return envKey;
+  }
+  
+  console.log('[RESEND] Environment variable not found, checking database...');
+  const dbKey = await getSecret('RESEND_API_KEY');
+  if (dbKey) {
+    console.log('[RESEND] Using RESEND_API_KEY from database');
+    return dbKey;
+  }
+  
+  console.warn('[RESEND] RESEND_API_KEY not found in environment or database');
+  return '';
+}
+
+/**
+ * Get Twilio credentials with database fallback
+ */
+export async function getTwilioCredentials(): Promise<{
+  accountSid: string;
+  authToken: string;
+  whatsappNumber: string;
+}> {
+  let accountSid = process.env.TWILIO_ACCOUNT_SID || '';
+  let authToken = process.env.TWILIO_AUTH_TOKEN || '';
+  let whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER || '';
+  
+  // Check database for missing credentials
+  if (!accountSid) {
+    console.log('[TWILIO] TWILIO_ACCOUNT_SID not in environment, checking database...');
+    accountSid = await getSecret('TWILIO_ACCOUNT_SID') || '';
+    if (accountSid) console.log('[TWILIO] Using TWILIO_ACCOUNT_SID from database');
+  }
+  
+  if (!authToken) {
+    console.log('[TWILIO] TWILIO_AUTH_TOKEN not in environment, checking database...');
+    authToken = await getSecret('TWILIO_AUTH_TOKEN') || '';
+    if (authToken) console.log('[TWILIO] Using TWILIO_AUTH_TOKEN from database');
+  }
+  
+  if (!whatsappNumber) {
+    console.log('[TWILIO] TWILIO_WHATSAPP_NUMBER not in environment, checking database...');
+    whatsappNumber = await getSecret('TWILIO_WHATSAPP_NUMBER') || '';
+    if (whatsappNumber) console.log('[TWILIO] Using TWILIO_WHATSAPP_NUMBER from database');
+  }
+  
+  if (!accountSid || !authToken) {
+    console.warn('[TWILIO] Twilio credentials incomplete');
+  }
+  
+  return { accountSid, authToken, whatsappNumber };
+}
