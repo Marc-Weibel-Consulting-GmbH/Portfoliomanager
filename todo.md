@@ -1387,3 +1387,11 @@
 - [x] Untersuche welche Grafik betroffen ist (LivePerformanceChart)
 - [x] Missing useMemo import in LivePerformanceChart.tsx
 - [x] Behebe das Lade-Problem - useMemo import hinzugefügt
+
+
+## UI Fix: Tab-Buttons sollen auch im inaktiven Zustand weiß sein (Nov 13, 2025)
+- [x] "Profil" und "Benachrichtigungen" Tabs sind im inaktiven Zustand nicht sichtbar
+- [x] Tabs sollen weiß sein, wenn sie NICHT angeklickt sind
+- [x] Aktive Tabs bleiben grün (wie aktuell)
+- [x] Finde die Tab-Komponente in Settings/Einstellungen Seite
+- [x] Ändere Styling für inaktive Tabs - text-white hinzugefügt

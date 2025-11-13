@@ -123,10 +123,10 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
 
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
-            <TabsTrigger value="profile" className="data-[state=active]:bg-teal-600">
+            <TabsTrigger value="profile" className="text-white data-[state=active]:bg-teal-600 data-[state=active]:text-white">
               Profil
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+            <TabsTrigger value="notifications" className="text-white data-[state=active]:bg-teal-600 data-[state=active]:text-white">
               Benachrichtigungen
             </TabsTrigger>
           </TabsList>
