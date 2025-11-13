@@ -1339,3 +1339,36 @@
 - [x] Fix white text on light background in Settings page
 - [x] Change Benachrichtigungen button to use proper contrast
 - [ ] Save checkpoint
+
+
+## Admin Area Cleanup & Restructure (Nov 13, 2025 - 15:00)
+- [x] Remove "Manuelle Daten-Aktualisierung" section
+- [x] Remove "Excel-Kurs-Import" section
+- [x] Remove "CHF Schweizer Aktien Bulk-Update" section
+- [x] Remove "Daten importieren/exportieren" sections
+- [x] Design new admin navigation with categories (System, Content, Settings)
+- [x] Add breadcrumb navigation to Admin.tsx
+- [x] Reorganize Admin.tsx with card-based category layout
+- [x] Breadcrumb already exists on AdminLogs and AdminSecrets
+- [x] Test navigation flow (working in dev server)
+- [ ] Save checkpoint
+
+
+## CRITICAL: stocks.refreshData Timeout Error (Nov 13, 2025)
+- [ ] 524 Gateway Timeout when refreshing data for 107 tickers
+- [ ] Server returns HTML error page instead of JSON
+- [ ] Error: "Unexpected token '<', "<!DOCTYPE "... is not valid JSON"
+- [ ] Need to implement batching/chunking for large ticker lists
+- [ ] Optimize API calls to prevent timeout
+- [ ] Add proper error handling and retry logic
+
+
+## CRITICAL: Refresh-Button funktioniert nicht auf Produktionsseite (Nov 13, 2025)
+- [x] 524 Gateway Timeout bei stocks.refreshData für 107 Tickers
+- [x] Server gibt HTML-Fehlerseite statt JSON zurück
+- [x] Fehler: "Unexpected token '<', "<!DOCTYPE "... is not valid JSON"
+- [x] Implementiere Batching/Chunking für große Ticker-Listen
+- [x] Optimiere API-Aufrufe um Timeout zu vermeiden
+- [x] Parallele Verarbeitung: 5 Aktien gleichzeitig
+- [x] Sofortige Response mit Background-Processing
+- [x] Reduzierte Delays: 200ms statt 1000ms

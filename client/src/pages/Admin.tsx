@@ -2,437 +2,197 @@ import { useState } from "react";
 import { trpc } from "../lib/trpc";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Alert, AlertDescription } from "../components/ui/alert";
-import { Download, Upload, AlertTriangle, CheckCircle2, ArrowLeft, LogOut } from "lucide-react";
-import { NewsletterExport } from "../components/NewsletterExport";
-import Import from "./Import";
-import { SwissStockBulkUpdate } from "../components/SwissStockBulkUpdate";
+import { ArrowLeft, Settings, Shield, Database, FileText, Key, Activity } from "lucide-react";
 import { DataQualityDashboard } from "../components/DataQualityDashboard";
 import { AlertManagement } from "../components/AlertManagement";
+import { Link } from "wouter";
+import { Breadcrumb } from "../components/Breadcrumb";
 
 interface AdminProps {
   onBackClick?: () => void;
 }
 
 export function Admin({ onBackClick }: AdminProps) {
-  const [importing, setImporting] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  const importMutation = trpc.admin.importData.useMutation();
-
-  const utils = trpc.useUtils();
-
-  const handleExport = async () => {
-    try {
-      setMessage(null);
-      const result = await utils.admin.exportData.fetch();
-      
-      // Create download link
-      const dataStr = JSON.stringify(result, null, 2);
-      const dataBlob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `portfolio-export-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      setMessage({
-        type: "success",
-        text: `Export erfolgreich! ${result.data.stocks.length} Aktien, ${result.data.research.length} Research-Einträge, ${result.data.transactions.length} Transaktionen exportiert.`,
-      });
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text: `Export fehlgeschlagen: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`,
-      });
-    }
-  };
-
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setImporting(true);
-      setMessage(null);
-
-      const fileContent = await file.text();
-      const importData = JSON.parse(fileContent);
-
-      // Confirm import
-      const confirmed = window.confirm(
-        `WARNUNG: Dies wird ALLE bestehenden Daten löschen!\n\n` +
-        `Import-Zusammenfassung:\n` +
-        `- Aktien: ${importData.data.stocks.length}\n` +
-        `- Research: ${importData.data.research.length}\n` +
-        `- Transaktionen: ${importData.data.transactions.length}\n\n` +
-        `Möchten Sie fortfahren?`
-      );
-
-      if (!confirmed) {
-        setImporting(false);
-        event.target.value = "";
-        return;
-      }
-
-      const result = await importMutation.mutateAsync(importData);
-
-      setMessage({
-        type: "success",
-        text: `Import erfolgreich! ${result.imported.stocks} Aktien, ${result.imported.research} Research-Einträge, ${result.imported.transactions} Transaktionen importiert.`,
-      });
-
-      // Reload page after 2 seconds
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text: `Import fehlgeschlagen: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`,
-      });
-    } finally {
-      setImporting(false);
-      event.target.value = "";
-    }
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6 px-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Admin Panel</h2>
-          <p className="text-slate-400">Daten exportieren und importieren</p>
-        </div>
-        <div className="flex gap-2">
-          {onBackClick && (
-            <Button
-              onClick={onBackClick}
-              variant="outline"
-              className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Zurück
-            </Button>
-          )}
-          <Button
-            onClick={() => {
-              fetch('/api/trpc/auth.logout', { method: 'POST' })
-                .then(() => window.location.href = '/login')
-                .catch(console.error);
-            }}
-            variant="outline"
-            className="bg-red-700 border-red-600 text-white hover:bg-red-600"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-      </div>
-
-      {message && (
-        <Alert className={message.type === "success" ? "bg-green-900/20 border-green-700" : "bg-red-900/20 border-red-700"}>
-          {message.type === "success" ? (
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          ) : (
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          )}
-          <AlertDescription className={message.type === "success" ? "text-green-200" : "text-red-200"}>
-            {message.text}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Button 
-          onClick={() => window.location.href = '/categories'} 
-          className="bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          Kategorien
-        </Button>
-        <Button 
-          onClick={() => window.location.href = '/sectors'} 
-          className="bg-purple-600 hover:bg-purple-700 text-white"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-          Branchen
-        </Button>
-        <Button 
-          onClick={() => window.location.href = '/admin/secrets'} 
-          className="bg-amber-600 hover:bg-amber-700 text-white"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          API Secrets
-        </Button>
-        <Button 
-          onClick={() => window.location.href = '/admin/test-secrets'} 
-          className="bg-teal-600 hover:bg-teal-700 text-white"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 11l3 3L22 4" />
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-          </svg>
-          Test Secrets
-        </Button>
-        <Button 
-          onClick={() => window.location.href = '/admin/logs'} 
-          className="bg-purple-600 hover:bg-purple-700 text-white"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-          Server Logs
-        </Button>
-      </div>
-
-      {/* Manual Data Refresh */}
-      <Card className="bg-slate-800 border-slate-700 mb-6">
-        <CardHeader>
-          <CardTitle className="text-white">Manuelle Daten-Aktualisierung</CardTitle>
-          <CardDescription className="text-slate-400">
-            Aktualisieren Sie Kurse, Charts und News manuell (Auto-Updates sind deaktiviert)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button
-              onClick={() => {
-                setMessage({ type: "success", text: "Kurse werden aktualisiert..." });
-                utils.admin.refreshPrices.fetch().then(() => {
-                  setMessage({ type: "success", text: "Kurse erfolgreich aktualisiert!" });
-                }).catch((error) => {
-                  setMessage({ type: "error", text: `Fehler: ${error.message}` });
-                });
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="23 4 23 10 17 10" />
-                <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-              </svg>
-              Kurse aktualisieren
-            </Button>
-            <Button
-              onClick={() => {
-                setMessage({ type: "success", text: "Charts werden aktualisiert..." });
-                utils.admin.refreshCharts.fetch().then(() => {
-                  setMessage({ type: "success", text: "Charts erfolgreich aktualisiert!" });
-                }).catch((error) => {
-                  setMessage({ type: "error", text: `Fehler: ${error.message}` });
-                });
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-              Charts aktualisieren
-            </Button>
-            <Button
-              onClick={() => {
-                setMessage({ type: "success", text: "News werden aktualisiert..." });
-                utils.admin.refreshNews.fetch().then(() => {
-                  setMessage({ type: "success", text: "News erfolgreich aktualisiert!" });
-                }).catch((error) => {
-                  setMessage({ type: "error", text: `Fehler: ${error.message}` });
-                });
-              }}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
-                <path d="M18 14h-8" />
-                <path d="M15 18h-5" />
-                <path d="M10 6h8v4h-8V6Z" />
-              </svg>
-              News aktualisieren
-            </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+      <div className="container mx-auto max-w-7xl">
+        {/* Header with Breadcrumb */}
+        <div className="mb-8">
+          <Breadcrumb
+            items={[
+              { label: "Home", href: "/" },
+              { label: "Admin", href: "/admin" },
+            ]}
+          />
+          
+          <div className="flex items-center justify-between mt-4">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">Admin-Bereich</h1>
+              <p className="text-slate-400">Verwaltung und Konfiguration Ihrer Portfolio-Anwendung</p>
+            </div>
+            {onBackClick && (
+              <Button
+                variant="outline"
+                onClick={onBackClick}
+                className="border-slate-700 hover:bg-slate-800"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Zurück
+              </Button>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Excel Import Section */}
-      <Card className="bg-slate-800 border-slate-700 mb-6">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            📊 Excel-Kurs-Import
-          </CardTitle>
-          <CardDescription className="text-slate-400">
-            Importieren Sie Aktienkurse aus Excel-Dateien (YTD oder aktuelle Kurse)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Import onBackClick={() => {}} />
-        </CardContent>
-      </Card>
+        {/* System Management Category */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Settings className="h-6 w-6 text-teal-500" />
+            System-Verwaltung
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Link href="/admin/secrets">
+              <Card className="bg-slate-800 border-slate-700 hover:border-teal-500 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Key className="h-5 w-5 text-teal-500" />
+                    API Secrets
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Verwalten Sie verschlüsselte API-Schlüssel für externe Dienste
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
 
-      {/* Alert Management Card */}
-      <Card className="bg-slate-800 border-slate-700 mb-6">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            🔔 Metriken-Alerts
-          </CardTitle>
-          <CardDescription className="text-slate-400">
-            Konfigurieren Sie Benachrichtigungen bei Metriken-Änderungen (Sharpe Ratio, Dividende, etc.)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AlertManagement />
-        </CardContent>
-      </Card>
+            <Link href="/admin/test-secrets">
+              <Card className="bg-slate-800 border-slate-700 hover:border-teal-500 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-teal-500" />
+                    API Secrets Testen
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Testen Sie die Verfügbarkeit und Funktionalität aller APIs
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
 
-      {/* Data Quality Dashboard Card */}
-      <Card className="bg-slate-800 border-slate-700 mb-6">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            📊 Datenqualität-Dashboard
-          </CardTitle>
-          <CardDescription className="text-slate-400">
-            Übersicht über Metriken-Vollständigkeit und Datenaktualität
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataQualityDashboard />
-        </CardContent>
-      </Card>
+            <Link href="/admin/logs">
+              <Card className="bg-slate-800 border-slate-700 hover:border-teal-500 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-teal-500" />
+                    Server Logs
+                  </CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Überwachen Sie Fehler und Systemereignisse in Echtzeit
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          </div>
+        </div>
 
-      {/* Swiss Stock Bulk Update Card */}
-      <Card className="bg-slate-800 border-slate-700 mb-6">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            🇨🇭 Schweizer Aktien Bulk-Update
-          </CardTitle>
-          <CardDescription className="text-slate-400">
-            Aktualisiert alle Schweizer Aktien (.SW) mit korrekten CHF-Preisen und Sharpe Ratios von Yahoo Finance
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SwissStockBulkUpdate />
-        </CardContent>
-      </Card>
+        {/* Data Quality & Monitoring Category */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Database className="h-6 w-6 text-blue-500" />
+            Datenqualität & Überwachung
+          </h2>
+          
+          {/* Data Quality Dashboard */}
+          <Card className="bg-slate-800 border-slate-700 mb-6">
+            <CardHeader>
+              <CardTitle className="text-white">Datenqualität-Dashboard</CardTitle>
+              <CardDescription className="text-slate-400">
+                Überblick über Metriken-Vollständigkeit und Datenqualität
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DataQualityDashboard />
+            </CardContent>
+          </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Newsletter Export Card */}
-        <Card className="bg-slate-800 border-slate-700">
+          {/* Alert Management */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Metriken-Alerts</CardTitle>
+              <CardDescription className="text-slate-400">
+                Konfigurieren Sie Benachrichtigungen für Metriken-Änderungen (Sharpe Ratio, Dividende, etc.)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertManagement />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Content Management Category */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Shield className="h-6 w-6 text-purple-500" />
+            Inhalts-Verwaltung
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Link href="/admin/categories">
+              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <CardTitle className="text-white">Kategorien</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Verwalten Sie Aktien-Kategorien und Zuordnungen
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+
+            <Link href="/admin/sectors">
+              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <CardTitle className="text-white">Sektoren</CardTitle>
+                  <CardDescription className="text-slate-400">
+                    Verwalten Sie Branchen-Sektoren und Klassifizierungen
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <Card className="bg-gradient-to-r from-slate-800 to-slate-700 border-slate-600">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              📬 Newsletter-Liste exportieren
-            </CardTitle>
-            <CardDescription className="text-slate-400">
-              Exportiert alle Newsletter-Abonnenten als CSV-Datei für Email-Versand
+            <CardTitle className="text-white">Schnellzugriff</CardTitle>
+            <CardDescription className="text-slate-300">
+              Häufig verwendete Admin-Funktionen
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <NewsletterExport />
-          </CardContent>
-        </Card>
-
-        {/* Export Card */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Daten exportieren
-            </CardTitle>
-            <CardDescription className="text-slate-400">
-              Exportiert alle Aktien, Research-Einträge und Transaktionen als JSON-Datei
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleExport}
-              className="w-full bg-blue-600 hover:bg-blue-700"
-            >
-              Daten exportieren
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Import Card */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Daten importieren
-            </CardTitle>
-            <CardDescription className="text-slate-400">
-              Importiert Daten aus einer JSON-Datei (löscht alle bestehenden Daten!)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert className="mb-4 bg-yellow-900/20 border-yellow-700">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-              <AlertDescription className="text-yellow-200">
-                <strong>Warnung:</strong> Import löscht alle bestehenden Daten!
-              </AlertDescription>
-            </Alert>
-            <div className="relative">
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImport}
-                disabled={importing}
-                className="hidden"
-                id="import-file"
-              />
-              <label htmlFor="import-file">
-                <Button
-                  asChild
-                  disabled={importing}
-                  className="w-full bg-orange-600 hover:bg-orange-700 cursor-pointer"
-                >
-                  <span>{importing ? "Importiere..." : "Datei auswählen & importieren"}</span>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/admin/secrets">
+                <Button variant="outline" className="border-teal-500 text-teal-400 hover:bg-teal-500/10">
+                  <Key className="mr-2 h-4 w-4" />
+                  API-Keys verwalten
                 </Button>
-              </label>
+              </Link>
+              <Link href="/admin/test-secrets">
+                <Button variant="outline" className="border-blue-500 text-blue-400 hover:bg-blue-500/10">
+                  <Activity className="mr-2 h-4 w-4" />
+                  APIs testen
+                </Button>
+              </Link>
+              <Link href="/admin/logs">
+                <Button variant="outline" className="border-orange-500 text-orange-400 hover:bg-orange-500/10">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Logs anzeigen
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Usage Instructions */}
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white">Anleitung</CardTitle>
-        </CardHeader>
-        <CardContent className="text-slate-300 space-y-4">
-          <div>
-            <h3 className="font-semibold text-white mb-2">Daten von Entwicklung zu Produktion übertragen:</h3>
-            <ol className="list-decimal list-inside space-y-2 ml-2">
-              <li>In der <strong>Entwicklungsumgebung</strong>: Klicken Sie auf "Daten exportieren"</li>
-              <li>Laden Sie die JSON-Datei herunter</li>
-              <li>Öffnen Sie die <strong>Produktionsumgebung</strong> (https://portfoliodash-aqvizp6n.manus.space)</li>
-              <li>Gehen Sie zum Admin-Tab</li>
-              <li>Klicken Sie auf "Datei auswählen & importieren" und wählen Sie die heruntergeladene Datei</li>
-              <li>Bestätigen Sie die Warnung</li>
-              <li>Die Seite wird automatisch neu geladen</li>
-            </ol>
-          </div>
-          <div className="pt-4 border-t border-slate-700">
-            <p className="text-sm text-slate-400">
-              <strong>Hinweis:</strong> Der Import-Prozess kann einige Sekunden dauern. Bitte schließen Sie das Fenster nicht während des Imports.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
 
+export default Admin;

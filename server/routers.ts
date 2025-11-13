@@ -980,115 +980,143 @@ export const appRouter = router({
       
       const stocks = await getAllStocks();
       console.log(`[RefreshData] Found ${stocks.length} stocks to update`);
-      let updated = 0;
-      let failed = 0;
-      const errors: string[] = [];
       
-      // Fetch fresh data for all stocks
-      for (const stock of stocks) {
-        try {
-          const region = stock.ticker.endsWith(".SW") ? "CH" : "US";
+      // Start background refresh process
+      const refreshPromise = (async () => {
+        let updated = 0;
+        let failed = 0;
+        const errors: string[] = [];
+        
+        // Process stocks in batches of 10 with parallel execution
+        const BATCH_SIZE = 10;
+        const CONCURRENT_LIMIT = 5;
+        
+        for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
+          const batch = stocks.slice(i, i + BATCH_SIZE);
+          console.log(`[RefreshData] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(stocks.length / BATCH_SIZE)}`);
           
-          // Fetch price & risk metrics from Yahoo Finance
-          const metrics = await fetchStockMetrics(stock.ticker, region);
-          
-          // Fetch fundamental data from EODHD
-          const fundamentals = await fetchEODHDFundamentals(stock.ticker);
-          
-          const updateData: any = {
-            lastDataRefresh: new Date(),
-          };
-          
-          // Update price data
-          if (metrics.currentPrice !== null) {
-            updateData.currentPrice = metrics.currentPrice.toFixed(2);
-            
-            // Recalculate YTD performance
-            if (stock.ytdStartPrice) {
-              const ytdStart = parseFloat(stock.ytdStartPrice);
-              if (ytdStart > 0) {
-                const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
-                updateData.ytdPerformance = ytdPerf.toFixed(2);
-              }
-            }
-          }
-          
-          if (metrics.currency) updateData.currency = metrics.currency;
-          
-          // Update fundamentals from EODHD
-          if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0) {
-            updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
-          } else if (fundamentals.peRatio !== null && fundamentals.peRatio > 0) {
-            // Calculate PEG from P/E and earnings growth if EODHD doesn't provide it
-            try {
-              const earningsGrowth = fundamentals.earningsGrowth;
-              if (earningsGrowth && earningsGrowth > 0) {
-                const calculatedPEG = fundamentals.peRatio / (earningsGrowth * 100);
-                if (calculatedPEG > 0 && calculatedPEG < 10) { // Sanity check
-                  updateData.pegRatio = calculatedPEG.toFixed(2);
-                  console.log(`[Refresh] Calculated PEG for ${stock.ticker}: ${calculatedPEG.toFixed(2)}`);
+          // Process batch with concurrency limit
+          const batchPromises = [];
+          for (let j = 0; j < batch.length; j += CONCURRENT_LIMIT) {
+            const chunk = batch.slice(j, j + CONCURRENT_LIMIT);
+            const chunkPromises = chunk.map(async (stock) => {
+              try {
+                const region = stock.ticker.endsWith(".SW") ? "CH" : "US";
+                
+                // Fetch price & risk metrics from Yahoo Finance
+                const metrics = await fetchStockMetrics(stock.ticker, region);
+                
+                // Fetch fundamental data from EODHD
+                const fundamentals = await fetchEODHDFundamentals(stock.ticker);
+                
+                const updateData: any = {
+                  lastDataRefresh: new Date(),
+                };
+                
+                // Update price data
+                if (metrics.currentPrice !== null) {
+                  updateData.currentPrice = metrics.currentPrice.toFixed(2);
+                  
+                  // Recalculate YTD performance
+                  if (stock.ytdStartPrice) {
+                    const ytdStart = parseFloat(stock.ytdStartPrice);
+                    if (ytdStart > 0) {
+                      const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
+                      updateData.ytdPerformance = ytdPerf.toFixed(2);
+                    }
+                  }
                 }
+                
+                if (metrics.currency) updateData.currency = metrics.currency;
+                
+                // Update fundamentals from EODHD
+                if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0) {
+                  updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
+                } else if (fundamentals.peRatio !== null && fundamentals.peRatio > 0) {
+                  // Calculate PEG from P/E and earnings growth if EODHD doesn't provide it
+                  try {
+                    const earningsGrowth = fundamentals.earningsGrowth;
+                    if (earningsGrowth && earningsGrowth > 0) {
+                      const calculatedPEG = fundamentals.peRatio / (earningsGrowth * 100);
+                      if (calculatedPEG > 0 && calculatedPEG < 10) { // Sanity check
+                        updateData.pegRatio = calculatedPEG.toFixed(2);
+                      }
+                    }
+                  } catch (error) {
+                    // Silently fail PEG calculation
+                  }
+                }
+                if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
+                  updateData.peRatio = fundamentals.peRatio.toFixed(2);
+                }
+                // Use helper function with 3-tier fallback
+                const dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals.dividendYield);
+                if (dividendYield !== null) {
+                  updateData.dividendYield = dividendYield.toFixed(2);
+                }
+                
+                // Update risk metrics from Yahoo
+                if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
+                if (metrics.volatility !== null) updateData.volatility = metrics.volatility.toFixed(2);
+                if (metrics.beta !== null || fundamentals.beta !== null) {
+                  const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
+                  if (beta !== null) updateData.beta = beta.toFixed(2);
+                }
+                
+                // Update 52-week range
+                if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
+                if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
+                
+                // Update market cap
+                const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
+                if (marketCap !== null) {
+                  const marketCapB = marketCap / 1_000_000_000;
+                  updateData.marketCap = marketCapB.toFixed(2);
+                }
+                
+                await updateStock(stock.ticker, updateData);
+                updated++;
+                
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 200));
+              } catch (error: any) {
+                console.error(`[Refresh] Failed to update ${stock.ticker}:`, error);
+                failed++;
+                errors.push(`${stock.ticker}: ${error.message}`);
               }
-            } catch (error) {
-              console.warn(`[Refresh] Could not calculate PEG for ${stock.ticker}:`, error);
-            }
-          }
-          if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
-            updateData.peRatio = fundamentals.peRatio.toFixed(2);
-          }
-          // Use helper function with 3-tier fallback
-          const dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals.dividendYield);
-          if (dividendYield !== null) {
-            updateData.dividendYield = dividendYield.toFixed(2);
+            });
+            
+            await Promise.all(chunkPromises);
           }
           
-          // Update risk metrics from Yahoo
-          if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
-          if (metrics.volatility !== null) updateData.volatility = metrics.volatility.toFixed(2);
-          if (metrics.beta !== null || fundamentals.beta !== null) {
-            const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
-            if (beta !== null) updateData.beta = beta.toFixed(2);
-          }
-          
-          // Update 52-week range
-          if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
-          if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
-          
-          // Update market cap
-          const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
-          if (marketCap !== null) {
-            const marketCapB = marketCap / 1_000_000_000;
-            updateData.marketCap = marketCapB.toFixed(2);
-          }
-          
-          await updateStock(stock.ticker, updateData);
-          updated++;
-          
-          // Delay to avoid rate limiting (1s for EODHD)
+          // Delay between batches to respect rate limits
           await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (error: any) {
-          console.error(`[Refresh] Failed to update ${stock.ticker}:`, error);
-          failed++;
-          errors.push(`${stock.ticker}: ${error.message}`);
         }
-      }
+        
+        console.log(`[RefreshData] Completed: ${updated} updated, ${failed} failed`);
+        
+        // Trigger news update in background
+        try {
+          const { updateNewsForAllStocks } = await import("./newsUpdater");
+          updateNewsForAllStocks().catch((error: any) => {
+            console.error("[Refresh] News update failed:", error);
+          });
+        } catch (error) {
+          console.error("[Refresh] Failed to trigger news update:", error);
+        }
+        
+        return { updated, failed, errors };
+      })();
       
-      // Trigger news update in background
-      try {
-        const { updateNewsForAllStocks } = await import("./newsUpdater");
-        updateNewsForAllStocks().catch((error: any) => {
-          console.error("[Refresh] News update failed:", error);
-        });
-      } catch (error) {
-        console.error("[Refresh] Failed to trigger news update:", error);
-      }
+      // Don't wait for completion - return immediately
+      refreshPromise.catch(error => {
+        console.error('[RefreshData] Background refresh failed:', error);
+      });
       
       return { 
         success: true, 
-        message: `${updated} Aktien erfolgreich aktualisiert${failed > 0 ? `, ${failed} fehlgeschlagen` : ""}. News werden im Hintergrund aktualisiert.`,
-        updated,
-        failed,
-        errors: failed > 0 ? errors : undefined,
+        message: `Aktualisierung von ${stocks.length} Aktien gestartet. Dies läuft im Hintergrund und dauert ca. ${Math.ceil(stocks.length / 5)} Minuten. Bitte Seite in einigen Minuten neu laden.`,
+        total: stocks.length,
       };
     }),
     refreshStockData: protectedProcedure
