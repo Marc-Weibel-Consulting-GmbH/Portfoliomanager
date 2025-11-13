@@ -1,3 +1,16 @@
+// Debug: Log all environment variables on first access
+let debugLogged = false;
+function debugEnv() {
+  if (!debugLogged) {
+    debugLogged = true;
+    console.log('[ENV DEBUG] Environment variables:');
+    console.log('[ENV DEBUG] STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? 'SET (length: ' + process.env.STRIPE_SECRET_KEY.length + ')' : 'NOT SET');
+    console.log('[ENV DEBUG] FINNHUB_API_KEY:', process.env.FINNHUB_API_KEY ? 'SET (length: ' + process.env.FINNHUB_API_KEY.length + ')' : 'NOT SET');
+    console.log('[ENV DEBUG] EODHD_API_KEY:', process.env.EODHD_API_KEY ? 'SET (length: ' + process.env.EODHD_API_KEY.length + ')' : 'NOT SET');
+    console.log('[ENV DEBUG] NODE_ENV:', process.env.NODE_ENV);
+  }
+}
+
 export const ENV = {
   get appId() { return process.env.VITE_APP_ID ?? ""; },
   get cookieSecret() { return process.env.JWT_SECRET ?? ""; },
@@ -7,10 +20,10 @@ export const ENV = {
   get isProduction() { return process.env.NODE_ENV === "production"; },
   get forgeApiUrl() { return process.env.BUILT_IN_FORGE_API_URL ?? ""; },
   get forgeApiKey() { return process.env.BUILT_IN_FORGE_API_KEY ?? ""; },
-  get eodhdApiKey() { return process.env.EODHD_API_KEY ?? ""; },
-  get stripeSecretKey() { return process.env.STRIPE_SECRET_KEY ?? ""; },
+  get eodhdApiKey() { debugEnv(); return process.env.EODHD_API_KEY ?? ""; },
+  get stripeSecretKey() { debugEnv(); return process.env.STRIPE_SECRET_KEY ?? ""; },
   get stripeWebhookSecret() { return process.env.STRIPE_WEBHOOK_SECRET ?? ""; },
-  get finnhubApiKey() { return process.env.FINNHUB_API_KEY ?? ""; },
+  get finnhubApiKey() { debugEnv(); return process.env.FINNHUB_API_KEY ?? ""; },
   get fiscalApiKey() { return process.env.FISCAL_API_KEY ?? ""; },
   get resendApiKey() { return process.env.RESEND_API_KEY ?? ""; },
   get twilioAccountSid() { return process.env.TWILIO_ACCOUNT_SID ?? ""; },
