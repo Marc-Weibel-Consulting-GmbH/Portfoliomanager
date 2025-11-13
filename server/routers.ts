@@ -185,6 +185,35 @@ async function recalculateWeights(changedTicker?: string, isDelete: boolean = fa
 export const appRouter = router({
   system: systemRouter,
 
+  // DEBUG: Endpoint to inspect production environment variables
+  debug: router({
+    envKeys: publicProcedure.query(() => {
+      const keys = Object.keys(process.env).sort();
+      const secretKeys = keys.filter(k => 
+        k.includes('STRIPE') || 
+        k.includes('FINNHUB') || 
+        k.includes('RESEND') || 
+        k.includes('TWILIO') ||
+        k.includes('SECRET') ||
+        k.includes('KEY') ||
+        k.includes('TOKEN')
+      );
+      return {
+        totalKeys: keys.length,
+        allKeys: keys,
+        secretRelatedKeys: secretKeys,
+        nodeEnv: process.env.NODE_ENV,
+        sampleValues: {
+          STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ? `SET(len:${process.env.STRIPE_SECRET_KEY.length})` : 'UNDEFINED',
+          FINNHUB_API_KEY: process.env.FINNHUB_API_KEY ? `SET(len:${process.env.FINNHUB_API_KEY.length})` : 'UNDEFINED',
+          RESEND_API_KEY: process.env.RESEND_API_KEY ? `SET(len:${process.env.RESEND_API_KEY.length})` : 'UNDEFINED',
+          DATABASE_URL: process.env.DATABASE_URL ? `SET(len:${process.env.DATABASE_URL.length})` : 'UNDEFINED',
+          JWT_SECRET: process.env.JWT_SECRET ? `SET(len:${process.env.JWT_SECRET.length})` : 'UNDEFINED',
+        }
+      };
+    }),
+  }),
+
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

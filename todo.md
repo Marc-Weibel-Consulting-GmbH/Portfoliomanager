@@ -1202,3 +1202,10 @@
 - [x] Add --keep-names flag to preserve runtime references - Verified in dist/index.js
 - [ ] Test that STRIPE_SECRET_KEY, FINNHUB_API_KEY load correctly on production - Ready for testing
 - [ ] Verify all user-defined secrets are available at runtime - Ready for testing
+
+
+## DEBUG: Production Environment Variables Inspection (Nov 13, 2025 - 04:15)
+- [x] Create debug endpoint to list all process.env keys on production - trpc.debug.envKeys
+- [ ] Deploy and access endpoint to see available environment variables - Ready for testing
+- [ ] Compare production env vars with development env vars - Awaiting production data
+- [ ] Identify if user-defined secrets are missing or renamed - Awaiting production data
