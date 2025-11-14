@@ -2989,12 +2989,15 @@ export const appRouter = router({
           // Keep totalInvestedCHF for reference (actual money spent)
           const totalInvestedCHF = holding.totalInvestedCHF;
           
-          // Calculate average FX rate
+          // Calculate average FX rate (buy)
           const avgFxRate = holding.totalInvestedLocal > 0 
             ? holding.totalInvestedCHF / holding.totalInvestedLocal
             : 1.0;
           
-
+          // Calculate current FX rate
+          const currentFxRate = currentValueLocal > 0
+            ? currentValueCHF / currentValueLocal
+            : 1.0;
           
           holdingsWithPerformance.push({
             ticker,
@@ -3007,7 +3010,8 @@ export const appRouter = router({
             totalInvestedCHF,
             performanceCHF,
             avgBuyPrice: holding.avgBuyPrice,
-            avgFxRate
+            avgFxRate,
+            currentFxRate
           });
         }
         

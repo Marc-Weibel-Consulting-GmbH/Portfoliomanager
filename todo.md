@@ -1829,3 +1829,11 @@
 - [x] Formel: (Aktueller Wert - Total Investiert) / Total Investiert × 100
 - [x] TOTAL-Zeile verwendet jetzt livePerformance.performance direkt
 - [x] getLivePerformanceHistory verwendet jetzt dieselbe Formel wie calculateLivePerformance
+
+
+## Table Restructuring (Nov 14, 2025)
+- [x] Restructure portfolio positions table columns:
+  - [x] Column 1: "Einstandskurs (FW)" - Line 1: Price in foreign currency (e.g. EUR 58.10), Line 2: FX rate at purchase/live date
+  - [x] Column 2: "Einstandswert (CHF)" - Absolute value at purchase/live date in CHF
+  - [x] Column 3: "Aktueller Kurs (FW)" - Line 1: Current price in foreign currency, Line 2: Current FX rate
+  - [x] Column 4: "Aktueller Wert (CHF)" - Current absolute value in CHF
