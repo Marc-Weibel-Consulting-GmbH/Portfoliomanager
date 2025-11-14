@@ -270,12 +270,54 @@ export async function getSavedPortfolios(userId: number) {
       .orderBy(desc(savedPortfolios.updatedAt));
     
     // Parse portfolioData JSON and extract fields for display
-    return result.map(portfolio => {
+    const portfoliosWithData = await Promise.all(result.map(async portfolio => {
       try {
         const data = JSON.parse(portfolio.portfolioData);
+        
+        // For LIVE portfolios, calculate totalInvested from transactions
+        let totalInvested = data.totalInvested || 0;
+        if (portfolio.isLive) {
+          try {
+            const { portfolioTransactions } = await import("../drizzle/schema");
+            const transactions = await db
+              .select()
+              .from(portfolioTransactions)
+              .where(eq(portfolioTransactions.portfolioId, portfolio.id));
+            
+            // Calculate total invested from transactions
+            let totalDeposits = 0;
+            let totalWithdrawals = 0;
+            let totalBuyAmounts = 0;
+            const liveStartDateStr = portfolio.liveStartDate ? new Date(portfolio.liveStartDate).toISOString().split('T')[0] : null;
+            
+            for (const tx of transactions) {
+              const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+              const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+              const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
+              
+              if (tx.transactionType === 'deposit') {
+                totalDeposits += amount;
+              } else if (tx.transactionType === 'withdrawal') {
+                totalWithdrawals += amount;
+              } else if (tx.transactionType === 'buy') {
+                totalBuyAmounts += amount;
+                if (isInitialPosition) {
+                  totalDeposits += amount; // Initial positions count as deposits
+                }
+              }
+            }
+            
+            // Total invested = deposits - withdrawals (initial positions already counted in deposits)
+            totalInvested = totalDeposits - totalWithdrawals;
+            console.log(`[getSavedPortfolios] Portfolio ${portfolio.id} LIVE totalInvested from transactions: CHF ${totalInvested.toFixed(2)}`);
+          } catch (txError) {
+            console.error(`[Database] Failed to calculate totalInvested from transactions for portfolio ${portfolio.id}:`, txError);
+          }
+        }
+        
         return {
           ...portfolio,
-          totalInvested: data.totalInvested || 0,
+          totalInvested,
           numberOfPositions: data.numberOfPositions || 0,
           avgDividendYield: data.avgDividendYield || 0,
           avgYtdPerformance: data.avgYtdPerformance || 0,
@@ -290,7 +332,9 @@ export async function getSavedPortfolios(userId: number) {
           avgYtdPerformance: 0,
         };
       }
-    });
+    }));
+    
+    return portfoliosWithData;
   } catch (error) {
     console.error("[Database] Failed to get saved portfolios:", error);
     return [];

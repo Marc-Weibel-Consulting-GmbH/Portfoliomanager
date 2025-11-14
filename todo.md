@@ -1708,3 +1708,17 @@
 2. Portfolio-Box Fix: totalDeposits statt totalInvestedInStocks verwenden
 3. Chart Performance Fix: Konsistenz mit Live Performance herstellen
 4. Transaktionssummen hinzufügen
+
+
+## CRITICAL Bug Fixes (Nov 14, 2025 - Final Issues)
+- [x] Fix NVIDIA FX Rate showing 1.0000 instead of 0.7985 (Database cache problem)
+  - Updated NVDA transaction currency from CHF to USD in database
+  - FX rate 0.7985 now displays correctly
+- [x] Fix Portfolio-Box "Total investiert" showing CHF 95'230 instead of 106'884
+  - Clarification: CHF 95'230 is CORRECT (with FX conversion)
+  - CHF 106'884 was wrong (mixed currencies without FX conversion)
+  - Updated getSavedPortfolios() to calculate from transactions for LIVE portfolios
+- [x] Fix Chart Performance showing +0.50% instead of -0.4% (Live Performance top right)
+  - Fixed getLivePerformanceHistory to use CHF amounts (totalAmountCHF)
+  - Fixed calculation logic: totalInvested = deposits - withdrawals
+  - Initial positions now correctly counted as deposits

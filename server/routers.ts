@@ -2989,26 +2989,33 @@ export const appRouter = router({
             (tx: any) => new Date(tx.transactionDate) <= day
           );
           
-          // Calculate holdings and total invested
-          let totalInvested = 0;
+          // Calculate holdings and total invested (using same logic as calculateLivePerformance)
+          let totalDeposits = 0;
+          let totalWithdrawals = 0;
           const holdings: Record<string, number> = {};
+          const liveStartDateStr = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
           
           txUpToDay.forEach((tx: any) => {
             const shares = parseFloat(tx.shares || '0');
-            const amount = parseFloat(tx.totalAmount || '0');
+            const amountCHF = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+            const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+            const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
             
             if (tx.transactionType === 'buy') {
               holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
-              totalInvested += amount;
+              if (isInitialPosition) {
+                totalDeposits += amountCHF;
+              }
             } else if (tx.transactionType === 'sell') {
               holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
-              totalInvested -= amount;
             } else if (tx.transactionType === 'deposit') {
-              totalInvested += amount;
+              totalDeposits += amountCHF;
             } else if (tx.transactionType === 'withdrawal') {
-              totalInvested += amount; // negative
+              totalWithdrawals += amountCHF;
             }
           });
+          
+          const totalInvested = totalDeposits - totalWithdrawals;
           
           // Get historical prices for this day
           const dayStr = day.toISOString().split('T')[0];
