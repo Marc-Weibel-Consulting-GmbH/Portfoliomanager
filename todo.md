@@ -1732,3 +1732,22 @@
   - Optimized historical prices loading (1 query instead of N×M)
   - Result: ~260 queries reduced to 3-4 batch queries
   - Performance improvement: several seconds → sub-second loading
+
+
+## Portfolio Detail Bugs (Nov 14, 2025)
+- [x] Fix transaction total CHF 106'884 vs. positions total CHF 95'231 mismatch
+  - Fixed TransactionHistory.tsx to use totalAmountCHF instead of totalAmount
+  - Now correctly shows CHF 95'231 (with FX conversion)
+- [x] Fix live start date change not updating entry price for single stock
+  - Enhanced portfolioTransactionsRouter.update to fetch historical price when date changes
+  - For buy transactions, pricePerShare now automatically updates to historical price at new date
+  - Recalculates totalAmount and totalAmountCHF with new price and FX rate
+- [x] Fix negative cash position in Portfolio box
+  - NOT A BUG: NESN.SW was bought on 2025-11-01, but Live Start Date is 2025-11-14
+  - NESN.SW is a regular buy (not initial position), so it needs a deposit transaction
+  - Cash position correctly shows -CHF 10'136 (= missing deposit for NESN.SW)
+  - User needs to either: (1) add deposit transaction, or (2) change Live Start Date to 2025-11-01
+- [x] Fix NVIDIA CHF conversion in "aktueller Wert" (current value)
+  - Fixed NVDA transaction currency from CHF to USD in database
+  - FX rate 0.7985 now correctly applied in getHoldingsWithChfPerformance
+  - Current value now correctly converted to CHF

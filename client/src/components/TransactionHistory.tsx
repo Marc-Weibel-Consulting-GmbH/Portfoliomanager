@@ -482,7 +482,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
           </p>
           <p className="text-slate-300 text-sm">
             Gesamt: <span className="font-semibold text-white">
-              CHF {filteredTransactions.reduce((sum, tx) => sum + parseFloat(tx.totalAmount), 0).toFixed(2)}
+              CHF {filteredTransactions.reduce((sum, tx) => sum + parseFloat(tx.totalAmountCHF || tx.totalAmount || '0'), 0).toFixed(2)}
             </span>
           </p>
         </div>

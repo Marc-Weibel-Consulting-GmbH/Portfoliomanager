@@ -143,7 +143,7 @@ export const portfolioTransactionsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { getDb } = await import("../db");
       const { portfolioTransactions } = await import("../../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
+      const { eq, and } = await import("drizzle-orm");
       const { getFxRate } = await import("../fxHelper");
       
       const db = await getDb();
@@ -151,10 +151,50 @@ export const portfolioTransactionsRouter = router({
         throw new Error("Database not available");
       }
       
+      // Get current transaction first to check if it's a buy and get ticker
+      const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
+      if (!currentTx) {
+        throw new Error("Transaction not found");
+      }
+      
       // Build update object
       const updates: any = {};
       
-      if (input.transactionDate) {
+      // If date changed for a buy transaction, fetch historical price
+      let shouldUpdatePrice = false;
+      if (input.transactionDate && currentTx.transactionType === 'buy') {
+        const newDate = new Date(input.transactionDate);
+        const oldDate = new Date(currentTx.transactionDate);
+        
+        // Check if date actually changed
+        if (newDate.toISOString().split('T')[0] !== oldDate.toISOString().split('T')[0]) {
+          updates.transactionDate = newDate;
+          shouldUpdatePrice = true;
+          
+          // Fetch historical price for the new date
+          const { historicalPrices } = await import("../../drizzle/schema");
+          const dateStr = newDate.toISOString().split('T')[0];
+          
+          const [historicalPrice] = await db
+            .select()
+            .from(historicalPrices)
+            .where(
+              and(
+                eq(historicalPrices.ticker, currentTx.ticker),
+                eq(historicalPrices.date, dateStr)
+              )
+            )
+            .limit(1);
+          
+          if (historicalPrice && historicalPrice.close) {
+            // Update price to historical price
+            updates.pricePerShare = historicalPrice.close;
+            console.log(`[Transaction Update] Updated ${currentTx.ticker} price to historical: ${historicalPrice.close} for date ${dateStr}`);
+          } else {
+            console.warn(`[Transaction Update] No historical price found for ${currentTx.ticker} on ${dateStr}`);
+          }
+        }
+      } else if (input.transactionDate) {
         updates.transactionDate = new Date(input.transactionDate);
       }
       
@@ -198,12 +238,10 @@ export const portfolioTransactionsRouter = router({
         }
       }
       // Recalculate totalAmount and FX rate if shares or price changed (buy/sell)
-      else if (input.shares || input.pricePerShare) {
-        // Get current transaction to get missing values
-        const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
+      else if (input.shares || input.pricePerShare || shouldUpdatePrice) {
         
         const shares = parseFloat(input.shares || currentTx.shares || '0');
-        const price = parseFloat(input.pricePerShare || currentTx.pricePerShare || '0');
+        const price = parseFloat(input.pricePerShare || updates.pricePerShare || currentTx.pricePerShare || '0');
         const currency = input.currency || currentTx.currency || 'CHF';
         const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
         
