@@ -223,13 +223,12 @@ export default function PortfolioDetail() {
       const holdings = holdingsByTicker[ticker] || { shares: 0, totalInvested: 0 };
       const currentPrice = parseFloat(stock.currentPrice || stock.price || dbStock?.currentPrice || '0');
       
-      // For live portfolios: prioritize transaction-based shares
+      // For live portfolios: ALWAYS use transaction-based shares (even if 0)
       // For test portfolios: use optimizer shares
-      const hasTransactions = holdings.shares > 0 || holdings.totalInvested > 0;
-      const shares = (portfolio.isLive && hasTransactions) 
+      const shares = portfolio.isLive 
         ? holdings.shares 
         : (parseFloat(stock.shares || '0') || holdings.shares);
-      const totalInvested = (portfolio.isLive && hasTransactions)
+      const totalInvested = portfolio.isLive
         ? holdings.totalInvested
         : (parseFloat(stock.investmentAmount || '0') || holdings.totalInvested);
       const currentValue = shares * currentPrice;
@@ -393,7 +392,11 @@ export default function PortfolioDetail() {
               <CardTitle className="text-slate-400 text-sm font-normal">Positionen</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-white">{portfolio.numberOfPositions}</p>
+              <p className="text-3xl font-bold text-white">
+                {portfolio.isLive 
+                  ? portfolioData.filter((s: any) => s.shares > 0).length 
+                  : portfolio.numberOfPositions}
+              </p>
             </CardContent>
           </Card>
 

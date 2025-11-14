@@ -1768,3 +1768,21 @@
   - Result: Cash position now CHF 0.00 (correct) instead of -CHF 10'136 (wrong)
   - NESN.SW (bought 1 Nov) now correctly treated as initial position even though live start is 14 Nov
   - Formula: Cash = (Deposits from initial positions) - (Buy amounts AFTER live start) + (Sell proceeds) - (Withdrawals)
+
+
+## Portfolio Positions Auto-Removal (Nov 14, 2025)
+- [x] Fix portfolio positions table to automatically remove positions with 0 shares
+  - Fixed PortfolioDetail.tsx to ALWAYS use transaction-based shares for LIVE portfolios
+  - Changed logic from `(portfolio.isLive && hasTransactions) ? holdings.shares : ...` to `portfolio.isLive ? holdings.shares : ...`
+  - Removed `hasTransactions` condition that was causing fallback to Portfolio JSON
+  - Now positions with 0 shares (like NVIDIA after deletion) are automatically filtered out by existing `.filter((stock: any) => stock.shares > 0)`
+  - Result: NVIDIA no longer appears in Portfolio Positionen table after transaction deletion ✅
+- [x] Fix position count in "Positionen" box
+  - Changed from static `portfolio.numberOfPositions` to dynamic calculation for LIVE portfolios
+  - Now uses `portfolioData.filter((s: any) => s.shares > 0).length` for LIVE portfolios
+  - For TEST portfolios: still uses static `portfolio.numberOfPositions`
+  - Result: Shows 12 (correct) instead of 13 (outdated) ✅
+- [ ] Verify Nestlé transaction date change (13.11 → 01.11)
+  - User changed Nestlé transaction date from 13.11 to 01.11
+  - Need to verify if price was automatically updated (should use historical price from 01.11)
+  - Current price in DB: CHF 81.09 (needs verification if this is correct for 01.11)
