@@ -2032,7 +2032,13 @@ export const appRouter = router({
               const price = parseFloat(tx.pricePerShare || '0');
               const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
               
+              // Treat initial transactions as implicit deposits
+              const isInitialTransaction = tx.notes && tx.notes.includes('Initial position');
+              
               if (tx.transactionType === 'buy') {
+                if (isInitialTransaction) {
+                  totalDeposits += amount;  // Initial transactions are implicit deposits
+                }
                 holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
                 totalBuyAmounts += amount;
                 totalInvestedInStocks += amount;
@@ -2054,7 +2060,9 @@ export const appRouter = router({
                   costBasis[tx.ticker].totalShares -= shares;
                 }
               } else if (tx.transactionType === 'deposit') {
-                totalDeposits += amount;
+                if (!isInitialTransaction) {  // Don't double-count initial transactions
+                  totalDeposits += amount;
+                }
               } else if (tx.transactionType === 'withdrawal') {
                 totalDeposits -= Math.abs(amount);  // Reduce deposits by withdrawal amount
               } else if (tx.transactionType === 'dividend') {

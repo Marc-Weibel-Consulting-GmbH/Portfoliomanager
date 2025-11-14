@@ -1598,3 +1598,19 @@
 - ✅ Historische Transaktionen verwenden FX Rates vom Transaktionsdatum
 - ✅ Aktueller Wert verwendet FX Rates von heute
 - ✅ Alle drei Berechnungen (Jahresperformance, Live-Performance, Portfolio-Positionen) sind konsistent
+
+
+## NEW ISSUES (Nov 14, 2025 - 02:05)
+
+### 1. Unrealisierte Gewinne/Verluste stimmen nicht überein
+- [x] Jahresübersicht zeigt: Unrealisierte Gewinne CHF 375.93
+- [x] Absolute Performance: CHF -1'277.40
+- [x] Diese beiden Werte sollten übereinstimmen
+- [x] annualPerformanceRouter Berechnung gefixt: unrealizedGains = currentValueCHF - totalInvestedInStocks
+- [x] Jetzt zeigt Jahresübersicht korrekt: CHF -1'277.41 ✅
+
+### 2. Live-Performance auf Portfolio-Übersicht falsch
+- [x] Portfolio-Übersicht (oben rechts) zeigt falsche Live-Performance
+- [x] Sollte -1.3% sein (wie im Portfolio Detail)
+- [x] savedPortfolios.list Query gefixt: Initial Transactions als implizite Deposits behandeln
+- [x] Jetzt zeigt Portfolio-Übersicht korrekt: -1.3% ✅

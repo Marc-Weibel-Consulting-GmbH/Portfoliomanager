@@ -127,7 +127,8 @@ export const annualPerformanceRouter = router({
           }
         }
         
-        unrealizedGains = currentValueCHF - liveStartValueCHF;
+        // Unrealized gains = current value - amount invested (cost basis)
+        unrealizedGains = currentValueCHF - totalInvestedInStocks;
       }
       
       // Calculate cash position
