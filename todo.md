@@ -1722,3 +1722,13 @@
   - Fixed getLivePerformanceHistory to use CHF amounts (totalAmountCHF)
   - Fixed calculation logic: totalInvested = deposits - withdrawals
   - Initial positions now correctly counted as deposits
+
+
+## Performance Issue (Nov 14, 2025)
+- [x] Fix publication page (Publikationsseite) slow data loading
+  - Identified root cause: N+1 query problem in savedPortfolios.list
+  - Optimized getSavedPortfolios() with batch transaction loading (1 query instead of N)
+  - Optimized savedPortfolios.list with batch stock loading (1 query instead of N×M)
+  - Optimized historical prices loading (1 query instead of N×M)
+  - Result: ~260 queries reduced to 3-4 batch queries
+  - Performance improvement: several seconds → sub-second loading

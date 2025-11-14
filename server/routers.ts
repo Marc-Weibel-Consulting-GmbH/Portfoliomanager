@@ -2080,6 +2080,45 @@ export const appRouter = router({
       const { getSavedPortfolios, getPortfolioTransactions, getStockByTicker, getDb } = await import("./db");
       const portfolios = await getSavedPortfolios(ctx.user.id);
       
+      // Batch load all stocks and historical prices for performance optimization
+      const db = await getDb();
+      if (!db) return portfolios;
+      
+      const { stocks: stocksTable, historicalPrices } = await import("../drizzle/schema");
+      const { inArray, and, eq } = await import("drizzle-orm");
+      
+      // Get all unique tickers from all live portfolios
+      const livePortfolios = portfolios.filter(p => p.isLive && p.liveStartDate);
+      const allTickers = new Set<string>();
+      const liveStartDates = new Set<string>();
+      
+      for (const portfolio of livePortfolios) {
+        const transactions = await getPortfolioTransactions(portfolio.id);
+        transactions.forEach((tx: any) => allTickers.add(tx.ticker));
+        if (portfolio.liveStartDate) {
+          liveStartDates.add(new Date(portfolio.liveStartDate).toISOString().split('T')[0]);
+        }
+      }
+      
+      // Batch load all stocks
+      const allStocksData = allTickers.size > 0
+        ? await db.select().from(stocksTable).where(inArray(stocksTable.ticker, Array.from(allTickers)))
+        : [];
+      const stocksMap = new Map(allStocksData.map(s => [s.ticker, s]));
+      
+      // Batch load all historical prices
+      const allHistoricalPrices = (allTickers.size > 0 && liveStartDates.size > 0)
+        ? await db.select().from(historicalPrices).where(
+            and(
+              inArray(historicalPrices.ticker, Array.from(allTickers)),
+              inArray(historicalPrices.date, Array.from(liveStartDates))
+            )
+          )
+        : [];
+      const historicalPricesMap = new Map(
+        allHistoricalPrices.map(hp => [`${hp.ticker}_${hp.date}`, hp])
+      );
+      
       // Calculate live performance for each live portfolio
       const portfoliosWithPerformance = await Promise.all(
         portfolios.map(async (portfolio) => {
@@ -2164,31 +2203,22 @@ export const appRouter = router({
             
             for (const [ticker, shares] of Object.entries(holdings)) {
               if (shares > 0) {
-                const stock = await getStockByTicker(ticker);
+                // Use pre-loaded stock data
+                const stock = stocksMap.get(ticker);
                 const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
-                
-                // Get currency for this stock
-                const currency = await getStockCurrency(ticker);
+                const currency = stock?.currency || 'CHF';
                 
                 // Convert current value to CHF
                 const currentValueLocal = shares * currentPrice;
                 const currentValueInCHF = await convertToCHF(currentValueLocal, currency, todayStr);
                 currentValueCHF += currentValueInCHF;
                 
-                // Get historical price at live start date
-                const historicalPrice = await db
-                  .select()
-                  .from(historicalPrices)
-                  .where(
-                    and(
-                      eq(historicalPrices.ticker, ticker),
-                      eq(historicalPrices.date, liveStartDateStr)
-                    )
-                  )
-                  .limit(1);
+                // Use pre-loaded historical price
+                const historicalPriceKey = `${ticker}_${liveStartDateStr}`;
+                const historicalPrice = historicalPricesMap.get(historicalPriceKey);
                 
-                const liveStartPrice = historicalPrice[0]?.close 
-                  ? parseFloat(historicalPrice[0].close)
+                const liveStartPrice = historicalPrice?.close 
+                  ? parseFloat(historicalPrice.close)
                   : currentPrice;
                 
                 // Convert live start value to CHF

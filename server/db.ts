@@ -269,26 +269,47 @@ export async function getSavedPortfolios(userId: number) {
       .where(eq(savedPortfolios.userId, userId))
       .orderBy(desc(savedPortfolios.updatedAt));
     
+    // Batch load all transactions for LIVE portfolios (performance optimization)
+    const livePortfolios = result.filter(p => p.isLive);
+    const transactionsByPortfolio: Record<number, any[]> = {};
+    
+    if (livePortfolios.length > 0) {
+      try {
+        const { portfolioTransactions } = await import("../drizzle/schema");
+        const { inArray } = await import("drizzle-orm");
+        
+        const allTransactions = await db
+          .select()
+          .from(portfolioTransactions)
+          .where(inArray(portfolioTransactions.portfolioId, livePortfolios.map(p => p.id)));
+        
+        // Group transactions by portfolio ID
+        allTransactions.forEach(tx => {
+          if (!transactionsByPortfolio[tx.portfolioId]) {
+            transactionsByPortfolio[tx.portfolioId] = [];
+          }
+          transactionsByPortfolio[tx.portfolioId].push(tx);
+        });
+      } catch (err) {
+        console.error('[getSavedPortfolios] Failed to batch load transactions:', err);
+      }
+    }
+    
     // Parse portfolioData JSON and extract fields for display
-    const portfoliosWithData = await Promise.all(result.map(async portfolio => {
+    const portfoliosWithData = result.map(portfolio => {
       try {
         const data = JSON.parse(portfolio.portfolioData);
         
         // For LIVE portfolios, calculate totalInvested from transactions
         let totalInvested = data.totalInvested || 0;
-        if (portfolio.isLive) {
+        if (portfolio.isLive && transactionsByPortfolio[portfolio.id]) {
           try {
-            const { portfolioTransactions } = await import("../drizzle/schema");
-            const transactions = await db
-              .select()
-              .from(portfolioTransactions)
-              .where(eq(portfolioTransactions.portfolioId, portfolio.id));
+            const transactions = transactionsByPortfolio[portfolio.id];
+            const liveStartDateStr = portfolio.liveStartDate ? new Date(portfolio.liveStartDate).toISOString().split('T')[0] : null;
             
             // Calculate total invested from transactions
             let totalDeposits = 0;
             let totalWithdrawals = 0;
-            let totalBuyAmounts = 0;
-            const liveStartDateStr = portfolio.liveStartDate ? new Date(portfolio.liveStartDate).toISOString().split('T')[0] : null;
             
             for (const tx of transactions) {
               const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
@@ -299,19 +320,15 @@ export async function getSavedPortfolios(userId: number) {
                 totalDeposits += amount;
               } else if (tx.transactionType === 'withdrawal') {
                 totalWithdrawals += amount;
-              } else if (tx.transactionType === 'buy') {
-                totalBuyAmounts += amount;
-                if (isInitialPosition) {
-                  totalDeposits += amount; // Initial positions count as deposits
-                }
+              } else if (tx.transactionType === 'buy' && isInitialPosition) {
+                totalDeposits += amount; // Initial positions count as deposits
               }
             }
             
-            // Total invested = deposits - withdrawals (initial positions already counted in deposits)
+            // Total invested = deposits - withdrawals
             totalInvested = totalDeposits - totalWithdrawals;
-            console.log(`[getSavedPortfolios] Portfolio ${portfolio.id} LIVE totalInvested from transactions: CHF ${totalInvested.toFixed(2)}`);
           } catch (txError) {
-            console.error(`[Database] Failed to calculate totalInvested from transactions for portfolio ${portfolio.id}:`, txError);
+            console.error(`[getSavedPortfolios] Failed to calculate totalInvested for portfolio ${portfolio.id}:`, txError);
           }
         }
         
@@ -332,7 +349,7 @@ export async function getSavedPortfolios(userId: number) {
           avgYtdPerformance: 0,
         };
       }
-    }));
+    });
     
     return portfoliosWithData;
   } catch (error) {
