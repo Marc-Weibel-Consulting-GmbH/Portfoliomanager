@@ -1782,7 +1782,18 @@
   - Now uses `portfolioData.filter((s: any) => s.shares > 0).length` for LIVE portfolios
   - For TEST portfolios: still uses static `portfolio.numberOfPositions`
   - Result: Shows 12 (correct) instead of 13 (outdated) ✅
-- [ ] Verify Nestlé transaction date change (13.11 → 01.11)
+- [x] Verify Nestlé transaction date change (13.11 → 01.11) - COMPLETED
   - User changed Nestlé transaction date from 13.11 to 01.11
-  - Need to verify if price was automatically updated (should use historical price from 01.11)
-  - Current price in DB: CHF 81.09 (needs verification if this is correct for 01.11)
+  - Nov 1 was Saturday (no trading), correct price is from Nov 3: CHF 77.70
+  - Updated transaction price to CHF 77.70 (correct historical price)
+
+
+## Chart & Live Performance Inconsistencies (Nov 14, 2025) - COMPLETED
+- [x] Fix chart performance showing +12.52% instead of -0.41%
+  - Problem: Chart didn't include sell proceeds and dividends in calculation
+  - Fixed: Updated getLivePerformanceHistory to include cash position (deposits - buys + sells + dividends)
+  - Now uses same formula as calculateLivePerformance: (totalCurrentValue - totalInvested) / totalInvested
+- [x] Fix portfolio positions live performance showing +0.0% instead of -0.4%
+  - Problem: Used buy prices as baseline instead of live start date prices
+  - Fixed: getHoldingsWithChfPerformance now fetches historical prices from liveStartDate
+  - Performance = (Current Value + Realized Gains - Live Start Value) / Live Start Value * 100

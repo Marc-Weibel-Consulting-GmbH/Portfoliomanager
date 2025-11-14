@@ -2933,7 +2933,8 @@ export const appRouter = router({
         }
         
         // Calculate CHF-converted performance for each holding
-        // liveStartDate and liveStartDateStr already declared at the start of this procedure
+        // Use liveStartDate as baseline for performance calculation
+        const liveStartDateStr = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
         const todayStr = new Date().toISOString().split('T')[0];
         
         const holdingsWithPerformance = [];
@@ -2950,17 +2951,43 @@ export const appRouter = router({
           // Convert to CHF using today's rate
           const currentValueCHF = await convertToCHF(currentValueLocal, holding.currency, todayStr);
           
-          // Use totalInvestedCHF from transactions (already converted with historical FX rates)
-          const totalInvestedCHF = holding.totalInvestedCHF;
+          // Get price at liveStartDate for baseline
+          const { historicalPrices } = await import("../drizzle/schema");
+          const { eq, and } = await import("drizzle-orm");
+          
+          let liveStartPrice = currentPrice; // fallback
+          if (db) {
+            const priceData = await db
+              .select()
+              .from(historicalPrices)
+              .where(
+                and(
+                  eq(historicalPrices.ticker, ticker),
+                  eq(historicalPrices.date, liveStartDateStr)
+                )
+              )
+              .limit(1);
+            
+            if (priceData.length > 0) {
+              liveStartPrice = parseFloat(priceData[0].close || '0');
+            }
+          }
+          
+          // Calculate live start value in CHF
+          const liveStartValueLocal = holding.shares * liveStartPrice;
+          const liveStartValueCHF = await convertToCHF(liveStartValueLocal, holding.currency, liveStartDateStr);
           
           // Get realized gains for this ticker
           const realizedGains = realizedGainsByTicker[ticker] || 0;
           
-          // Calculate CHF performance including realized gains:
-            // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
-            const performanceCHF = totalInvestedCHF > 0
-              ? ((currentValueCHF + realizedGains - totalInvestedCHF) / totalInvestedCHF) * 100
-              : 0;
+          // Calculate CHF performance from live start date:
+          // Performance = (Current Value + Realized Gains - Live Start Value) / Live Start Value * 100
+          const performanceCHF = liveStartValueCHF > 0
+            ? ((currentValueCHF + realizedGains - liveStartValueCHF) / liveStartValueCHF) * 100
+            : 0;
+          
+          // Keep totalInvestedCHF for reference (actual money spent)
+          const totalInvestedCHF = holding.totalInvestedCHF;
           
           // Calculate average FX rate
           const avgFxRate = holding.totalInvestedLocal > 0 
@@ -3038,6 +3065,9 @@ export const appRouter = router({
           // Calculate holdings and total invested (using same logic as calculateLivePerformance)
           let totalDeposits = 0;
           let totalWithdrawals = 0;
+          let totalBuyAmounts = 0;
+          let totalSellProceeds = 0;
+          let totalDividends = 0;
           const holdings: Record<string, number> = {};
           const liveStartDateStr = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
           
@@ -3049,15 +3079,19 @@ export const appRouter = router({
             
             if (tx.transactionType === 'buy') {
               holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+              totalBuyAmounts += amountCHF;
               if (isInitialPosition) {
                 totalDeposits += amountCHF;
               }
             } else if (tx.transactionType === 'sell') {
               holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+              totalSellProceeds += amountCHF;
             } else if (tx.transactionType === 'deposit') {
               totalDeposits += amountCHF;
             } else if (tx.transactionType === 'withdrawal') {
               totalWithdrawals += amountCHF;
+            } else if (tx.transactionType === 'dividend') {
+              totalDividends += amountCHF;
             }
           });
           
@@ -3069,6 +3103,10 @@ export const appRouter = router({
           
           for (const [ticker, shares] of Object.entries(holdings)) {
             if (shares > 0) {
+              // Get stock currency
+              const { getStockCurrency } = await import("./fxHelper");
+              const currency = await getStockCurrency(ticker);
+              
               // Try to get historical price for this day
               const priceData = await db
                 .select()
@@ -3091,19 +3129,30 @@ export const appRouter = router({
                 price = stock ? parseFloat(stock.currentPrice || '0') : 0;
               }
               
-              portfolioValue += shares * price;
+              // Convert to CHF if needed
+              let priceCHF = price;
+              if (currency !== 'CHF') {
+                const { convertToCHF } = await import("./fxHelper");
+                priceCHF = await convertToCHF(price, currency, dayStr);
+              }
+              
+              portfolioValue += shares * priceCHF;
             }
           }
           
-          // Calculate performance
+          // Calculate cash position (same as calculateLivePerformance)
+          const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends;
+          const totalCurrentValue = portfolioValue + cashPosition;
+          
+          // Calculate performance (same formula as calculateLivePerformance)
           const performance = totalInvested > 0
-            ? ((portfolioValue - totalInvested) / totalInvested) * 100
+            ? ((totalCurrentValue - totalInvested) / totalInvested) * 100
             : 0;
           
           dataPoints.push({
             date: dayStr,
             invested: totalInvested,
-            value: portfolioValue,
+            value: totalCurrentValue,
             performance
           });
         }
