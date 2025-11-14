@@ -515,7 +515,8 @@ export default function PortfolioDetail() {
                     <th className="text-left py-3 px-2 text-slate-400 font-medium">Name</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Stückzahl</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Gewicht</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Preis (FW)</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Einstand (FW)</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktuell (FW)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Betrag (FW)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">FX Rate</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Investiert (CHF)</th>
@@ -529,7 +530,7 @@ export default function PortfolioDetail() {
                   {/* Cash Position Row - First */}
                   <tr className="border-b-2 border-slate-600 bg-slate-700/20">
                     <td className="py-3 px-2 text-yellow-400 font-semibold" colSpan={2}>💰 Cash</td>
-                    <td className="py-3 px-2 text-right" colSpan={5}></td>
+                    <td className="py-3 px-2 text-right" colSpan={6}></td>
                     <td className="py-3 px-2 text-right" colSpan={1}></td>
                     <td className="py-3 px-2 text-yellow-400 text-right font-semibold" colSpan={1}>
                       CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
@@ -546,7 +547,24 @@ export default function PortfolioDetail() {
                         {stock.shares ? stock.shares.toFixed(2) : '0.00'}
                       </td>
                       <td className="py-3 px-2 text-slate-300 text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
-                      {/* Preis (FW) */}
+                      {/* Einstandspreis (FW) - Average Buy Price from Transactions */}
+                      <td className="py-3 px-2 text-blue-300 text-right">
+                        {(() => {
+                          if (Boolean(portfolio.isLive)) {
+                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                            if (chfHolding && chfHolding.avgBuyPrice) {
+                              return `${stock.currency || 'CHF'} ${chfHolding.avgBuyPrice.toFixed(2)}`;
+                            }
+                          }
+                          // Fallback for test portfolios or if no transaction data
+                          const holding = holdingsByTicker[stock.ticker];
+                          if (holding && holding.avgBuyPrice > 0) {
+                            return `${stock.currency || 'CHF'} ${holding.avgBuyPrice.toFixed(2)}`;
+                          }
+                          return `${stock.currency || 'CHF'} -`;
+                        })()}
+                      </td>
+                      {/* Aktueller Preis (FW) */}
                       <td className="py-3 px-2 text-slate-300 text-right">
                         {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(2)}
                       </td>
@@ -631,7 +649,7 @@ export default function PortfolioDetail() {
                   {/* Total Row */}
                   <tr className="border-t border-slate-600 bg-slate-700/30">
                     <td className="py-3 px-2 text-white font-bold" colSpan={2}>TOTAL</td>
-                    <td className="py-3 px-2 text-right" colSpan={5}></td>
+                    <td className="py-3 px-2 text-right" colSpan={6}></td>
                     <td className="py-3 px-2 text-blue-400 text-right font-bold">
                       {(() => {
                         if (Boolean(portfolio.isLive)) {
@@ -681,6 +699,11 @@ export default function PortfolioDetail() {
                     <td colSpan={1}></td>
                     <td className={`py-3 px-2 text-right font-bold ${
                       (() => {
+                        // For LIVE portfolios, use livePerformance data (CHF-converted)
+                        if (Boolean(portfolio.isLive) && livePerformance) {
+                          return livePerformance.performance >= 0 ? 'text-green-400' : 'text-red-400';
+                        }
+                        // For TEST portfolios, calculate from transactions
                         const stocksValue = portfolioData
                           .filter((s: any) => s.shares > 0)
                           .reduce((sum, s) => sum + (s.currentValue || 0), 0);
@@ -704,7 +727,6 @@ export default function PortfolioDetail() {
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        // Treat all buys as implicit deposits
                         const totalCapital = deposits - withdrawals + buyAmounts;
                         const cash = totalCapital - buyAmounts + sellAmounts;
                         const totalValue = stocksValue + cash;
@@ -712,6 +734,12 @@ export default function PortfolioDetail() {
                       })()
                     }`}>
                       {(() => {
+                        // For LIVE portfolios, use livePerformance data (single source of truth)
+                        if (Boolean(portfolio.isLive) && livePerformance) {
+                          const perf = livePerformance.performance;
+                          return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
+                        }
+                        // For TEST portfolios, calculate from transactions
                         const stocksValue = portfolioData
                           .filter((s: any) => s.shares > 0)
                           .reduce((sum, s) => sum + (s.currentValue || 0), 0);
@@ -735,7 +763,6 @@ export default function PortfolioDetail() {
                             const price = parseFloat(tx.pricePerShare || '0');
                             return sum + (shares * price);
                           }, 0);
-                        // Treat all buys as implicit deposits
                         const totalCapital = deposits - withdrawals + buyAmounts;
                         const cash = totalCapital - buyAmounts + sellAmounts;
                         const totalValue = stocksValue + cash;

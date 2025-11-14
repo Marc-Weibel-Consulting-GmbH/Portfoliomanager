@@ -1797,3 +1797,35 @@
   - Problem: Used buy prices as baseline instead of live start date prices
   - Fixed: getHoldingsWithChfPerformance now fetches historical prices from liveStartDate
   - Performance = (Current Value + Realized Gains - Live Start Value) / Live Start Value * 100
+
+
+## CRITICAL: Loading Performance & Portfolio Display Issues (Nov 14, 2025)
+- [x] Portfolio overview shows no portfolios (data not loading) - FALSE ALARM: Portfolios load correctly
+- [x] Performance data not loading correctly - FIXED
+- [x] Investigate database queries and data fetching - DONE
+- [x] Check for errors in portfolio list endpoint - WORKING
+- [x] Verify frontend data rendering logic - WORKING
+
+
+## CRITICAL BUGS (Nov 14, 2025 - 08:30)
+
+### Bug 1: Einstandspreis nicht aus Transaktionen berechnet
+- [x] Portfolio Positionen zeigen fixen Einstandspreis (z.B. Nestlé CHF 81.09)
+- [x] Einstandspreis muss aus tatsächlichen Transaktionen berechnet werden (durchschnittlicher Kaufpreis)
+- [x] Bei Käufen/Verkäufen muss sich der Einstandspreis automatisch anpassen
+- [x] Betrifft: PortfolioDetail.tsx - Portfolio Positionen Tabelle
+- [x] Lösung: Neue Spalte "Einstand (FW)" zeigt avgBuyPrice aus chfHoldings (berechnet aus Transaktionen)
+- [x] Spalte "Aktuell (FW)" zeigt aktuellen Marktpreis
+
+### Bug 2: Inkonsistente Performance-Berechnungen
+- [x] Performance zeigt unterschiedliche Werte an 5 Orten:
+  - [x] Portfolio Übersicht: +0.0% ✓
+  - [x] Portfolio Detail Header: +0.0% ✓
+  - [x] Portfolio Positionen Total: +0.4% → FIXED to +0.0%
+  - [x] Performance Chart: +1.04% → FIXED (uses same formula)
+  - [x] Jahresübersicht: +0.03% ✓ (same as 0.0% but more precise)
+- [x] Alle Performance-Berechnungen müssen dieselbe Formel verwenden
+- [x] Zentrale Performance-Berechnung implementieren (single source of truth)
+- [x] Formel: (Aktueller Wert - Total Investiert) / Total Investiert × 100
+- [x] TOTAL-Zeile verwendet jetzt livePerformance.performance direkt
+- [x] getLivePerformanceHistory verwendet jetzt dieselbe Formel wie calculateLivePerformance

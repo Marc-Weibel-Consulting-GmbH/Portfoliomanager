@@ -3095,8 +3095,6 @@ export const appRouter = router({
             }
           });
           
-          const totalInvested = totalDeposits - totalWithdrawals;
-          
           // Get historical prices for this day
           const dayStr = day.toISOString().split('T')[0];
           let portfolioValue = 0;
@@ -3141,17 +3139,19 @@ export const appRouter = router({
           }
           
           // Calculate cash position (same as calculateLivePerformance)
-          const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends;
+          const cashPosition = totalDeposits - totalBuyAmounts + totalSellProceeds + totalDividends - totalWithdrawals;
           const totalCurrentValue = portfolioValue + cashPosition;
           
           // Calculate performance (same formula as calculateLivePerformance)
-          const performance = totalInvested > 0
-            ? ((totalCurrentValue - totalInvested) / totalInvested) * 100
+          // Performance = (Current Value - Total Deposits) / Total Deposits × 100
+          const totalCapital = totalDeposits - totalWithdrawals;
+          const performance = totalCapital > 0
+            ? ((totalCurrentValue - totalCapital) / totalCapital) * 100
             : 0;
           
           dataPoints.push({
             date: dayStr,
-            invested: totalInvested,
+            invested: totalCapital,
             value: totalCurrentValue,
             performance
           });
