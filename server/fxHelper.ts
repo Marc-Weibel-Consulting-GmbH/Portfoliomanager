@@ -42,11 +42,17 @@ export async function getFxRate(date: string, currencyPair: string): Promise<num
     }
     
     // If exact date not found, try to find nearest previous date
+    const { desc, lte } = await import('drizzle-orm');
     const [nearestRate] = await db
       .select()
       .from(exchangeRates)
-      .where(eq(exchangeRates.currencyPair, currencyPair))
-      .orderBy(exchangeRates.date)
+      .where(
+        and(
+          eq(exchangeRates.currencyPair, currencyPair),
+          lte(exchangeRates.date, date)
+        )
+      )
+      .orderBy(desc(exchangeRates.date))
       .limit(1);
     
     if (nearestRate) {

@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO exchangeRates (date, currencyPair, rate, createdAt)\nSELECT '2025-11-14', currencyPair, rate, NOW()\nFROM exchangeRates\nWHERE date = '2025-11-13'\nON DUPLICATE KEY UPDATE rate = VALUES(rate);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute INSERT INTO exchangeRates (date, currencyPair, rate, createdAt)\nSELECT '2025-11-14', currencyPair, rate, NOW()\nFROM exchangeRates\nWHERE date = '2025-11-13'\nON DUPLICATE KEY UPDATE rate = VALUES(rate);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 61
+}

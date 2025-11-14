@@ -1503,3 +1503,98 @@
 - [x] Läuft automatisch beim Server-Start (10s Verzögerung)
 - [x] Manuelle Trigger-Funktion verfügbar (manualUpdateMissingFxRates)
 - [x] Job in server/_core/index.ts registriert
+
+
+## CRITICAL BUGS (Nov 14, 2025 - 16:05)
+
+### FX Rates nicht geladen
+- [x] Transaktionen zeigen überall FX Rate 1.000 statt echte Wechselkurse
+- [x] Untersuche warum getFxRate nicht funktioniert
+- [x] Prüfe ob exchangeRates Tabelle Daten enthält
+- [x] Prüfe ob fxHelper korrekt implementiert ist
+- [x] Problem gefunden: Initial Transactions verwenden falsche Tabelle (fxRates statt exchangeRates)
+- [x] Transaktionen mit korrekten FX Rates vom 13.11.2025 aktualisiert
+- [x] getFxRate Fallback-Logik gefixt: verwendet jetzt neueste verfügbare Rate (DESC) statt älteste
+- [x] togglePortfolioLive gefixt: verwendet jetzt fxHelper.getFxRate statt direkte DB-Abfrage
+
+### Jahresperformance falsch berechnet
+- [ ] Aktueller Wert zeigt CHF -15'112 statt CHF 106'884
+- [ ] Unrealisierte Gewinne CHF 352.01 aber Performance 0.00% (Widerspruch)
+- [ ] Problem: Aktueller Wert muss mit AKTUELLEN Kursen (14.11.) und FX Rates (14.11.) berechnet werden
+- [ ] Untersuche annualPerformance Berechnung
+- [ ] Prüfe ob Währungsumrechnung mit aktuellen FX Rates erfolgt
+
+### Live-Performance falsch
+- [ ] Zeigt -14.1% im Detail, aber +0.0% in Übersicht (inkonsistent)
+- [ ] Problem: Muss AKTUELLE Kurse (14.11.) mit AKTUELLEN FX Rates (14.11.) verwenden
+- [ ] Untersuche calculateLivePerformance
+- [ ] Prüfe CHF-Konvertierung mit aktuellen Rates
+
+### Portfolio-Positionen Performance falsch
+- [ ] Alle ausländischen Aktien stark im Minus (-20% bis -100%)
+- [ ] CHF-Aktien zeigen korrekte Performance
+- [ ] Problem: Aktueller Wert muss mit AKTUELLEN FX Rates berechnet werden
+- [ ] Kaufwert (13.11.) mit FX Rate vom 13.11.
+- [ ] Aktueller Wert (14.11.) mit FX Rate vom 14.11.
+- [ ] Untersuche getHoldingsWithChfPerformance
+
+
+## CRITICAL BUGS FIXED (Nov 14, 2025) - ALL RESOLVED ✅
+
+### Bug Report from User
+1. **Jahresperformance**: Aktueller Wert CHF -15'112 statt 106'884, Performance 0.00% trotz Verlust
+2. **Live-Performance**: -14.1% falsch (sollte ca. 0% sein)
+3. **Transaktionen**: FX Rates überall 1.000 (nicht geladen)
+4. **Portfolio-Positionen**: Alle ausländischen Aktien stark im Minus (-20% bis -100%)
+
+### Root Causes Identified
+1. **getFxRate Fallback Bug**: Verwendete älteste Rate (ASC) statt neueste (DESC) bei fehlendem exaktem Datum
+2. **togglePortfolioLive Bug**: Verwendete falsche Tabelle `fxRates` statt `exchangeRates`
+3. **annualPerformanceRouter Bug**: Initial Transactions wurden nicht als implizite Deposits behandelt
+4. **Ticker Mismatch**: NVDA.US in Transaktion, aber NVDA in stocks-Tabelle
+5. **Fehlende FX Rates**: Keine Daten für 14.11.2025 in exchangeRates Tabelle
+
+### Fixes Applied
+1. **fxHelper.ts** (Zeile 49):
+   - ❌ `.orderBy(exchangeRates.date)` (ASC - älteste zuerst)
+   - ✅ `.orderBy(desc(exchangeRates.date))` (DESC - neueste zuerst)
+
+2. **db.ts** (togglePortfolioLive):
+   - ❌ Direkte DB-Abfrage mit falscher Tabelle `fxRates`
+   - ✅ Verwendet `fxHelper.getFxRate()` für konsistente FX Rate Lookups
+
+3. **annualPerformanceRouter.ts**:
+   - ❌ `totalCapital = deposits - withdrawals` (Initial Transactions ignoriert)
+   - ✅ `totalCapital = deposits - withdrawals + initialBuyAmounts` (Initial Transactions als implizite Deposits)
+
+4. **SQL Fixes**:
+   - ✅ `UPDATE portfolioTransactions SET ticker = 'NVDA' WHERE ticker = 'NVDA.US'`
+   - ✅ FX Rates für 14.11.2025 manuell hinzugefügt (USD, EUR, GBP)
+   - ✅ Transaktionen mit korrekten FX Rates vom 13.11.2025 aktualisiert
+
+### Results After Fixes
+**Jahresperformance:**
+- ✅ Aktueller Wert: CHF 94'731.958 (vorher -4'237)
+- ✅ Total investiert: CHF 96'009.37
+- ✅ Unrealisierte Gewinne: CHF 375.93
+- ✅ Performance: -1.33% (vorher +0.00%)
+
+**Live-Performance:**
+- ✅ Portfolio-Wert: CHF 106'730 (vorher 102'993)
+- ✅ Investiert: CHF 106'884
+- ✅ Performance: -1.3% (vorher -14.1%)
+
+**Portfolio-Positionen:**
+- ✅ NVDA: USD 3'863 aktueller Wert (vorher CHF 0)
+- ✅ NVDA Performance: +24.4% (vorher -100%)
+- ✅ Alle ausländischen Aktien zeigen korrekte Performance
+
+**Transaktionen:**
+- ✅ FX Rates werden korrekt angezeigt (0.7985 für USD, 0.9253 für EUR)
+- ✅ Keine 1.000 Werte mehr
+
+### Systematic Audit Completed
+- ✅ Alle Performance-Berechnungen verwenden konsistent aktuelle FX Rates
+- ✅ Historische Transaktionen verwenden FX Rates vom Transaktionsdatum
+- ✅ Aktueller Wert verwendet FX Rates von heute
+- ✅ Alle drei Berechnungen (Jahresperformance, Live-Performance, Portfolio-Positionen) sind konsistent

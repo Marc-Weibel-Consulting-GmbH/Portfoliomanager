@@ -39,14 +39,26 @@ export const annualPerformanceRouter = router({
       const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
       
       // Process transactions to calculate holdings and total invested
+      // For live portfolios, all buy transactions on the liveStartDate are treated as initial positions (implicit deposits)
+      const liveStartDate = portfolio.liveStartDate ? new Date(portfolio.liveStartDate) : null;
+      const liveStartDateStr = liveStartDate ? liveStartDate.toISOString().split('T')[0] : null;
+      
       transactions.forEach((tx: any) => {
         const shares = parseFloat(tx.shares || '0');
         const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+        const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+        const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
         
         if (tx.transactionType === 'buy') {
           holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
           totalBuyAmounts += amount;
           totalInvestedInStocks += amount;
+          
+          // Treat initial positions as implicit deposits (capital brought into the portfolio)
+          if (isInitialPosition) {
+            totalDeposits += amount;
+          }
+          
           // Track cost basis
           if (!costBasis[tx.ticker]) {
             costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };

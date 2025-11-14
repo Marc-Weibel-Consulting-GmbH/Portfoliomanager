@@ -572,25 +572,10 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
               
               if (currency !== 'CHF') {
                 try {
-                  const fxPair = `${currency}CHF`;
-                  const fxRateData = await db
-                    .select()
-                    .from(fxRates)
-                    .where(
-                      and(
-                        eq(fxRates.pair, fxPair),
-                        eq(fxRates.date, liveStartDateStr)
-                      )
-                    )
-                    .limit(1);
-                  
-                  if (fxRateData[0]?.rate) {
-                    fxRate = parseFloat(fxRateData[0].rate);
-                    totalAmountCHF = (parseFloat(totalAmount) * fxRate).toFixed(2);
-                    console.log(`[ToggleLive] FX rate for ${fxPair} on ${liveStartDateStr}: ${fxRate}`);
-                  } else {
-                    console.warn(`[ToggleLive] No FX rate found for ${fxPair} on ${liveStartDateStr}`);
-                  }
+                  const { getFxRate } = await import('./fxHelper');
+                  fxRate = await getFxRate(liveStartDateStr, `${currency}CHF`);
+                  totalAmountCHF = (parseFloat(totalAmount) * fxRate).toFixed(2);
+                  console.log(`[ToggleLive] FX rate for ${currency}CHF on ${liveStartDateStr}: ${fxRate}`);
                 } catch (err) {
                   console.error(`[ToggleLive] Error fetching FX rate for ${currency}:`, err);
                 }

@@ -1,0 +1,73 @@
+{
+  "query": "SELECT id, ticker, currency, fxRate, pricePerShare, shares, DATE(transactionDate) as txDate \nFROM portfolioTransactions \nWHERE currency IN ('USD', 'EUR', 'GBP') \nAND (fxRate IS NULL OR fxRate = '' OR fxRate = '0' OR fxRate = '1' OR fxRate = '1.0' OR fxRate = '1.00' OR fxRate = '1.000')\nLIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, ticker, currency, fxRate, pricePerShare, shares, DATE(transactionDate) as txDate \nFROM portfolioTransactions \nWHERE currency IN ('USD', 'EUR', 'GBP') \nAND (fxRate IS NULL OR fxRate = '' OR fxRate = '0' OR fxRate = '1' OR fxRate = '1.0' OR fxRate = '1.00' OR fxRate = '1.000')\nLIMIT 20;",
+  "rows": [
+    {
+      "id": "480004",
+      "ticker": "MONC.MI",
+      "currency": "EUR",
+      "fxRate": "1",
+      "pricePerShare": "58.1",
+      "shares": "141",
+      "txDate": "2025-11-13"
+    },
+    {
+      "id": "480005",
+      "ticker": "EOSE",
+      "currency": "USD",
+      "fxRate": "1",
+      "pricePerShare": "15.25",
+      "shares": "366",
+      "txDate": "2025-11-13"
+    },
+    {
+      "id": "480006",
+      "ticker": "TSM",
+      "currency": "USD",
+      "fxRate": "1",
+      "pricePerShare": "282.63",
+      "shares": "27",
+      "txDate": "2025-11-13"
+    },
+    {
+      "id": "480008",
+      "ticker": "AAPL.US",
+      "currency": "USD",
+      "fxRate": "1",
+      "pricePerShare": "268.47",
+      "shares": "29",
+      "txDate": "2025-11-13"
+    },
+    {
+      "id": "480009",
+      "ticker": "VGK.US",
+      "currency": "USD",
+      "fxRate": "1",
+      "pricePerShare": "79.97",
+      "shares": "125",
+      "txDate": "2025-11-13"
+    },
+    {
+      "id": "480010",
+      "ticker": "XLE.US",
+      "currency": "USD",
+      "fxRate": "1",
+      "pricePerShare": "87.42",
+      "shares": "114",
+      "txDate": "2025-11-13"
+    },
+    {
+      "id": "480011",
+      "ticker": "VWO.US",
+      "currency": "USD",
+      "fxRate": "1",
+      "pricePerShare": "54.8",
+      "shares": "182",
+      "txDate": "2025-11-13"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tticker\tcurrency\tfxRate\tpricePerShare\tshares\ttxDate\n480004\tMONC.MI\tEUR\t1\t58.1\t141\t2025-11-13\n480005\tEOSE\tUSD\t1\t15.25\t366\t2025-11-13\n480006\tTSM\tUSD\t1\t282.63\t27\t2025-11-13\n480008\tAAPL.US\tUSD\t1\t268.47\t29\t2025-11-13\n480009\tVGK.US\tUSD\t1\t79.97\t125\t2025-11-13\n480010\tXLE.US\tUSD\t1\t87.42\t114\t2025-11-13\n480011\tVWO.US\tUSD\t1\t54.8\t182\t2025-11-13\n",
+  "stderr": "",
+  "execution_time_ms": 50
+}
