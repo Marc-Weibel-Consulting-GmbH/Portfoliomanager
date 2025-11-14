@@ -1614,3 +1614,17 @@
 - [x] Sollte -1.3% sein (wie im Portfolio Detail)
 - [x] savedPortfolios.list Query gefixt: Initial Transactions als implizite Deposits behandeln
 - [x] Jetzt zeigt Portfolio-Übersicht korrekt: -1.3% ✅
+
+
+## NEW FEATURE: Tagesperformance (Nov 14, 2025 - 02:06)
+
+### Tagesperformance auf Hauptseite (Aktien)
+- [x] Aktuell zeigt Tagesperformance 0%
+- [x] Berechnung: Performance vom Vortag 22:00 Uhr (Schlusskurse) bis aktuell
+- [x] Verwende historische Kurse vom Vortag (close price)
+- [x] Verwende aktuelle Kurse von heute
+- [x] Berechne gewichtete Performance über alle Portfolio-Positionen
+- [x] Zeige in CHF und Prozent an
+- [x] Backend: getDailyPerformance Procedure erstellt
+- [x] Frontend: Zeigt Performance mit Farbe (grün/rot) und absoluten Wert in CHF
+- [x] Verwendet korrekte FX Rates für Fremdwährungen

@@ -327,6 +327,9 @@ export default function Home() {
   const { data: stats } = trpc.stocks.stats.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
   });
+  const { data: dailyPerformance } = trpc.stocks.getDailyPerformance.useQuery(undefined, {
+    enabled: isAuthenticated || !!user,
+  });
   
   // All useState hooks MUST be called before any early returns
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -2280,10 +2283,24 @@ export default function Home() {
               <div className="space-y-3">
                 <div>
                   <div className="text-xs text-slate-400 mb-1">Tagesperformance (gewichtet)</div>
-                  <div className="text-lg font-semibold text-slate-400">
-                    +0.0%
+                  <div className={`text-2xl font-bold ${
+                    dailyPerformance && dailyPerformance.performance >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {dailyPerformance 
+                      ? (dailyPerformance.performance >= 0 
+                        ? `+${dailyPerformance.performance.toFixed(2)}%` 
+                        : `${dailyPerformance.performance.toFixed(2)}%`)
+                      : '+0.0%'
+                    }
                   </div>
-                  <div className="text-xs text-slate-500 mt-1">Wird in Kürze verfügbar sein</div>
+                  {dailyPerformance && dailyPerformance.performanceAbsolute !== 0 && (
+                    <div className={`text-xs mt-1 ${
+                      dailyPerformance.performanceAbsolute >= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {dailyPerformance.performanceAbsolute >= 0 ? '+' : ''}
+                      CHF {dailyPerformance.performanceAbsolute.toFixed(2)}
+                    </div>
+                  )}
                 </div>
                 <div className="border-t border-slate-700 pt-3">
                   <div className="text-xs text-slate-400 mb-1">YTD Performance (gewichtet)</div>

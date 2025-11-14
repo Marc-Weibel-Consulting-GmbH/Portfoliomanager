@@ -361,6 +361,81 @@ export const appRouter = router({
       return await getAllStocks();
     }),
 
+    getDailyPerformance: publicProcedure.query(async () => {
+      const { getAllStocks, getDb } = await import("./db");
+      const stocks = await getAllStocks();
+      
+      if (stocks.length === 0) {
+        return { performance: 0, performanceAbsolute: 0 };
+      }
+      
+      const db = await getDb();
+      if (!db) {
+        return { performance: 0, performanceAbsolute: 0 };
+      }
+      
+      const { historicalPrices } = await import("../drizzle/schema");
+      const { eq, and, lte } = await import("drizzle-orm");
+      const { getStockCurrency, convertToCHF } = await import("./fxHelper");
+      
+      // Get yesterday's date (for closing prices)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+      
+      let totalCurrentValueCHF = 0;
+      let totalYesterdayValueCHF = 0;
+      
+      for (const stock of stocks) {
+        const weight = parseFloat(stock.portfolioWeight || '0');
+        if (weight === 0) continue;
+        
+        const currentPrice = parseFloat(stock.currentPrice || '0');
+        if (currentPrice === 0) continue;
+        
+        // Get yesterday's closing price
+        const { desc } = await import("drizzle-orm");
+        const historicalPrice = await db
+          .select()
+          .from(historicalPrices)
+          .where(
+            and(
+              eq(historicalPrices.ticker, stock.ticker),
+              lte(historicalPrices.date, yesterdayStr)
+            )
+          )
+          .orderBy(desc(historicalPrices.date))
+          .limit(1);
+        
+        const yesterdayPrice = historicalPrice[0]?.close 
+          ? parseFloat(historicalPrice[0].close)
+          : currentPrice; // Fallback to current price if no historical data
+        
+        // Get currency for this stock
+        const currency = await getStockCurrency(stock.ticker);
+        
+        // Convert to CHF using appropriate FX rates
+        const currentValueCHF = await convertToCHF(currentPrice * weight, currency, todayStr);
+        const yesterdayValueCHF = await convertToCHF(yesterdayPrice * weight, currency, yesterdayStr);
+        
+        totalCurrentValueCHF += currentValueCHF;
+        totalYesterdayValueCHF += yesterdayValueCHF;
+      }
+      
+      // Calculate performance
+      const performance = totalYesterdayValueCHF > 0
+        ? ((totalCurrentValueCHF - totalYesterdayValueCHF) / totalYesterdayValueCHF) * 100
+        : 0;
+      
+      const performanceAbsolute = totalCurrentValueCHF - totalYesterdayValueCHF;
+      
+      return { 
+        performance: parseFloat(performance.toFixed(2)), 
+        performanceAbsolute: parseFloat(performanceAbsolute.toFixed(2))
+      };
+    }),
+
     getByTicker: publicProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "ticker" in val && typeof val.ticker === "string") {
