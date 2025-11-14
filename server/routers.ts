@@ -2489,7 +2489,7 @@ export const appRouter = router({
           const price = parseFloat(tx.pricePerShare || '0');
           const amount = parseFloat(tx.totalAmountCHF || '0');
           const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
-          const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
+          const isInitialPosition = tx.transactionType === 'buy' && txDateStr <= liveStartDateStr;
           
           if (tx.transactionType === 'buy') {
             console.log(`[calculateLivePerformance] BUY ${tx.ticker}: ${shares} shares @ ${price} ${tx.currency}, totalAmountCHF=${amount}`);
@@ -2720,7 +2720,7 @@ export const appRouter = router({
           const price = parseFloat(tx.pricePerShare || '0');
           const amount = parseFloat(tx.totalAmountCHF || '0');
           const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
-          const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
+          const isInitialPosition = tx.transactionType === 'buy' && txDateStr <= liveStartDateStr;
           
           const txValidation: any = {
             index: index + 1,
@@ -2838,6 +2838,10 @@ export const appRouter = router({
         throw new Error("Invalid portfolio ID");
       })
       .query(async ({ input: portfolioId, ctx }) => {
+        console.log(`\n========== getHoldingsWithChfPerformance START ==========`);
+        console.log(`Portfolio ID: ${portfolioId}`);
+        console.log(`Timestamp: ${new Date().toISOString()}`);
+        
         const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("./db");
         const { getStockCurrency, convertToCHF } = await import("./fxHelper");
         
@@ -2875,6 +2879,16 @@ export const appRouter = router({
           // Use totalAmount from transaction (includes fees) if available, otherwise calculate
           const amountLocal = parseFloat(tx.totalAmount || '0') || (shares * price);
           const amountCHF = parseFloat(tx.totalAmountCHF || '0') || amountLocal;
+          
+          if (ticker === 'NVDA') {
+            console.log(`[NVDA] tx.totalAmount: "${tx.totalAmount}"`);
+            console.log(`[NVDA] tx.totalAmountCHF: "${tx.totalAmountCHF}"`);
+            console.log(`[NVDA] tx.currency: "${tx.currency}"`);
+            console.log(`[NVDA] amountLocal: ${amountLocal}`);
+            console.log(`[NVDA] amountCHF: ${amountCHF}`);
+            console.log(`[NVDA] amountCHF === amountLocal? ${amountCHF === amountLocal}`);
+            console.log(`[NVDA] holding currency: ${holdingsByTicker[ticker].currency}`);
+          }
           
           if (tx.transactionType === 'buy') {
             holdingsByTicker[ticker].shares += shares;
@@ -2953,6 +2967,8 @@ export const appRouter = router({
             ? holding.totalInvestedCHF / holding.totalInvestedLocal
             : 1.0;
           
+
+          
           holdingsWithPerformance.push({
             ticker,
             shares: holding.shares,
@@ -3029,7 +3045,7 @@ export const appRouter = router({
             const shares = parseFloat(tx.shares || '0');
             const amountCHF = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
             const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
-            const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
+            const isInitialPosition = tx.transactionType === 'buy' && txDateStr <= liveStartDateStr;
             
             if (tx.transactionType === 'buy') {
               holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;

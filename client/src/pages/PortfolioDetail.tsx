@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,8 @@ export default function PortfolioDetail() {
     { id: portfolioId! },
     { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
+  
+
 
   // Fetch dividend calendar
   const { data: dividendCalendar, isLoading: isDividendLoading } = trpc.dividendCalendar.getUpcoming.useQuery(
@@ -549,11 +551,12 @@ export default function PortfolioDetail() {
                       <td className="py-3 px-2 text-slate-300 text-right">
                         {stock.currency || 'CHF'} {((stock.shares || 0) * (stock.currentPrice || 0)).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      {/* FX Rate */}
+                       {/* FX Rate */}
                       <td className="py-3 px-2 text-slate-400 text-right text-sm">
                         {(() => {
                           if (Boolean(portfolio.isLive)) {
                             const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+
                             if (chfHolding && chfHolding.avgFxRate) {
                               return chfHolding.avgFxRate.toFixed(4);
                             }

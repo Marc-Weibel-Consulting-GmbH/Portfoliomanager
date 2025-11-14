@@ -1751,3 +1751,20 @@
   - Fixed NVDA transaction currency from CHF to USD in database
   - FX rate 0.7985 now correctly applied in getHoldingsWithChfPerformance
   - Current value now correctly converted to CHF
+
+
+## CRITICAL: NVIDIA FX Rate Still Wrong (Nov 14, 2025 - Live Browser Test)
+- [ ] NVIDIA still shows FX Rate 1.0000 instead of 0.7985 in Portfolio Positions table
+- [ ] NVIDIA "Aktueller Wert (CHF)" shows CHF 3'863 instead of CHF 3'085
+- [ ] Transaction in DB is correct (currency=USD, fxRate=0.7985), but display is wrong
+- [ ] Need to find where Portfolio Positions table gets FX rate from
+
+
+## Cash Calculation Fix (Nov 14, 2025 - Final)
+- [x] Fix cash calculation to treat ALL transactions before live start date as initial positions (deposits)
+  - Fixed isInitialPosition logic: changed from `txDateStr === liveStartDateStr` to `txDateStr <= liveStartDateStr`
+  - Now ALL transactions before or on live start date are treated as initial positions (deposits)
+  - Updated in 5 locations: db.ts, routers.ts (3x), annualPerformanceRouter.ts
+  - Result: Cash position now CHF 0.00 (correct) instead of -CHF 10'136 (wrong)
+  - NESN.SW (bought 1 Nov) now correctly treated as initial position even though live start is 14 Nov
+  - Formula: Cash = (Deposits from initial positions) - (Buy amounts AFTER live start) + (Sell proceeds) - (Withdrawals)

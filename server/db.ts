@@ -314,7 +314,7 @@ export async function getSavedPortfolios(userId: number) {
             for (const tx of transactions) {
               const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
               const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
-              const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
+              const isInitialPosition = tx.transactionType === 'buy' && txDateStr <= liveStartDateStr;
               
               if (tx.transactionType === 'deposit') {
                 totalDeposits += amount;

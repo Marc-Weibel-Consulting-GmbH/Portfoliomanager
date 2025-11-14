@@ -47,7 +47,7 @@ export const annualPerformanceRouter = router({
         const shares = parseFloat(tx.shares || '0');
         const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
         const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
-        const isInitialPosition = tx.transactionType === 'buy' && txDateStr === liveStartDateStr;
+        const isInitialPosition = tx.transactionType === 'buy' && txDateStr <= liveStartDateStr;
         
         if (tx.transactionType === 'buy') {
           holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
