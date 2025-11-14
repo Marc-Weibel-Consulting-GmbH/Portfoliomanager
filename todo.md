@@ -1682,12 +1682,26 @@
 - [x] Backend: avgFxRate zu Holdings hinzugefügt
 - [x] Frontend: Portfolio-Positionen Tabelle mit allen gewünschten Spalten
 
-### Verbleibende Probleme ❌
-- [ ] Portfolio-Box "Total investiert": Zeigt CHF 96'009.37 statt 106'884
-- [ ] Chart Performance: Zeigt +0.38% statt -1.3%
-- [ ] NVIDIA FX Rate: Zeigt 1.0000 statt 0.7985 (Currency in DB ist CHF statt USD)
-- [ ] Transaktionssummen: Fehlen für Betrag (CHF) und Netto (CHF)
-- [ ] Portfolio-Übersicht Total investiert: CHF 105'723.993 statt 106'884
+### Verbleibende Probleme ❌ (3 kritische Issues)
+- [ ] **NVIDIA FX Rate**: Zeigt 1.0000 statt 0.7985 in Portfolio-Positionen
+  - avgFxRate Berechnung: totalInvestedCHF / totalInvestedLocal
+  - Problem: totalAmountCHF in Transaktion wird nicht korrekt gelesen
+  - Auswirkung: NVIDIA Investiert CHF 3'106 statt 3'084, Aktueller Wert CHF 3'863 statt 3'084
+- [ ] **Portfolio-Box "Total investiert"**: Zeigt CHF 96'009.37 statt 106'884
+  - livePerformance.totalInvested gibt totalDeposits zurück (Backend geändert)
+  - Frontend cached möglicherweise alte Response
+- [ ] **Chart Performance**: Zeigt +0.38% statt -1.3%
+  - Inkonsistent mit Live Performance oben rechts (-1.3%)
+  - Chart verwendet möglicherweise andere Berechnung
+
+### Abgeschlossene Fixes ✅
+- [x] Portfolio-Positionen Tabelle: Neue Spalten (Betrag FW, FX Rate, Investiert CHF, Aktueller Wert CHF)
+- [x] FX Rates korrekt für alle Aktien außer NVIDIA (0.9253 EUR, 0.7985 USD, 1.0000 CHF)
+- [x] Transaktionssummen: Zeigt "Gesamt: CHF 106'884.48" ✅
+- [x] Portfolio-Übersicht Total investiert: CHF 105'723.993 ✅ (fast korrekt)
+- [x] Live Performance -1.3% auf Übersichtsseite ✅
+- [x] Unrealisierte Gewinne -1'277 CHF in Jahresübersicht ✅
+- [x] Tagesperformance implementiert ✅
 
 ### Nächste Schritte
 1. NVIDIA Currency in DB auf USD ändern
