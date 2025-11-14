@@ -1628,3 +1628,69 @@
 - [x] Backend: getDailyPerformance Procedure erstellt
 - [x] Frontend: Zeigt Performance mit Farbe (grün/rot) und absoluten Wert in CHF
 - [x] Verwendet korrekte FX Rates für Fremdwährungen
+
+
+## PORTFOLIO CALCULATION ISSUES (Nov 14, 2025 - 02:12)
+
+### 1. Portfolio-Positionen: Fehlende Spalten
+- [ ] Nach Preis (FW) folgende Spalten hinzufügen:
+  - [ ] Betrag (FW) - Anzahl × Preis in Fremdwährung
+  - [ ] FX Rate - Wechselkurs zum Zeitpunkt des Kaufs
+  - [ ] Investiert (CHF) - Kaufwert in CHF
+  - [ ] Aktueller Wert (CHF) - Aktueller Wert in CHF
+- [ ] Spalte "Investiert (CHF)" muss gleiche Werte haben wie "Betrag (CHF)" in Transaktionen
+- [ ] Total "Investiert (CHF)" muss CHF 106'884 sein
+
+### 2. Transaktionshistorie: Fehlende Summen
+- [ ] Summe bei "Betrag (CHF)" Spalte hinzufügen
+- [ ] Summe bei "Netto (CHF)" Spalte hinzufügen
+- [ ] Total Betrag (CHF) sollte CHF 106'884 sein
+
+### 3. NVIDIA Fehler
+- [ ] Total investiert zeigt USD statt CHF
+- [ ] Nach Spalten-Anpassung sollte Problem behoben sein
+
+### 4. Portfolio-Übersicht: Falscher Total investiert
+- [ ] Zeigt aktuell: CHF 105'723.993
+- [ ] Sollte sein: CHF 106'884
+- [ ] Muss mit Portfolio-Positionen übereinstimmen
+
+### 5. Chart Performance falsch
+- [ ] Zeigt aktuell: -0.14%
+- [ ] Sollte sein: -1.3%
+- [ ] Muss mit Live-Performance übereinstimmen
+
+### 6. Portfolio-Box: Falscher Investiert-Wert
+- [ ] Zeigt aktuell: CHF 96'009.37
+- [ ] Sollte sein: CHF 106'884
+- [ ] Ist nur Aktien-Wert, fehlt Cash/Deposits
+
+### Zielwert für alle Berechnungen
+- **Total investiert**: CHF 106'884
+- **Live-Performance**: -1.3%
+- **Aktueller Wert**: CHF 105'607 (ca.)
+
+
+## PORTFOLIO CALCULATION FIXES (Nov 14, 2025 - Progress Update)
+
+### Completed Fixes ✅
+- [x] Portfolio-Positionen Tabelle: Neue Spalten hinzugefügt (Betrag FW, FX Rate, Investiert CHF, Aktueller Wert CHF)
+- [x] FX Rates korrekt angezeigt: 0.9253 (EUR), 0.7985 (USD), 1.0000 (CHF)
+- [x] Live Performance auf Übersichtsseite: -1.3% (korrekt)
+- [x] Unrealisierte Gewinne in Jahresübersicht: CHF -1'277.41 (korrekt)
+- [x] Tagesperformance implementiert (vom Vortag 22:00 bis aktuell)
+- [x] Backend: avgFxRate zu Holdings hinzugefügt
+- [x] Frontend: Portfolio-Positionen Tabelle mit allen gewünschten Spalten
+
+### Verbleibende Probleme ❌
+- [ ] Portfolio-Box "Total investiert": Zeigt CHF 96'009.37 statt 106'884
+- [ ] Chart Performance: Zeigt +0.38% statt -1.3%
+- [ ] NVIDIA FX Rate: Zeigt 1.0000 statt 0.7985 (Currency in DB ist CHF statt USD)
+- [ ] Transaktionssummen: Fehlen für Betrag (CHF) und Netto (CHF)
+- [ ] Portfolio-Übersicht Total investiert: CHF 105'723.993 statt 106'884
+
+### Nächste Schritte
+1. NVIDIA Currency in DB auf USD ändern
+2. Portfolio-Box Fix: totalDeposits statt totalInvestedInStocks verwenden
+3. Chart Performance Fix: Konsistenz mit Live Performance herstellen
+4. Transaktionssummen hinzufügen

@@ -126,12 +126,17 @@ export default function PortfolioDetail() {
 
     transactions.forEach((tx: any) => {
       const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+      const isInitialTransaction = tx.notes && tx.notes.includes('Initial position');
       
       if (tx.transactionType === 'deposit') {
         totalDeposits += amount;
       } else if (tx.transactionType === 'withdrawal') {
         totalDeposits -= Math.abs(amount);
       } else if (tx.transactionType === 'buy') {
+        // Treat initial transactions as implicit deposits
+        if (isInitialTransaction) {
+          totalDeposits += amount;
+        }
         totalBuyAmounts += amount;
       } else if (tx.transactionType === 'sell') {
         totalSellProceeds += amount;
@@ -397,9 +402,9 @@ export default function PortfolioDetail() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-400">Investiert (Aktien)</span>
+                  <span className="text-xs text-slate-400">Aktien (Wert)</span>
                   <span className="text-sm font-semibold text-white">
-                    CHF {(livePerformance?.totalInvested ?? portfolioSummary.totalInvestedInStocks)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    CHF {(livePerformance?.totalInvestedInStocks ?? portfolioSummary.totalInvestedInStocks)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -409,12 +414,9 @@ export default function PortfolioDetail() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-700">
-                  <span className="text-xs text-slate-400">Total</span>
+                  <span className="text-xs text-slate-400">Total investiert</span>
                   <span className="text-lg font-bold text-white">
-                    CHF {(
-                      (livePerformance?.totalInvested ?? portfolioSummary.totalInvestedInStocks) + 
-                      (livePerformance?.cashPosition ?? portfolioSummary.cashPosition)
-                    )?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    CHF {(livePerformance?.totalInvested ?? portfolioSummary.totalDeposits)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                   </span>
                 </div>
               </div>
@@ -508,9 +510,11 @@ export default function PortfolioDetail() {
                     <th className="text-left py-3 px-2 text-slate-400 font-medium">Name</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Stückzahl</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Gewicht</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Preis</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Total investiert</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Preis (FW)</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Betrag (FW)</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">FX Rate</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Investiert (CHF)</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert (CHF)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Dividende</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">YTD</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">{Boolean(portfolio.isLive) ? 'Live Perf. (CHF)' : 'Live Perf.'}</th>
@@ -520,7 +524,7 @@ export default function PortfolioDetail() {
                   {/* Cash Position Row - First */}
                   <tr className="border-b-2 border-slate-600 bg-slate-700/20">
                     <td className="py-3 px-2 text-yellow-400 font-semibold" colSpan={2}>💰 Cash</td>
-                    <td className="py-3 px-2 text-right" colSpan={3}></td>
+                    <td className="py-3 px-2 text-right" colSpan={5}></td>
                     <td className="py-3 px-2 text-right" colSpan={1}></td>
                     <td className="py-3 px-2 text-yellow-400 text-right font-semibold" colSpan={1}>
                       CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
@@ -537,9 +541,27 @@ export default function PortfolioDetail() {
                         {stock.shares ? stock.shares.toFixed(2) : '0.00'}
                       </td>
                       <td className="py-3 px-2 text-slate-300 text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
+                      {/* Preis (FW) */}
                       <td className="py-3 px-2 text-slate-300 text-right">
                         {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(2)}
                       </td>
+                      {/* Betrag (FW) - Anzahl × Preis */}
+                      <td className="py-3 px-2 text-slate-300 text-right">
+                        {stock.currency || 'CHF'} {((stock.shares || 0) * (stock.currentPrice || 0)).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      {/* FX Rate */}
+                      <td className="py-3 px-2 text-slate-400 text-right text-sm">
+                        {(() => {
+                          if (Boolean(portfolio.isLive)) {
+                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                            if (chfHolding && chfHolding.avgFxRate) {
+                              return chfHolding.avgFxRate.toFixed(4);
+                            }
+                          }
+                          return stock.currency === 'CHF' ? '-' : '1.0000';
+                        })()}
+                      </td>
+                      {/* Investiert (CHF) */}
                       <td className="py-3 px-2 text-blue-400 text-right font-semibold">
                         {(() => {
                           if (Boolean(portfolio.isLive)) {
@@ -548,9 +570,10 @@ export default function PortfolioDetail() {
                               return `CHF ${Math.round(chfHolding.totalInvestedCHF).toLocaleString('de-CH')}`;
                             }
                           }
-                          return `${stock.currency || 'CHF'} ${stock.totalInvested ? Math.round(stock.totalInvested).toLocaleString('de-CH') : '0'}`;
+                          return `CHF ${stock.totalInvested ? Math.round(stock.totalInvested).toLocaleString('de-CH') : '0'}`;
                         })()}
                       </td>
+                      {/* Aktueller Wert (CHF) */}
                       <td className="py-3 px-2 text-green-400 text-right font-semibold">
                         {(() => {
                           if (Boolean(portfolio.isLive)) {
@@ -559,7 +582,7 @@ export default function PortfolioDetail() {
                               return `CHF ${Math.round(chfHolding.currentValueCHF).toLocaleString('de-CH')}`;
                             }
                           }
-                          return `${stock.currency || 'CHF'} ${stock.currentValue ? Math.round(stock.currentValue).toLocaleString('de-CH') : '0'}`;
+                          return `CHF ${stock.currentValue ? Math.round(stock.currentValue).toLocaleString('de-CH') : '0'}`;
                         })()}
                       </td>
                       <td className="py-3 px-2 text-green-400 text-right">
@@ -602,12 +625,22 @@ export default function PortfolioDetail() {
                   {/* Total Row */}
                   <tr className="border-t border-slate-600 bg-slate-700/30">
                     <td className="py-3 px-2 text-white font-bold" colSpan={2}>TOTAL</td>
-                    <td className="py-3 px-2 text-right" colSpan={3}></td>
+                    <td className="py-3 px-2 text-right" colSpan={5}></td>
                     <td className="py-3 px-2 text-blue-400 text-right font-bold">
-                      CHF {Math.round(portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0)).toLocaleString('de-CH')}
+                      {(() => {
+                        if (Boolean(portfolio.isLive)) {
+                          const total = chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0);
+                          return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
+                        }
+                        return `CHF ${Math.round(portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0)).toLocaleString('de-CH')}`;
+                      })()}
                     </td>
                     <td className="py-3 px-2 text-green-400 text-right font-bold">
-                      CHF {(() => {
+                      {(() => {
+                        if (Boolean(portfolio.isLive)) {
+                          const total = chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0);
+                          return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
+                        }
                         const stocksValue = portfolioData
                           .filter((s: any) => s.shares > 0)
                           .reduce((sum, s) => sum + (s.currentValue || 0), 0);
@@ -635,7 +668,7 @@ export default function PortfolioDetail() {
                         const totalCapital = deposits - withdrawals + buyAmounts;
                         const cash = totalCapital - buyAmounts + sellAmounts;
                         const total = stocksValue + cash;
-                        return Math.round(total).toLocaleString('de-CH');
+                        return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
                       })()}
                     </td>
                     <td colSpan={1}></td>

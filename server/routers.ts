@@ -2626,7 +2626,8 @@ export const appRouter = router({
           performance,
           currentValue: totalCurrentValue,
           liveStartValue: liveStartValueCHF,
-          totalInvested: totalInvestedInStocks,
+          totalInvested: totalDeposits,  // Total capital invested (deposits - withdrawals + initial positions)
+          totalInvestedInStocks,  // Cost basis of current stock positions
           totalDeposits,
           cashPosition,
           totalRealizedGains,
@@ -2917,6 +2918,11 @@ export const appRouter = router({
               ? ((currentValueCHF + realizedGains - totalInvestedCHF) / totalInvestedCHF) * 100
               : 0;
           
+          // Calculate average FX rate
+          const avgFxRate = holding.totalInvestedLocal > 0 
+            ? holding.totalInvestedCHF / holding.totalInvestedLocal
+            : 1.0;
+          
           holdingsWithPerformance.push({
             ticker,
             shares: holding.shares,
@@ -2927,7 +2933,8 @@ export const appRouter = router({
             totalInvestedLocal: holding.totalInvestedLocal,
             totalInvestedCHF,
             performanceCHF,
-            avgBuyPrice: holding.avgBuyPrice
+            avgBuyPrice: holding.avgBuyPrice,
+            avgFxRate
           });
         }
         
