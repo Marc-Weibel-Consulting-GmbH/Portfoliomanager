@@ -320,15 +320,19 @@ export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
+    staleTime: 30000, // Cache for 30 seconds
   });
   const { data: stockScores = [] } = trpc.score.calculateAll.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
+    staleTime: 30000,
   });
   const { data: stats } = trpc.stocks.stats.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
+    staleTime: 30000,
   });
   const { data: dailyPerformance } = trpc.stocks.getDailyPerformance.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
+    staleTime: 30000,
   });
   
   // All useState hooks MUST be called before any early returns
@@ -534,6 +538,9 @@ export default function Home() {
     },
   });
 
+  // Get tRPC utils for cache management
+  const utils = trpc.useUtils();
+  
   const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation({
     onSuccess: (data: any) => {
       setFormData((prev: any) => ({
@@ -556,22 +563,57 @@ export default function Home() {
   });
 
   const updateStockMutation = trpc.stocks.update.useMutation({
-    onSuccess: () => {
-      refetchStocks();
+    onSuccess: async () => {
       setEditingStock(null);
       setFormData({});
       setIsEditDialogOpen(false);
-      // Reload page to refresh all calculated values
-      setTimeout(() => window.location.reload(), 500);
+      
+      // Invalidate and refetch all affected queries in parallel
+      await Promise.all([
+        utils.stocks.list.invalidate(),
+        utils.stocks.stats.invalidate(),
+        utils.stocks.getDailyPerformance.invalidate(),
+        utils.score.calculateAll.invalidate(),
+      ]);
+      
+      toast.success("Änderungen gespeichert", { description: "Portfolio wurde aktualisiert" });
     },
   });
 
   const deleteStockMutation = trpc.stocks.delete.useMutation({
+    onMutate: async ({ ticker }) => {
+      // Cancel outgoing refetches
+      await utils.stocks.list.cancel();
+      
+      // Snapshot previous value
+      const previousStocks = utils.stocks.list.getData();
+      
+      // Optimistically update to remove the stock
+      utils.stocks.list.setData(undefined, (old) => 
+        old ? old.filter((s: any) => s.ticker !== ticker) : []
+      );
+      
+      return { previousStocks };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousStocks) {
+        utils.stocks.list.setData(undefined, context.previousStocks);
+      }
+      toast.error("Fehler beim Löschen", { description: err.message });
+    },
     onSuccess: async () => {
-      await refetchStocks();
       setHasAppliedEqualWeighting(false);
-      // Reload page to refresh all calculated values (weights, stats, etc.)
-      setTimeout(() => window.location.reload(), 500);
+      
+      // Invalidate and refetch all affected queries in parallel
+      await Promise.all([
+        utils.stocks.list.invalidate(),
+        utils.stocks.stats.invalidate(),
+        utils.stocks.getDailyPerformance.invalidate(),
+        utils.score.calculateAll.invalidate(),
+      ]);
+      
+      toast.success("Aktie gelöscht", { description: "Portfolio wurde aktualisiert" });
     },
   });
 

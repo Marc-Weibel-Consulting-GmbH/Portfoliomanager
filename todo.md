@@ -1894,3 +1894,20 @@
 - Sell transactions reduce `totalInvestedInStocks` by sold cost (avg cost × shares)
 - Chart invested line = `totalInvestedInStocks + cashPosition`
 - All calculations use same logic as `calculateLivePerformance` for consistency
+
+
+## CRITICAL: Performance & Cache Issues (Nov 15, 2025)
+- [x] Fix slow data loading after delete operations
+- [x] Investigate automatic logout/login during delete operations (caused by page reload)
+- [x] Optimize batch loading strategy for stock data
+- [x] Implement proper cache invalidation after mutations
+- [x] Reduce loading time for portfolio data
+- [x] Review and optimize tRPC query dependencies
+
+### Implemented Solutions:
+- Removed `window.location.reload()` from delete/update mutations
+- Added optimistic updates for instant UI feedback
+- Implemented parallel query invalidation (stocks.list, stats, dailyPerformance, scores)
+- Configured QueryClient with 30s staleTime and proper caching
+- Added rollback mechanism for failed mutations
+- Reduced refetch on window focus to prevent unnecessary requests
