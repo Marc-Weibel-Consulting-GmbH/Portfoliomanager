@@ -1911,3 +1911,23 @@
 - Configured QueryClient with 30s staleTime and proper caching
 - Added rollback mechanism for failed mutations
 - Reduced refetch on window focus to prevent unnecessary requests
+
+
+## UI Bug: Column Alignment (Nov 15, 2025)
+- [x] Fix portfolio detail table column alignment
+- [x] Data is shifted one column to the left
+- [x] Headers don't match data columns (Einstandswert, Aktueller Kurs, etc.)
+- [x] Removed colSpan={2} from Einstandskurs header
+
+## Number Formatting: Portfolio Detail (Nov 15, 2025)
+- [x] Format all numbers with Swiss thousand separator (')
+- [x] Round all numbers to whole numbers (no decimals)
+- [x] Apply to: Stückzahl, Einstandswert, Aktueller Wert, Cash Position, Total Portfolio Value
+
+## Transaction History: Two-line Price Format (Nov 15, 2025)
+- [x] Show price in two lines: Line 1: Price in foreign currency, Line 2: FX rate
+- [x] Match format of Portfolio Positions table
+- [x] Example: CHF 105.74 / FX: 1.00
+- [x] Round FX rate to 2 decimal places everywhere (not 4)
+- [x] Removed separate FX Rate column from transaction table
+- [x] Updated PortfolioDetail FX rates from 4 to 2 decimals

@@ -356,9 +356,8 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                   </th>
                   <th className="text-left py-3 px-2 text-slate-400 font-medium">Ticker</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">Anzahl</th>
-                  <th className="text-right py-3 px-2 text-slate-400 font-medium">Preis</th>
+                  <th className="text-right py-3 px-2 text-slate-400 font-medium">Preis (FW)</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">Betrag (FW)</th>
-                  <th className="text-center py-3 px-2 text-slate-400 font-medium">FX Rate</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">Betrag (CHF)</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">Real. Gewinn</th>
                   <th className="text-right py-3 px-2 text-slate-400 font-medium">Gebühren</th>
@@ -394,17 +393,20 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                       {tx.shares || "-"}
                     </td>
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
-                      {tx.pricePerShare ? `${tx.currency || 'CHF'} ${parseFloat(tx.pricePerShare).toFixed(2)}` : "-"}
+                      {tx.pricePerShare ? (
+                        <div>
+                          <div>{tx.currency || 'CHF'} {parseFloat(tx.pricePerShare).toFixed(2)}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            {tx.fxRate && tx.currency !== 'CHF' ? `FX: ${parseFloat(tx.fxRate).toFixed(2)}` : (tx.currency === 'CHF' ? '' : 'FX: 1.00')}
+                          </div>
+                        </div>
+                      ) : "-"}
                     </td>
                     {/* Betrag in Fremdwährung */}
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
                       {(tx.transactionType === 'buy' || tx.transactionType === 'sell') && tx.totalAmount && tx.currency
                         ? `${tx.currency} ${parseFloat(tx.totalAmount).toFixed(2)}`
                         : "-"}
-                    </td>
-                    {/* FX Rate */}
-                    <td className="py-3 px-2 text-slate-400 text-sm text-center">
-                      {tx.fxRate && tx.currency !== 'CHF' ? parseFloat(tx.fxRate).toFixed(4) : '-'}
                     </td>
                     {/* Betrag in CHF (vor Gebühren) */}
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
@@ -476,7 +478,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-600">
-                  <td colSpan={10} className="py-3 px-2 text-right text-slate-400 font-medium">
+                  <td colSpan={9} className="py-3 px-2 text-right text-slate-400 font-medium">
                     Gesamt:
                   </td>
                   <td className="py-3 px-2 text-right font-bold text-white text-base">

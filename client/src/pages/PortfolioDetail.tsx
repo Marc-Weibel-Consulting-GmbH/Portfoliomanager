@@ -409,19 +409,19 @@ export default function PortfolioDetail() {
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-slate-400">Aktien (Wert)</span>
                   <span className="text-sm font-semibold text-white">
-                    CHF {(livePerformance?.totalInvestedInStocks ?? portfolioSummary.totalInvestedInStocks)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    CHF {Math.round(livePerformance?.totalInvestedInStocks ?? portfolioSummary.totalInvestedInStocks ?? 0).toLocaleString('de-CH')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-slate-400">Cash</span>
                   <span className="text-sm font-semibold text-white">
-                    CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-700">
                   <span className="text-xs text-slate-400">Total investiert</span>
                   <span className="text-lg font-bold text-white">
-                    CHF {(livePerformance?.totalInvested ?? portfolioSummary.totalDeposits)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    CHF {Math.round(livePerformance?.totalInvested ?? portfolioSummary.totalDeposits ?? 0).toLocaleString('de-CH')}
                   </span>
                 </div>
               </div>
@@ -515,7 +515,7 @@ export default function PortfolioDetail() {
                     <th className="text-left py-3 px-2 text-slate-400 font-medium">Name</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Stückzahl</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Gewicht</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium" colSpan={2}>Einstandskurs (FW)</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Einstandskurs (FW)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Einstandswert (CHF)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Kurs (FW)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert (CHF)</th>
@@ -528,9 +528,9 @@ export default function PortfolioDetail() {
                   {/* Cash Position Row - First */}
                   <tr className="border-b-2 border-slate-600 bg-slate-700/20">
                     <td className="py-3 px-2 text-yellow-400 font-semibold" colSpan={2}>💰 Cash</td>
-                    <td className="py-3 px-2 text-right" colSpan={5}></td>
+                    <td className="py-3 px-2 text-right" colSpan={4}></td>
                     <td className="py-3 px-2 text-yellow-400 text-right font-semibold" colSpan={1}>
-                      CHF {(livePerformance?.cashPosition ?? portfolioSummary.cashPosition)?.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                      CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
                     </td>
                     <td colSpan={3}></td>
                   </tr>
@@ -541,7 +541,7 @@ export default function PortfolioDetail() {
                       </td>
                       <td className="py-3 px-2 text-slate-300">{stock.name}</td>
                       <td className="py-3 px-2 text-white text-right font-semibold">
-                        {stock.shares ? stock.shares.toFixed(2) : '0.00'}
+                        {stock.shares ? Math.round(stock.shares).toLocaleString('de-CH') : '0'}
                       </td>
                       <td className="py-3 px-2 text-slate-300 text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
                       {/* Einstandskurs (FW) - Line 1: Price, Line 2: FX Rate */}
@@ -551,12 +551,12 @@ export default function PortfolioDetail() {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
                               if (chfHolding && chfHolding.avgBuyPrice) {
-                                return `${stock.currency || 'CHF'} ${chfHolding.avgBuyPrice.toFixed(2)}`;
+                                return `${stock.currency || 'CHF'} ${Math.round(chfHolding.avgBuyPrice).toLocaleString('de-CH')}`;
                               }
                             }
                             const holding = holdingsByTicker[stock.ticker];
                             if (holding && holding.avgBuyPrice > 0) {
-                              return `${stock.currency || 'CHF'} ${holding.avgBuyPrice.toFixed(2)}`;
+                              return `${stock.currency || 'CHF'} ${Math.round(holding.avgBuyPrice).toLocaleString('de-CH')}`;
                             }
                             return `${stock.currency || 'CHF'} -`;
                           })()}
@@ -566,10 +566,10 @@ export default function PortfolioDetail() {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
                               if (chfHolding && chfHolding.avgFxRate) {
-                                return `FX: ${chfHolding.avgFxRate.toFixed(4)}`;
+                                return `FX: ${chfHolding.avgFxRate.toFixed(2)}`;
                               }
                             }
-                            return stock.currency === 'CHF' ? '' : 'FX: 1.0000';
+                            return stock.currency === 'CHF' ? '' : 'FX: 1.00';
                           })()}
                         </div>
                       </td>
@@ -588,17 +588,17 @@ export default function PortfolioDetail() {
                       {/* Aktueller Kurs (FW) - Line 1: Price, Line 2: FX Rate */}
                       <td className="py-3 px-2 text-slate-300 text-right">
                         <div>
-                          {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(2)}
+                          {stock.currency || 'CHF'} {Math.round(stock.currentPrice || 0).toLocaleString('de-CH')}
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5">
                           {(() => {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
                               if (chfHolding && chfHolding.currentFxRate) {
-                                return `FX: ${chfHolding.currentFxRate.toFixed(4)}`;
+                                return `FX: ${chfHolding.currentFxRate.toFixed(2)}`;
                               }
                             }
-                            return stock.currency === 'CHF' ? '' : 'FX: 1.0000';
+                            return stock.currency === 'CHF' ? '' : 'FX: 1.00';
                           })()}
                         </div>
                       </td>
