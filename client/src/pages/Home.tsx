@@ -2423,12 +2423,13 @@ export default function Home() {
             Portfolio
           </button>
           <button
-            onClick={() => setActiveTab("analyzer")}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === "analyzer"
-                ? "bg-pink-600 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
+            onClick={() => {
+              toast({
+                title: "Funktion in Entwicklung",
+                description: "Diese Funktion ist in Entwicklung."
+              });
+            }}
+            className="px-4 py-2 rounded font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
           >
             Analyzer
           </button>
@@ -2443,16 +2444,7 @@ export default function Home() {
             Transactions
           </button>
 
-          <button
-            onClick={() => setActiveTab("research")}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === "research"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
-          >
-            Research
-          </button>
+
           <button
             onClick={() => setActiveTab("wissen")}
             className={`px-4 py-2 rounded font-medium transition-colors ${
@@ -2464,12 +2456,13 @@ export default function Home() {
             Wissen
           </button>
           <button
-            onClick={() => setActiveTab("rechner")}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              activeTab === "rechner"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-            }`}
+            onClick={() => {
+              toast({
+                title: "Funktion in Entwicklung",
+                description: "Diese Funktion ist in Entwicklung."
+              });
+            }}
+            className="px-4 py-2 rounded font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
           >
             Rechner
           </button>
@@ -2619,7 +2612,7 @@ export default function Home() {
               )}
             </div>
           )}
-          {isAuthenticated && (
+          {isAuthenticated && user?.role === 'admin' && (
             <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
               setIsAddDialogOpen(open);
               if (open) {

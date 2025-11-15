@@ -1931,3 +1931,9 @@
 - [x] Round FX rate to 2 decimal places everywhere (not 4)
 - [x] Removed separate FX Rate column from transaction table
 - [x] Updated PortfolioDetail FX rates from 4 to 2 decimals
+
+## UI Permission Changes (Nov 15, 2025)
+- [x] Hide "Aktie hinzufügen" button for non-admin users on Stocks page
+- [x] Show "Diese Funktion ist in Entwicklung" message for Analyzer button
+- [x] Show "Diese Funktion ist in Entwicklung" message for Rechner button
+- [x] Remove Research button completely
