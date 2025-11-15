@@ -3072,7 +3072,9 @@ export const appRouter = router({
           let totalBuyAmounts = 0;
           let totalSellProceeds = 0;
           let totalDividends = 0;
+          let totalInvestedInStocks = 0;  // Cost basis of current positions
           const holdings: Record<string, number> = {};
+          const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
           const liveStartDateStr = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
           
           txUpToDay.forEach((tx: any) => {
@@ -3084,12 +3086,30 @@ export const appRouter = router({
             if (tx.transactionType === 'buy') {
               holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
               totalBuyAmounts += amountCHF;
+              totalInvestedInStocks += amountCHF;
+              
               if (isInitialPosition) {
                 totalDeposits += amountCHF;
               }
+              
+              // Track cost basis
+              if (!costBasis[tx.ticker]) {
+                costBasis[tx.ticker] = { totalCost: 0, totalShares: 0 };
+              }
+              costBasis[tx.ticker].totalCost += amountCHF;
+              costBasis[tx.ticker].totalShares += shares;
             } else if (tx.transactionType === 'sell') {
               holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
               totalSellProceeds += amountCHF;
+              
+              // Reduce invested in stocks by cost basis of sold shares
+              if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
+                const avgCost = costBasis[tx.ticker].totalCost / costBasis[tx.ticker].totalShares;
+                const soldCost = shares * avgCost;
+                totalInvestedInStocks -= soldCost;
+                costBasis[tx.ticker].totalCost -= soldCost;
+                costBasis[tx.ticker].totalShares -= shares;
+              }
             } else if (tx.transactionType === 'deposit') {
               totalDeposits += amountCHF;
             } else if (tx.transactionType === 'withdrawal') {
@@ -3153,9 +3173,12 @@ export const appRouter = router({
             ? ((totalCurrentValue - totalCapital) / totalCapital) * 100
             : 0;
           
+          // Total invested = cost basis of stocks + cash (matches Portfolio card)
+          const totalInvested = totalInvestedInStocks + cashPosition;
+          
           dataPoints.push({
             date: dayStr,
-            invested: totalCapital,
+            invested: totalInvested,  // Show total invested (stocks + cash) not just capital
             value: totalCurrentValue,
             performance
           });

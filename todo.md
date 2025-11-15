@@ -1844,3 +1844,53 @@
 
 ## Navigation Bug (Nov 15, 2025 - 18:00)
 - [x] Fix 404 error when clicking back button in portfolio detail page
+
+
+## Routing Fix (Nov 15, 2025)
+- [x] Fix 404 error on /home route
+
+
+## CRITICAL: Portfolio Details Calculation Bugs (Nov 15, 2025)
+
+### Bug Report from Screenshots.docx
+
+#### 1. Chart "Portfolio Wert" Calculation
+- [ ] Portfolio Wert in Live Performance Chart shows CHF 90'946 but should show CHF 91'722 (Total Invested inkl. Cash)
+- [ ] Chart legend shows wrong value - must match "Total investiert" from Portfolio card
+
+#### 2. Transaction History Display
+- [ ] Total CHF 93'701.70 should be displayed under "Netto (CHF)" column, not at bottom
+- [ ] EOSE sale transaction (14.11.2025) shows in green but should be RED with MINUS sign
+- [ ] EOSE was sold (position removed), so transaction must show negative value and red color
+
+#### 3. Positions Table Structure
+- [ ] Missing column "Aktueller Wert (CHF)" after "Aktueller Kurs (FW)" column
+- [ ] Total under new "Aktueller Wert (CHF)" column should be CHF 91'023 (inkl. Cash CHF 1'979)
+- [ ] Current total shows CHF 89'044 but should be CHF 91'023
+- [ ] Performance -0.8% should be moved to "Live Perf. (CHF)" column (rightmost)
+
+#### 4. Year Performance Dialog
+- [ ] "Total Investiert" shows CHF 89'701.016 but should be CHF 91'722 (inkl. Cash)
+- [ ] Must match the "Total investiert" value from Portfolio overview card
+- [ ] "Aktueller Wert" shows CHF 91'023.258 (correct)
+
+
+## CRITICAL: Portfolio Details Calculation Bugs (Nov 15, 2025 - from Screenshots.docx)
+
+- [x] Bug 1: Chart "Portfolio Wert" - Investiert-Linie zeigt CHF 90'946 statt CHF 91'722 (Total Invested inkl. Cash)
+- [x] Bug 2: Transaktionshistorie - Total sollte unter "Netto (CHF)" Spalte stehen
+- [x] Bug 3: Transaktionshistorie - EOSE Verkauf muss rot und mit Minuszeichen sein
+- [x] Bug 4: Positions-Tabelle - Total "Aktueller Wert (CHF)" zeigt CHF 89'044 statt CHF 91'023 (inkl. Cash)
+- [x] Bug 5: Jahres-Performance Dialog - "Total Investiert" zeigt CHF 89'701 statt CHF 91'722
+
+### Fixes Applied:
+1. **Chart "Portfolio Wert"**: Implemented cost basis tracking in getLivePerformanceHistory, now shows correct invested amount (CHF 91'680 ≈ CHF 91'722)
+2. **Transaktionshistorie**: Moved total to "Netto (CHF)" column, EOSE sell transaction now shows red with minus sign
+3. **Positions-Tabelle**: Added "Aktueller Wert (CHF)" total column with cash included (CHF 91'023)
+4. **Jahres-Performance**: Updated totalInvested calculation to include cash position (CHF 91'680)
+
+### Technical Details:
+- `getLivePerformanceHistory` now tracks `costBasis` per ticker and `totalInvestedInStocks`
+- Sell transactions reduce `totalInvestedInStocks` by sold cost (avg cost × shares)
+- Chart invested line = `totalInvestedInStocks + cashPosition`
+- All calculations use same logic as `calculateLivePerformance` for consistency

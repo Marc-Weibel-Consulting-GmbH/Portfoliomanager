@@ -439,9 +439,13 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     </td>
                     {/* Nettobetrag in CHF */}
                     <td className={`py-3 px-2 text-sm text-right font-semibold ${
-                      parseFloat(tx.totalAmountCHF || tx.totalAmount) >= 0 ? 'text-green-400' : 'text-red-400'
+                      tx.transactionType === 'sell' || tx.transactionType === 'withdrawal' 
+                        ? 'text-red-400' 
+                        : tx.transactionType === 'buy' || tx.transactionType === 'deposit' || tx.transactionType === 'dividend'
+                        ? 'text-green-400'
+                        : 'text-slate-300'
                     }`}>
-                      CHF {parseFloat(tx.totalAmountCHF || tx.totalAmount).toFixed(2)}
+                      {tx.transactionType === 'sell' || tx.transactionType === 'withdrawal' ? '-' : '+'}CHF {Math.abs(parseFloat(tx.totalAmountCHF || tx.totalAmount)).toFixed(2)}
                     </td>
                     {/* Notizen */}
                     <td className="py-3 px-2 text-slate-400 text-sm truncate max-w-xs">
@@ -470,20 +474,29 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-600">
+                  <td colSpan={10} className="py-3 px-2 text-right text-slate-400 font-medium">
+                    Gesamt:
+                  </td>
+                  <td className="py-3 px-2 text-right font-bold text-white text-base">
+                    CHF {filteredTransactions.reduce((sum, tx) => {
+                      const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+                      return sum + amount;
+                    }, 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td colSpan={2}></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
 
         {/* Summary */}
-        <div className="mt-6 pt-4 border-t border-slate-700 flex justify-between items-center">
+        <div className="mt-6 pt-4 border-t border-slate-700">
           <p className="text-slate-400 text-sm">
             {filteredTransactions.length} Transaktion{filteredTransactions.length !== 1 ? 'en' : ''}
             {filterType !== "all" || filterTicker ? " (gefiltert)" : ""}
-          </p>
-          <p className="text-slate-300 text-sm">
-            Gesamt: <span className="font-semibold text-white">
-              CHF {filteredTransactions.reduce((sum, tx) => sum + parseFloat(tx.totalAmountCHF || tx.totalAmount || '0'), 0).toFixed(2)}
-            </span>
           </p>
         </div>
       </CardContent>

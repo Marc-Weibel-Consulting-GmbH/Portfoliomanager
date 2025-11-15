@@ -218,6 +218,9 @@ export const annualPerformanceRouter = router({
       const netPerformance = finalUnrealizedGains + realizedGainsTotal + dividendIncome - totalFees;
       const returnOnInvestment = finalTotalDeposits > 0 ? ((finalCurrentValue - finalTotalDeposits) / finalTotalDeposits) * 100 : 0;
       
+      // Total invested should include cash (to match Portfolio card display)
+      const displayTotalInvested = finalTotalInvested + finalCashPosition;
+      
       return {
         year,
         unrealizedGains: finalUnrealizedGains,
@@ -227,7 +230,7 @@ export const annualPerformanceRouter = router({
         dividendIncome,
         totalFees,
         netPerformance,
-        totalInvested: finalTotalInvested,
+        totalInvested: displayTotalInvested,  // Stocks + Cash (matches Portfolio card)
         totalDeposits: finalTotalDeposits,
         cashPosition: finalCashPosition,
         currentValue: finalCurrentValue,

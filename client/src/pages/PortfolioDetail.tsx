@@ -515,7 +515,7 @@ export default function PortfolioDetail() {
                     <th className="text-left py-3 px-2 text-slate-400 font-medium">Name</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Stückzahl</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Gewicht</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Einstandskurs (FW)</th>
+                    <th className="text-right py-3 px-2 text-slate-400 font-medium" colSpan={2}>Einstandskurs (FW)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Einstandswert (CHF)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Kurs (FW)</th>
                     <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert (CHF)</th>
@@ -654,8 +654,8 @@ export default function PortfolioDetail() {
                   {/* Total Row */}
                   <tr className="border-t border-slate-600 bg-slate-700/30">
                     <td className="py-3 px-2 text-white font-bold" colSpan={2}>TOTAL</td>
-                    <td className="py-3 px-2 text-right" colSpan={3}></td>
-                    <td className="py-3 px-2 text-blue-400 text-right font-bold">
+                    <td className="py-3 px-2 text-right" colSpan={2}></td>
+                    <td className="py-3 px-2 text-blue-400 text-right font-bold" colSpan={2}>
                       {(() => {
                         if (Boolean(portfolio.isLive)) {
                           const total = chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0);
@@ -664,11 +664,14 @@ export default function PortfolioDetail() {
                         return `CHF ${Math.round(portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0)).toLocaleString('de-CH')}`;
                       })()}
                     </td>
+                    <td colSpan={1}></td>
                     <td className="py-3 px-2 text-green-400 text-right font-bold">
                       {(() => {
                         if (Boolean(portfolio.isLive)) {
-                          const total = chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0);
-                          return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
+                          // Total stocks value + cash
+                          const stocksTotal = chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0);
+                          const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
+                          return `CHF ${Math.round(stocksTotal + cashPosition).toLocaleString('de-CH')}`;
                         }
                         const stocksValue = portfolioData
                           .filter((s: any) => s.shares > 0)
@@ -700,8 +703,7 @@ export default function PortfolioDetail() {
                         return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
                       })()}
                     </td>
-                    <td colSpan={1}></td>
-                    <td colSpan={1}></td>
+                    <td colSpan={2}></td>
                     <td className={`py-3 px-2 text-right font-bold ${
                       (() => {
                         // For LIVE portfolios, use livePerformance data (CHF-converted)
