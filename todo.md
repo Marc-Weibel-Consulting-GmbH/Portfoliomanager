@@ -1841,3 +1841,6 @@
 ## Navigation Bug Fixes (Nov 15, 2025)
 - [x] Fix Portfolio Detail back button to navigate to Portfolio Overview instead of Stocks page
 - [x] Fix Analyzer back button issue - should show stock list instead of news on Stocks page
+
+## Navigation Bug (Nov 15, 2025 - 18:00)
+- [x] Fix 404 error when clicking back button in portfolio detail page
