@@ -1837,3 +1837,7 @@
   - [x] Column 2: "Einstandswert (CHF)" - Absolute value at purchase/live date in CHF
   - [x] Column 3: "Aktueller Kurs (FW)" - Line 1: Current price in foreign currency, Line 2: Current FX rate
   - [x] Column 4: "Aktueller Wert (CHF)" - Current absolute value in CHF
+
+## Navigation Bug Fixes (Nov 15, 2025)
+- [x] Fix Portfolio Detail back button to navigate to Portfolio Overview instead of Stocks page
+- [x] Fix Analyzer back button issue - should show stock list instead of news on Stocks page

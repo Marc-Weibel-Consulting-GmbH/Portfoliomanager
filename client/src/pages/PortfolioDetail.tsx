@@ -259,7 +259,7 @@ export default function PortfolioDetail() {
           <div className="text-center py-12">
             <p className="text-slate-400 text-lg">Portfolio nicht gefunden</p>
             <Button
-              onClick={() => setLocation("/")}
+              onClick={() => setLocation("/home")}
               variant="outline"
               className="mt-4"
             >
@@ -277,7 +277,7 @@ export default function PortfolioDetail() {
         {/* Header */}
         <div className="mb-8">
           <Button
-            onClick={() => setLocation("/")}
+            onClick={() => setLocation("/home")}
             variant="ghost"
             className="mb-4 text-slate-400 hover:text-white"
           >
