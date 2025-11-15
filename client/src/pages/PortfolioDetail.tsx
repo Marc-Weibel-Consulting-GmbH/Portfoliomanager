@@ -528,8 +528,14 @@ export default function PortfolioDetail() {
                   {/* Cash Position Row - First */}
                   <tr className="border-b-2 border-slate-600 bg-slate-700/20">
                     <td className="py-3 px-2 text-yellow-400 font-semibold" colSpan={2}>💰 Cash</td>
-                    <td className="py-3 px-2 text-right" colSpan={4}></td>
-                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold" colSpan={1}>
+                    <td className="py-3 px-2 text-right" colSpan={3}></td>
+                    {/* Einstandswert (CHF) - Cash */}
+                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold">
+                      CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
+                    </td>
+                    <td className="py-3 px-2 text-right" colSpan={1}></td>
+                    {/* Aktueller Wert (CHF) - Cash */}
+                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold">
                       CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
                     </td>
                     <td colSpan={3}></td>

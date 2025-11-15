@@ -1937,3 +1937,6 @@
 - [x] Show "Diese Funktion ist in Entwicklung" message for Analyzer button
 - [x] Show "Diese Funktion ist in Entwicklung" message for Rechner button
 - [x] Remove Research button completely
+
+## BUG FIX: Cash Position Display (Nov 15, 2025)
+- [x] Fix: Cash position muss unter "Einstandswert (CHF)" UND "Aktueller Wert (CHF)" ausgewiesen werden
