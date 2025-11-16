@@ -38,12 +38,12 @@ export default function AnnualPerformanceSummary({
 
   const formatCurrency = (amount: number) => {
     const sign = amount >= 0 ? '+' : '';
-    return `${sign}CHF ${Math.abs(amount).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${sign}CHF ${Math.round(Math.abs(amount)).toLocaleString('de-CH')}`;
   };
 
   const formatPercent = (percent: number) => {
     const sign = percent >= 0 ? '+' : '';
-    return `${sign}${percent.toFixed(2)}%`;
+    return `${sign}${percent.toFixed(1)}%`;
   };
 
   return (

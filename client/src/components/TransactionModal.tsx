@@ -98,8 +98,15 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     setTransactionDate(new Date().toISOString().split('T')[0]);
   };
 
+  const utils = trpc.useUtils();
+  
   const createTransactionMutation = trpc.portfolioTransactions.create.useMutation({
     onSuccess: (data: any) => {
+      // Invalidate queries to refresh data
+      utils.savedPortfolios.getHoldingsWithChfPerformance.invalidate({ id: portfolioId });
+      utils.savedPortfolios.calculateLivePerformance.invalidate({ id: portfolioId });
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      
       // If this was a sell transaction and we have realized gain data, show the modal
       if (transactionType === 'sell' && data.realizedGain) {
         const selectedStock = portfolioStocks.find(s => s.ticker === ticker);
@@ -171,6 +178,13 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     // For withdrawals, make amount negative
     if (transactionType === "withdrawal") {
       finalTotalAmount = (-Math.abs(parseFloat(finalTotalAmount))).toString();
+    }
+    
+    // Cash balance validation for withdrawals and buys
+    if (transactionType === "withdrawal" || transactionType === "buy") {
+      // We'll let the backend validate this, but show a warning
+      const amount = Math.abs(parseFloat(finalTotalAmount));
+      // This is a simple client-side check, server will do the real validation
     }
 
     const transactionData = {

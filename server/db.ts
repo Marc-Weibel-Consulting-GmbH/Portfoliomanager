@@ -733,6 +733,42 @@ export async function createPortfolioTransaction(transaction: any) {
     console.log(`[Validation] Foreign currency transaction validated: ${transaction.currency}, FX rate: ${transaction.fxRate}`);
   }
   
+  // Cash balance validation for withdrawals and buys
+  if (transaction.transactionType === 'withdrawal' || transaction.transactionType === 'buy') {
+    const { portfolioTransactions } = await import("../drizzle/schema");
+    const { eq, and } = await import("drizzle-orm");
+    
+    // Calculate current cash position
+    const allTransactions = await db
+      .select()
+      .from(portfolioTransactions)
+      .where(eq(portfolioTransactions.portfolioId, transaction.portfolioId));
+    
+    let cashPosition = 0;
+    for (const tx of allTransactions) {
+      const amount = parseFloat(tx.totalAmountCHF || '0');
+      if (tx.transactionType === 'deposit') {
+        cashPosition += amount;
+      } else if (tx.transactionType === 'withdrawal') {
+        cashPosition += amount; // already negative
+      } else if (tx.transactionType === 'buy') {
+        cashPosition -= amount;
+      } else if (tx.transactionType === 'sell') {
+        cashPosition += amount;
+      }
+    }
+    
+    // Check if new transaction would make cash negative
+    const transactionAmount = Math.abs(parseFloat(transaction.totalAmountCHF || '0'));
+    const newCashPosition = transaction.transactionType === 'withdrawal' 
+      ? cashPosition - transactionAmount
+      : cashPosition - transactionAmount;
+    
+    if (newCashPosition < 0) {
+      throw new Error(`Unzureichende Liquidität: Cash-Position würde CHF ${Math.round(newCashPosition).toLocaleString('de-CH')} betragen. Bitte zahlen Sie zuerst Geld ein.`);
+    }
+  }
+  
   try {
     const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");
     console.log("[DB] Inserting into portfolioTransactions table...");

@@ -2053,3 +2053,15 @@
 - [x] New formula: (Current Value + Realized Gains - Total Invested) / Total Invested × 100
 - [x] This correctly handles positions bought after live start date
 - [x] Server restarted to apply changes
+
+
+## CRITICAL: Bug Fixes (Nov 16, 2025 - 10:00)
+- [ ] Fix EOS average price calculation display (showing old price instead of new calculated price)
+- [x] Fix transaction history dropdown white text visibility issue (all types dropdown)
+- [x] Round all numbers in year overview to whole numbers, performance to 1 decimal place
+- [x] Implement auto-refresh after transaction to update portfolio positions
+- [x] Add cash balance validation warning to prevent negative cash
+- [x] Fix back button in Portfolio Detail to navigate to Portfolio Overview instead of Stocks page
+- [x] Fix React Minified Error #31 when clicking "Analyzer" button
+- [x] Fix React Minified Error #31 when clicking "Rechner" button
+- [ ] Fix AutoFill function in "Aktie hinzufügen" button (Aktien page and Portfolio Details page)

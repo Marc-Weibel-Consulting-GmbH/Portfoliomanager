@@ -353,16 +353,16 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
         <div className="flex gap-4 mb-6">
           <div className="flex-1">
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="bg-slate-700 border-slate-600">
+              <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                 <SelectValue placeholder="Alle Typen" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-700 border-slate-600">
-                <SelectItem value="all">Alle Typen</SelectItem>
-                <SelectItem value="buy">Kauf</SelectItem>
-                <SelectItem value="sell">Verkauf</SelectItem>
-                <SelectItem value="dividend">Dividende</SelectItem>
-                <SelectItem value="deposit">Einzahlung</SelectItem>
-                <SelectItem value="withdrawal">Auszahlung</SelectItem>
+              <SelectContent className="bg-slate-700 border-slate-600 text-white">
+                <SelectItem value="all" className="text-white">Alle Typen</SelectItem>
+                <SelectItem value="buy" className="text-white">Kauf</SelectItem>
+                <SelectItem value="sell" className="text-white">Verkauf</SelectItem>
+                <SelectItem value="dividend" className="text-white">Dividende</SelectItem>
+                <SelectItem value="deposit" className="text-white">Einzahlung</SelectItem>
+                <SelectItem value="withdrawal" className="text-white">Auszahlung</SelectItem>
               </SelectContent>
             </Select>
           </div>

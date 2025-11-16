@@ -2424,8 +2424,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => {
-              toast({
-                title: "Funktion in Entwicklung",
+              toast.info("Funktion in Entwicklung", {
                 description: "Diese Funktion ist in Entwicklung."
               });
             }}
@@ -2457,8 +2456,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => {
-              toast({
-                title: "Funktion in Entwicklung",
+              toast.info("Funktion in Entwicklung", {
                 description: "Diese Funktion ist in Entwicklung."
               });
             }}
