@@ -22,6 +22,11 @@ import TestSecrets from "./pages/TestSecrets";
 import AdminLogs from "./pages/AdminLogs";
 import NotificationSettings from "./pages/NotificationSettings";
 import Chat from "./pages/Chat";
+import LiveTracking from "./pages/LiveTracking";
+import DividendCalendar from "./pages/DividendCalendar";
+import PortfolioOptimizer from "./pages/PortfolioOptimizer";
+import Signals from "./pages/Signals";
+import AdminStocks from "./pages/AdminStocks";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -49,6 +54,11 @@ function Router() {
       <Route path="/chat" component={Chat} />
       <Route path="/categories" component={Categories} />
       <Route path="/sectors" component={Sectors} />
+      <Route path="/live-tracking" component={LiveTracking} />
+      <Route path="/dividends" component={DividendCalendar} />
+      <Route path="/portfolio-optimizer" component={PortfolioOptimizer} />
+      <Route path="/signals" component={Signals} />
+      <Route path="/admin/stocks" component={AdminStocks} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -65,7 +75,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider
-        defaultTheme="light"
+        defaultTheme="dark"
         // switchable
       >
         <TooltipProvider>

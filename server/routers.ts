@@ -19,6 +19,8 @@ import { logsRouter } from "./routers/logsRouter";
 import { notificationSettingsRouter } from "./routers/notificationSettingsRouter";
 import { priceAlertsRouter } from "./routers/priceAlertsRouter";
 import { chatRouter } from "./routers/chatRouter";
+import { signalsRouter } from "./routers/signalsRouter";
+import { portfolioOptimizerRouter } from "./routers/portfolioOptimizerRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -910,6 +912,8 @@ export const appRouter = router({
   admin: adminRouter,
   weeklyOverview: weeklyOverviewRouter,
   portfolioComparison: portfolioComparisonRouter,
+  signals: signalsRouter,
+  portfolio: portfolioOptimizerRouter,
 
   fx: router({
     getCurrentRate: publicProcedure

@@ -2404,4 +2404,60 @@
 ### Phase 5: Final Polish
 - [x] Test all features with new design
 - [x] Verify responsive design on mobile/tablet
-- [ ] Create checkpoint with redesigned UI
+- [x] Create checkpoint with redesigned UI (version: 9c55d23e)
+
+
+## RESTRUCTURING Phase (Nov 16, 2025 - User Request)
+
+### Design & Theme
+- [ ] Restore dark mode theme (revert light mode changes from previous session)
+- [ ] Refine UI design to match landing page screenshots
+- [ ] Update color palette and styling for dark theme
+
+### Navigation & Access Control
+- [ ] Restrict "Aktien" page to owner-only access (role-based)
+- [ ] Update DashboardLayout navigation to reflect new structure
+- [ ] Add role checks in frontend and backend
+
+### Page Separation & Reorganization
+- [ ] Separate Live Tracking into dedicated page (/live-tracking)
+- [ ] Separate Dividend Calendar into dedicated page (/dividends)
+- [ ] Create Portfolio Optimizer page with multiple optimization criteria (/optimizer)
+- [ ] Keep Portfolio Builder functionality as is
+
+### New Feature: Signale (Buy/Sell Recommendations)
+- [ ] Create Signals page (/signals)
+- [ ] Implement signal generation based on financial metrics
+- [ ] Stock-level buy/sell recommendations
+- [ ] Portfolio-level recommendations (increase/reduce cash position)
+- [ ] Signal criteria: P/E ratio, dividend yield, technical indicators, etc.
+- [ ] Backend: Create signals router with tRPC procedures
+- [ ] Frontend: Signals page with table and filters
+
+### Implementation Order
+1. Restore dark mode
+2. Update navigation and access control
+3. Create separate pages (Live Tracking, Dividends, Optimizer)
+4. Implement Signals feature
+5. Test all features
+6. Create checkpoint
+
+
+## Progress Update (Nov 16, 2025 - 16:30)
+- [x] Restore dark mode theme (revert light mode changes from previous session)
+
+
+## Restructuring Progress (Nov 16, 2025 - 17:00)
+- [x] Restore dark mode theme
+- [x] Update DashboardLayout navigation with new structure
+- [x] Add role-based access control (admin menu items)
+- [x] Create LiveTracking page for real-time portfolio monitoring
+- [x] Create DividendCalendar page for dividend tracking
+- [x] Create PortfolioOptimizer page with multiple optimization criteria
+- [x] Create Signals page for buy/sell recommendations
+- [x] Create AdminStocks page (owner-only access)
+- [x] Add routes to App.tsx for all new pages
+- [x] Create signalsRouter backend with signal generation logic
+- [x] Create portfolioOptimizerRouter backend with optimization algorithms
+- [x] Update dividendCalendarRouter with calendar endpoint
+- [x] Register new routers in main routers.ts

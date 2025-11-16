@@ -1,6 +1,64 @@
 import { router, protectedProcedure } from "../_core/trpc";
 
 export const dividendCalendarRouter = router({
+  /**
+   * Get dividend calendar for a portfolio
+   */
+  calendar: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+        return val as { portfolioId: number };
+      }
+      throw new Error("Invalid portfolio ID");
+    })
+    .query(async ({ input, ctx }) => {
+      const { getDb } = await import("../db");
+      const { savedPortfolios } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+
+      // Fetch portfolio
+      const [portfolio] = await db
+        .select()
+        .from(savedPortfolios)
+        .where(eq(savedPortfolios.id, input.portfolioId))
+        .limit(1);
+
+      if (!portfolio) {
+        throw new Error("Portfolio not found");
+      }
+
+      // Parse portfolio data
+      const portfolioData = JSON.parse(portfolio.portfolioData);
+      const stocks = portfolioData.stocks || [];
+
+      // Mock dividend data (in production, fetch from Finnhub or other API)
+      const today = new Date();
+      const dividends = stocks.map((stock: any, idx: number) => {
+        const exDate = new Date(today);
+        exDate.setDate(today.getDate() + (idx * 30)); // Spread over next 12 months
+        
+        const paymentDate = new Date(exDate);
+        paymentDate.setDate(exDate.getDate() + 14); // Payment 2 weeks after ex-date
+        
+        return {
+          ticker: stock.ticker,
+          companyName: stock.companyName,
+          exDate: exDate.toISOString(),
+          paymentDate: paymentDate.toISOString(),
+          dividendPerShare: (stock.dividendYield || 2) * stock.currentPrice / 100,
+          shares: stock.shares || 0,
+          expectedAmount: ((stock.dividendYield || 2) * stock.currentPrice / 100) * (stock.shares || 0)
+        };
+      });
+
+      return dividends;
+    }),
+
   getUpcoming: protectedProcedure
     .input((val: unknown) => {
       if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
