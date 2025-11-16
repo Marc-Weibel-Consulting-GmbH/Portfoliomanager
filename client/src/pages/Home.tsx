@@ -33,6 +33,7 @@ import { WeeklyOverviewDialog } from '@/components/WeeklyOverviewDialog';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
 import WelcomeModal from '@/components/WelcomeModal';
 import InteractiveTour from '@/components/InteractiveTour';
+import OnboardingTutorial from '@/components/OnboardingTutorial';
 
 // Score threshold helper
 function getScoreLabel(score: number): string {
@@ -378,6 +379,7 @@ export default function Home() {
   const [optimizerInitialStocks, setOptimizerInitialStocks] = useState<any>(null);
   const [loadedPortfolioId, setLoadedPortfolioId] = useState<string | null>(null);
   const [loadedPortfolioName, setLoadedPortfolioName] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showOptimizerResults, setShowOptimizerResults] = useState(false);
   const [refreshProgress, setRefreshProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -447,16 +449,12 @@ export default function Home() {
   // Onboarding states
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showTour, setShowTour] = useState(false);
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
-    return localStorage.getItem('hasSeenOnboarding') === 'true';
-  });
-  
-  // Show welcome modal for first-time users
+  // Show onboarding tutorial for first-time users
   useEffect(() => {
-    if (isAuthenticated && user && !hasSeenOnboarding) {
-      setShowWelcomeModal(true);
+    if (isAuthenticated && user && !user.hasSeenOnboarding) {
+      setShowOnboarding(true);
     }
-  }, [isAuthenticated, user, hasSeenOnboarding]);
+  }, [isAuthenticated, user]);
   
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;
@@ -3961,7 +3959,12 @@ export default function Home() {
         open={showWeeklyOverview} 
         onOpenChange={setShowWeeklyOverview} 
       />
-
+      
+      {/* Onboarding Tutorial */}
+      <OnboardingTutorial 
+        open={showOnboarding} 
+        onClose={() => setShowOnboarding(false)} 
+      />
     </>
   );
 }

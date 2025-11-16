@@ -119,6 +119,66 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Screenshots Section */}
+      <section className="container mx-auto px-4 py-16 bg-gradient-to-b from-gray-50 to-white">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Sehen Sie selbst</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Professionelle Tools und intuitive Bedienung in einer modernen Oberfläche
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          <div className="space-y-4">
+            <img 
+              src="/screenshot-portfolio-overview.png" 
+              alt="Portfolio Übersicht" 
+              className="rounded-lg shadow-2xl border border-gray-200 w-full hover:scale-105 transition-transform duration-300"
+            />
+            <div className="text-center">
+              <h3 className="font-semibold text-lg text-gray-900">Portfolio Übersicht</h3>
+              <p className="text-sm text-gray-600">Alle Ihre Investments auf einen Blick</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <img 
+              src="/screenshot-optimizer.png" 
+              alt="Portfolio Optimizer" 
+              className="rounded-lg shadow-2xl border border-gray-200 w-full hover:scale-105 transition-transform duration-300"
+            />
+            <div className="text-center">
+              <h3 className="font-semibold text-lg text-gray-900">Portfolio Optimizer</h3>
+              <p className="text-sm text-gray-600">Wissenschaftlich fundierte Optimierung</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <img 
+              src="/screenshot-live-tracking.png" 
+              alt="Live Tracking" 
+              className="rounded-lg shadow-2xl border border-gray-200 w-full hover:scale-105 transition-transform duration-300"
+            />
+            <div className="text-center">
+              <h3 className="font-semibold text-lg text-gray-900">Live Tracking</h3>
+              <p className="text-sm text-gray-600">Echtzeit Performance-Tracking</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <img 
+              src="/screenshot-dividends.png" 
+              alt="Dividenden Kalender" 
+              className="rounded-lg shadow-2xl border border-gray-200 w-full hover:scale-105 transition-transform duration-300"
+            />
+            <div className="text-center">
+              <h3 className="font-semibold text-lg text-gray-900">Dividenden Kalender</h3>
+              <p className="text-sm text-gray-600">Automatisches Dividenden-Tracking</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section className="bg-white py-16">
         <div className="container mx-auto px-4">

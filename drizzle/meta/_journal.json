@@ -288,6 +288,13 @@
       "when": 1763307359038,
       "tag": "0040_sharp_stature",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1763308426871,
+      "tag": "0041_cultured_thunderbird",
+      "breakpoints": true
     }
   ]
 }

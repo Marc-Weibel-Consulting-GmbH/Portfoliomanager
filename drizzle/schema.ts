@@ -29,6 +29,8 @@ export const users = mysqlTable("users", {
   paymentDate: timestamp("paymentDate"),
   stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   whatsappAlerts: tinyint("whatsappAlerts").notNull().default(0),
+  hasSeenOnboarding: tinyint("hasSeenOnboarding").notNull().default(0),
+  hasDemoPortfolio: tinyint("hasDemoPortfolio").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

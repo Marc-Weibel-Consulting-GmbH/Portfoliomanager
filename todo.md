@@ -2190,3 +2190,73 @@
 - [ ] Demo-Tour with pre-populated portfolio data
 - [ ] Onboarding wizard for new users
 - [ ] Interactive tutorial for first-time users
+
+
+## NEW FEATURES (Nov 16, 2025)
+
+### 1. Demo-Portfolio erstellen
+- [x] Backend: Seed-Funktion für Demo-Portfolio mit realistischen Schweizer Aktien
+- [x] Demo-Daten: Nestlé, Novartis, Roche, UBS, Swiss Re, Zurich Insurance
+- [x] Duplikat-Prüfung (hasDemoPortfolio Flag)
+- [x] User-Update nach Erstellung
+- [ ] Button "Demo-Portfolio laden" auf Landing Page
+- [ ] Frontend-Integration
+
+### 2. Onboarding-Tutorial
+- [x] Multi-Step Tutorial-Modal nach erster Anmeldung
+- [x] Schritt 1: Willkommen & Überblick
+- [x] Schritt 2: Portfolio-Optimizer erklärt
+- [x] Schritt 3: Live-Tracking aktivieren
+- [x] Schritt 4: Transaktionen erfassen
+- [x] Schritt 5: Performance analysieren + Demo-Portfolio
+- [x] Tutorial-Status in User-Tabelle speichern (hasSeenOnboarding)
+- [x] Integration in Home.tsx mit useEffect
+- [ ] "Tutorial erneut anzeigen" Button in Settings
+
+### 3. Landing Page Screenshots
+- [x] Screenshot 1: Portfolio-Übersicht mit Performance-Charts
+- [x] Screenshot 2: Portfolio-Optimizer mit Ergebnissen
+- [x] Screenshot 3: Live-Tracking mit Transaktionen
+- [x] Screenshot 4: Dividenden-Kalender
+- [x] Screenshots in Landing Page einbinden
+- [x] Hover-Effekte und Responsive Designmit Screenshots
+- [ ] Responsive Bilddarstellung
+
+
+### 4. Memory-Optimierungen (PRIORITY)
+- [x] Router-Refactoring: routers.ts in Module aufteilen (4145 → 989 Zeilen)
+- [x] Erstelle server/routers/stocksRouter.ts (1176 Zeilen)
+- [x] Erstelle server/routers/portfoliosRouter.ts (1130 Zeilen)
+- [x] Erstelle server/routers/performanceRouter.ts (300 Zeilen)
+- [x] Erstelle server/routers/adminRouter.ts (236 Zeilen)
+- [x] Erstelle server/routers/weeklyOverviewRouter.ts (172 Zeilen)
+- [x] Erstelle server/routers/portfolioComparisonRouter.ts (136 Zeilen)
+- [x] Hauptdatei routers.ts vereinfacht
+- [x] Import-Pfade korrigiert (./db → ../db)
+
+### 5. UI-Verbesserungen
+- [ ] Loading States für alle Daten-Abfragen optimieren
+- [ ] Skeleton Loaders für Charts und Tabellen
+- [ ] Error Boundaries für kritische Komponenten
+- [ ] Empty States mit Call-to-Action
+- [ ] Responsive Design für Mobile verbessern
+- [ ] Accessibility: Keyboard Navigation testen
+- [ ] Performance: Code-Splitting für große Komponenten
+
+
+## FUTURE FEATURES (Nach aktuellem Release)
+
+### KI-Chat-Bot Integration
+- [ ] Chat-Widget in der Ecke (floating button)
+- [ ] Backend: LLM-Integration mit invokeLLM Helper
+- [ ] Kontext-bewusst: Zugriff auf User-Portfolio-Daten
+- [ ] Use Cases:
+  - [ ] Portfolio-Beratung ("Wie diversifiziere ich besser?")
+  - [ ] Aktien-Recherche ("Erkläre Nestlé Fundamentaldaten")
+  - [ ] Finanz-Bildung ("Was ist Sharpe Ratio?")
+  - [ ] Markt-Insights ("Schweizer Markt heute?")
+  - [ ] Steuer-Hilfe ("Dividendenbesteuerung CH?")
+- [ ] Mehrsprachig (DE/EN)
+- [ ] Chat-Historie speichern
+- [ ] Streaming-Antworten für bessere UX
+- [ ] Rate-Limiting und Kosten-Kontrolle
