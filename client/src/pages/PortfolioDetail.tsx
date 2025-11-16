@@ -257,7 +257,7 @@ export default function PortfolioDetail() {
         // Einstandskurs
         let avgBuyPrice = '';
         if (portfolio.isLive && chfHolding?.avgBuyPrice) {
-          avgBuyPrice = `${stock.currency || 'CHF'} ${Math.round(chfHolding.avgBuyPrice)}`;
+          avgBuyPrice = `${stock.currency || 'CHF'} ${chfHolding.avgBuyPrice.toFixed(1)}`;
         } else {
           const holding = holdingsByTicker[stock.ticker];
           if (holding?.avgBuyPrice > 0) {
@@ -297,7 +297,7 @@ export default function PortfolioDetail() {
           weight: `${(parseFloat(stock.weight) || 0).toFixed(1)}%`,
           avgPrice: avgBuyPrice,
           totalInvested: totalInvestedCHF,
-          currentPrice: `${stock.currency || 'CHF'} ${Math.round(stock.currentPrice || 0)}`,
+          currentPrice: `${stock.currency || 'CHF'} ${(stock.currentPrice || 0).toFixed(1)}`,
           currentValue: currentValueCHF,
           dividend: `${(parseFloat(stock.dividendYield) || 0).toFixed(1)}%`,
           ytd: `${(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}${(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%`,
@@ -729,12 +729,12 @@ export default function PortfolioDetail() {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
                               if (chfHolding && chfHolding.avgBuyPrice) {
-                                return `${stock.currency || 'CHF'} ${Math.round(chfHolding.avgBuyPrice).toLocaleString('de-CH')}`;
+                                return `${stock.currency || 'CHF'} ${chfHolding.avgBuyPrice.toFixed(1)}`;
                               }
                             }
                             const holding = holdingsByTicker[stock.ticker];
                             if (holding && holding.avgBuyPrice > 0) {
-                              return `${stock.currency || 'CHF'} ${Math.round(holding.avgBuyPrice).toLocaleString('de-CH')}`;
+                              return `${stock.currency || 'CHF'} ${holding.avgBuyPrice.toFixed(1)}`;
                             }
                             return `${stock.currency || 'CHF'} -`;
                           })()}
@@ -744,7 +744,7 @@ export default function PortfolioDetail() {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
                               if (chfHolding && chfHolding.avgFxRate) {
-                                return `FX: ${chfHolding.avgFxRate.toFixed(2)}`;
+                                return `FX: ${chfHolding.avgFxRate.toFixed(3)}`;
                               }
                             }
                             return stock.currency === 'CHF' ? '' : 'FX: 1.00';
@@ -766,14 +766,14 @@ export default function PortfolioDetail() {
                       {/* Aktueller Kurs (FW) - Line 1: Price, Line 2: FX Rate */}
                       <td className="py-3 px-2 text-slate-300 text-right">
                         <div>
-                          {stock.currency || 'CHF'} {Math.round(stock.currentPrice || 0).toLocaleString('de-CH')}
+                          {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(1)}
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5">
                           {(() => {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
                               if (chfHolding && chfHolding.currentFxRate) {
-                                return `FX: ${chfHolding.currentFxRate.toFixed(2)}`;
+                                return `FX: ${chfHolding.currentFxRate.toFixed(3)}`;
                               }
                             }
                             return stock.currency === 'CHF' ? '' : 'FX: 1.00';

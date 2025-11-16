@@ -2031,3 +2031,9 @@
 - [x] Total Einstandswert must include Cash Position (currently missing CHF 1'979)
 - [x] Fix export to use ExcelJS library for proper .xlsx format
 - [x] Add cash to total cost basis calculation
+
+
+## FX Rate Display & Excel Export Enhancement (Nov 16, 2025)
+- [x] Update FX rates display to 3 decimal places (instead of 2)
+- [x] Add separate columns in Excel export for FX Rate Entry and FX Rate Current
+- [x] Display stock prices (Einstandskurs and aktueller Kurs) with 1 decimal place

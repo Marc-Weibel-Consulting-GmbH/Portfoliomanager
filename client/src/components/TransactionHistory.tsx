@@ -163,8 +163,10 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
         { header: 'Typ', key: 'type', width: 12 },
         { header: 'Ticker', key: 'ticker', width: 10 },
         { header: 'Anzahl', key: 'shares', width: 10 },
-        { header: 'Preis', key: 'price', width: 12 },
-        { header: 'Betrag', key: 'amount', width: 15 },
+        { header: 'Preis (FW)', key: 'price', width: 12 },
+        { header: 'FW Rate', key: 'fxRate', width: 10 },
+        { header: 'Betrag (FW)', key: 'amountForeign', width: 15 },
+        { header: 'Betrag (CHF)', key: 'amountCHF', width: 15 },
         { header: 'Gebühren', key: 'fees', width: 12 },
         { header: 'Notizen', key: 'notes', width: 30 }
       ];
@@ -181,13 +183,20 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
 
       // Add data rows
       filteredTransactions.forEach(tx => {
+        const isForeignCurrency = tx.currency && tx.currency !== 'CHF';
+        const fxRate = tx.fxRate ? parseFloat(tx.fxRate) : 1.0;
+        
         worksheet.addRow({
           date: new Date(tx.transactionDate).toLocaleDateString('de-CH'),
           type: getTypeLabel(tx.transactionType),
           ticker: tx.ticker || "-",
           shares: tx.shares || "-",
-          price: tx.pricePerShare ? `CHF ${tx.pricePerShare.toFixed(2)}` : "-",
-          amount: `CHF ${tx.totalAmount.toFixed(2)}`,
+          price: tx.pricePerShare ? `${tx.currency || 'CHF'} ${tx.pricePerShare.toFixed(2)}` : "-",
+          fxRate: isForeignCurrency ? fxRate.toFixed(3) : "1.000",
+          amountForeign: isForeignCurrency && tx.pricePerShare && tx.shares 
+            ? `${tx.currency} ${(tx.pricePerShare * tx.shares).toFixed(2)}` 
+            : "-",
+          amountCHF: `CHF ${tx.totalAmount.toFixed(2)}`,
           fees: tx.fees ? `CHF ${tx.fees.toFixed(2)}` : "CHF 0.00",
           notes: tx.notes || "-"
         });
@@ -436,9 +445,9 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
                       {tx.pricePerShare ? (
                         <div>
-                          <div>{tx.currency || 'CHF'} {Math.round(parseFloat(tx.pricePerShare)).toLocaleString('de-CH')}</div>
+                          <div>{tx.currency || 'CHF'} {parseFloat(tx.pricePerShare).toFixed(1)}</div>
                           <div className="text-xs text-slate-500 mt-0.5">
-                            {tx.fxRate && tx.currency !== 'CHF' ? `FX: ${parseFloat(tx.fxRate).toFixed(2)}` : (tx.currency === 'CHF' ? '' : 'FX: 1.00')}
+                            {tx.fxRate && tx.currency !== 'CHF' ? `FX: ${parseFloat(tx.fxRate).toFixed(3)}` : (tx.currency === 'CHF' ? '' : 'FX: 1.00')}
                           </div>
                         </div>
                       ) : "-"}
