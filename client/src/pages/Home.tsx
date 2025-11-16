@@ -31,6 +31,8 @@ import { ForwardPEChart } from "@/components/ForwardPEChart";
 import { DailyNewsSection } from '@/components/DailyNewsSection';
 import { WeeklyOverviewDialog } from '@/components/WeeklyOverviewDialog';
 import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } from '@/utils/swissCantonTax';
+import WelcomeModal from '@/components/WelcomeModal';
+import InteractiveTour from '@/components/InteractiveTour';
 
 // Score threshold helper
 function getScoreLabel(score: number): string {
@@ -435,6 +437,20 @@ export default function Home() {
     savings: { standard: 500, custom: 500 },
     other: { standard: 200, custom: 200 }
   });
+  
+  // Onboarding states
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
+    return localStorage.getItem('hasSeenOnboarding') === 'true';
+  });
+  
+  // Show welcome modal for first-time users
+  useEffect(() => {
+    if (isAuthenticated && user && !hasSeenOnboarding) {
+      setShowWelcomeModal(true);
+    }
+  }, [isAuthenticated, user, hasSeenOnboarding]);
   
   // Show welcome screen for non-authenticated users
   const showWelcomeScreen = !isAuthenticated && !user;

@@ -3947,6 +3947,58 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
   testSecrets: testSecretsRouter,
   logs: logsRouter,
   notificationSettings: notificationSettingsRouter,
+  
+  // Onboarding: Demo portfolio creation
+  onboarding: router({
+    createDemoPortfolio: protectedProcedure.mutation(async ({ ctx }) => {
+      const { getDb } = await import("./db");
+      const { savedPortfolios } = await import("../drizzle/schema");
+      const db = await getDb();
+      
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      
+      // Demo portfolio with realistic Swiss stocks
+      const demoStocks = [
+        { ticker: "NESN.SW", name: "Nestlé", weight: 20, shares: 5, price: 85.50, currency: "CHF" },
+        { ticker: "NOVN.SW", name: "Novartis", weight: 20, shares: 12, price: 82.30, currency: "CHF" },
+        { ticker: "ROG.SW", name: "Roche", weight: 15, shares: 6, price: 245.00, currency: "CHF" },
+        { ticker: "UBSG.SW", name: "UBS Group", weight: 15, shares: 50, price: 29.50, currency: "CHF" },
+        { ticker: "ZURN.SW", name: "Zurich Insurance", weight: 15, shares: 3, price: 520.00, currency: "CHF" },
+        { ticker: "ABBN.SW", name: "ABB", weight: 15, shares: 30, price: 52.00, currency: "CHF" },
+      ];
+      
+      const portfolioData = {
+        stocks: demoStocks,
+        metrics: {
+          expectedReturn: 8.5,
+          volatility: 12.3,
+          sharpeRatio: 0.69,
+          avgDividendYield: 3.2,
+          avgPE: 18.5,
+          avgPEG: 1.8,
+        },
+        strategy: "Max. Sharpe Ratio",
+        timeFrame: "3Y",
+      };
+      
+      // Create demo portfolio
+      await db.insert(savedPortfolios).values({
+        userId: ctx.user.id,
+        name: "Demo Portfolio - Schweizer Blue Chips",
+        description: "Beispiel-Portfolio mit führenden Schweizer Unternehmen. Perfekt zum Kennenlernen der Funktionen!",
+        portfolioData: JSON.stringify(portfolioData),
+        isLive: 0,
+        liveStartDate: null,
+      });
+      
+      return {
+        success: true,
+        message: "Demo-Portfolio erfolgreich erstellt!",
+      };
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

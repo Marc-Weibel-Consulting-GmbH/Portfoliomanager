@@ -2069,3 +2069,35 @@
 ## NEW: Critical Bug Fixes (Nov 16, 2025 - 11:00)
 - [x] Fix non-functional "zurück" (back) button - Changed navigation from /portfolios to / in PortfolioDetail.tsx
 - [x] Fix EOS Einstandspreis display (shows USD 10.3 instead of correct USD 14.50, while Einstandswert CHF is calculated correctly) - Added avgBuyPrice recalculation after sell transactions based on remaining shares
+
+
+## NEXT 3 STEPS: Benutzerführung & Onboarding (Nov 16, 2025)
+
+### Step 1: Onboarding-Flow für neue Benutzer
+- [x] Welcome-Modal beim ersten Login erstellen
+- [x] Schritt-für-Schritt-Anleitung für Portfolio-Erstellung
+- [x] Demo-Portfolio automatisch erstellen (optional)
+- [x] Interaktive Tour durch Hauptfunktionen
+
+### Step 2: Hilfe-System & Tooltips
+- [x] Tooltips für alle wichtigen UI-Elemente hinzufügen
+- [x] Hilfe-Button in Navigation (öffnet Hilfe-Modal)
+- [x] FAQ-Sektion mit häufigen Fragen
+- [x] Kontextabhängige Hilfe-Texte
+
+### Step 3: Demo-Daten & Beispiel-Portfolio
+- [x] Beispiel-Portfolio mit realistischen Daten erstellen
+- [x] "Demo-Modus" Button für neue Benutzer
+- [x] Beispiel-Transaktionen vorbefüllen
+- [x] Erklärungen für jede Metrik im Demo-Portfolio
+
+
+## Landing Page Redesign (Nov 16, 2025 - 10:02)
+- [x] Neue Landing-Page mit hellem Hintergrund (Day-Modus) erstellen
+- [x] Hero-Section mit klarem Value Proposition
+- [x] Feature-Highlights mit Icons und Beschreibungen
+- [x] Call-to-Action Buttons (Login, Demo starten)
+- [x] Stats Sektion mit Kennzahlen
+- [x] Footer mit Links zu wichtigen Seiten
+- [x] Routing anpassen: Landing-Page als Startseite für nicht-authentifizierte Benutzer
+- [x] Nach Login: Weiterleitung zu Dashboard/Portfolio Optimizer
