@@ -18,6 +18,7 @@ import { testSecretsRouter } from "./routers/testSecretsRouter";
 import { logsRouter } from "./routers/logsRouter";
 import { notificationSettingsRouter } from "./routers/notificationSettingsRouter";
 import { priceAlertsRouter } from "./routers/priceAlertsRouter";
+import { chatRouter } from "./routers/chatRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -937,6 +938,8 @@ export const appRouter = router({
 
 
   priceAlerts: priceAlertsRouter,
+
+  chat: chatRouter,
 
   realizedGainsHistory: realizedGainsHistoryRouter,
   secrets: secretsRouter,

@@ -404,3 +404,37 @@ export const priceAlerts = mysqlTable("priceAlerts", {
 
 export type PriceAlert = typeof priceAlerts.$inferSelect;
 export type InsertPriceAlert = typeof priceAlerts.$inferInsert;
+
+// ============================================
+// AI Chat Bot Tables (Nov 16, 2025)
+// ============================================
+
+// Chat conversations table - stores chat sessions
+export const chatConversations = mysqlTable("chatConversations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  portfolioId: int("portfolioId"), // Optional: link to specific portfolio for context
+  title: varchar("title", { length: 255 }).notNull().default("Neue Konversation"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  userIdIdx: index("ix_chat_conversations_userId").on(t.userId),
+}));
+
+export type ChatConversation = typeof chatConversations.$inferSelect;
+export type InsertChatConversation = typeof chatConversations.$inferInsert;
+
+// Chat messages table - stores individual messages in conversations
+export const chatMessages = mysqlTable("chatMessages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
+  content: text("content").notNull(),
+  metadata: text("metadata"), // JSON string for additional data (e.g., portfolio snapshot, stock data)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  conversationIdIdx: index("ix_chat_messages_conversationId").on(t.conversationId),
+}));
+
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = typeof chatMessages.$inferInsert;

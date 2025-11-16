@@ -2260,3 +2260,64 @@
 - [ ] Chat-Historie speichern
 - [ ] Streaming-Antworten für bessere UX
 - [ ] Rate-Limiting und Kosten-Kontrolle
+
+
+## NEW: KI-Chat-Bot für Portfolio-Analyse (Nov 16, 2025)
+
+### 1. Chat-Bot Konzeption & Architektur
+- [ ] Chat-Bot Design: Portfolio-Assistent mit Kontext-Bewusstsein
+- [ ] Funktionen: Portfolio-Analyse, Aktien-Empfehlungen, Markt-Insights, Performance-Erklärungen
+- [ ] Kontext-Integration: Zugriff auf User-Portfolios, Transaktionen, Marktdaten
+- [ ] Chat-Verlauf Speicherung in Datenbank
+
+### 2. Backend: Datenbank-Schema
+- [x] Tabelle `chat_conversations` (id, userId, portfolioId, title, createdAt, updatedAt)
+- [x] Tabelle `chat_messages` (id, conversationId, role, content, metadata, createdAt)
+- [x] Migration erstellen und pushen
+
+### 3. Backend: tRPC Procedures
+- [x] `chat.sendMessage` - Nachricht senden und LLM-Antwort erhalten
+- [x] `chat.getConversations` - Liste aller Konversationen für User
+- [x] `chat.getMessages` - Nachrichten einer Konversation laden
+- [x] `chat.createConversation` - Neue Konversation starten
+- [x] `chat.deleteConversation` - Konversation löschen
+- [x] Helper-Funktion: Portfolio-Kontext für LLM aufbereiten
+
+### 4. LLM-Integration
+- [x] System-Prompt für Portfolio-Assistenten erstellen
+- [x] Portfolio-Daten in strukturiertem Format für LLM aufbereiten
+- [x] Kontext-Fenster: Letzte N Nachrichten + Portfolio-Snapshot
+- [ ] Streaming-Antworten implementieren (optional)
+- [x] Error-Handling für LLM-Timeouts
+
+### 5. Frontend: Chat-Interface
+- [x] Chat-Komponente mit Nachrichten-Liste und Eingabefeld
+- [x] Konversations-Sidebar (Liste aller Chats)
+- [x] Neue Konversation starten Button
+- [ ] Portfolio-Auswahl für Chat-Kontext (optional)
+- [x] Loading-States für LLM-Antworten
+- [x] Markdown-Rendering für formatierte Antworten
+- [x] Auto-Scroll zu neuesten Nachrichten
+
+### 6. Chat-Features
+- [x] Portfolio-spezifische Fragen (z.B. "Wie performt mein Portfolio?")
+- [x] Aktien-Analysen (z.B. "Sollte ich mehr Apple kaufen?")
+- [x] Markt-Insights (z.B. "Was sind die Trends im Tech-Sektor?")
+- [x] Performance-Erklärungen (z.B. "Warum ist meine Performance negativ?")
+- [x] Diversifikations-Tipps
+- [x] Risiko-Analysen
+
+### 7. UI/UX Verbesserungen
+- [x] Chat-Icon in Navigation (Sidebar oder Header)
+- [x] Chat-Modal oder dedizierte Chat-Seite
+- [x] Typing-Indikator während LLM antwortet
+- [x] Beispiel-Fragen als Quick-Actions
+- [ ] Chat-Verlauf durchsuchbar machen (optional)
+- [ ] Export-Funktion für Chat-Konversationen (optional)
+
+### 8. Testing & Optimierung
+- [x] Test: Chat-Bot antwortet korrekt auf Portfolio-Fragen
+- [x] Test: Kontext wird korrekt aus Portfolio-Daten geladen
+- [x] Test: Chat-Verlauf wird gespeichert und geladen
+- [x] Performance: LLM-Antworten unter 5 Sekunden
+- [x] Error-Handling: Graceful Degradation bei LLM-Ausfällen

@@ -21,6 +21,7 @@ import AdminSecrets from "./pages/AdminSecrets";
 import TestSecrets from "./pages/TestSecrets";
 import AdminLogs from "./pages/AdminLogs";
 import NotificationSettings from "./pages/NotificationSettings";
+import Chat from "./pages/Chat";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/admin/test-secrets" component={TestSecrets} />
       <Route path="/admin/logs" component={AdminLogs} />
       <Route path="/settings/notifications" component={NotificationSettings} />
+      <Route path="/chat" component={Chat} />
       <Route path="/categories" component={Categories} />
       <Route path="/sectors" component={Sectors} />
       <Route path="/404" component={NotFound} />

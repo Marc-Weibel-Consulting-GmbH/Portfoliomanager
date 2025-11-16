@@ -2490,6 +2490,12 @@ export default function Home() {
             Wissen
           </button>
           <button
+            onClick={() => window.location.href = '/chat'}
+            className="px-4 py-2 rounded font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
+          >
+            KI-Chat
+          </button>
+          <button
             onClick={() => {
               toast.info("Funktion in Entwicklung", {
                 description: "Diese Funktion ist in Entwicklung."
