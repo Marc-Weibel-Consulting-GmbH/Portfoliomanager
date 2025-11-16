@@ -48,13 +48,13 @@ export default function About({ onBackClick }: AboutProps) {
       {/* Header with Back Button */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Über mich</h2>
-        <Button onClick={onBackClick} variant="outline" className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+        <Button onClick={onBackClick} variant="outline" className="bg-muted border-border text-white hover:bg-slate-600">
           ← Zurück
         </Button>
       </div>
 
       {/* About Me Section */}
-      <Card className="bg-slate-800 border-slate-700 p-6">
+      <Card className="gradient-card border-border/50 p-6">
         <div className="space-y-4">
           <div className="flex items-center gap-4 pb-4 border-b border-slate-700">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-white flex items-center justify-center p-2">
@@ -72,11 +72,11 @@ export default function About({ onBackClick }: AboutProps) {
             </div>
             <div>
               <h3 className="text-2xl font-bold text-white">Marc Weibel</h3>
-              <p className="text-slate-400">Portfolio Manager & Investment Analyst</p>
+              <p className="text-muted-foreground">Portfolio Manager & Investment Analyst</p>
             </div>
           </div>
 
-          <div className="space-y-4 text-slate-300">
+          <div className="space-y-4 text-foreground">
             <p>
               Willkommen auf meiner Portfolio-Analyse-Plattform! Ich bin ein erfahrener Investment-Analyst mit über 15 Jahren Erfahrung in der Finanzbranche.
             </p>
@@ -122,18 +122,18 @@ export default function About({ onBackClick }: AboutProps) {
       </Card>
 
       {/* Payment Section */}
-      <Card className="bg-slate-800 border-slate-700 p-6">
+      <Card className="gradient-card border-border/50 p-6">
         <h3 className="text-xl font-bold text-white mb-4">🔓 Vollzugriff freischalten</h3>
-        <p className="text-slate-300 mb-4">
+        <p className="text-foreground mb-4">
           Erhalten Sie Zugriff auf alle {import.meta.env.VITE_APP_TITLE || 'Portfolio'} Aktien und Analysen für eine einmalige Gebühr von <strong className="text-white">CHF 10.-</strong>
         </p>
         <PaymentButton />
       </Card>
 
       {/* Newsletter Section */}
-      <Card className="bg-slate-800 border-slate-700 p-6">
+      <Card className="gradient-card border-border/50 p-6">
         <h3 className="text-xl font-bold text-white mb-4">📬 Newsletter abonnieren</h3>
-        <p className="text-slate-300 mb-4">
+        <p className="text-foreground mb-4">
           Erhalten Sie regelmäßig Updates zu meinem Portfolio, Marktanalysen und Investment-Insights direkt in Ihr Postfach.
         </p>
         <NewsletterForm />
@@ -143,7 +143,7 @@ export default function About({ onBackClick }: AboutProps) {
       <WhatsAppAlertsSettings />
 
       {/* Contact Section */}
-      <Card className="bg-slate-800 border-slate-700 p-6">
+      <Card className="gradient-card border-border/50 p-6">
         <h3 className="text-xl font-bold text-white mb-4">Kontakt</h3>
         
         {submitStatus === "success" && (
@@ -160,36 +160,36 @@ export default function About({ onBackClick }: AboutProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Name</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Name</label>
             <Input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-muted border-border text-white"
               placeholder="Ihr Name"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Email</label>
             <Input
               type="email"
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-muted border-border text-white"
               placeholder="ihre.email@beispiel.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Nachricht</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Nachricht</label>
             <Textarea
               required
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              className="bg-slate-700 border-slate-600 text-white min-h-[120px]"
+              className="bg-muted border-border text-white min-h-[120px]"
               placeholder="Ihre Nachricht..."
             />
           </div>

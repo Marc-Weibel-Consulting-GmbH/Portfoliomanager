@@ -66,7 +66,7 @@ export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-background">
       <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white py-8 px-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
@@ -105,7 +105,7 @@ export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) 
           <select
             value={selectedTicker}
             onChange={(e) => setSelectedTicker(e.target.value)}
-            className="px-4 py-2 bg-slate-700 text-white border border-slate-600 rounded hover:border-purple-500 focus:outline-none focus:border-purple-500"
+            className="px-4 py-2 bg-muted text-white border border-border rounded hover:border-purple-500 focus:outline-none focus:border-purple-500"
           >
             <option value="all">Alle Aktien</option>
             {uniqueTickers.map(ticker => (
@@ -116,9 +116,9 @@ export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) 
 
         {/* News Items */}
         {sortedNews.length === 0 ? (
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardContent className="pt-6">
-              <p className="text-slate-300 text-center">Keine Nachrichten verfügbar. Die NewsAPI-Integration wird täglich aktualisiert.</p>
+              <p className="text-foreground text-center">Keine Nachrichten verfügbar. Die NewsAPI-Integration wird täglich aktualisiert.</p>
             </CardContent>
           </Card>
         ) : (
@@ -139,7 +139,7 @@ export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) 
                       </span>
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">{newsItem.title}</h3>
-                    <p className="text-slate-300 mb-3">{newsItem.publishedAt ? new Date(newsItem.publishedAt).toLocaleDateString("de-CH") : ""}</p>
+                    <p className="text-foreground mb-3">{newsItem.publishedAt ? new Date(newsItem.publishedAt).toLocaleDateString("de-CH") : ""}</p>
                     <p className="text-slate-200 leading-relaxed">{newsItem.description}</p>
                   </div>
                   {newsItem.url && (

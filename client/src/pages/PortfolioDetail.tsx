@@ -420,7 +420,7 @@ export default function PortfolioDetail() {
       <div className="min-h-screen bg-slate-900 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-12">
-            <p className="text-slate-400 text-lg">Portfolio nicht gefunden</p>
+            <p className="text-muted-foreground text-lg">Portfolio nicht gefunden</p>
             <Button
               onClick={() => setLocation("/")}
               variant="outline"
@@ -442,7 +442,7 @@ export default function PortfolioDetail() {
           <Button
             onClick={() => setLocation("/")}
             variant="ghost"
-            className="mb-4 text-slate-400 hover:text-white"
+            className="mb-4 text-muted-foreground hover:text-white"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Zurück zur Übersicht
@@ -464,9 +464,9 @@ export default function PortfolioDetail() {
                 )}
               </div>
               {portfolio.description && (
-                <p className="text-slate-400">{portfolio.description}</p>
+                <p className="text-muted-foreground">{portfolio.description}</p>
               )}
-              <p className="text-slate-500 text-sm mt-1">
+              <p className="text-muted-foreground/70 text-sm mt-1">
                 Erstellt am {new Date(portfolio.createdAt).toLocaleDateString('de-CH', { day: '2-digit', month: 'long', year: 'numeric' })}
               </p>
             </div>
@@ -487,7 +487,7 @@ export default function PortfolioDetail() {
                   });
                 }}
                 variant={Boolean(portfolio.isLive) ? "default" : "outline"}
-                className={Boolean(portfolio.isLive) ? "bg-green-600 hover:bg-green-700 text-white" : "text-slate-300"}
+                className={Boolean(portfolio.isLive) ? "bg-green-600 hover:bg-green-700 text-white" : "text-foreground"}
               >
                 {Boolean(portfolio.isLive) && <span className="w-2 h-2 bg-white rounded-full animate-pulse mr-2" />}
                 {Boolean(portfolio.isLive) ? "Live" : "Test"}
@@ -506,7 +506,7 @@ export default function PortfolioDetail() {
                       liveStartDate: newDate
                     });
                   }}
-                  className="px-3 py-2 text-sm bg-slate-700 border border-slate-600 rounded text-slate-300 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-3 py-2 text-sm bg-muted border border-border rounded text-foreground hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               )}
 
@@ -527,7 +527,7 @@ export default function PortfolioDetail() {
                 <Button
                   onClick={() => setShowCsvImport(true)}
                   variant="outline"
-                  className="text-slate-300 border-slate-600 hover:bg-slate-700"
+                  className="text-foreground border-border hover:bg-muted"
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   CSV Import
@@ -562,9 +562,9 @@ export default function PortfolioDetail() {
 
         {/* Portfolio Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-3">
-              <CardTitle className="text-slate-400 text-sm font-normal">Positionen</CardTitle>
+              <CardTitle className="text-muted-foreground text-sm font-normal">Positionen</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-white">
@@ -575,26 +575,26 @@ export default function PortfolioDetail() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-3">
-              <CardTitle className="text-slate-400 text-sm font-normal">Portfolio</CardTitle>
+              <CardTitle className="text-muted-foreground text-sm font-normal">Portfolio</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-400">Aktien (Wert)</span>
+                  <span className="text-xs text-muted-foreground">Aktien (Wert)</span>
                   <span className="text-sm font-semibold text-white">
                     CHF {Math.round(livePerformance?.totalInvestedInStocks ?? portfolioSummary.totalInvestedInStocks ?? 0).toLocaleString('de-CH')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-400">Cash</span>
+                  <span className="text-xs text-muted-foreground">Cash</span>
                   <span className="text-sm font-semibold text-white">
                     CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-700">
-                  <span className="text-xs text-slate-400">Total investiert</span>
+                  <span className="text-xs text-muted-foreground">Total investiert</span>
                   <span className="text-lg font-bold text-white">
                     CHF {Math.round(livePerformance?.totalInvested ?? portfolioSummary.totalDeposits ?? 0).toLocaleString('de-CH')}
                   </span>
@@ -603,10 +603,10 @@ export default function PortfolioDetail() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-slate-400 text-sm font-normal">Ø Dividende</CardTitle>
+                <CardTitle className="text-muted-foreground text-sm font-normal">Ø Dividende</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -625,9 +625,9 @@ export default function PortfolioDetail() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-3">
-              <CardTitle className="text-slate-400 text-sm font-normal">
+              <CardTitle className="text-muted-foreground text-sm font-normal">
                 {portfolio.isLive ? "Live Performance" : "Ø YTD Performance"}
               </CardTitle>
             </CardHeader>
@@ -640,7 +640,7 @@ export default function PortfolioDetail() {
                     {(livePerformance?.performance || 0) >= 0 ? '+' : ''}
                     {livePerformance?.performance?.toFixed(1) || '0.0'}%
                   </p>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <p className="text-muted-foreground/70 text-xs mt-1">
                     seit {new Date(portfolio.liveStartDate).toLocaleDateString('de-CH')}
                   </p>
                 </div>
@@ -677,7 +677,7 @@ export default function PortfolioDetail() {
         )}
 
         {/* Portfolio Holdings */}
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="gradient-card border-border/50">
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="text-white">Portfolio Positionen</CardTitle>
@@ -685,7 +685,7 @@ export default function PortfolioDetail() {
                 onClick={exportToExcel}
                 variant="outline"
                 size="sm"
-                className="bg-slate-700 hover:bg-slate-600 text-white"
+                className="bg-muted hover:bg-slate-600 text-white"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Excel Export
@@ -697,22 +697,22 @@ export default function PortfolioDetail() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-700">
-                    <th className="text-left py-3 px-2 text-slate-400 font-medium">Ticker</th>
-                    <th className="text-left py-3 px-2 text-slate-400 font-medium">Name</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Stückzahl</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Gewicht</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Einstandskurs (FW)</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Einstandswert (CHF)</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Kurs (FW)</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Aktueller Wert (CHF)</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">Dividende</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">YTD</th>
-                    <th className="text-right py-3 px-2 text-slate-400 font-medium">{Boolean(portfolio.isLive) ? 'Live Perf. (CHF)' : 'Live Perf.'}</th>
+                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Ticker</th>
+                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Name</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Stückzahl</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Gewicht</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Einstandskurs (FW)</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Einstandswert (CHF)</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Aktueller Kurs (FW)</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Aktueller Wert (CHF)</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Dividende</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">YTD</th>
+                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">{Boolean(portfolio.isLive) ? 'Live Perf. (CHF)' : 'Live Perf.'}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {/* Cash Position Row - First */}
-                  <tr className="border-b-2 border-slate-600 bg-slate-700/20">
+                  <tr className="border-b-2 border-border bg-muted/20">
                     <td className="py-3 px-2 text-yellow-400 font-semibold" colSpan={2}>💰 Cash</td>
                     <td className="py-3 px-2 text-right" colSpan={3}></td>
                     {/* Einstandswert (CHF) - Cash */}
@@ -727,15 +727,15 @@ export default function PortfolioDetail() {
                     <td colSpan={3}></td>
                   </tr>
                   {portfolioData.filter((stock: any) => stock.shares > 0).map((stock: any, index: number) => (
-                    <tr key={index} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                    <tr key={index} className="border-b border-slate-700/50 hover:bg-muted/30">
                       <td className="py-3 px-2">
                         <StockLogo ticker={stock.ticker} companyName={stock.name} size="sm" />
                       </td>
-                      <td className="py-3 px-2 text-slate-300">{stock.name}</td>
+                      <td className="py-3 px-2 text-foreground">{stock.name}</td>
                       <td className="py-3 px-2 text-white text-right font-semibold">
                         {stock.shares ? Math.round(stock.shares).toLocaleString('de-CH') : '0'}
                       </td>
-                      <td className="py-3 px-2 text-slate-300 text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
+                      <td className="py-3 px-2 text-foreground text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
                       {/* Einstandskurs (FW) - Line 1: Price, Line 2: FX Rate */}
                       <td className="py-3 px-2 text-blue-300 text-right">
                         <div>
@@ -753,7 +753,7 @@ export default function PortfolioDetail() {
                             return `${stock.currency || 'CHF'} -`;
                           })()}
                         </div>
-                        <div className="text-xs text-slate-500 mt-0.5">
+                        <div className="text-xs text-muted-foreground/70 mt-0.5">
                           {(() => {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
@@ -778,11 +778,11 @@ export default function PortfolioDetail() {
                         })()}
                       </td>
                       {/* Aktueller Kurs (FW) - Line 1: Price, Line 2: FX Rate */}
-                      <td className="py-3 px-2 text-slate-300 text-right">
+                      <td className="py-3 px-2 text-foreground text-right">
                         <div>
                           {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(1)}
                         </div>
-                        <div className="text-xs text-slate-500 mt-0.5">
+                        <div className="text-xs text-muted-foreground/70 mt-0.5">
                           {(() => {
                             if (Boolean(portfolio.isLive)) {
                               const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
@@ -844,7 +844,7 @@ export default function PortfolioDetail() {
                   ))}
 
                   {/* Total Row */}
-                  <tr className="border-t border-slate-600 bg-slate-700/30">
+                  <tr className="border-t border-border bg-muted/30">
                     <td className="py-3 px-2 text-white font-bold" colSpan={2}>TOTAL</td>
                     <td className="py-3 px-2 text-right" colSpan={2}></td>
                     <td className="py-3 px-2 text-blue-400 text-right font-bold" colSpan={2}>
@@ -1024,10 +1024,10 @@ export default function PortfolioDetail() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className="gradient-card border-border/50">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Initial-Transaktionen löschen?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
+            <AlertDialogDescription className="text-muted-foreground">
               Möchten Sie alle Initial-Transaktionen für dieses Portfolio löschen?
               Diese Aktion kann nicht rückgängig gemacht werden.
               <br /><br />
@@ -1037,7 +1037,7 @@ export default function PortfolioDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 text-white hover:bg-slate-600">
+            <AlertDialogCancel className="bg-muted text-white hover:bg-slate-600">
               Abbrechen
             </AlertDialogCancel>
             <AlertDialogAction

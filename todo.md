@@ -2374,3 +2374,34 @@
 - [x] Need to remove auto-redirect logic and show landing page with login button
 - [x] Login button should redirect to OAuth flow
 - [x] After successful login, redirect to dashboard/platform
+
+
+## UI Redesign: Landing Page Design Integration (Nov 16, 2025)
+
+### Phase 1: Design System & Navigation
+- [x] Update global CSS variables in index.css with blue-green gradient colors from landing page
+- [x] Create unified navigation component for authenticated pages (AppNavigation.tsx)
+- [x] Update typography system to match landing page
+- [x] Add gradient utility classes for modern cards and glassmorphism effects
+
+### Phase 2: Dashboard/Home Page Redesign
+- [x] Apply new color scheme (blue-green gradients) to all cards and sections
+- [x] Update portfolio table with modern card design and glassmorphism effects
+- [x] Redesign optimizer tab with new visual style
+- [x] Update charts and visualizations with new color palette
+- [x] Maintain all existing functionality while updating visual design
+
+### Phase 3: Detail Pages Redesign
+- [x] Redesign StockDetail page with new design language
+- [x] Redesign PortfolioDetail page with modern cards and gradients
+- [x] Update transaction modals and forms with new styling
+
+### Phase 4: Remaining Pages
+- [x] Update Newsroom, Research, Settings pages
+- [x] Update all admin pages with consistent design
+- [x] Ensure all modals and dialogs match new design system
+
+### Phase 5: Final Polish
+- [x] Test all features with new design
+- [x] Verify responsive design on mobile/tablet
+- [ ] Create checkpoint with redesigned UI

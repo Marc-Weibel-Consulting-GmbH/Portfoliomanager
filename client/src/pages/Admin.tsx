@@ -14,7 +14,7 @@ interface AdminProps {
 
 export function Admin({ onBackClick }: AdminProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="container mx-auto max-w-7xl">
         {/* Header with Breadcrumb */}
         <div className="mb-8">
@@ -28,7 +28,7 @@ export function Admin({ onBackClick }: AdminProps) {
           <div className="flex items-center justify-between mt-4">
             <div>
               <h1 className="text-4xl font-bold text-white mb-2">Admin-Bereich</h1>
-              <p className="text-slate-400">Verwaltung und Konfiguration Ihrer Portfolio-Anwendung</p>
+              <p className="text-muted-foreground">Verwaltung und Konfiguration Ihrer Portfolio-Anwendung</p>
             </div>
             {onBackClick && (
               <Button
@@ -51,13 +51,13 @@ export function Admin({ onBackClick }: AdminProps) {
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Link href="/admin/secrets">
-              <Card className="bg-slate-800 border-slate-700 hover:border-teal-500 transition-colors cursor-pointer h-full">
+              <Card className="gradient-card border-border/50 hover:border-teal-500 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <Key className="h-5 w-5 text-teal-500" />
                     API Secrets
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-muted-foreground">
                     Verwalten Sie verschlüsselte API-Schlüssel für externe Dienste
                   </CardDescription>
                 </CardHeader>
@@ -65,13 +65,13 @@ export function Admin({ onBackClick }: AdminProps) {
             </Link>
 
             <Link href="/admin/test-secrets">
-              <Card className="bg-slate-800 border-slate-700 hover:border-teal-500 transition-colors cursor-pointer h-full">
+              <Card className="gradient-card border-border/50 hover:border-teal-500 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <Activity className="h-5 w-5 text-teal-500" />
                     API Secrets Testen
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-muted-foreground">
                     Testen Sie die Verfügbarkeit und Funktionalität aller APIs
                   </CardDescription>
                 </CardHeader>
@@ -79,13 +79,13 @@ export function Admin({ onBackClick }: AdminProps) {
             </Link>
 
             <Link href="/admin/logs">
-              <Card className="bg-slate-800 border-slate-700 hover:border-teal-500 transition-colors cursor-pointer h-full">
+              <Card className="gradient-card border-border/50 hover:border-teal-500 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <FileText className="h-5 w-5 text-teal-500" />
                     Server Logs
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-muted-foreground">
                     Überwachen Sie Fehler und Systemereignisse in Echtzeit
                   </CardDescription>
                 </CardHeader>
@@ -102,10 +102,10 @@ export function Admin({ onBackClick }: AdminProps) {
           </h2>
           
           {/* Data Quality Dashboard */}
-          <Card className="bg-slate-800 border-slate-700 mb-6">
+          <Card className="gradient-card border-border/50 mb-6">
             <CardHeader>
               <CardTitle className="text-white">Datenqualität-Dashboard</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-muted-foreground">
                 Überblick über Metriken-Vollständigkeit und Datenqualität
               </CardDescription>
             </CardHeader>
@@ -115,10 +115,10 @@ export function Admin({ onBackClick }: AdminProps) {
           </Card>
 
           {/* Alert Management */}
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader>
               <CardTitle className="text-white">Metriken-Alerts</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-muted-foreground">
                 Konfigurieren Sie Benachrichtigungen für Metriken-Änderungen (Sharpe Ratio, Dividende, etc.)
               </CardDescription>
             </CardHeader>
@@ -136,10 +136,10 @@ export function Admin({ onBackClick }: AdminProps) {
           </h2>
           <div className="grid gap-6 md:grid-cols-2">
             <Link href="/admin/categories">
-              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 transition-colors cursor-pointer h-full">
+              <Card className="gradient-card border-border/50 hover:border-purple-500 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <CardTitle className="text-white">Kategorien</CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-muted-foreground">
                     Verwalten Sie Aktien-Kategorien und Zuordnungen
                   </CardDescription>
                 </CardHeader>
@@ -147,10 +147,10 @@ export function Admin({ onBackClick }: AdminProps) {
             </Link>
 
             <Link href="/admin/sectors">
-              <Card className="bg-slate-800 border-slate-700 hover:border-purple-500 transition-colors cursor-pointer h-full">
+              <Card className="gradient-card border-border/50 hover:border-purple-500 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <CardTitle className="text-white">Sektoren</CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-muted-foreground">
                     Verwalten Sie Branchen-Sektoren und Klassifizierungen
                   </CardDescription>
                 </CardHeader>
@@ -160,10 +160,10 @@ export function Admin({ onBackClick }: AdminProps) {
         </div>
 
         {/* Quick Actions */}
-        <Card className="bg-gradient-to-r from-slate-800 to-slate-700 border-slate-600">
+        <Card className="bg-gradient-to-r from-slate-800 to-slate-700 border-border">
           <CardHeader>
             <CardTitle className="text-white">Schnellzugriff</CardTitle>
-            <CardDescription className="text-slate-300">
+            <CardDescription className="text-foreground">
               Häufig verwendete Admin-Funktionen
             </CardDescription>
           </CardHeader>

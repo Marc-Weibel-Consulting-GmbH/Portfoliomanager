@@ -109,12 +109,12 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={onBackClick}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-muted-foreground hover:text-white transition-colors"
           >
             ← Zurück
           </button>
@@ -122,7 +122,7 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-slate-800 border-slate-700">
+          <TabsList className="grid w-full grid-cols-2 gradient-card border-border/50">
             <TabsTrigger value="profile" className="text-white data-[state=active]:bg-teal-600 data-[state=active]:text-white">
               Profil
             </TabsTrigger>
@@ -133,29 +133,29 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
 
           <TabsContent value="profile" className="space-y-6 mt-6">
             {/* Profile Information */}
-            <Card className="bg-slate-800 border-slate-700">
+            <Card className="gradient-card border-border/50">
               <CardHeader>
                 <CardTitle className="text-white">Profil-Informationen</CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-muted-foreground">
                   Aktualisieren Sie Ihren Benutzernamen und Email-Adresse
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="username" className="text-slate-300">
+                  <Label htmlFor="username" className="text-foreground">
                     Benutzername
                   </Label>
                   <Input
                     id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-muted border-border text-white"
                     placeholder="Ihr Benutzername"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-300">
+                  <Label htmlFor="email" className="text-foreground">
                     Email-Adresse
                   </Label>
                   <Input
@@ -163,7 +163,7 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-muted border-border text-white"
                     placeholder="ihre.email@example.com"
                   />
                 </div>
@@ -179,16 +179,16 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
             </Card>
 
             {/* Password Change */}
-            <Card className="bg-slate-800 border-slate-700">
+            <Card className="gradient-card border-border/50">
               <CardHeader>
                 <CardTitle className="text-white">Passwort ändern</CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-muted-foreground">
                   Ändern Sie Ihr Passwort für mehr Sicherheit
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="currentPassword" className="text-slate-300">
+                  <Label htmlFor="currentPassword" className="text-foreground">
                     Aktuelles Passwort
                   </Label>
                   <Input
@@ -196,13 +196,13 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-muted border-border text-white"
                     placeholder="••••••••"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword" className="text-slate-300">
+                  <Label htmlFor="newPassword" className="text-foreground">
                     Neues Passwort
                   </Label>
                   <Input
@@ -210,14 +210,14 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-muted border-border text-white"
                     placeholder="••••••••"
                   />
                   <p className="text-xs text-slate-500">Mindestens 8 Zeichen</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-slate-300">
+                  <Label htmlFor="confirmPassword" className="text-foreground">
                     Passwort bestätigen
                   </Label>
                   <Input
@@ -225,7 +225,7 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="bg-muted border-border text-white"
                     placeholder="••••••••"
                   />
                 </div>
@@ -242,21 +242,21 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
           </TabsContent>
 
           <TabsContent value="notifications" className="space-y-6 mt-6">
-            <Card className="bg-slate-800 border-slate-700">
+            <Card className="gradient-card border-border/50">
               <CardHeader>
                 <CardTitle className="text-white">Benachrichtigungs-Einstellungen</CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-muted-foreground">
                   Verwalten Sie, wie Sie über Änderungen informiert werden möchten
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* WhatsApp Alerts */}
-                <div className="flex items-center justify-between space-x-4 p-4 bg-slate-700/30 rounded-lg">
+                <div className="flex items-center justify-between space-x-4 p-4 bg-muted/30 rounded-lg">
                   <div className="flex-1">
                     <Label htmlFor="whatsapp" className="text-white font-medium">
                       WhatsApp-Benachrichtigungen
                     </Label>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       Erhalten Sie wichtige Aktien-Alerts per WhatsApp
                     </p>
                   </div>
@@ -268,12 +268,12 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
                 </div>
 
                 {/* Email Notifications */}
-                <div className="flex items-center justify-between space-x-4 p-4 bg-slate-700/30 rounded-lg">
+                <div className="flex items-center justify-between space-x-4 p-4 bg-muted/30 rounded-lg">
                   <div className="flex-1">
                     <Label htmlFor="email-notif" className="text-white font-medium">
                       Email-Benachrichtigungen
                     </Label>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       Erhalten Sie Portfolio-Updates und Alerts per Email
                     </p>
                   </div>
@@ -285,12 +285,12 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
                 </div>
 
                 {/* Newsletter */}
-                <div className="flex items-center justify-between space-x-4 p-4 bg-slate-700/30 rounded-lg">
+                <div className="flex items-center justify-between space-x-4 p-4 bg-muted/30 rounded-lg">
                   <div className="flex-1">
                     <Label htmlFor="newsletter" className="text-white font-medium">
                       Newsletter
                     </Label>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       Erhalten Sie wöchentliche Marktanalysen und Investment-Tipps
                     </p>
                   </div>

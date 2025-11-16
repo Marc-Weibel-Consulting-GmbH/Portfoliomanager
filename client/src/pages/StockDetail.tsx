@@ -16,9 +16,9 @@ export default function StockDetail() {
 
   if (!stock) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-slate-400 mb-4">Aktie nicht gefunden</p>
+          <p className="text-muted-foreground mb-4">Aktie nicht gefunden</p>
           <a href="/" className="text-blue-400 hover:text-blue-300">
             Zurück zur Übersicht
           </a>
@@ -56,9 +56,9 @@ export default function StockDetail() {
   const chartData = generateChartData();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-8 px-4">
+      <div className="gradient-primary text-white py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <a href="/" className="inline-flex items-center text-blue-100 hover:text-white mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -72,9 +72,9 @@ export default function StockDetail() {
       <div className="max-w-7xl mx-auto p-4 space-y-6">
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Aktueller Kurs</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Aktueller Kurs</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white">
@@ -83,27 +83,27 @@ export default function StockDetail() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">P/E Ratio</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">P/E Ratio</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-white">{stock.peRatio || "-"}</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Dividendenrendite</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Dividendenrendite</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-400">{stock.dividendYield ? `${stock.dividendYield}%` : "-"}</div>
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="gradient-card border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Portfolio %</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Portfolio %</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-blue-400">{stock.portfolioWeight || "0"}%</div>
@@ -112,7 +112,7 @@ export default function StockDetail() {
         </div>
 
         {/* Price Chart */}
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="gradient-card border-border/50">
           <CardHeader>
             <CardTitle className="text-white">Kursverlauf (Intraday)</CardTitle>
           </CardHeader>
@@ -150,7 +150,7 @@ export default function StockDetail() {
         </Card>
 
         {/* Moats */}
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="gradient-card border-border/50">
           <CardHeader>
             <CardTitle className="text-white">Wettbewerbsvorteile (Moats)</CardTitle>
           </CardHeader>
@@ -159,19 +159,19 @@ export default function StockDetail() {
               {stock.moat1 && (
                 <div className="p-4 bg-slate-700 rounded-lg border border-slate-600">
                   <h3 className="font-semibold text-white mb-2">1. Moat</h3>
-                  <p className="text-slate-300">{stock.moat1}</p>
+                  <p className="text-foreground">{stock.moat1}</p>
                 </div>
               )}
               {stock.moat2 && (
                 <div className="p-4 bg-slate-700 rounded-lg border border-slate-600">
                   <h3 className="font-semibold text-white mb-2">2. Moat</h3>
-                  <p className="text-slate-300">{stock.moat2}</p>
+                  <p className="text-foreground">{stock.moat2}</p>
                 </div>
               )}
               {stock.moat3 && (
                 <div className="p-4 bg-slate-700 rounded-lg border border-slate-600">
                   <h3 className="font-semibold text-white mb-2">3. Moat</h3>
-                  <p className="text-slate-300">{stock.moat3}</p>
+                  <p className="text-foreground">{stock.moat3}</p>
                 </div>
               )}
             </div>
@@ -179,18 +179,18 @@ export default function StockDetail() {
         </Card>
 
         {/* Additional Info */}
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="gradient-card border-border/50">
           <CardHeader>
             <CardTitle className="text-white">Weitere Informationen</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-slate-400 text-sm">Kategorie</p>
+                <p className="text-muted-foreground text-sm">Kategorie</p>
                 <p className="text-white font-semibold">{stock.category}</p>
               </div>
               <div>
-                <p className="text-slate-400 text-sm">PEG Ratio</p>
+                <p className="text-muted-foreground text-sm">PEG Ratio</p>
                 <p className="text-white font-semibold">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : "-"}</p>
               </div>
             </div>
