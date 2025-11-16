@@ -191,8 +191,8 @@ async function startServer() {
     }
   });
   
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
+  // OAuth callback under /api/oauth/callback (DISABLED)
+  // registerOAuthRoutes(app);
   // tRPC API
   app.use(
     "/api/trpc",

@@ -267,6 +267,20 @@
       "when": 1763300050315,
       "tag": "0037_neat_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1763305970268,
+      "tag": "0038_workable_vivisector",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "5",
+      "when": 1763306347744,
+      "tag": "0039_nappy_psynapse",
+      "breakpoints": true
     }
   ]
 }

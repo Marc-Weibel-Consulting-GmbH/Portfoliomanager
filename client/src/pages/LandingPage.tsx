@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, PieChart, Calendar, Sparkles, BarChart3, Shield, Zap, Users } from "lucide-react";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { APP_LOGO, APP_TITLE } from "@/const";
 import { useState } from "react";
 import WelcomeModal from "@/components/WelcomeModal";
 import { useLocation } from "wouter";
@@ -11,7 +11,7 @@ export default function LandingPage() {
   const [, setLocation] = useLocation();
 
   const handleGetStarted = () => {
-    window.location.href = getLoginUrl();
+    window.location.href = "/register";
   };
 
   const handleDemoClick = () => {
@@ -20,12 +20,12 @@ export default function LandingPage() {
 
   const handleCreateDemo = () => {
     setShowWelcomeModal(false);
-    window.location.href = getLoginUrl();
+    window.location.href = "/register";
   };
 
   const handleStartTour = () => {
     setShowWelcomeModal(false);
-    window.location.href = getLoginUrl();
+    window.location.href = "/register";
   };
 
   return (

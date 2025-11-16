@@ -2101,3 +2101,44 @@
 - [x] Footer mit Links zu wichtigen Seiten
 - [x] Routing anpassen: Landing-Page als Startseite für nicht-authentifizierte Benutzer
 - [x] Nach Login: Weiterleitung zu Dashboard/Portfolio Optimizer
+
+
+## Authentication System Overhaul (Nov 16, 2025 - 11:30)
+- [x] Disable Manus OAuth completely
+- [x] Implement email/password authentication system
+- [x] Create user registration form
+- [x] Create login form with email/password
+- [x] Add password hashing (bcrypt)
+- [x] Update database schema for password storage
+- [x] Remove OAuth dependencies from frontend
+- [x] Remove OAuth dependencies from backend
+- [x] Update session management for email/password auth
+- [x] Test registration and login flow
+
+## AutoFill Function Fix (Nov 16, 2025 - 11:30)
+- [x] Fix AutoFill function in "Aktie hinzufügen" button (Aktien page)
+- [x] Fix AutoFill function in "Aktie hinzufügen" button (Portfolio Details page)
+- [x] Test AutoFill functionality with various stock symbols
+- [x] AutoFill already fully implemented and working
+
+## Cleanup (Nov 16, 2025 - 11:30)
+- [x] Remove "Total calculation in transaction history" from critical bugs (user request)
+- [x] OAuth disabled - using email/password authentication only
+
+
+## Landing Page Integration (Nov 16, 2025 - 11:45)
+- [ ] Connect "Jetzt kostenlos starten" button to /register page
+- [ ] Connect "Demo Portfolio ansehen" button to demo tour
+- [ ] Update navigation: Show Login/Register buttons for non-authenticated users
+- [ ] After login: Redirect to Portfolio Optimizer (main dashboard)
+- [ ] Test complete user flow: Landing → Register → Dashboard
+
+## Demo Tour Implementation (Nov 16, 2025 - 11:45)
+- [ ] Create demo portfolio with realistic data (5-10 stocks)
+- [ ] Add demo transactions (buys, sells, dividends)
+- [ ] Pre-populate performance data for demo portfolio
+- [ ] Create guided tour with tooltips and highlights
+- [ ] Add "Demo beenden" button to exit demo mode
+- [ ] Show demo badge/indicator when in demo mode
+- [ ] Prevent data saving in demo mode
+- [ ] Test complete demo experience

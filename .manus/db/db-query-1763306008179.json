@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, email, password, openId FROM users LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, email, password, openId FROM users LIMIT 5;",
+  "rows": [
+    {
+      "id": "4082022",
+      "email": "marc.weibel@rudolf-weibel.ch",
+      "password": "NULL",
+      "openId": "guest_1761640215921_tosalf"
+    },
+    {
+      "id": "4082025",
+      "email": "marc.weibel@gmail.com",
+      "password": "$2b$10$meJQfGTkM5Ga2ziGXducmuCml2./HU8.IooIPqNo5bUNiUtX.RSeS",
+      "openId": "guest_1761640881696_nyszg"
+    },
+    {
+      "id": "4082027",
+      "email": "test@example.com",
+      "password": "$2b$10$6AIFST3n7KjsM6B9v2JfNeIzilq8mhkK32FN7Xxm2JGJCTXEkH0rW",
+      "openId": "guest_1761641049106_dd2tz7"
+    },
+    {
+      "id": "4082029",
+      "email": "marc.weibel@weibel-mueller.ch",
+      "password": "$2b$10$UAvZTmF2NQZImFGV6NmYU.S2NTLyGijWgblyCHCVlwMdAlH7It/QW",
+      "openId": "PQjAhc575izHFQy8WAUX2d"
+    },
+    {
+      "id": "4530001",
+      "email": "test@portfoliobig.ch",
+      "password": "$2b$10$ukUWeD9N.XNihk2UBoxWWePlWsQ.uaZ.Gw/DR8IfQwqdcqpevHfFu",
+      "openId": "test-user-001"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\temail\tpassword\topenId\n4082022\tmarc.weibel@rudolf-weibel.ch\tNULL\tguest_1761640215921_tosalf\n4082025\tmarc.weibel@gmail.com\t$2b$10$meJQfGTkM5Ga2ziGXducmuCml2./HU8.IooIPqNo5bUNiUtX.RSeS\tguest_1761640881696_nyszg\n4082027\ttest@example.com\t$2b$10$6AIFST3n7KjsM6B9v2JfNeIzilq8mhkK32FN7Xxm2JGJCTXEkH0rW\tguest_1761641049106_dd2tz7\n4082029\tmarc.weibel@weibel-mueller.ch\t$2b$10$UAvZTmF2NQZImFGV6NmYU.S2NTLyGijWgblyCHCVlwMdAlH7It/QW\tPQjAhc575izHFQy8WAUX2d\n4530001\ttest@portfoliobig.ch\t$2b$10$ukUWeD9N.XNihk2UBoxWWePlWsQ.uaZ.Gw/DR8IfQwqdcqpevHfFu\ttest-user-001\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}
