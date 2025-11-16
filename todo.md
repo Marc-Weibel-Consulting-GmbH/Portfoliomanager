@@ -2366,3 +2366,11 @@
 - [x] Only show landing page when user is not logged in
 - [x] Redirect to dashboard after successful login
 - [x] OAuth callback now redirects to landing page (/)
+
+
+## CRITICAL: Routing Bug (Nov 16, 2025)
+- [x] All users (including logged-in owner) should land on homepage/landing page first
+- [x] Currently logged-in users are auto-redirected to platform/dashboard
+- [x] Need to remove auto-redirect logic and show landing page with login button
+- [x] Login button should redirect to OAuth flow
+- [x] After successful login, redirect to dashboard/platform

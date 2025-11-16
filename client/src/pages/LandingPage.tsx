@@ -2,22 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, PieChart, Calendar, Sparkles, BarChart3, Shield, Zap, Users } from "lucide-react";
 import { APP_LOGO, APP_TITLE } from "@/const";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import WelcomeModal from "@/components/WelcomeModal";
-import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function LandingPage() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  const [, setLocation] = useLocation();
-  const { isAuthenticated, loading } = useAuth();
-
-  // Redirect authenticated users to dashboard
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      setLocation("/dashboard");
-    }
-  }, [isAuthenticated, loading, setLocation]);
+  const { isAuthenticated } = useAuth();
 
   const handleGetStarted = () => {
     window.location.href = "/register";
