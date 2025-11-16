@@ -18,7 +18,8 @@ import { TransactionHistory } from "@/components/TransactionHistory";
 import { LivePerformanceChart } from "@/components/LivePerformanceChart";
 import DividendCalendarModal from "@/components/DividendCalendarModal";
 import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
-import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download } from "lucide-react";
+import { CsvImportModal } from "@/components/CsvImportModal";
+import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
@@ -31,6 +32,7 @@ export default function PortfolioDetail() {
   const [showDividendCalendar, setShowDividendCalendar] = useState(false);
   const [showAnnualPerformance, setShowAnnualPerformance] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -520,6 +522,18 @@ export default function PortfolioDetail() {
                 </Button>
               )}
 
+              {/* CSV Import Button */}
+              {Boolean(portfolio.isLive) && (
+                <Button
+                  onClick={() => setShowCsvImport(true)}
+                  variant="outline"
+                  className="text-slate-300 border-slate-600 hover:bg-slate-700"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  CSV Import
+                </Button>
+              )}
+
               {/* Add Transaction Button */}
               {Boolean(portfolio.isLive) && (
                 <Button
@@ -989,6 +1003,15 @@ export default function PortfolioDetail() {
         dividends={dividendCalendar || []}
         isLoading={isDividendLoading}
       />
+
+      {/* CSV Import Modal */}
+      {Boolean(portfolio.isLive) && (
+        <CsvImportModal
+          isOpen={showCsvImport}
+          onClose={() => setShowCsvImport(false)}
+          portfolioId={portfolio.id}
+        />
+      )}
 
       {/* Annual Performance Summary Modal */}
       <AnnualPerformanceSummary

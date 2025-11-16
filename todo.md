@@ -2142,3 +2142,31 @@
 - [ ] Show demo badge/indicator when in demo mode
 - [ ] Prevent data saving in demo mode
 - [ ] Test complete demo experience
+
+
+## NEW USER REQUIREMENTS (Nov 16, 2025)
+
+### 1. Historische Transaktionen Import
+- [x] CSV-Upload-Funktion für historische Transaktionen
+- [x] CSV-Format: Datum, Ticker, Typ (Kauf/Verkauf), Anzahl, Preis, Gebühren
+- [x] Validierung der CSV-Daten
+- [x] Batch-Import in portfolioTransactions Tabelle
+- [x] UI: Upload-Button in Portfolio-Detail-Seite
+- [x] Fehlerbehandlung und Feedback bei fehlerhaften Daten
+
+### 2. Portfolio-Vergleich Feature
+- [x] Neue Seite "Portfolio-Vergleich"
+- [x] Auswahl von 2-4 Portfolios zum Vergleich
+- [x] Side-by-side Darstellung der Performance-Metriken
+- [x] Vergleichs-Charts (Performance über Zeit, Diversifikation, Sektor-Allocation)
+- [x] Tabelle mit Key Metrics: Return, Volatilität, Sharpe Ratio, Max Drawdown
+- [ ] Export-Funktion für Vergleichsbericht (PDF) - TODO: Implementierung
+
+### 3. Benachrichtigungen für Preis-Alerts
+- [x] Neue Tabelle `priceAlerts` (userId, ticker, alertType, targetPrice, isActive)
+- [x] Alert-Typen: "über Preis", "unter Preis", "% Änderung"
+- [x] UI: Alert-Verwaltungsseite (/price-alerts)
+- [x] Backend-Endpoints (create, list, update, delete, checkAlerts)
+- [x] Benachrichtigung via notifyOwner bei Alert-Trigger
+- [x] Alert-Verwaltung (Liste, Bearbeiten, Löschen, Aktivieren/Deaktivieren)
+- [ ] Cron-Job zur automatischen Preis-Überwachung - TODO: Scheduler einrichten

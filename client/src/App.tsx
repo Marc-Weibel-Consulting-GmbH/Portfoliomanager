@@ -14,6 +14,8 @@ import Reviews from "./pages/Reviews";
 import Categories from "./pages/Categories";
 import Sectors from "./pages/Sectors";
 import PortfolioDetail from "./pages/PortfolioDetail";
+import PortfolioComparison from "./pages/PortfolioComparison";
+import PriceAlerts from "./pages/PriceAlerts";
 import RealizedGainsHistory from "./pages/RealizedGainsHistory";
 import AdminSecrets from "./pages/AdminSecrets";
 import TestSecrets from "./pages/TestSecrets";
@@ -36,6 +38,8 @@ function Router() {
       <Route path="/stock/:ticker" component={StockDetail} />
       <Route path="/portfolio/:id" component={PortfolioDetail} />
       <Route path="/portfolio/:id/realized-gains" component={RealizedGainsHistory} />
+      <Route path="/portfolio-comparison" component={PortfolioComparison} />
+      <Route path="/price-alerts" component={PriceAlerts} />
       <Route path="/admin/secrets" component={AdminSecrets} />
       <Route path="/admin/test-secrets" component={TestSecrets} />
       <Route path="/admin/logs" component={AdminLogs} />

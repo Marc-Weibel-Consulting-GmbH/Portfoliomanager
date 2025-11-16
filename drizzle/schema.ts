@@ -385,3 +385,20 @@ export const appSecrets = mysqlTable("appSecrets", {
 
 export type AppSecret = typeof appSecrets.$inferSelect;
 export type InsertAppSecret = typeof appSecrets.$inferInsert;
+
+// Price alerts table - user-defined price alerts for stocks
+export const priceAlerts = mysqlTable("priceAlerts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  alertType: mysqlEnum("alertType", ["above_price", "below_price", "percent_change"]).notNull(),
+  targetPrice: varchar("targetPrice", { length: 50 }), // For above_price and below_price
+  percentChange: varchar("percentChange", { length: 50 }), // For percent_change (e.g., "5" for 5%)
+  isActive: tinyint("isActive").notNull().default(1),
+  lastTriggered: timestamp("lastTriggered"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PriceAlert = typeof priceAlerts.$inferSelect;
+export type InsertPriceAlert = typeof priceAlerts.$inferInsert;

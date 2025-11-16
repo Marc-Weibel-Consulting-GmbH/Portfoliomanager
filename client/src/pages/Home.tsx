@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { trpc } from "@/lib/trpc";
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen, X, Edit } from "lucide-react";
+import { Trash2, Edit2, Plus, Download, LogOut, Save, FolderOpen, X, Edit, BarChart3 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Newsroom from "./Newsroom";
 import Transactions from "./Transactions";
@@ -1840,7 +1840,22 @@ export default function Home() {
         <div className="min-h-screen bg-slate-900 p-8">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-white mb-4">Portfolio Optimizer</h1>
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex-1"></div>
+                <h1 className="text-4xl font-bold text-white">Portfolio Optimizer</h1>
+                <div className="flex-1 flex justify-end">
+                  {savedPortfoliosData.length >= 2 && (
+                    <Button
+                      onClick={() => setLocation("/portfolio-comparison")}
+                      variant="outline"
+                      className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+                    >
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Portfolios vergleichen
+                    </Button>
+                  )}
+                </div>
+              </div>
               <p className="text-slate-400">Wählen Sie ein gespeichertes Portfolio oder erstellen Sie ein neues</p>
             </div>
 

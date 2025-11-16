@@ -267,4 +267,156 @@ export const portfolioTransactionsRouter = router({
       
       return { success: true };
     }),
+
+  importFromCsv: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "portfolioId" in val && "csvData" in val) {
+        return val as {
+          portfolioId: number;
+          csvData: string;
+        };
+      }
+      throw new Error("Invalid CSV import data");
+    })
+    .mutation(async ({ input, ctx }) => {
+      const { getDb } = await import("../db");
+      const { portfolioTransactions, historicalPrices } = await import("../../drizzle/schema");
+      const { eq, and } = await import("drizzle-orm");
+      const { getFxRate } = await import("../fxHelper");
+      const { getSavedPortfolioById } = await import("../db");
+      
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      
+      // Verify portfolio exists and belongs to user
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) {
+        throw new Error("Portfolio not found or access denied");
+      }
+      
+      // Parse CSV data
+      const lines = input.csvData.trim().split('\n');
+      if (lines.length < 2) {
+        throw new Error("CSV must contain header and at least one data row");
+      }
+      
+      const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+      const requiredFields = ['datum', 'ticker', 'typ', 'anzahl', 'preis'];
+      const missingFields = requiredFields.filter(f => !header.includes(f));
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required CSV columns: ${missingFields.join(', ')}. Expected: Datum, Ticker, Typ, Anzahl, Preis, Gebühren (optional)`);
+      }
+      
+      const dateIdx = header.indexOf('datum');
+      const tickerIdx = header.indexOf('ticker');
+      const typeIdx = header.indexOf('typ');
+      const sharesIdx = header.indexOf('anzahl');
+      const priceIdx = header.indexOf('preis');
+      const feesIdx = header.indexOf('gebühren');
+      
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as string[],
+      };
+      
+      // Process each row
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        try {
+          const cols = line.split(',').map(c => c.trim());
+          
+          // Parse and validate data
+          const dateStr = cols[dateIdx];
+          const ticker = cols[tickerIdx]?.toUpperCase();
+          const type = cols[typeIdx]?.toLowerCase();
+          const shares = parseFloat(cols[sharesIdx]);
+          const price = parseFloat(cols[priceIdx]);
+          const fees = feesIdx >= 0 && cols[feesIdx] ? parseFloat(cols[feesIdx]) : 0;
+          
+          // Validate transaction type
+          if (!['kauf', 'verkauf', 'buy', 'sell'].includes(type)) {
+            throw new Error(`Invalid type '${type}'. Must be 'Kauf', 'Verkauf', 'Buy', or 'Sell'`);
+          }
+          
+          const transactionType = (type === 'kauf' || type === 'buy') ? 'buy' : 'sell';
+          
+          // Validate numbers
+          if (isNaN(shares) || shares <= 0) {
+            throw new Error(`Invalid shares: ${cols[sharesIdx]}`);
+          }
+          if (isNaN(price) || price <= 0) {
+            throw new Error(`Invalid price: ${cols[priceIdx]}`);
+          }
+          
+          // Parse date (support multiple formats)
+          let transactionDate: Date;
+          if (dateStr.includes('.')) {
+            // DD.MM.YYYY format
+            const [day, month, year] = dateStr.split('.');
+            transactionDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+          } else if (dateStr.includes('/')) {
+            // MM/DD/YYYY or DD/MM/YYYY
+            transactionDate = new Date(dateStr);
+          } else {
+            // ISO format YYYY-MM-DD
+            transactionDate = new Date(dateStr);
+          }
+          
+          if (isNaN(transactionDate.getTime())) {
+            throw new Error(`Invalid date: ${dateStr}`);
+          }
+          
+          // Detect currency from ticker
+          let currency = 'CHF';
+          if (ticker.endsWith('.SW')) {
+            currency = 'CHF';
+          } else if (!ticker.includes('.')) {
+            currency = 'USD';
+          }
+          
+          // Get FX rate for the transaction date
+          const dateStrFormatted = transactionDate.toISOString().split('T')[0];
+          let fxRate = 1.0;
+          if (currency !== 'CHF') {
+            fxRate = await getFxRate(dateStrFormatted, `${currency}CHF`);
+          }
+          
+          const totalAmount = shares * price;
+          const totalAmountCHF = totalAmount * fxRate;
+          
+          // Insert transaction
+          await db.insert(portfolioTransactions).values({
+            portfolioId: input.portfolioId,
+            transactionType,
+            ticker,
+            shares: shares.toString(),
+            pricePerShare: price.toString(),
+            totalAmount: totalAmount.toFixed(2),
+            totalAmountCHF: totalAmountCHF.toFixed(2),
+            currency,
+            fxRate: fxRate.toFixed(4),
+            fees: fees.toFixed(2),
+            notes: 'Imported from CSV',
+            transactionDate,
+          });
+          
+          results.success++;
+          console.log(`[CSV Import] Row ${i}: ${transactionType} ${shares} ${ticker} @ ${price} ${currency} on ${dateStrFormatted}`);
+          
+        } catch (error) {
+          results.failed++;
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          results.errors.push(`Row ${i}: ${errorMsg}`);
+          console.error(`[CSV Import] Error on row ${i}:`, errorMsg);
+        }
+      }
+      
+      return results;
+    }),
 });
