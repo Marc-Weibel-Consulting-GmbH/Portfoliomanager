@@ -2328,3 +2328,41 @@
 - [x] Fix registration redirect: After registration, redirect to /dashboard instead of landing page
 - [x] Auto-redirect authenticated users from landing page to dashboard
 - [x] Fix demo flow: "Demo starten" and "Demo Portfolio ansehen" redirect to dashboard instead of register
+
+
+## NEW: Onboarding Tutorial & Dashboard Optimization (Nov 16, 2025)
+
+### 1. Interactive Onboarding Tutorial
+- [ ] Create onboarding system for first-time users
+- [ ] Step-by-step guide for portfolio creation workflow
+- [ ] Tooltips and hints for key features (optimizer, live tracking, transactions)
+- [ ] Welcome modal on first visit
+- [ ] Progress tracking (skip/complete onboarding)
+- [ ] Store onboarding state in user preferences
+
+### 2. Dashboard Homepage Optimization
+- [ ] Redesign dashboard landing page with better information hierarchy
+- [ ] Add welcome message for new users
+- [ ] Create quick action cards (Create Portfolio, View Stocks, etc.)
+- [ ] Show recent portfolios and quick stats
+- [ ] Improve navigation clarity
+- [ ] Add getting started section for new users
+
+
+## CRITICAL: Login Loop Bug (Nov 16, 2025)
+- [x] Users redirected back to login page after successful authentication
+- [x] Login loop prevents access to platform
+- [x] Check authentication flow and session handling
+- [x] Verify OAuth callback and cookie settings
+- [x] Test user upsert and database schema compatibility
+- [x] Fixed: email field set to NULL-able in database
+- [x] Fixed: OAuth redirects to landing page (/) instead of /optimizer
+
+
+## NEW: Landing Page for Non-Authenticated Users (Nov 16, 2025)
+- [x] Create attractive landing page for non-authenticated users
+- [x] Show platform features and benefits
+- [x] Add clear call-to-action (Login/Register button)
+- [x] Only show landing page when user is not logged in
+- [x] Redirect to dashboard after successful login
+- [x] OAuth callback now redirects to landing page (/)
