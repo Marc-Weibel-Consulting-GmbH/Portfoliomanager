@@ -196,135 +196,164 @@ export default function PortfolioDetail() {
   });
 
   // Export to Excel function
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!portfolio || !portfolioData) {
       toast.error("Keine Daten zum Exportieren");
       return;
     }
 
-    // Prepare data rows
-    const rows: string[][] = [];
-    
-    // Header row
-    rows.push([
-      'Ticker',
-      'Name',
-      'Stückzahl',
-      'Gewicht',
-      'Einstandskurs (FW)',
-      'Einstandswert (CHF)',
-      'Aktueller Kurs (FW)',
-      'Aktueller Wert (CHF)',
-      'Dividende',
-      'YTD',
-      portfolio.isLive ? 'Live Perf. (CHF)' : 'Live Perf.'
-    ]);
-
-    // Cash row
-    const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
-    rows.push([
-      'CASH',
-      '💰 Cash',
-      '',
-      '',
-      '',
-      Math.round(cashPosition).toString(),
-      '',
-      Math.round(cashPosition).toString(),
-      '',
-      '',
-      ''
-    ]);
-
-    // Stock rows
-    portfolioData.filter((stock: any) => stock.shares > 0).forEach((stock: any) => {
-      const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+    try {
+      // Import ExcelJS dynamically
+      const ExcelJS = (await import('exceljs')).default;
       
-      // Einstandskurs
-      let avgBuyPrice = '';
-      if (portfolio.isLive && chfHolding?.avgBuyPrice) {
-        avgBuyPrice = `${stock.currency || 'CHF'} ${Math.round(chfHolding.avgBuyPrice)}`;
-      } else {
-        const holding = holdingsByTicker[stock.ticker];
-        if (holding?.avgBuyPrice > 0) {
-          avgBuyPrice = `${stock.currency || 'CHF'} ${Math.round(holding.avgBuyPrice)}`;
+      // Create workbook and worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Portfolio Positionen');
+
+      // Define columns
+      worksheet.columns = [
+        { header: 'Ticker', key: 'ticker', width: 12 },
+        { header: 'Name', key: 'name', width: 25 },
+        { header: 'Stückzahl', key: 'shares', width: 12 },
+        { header: 'Gewicht', key: 'weight', width: 10 },
+        { header: 'Einstandskurs (FW)', key: 'avgPrice', width: 18 },
+        { header: 'Einstandswert (CHF)', key: 'totalInvested', width: 18 },
+        { header: 'Aktueller Kurs (FW)', key: 'currentPrice', width: 18 },
+        { header: 'Aktueller Wert (CHF)', key: 'currentValue', width: 18 },
+        { header: 'Dividende', key: 'dividend', width: 12 },
+        { header: 'YTD', key: 'ytd', width: 10 },
+        { header: portfolio.isLive ? 'Live Perf. (CHF)' : 'Live Perf.', key: 'livePerf', width: 15 }
+      ];
+
+      // Style header row
+      worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4B5563' }
+      };
+      worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Cash row
+      const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
+      worksheet.addRow({
+        ticker: 'CASH',
+        name: '💰 Cash',
+        shares: '',
+        weight: '',
+        avgPrice: '',
+        totalInvested: Math.round(cashPosition),
+        currentPrice: '',
+        currentValue: Math.round(cashPosition),
+        dividend: '',
+        ytd: '',
+        livePerf: ''
+      });
+
+      // Stock rows
+      portfolioData.filter((stock: any) => stock.shares > 0).forEach((stock: any) => {
+        const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+        
+        // Einstandskurs
+        let avgBuyPrice = '';
+        if (portfolio.isLive && chfHolding?.avgBuyPrice) {
+          avgBuyPrice = `${stock.currency || 'CHF'} ${Math.round(chfHolding.avgBuyPrice)}`;
+        } else {
+          const holding = holdingsByTicker[stock.ticker];
+          if (holding?.avgBuyPrice > 0) {
+            avgBuyPrice = `${stock.currency || 'CHF'} ${Math.round(holding.avgBuyPrice)}`;
+          }
         }
-      }
 
-      // Einstandswert
-      let totalInvestedCHF = '';
-      if (portfolio.isLive && chfHolding) {
-        totalInvestedCHF = Math.round(chfHolding.totalInvestedCHF).toString();
-      } else {
-        totalInvestedCHF = Math.round(stock.totalInvested || 0).toString();
-      }
+        // Einstandswert
+        let totalInvestedCHF = 0;
+        if (portfolio.isLive && chfHolding) {
+          totalInvestedCHF = Math.round(chfHolding.totalInvestedCHF);
+        } else {
+          totalInvestedCHF = Math.round(stock.totalInvested || 0);
+        }
 
-      // Aktueller Wert
-      let currentValueCHF = '';
-      if (portfolio.isLive && chfHolding) {
-        currentValueCHF = Math.round(chfHolding.currentValueCHF).toString();
-      } else {
-        currentValueCHF = Math.round(stock.currentValue || 0).toString();
-      }
+        // Aktueller Wert
+        let currentValueCHF = 0;
+        if (portfolio.isLive && chfHolding) {
+          currentValueCHF = Math.round(chfHolding.currentValueCHF);
+        } else {
+          currentValueCHF = Math.round(stock.currentValue || 0);
+        }
 
-      // Live Performance
-      let livePerf = '';
-      if (portfolio.isLive && chfHolding) {
-        livePerf = `${chfHolding.performanceCHF >= 0 ? '+' : ''}${chfHolding.performanceCHF.toFixed(1)}%`;
-      } else if (stock.totalInvested > 0) {
-        const perf = ((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100);
-        livePerf = `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
-      }
+        // Live Performance
+        let livePerf = '';
+        if (portfolio.isLive && chfHolding) {
+          livePerf = `${chfHolding.performanceCHF >= 0 ? '+' : ''}${chfHolding.performanceCHF.toFixed(1)}%`;
+        } else if (stock.totalInvested > 0) {
+          const perf = ((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100);
+          livePerf = `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
+        }
 
-      rows.push([
-        stock.ticker,
-        stock.name,
-        Math.round(stock.shares).toString(),
-        `${(parseFloat(stock.weight) || 0).toFixed(1)}%`,
-        avgBuyPrice,
-        totalInvestedCHF,
-        `${stock.currency || 'CHF'} ${Math.round(stock.currentPrice || 0)}`,
-        currentValueCHF,
-        `${(parseFloat(stock.dividendYield) || 0).toFixed(1)}%`,
-        `${(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}${(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%`,
-        livePerf
-      ]);
-    });
+        worksheet.addRow({
+          ticker: stock.ticker,
+          name: stock.name,
+          shares: Math.round(stock.shares),
+          weight: `${(parseFloat(stock.weight) || 0).toFixed(1)}%`,
+          avgPrice: avgBuyPrice,
+          totalInvested: totalInvestedCHF,
+          currentPrice: `${stock.currency || 'CHF'} ${Math.round(stock.currentPrice || 0)}`,
+          currentValue: currentValueCHF,
+          dividend: `${(parseFloat(stock.dividendYield) || 0).toFixed(1)}%`,
+          ytd: `${(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}${(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%`,
+          livePerf: livePerf
+        });
+      });
 
-    // Total row
-    const totalInvested = portfolio.isLive
-      ? chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0)
-      : portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0);
-    
-    const totalValue = portfolio.isLive
-      ? chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0) + cashPosition
-      : portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.currentValue || 0), 0) + cashPosition;
+      // Total row
+      const totalInvested = portfolio.isLive
+        ? chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0) + cashPosition
+        : portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0) + cashPosition;
+      
+      const totalValue = portfolio.isLive
+        ? chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0) + cashPosition
+        : portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.currentValue || 0), 0) + cashPosition;
 
-    rows.push([
-      'TOTAL',
-      '',
-      '',
-      '',
-      '',
-      Math.round(totalInvested).toString(),
-      '',
-      Math.round(totalValue).toString(),
-      '',
-      '',
-      ''
-    ]);
+      const totalRow = worksheet.addRow({
+        ticker: 'TOTAL',
+        name: '',
+        shares: '',
+        weight: '',
+        avgPrice: '',
+        totalInvested: Math.round(totalInvested),
+        currentPrice: '',
+        currentValue: Math.round(totalValue),
+        dividend: '',
+        ytd: '',
+        livePerf: ''
+      });
+      totalRow.font = { bold: true };
 
-    // Convert to CSV
-    const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    
-    // Download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${portfolio.name}_Positionen_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    
-    toast.success("Excel-Datei wurde heruntergeladen");
+      // Add borders to all cells
+      worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      });
+
+      // Generate Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${portfolio.name}_Positionen_${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.click();
+
+      toast.success("Excel-Datei erfolgreich exportiert!");
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error("Fehler beim Exportieren der Excel-Datei");
+    }
   };
 
   // Parse portfolio data safely and enrich with stock names from database
@@ -806,11 +835,12 @@ export default function PortfolioDetail() {
                     <td className="py-3 px-2 text-right" colSpan={2}></td>
                     <td className="py-3 px-2 text-blue-400 text-right font-bold" colSpan={2}>
                       {(() => {
+                        const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
                         if (Boolean(portfolio.isLive)) {
-                          const total = chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0);
+                          const total = chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0) + cashPosition;
                           return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
                         }
-                        return `CHF ${Math.round(portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0)).toLocaleString('de-CH')}`;
+                        return `CHF ${Math.round(portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0) + cashPosition).toLocaleString('de-CH')}`;
                       })()}
                     </td>
                     <td colSpan={1}></td>

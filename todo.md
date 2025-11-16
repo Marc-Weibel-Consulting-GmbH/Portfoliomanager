@@ -2008,3 +2008,26 @@
 - [x] Spaltenbreiten automatisch angepasst
 - [x] Rahmen um alle Zellen
 - [x] CHF-Formatierung für Beträge
+
+
+## CRITICAL: Login Error (Nov 16, 2025)
+- [ ] Login shows error and immediately logs user out
+- [ ] OAuth callback appears to fail
+- [ ] User gets redirected back to login screen
+- [ ] Investigate server logs for OAuth errors
+- [ ] Check database connection and user upsert
+- [ ] Verify JWT token generation
+
+
+## CRITICAL: Transaction History Bugs (Nov 16, 2025)
+- [x] Button texts in transaction history are not visible (need white color)
+- [ ] Total calculation is wrong - must sum all positive (green) transactions and subtract negative (red) transactions
+- [x] Fix button text color to white for visibility
+- [ ] Fix total calculation logic
+
+
+## Portfolio Positions Bugs (Nov 16, 2025)
+- [x] Excel Export creates CSV file instead of .xlsx file
+- [x] Total Einstandswert must include Cash Position (currently missing CHF 1'979)
+- [x] Fix export to use ExcelJS library for proper .xlsx format
+- [x] Add cash to total cost basis calculation

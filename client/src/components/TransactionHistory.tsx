@@ -331,7 +331,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
             onClick={handleExport}
             variant="outline"
             size="sm"
-            className="bg-slate-700 hover:bg-slate-600"
+            className="bg-slate-700 hover:bg-slate-600 text-white"
             disabled={filteredTransactions.length === 0}
           >
             <Download className="w-4 h-4 mr-2" />
@@ -499,7 +499,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                          className="text-white hover:text-blue-300 hover:bg-blue-900/20"
                           onClick={() => handleEditTransaction(tx)}
                         >
                           Bearbeiten
@@ -507,7 +507,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                          className="text-white hover:text-red-300 hover:bg-red-900/20"
                           onClick={() => handleDeleteTransaction(tx.id)}
                         >
                           Storno
