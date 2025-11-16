@@ -2065,3 +2065,7 @@
 - [x] Fix React Minified Error #31 when clicking "Analyzer" button
 - [x] Fix React Minified Error #31 when clicking "Rechner" button
 - [ ] Fix AutoFill function in "Aktie hinzufügen" button (Aktien page and Portfolio Details page)
+
+## NEW: Critical Bug Fixes (Nov 16, 2025 - 11:00)
+- [x] Fix non-functional "zurück" (back) button - Changed navigation from /portfolios to / in PortfolioDetail.tsx
+- [x] Fix EOS Einstandspreis display (shows USD 10.3 instead of correct USD 14.50, while Einstandswert CHF is calculated correctly) - Added avgBuyPrice recalculation after sell transactions based on remaining shares

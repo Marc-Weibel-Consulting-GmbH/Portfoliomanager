@@ -2920,6 +2920,12 @@ export const appRouter = router({
             holdingsByTicker[ticker].totalInvestedLocal -= costBasisLocal;
             holdingsByTicker[ticker].totalInvestedCHF -= costBasisCHF;
             console.log(`[getHoldingsWithChfPerformance]   → ${ticker} totalInvestedCHF now: ${holdingsByTicker[ticker].totalInvestedCHF}`);
+            // Recalculate average buy price based on remaining shares
+            if (holdingsByTicker[ticker].shares > 0) {
+              holdingsByTicker[ticker].avgBuyPrice = holdingsByTicker[ticker].totalInvestedLocal / holdingsByTicker[ticker].shares;
+              holdingsByTicker[ticker].avgBuyPriceCHF = holdingsByTicker[ticker].totalInvestedCHF / holdingsByTicker[ticker].shares;
+              console.log(`[getHoldingsWithChfPerformance]   → ${ticker} new avgBuyPrice: ${holdingsByTicker[ticker].avgBuyPrice.toFixed(2)} ${holdingsByTicker[ticker].currency}`);
+            }
           }
         }
         
