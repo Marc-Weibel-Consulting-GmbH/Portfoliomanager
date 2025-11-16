@@ -226,10 +226,11 @@ export const portfolioTransactionsRouter = router({
         const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
         const currency = input.currency || currentTx.currency || 'CHF';
         const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
+        const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
         
         // Calculate CHF amount with FX rate
         if (currency !== 'CHF') {
-          const fxRate = await getFxRate(date, `${currency}CHF`);
+          const fxRate = await getFxRate(dateStr, `${currency}CHF`);
           updates.fxRate = fxRate.toFixed(4);
           updates.totalAmountCHF = (parseFloat(input.totalAmount) * fxRate).toFixed(2);
         } else {
@@ -244,12 +245,13 @@ export const portfolioTransactionsRouter = router({
         const price = parseFloat(input.pricePerShare || updates.pricePerShare || currentTx.pricePerShare || '0');
         const currency = input.currency || currentTx.currency || 'CHF';
         const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
+        const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
         
         updates.totalAmount = (shares * price).toFixed(2);
         
         // Get FX rate for the transaction date
         if (currency !== 'CHF') {
-          const fxRate = await getFxRate(date, `${currency}CHF`);
+          const fxRate = await getFxRate(dateStr, `${currency}CHF`);
           updates.fxRate = fxRate.toFixed(4);
           updates.totalAmountCHF = (shares * price * fxRate).toFixed(2);
         } else {

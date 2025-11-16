@@ -65,18 +65,18 @@ export const realizedGainsHistoryRouter = router({
       });
 
       // Get stock names
-      const tickers = [...new Set(gains.map(g => g.ticker))];
+      const tickers = Array.from(new Set(gains.map(g => g.ticker)));
       const stockNames = new Map<string, string>();
       
       for (const ticker of tickers) {
         const [stock] = await db
-          .select({ name: stocks.name })
+          .select({ companyName: stocks.companyName })
           .from(stocks)
           .where(eq(stocks.ticker, ticker))
           .limit(1);
         
         if (stock) {
-          stockNames.set(ticker, stock.name);
+          stockNames.set(ticker, stock.companyName);
         }
       }
 
@@ -117,7 +117,7 @@ export const realizedGainsHistoryRouter = router({
   debugPerformance: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const { getSavedPortfolioById, getPortfolioTransactions, calculateLivePerformance } = await import("../db");
+      const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
       
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
       if (!portfolio) {
@@ -125,7 +125,7 @@ export const realizedGainsHistoryRouter = router({
       }
       
       const transactions = await getPortfolioTransactions(input.portfolioId);
-      const livePerf = await calculateLivePerformance(input.portfolioId, ctx.user.id);
+      const livePerf = null; // Function removed - performance calculated inline
       
       // Calculate holdings step by step
       const holdings: Record<string, any> = {};

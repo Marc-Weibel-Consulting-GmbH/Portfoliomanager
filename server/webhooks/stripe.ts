@@ -12,7 +12,7 @@ async function getStripe(): Promise<Stripe> {
       throw new Error("STRIPE_SECRET_KEY is not configured. Please add it via Admin > API Secrets.");
     }
     stripe = new Stripe(key, {
-      apiVersion: "2024-11-20.acacia",
+      apiVersion: "2025-09-30.clover",
     });
   }
   return stripe;

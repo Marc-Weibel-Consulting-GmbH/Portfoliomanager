@@ -1989,7 +1989,7 @@ export const appRouter = router({
           }
           
           const stripe = new Stripe(stripeKey, {
-            apiVersion: "2024-11-20.acacia",
+            apiVersion: "2025-09-30.clover",
           });
           
           // Create Stripe checkout session
@@ -2106,15 +2106,27 @@ export const appRouter = router({
         : [];
       const stocksMap = new Map(allStocksData.map(s => [s.ticker, s]));
       
-      // Batch load all historical prices
-      const allHistoricalPrices = (allTickers.size > 0 && liveStartDates.size > 0)
-        ? await db.select().from(historicalPrices).where(
-            and(
-              inArray(historicalPrices.ticker, Array.from(allTickers)),
-              inArray(historicalPrices.date, Array.from(liveStartDates))
-            )
-          )
-        : [];
+      // Batch load all historical prices - fetch individually for each ticker/date pair
+      const allHistoricalPrices: any[] = [];
+      if (allTickers.size > 0 && liveStartDates.size > 0) {
+        for (const ticker of Array.from(allTickers)) {
+          for (const dateStr of Array.from(liveStartDates)) {
+            const result = await db
+              .select()
+              .from(historicalPrices)
+              .where(
+                and(
+                  eq(historicalPrices.ticker, ticker),
+                  eq(historicalPrices.date, dateStr)
+                )
+              )
+              .limit(1);
+            if (result.length > 0) {
+              allHistoricalPrices.push(result[0]);
+            }
+          }
+        }
+      }
       const historicalPricesMap = new Map(
         allHistoricalPrices.map(hp => [`${hp.ticker}_${hp.date}`, hp])
       );

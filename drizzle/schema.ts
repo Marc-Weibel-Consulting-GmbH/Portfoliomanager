@@ -360,8 +360,8 @@ export type InsertAnalyzerReport = typeof analyzerReports.$inferInsert;
 export const historicalPrices = mysqlTable("historicalPrices", {
   id: int("id").autoincrement().primaryKey(),
   ticker: varchar("ticker", { length: 50 }).notNull(),
-  date: date("date").notNull(),
-  close: decimal("close", { precision: 18, scale: 6 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
+  close: varchar("close", { length: 50 }).notNull(), // Store as string for precision
   source: varchar("source", { length: 50 }).notNull().default("yahoo"), // "yahoo", "eodhd", "manual"
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
