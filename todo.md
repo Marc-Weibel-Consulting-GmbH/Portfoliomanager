@@ -2170,3 +2170,23 @@
 - [x] Benachrichtigung via notifyOwner bei Alert-Trigger
 - [x] Alert-Verwaltung (Liste, Bearbeiten, Löschen, Aktivieren/Deaktivieren)
 - [ ] Cron-Job zur automatischen Preis-Überwachung - TODO: Scheduler einrichten
+
+## NEW: Onboarding & Demo Experience (Nov 16, 2025)
+
+### 1. Login Redirect Fix
+- [x] Fix login redirect - users should go to dashboard after login, not back to landing page
+- [x] After successful login, redirect to /optimizer (Portfolio Optimizer)
+- [x] Added /optimizer route to App.tsx
+- [x] Modified OAuth callback to redirect to /optimizer
+- [x] Set activeTab default to 'optimizer' when accessed via /optimizer URL
+
+### 2. Landing Page Enhancements
+- [x] Add "Login" button next to "Jetzt starten" for existing users
+- [ ] Add screenshots section showing platform features (future enhancement)
+- [ ] Add testimonials/social proof section (future enhancement)
+- [ ] Add user statistics (future enhancement)
+
+### 3. Future Enhancements (Optional)
+- [ ] Demo-Tour with pre-populated portfolio data
+- [ ] Onboarding wizard for new users
+- [ ] Interactive tutorial for first-time users

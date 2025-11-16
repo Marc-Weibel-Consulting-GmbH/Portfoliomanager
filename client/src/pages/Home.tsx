@@ -318,7 +318,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
 }
 
 export default function Home() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { data: stocks = [], refetch: refetchStocks } = trpc.stocks.list.useQuery(undefined, {
     enabled: isAuthenticated || !!user,
@@ -345,7 +345,13 @@ export default function Home() {
   const [editingStock, setEditingStock] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
   const [hasAppliedEqualWeighting, setHasAppliedEqualWeighting] = useState(false);
-  const [activeTab, setActiveTab] = useState("portfolio");
+  // Set default tab based on URL path
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/optimizer') {
+      return 'optimizer';
+    }
+    return 'portfolio';
+  });
   const [selectedStockForChart, setSelectedStockForChart] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [showScoreDetail, setShowScoreDetail] = useState(false);

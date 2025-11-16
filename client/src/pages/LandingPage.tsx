@@ -14,6 +14,10 @@ export default function LandingPage() {
     window.location.href = "/register";
   };
 
+  const handleLogin = () => {
+    window.location.href = "/login";
+  };
+
   const handleDemoClick = () => {
     setShowWelcomeModal(true);
   };
@@ -40,6 +44,9 @@ export default function LandingPage() {
           <div className="flex gap-3">
             <Button variant="ghost" onClick={handleDemoClick}>
               Demo ansehen
+            </Button>
+            <Button variant="outline" onClick={handleLogin}>
+              Login
             </Button>
             <Button onClick={handleGetStarted}>
               Jetzt starten
