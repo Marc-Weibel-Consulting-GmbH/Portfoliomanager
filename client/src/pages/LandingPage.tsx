@@ -2,13 +2,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, PieChart, Calendar, Sparkles, BarChart3, Shield, Zap, Users } from "lucide-react";
 import { APP_LOGO, APP_TITLE } from "@/const";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import WelcomeModal from "@/components/WelcomeModal";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function LandingPage() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [, setLocation] = useLocation();
+  const { isAuthenticated, loading } = useAuth();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      setLocation("/dashboard");
+    }
+  }, [isAuthenticated, loading, setLocation]);
 
   const handleGetStarted = () => {
     window.location.href = "/register";
@@ -24,12 +33,14 @@ export default function LandingPage() {
 
   const handleCreateDemo = () => {
     setShowWelcomeModal(false);
-    window.location.href = "/register";
+    // Redirect to dashboard/optimizer where users can create portfolios
+    window.location.href = "/dashboard";
   };
 
   const handleStartTour = () => {
     setShowWelcomeModal(false);
-    window.location.href = "/register";
+    // Redirect to dashboard/optimizer for creating own portfolio
+    window.location.href = "/dashboard";
   };
 
   return (

@@ -2321,3 +2321,10 @@
 - [x] Test: Chat-Verlauf wird gespeichert und geladen
 - [x] Performance: LLM-Antworten unter 5 Sekunden
 - [x] Error-Handling: Graceful Degradation bei LLM-Ausfällen
+
+
+## Authentication & Routing Fixes (Nov 16, 2025)
+- [x] Fix authentication redirect: After login, redirect to /dashboard instead of landing page
+- [x] Fix registration redirect: After registration, redirect to /dashboard instead of landing page
+- [x] Auto-redirect authenticated users from landing page to dashboard
+- [x] Fix demo flow: "Demo starten" and "Demo Portfolio ansehen" redirect to dashboard instead of register
