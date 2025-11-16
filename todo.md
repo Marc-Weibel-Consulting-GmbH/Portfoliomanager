@@ -2037,3 +2037,19 @@
 - [x] Update FX rates display to 3 decimal places (instead of 2)
 - [x] Add separate columns in Excel export for FX Rate Entry and FX Rate Current
 - [x] Display stock prices (Einstandskurs and aktueller Kurs) with 1 decimal place
+
+## CRITICAL: Individual Position Performance Calculation Bug (Nov 16, 2025)
+- [ ] Fix performance calculation on individual position level
+- [ ] TSMC: Differenz ca. +11 CHF should show +0.2-0.3%, currently shows -0.6%
+- [ ] Nestlé: Differenz +326 CHF = +3.3%, needs verification
+- [ ] Performance formula should be: (Current Value - Purchase Value) / Purchase Value × 100
+- [ ] Check if currency conversion is applied correctly
+- [ ] Verify that realized gains are not double-counted in position performance
+
+## COMPLETED: Individual Position Performance Fix (Nov 16, 2025 - 09:13)
+- [x] Fixed performance calculation formula in getHoldingsWithChfPerformance
+- [x] Changed from liveStartValueCHF-based to totalInvestedCHF-based calculation
+- [x] Old formula: (Current Value + Realized Gains - Live Start Value) / Live Start Value × 100
+- [x] New formula: (Current Value + Realized Gains - Total Invested) / Total Invested × 100
+- [x] This correctly handles positions bought after live start date
+- [x] Server restarted to apply changes

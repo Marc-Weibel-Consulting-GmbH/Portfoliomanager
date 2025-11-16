@@ -2992,10 +2992,11 @@ export const appRouter = router({
           // Get realized gains for this ticker
           const realizedGains = realizedGainsByTicker[ticker] || 0;
           
-          // Calculate CHF performance from live start date:
-          // Performance = (Current Value + Realized Gains - Live Start Value) / Live Start Value * 100
-          const performanceCHF = liveStartValueCHF > 0
-            ? ((currentValueCHF + realizedGains - liveStartValueCHF) / liveStartValueCHF) * 100
+          // Calculate CHF performance based on actual investment:
+          // Performance = (Current Value + Realized Gains - Total Invested) / Total Invested * 100
+          // This correctly handles positions bought after live start date
+          const performanceCHF = holding.totalInvestedCHF > 0
+            ? ((currentValueCHF + realizedGains - holding.totalInvestedCHF) / holding.totalInvestedCHF) * 100
             : 0;
           
           // Keep totalInvestedCHF for reference (actual money spent)
