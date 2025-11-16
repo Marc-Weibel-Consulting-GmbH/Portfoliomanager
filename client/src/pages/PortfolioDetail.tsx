@@ -18,7 +18,7 @@ import { TransactionHistory } from "@/components/TransactionHistory";
 import { LivePerformanceChart } from "@/components/LivePerformanceChart";
 import DividendCalendarModal from "@/components/DividendCalendarModal";
 import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
-import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
@@ -194,6 +194,138 @@ export default function PortfolioDetail() {
       toast.error("Fehler beim Aktualisieren des Datums");
     }
   });
+
+  // Export to Excel function
+  const exportToExcel = () => {
+    if (!portfolio || !portfolioData) {
+      toast.error("Keine Daten zum Exportieren");
+      return;
+    }
+
+    // Prepare data rows
+    const rows: string[][] = [];
+    
+    // Header row
+    rows.push([
+      'Ticker',
+      'Name',
+      'Stückzahl',
+      'Gewicht',
+      'Einstandskurs (FW)',
+      'Einstandswert (CHF)',
+      'Aktueller Kurs (FW)',
+      'Aktueller Wert (CHF)',
+      'Dividende',
+      'YTD',
+      portfolio.isLive ? 'Live Perf. (CHF)' : 'Live Perf.'
+    ]);
+
+    // Cash row
+    const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
+    rows.push([
+      'CASH',
+      '💰 Cash',
+      '',
+      '',
+      '',
+      Math.round(cashPosition).toString(),
+      '',
+      Math.round(cashPosition).toString(),
+      '',
+      '',
+      ''
+    ]);
+
+    // Stock rows
+    portfolioData.filter((stock: any) => stock.shares > 0).forEach((stock: any) => {
+      const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+      
+      // Einstandskurs
+      let avgBuyPrice = '';
+      if (portfolio.isLive && chfHolding?.avgBuyPrice) {
+        avgBuyPrice = `${stock.currency || 'CHF'} ${Math.round(chfHolding.avgBuyPrice)}`;
+      } else {
+        const holding = holdingsByTicker[stock.ticker];
+        if (holding?.avgBuyPrice > 0) {
+          avgBuyPrice = `${stock.currency || 'CHF'} ${Math.round(holding.avgBuyPrice)}`;
+        }
+      }
+
+      // Einstandswert
+      let totalInvestedCHF = '';
+      if (portfolio.isLive && chfHolding) {
+        totalInvestedCHF = Math.round(chfHolding.totalInvestedCHF).toString();
+      } else {
+        totalInvestedCHF = Math.round(stock.totalInvested || 0).toString();
+      }
+
+      // Aktueller Wert
+      let currentValueCHF = '';
+      if (portfolio.isLive && chfHolding) {
+        currentValueCHF = Math.round(chfHolding.currentValueCHF).toString();
+      } else {
+        currentValueCHF = Math.round(stock.currentValue || 0).toString();
+      }
+
+      // Live Performance
+      let livePerf = '';
+      if (portfolio.isLive && chfHolding) {
+        livePerf = `${chfHolding.performanceCHF >= 0 ? '+' : ''}${chfHolding.performanceCHF.toFixed(1)}%`;
+      } else if (stock.totalInvested > 0) {
+        const perf = ((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100);
+        livePerf = `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
+      }
+
+      rows.push([
+        stock.ticker,
+        stock.name,
+        Math.round(stock.shares).toString(),
+        `${(parseFloat(stock.weight) || 0).toFixed(1)}%`,
+        avgBuyPrice,
+        totalInvestedCHF,
+        `${stock.currency || 'CHF'} ${Math.round(stock.currentPrice || 0)}`,
+        currentValueCHF,
+        `${(parseFloat(stock.dividendYield) || 0).toFixed(1)}%`,
+        `${(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}${(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%`,
+        livePerf
+      ]);
+    });
+
+    // Total row
+    const totalInvested = portfolio.isLive
+      ? chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0)
+      : portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+    
+    const totalValue = portfolio.isLive
+      ? chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0) + cashPosition
+      : portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.currentValue || 0), 0) + cashPosition;
+
+    rows.push([
+      'TOTAL',
+      '',
+      '',
+      '',
+      '',
+      Math.round(totalInvested).toString(),
+      '',
+      Math.round(totalValue).toString(),
+      '',
+      '',
+      ''
+    ]);
+
+    // Convert to CSV
+    const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${portfolio.name}_Positionen_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    
+    toast.success("Excel-Datei wurde heruntergeladen");
+  };
 
   // Parse portfolio data safely and enrich with stock names from database
   // MUST be before early return to maintain hooks order
@@ -504,7 +636,18 @@ export default function PortfolioDetail() {
         {/* Portfolio Holdings */}
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
-            <CardTitle className="text-white">Portfolio Positionen</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-white">Portfolio Positionen</CardTitle>
+              <Button
+                onClick={exportToExcel}
+                variant="outline"
+                size="sm"
+                className="bg-slate-700 hover:bg-slate-600 text-white"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Excel Export
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">

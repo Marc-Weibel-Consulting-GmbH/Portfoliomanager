@@ -1977,3 +1977,34 @@
 - These reflect actual market exchange rates on different dates
 - All formulas are working correctly as designed
 - No bugs or systematic errors found in performance calculations
+
+## TypeScript Configuration Fix (Nov 16, 2025)
+- [x] Fix tsconfig.json - "No inputs were found" error
+- [x] Add proper include/exclude paths to tsconfig.json
+
+## Number Formatting & Total Calculation Bug (Nov 16, 2025)
+- [x] Round all numbers in transaction history to whole numbers (no decimals)
+- [x] Format all numbers with Swiss thousand separator (')
+- [x] Fix incorrect total calculation (shows CHF 93'702 but should be different)
+- [x] Apply formatting to: Preis (FW), Betrag (FW), Betrag (CHF), Real. Gewinn, Netto (CHF)
+- [x] Verify total calculation logic for "Netto (CHF)" column
+- [x] Fixed total calculation: Buy/Withdrawal are negative (money out), Sell/Deposit/Dividend are positive (money in)
+
+## Excel Export for Portfolio Positions (Nov 16, 2025)
+- [x] Add Excel export button to Portfolio Positions table header
+- [x] Export all columns: Ticker, Name, Stückzahl, Gewicht, Einstandskurs (FW), Einstandswert (CHF), Aktueller Kurs (FW), Aktueller Wert (CHF), Dividende, YTD, Live Perf. (CHF)
+- [x] Include Cash Position row in export
+- [x] Include Total row in export
+- [x] Button text is white (className="text-white")
+- [x] Export as CSV format (opens in Excel)
+
+
+## Excel Export Fix (Nov 16, 2025)
+- [x] Excel-Export-Funktion erzeugt .csv statt .xlsx
+- [x] Umstellung auf echtes Excel-Format (.xlsx) mit Formatierung
+- [x] Verwendung von exceljs npm-Paket für professionelle Excel-Dateien
+- [x] Button-Text geändert von "CSV Export" zu "Excel Export"
+- [x] Formatierung: Header mit grauem Hintergrund und weißer Schrift
+- [x] Spaltenbreiten automatisch angepasst
+- [x] Rahmen um alle Zellen
+- [x] CHF-Formatierung für Beträge

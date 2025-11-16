@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { Download, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
+import ExcelJS from "exceljs";
 
 interface TransactionHistoryProps {
   portfolioId: number;
@@ -145,38 +146,78 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
     }
   };
 
-  const exportToCSV = () => {
-    if (filteredTransactions.length === 0) {
+  const handleExport = async () => {
+    if (!filteredTransactions || filteredTransactions.length === 0) {
       toast.error("Keine Transaktionen zum Exportieren");
       return;
     }
 
-    // CSV Header
-    const headers = ["Datum", "Typ", "Ticker", "Anzahl", "Preis", "Betrag", "Gebühren", "Notizen"];
-    const rows = filteredTransactions.map(tx => [
-      new Date(tx.transactionDate).toLocaleDateString('de-CH'),
-      tx.transactionType,
-      tx.ticker || "-",
-      tx.shares || "-",
-      tx.pricePerShare || "-",
-      tx.totalAmount,
-      tx.fees || "0",
-      tx.notes || "-"
-    ]);
+    try {
+      // Create workbook and worksheet
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Transaktionen');
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
-    ].join("\n");
+      // Define columns with headers and widths
+      worksheet.columns = [
+        { header: 'Datum', key: 'date', width: 12 },
+        { header: 'Typ', key: 'type', width: 12 },
+        { header: 'Ticker', key: 'ticker', width: 10 },
+        { header: 'Anzahl', key: 'shares', width: 10 },
+        { header: 'Preis', key: 'price', width: 12 },
+        { header: 'Betrag', key: 'amount', width: 15 },
+        { header: 'Gebühren', key: 'fees', width: 12 },
+        { header: 'Notizen', key: 'notes', width: 30 }
+      ];
 
-    // Download
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${portfolioName}_transactions_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+      // Style header row
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4B5563' }
+      };
+      worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
-    toast.success("CSV erfolgreich exportiert!");
+      // Add data rows
+      filteredTransactions.forEach(tx => {
+        worksheet.addRow({
+          date: new Date(tx.transactionDate).toLocaleDateString('de-CH'),
+          type: getTypeLabel(tx.transactionType),
+          ticker: tx.ticker || "-",
+          shares: tx.shares || "-",
+          price: tx.pricePerShare ? `CHF ${tx.pricePerShare.toFixed(2)}` : "-",
+          amount: `CHF ${tx.totalAmount.toFixed(2)}`,
+          fees: tx.fees ? `CHF ${tx.fees.toFixed(2)}` : "CHF 0.00",
+          notes: tx.notes || "-"
+        });
+      });
+
+      // Add borders to all cells
+      worksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      });
+
+      // Generate Excel file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${portfolioName}_transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.click();
+
+      toast.success("Excel-Datei erfolgreich exportiert!");
+    } catch (error) {
+      console.error('Excel export error:', error);
+      toast.error("Fehler beim Exportieren der Excel-Datei");
+    }
   };
 
   const getTypeLabel = (type: string) => {
@@ -287,14 +328,14 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
         <div className="flex justify-between items-center">
           <CardTitle className="text-white">Transaktionshistorie</CardTitle>
           <Button
-            onClick={exportToCSV}
+            onClick={handleExport}
             variant="outline"
             size="sm"
             className="bg-slate-700 hover:bg-slate-600"
             disabled={filteredTransactions.length === 0}
           >
             <Download className="w-4 h-4 mr-2" />
-            CSV Export
+            Excel Export
           </Button>
         </div>
       </CardHeader>
@@ -395,7 +436,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
                       {tx.pricePerShare ? (
                         <div>
-                          <div>{tx.currency || 'CHF'} {parseFloat(tx.pricePerShare).toFixed(2)}</div>
+                          <div>{tx.currency || 'CHF'} {Math.round(parseFloat(tx.pricePerShare)).toLocaleString('de-CH')}</div>
                           <div className="text-xs text-slate-500 mt-0.5">
                             {tx.fxRate && tx.currency !== 'CHF' ? `FX: ${parseFloat(tx.fxRate).toFixed(2)}` : (tx.currency === 'CHF' ? '' : 'FX: 1.00')}
                           </div>
@@ -405,7 +446,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     {/* Betrag in Fremdwährung */}
                     <td className="py-3 px-2 text-slate-300 text-sm text-right">
                       {(tx.transactionType === 'buy' || tx.transactionType === 'sell') && tx.totalAmount && tx.currency
-                        ? `${tx.currency} ${parseFloat(tx.totalAmount).toFixed(2)}`
+                        ? `${tx.currency} ${Math.round(parseFloat(tx.totalAmount)).toLocaleString('de-CH')}`
                         : "-"}
                     </td>
                     {/* Betrag in CHF (vor Gebühren) */}
@@ -413,16 +454,16 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                       {(() => {
                         // If totalAmountCHF exists, use it
                         if (tx.totalAmountCHF) {
-                          return `CHF ${(parseFloat(tx.totalAmountCHF) + parseFloat(tx.fees || '0')).toFixed(2)}`;
+                          return `CHF ${Math.round(parseFloat(tx.totalAmountCHF) + parseFloat(tx.fees || '0')).toLocaleString('de-CH')}`;
                         }
                         // Otherwise, calculate from totalAmount and fxRate
                         if (tx.totalAmount && tx.fxRate) {
                           const amountCHF = parseFloat(tx.totalAmount) * parseFloat(tx.fxRate) + parseFloat(tx.fees || '0');
-                          return `CHF ${amountCHF.toFixed(2)}`;
+                          return `CHF ${Math.round(amountCHF).toLocaleString('de-CH')}`;
                         }
                         // If currency is CHF, use totalAmount directly
                         if (tx.totalAmount && tx.currency === 'CHF') {
-                          return `CHF ${(parseFloat(tx.totalAmount) + parseFloat(tx.fees || '0')).toFixed(2)}`;
+                          return `CHF ${Math.round(parseFloat(tx.totalAmount) + parseFloat(tx.fees || '0')).toLocaleString('de-CH')}`;
                         }
                         return "-";
                       })()}
@@ -431,13 +472,13 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     <td className="py-3 px-2 text-sm text-right">
                       {tx.transactionType === 'sell' && tx.realizedGain
                         ? <span className={parseFloat(tx.realizedGain) >= 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
-                            {parseFloat(tx.realizedGain) >= 0 ? '+' : ''}CHF {parseFloat(tx.realizedGain).toFixed(2)}
+                            {parseFloat(tx.realizedGain) >= 0 ? '+' : ''}CHF {Math.round(parseFloat(tx.realizedGain)).toLocaleString('de-CH')}
                           </span>
                         : <span className="text-slate-500">-</span>}
                     </td>
                     {/* Gebühren */}
                     <td className="py-3 px-2 text-red-400 text-sm text-right">
-                      {tx.fees && parseFloat(tx.fees) > 0 ? `-CHF ${parseFloat(tx.fees).toFixed(2)}` : '-'}
+                      {tx.fees && parseFloat(tx.fees) > 0 ? `-CHF ${Math.round(parseFloat(tx.fees)).toLocaleString('de-CH')}` : '-'}
                     </td>
                     {/* Nettobetrag in CHF */}
                     <td className={`py-3 px-2 text-sm text-right font-semibold ${
@@ -447,7 +488,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                         ? 'text-green-400'
                         : 'text-slate-300'
                     }`}>
-                      {tx.transactionType === 'sell' || tx.transactionType === 'withdrawal' ? '-' : '+'}CHF {Math.abs(parseFloat(tx.totalAmountCHF || tx.totalAmount)).toFixed(2)}
+                      {tx.transactionType === 'sell' || tx.transactionType === 'withdrawal' ? '-' : '+'}CHF {Math.round(Math.abs(parseFloat(tx.totalAmountCHF || tx.totalAmount))).toLocaleString('de-CH')}
                     </td>
                     {/* Notizen */}
                     <td className="py-3 px-2 text-slate-400 text-sm truncate max-w-xs">
@@ -482,10 +523,16 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
                     Gesamt:
                   </td>
                   <td className="py-3 px-2 text-right font-bold text-white text-base">
-                    CHF {filteredTransactions.reduce((sum, tx) => {
+                    CHF {Math.round(filteredTransactions.reduce((sum, tx) => {
                       const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
-                      return sum + amount;
-                    }, 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      // Buy and withdrawal are negative (money out)
+                      // Sell, deposit, and dividend are positive (money in)
+                      if (tx.transactionType === 'buy' || tx.transactionType === 'withdrawal') {
+                        return sum - amount;
+                      } else {
+                        return sum + amount;
+                      }
+                    }, 0)).toLocaleString('de-CH')}
                   </td>
                   <td colSpan={2}></td>
                 </tr>
