@@ -1,1 +1,0 @@
-ALTER TABLE `savedPortfolios` ADD `tags` varchar(500);

@@ -1,1 +1,0 @@
-ALTER TABLE `savedPortfolios` ADD `portfolioType` varchar(50);
