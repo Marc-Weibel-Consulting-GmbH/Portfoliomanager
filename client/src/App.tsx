@@ -27,13 +27,15 @@ import DividendCalendar from "./pages/DividendCalendar";
 import PortfolioOptimizer from "./pages/PortfolioOptimizer";
 import Signals from "./pages/Signals";
 import AdminStocks from "./pages/AdminStocks";
+import Dashboard from "./pages/Dashboard";
+import PortfolioBuilder from "./pages/PortfolioBuilder";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
-      <Route path="/dashboard" component={Home} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/home" component={Home} />
       <Route path="/optimizer" component={Home} />
       <Route path="/register" component={Register} />
@@ -56,6 +58,7 @@ function Router() {
       <Route path="/sectors" component={Sectors} />
       <Route path="/live-tracking" component={LiveTracking} />
       <Route path="/dividends" component={DividendCalendar} />
+      <Route path="/portfolio-builder" component={PortfolioBuilder} />
       <Route path="/portfolio-optimizer" component={PortfolioOptimizer} />
       <Route path="/signals" component={Signals} />
       <Route path="/admin/stocks" component={AdminStocks} />

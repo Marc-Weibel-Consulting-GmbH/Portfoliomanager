@@ -34,6 +34,7 @@ import { calculateCapitalWithdrawalTax, CANTONS, type Canton, type Religion } fr
 import WelcomeModal from '@/components/WelcomeModal';
 import InteractiveTour from '@/components/InteractiveTour';
 import OnboardingTutorial from '@/components/OnboardingTutorial';
+import DashboardLayout from '@/components/DashboardLayout';
 
 // Score threshold helper
 function getScoreLabel(score: number): string {
@@ -1038,7 +1039,7 @@ export default function Home() {
 
   if (activeTab === "wissen") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
             <button
