@@ -2553,3 +2553,19 @@
 - [x] Add to DashboardLayout for global availability
 - [x] Ensure responsive design (mobile & desktop)
 - [x] Add smooth animations for open/close
+
+
+## NEW: UI Verbesserungen - Übersichtlichkeit (Nov 17, 2025)
+
+### Live-Tracking Umstrukturierung
+- [x] Portfolio-Positionen ausklappbar machen (Accordion-Komponente)
+  - [x] Zugeklappt: Ticker, Name, Anzahl, Aktueller Wert, Live Performance
+  - [x] Ausgeklappt: Einzelne Käufe/Verkäufe, Durchschnittspreis, Gewinn/Verlust Details
+- [x] Separate Transaktions-Unterseite erstellen
+  - [x] Route: /portfolio/:id/transactions
+  - [x] Breadcrumb-Navigation: Live-Tracking > Transaktionen
+  - [x] Alle Transaktionen mit Filterung (Typ, Ticker, Datum)
+  - [x] Sortierung (Datum, Betrag, Typ)
+- [x] Live-Tracking Hauptseite vereinfachen
+  - [x] Link zu Transaktions-Unterseite hinzufügen
+  - [x] Fokus auf Portfolio-Übersicht und Performance-Metriken

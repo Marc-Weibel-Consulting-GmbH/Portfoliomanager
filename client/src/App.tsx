@@ -14,6 +14,7 @@ import Reviews from "./pages/Reviews";
 import Categories from "./pages/Categories";
 import Sectors from "./pages/Sectors";
 import PortfolioDetail from "./pages/PortfolioDetail";
+import PortfolioTransactions from "./pages/PortfolioTransactions";
 import PortfolioComparison from "./pages/PortfolioComparison";
 import PriceAlerts from "./pages/PriceAlerts";
 import RealizedGainsHistory from "./pages/RealizedGainsHistory";
@@ -49,6 +50,7 @@ function Router() {
       </Route>
       <Route path="/stock/:ticker" component={StockDetail} />
       <Route path="/portfolio/:id" component={PortfolioDetail} />
+      <Route path="/portfolio/:id/transactions" component={PortfolioTransactions} />
       <Route path="/portfolio/:id/realized-gains" component={RealizedGainsHistory} />
       <Route path="/portfolio-comparison" component={PortfolioComparison} />
       <Route path="/price-alerts" component={PriceAlerts} />

@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
-import { useRoute, useLocation } from "wouter";
+import { useRoute, useLocation, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,7 @@ import { LivePerformanceChart } from "@/components/LivePerformanceChart";
 import DividendCalendarModal from "@/components/DividendCalendarModal";
 import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
 import { CsvImportModal } from "@/components/CsvImportModal";
-import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload, ChevronRight, ChevronDown, List } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
@@ -513,6 +514,19 @@ export default function PortfolioDetail() {
                 />
               )}
 
+              {/* Transactions Page Link */}
+              {Boolean(portfolio.isLive) && (
+                <Link href={`/portfolio/${portfolioId}/transactions`}>
+                  <Button
+                    variant="outline"
+                    className="text-foreground border-border hover:bg-muted"
+                  >
+                    <List className="w-4 h-4 mr-2" />
+                    Alle Transaktionen
+                  </Button>
+                </Link>
+              )}
+
               {/* Annual Performance Button */}
               {Boolean(portfolio.isLive) && (
                 <Button
@@ -679,7 +693,7 @@ export default function PortfolioDetail() {
           </div>
         )}
 
-        {/* Portfolio Holdings */}
+        {/* Portfolio Holdings - Collapsible */}
         <Card className="gradient-card border-border/50">
           <CardHeader>
             <div className="flex justify-between items-center">
@@ -696,286 +710,223 @@ export default function PortfolioDetail() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Ticker</th>
-                    <th className="text-left py-3 px-2 text-muted-foreground font-medium">Name</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Stückzahl</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Gewicht</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Einstandskurs (FW)</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Einstandswert (CHF)</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Aktueller Kurs (FW)</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Aktueller Wert (CHF)</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">Dividende</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">YTD</th>
-                    <th className="text-right py-3 px-2 text-muted-foreground font-medium">{Boolean(portfolio.isLive) ? 'Live Perf. (CHF)' : 'Live Perf.'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Cash Position Row - First */}
-                  <tr className="border-b-2 border-border bg-muted/20">
-                    <td className="py-3 px-2 text-yellow-400 font-semibold" colSpan={2}>💰 Cash</td>
-                    <td className="py-3 px-2 text-right" colSpan={3}></td>
-                    {/* Einstandswert (CHF) - Cash */}
-                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold">
-                      CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
-                    </td>
-                    <td className="py-3 px-2 text-right" colSpan={1}></td>
-                    {/* Aktueller Wert (CHF) - Cash */}
-                    <td className="py-3 px-2 text-yellow-400 text-right font-semibold">
-                      CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
-                    </td>
-                    <td colSpan={3}></td>
-                  </tr>
-                  {portfolioData.filter((stock: any) => stock.shares > 0).map((stock: any, index: number) => (
-                    <tr key={index} className="border-b border-slate-700/50 hover:bg-muted/30">
-                      <td className="py-3 px-2">
-                        <StockLogo ticker={stock.ticker} companyName={stock.name} size="sm" />
-                      </td>
-                      <td className="py-3 px-2 text-foreground">{stock.name}</td>
-                      <td className="py-3 px-2 text-white text-right font-semibold">
-                        {stock.shares ? Math.round(stock.shares).toLocaleString('de-CH') : '0'}
-                      </td>
-                      <td className="py-3 px-2 text-foreground text-right">{(parseFloat(stock.weight) || 0).toFixed(1)}%</td>
-                      {/* Einstandskurs (FW) - Line 1: Price, Line 2: FX Rate */}
-                      <td className="py-3 px-2 text-blue-300 text-right">
-                        <div>
-                          {(() => {
-                            if (Boolean(portfolio.isLive)) {
-                              const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
-                              if (chfHolding && chfHolding.avgBuyPrice) {
-                                return `${stock.currency || 'CHF'} ${chfHolding.avgBuyPrice.toFixed(1)}`;
-                              }
-                            }
-                            const holding = holdingsByTicker[stock.ticker];
-                            if (holding && holding.avgBuyPrice > 0) {
-                              return `${stock.currency || 'CHF'} ${holding.avgBuyPrice.toFixed(1)}`;
-                            }
-                            return `${stock.currency || 'CHF'} -`;
-                          })()}
-                        </div>
-                        <div className="text-xs text-muted-foreground/70 mt-0.5">
-                          {(() => {
-                            if (Boolean(portfolio.isLive)) {
-                              const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
-                              if (chfHolding && chfHolding.avgFxRate) {
-                                return `FX: ${chfHolding.avgFxRate.toFixed(3)}`;
-                              }
-                            }
-                            return stock.currency === 'CHF' ? '' : 'FX: 1.00';
-                          })()}
-                        </div>
-                      </td>
-                      {/* Einstandswert (CHF) */}
-                      <td className="py-3 px-2 text-blue-400 text-right font-semibold">
-                        {(() => {
-                          if (Boolean(portfolio.isLive)) {
-                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
-                            if (chfHolding) {
-                              return `CHF ${Math.round(chfHolding.totalInvestedCHF).toLocaleString('de-CH')}`;
-                            }
-                          }
-                          return `CHF ${stock.totalInvested ? Math.round(stock.totalInvested).toLocaleString('de-CH') : '0'}`;
-                        })()}
-                      </td>
-                      {/* Aktueller Kurs (FW) - Line 1: Price, Line 2: FX Rate */}
-                      <td className="py-3 px-2 text-foreground text-right">
-                        <div>
-                          {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(1)}
-                        </div>
-                        <div className="text-xs text-muted-foreground/70 mt-0.5">
-                          {(() => {
-                            if (Boolean(portfolio.isLive)) {
-                              const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
-                              if (chfHolding && chfHolding.currentFxRate) {
-                                return `FX: ${chfHolding.currentFxRate.toFixed(3)}`;
-                              }
-                            }
-                            return stock.currency === 'CHF' ? '' : 'FX: 1.00';
-                          })()}
-                        </div>
-                      </td>
-                      {/* Aktueller Wert (CHF) */}
-                      <td className="py-3 px-2 text-green-400 text-right font-semibold">
-                        {(() => {
-                          if (Boolean(portfolio.isLive)) {
-                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
-                            if (chfHolding) {
-                              return `CHF ${Math.round(chfHolding.currentValueCHF).toLocaleString('de-CH')}`;
-                            }
-                          }
-                          return `CHF ${stock.currentValue ? Math.round(stock.currentValue).toLocaleString('de-CH') : '0'}`;
-                        })()}
-                      </td>
-                      <td className="py-3 px-2 text-green-400 text-right">
-                        {(parseFloat(stock.dividendYield) || 0).toFixed(1)}%
-                      </td>
-                      <td className={`py-3 px-2 text-right font-semibold ${
-                        (parseFloat(stock.ytdPerformance) || 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}
-                        {(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%
-                      </td>
-                      <td className={`py-3 px-2 text-right font-semibold ${
-                        (() => {
-                          if (Boolean(portfolio.isLive)) {
-                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
-                            if (chfHolding) {
-                              return chfHolding.performanceCHF >= 0 ? 'text-green-400' : 'text-red-400';
-                            }
-                          }
-                          return stock.currentValue >= stock.totalInvested ? 'text-green-400' : 'text-red-400';
-                        })()
-                      }`}>
-                        {(() => {
-                          if (Boolean(portfolio.isLive)) {
-                            const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
-                            if (chfHolding) {
-                              return `${chfHolding.performanceCHF >= 0 ? '+' : ''}${chfHolding.performanceCHF.toFixed(1)}%`;
-                            }
-                          }
-                          if (stock.totalInvested > 0) {
-                            const perf = ((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100);
-                            return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
-                          }
-                          return '-';
-                        })()}
-                      </td>
-                    </tr>
-                  ))}
+            {/* Cash Position - Always Visible */}
+            <div className="mb-4 p-4 bg-muted/20 rounded-lg border border-border/50">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">💰</span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-yellow-400">Cash</h3>
+                    <p className="text-sm text-muted-foreground">Verfügbares Kapital</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-yellow-400">
+                    CHF {Math.round(livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0).toLocaleString('de-CH')}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                  {/* Total Row */}
-                  <tr className="border-t border-border bg-muted/30">
-                    <td className="py-3 px-2 text-white font-bold" colSpan={2}>TOTAL</td>
-                    <td className="py-3 px-2 text-right" colSpan={2}></td>
-                    <td className="py-3 px-2 text-blue-400 text-right font-bold" colSpan={2}>
-                      {(() => {
-                        const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
-                        if (Boolean(portfolio.isLive)) {
-                          const total = chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0) + cashPosition;
-                          return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
-                        }
-                        return `CHF ${Math.round(portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0) + cashPosition).toLocaleString('de-CH')}`;
-                      })()}
-                    </td>
-                    <td colSpan={1}></td>
-                    <td className="py-3 px-2 text-green-400 text-right font-bold">
-                      {(() => {
-                        if (Boolean(portfolio.isLive)) {
-                          // Total stocks value + cash
-                          const stocksTotal = chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0);
-                          const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
-                          return `CHF ${Math.round(stocksTotal + cashPosition).toLocaleString('de-CH')}`;
-                        }
-                        const stocksValue = portfolioData
-                          .filter((s: any) => s.shares > 0)
-                          .reduce((sum, s) => sum + (s.currentValue || 0), 0);
-                        const deposits = transactions
-                          .filter((tx: any) => tx.transactionType === 'deposit')
-                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
-                        const withdrawals = transactions
-                          .filter((tx: any) => tx.transactionType === 'withdrawal')
-                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const buyAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'buy')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        const sellAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'sell')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        // Treat all buys as implicit deposits
-                        const totalCapital = deposits - withdrawals + buyAmounts;
-                        const cash = totalCapital - buyAmounts + sellAmounts;
-                        const total = stocksValue + cash;
+            {/* Stock Positions - Accordion */}
+            <Accordion type="multiple" className="space-y-2">
+              {portfolioData.filter((stock: any) => stock.shares > 0).map((stock: any, index: number) => {
+                const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                const holding = holdingsByTicker[stock.ticker];
+                
+                // Calculate values for display
+                const totalInvestedCHF = Boolean(portfolio.isLive) && chfHolding 
+                  ? chfHolding.totalInvestedCHF 
+                  : (stock.totalInvested || 0);
+                const currentValueCHF = Boolean(portfolio.isLive) && chfHolding 
+                  ? chfHolding.currentValueCHF 
+                  : (stock.currentValue || 0);
+                const performanceCHF = Boolean(portfolio.isLive) && chfHolding 
+                  ? chfHolding.performanceCHF 
+                  : (stock.totalInvested > 0 ? ((stock.currentValue - stock.totalInvested) / stock.totalInvested * 100) : 0);
+                
+                // Get stock transactions
+                const stockTransactions = transactions.filter((tx: any) => tx.ticker === stock.ticker);
+
+                return (
+                  <AccordionItem key={index} value={`stock-${index}`} className="border border-border/50 rounded-lg bg-muted/10">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-3">
+                          <StockLogo ticker={stock.ticker} companyName={stock.name} size="sm" />
+                          <div className="text-left">
+                            <h3 className="font-semibold text-white">{stock.ticker}</h3>
+                            <p className="text-sm text-muted-foreground">{stock.name}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Stückzahl</p>
+                            <p className="font-semibold text-white">{Math.round(stock.shares).toLocaleString('de-CH')}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Aktueller Wert</p>
+                            <p className="font-semibold text-green-400">CHF {Math.round(currentValueCHF).toLocaleString('de-CH')}</p>
+                          </div>
+                          <div className="text-right min-w-[80px]">
+                            <p className="text-xs text-muted-foreground">Performance</p>
+                            <p className={`font-bold ${performanceCHF >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {performanceCHF >= 0 ? '+' : ''}{performanceCHF.toFixed(1)}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 pt-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Gewicht</p>
+                          <p className="font-medium text-foreground">{(parseFloat(stock.weight) || 0).toFixed(1)}%</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Einstandskurs</p>
+                          <p className="font-medium text-blue-300">
+                            {(() => {
+                              if (Boolean(portfolio.isLive) && chfHolding?.avgBuyPrice) {
+                                return `${stock.currency || 'CHF'} ${chfHolding.avgBuyPrice.toFixed(2)}`;
+                              }
+                              if (holding?.avgBuyPrice > 0) {
+                                return `${stock.currency || 'CHF'} ${holding.avgBuyPrice.toFixed(2)}`;
+                              }
+                              return '-';
+                            })()}
+                          </p>
+                          {Boolean(portfolio.isLive) && chfHolding?.avgFxRate && stock.currency !== 'CHF' && (
+                            <p className="text-xs text-muted-foreground/70">FX: {chfHolding.avgFxRate.toFixed(3)}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Aktueller Kurs</p>
+                          <p className="font-medium text-foreground">
+                            {stock.currency || 'CHF'} {(stock.currentPrice || 0).toFixed(2)}
+                          </p>
+                          {Boolean(portfolio.isLive) && chfHolding?.currentFxRate && stock.currency !== 'CHF' && (
+                            <p className="text-xs text-muted-foreground/70">FX: {chfHolding.currentFxRate.toFixed(3)}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Dividende</p>
+                          <p className="font-medium text-green-400">{(parseFloat(stock.dividendYield) || 0).toFixed(1)}%</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Einstandswert (CHF)</p>
+                          <p className="font-medium text-blue-400">CHF {Math.round(totalInvestedCHF).toLocaleString('de-CH')}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Aktueller Wert (CHF)</p>
+                          <p className="font-medium text-green-400">CHF {Math.round(currentValueCHF).toLocaleString('de-CH')}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">YTD Performance</p>
+                          <p className={`font-medium ${(parseFloat(stock.ytdPerformance) || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {(parseFloat(stock.ytdPerformance) || 0) >= 0 ? '+' : ''}{(parseFloat(stock.ytdPerformance) || 0).toFixed(1)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Gewinn/Verlust</p>
+                          <p className={`font-medium ${(currentValueCHF - totalInvestedCHF) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {(currentValueCHF - totalInvestedCHF) >= 0 ? '+' : ''}CHF {Math.round(currentValueCHF - totalInvestedCHF).toLocaleString('de-CH')}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Transactions for this stock */}
+                      {Boolean(portfolio.isLive) && stockTransactions.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-border/50">
+                          <h4 className="text-sm font-semibold text-muted-foreground mb-3">Transaktionen</h4>
+                          <div className="space-y-2">
+                            {stockTransactions.map((tx: any) => (
+                              <div key={tx.id} className="flex justify-between items-center p-2 bg-muted/30 rounded">
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-xs font-medium px-2 py-1 rounded ${
+                                    tx.type === 'buy' ? 'bg-blue-500/20 text-blue-400' :
+                                    tx.type === 'sell' ? 'bg-orange-500/20 text-orange-400' :
+                                    tx.type === 'dividend' ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400'
+                                  }`}>
+                                    {tx.type === 'buy' ? 'Kauf' : tx.type === 'sell' ? 'Verkauf' : tx.type === 'dividend' ? 'Dividende' : tx.type}
+                                  </span>
+                                  <span className="text-sm text-foreground">{new Date(tx.transactionDate).toLocaleDateString('de-CH')}</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  {tx.shares && (
+                                    <span className="text-sm text-muted-foreground">{Math.round(tx.shares)} Stück</span>
+                                  )}
+                                  {tx.price && (
+                                    <span className="text-sm text-muted-foreground">@ {tx.currency || 'CHF'} {tx.price.toFixed(2)}</span>
+                                  )}
+                                  <span className={`text-sm font-medium ${
+                                    tx.type === 'buy' ? 'text-red-400' : 'text-green-400'
+                                  }`}>
+                                    {tx.amount ? `CHF ${Math.round(Math.abs(tx.amount)).toLocaleString('de-CH')}` : '-'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+
+            {/* Total Summary */}
+            <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Total Investiert</p>
+                  <p className="text-xl font-bold text-blue-400">
+                    {(() => {
+                      const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
+                      if (Boolean(portfolio.isLive)) {
+                        const total = chfHoldings.reduce((sum: number, h: any) => sum + h.totalInvestedCHF, 0) + cashPosition;
                         return `CHF ${Math.round(total).toLocaleString('de-CH')}`;
-                      })()}
-                    </td>
-                    <td colSpan={2}></td>
-                    <td className={`py-3 px-2 text-right font-bold ${
-                      (() => {
-                        // For LIVE portfolios, use livePerformance data (CHF-converted)
-                        if (Boolean(portfolio.isLive) && livePerformance) {
-                          return livePerformance.performance >= 0 ? 'text-green-400' : 'text-red-400';
-                        }
-                        // For TEST portfolios, calculate from transactions
-                        const stocksValue = portfolioData
-                          .filter((s: any) => s.shares > 0)
-                          .reduce((sum, s) => sum + (s.currentValue || 0), 0);
-                        const deposits = transactions
-                          .filter((tx: any) => tx.transactionType === 'deposit')
-                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
-                        const withdrawals = transactions
-                          .filter((tx: any) => tx.transactionType === 'withdrawal')
-                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const buyAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'buy')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        const sellAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'sell')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        const totalCapital = deposits - withdrawals + buyAmounts;
-                        const cash = totalCapital - buyAmounts + sellAmounts;
-                        const totalValue = stocksValue + cash;
-                        return totalValue >= totalCapital ? 'text-green-400' : 'text-red-400';
-                      })()
-                    }`}>
-                      {(() => {
-                        // For LIVE portfolios, use livePerformance data (single source of truth)
-                        if (Boolean(portfolio.isLive) && livePerformance) {
-                          const perf = livePerformance.performance;
-                          return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
-                        }
-                        // For TEST portfolios, calculate from transactions
-                        const stocksValue = portfolioData
-                          .filter((s: any) => s.shares > 0)
-                          .reduce((sum, s) => sum + (s.currentValue || 0), 0);
-                        const deposits = transactions
-                          .filter((tx: any) => tx.transactionType === 'deposit')
-                          .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
-                        const withdrawals = transactions
-                          .filter((tx: any) => tx.transactionType === 'withdrawal')
-                          .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.totalAmount || '0')), 0);
-                        const buyAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'buy')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        const sellAmounts = transactions
-                          .filter((tx: any) => tx.transactionType === 'sell')
-                          .reduce((sum: number, tx: any) => {
-                            const shares = parseFloat(tx.shares || '0');
-                            const price = parseFloat(tx.pricePerShare || '0');
-                            return sum + (shares * price);
-                          }, 0);
-                        const totalCapital = deposits - withdrawals + buyAmounts;
-                        const cash = totalCapital - buyAmounts + sellAmounts;
-                        const totalValue = stocksValue + cash;
-                        const perf = totalCapital > 0 ? ((totalValue - totalCapital) / totalCapital * 100) : 0;
+                      }
+                      return `CHF ${Math.round(portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.totalInvested || 0), 0) + cashPosition).toLocaleString('de-CH')}`;
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Aktueller Wert</p>
+                  <p className="text-xl font-bold text-green-400">
+                    {(() => {
+                      if (Boolean(portfolio.isLive)) {
+                        const stocksTotal = chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0);
+                        const cashPosition = livePerformance?.cashPosition ?? portfolioSummary.cashPosition ?? 0;
+                        return `CHF ${Math.round(stocksTotal + cashPosition).toLocaleString('de-CH')}`;
+                      }
+                      const stocksValue = portfolioData.filter((s: any) => s.shares > 0).reduce((sum, s) => sum + (s.currentValue || 0), 0);
+                      const cashPosition = portfolioSummary.cashPosition ?? 0;
+                      return `CHF ${Math.round(stocksValue + cashPosition).toLocaleString('de-CH')}`;
+                    })()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Performance</p>
+                  <p className={`text-xl font-bold ${
+                    (() => {
+                      if (Boolean(portfolio.isLive) && livePerformance) {
+                        return livePerformance.performance >= 0 ? 'text-green-400' : 'text-red-400';
+                      }
+                      return 'text-gray-400';
+                    })()
+                  }`}>
+                    {(() => {
+                      if (Boolean(portfolio.isLive) && livePerformance) {
+                        const perf = livePerformance.performance;
                         return `${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%`;
-                      })()}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      }
+                      return '-';
+                    })()}
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
