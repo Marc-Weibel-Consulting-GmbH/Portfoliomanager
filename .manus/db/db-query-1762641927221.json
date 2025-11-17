@@ -1,0 +1,234 @@
+{
+  "query": "SELECT * FROM categories ORDER BY name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT * FROM categories ORDER BY name;",
+  "rows": [
+    {
+      "id": "17",
+      "name": "Automotive",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "6",
+      "name": "Biotech",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "4",
+      "name": "Dividendenaktien",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "20",
+      "name": "E-Commerce",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "16",
+      "name": "ETF - Bonds",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "28",
+      "name": "ETF - Consumer",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "14",
+      "name": "ETF - Emerging Markets",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "19",
+      "name": "ETF - Energy",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "25",
+      "name": "ETF - Europe",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "10",
+      "name": "ETF - Financials",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "23",
+      "name": "ETF - Gold",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "26",
+      "name": "ETF - Healthcare",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "11",
+      "name": "ETF - Silver",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "1",
+      "name": "ETF - Switzerland",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "15",
+      "name": "ETF - Technology",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "27",
+      "name": "ETF - US Market",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "2",
+      "name": "ETF - US Small Cap",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "13",
+      "name": "ETF - US Tech",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "24",
+      "name": "ETF - World",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "22",
+      "name": "Energie",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "8",
+      "name": "Finanzdienstleistungen",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "12",
+      "name": "Healthcare",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "7",
+      "name": "Industrie",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "3",
+      "name": "Infrastruktur",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "21",
+      "name": "KI Narrativ",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "5",
+      "name": "Konsumgüter",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "9",
+      "name": "Rohstoffe",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    },
+    {
+      "id": "18",
+      "name": "Technologie",
+      "description": "Auto-migrated from existing stocks",
+      "color": "NULL",
+      "createdAt": "2025-11-07 15:34:26",
+      "updatedAt": "2025-11-07 15:34:26"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tdescription\tcolor\tcreatedAt\tupdatedAt\n17\tAutomotive\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n6\tBiotech\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n4\tDividendenaktien\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n20\tE-Commerce\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n16\tETF - Bonds\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n28\tETF - Consumer\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n14\tETF - Emerging Markets\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n19\tETF - Energy\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n25\tETF - Europe\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n10\tETF - Financials\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n23\tETF - Gold\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n26\tETF - Healthcare\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n11\tETF - Silver\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n1\tETF - Switzerland\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n15\tETF - Technology\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n27\tETF - US Market\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n2\tETF - US Small Cap\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n13\tETF - US Tech\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n24\tETF - World\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n22\tEnergie\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n8\tFinanzdienstleistungen\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n12\tHealthcare\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n7\tIndustrie\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n3\tInfrastruktur\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n21\tKI Narrativ\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n5\tKonsumgüter\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n9\tRohstoffe\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n18\tTechnologie\tAuto-migrated from existing stocks\tNULL\t2025-11-07 15:34:26\t2025-11-07 15:34:26\n",
+  "stderr": "",
+  "execution_time_ms": 100
+}

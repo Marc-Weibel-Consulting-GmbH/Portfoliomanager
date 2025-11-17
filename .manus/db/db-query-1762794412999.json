@@ -1,0 +1,31 @@
+{
+  "query": "SELECT transactionType, shares, pricePerShare, totalAmountCHF, transactionDate FROM portfolioTransactions WHERE portfolioId = 90001 AND ticker = 'JNJ' ORDER BY transactionDate",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT transactionType, shares, pricePerShare, totalAmountCHF, transactionDate FROM portfolioTransactions WHERE portfolioId = 90001 AND ticker = 'JNJ' ORDER BY transactionDate",
+  "rows": [
+    {
+      "transactionType": "buy",
+      "shares": "26",
+      "pricePerShare": "186.6",
+      "totalAmountCHF": "4269.4080",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "sell",
+      "shares": "5",
+      "pricePerShare": "200",
+      "totalAmountCHF": "755.90",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "transactionType": "sell",
+      "shares": "11",
+      "pricePerShare": "200",
+      "totalAmountCHF": "1752.98",
+      "transactionDate": "2025-11-10 00:00:00"
+    }
+  ],
+  "messages": [],
+  "stdout": "transactionType\tshares\tpricePerShare\ttotalAmountCHF\ttransactionDate\nbuy\t26\t186.6\t4269.4080\t2025-10-29 00:00:00\nsell\t5\t200\t755.90\t2025-11-10 00:00:00\nsell\t11\t200\t1752.98\t2025-11-10 00:00:00\n",
+  "stderr": "",
+  "execution_time_ms": 48
+}

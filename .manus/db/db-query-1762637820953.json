@@ -1,0 +1,90 @@
+{
+  "query": "SELECT ticker, COUNT(*) as days FROM historicalPrices GROUP BY ticker ORDER BY days DESC LIMIT 20",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, COUNT(*) as days FROM historicalPrices GROUP BY ticker ORDER BY days DESC LIMIT 20",
+  "rows": [
+    {
+      "ticker": "SU.PA",
+      "days": "1282"
+    },
+    {
+      "ticker": "SGKN.SW",
+      "days": "1260"
+    },
+    {
+      "ticker": "NESN.SW",
+      "days": "1260"
+    },
+    {
+      "ticker": "STMN.SW",
+      "days": "1260"
+    },
+    {
+      "ticker": "SQN.SW",
+      "days": "1260"
+    },
+    {
+      "ticker": "MELI",
+      "days": "1255"
+    },
+    {
+      "ticker": "TSLA",
+      "days": "1255"
+    },
+    {
+      "ticker": "GOOGL",
+      "days": "1255"
+    },
+    {
+      "ticker": "BRK-B",
+      "days": "1255"
+    },
+    {
+      "ticker": "NVDA",
+      "days": "1255"
+    },
+    {
+      "ticker": "NET",
+      "days": "1255"
+    },
+    {
+      "ticker": "JNJ",
+      "days": "1255"
+    },
+    {
+      "ticker": "NEE",
+      "days": "1255"
+    },
+    {
+      "ticker": "META",
+      "days": "1255"
+    },
+    {
+      "ticker": "CRWV",
+      "days": "313"
+    },
+    {
+      "ticker": "MC.PA",
+      "days": "254"
+    },
+    {
+      "ticker": "EXSA.DE",
+      "days": "252"
+    },
+    {
+      "ticker": "MONC.MI",
+      "days": "252"
+    },
+    {
+      "ticker": "VWRL.L",
+      "days": "250"
+    },
+    {
+      "ticker": "MU",
+      "days": "249"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tdays\nSU.PA\t1282\nSGKN.SW\t1260\nNESN.SW\t1260\nSTMN.SW\t1260\nSQN.SW\t1260\nMELI\t1255\nTSLA\t1255\nGOOGL\t1255\nBRK-B\t1255\nNVDA\t1255\nNET\t1255\nJNJ\t1255\nNEE\t1255\nMETA\t1255\nCRWV\t313\nMC.PA\t254\nEXSA.DE\t252\nMONC.MI\t252\nVWRL.L\t250\nMU\t249\n",
+  "stderr": "",
+  "execution_time_ms": 531
+}

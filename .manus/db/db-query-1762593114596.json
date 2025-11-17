@@ -1,0 +1,22 @@
+{
+  "query": "SELECT ticker, companyName, currentPrice, sharpeRatio, dividendYield, pegRatio, peRatio, ytdPerformance, ytdStartPrice, category FROM stocks WHERE ticker = 'MESA' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, currentPrice, sharpeRatio, dividendYield, pegRatio, peRatio, ytdPerformance, ytdStartPrice, category FROM stocks WHERE ticker = 'MESA' LIMIT 1;",
+  "rows": [
+    {
+      "ticker": "MESA",
+      "companyName": "Mesa Air Group Inc",
+      "currentPrice": "1.45",
+      "sharpeRatio": "0.93",
+      "dividendYield": "0",
+      "pegRatio": "0",
+      "peRatio": "0.00",
+      "ytdPerformance": "0.00",
+      "ytdStartPrice": "1.45",
+      "category": "Technologie"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tcurrentPrice\tsharpeRatio\tdividendYield\tpegRatio\tpeRatio\tytdPerformance\tytdStartPrice\tcategory\nMESA\tMesa Air Group Inc\t1.45\t0.93\t0\t0\t0.00\t0.00\t1.45\tTechnologie\n",
+  "stderr": "",
+  "execution_time_ms": 1864
+}

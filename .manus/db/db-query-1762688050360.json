@@ -1,0 +1,20 @@
+{
+  "query": "SELECT ticker, pegRatio, sharpeRatio FROM stocks WHERE ticker IN ('NESN.SW', 'SLHN.SW') LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, pegRatio, sharpeRatio FROM stocks WHERE ticker IN ('NESN.SW', 'SLHN.SW') LIMIT 5;",
+  "rows": [
+    {
+      "ticker": "NESN.SW",
+      "pegRatio": "5.0848",
+      "sharpeRatio": "0.08084603131595267"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "pegRatio": "2.3134",
+      "sharpeRatio": "1.114018698390496"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tpegRatio\tsharpeRatio\nNESN.SW\t5.0848\t0.08084603131595267\nSLHN.SW\t2.3134\t1.114018698390496\n",
+  "stderr": "",
+  "execution_time_ms": 85
+}

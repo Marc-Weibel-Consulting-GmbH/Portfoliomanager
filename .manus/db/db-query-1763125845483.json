@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, ticker, transactionType, shares, pricePerShare, transactionDate, totalAmount, totalAmountCHF \nFROM portfolioTransactions \nWHERE ticker = 'NESN.SW' \nORDER BY transactionDate DESC \nLIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, ticker, transactionType, shares, pricePerShare, transactionDate, totalAmount, totalAmountCHF \nFROM portfolioTransactions \nWHERE ticker = 'NESN.SW' \nORDER BY transactionDate DESC \nLIMIT 3;",
+  "rows": [
+    {
+      "id": "480002",
+      "ticker": "NESN.SW",
+      "transactionType": "buy",
+      "shares": "125",
+      "pricePerShare": "77.70",
+      "transactionDate": "2025-11-01 00:00:00",
+      "totalAmount": "9712.5",
+      "totalAmountCHF": "9712.5"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tticker\ttransactionType\tshares\tpricePerShare\ttransactionDate\ttotalAmount\ttotalAmountCHF\n480002\tNESN.SW\tbuy\t125\t77.70\t2025-11-01 00:00:00\t9712.5\t9712.5\n",
+  "stderr": "",
+  "execution_time_ms": 65
+}

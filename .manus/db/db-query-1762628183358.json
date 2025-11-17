@@ -1,0 +1,166 @@
+{
+  "query": "SELECT ticker, companyName, portfolioWeight, ytdPerformance FROM stocks WHERE ticker NOT IN (SELECT DISTINCT ticker FROM historicalPrices) ORDER BY CAST(portfolioWeight AS DECIMAL(10,2)) DESC LIMIT 30",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, portfolioWeight, ytdPerformance FROM stocks WHERE ticker NOT IN (SELECT DISTINCT ticker FROM historicalPrices) ORDER BY CAST(portfolioWeight AS DECIMAL(10,2)) DESC LIMIT 30",
+  "rows": [
+    {
+      "ticker": "MESA.US",
+      "companyName": "Mesa Air Group Inc",
+      "portfolioWeight": "2",
+      "ytdPerformance": "25.00"
+    },
+    {
+      "ticker": "IBM.US",
+      "companyName": "International Business Machines",
+      "portfolioWeight": "0.9804",
+      "ytdPerformance": "39.37"
+    },
+    {
+      "ticker": "XLK.US",
+      "companyName": "Technology Select Sector SPDR Fund",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "26.91"
+    },
+    {
+      "ticker": "VWO.US",
+      "companyName": "Vanguard FTSE Emerging Markets ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "24.43"
+    },
+    {
+      "ticker": "IWM.US",
+      "companyName": "iShares Russell 2000 ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "10.73"
+    },
+    {
+      "ticker": "VTI.US",
+      "companyName": "Vanguard Total Stock Market ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "14.96"
+    },
+    {
+      "ticker": "URTH.US",
+      "companyName": "iShares MSCI World ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "18.27"
+    },
+    {
+      "ticker": "ACWI.US",
+      "companyName": "iShares MSCI ACWI ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "19.63"
+    },
+    {
+      "ticker": "XLV.US",
+      "companyName": "Health Care Select Sector SPDR Fund",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "5.88"
+    },
+    {
+      "ticker": "EEM.US",
+      "companyName": "iShares MSCI Emerging Markets ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "31.80"
+    },
+    {
+      "ticker": "EWL.US",
+      "companyName": "iShares MSCI Switzerland ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "20.54"
+    },
+    {
+      "ticker": "VGK.US",
+      "companyName": "Vanguard FTSE Europe ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "26.00"
+    },
+    {
+      "ticker": "QQQ.US",
+      "companyName": "Invesco QQQ Trust",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "21.92"
+    },
+    {
+      "ticker": "MSTR.US",
+      "companyName": "MicroStrategy Incorporated",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "-11.95"
+    },
+    {
+      "ticker": "BND.US",
+      "companyName": "Vanguard Total Bond Market ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "3.02"
+    },
+    {
+      "ticker": "XLE.US",
+      "companyName": "Energy Select Sector SPDR Fund",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "2.05"
+    },
+    {
+      "ticker": "XLY.US",
+      "companyName": "Consumer Discretionary Select Sector SPDR Fund",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "7.45"
+    },
+    {
+      "ticker": "AGG.US",
+      "companyName": "iShares Core U.S. Aggregate Bond ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "3.07"
+    },
+    {
+      "ticker": "XLF.US",
+      "companyName": "Financial Select Sector SPDR Fund",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "8.84"
+    },
+    {
+      "ticker": "GLD.US",
+      "companyName": "SPDR Gold Shares",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "51.38"
+    },
+    {
+      "ticker": "SLV.US",
+      "companyName": "iShares Silver Trust",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "65.78"
+    },
+    {
+      "ticker": "AAPL.US",
+      "companyName": "Apple Inc",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "7.59"
+    },
+    {
+      "ticker": "PINS.US",
+      "companyName": "Pinterest Inc",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "-6.59"
+    },
+    {
+      "ticker": "EMR.US",
+      "companyName": "Emerson Electric Company",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "4.49"
+    },
+    {
+      "ticker": "VOO.US",
+      "companyName": "Vanguard S&P 500 ETF",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "15.60"
+    },
+    {
+      "ticker": "SPY.US",
+      "companyName": "SPDR S&P 500 ETF Trust",
+      "portfolioWeight": "0.9304",
+      "ytdPerformance": "15.61"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tportfolioWeight\tytdPerformance\nMESA.US\tMesa Air Group Inc\t2\t25.00\nIBM.US\tInternational Business Machines\t0.9804\t39.37\nXLK.US\tTechnology Select Sector SPDR Fund\t0.9304\t26.91\nVWO.US\tVanguard FTSE Emerging Markets ETF\t0.9304\t24.43\nIWM.US\tiShares Russell 2000 ETF\t0.9304\t10.73\nVTI.US\tVanguard Total Stock Market ETF\t0.9304\t14.96\nURTH.US\tiShares MSCI World ETF\t0.9304\t18.27\nACWI.US\tiShares MSCI ACWI ETF\t0.9304\t19.63\nXLV.US\tHealth Care Select Sector SPDR Fund\t0.9304\t5.88\nEEM.US\tiShares MSCI Emerging Markets ETF\t0.9304\t31.80\nEWL.US\tiShares MSCI Switzerland ETF\t0.9304\t20.54\nVGK.US\tVanguard FTSE Europe ETF\t0.9304\t26.00\nQQQ.US\tInvesco QQQ Trust\t0.9304\t21.92\nMSTR.US\tMicroStrategy Incorporated\t0.9304\t-11.95\nBND.US\tVanguard Total Bond Market ETF\t0.9304\t3.02\nXLE.US\tEnergy Select Sector SPDR Fund\t0.9304\t2.05\nXLY.US\tConsumer Discretionary Select Sector SPDR Fund\t0.9304\t7.45\nAGG.US\tiShares Core U.S. Aggregate Bond ETF\t0.9304\t3.07\nXLF.US\tFinancial Select Sector SPDR Fund\t0.9304\t8.84\nGLD.US\tSPDR Gold Shares\t0.9304\t51.38\nSLV.US\tiShares Silver Trust\t0.9304\t65.78\nAAPL.US\tApple Inc\t0.9304\t7.59\nPINS.US\tPinterest Inc\t0.9304\t-6.59\nEMR.US\tEmerson Electric Company\t0.9304\t4.49\nVOO.US\tVanguard S&P 500 ETF\t0.9304\t15.60\nSPY.US\tSPDR S&P 500 ETF Trust\t0.9304\t15.61\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}

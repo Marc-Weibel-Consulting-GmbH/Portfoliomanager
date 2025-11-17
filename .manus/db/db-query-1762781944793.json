@@ -1,0 +1,130 @@
+{
+  "query": "SELECT transactionType, ticker, shares, totalAmountCHF, fees, transactionDate \nFROM portfolioTransactions \nWHERE portfolioId = 90001 \nORDER BY transactionDate DESC \nLIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT transactionType, ticker, shares, totalAmountCHF, fees, transactionDate \nFROM portfolioTransactions \nWHERE portfolioId = 90001 \nORDER BY transactionDate DESC \nLIMIT 20;",
+  "rows": [
+    {
+      "transactionType": "buy",
+      "ticker": "EOSE",
+      "shares": "100",
+      "totalAmountCHF": "NULL",
+      "fees": "50",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "transactionType": "sell",
+      "ticker": "EOSE",
+      "shares": "109",
+      "totalAmountCHF": "1751.4992",
+      "fees": "0",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "transactionType": "sell",
+      "ticker": "EOSE",
+      "shares": "20",
+      "totalAmountCHF": "316.9760",
+      "fees": "5",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "transactionType": "sell",
+      "ticker": "MONC.MI",
+      "shares": "12",
+      "totalAmountCHF": "NULL",
+      "fees": "50",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "transactionType": "sell",
+      "ticker": "EOSE",
+      "shares": "10",
+      "totalAmountCHF": "160.6880",
+      "fees": "0",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "EOSE",
+      "shares": "209",
+      "totalAmountCHF": "2642.9304",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "EWL.US",
+      "shares": "90",
+      "totalAmountCHF": "4408.2720",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "JNJ",
+      "shares": "26",
+      "totalAmountCHF": "4269.4080",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "EEM.US",
+      "shares": "90",
+      "totalAmountCHF": "4435.9920",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "MONC.MI",
+      "shares": "72",
+      "totalAmountCHF": "NULL",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "TSM",
+      "shares": "13",
+      "totalAmountCHF": "3490.2296",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "VWO.US",
+      "shares": "91",
+      "totalAmountCHF": "4466.0616",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "BRK-B",
+      "shares": "8",
+      "totalAmountCHF": "3349.3504",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "SREN.SW",
+      "shares": "33",
+      "totalAmountCHF": "4900.50",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    },
+    {
+      "transactionType": "buy",
+      "ticker": "HELN.SW",
+      "shares": "24",
+      "totalAmountCHF": "4788.00",
+      "fees": "0",
+      "transactionDate": "2025-10-29 00:00:00"
+    }
+  ],
+  "messages": [],
+  "stdout": "transactionType\tticker\tshares\ttotalAmountCHF\tfees\ttransactionDate\nbuy\tEOSE\t100\tNULL\t50\t2025-11-10 00:00:00\nsell\tEOSE\t109\t1751.4992\t0\t2025-11-10 00:00:00\nsell\tEOSE\t20\t316.9760\t5\t2025-11-10 00:00:00\nsell\tMONC.MI\t12\tNULL\t50\t2025-11-10 00:00:00\nsell\tEOSE\t10\t160.6880\t0\t2025-11-10 00:00:00\nbuy\tEOSE\t209\t2642.9304\t0\t2025-10-29 00:00:00\nbuy\tEWL.US\t90\t4408.2720\t0\t2025-10-29 00:00:00\nbuy\tJNJ\t26\t4269.4080\t0\t2025-10-29 00:00:00\nbuy\tEEM.US\t90\t4435.9920\t0\t2025-10-29 00:00:00\nbuy\tMONC.MI\t72\tNULL\t0\t2025-10-29 00:00:00\nbuy\tTSM\t13\t3490.2296\t0\t2025-10-29 00:00:00\nbuy\tVWO.US\t91\t4466.0616\t0\t2025-10-29 00:00:00\nbuy\tBRK-B\t8\t3349.3504\t0\t2025-10-29 00:00:00\nbuy\tSREN.SW\t33\t4900.50\t0\t2025-10-29 00:00:00\nbuy\tHELN.SW\t24\t4788.00\t0\t2025-10-29 00:00:00\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

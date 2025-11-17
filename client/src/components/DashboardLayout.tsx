@@ -19,17 +19,29 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import TrustpilotMini from "./trustpilot/TrustpilotMini";
+import { FloatingChatButton } from "./FloatingChatButton";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: TrendingUp, label: "Portfolio Builder", path: "/portfolio-builder" },
+  { icon: LineChart, label: "Live Tracking", path: "/live-tracking" },
+  { icon: Calendar, label: "Dividendenkalender", path: "/dividends" },
+  { icon: Signal, label: "Signale", path: "/signals" },
+  { icon: Calculator, label: "Rechner", path: "/rechner" },
+  { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
+  { icon: Mail, label: "Kontakt", path: "/kontakt" },
+];
+
+const adminMenuItems = [
+  { icon: Database, label: "Aktien (Admin)", path: "/admin/stocks" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -79,7 +91,7 @@ export default function DashboardLayout({
           </div>
           <Button
             onClick={() => {
-              window.location.href = getLoginUrl();
+              window.location.href = "/login";
             }}
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
@@ -227,6 +239,24 @@ function DashboardLayoutContent({
                   </SidebarMenuItem>
                 );
               })}
+              {user?.role === 'admin' && adminMenuItems.map(item => {
+                const isActive = location === item.path;
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      isActive={isActive}
+                      onClick={() => setLocation(item.path)}
+                      tooltip={item.label}
+                      className={`h-10 transition-all font-normal`}
+                    >
+                      <item.icon
+                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                      />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarContent>
 
@@ -240,11 +270,11 @@ function DashboardLayoutContent({
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-medium truncate leading-none">
-                      {user?.name || "-"}
+                    <p className="text-xs text-muted-foreground truncate leading-none mb-1">
+                      Eingeloggt als:
                     </p>
-                    <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {user?.email || "-"}
+                    <p className="text-sm font-medium truncate leading-none">
+                      {user?.username || user?.name || user?.email || "-"}
                     </p>
                   </div>
                 </button>
@@ -287,7 +317,17 @@ function DashboardLayoutContent({
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>
+        
+        {/* Trustpilot Footer */}
+        <footer className="border-t border-slate-700 bg-slate-900 p-4">
+          <div className="max-w-7xl mx-auto">
+            <TrustpilotMini />
+          </div>
+        </footer>
       </SidebarInset>
+      
+      {/* Floating Chat Button */}
+      <FloatingChatButton />
     </>
   );
 }

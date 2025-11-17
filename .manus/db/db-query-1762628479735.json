@@ -1,0 +1,80 @@
+{
+  "query": "SELECT ticker, currentPrice, ytdStartPrice, ytdPerformance, (CAST(currentPrice AS DECIMAL(10,2)) / CAST(ytdStartPrice AS DECIMAL(10,2)) - 1) * 100 as calculated_perf FROM stocks WHERE ticker IN (SELECT ticker FROM historicalPrices GROUP BY ticker) ORDER BY ABS((CAST(currentPrice AS DECIMAL(10,2)) / CAST(ytdStartPrice AS DECIMAL(10,2)) - 1) * 100 - CAST(ytdPerformance AS DECIMAL(10,2))) DESC LIMIT 10",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, currentPrice, ytdStartPrice, ytdPerformance, (CAST(currentPrice AS DECIMAL(10,2)) / CAST(ytdStartPrice AS DECIMAL(10,2)) - 1) * 100 as calculated_perf FROM stocks WHERE ticker IN (SELECT ticker FROM historicalPrices GROUP BY ticker) ORDER BY ABS((CAST(currentPrice AS DECIMAL(10,2)) / CAST(ytdStartPrice AS DECIMAL(10,2)) - 1) * 100 - CAST(ytdPerformance AS DECIMAL(10,2))) DESC LIMIT 10",
+  "rows": [
+    {
+      "ticker": "IREN",
+      "currentPrice": "62.38",
+      "ytdStartPrice": "9.82",
+      "ytdPerformance": "-0.83",
+      "calculated_perf": "535.234216"
+    },
+    {
+      "ticker": "BE",
+      "currentPrice": "135.21",
+      "ytdStartPrice": "22.21",
+      "ytdPerformance": "22.50",
+      "calculated_perf": "508.779829"
+    },
+    {
+      "ticker": "CIFR",
+      "currentPrice": "20.69",
+      "ytdStartPrice": "4.64",
+      "ytdPerformance": "0.15",
+      "calculated_perf": "345.905172"
+    },
+    {
+      "ticker": "CRWV",
+      "currentPrice": "104.01",
+      "ytdStartPrice": "40.00",
+      "ytdPerformance": "-21.53",
+      "calculated_perf": "160.025000"
+    },
+    {
+      "ticker": "MU",
+      "currentPrice": "237.92",
+      "ytdStartPrice": "84.16",
+      "ytdPerformance": "8.63",
+      "calculated_perf": "182.699620"
+    },
+    {
+      "ticker": "PLTR",
+      "currentPrice": "177.93",
+      "ytdStartPrice": "75.63",
+      "ytdPerformance": "-3.63",
+      "calculated_perf": "135.263784"
+    },
+    {
+      "ticker": "TEM",
+      "currentPrice": "71.56",
+      "ytdStartPrice": "33.76",
+      "ytdPerformance": "-19.80",
+      "calculated_perf": "111.966825"
+    },
+    {
+      "ticker": "AMD",
+      "currentPrice": "233.54",
+      "ytdStartPrice": "120.79",
+      "ytdPerformance": "-7.66",
+      "calculated_perf": "93.343820"
+    },
+    {
+      "ticker": "APP",
+      "currentPrice": "619.93",
+      "ytdStartPrice": "323.83",
+      "ytdPerformance": "-0.01",
+      "calculated_perf": "91.436865"
+    },
+    {
+      "ticker": "KLAC",
+      "currentPrice": "1193.37",
+      "ytdStartPrice": "630.12",
+      "ytdPerformance": "0.89",
+      "calculated_perf": "89.387736"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcurrentPrice\tytdStartPrice\tytdPerformance\tcalculated_perf\nIREN\t62.38\t9.82\t-0.83\t535.234216\nBE\t135.21\t22.21\t22.50\t508.779829\nCIFR\t20.69\t4.64\t0.15\t345.905172\nCRWV\t104.01\t40.00\t-21.53\t160.025000\nMU\t237.92\t84.16\t8.63\t182.699620\nPLTR\t177.93\t75.63\t-3.63\t135.263784\nTEM\t71.56\t33.76\t-19.80\t111.966825\nAMD\t233.54\t120.79\t-7.66\t93.343820\nAPP\t619.93\t323.83\t-0.01\t91.436865\nKLAC\t1193.37\t630.12\t0.89\t89.387736\n",
+  "stderr": "",
+  "execution_time_ms": 90
+}

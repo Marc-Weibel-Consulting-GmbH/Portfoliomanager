@@ -1,0 +1,50 @@
+{
+  "query": "SELECT id, portfolioId, ticker, shares, pricePerShare, transactionDate FROM portfolioTransactions WHERE transactionType = 'sell' ORDER BY transactionDate DESC LIMIT 10",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, portfolioId, ticker, shares, pricePerShare, transactionDate FROM portfolioTransactions WHERE transactionType = 'sell' ORDER BY transactionDate DESC LIMIT 10",
+  "rows": [
+    {
+      "id": "150001",
+      "portfolioId": "90001",
+      "ticker": "EOSE",
+      "shares": "20",
+      "pricePerShare": "18.26",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "id": "120021",
+      "portfolioId": "90001",
+      "ticker": "EOSE",
+      "shares": "109",
+      "pricePerShare": "18.26",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "id": "150002",
+      "portfolioId": "90001",
+      "ticker": "EOSE",
+      "shares": "10",
+      "pricePerShare": "18.26",
+      "transactionDate": "2025-11-10 00:00:00"
+    },
+    {
+      "id": "30002",
+      "portfolioId": "60001",
+      "ticker": "SREN.SW",
+      "shares": "26",
+      "pricePerShare": "147.15",
+      "transactionDate": "2025-11-09 00:00:00"
+    },
+    {
+      "id": "30001",
+      "portfolioId": "60001",
+      "ticker": "SREN.SW",
+      "shares": "26",
+      "pricePerShare": "147.15",
+      "transactionDate": "2025-11-09 00:00:00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tportfolioId\tticker\tshares\tpricePerShare\ttransactionDate\n150001\t90001\tEOSE\t20\t18.26\t2025-11-10 00:00:00\n120021\t90001\tEOSE\t109\t18.26\t2025-11-10 00:00:00\n150002\t90001\tEOSE\t10\t18.26\t2025-11-10 00:00:00\n30002\t60001\tSREN.SW\t26\t147.15\t2025-11-09 00:00:00\n30001\t60001\tSREN.SW\t26\t147.15\t2025-11-09 00:00:00\n",
+  "stderr": "",
+  "execution_time_ms": 48
+}

@@ -1,0 +1,35 @@
+{
+  "query": "SELECT ticker, currentPrice, currency FROM stocks WHERE ticker IN ('MONC.MI', 'VGK.US', 'XLE.US', 'NOVN.SW', 'NESN.SW') LIMIT 10",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, currentPrice, currency FROM stocks WHERE ticker IN ('MONC.MI', 'VGK.US', 'XLE.US', 'NOVN.SW', 'NESN.SW') LIMIT 10",
+  "rows": [
+    {
+      "ticker": "MONC.MI",
+      "currentPrice": "56.42",
+      "currency": "EUR"
+    },
+    {
+      "ticker": "NESN.SW",
+      "currentPrice": "79.42",
+      "currency": "CHF"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "currentPrice": "102.2",
+      "currency": "CHF"
+    },
+    {
+      "ticker": "VGK.US",
+      "currentPrice": "79.97",
+      "currency": "USD"
+    },
+    {
+      "ticker": "XLE.US",
+      "currentPrice": "87.42",
+      "currency": "USD"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcurrentPrice\tcurrency\nMONC.MI\t56.42\tEUR\nNESN.SW\t79.42\tCHF\nNOVN.SW\t102.2\tCHF\nVGK.US\t79.97\tUSD\nXLE.US\t87.42\tUSD\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

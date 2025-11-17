@@ -1,0 +1,18 @@
+{
+  "query": "SELECT ticker, currency, totalAmount, totalAmountCHF, fxRate, fees FROM portfolioTransactions WHERE portfolioId = 90001 AND ticker = 'MONC.MI' AND DATE(transactionDate) = '2025-10-29'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, currency, totalAmount, totalAmountCHF, fxRate, fees FROM portfolioTransactions WHERE portfolioId = 90001 AND ticker = 'MONC.MI' AND DATE(transactionDate) = '2025-10-29'",
+  "rows": [
+    {
+      "ticker": "MONC.MI",
+      "currency": "EUR",
+      "totalAmount": "3732.48",
+      "totalAmountCHF": "NULL",
+      "fxRate": "NULL",
+      "fees": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcurrency\ttotalAmount\ttotalAmountCHF\tfxRate\tfees\nMONC.MI\tEUR\t3732.48\tNULL\tNULL\t0\n",
+  "stderr": "",
+  "execution_time_ms": 58
+}

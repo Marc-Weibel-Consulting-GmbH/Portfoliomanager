@@ -1,0 +1,15 @@
+{
+  "query": "SELECT s.ticker, s.ytdStartPrice as stocks_ytd, h.close as historical_close FROM stocks s LEFT JOIN historicalPrices h ON s.ticker = h.ticker AND h.date = '2024-12-31' WHERE s.ticker = 'SGKN.SW' LIMIT 1",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT s.ticker, s.ytdStartPrice as stocks_ytd, h.close as historical_close FROM stocks s LEFT JOIN historicalPrices h ON s.ticker = h.ticker AND h.date = '2024-12-31' WHERE s.ticker = 'SGKN.SW' LIMIT 1",
+  "rows": [
+    {
+      "ticker": "SGKN.SW",
+      "stocks_ytd": "437.50",
+      "historical_close": "437.500000"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tstocks_ytd\thistorical_close\nSGKN.SW\t437.50\t437.500000\n",
+  "stderr": "",
+  "execution_time_ms": 58
+}

@@ -1,0 +1,50 @@
+{
+  "query": "SELECT ticker, portfolioWeight FROM stocks ORDER BY portfolioWeight DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, portfolioWeight FROM stocks ORDER BY portfolioWeight DESC LIMIT 10;",
+  "rows": [
+    {
+      "ticker": "NESN.SW",
+      "portfolioWeight": "5.0000"
+    },
+    {
+      "ticker": "SGKN.SW",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "JNJ",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "NEE",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "NOVOB.CO",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "TSLA",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "NVDA",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "GOOGL",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "SU.PA",
+      "portfolioWeight": "1.5152"
+    },
+    {
+      "ticker": "KNIN.SW",
+      "portfolioWeight": "1.5152"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tportfolioWeight\nNESN.SW\t5.0000\nSGKN.SW\t1.5152\nJNJ\t1.5152\nNEE\t1.5152\nNOVOB.CO\t1.5152\nTSLA\t1.5152\nNVDA\t1.5152\nGOOGL\t1.5152\nSU.PA\t1.5152\nKNIN.SW\t1.5152\n",
+  "stderr": "",
+  "execution_time_ms": 44
+}
