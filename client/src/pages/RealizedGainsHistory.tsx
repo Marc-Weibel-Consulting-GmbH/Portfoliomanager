@@ -36,7 +36,7 @@ export default function RealizedGainsHistory() {
       <div className="container py-8">
         <Button
           variant="outline"
-          onClick={() => setLocation(`/portfolio/${portfolioId}`)}
+          onClick={() => window.history.back()}
           className="mb-6"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -70,7 +70,7 @@ export default function RealizedGainsHistory() {
     <div className="container py-8">
       <Button
         variant="outline"
-        onClick={() => setLocation(`/portfolio/${portfolioId}`)}
+        onClick={() => window.history.back()}
         className="mb-6"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />

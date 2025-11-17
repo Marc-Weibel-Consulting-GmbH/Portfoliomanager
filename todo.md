@@ -2466,3 +2466,12 @@
 - [x] Fix TypeError: signal.currentPrice.toFixed is not a function
 - [x] Problem: currentPrice from portfolioData is string, not number
 - [x] Solution: Convert currentPrice to number in signalsRouter.ts
+
+## CRITICAL: Signals Page TypeError - peRatio (Nov 17, 2025 - 09:23)
+- [x] Fix TypeError: signal.peRatio?.toFixed is not a function
+- [x] Problem: peRatio from portfolioData is string, not number
+- [x] Solution: Convert peRatio (and other numeric fields) to number in signalsRouter.ts
+
+
+## Navigation Bug (Nov 17, 2025)
+- [x] Fix back button navigation to use browser history instead of redirecting to landing page

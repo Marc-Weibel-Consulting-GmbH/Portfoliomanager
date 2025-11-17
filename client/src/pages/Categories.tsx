@@ -65,8 +65,8 @@ export default function Categories() {
             <p className="text-slate-300 text-center">
               Sie haben keine Berechtigung, diese Seite zu sehen.
             </p>
-            <Button onClick={() => navigate("/")} className="w-full mt-4">
-              Zurück zur Startseite
+            <Button onClick={() => window.history.back()} className="w-full mt-4">
+              Zurück
             </Button>
           </CardContent>
         </Card>
@@ -102,7 +102,7 @@ export default function Categories() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button
-              onClick={() => navigate("/")}
+              onClick={() => window.history.back()}
               variant="outline"
               size="sm"
               className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"

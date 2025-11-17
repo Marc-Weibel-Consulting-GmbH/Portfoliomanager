@@ -28,53 +28,73 @@ function generateSignal(stock: any): Signal {
   const criteria: string[] = [];
   let score = 0; // Positive = buy, Negative = sell
   
-  // Ensure currentPrice is a number first
+  // Convert all numeric string fields to numbers
   const currentPrice = typeof stock.currentPrice === 'number' 
     ? stock.currentPrice 
     : parseFloat(stock.currentPrice) || 0;
   
+  const peRatio = stock.peRatio 
+    ? (typeof stock.peRatio === 'number' ? stock.peRatio : parseFloat(stock.peRatio))
+    : null;
+  
+  const pegRatio = stock.pegRatio 
+    ? (typeof stock.pegRatio === 'number' ? stock.pegRatio : parseFloat(stock.pegRatio))
+    : null;
+  
+  const dividendYield = stock.dividendYield 
+    ? (typeof stock.dividendYield === 'number' ? stock.dividendYield : parseFloat(stock.dividendYield))
+    : 0;
+  
+  const ytdPerformance = stock.ytdPerformance 
+    ? (typeof stock.ytdPerformance === 'number' ? stock.ytdPerformance : parseFloat(stock.ytdPerformance))
+    : 0;
+  
+  const sharpeRatio = stock.sharpeRatio 
+    ? (typeof stock.sharpeRatio === 'number' ? stock.sharpeRatio : parseFloat(stock.sharpeRatio))
+    : null;
+  
   // P/E Ratio analysis
-  if (stock.peRatio) {
-    if (stock.peRatio < 15) {
+  if (peRatio !== null && !isNaN(peRatio)) {
+    if (peRatio < 15) {
       score += 2;
       criteria.push("Niedriges P/E (<15)");
-    } else if (stock.peRatio > 30) {
+    } else if (peRatio > 30) {
       score -= 2;
       criteria.push("Hohes P/E (>30)");
     }
   }
 
   // PEG Ratio analysis
-  if (stock.pegRatio) {
-    if (stock.pegRatio < 1) {
+  if (pegRatio !== null && !isNaN(pegRatio)) {
+    if (pegRatio < 1) {
       score += 2;
       criteria.push("Attraktives PEG (<1)");
-    } else if (stock.pegRatio > 2) {
+    } else if (pegRatio > 2) {
       score -= 1;
       criteria.push("Teures PEG (>2)");
     }
   }
 
   // Dividend Yield analysis
-  if (stock.dividendYield > 4) {
+  if (dividendYield > 4) {
     score += 1;
     criteria.push("Hohe Dividende (>4%)");
   }
 
   // YTD Performance analysis
-  if (stock.ytdPerformance) {
-    if (stock.ytdPerformance < -20) {
+  if (ytdPerformance !== 0 && !isNaN(ytdPerformance)) {
+    if (ytdPerformance < -20) {
       score += 1;
       criteria.push("Stark gefallen (>20%)");
-    } else if (stock.ytdPerformance > 30) {
+    } else if (ytdPerformance > 30) {
       score -= 1;
       criteria.push("Stark gestiegen (>30%)");
     }
   }
 
   // Sharpe Ratio analysis
-  if (stock.sharpeRatio) {
-    if (stock.sharpeRatio > 1.5) {
+  if (sharpeRatio !== null && !isNaN(sharpeRatio)) {
+    if (sharpeRatio > 1.5) {
       score += 1;
       criteria.push("Gute Sharpe Ratio (>1.5)");
     }
@@ -120,9 +140,9 @@ function generateSignal(stock: any): Signal {
     strength,
     currentPrice,
     targetPrice,
-    peRatio: stock.peRatio,
-    dividendYield: stock.dividendYield || 0,
-    ytdPerformance: stock.ytdPerformance || 0,
+    peRatio: peRatio,
+    dividendYield: dividendYield,
+    ytdPerformance: ytdPerformance,
     reason,
     criteria
   };

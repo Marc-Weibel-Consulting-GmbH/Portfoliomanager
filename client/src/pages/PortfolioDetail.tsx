@@ -440,7 +440,7 @@ export default function PortfolioDetail() {
         {/* Header */}
         <div className="mb-8">
           <Button
-            onClick={() => setLocation("/")}
+            onClick={() => window.history.back()}
             variant="ghost"
             className="mb-4 text-muted-foreground hover:text-white"
           >

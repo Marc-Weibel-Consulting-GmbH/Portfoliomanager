@@ -184,7 +184,7 @@ export default function PriceAlerts() {
         {/* Header */}
         <div className="mb-8">
           <Button
-            onClick={() => setLocation("/dashboard")}
+            onClick={() => window.history.back()}
             variant="ghost"
             className="mb-4 text-slate-400 hover:text-white"
           >

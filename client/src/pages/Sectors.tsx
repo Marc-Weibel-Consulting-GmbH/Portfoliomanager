@@ -32,7 +32,7 @@ export default function Sectors() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/admin")}
+            onClick={() => window.history.back()}
             className="text-white hover:bg-slate-800"
           >
             <ArrowLeft className="h-5 w-5" />

@@ -101,7 +101,7 @@ export default function TestSecrets() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setLocation("/")}>
+          <Button variant="outline" onClick={() => window.history.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Zurück
           </Button>

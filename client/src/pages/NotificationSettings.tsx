@@ -66,7 +66,7 @@ export default function NotificationSettings() {
             Verwalten Sie Ihre Benachrichtigungseinstellungen
           </p>
         </div>
-        <Button variant="outline" onClick={() => setLocation("/")}>
+        <Button variant="outline" onClick={() => window.history.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Zurück
         </Button>
