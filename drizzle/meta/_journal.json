@@ -302,6 +302,20 @@
       "when": 1763310648937,
       "tag": "0042_hard_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1763411029423,
+      "tag": "0043_violet_northstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "5",
+      "when": 1763411450426,
+      "tag": "0044_odd_ogun",
+      "breakpoints": true
     }
   ]
 }

@@ -2609,3 +2609,7 @@
 - [x] OptimizerResults Logik anpassen für automatische Positionsanzahl
 - [x] Alle Referenzen zu numberOfPositions im Code aktualisieren
 - [x] Progress Indicator auf 3 Schritte anpassen
+
+## UI Improvements (Nov 17, 2025)
+- [x] Update performance chart to match previous design (dark background, grid, colored lines)
+- [x] Update holdings table to match previous design (logo icons, score badges, all columns)

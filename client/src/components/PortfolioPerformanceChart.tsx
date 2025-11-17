@@ -272,102 +272,96 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
   };
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader>
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white">Portfolio Performance</CardTitle>
-            <div className="flex items-center gap-2">
-              <label className="text-slate-400 text-sm">Benchmark:</label>
-              <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
-                <SelectTrigger className="w-[140px] bg-slate-700 border-slate-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {benchmarkOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+    <div className="bg-[#2c3e50] rounded-lg p-6 border border-slate-600">
+      {/* Header with Title and Controls */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-white text-lg font-semibold">Portfolio Performance</h3>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-slate-300 text-sm">Zeitraum:</label>
+            <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as TimePeriod)}>
+              <SelectTrigger className="w-[100px] bg-slate-700 border-slate-600 text-white h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-700 border-slate-600">
+                {periodOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          
-          {/* Time Period Selector */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {periodOptions.map(option => (
-              <button
-                key={option.value}
-                onClick={() => setSelectedPeriod(option.value)}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  selectedPeriod === option.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <label className="text-slate-300 text-sm">Benchmark:</label>
+            <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
+              <SelectTrigger className="w-[140px] bg-slate-700 border-slate-600 text-white h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-700 border-slate-600">
+                {benchmarkOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-slate-900/50 rounded-lg p-4 max-w-4xl mx-auto">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis 
-                dataKey="date" 
-                stroke="#94a3b8"
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
-                interval="preserveStartEnd"
-              />
-              <YAxis 
-                stroke="#94a3b8"
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
-                tickFormatter={(value) => `${value.toFixed(0)}%`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line 
-                type="monotone" 
-                dataKey="portfolio" 
-                stroke="#3b82f6" 
-                strokeWidth={2}
-                dot={false}
-                name={portfolioName}
-                activeDot={{ r: 6, fill: '#3b82f6' }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="benchmark" 
-                stroke="#ef4444" 
-                strokeWidth={2}
-                dot={false}
-                name={benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'}
-                activeDot={{ r: 6, fill: '#ef4444' }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          
-          <div className="mt-4 flex items-center justify-center gap-8 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-0.5 bg-blue-400"></div>
-              <span className="text-slate-300">{portfolioName}</span>
-              <span className={`font-semibold ml-1 ${finalPortfolioReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {finalPortfolioReturn >= 0 ? '+' : ''}{finalPortfolioReturn.toFixed(2)}%
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-0.5 bg-red-400"></div>
-              <span className="text-slate-300">{benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}</span>
-              <span className={`font-semibold ml-1 ${benchmarkReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {benchmarkReturn >= 0 ? '+' : ''}{benchmarkReturn.toFixed(2)}%
-              </span>
-            </div>
+      </div>
+
+      {/* Chart Area */}
+      <div className="bg-[#34495e] rounded-lg p-4">
+        <ResponsiveContainer width="100%" height={350}>
+          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#4a5f7f" vertical={true} horizontal={true} />
+            <XAxis 
+              dataKey="date" 
+              stroke="#8899aa"
+              tick={{ fill: '#8899aa', fontSize: 11 }}
+              interval="preserveStartEnd"
+              tickLine={{ stroke: '#4a5f7f' }}
+            />
+            <YAxis 
+              stroke="#8899aa"
+              tick={{ fill: '#8899aa', fontSize: 11 }}
+              tickFormatter={(value) => `${value.toFixed(0)}%`}
+              tickLine={{ stroke: '#4a5f7f' }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Line 
+              type="monotone" 
+              dataKey="portfolio" 
+              stroke="#5b9bd5" 
+              strokeWidth={2}
+              dot={false}
+              name={portfolioName}
+              activeDot={{ r: 5, fill: '#5b9bd5' }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="benchmark" 
+              stroke="#ed7d31" 
+              strokeWidth={2}
+              dot={false}
+              name={benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'}
+              activeDot={{ r: 5, fill: '#ed7d31' }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+        
+        {/* Legend */}
+        <div className="mt-3 flex items-center justify-center gap-6 text-sm border-t border-slate-600 pt-3">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#5b9bd5]"></div>
+            <span className="text-slate-200">Portfolio</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#ed7d31]"></div>
+            <span className="text-slate-200">{benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}</span>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1728,24 +1728,24 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left p-3 text-slate-400 font-medium">Logo</th>
-                  <th className="text-left p-3 text-slate-400 font-medium">Ticker</th>
-                  <th className="text-left p-3 text-slate-400 font-medium">Unternehmen</th>
-                  <th className="text-left p-3 text-slate-400 font-medium">Kategorie</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Stück</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Kurs FW</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Betrag FW</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">FX</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Betrag CHF</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Gewicht</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Div. %</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">YTD %</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">P/E</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">PEG</th>
-                  <th className="text-right p-3 text-slate-400 font-medium">Sharpe</th>
-                  <th className="text-center p-3 text-slate-400 font-medium">Score</th>
-                  <th className="text-center p-3 text-slate-400 font-medium">Aktion</th>
+                <tr className="border-b border-slate-600 bg-slate-700/30">
+                  <th className="text-left p-2 text-slate-300 font-semibold text-xs">Logo</th>
+                  <th className="text-left p-2 text-slate-300 font-semibold text-xs">Ticker</th>
+                  <th className="text-left p-2 text-slate-300 font-semibold text-xs">Unternehmen</th>
+                  <th className="text-left p-2 text-slate-300 font-semibold text-xs">Kategorie</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">Stück</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">Kurs FW</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">Betrag FW</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">FX</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">Betrag CHF</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">Gewicht</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">Div. %</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">YTD %</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">P/E</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">PEG</th>
+                  <th className="text-right p-2 text-slate-300 font-semibold text-xs">Sharpe</th>
+                  <th className="text-center p-2 text-slate-300 font-semibold text-xs">Score</th>
+                  <th className="text-center p-2 text-slate-300 font-semibold text-xs">Aktion</th>
                 </tr>
               </thead>
               <tbody>
@@ -1757,13 +1757,13 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     return 0;
                   })
                   .map((pos) => (
-                  <tr key={pos.ticker} className="border-b border-slate-700 hover:bg-slate-700/50">
-                    <td className="p-3">
+                  <tr key={pos.ticker} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                    <td className="p-2">
                       {pos.logoUrl ? (
                         <img 
                           src={pos.logoUrl} 
                           alt={pos.ticker}
-                          className="w-8 h-8 rounded object-contain bg-white p-0.5"
+                          className="w-10 h-10 rounded object-contain bg-white p-1"
                           onError={(e) => {
                             // Fallback to placeholder if image fails to load
                             e.currentTarget.style.display = 'none';
@@ -1772,51 +1772,51 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                         />
                       ) : null}
                       <div 
-                        className={`w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg ${pos.logoUrl ? 'hidden' : ''}`}
+                        className={`w-10 h-10 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg ${pos.logoUrl ? 'hidden' : ''}`}
                       >
                         {pos.ticker.substring(0, 2)}
                       </div>
                     </td>
-                    <td className="p-3 text-blue-400 font-medium">{pos.ticker}</td>
-                    <td className="p-3 text-white">{pos.companyName}</td>
-                    <td className="p-3 text-slate-300">{pos.category}</td>
-                    <td className="p-3 text-right text-white font-medium">{pos.shares}</td>
-                    <td className="p-3 text-right text-slate-300">
+                    <td className="p-2 text-blue-400 font-semibold">{pos.ticker}</td>
+                    <td className="p-2 text-white">{pos.companyName}</td>
+                    <td className="p-2 text-slate-300">{pos.category}</td>
+                    <td className="p-2 text-right text-white font-medium">{pos.shares}</td>
+                    <td className="p-2 text-right text-slate-300">
                       {pos.currency || 'CHF'} {parseFloat(pos.currentPrice || '0').toFixed(2)}
                     </td>
-                    <td className="p-3 text-right text-slate-300">
+                    <td className="p-2 text-right text-slate-300">
                       {pos.currency || 'CHF'} {(pos.shares * parseFloat(pos.currentPrice || '0')).toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="p-3 text-right text-slate-300">
+                    <td className="p-2 text-right text-slate-300">
                       {pos.fxRate || '1.0000'}
                     </td>
-                    <td className="p-3 text-right text-white font-medium">
+                    <td className="p-2 text-right text-white font-semibold">
                        CHF {pos.investmentAmount?.toLocaleString('de-CH', { minimumFractionDigits: 2 }) || '0.00'}
                     </td>
-                    <td className="p-3 text-right text-slate-300">
+                    <td className="p-2 text-right text-slate-300">
                       {(pos.portfolioWeight || 0).toFixed(2)}%
                     </td>
-                    <td className="p-3 text-right text-green-400">
+                    <td className="p-2 text-right text-green-400">
                       {parseFloat(pos.dividendYield || '0').toFixed(1)}%
                     </td>
-                    <td className={`p-3 text-right font-medium ${
+                    <td className={`p-2 text-right font-medium ${
                       parseFloat(pos.ytdPerformance) >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}>
                       {parseFloat(pos.ytdPerformance) >= 0 ? '+' : ''}{pos.ytdPerformance}%
                     </td>
-                    <td className="p-3 text-right text-slate-300">
+                    <td className="p-2 text-right text-slate-300">
                       {pos.peRatio ? parseFloat(pos.peRatio).toFixed(1) : '-'}
                     </td>
-                    <td className="p-3 text-right text-slate-300">
+                    <td className="p-2 text-right text-slate-300">
                       {pos.pegRatio ? parseFloat(pos.pegRatio).toFixed(1) : '-'}
                     </td>
-                    <td className={`p-3 text-right font-medium ${
+                    <td className={`p-2 text-right font-medium ${
                       parseFloat(pos.sharpeRatio || '0') >= 1 ? 'text-green-400' : 
                       parseFloat(pos.sharpeRatio || '0') >= 0 ? 'text-yellow-400' : 'text-red-400'
                     }`}>
                       {pos.sharpeRatio ? parseFloat(pos.sharpeRatio).toFixed(1) : '-'}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="p-2 text-center">
                       {(() => {
                         // Use dynamic score from stockScores query (same as Home page)
                         const scoreData = stockScores.find((s: any) => s.ticker === pos.ticker);
@@ -1825,19 +1825,19 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                         
                         // Color based on score value
                         let bgColor = 'bg-slate-500';
-                        if (scoreValue >= 70) bgColor = 'bg-green-500';
-                        else if (scoreValue >= 50) bgColor = 'bg-yellow-500';
+                        if (scoreValue >= 70) bgColor = 'bg-amber-500';
+                        else if (scoreValue >= 50) bgColor = 'bg-amber-500';
                         else if (scoreValue >= 30) bgColor = 'bg-orange-500';
                         else bgColor = 'bg-red-500';
                         
                         return (
-                          <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg font-bold text-white ${bgColor}`}>
+                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm text-white ${bgColor}`}>
                             {Math.round(scoreValue)}
                           </span>
                         );
                       })()}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="p-2 text-center">
                       <Button
                         variant="ghost"
                         size="sm"
