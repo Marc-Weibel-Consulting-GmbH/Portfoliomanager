@@ -28,6 +28,11 @@ function generateSignal(stock: any): Signal {
   const criteria: string[] = [];
   let score = 0; // Positive = buy, Negative = sell
   
+  // Ensure currentPrice is a number first
+  const currentPrice = typeof stock.currentPrice === 'number' 
+    ? stock.currentPrice 
+    : parseFloat(stock.currentPrice) || 0;
+  
   // P/E Ratio analysis
   if (stock.peRatio) {
     if (stock.peRatio < 15) {
@@ -85,27 +90,27 @@ function generateSignal(stock: any): Signal {
     type = "buy";
     strength = "strong";
     reason = "Mehrere positive Indikatoren deuten auf eine Kaufgelegenheit hin. Die Bewertung ist attraktiv und die Fundamentaldaten sind solide.";
-    targetPrice = stock.currentPrice * 1.15;
+    targetPrice = currentPrice * 1.15;
   } else if (score >= 1) {
     type = "buy";
     strength = "moderate";
     reason = "Einige positive Signale vorhanden. Könnte eine gute Ergänzung für diversifizierte Portfolios sein.";
-    targetPrice = stock.currentPrice * 1.10;
+    targetPrice = currentPrice * 1.10;
   } else if (score <= -3) {
     type = "sell";
     strength = "strong";
     reason = "Mehrere negative Indikatoren. Die Bewertung erscheint überzogen oder die Performance ist schwach. Gewinnmitnahme empfohlen.";
-    targetPrice = stock.currentPrice * 0.90;
+    targetPrice = currentPrice * 0.90;
   } else if (score <= -1) {
     type = "sell";
     strength = "moderate";
     reason = "Einige Warnsignale erkennbar. Überwachung empfohlen, ggf. Position reduzieren.";
-    targetPrice = stock.currentPrice * 0.95;
+    targetPrice = currentPrice * 0.95;
   } else {
     type = "hold";
     strength = "moderate";
     reason = "Neutrale Bewertung. Aktuelle Position beibehalten und Entwicklung beobachten.";
-    targetPrice = stock.currentPrice;
+    targetPrice = currentPrice;
   }
 
   return {
@@ -113,7 +118,7 @@ function generateSignal(stock: any): Signal {
     companyName: stock.companyName,
     type,
     strength,
-    currentPrice: stock.currentPrice,
+    currentPrice,
     targetPrice,
     peRatio: stock.peRatio,
     dividendYield: stock.dividendYield || 0,

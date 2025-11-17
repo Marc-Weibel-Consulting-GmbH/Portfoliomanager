@@ -100,15 +100,15 @@ export default function AdminStocks() {
                         <td className="py-2 px-2">{stock.companyName}</td>
                         <td className="py-2 px-2 text-muted-foreground">{stock.category}</td>
                         <td className="py-2 px-2 text-right">
-                          {stock.currentPrice?.toFixed(2)} {stock.currency || 'CHF'}
+                          {stock.currentPrice ? Number(stock.currentPrice).toFixed(2) : 'N/A'} {stock.currency || 'CHF'}
                         </td>
                         <td className={`py-2 px-2 text-right font-semibold ${
-                          stock.ytdPerformance >= 0 ? 'text-green-500' : 'text-red-500'
+                          Number(stock.ytdPerformance) >= 0 ? 'text-green-500' : 'text-red-500'
                         }`}>
-                          {stock.ytdPerformance >= 0 ? '+' : ''}{stock.ytdPerformance?.toFixed(1)}%
+                          {stock.ytdPerformance ? (Number(stock.ytdPerformance) >= 0 ? '+' : '') + Number(stock.ytdPerformance).toFixed(1) + '%' : 'N/A'}
                         </td>
-                        <td className="py-2 px-2 text-right">{stock.peRatio?.toFixed(1) || 'N/A'}</td>
-                        <td className="py-2 px-2 text-right">{stock.dividendYield?.toFixed(2)}%</td>
+                        <td className="py-2 px-2 text-right">{stock.peRatio ? Number(stock.peRatio).toFixed(1) : 'N/A'}</td>
+                        <td className="py-2 px-2 text-right">{stock.dividendYield ? Number(stock.dividendYield).toFixed(2) + '%' : 'N/A'}</td>
                         <td className="py-2 px-2 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="ghost" size="sm">
@@ -147,14 +147,14 @@ export default function AdminStocks() {
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Ø P/E Ratio</p>
                 <p className="text-2xl font-bold">
-                  {(stocks.filter((s: any) => s.peRatio).reduce((sum: number, s: any) => sum + s.peRatio, 0) / 
-                    stocks.filter((s: any) => s.peRatio).length).toFixed(1)}
+                  {stocks.filter((s: any) => s.peRatio).length > 0 ? (stocks.filter((s: any) => s.peRatio).reduce((sum: number, s: any) => sum + Number(s.peRatio), 0) / 
+                    stocks.filter((s: any) => s.peRatio).length).toFixed(1) : 'N/A'}
                 </p>
               </div>
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Ø Div. Rendite</p>
                 <p className="text-2xl font-bold">
-                  {(stocks.reduce((sum: number, s: any) => sum + (s.dividendYield || 0), 0) / stocks.length).toFixed(2)}%
+                  {stocks.length > 0 ? (stocks.reduce((sum: number, s: any) => sum + Number(s.dividendYield || 0), 0) / stocks.length).toFixed(2) + '%' : 'N/A'}
                 </p>
               </div>
             </div>

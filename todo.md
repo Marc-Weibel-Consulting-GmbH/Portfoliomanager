@@ -2461,3 +2461,8 @@
 - [x] Create portfolioOptimizerRouter backend with optimization algorithms
 - [x] Update dividendCalendarRouter with calendar endpoint
 - [x] Register new routers in main routers.ts
+
+## CRITICAL: Signals Page TypeError (Nov 17, 2025)
+- [x] Fix TypeError: signal.currentPrice.toFixed is not a function
+- [x] Problem: currentPrice from portfolioData is string, not number
+- [x] Solution: Convert currentPrice to number in signalsRouter.ts
