@@ -4,10 +4,12 @@ import { TrendingUp, PieChart, Calendar, Sparkles, BarChart3, Shield, Zap, Users
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useState } from "react";
 import WelcomeModal from "@/components/WelcomeModal";
+import GuidedTourModal from "@/components/GuidedTourModal";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function LandingPage() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showGuidedTour, setShowGuidedTour] = useState(false);
   const { isAuthenticated } = useAuth();
 
   const handleGetStarted = () => {
@@ -73,6 +75,11 @@ export default function LandingPage() {
             </Button>
             <Button size="lg" variant="outline" onClick={handleDemoClick} className="text-lg px-8">
               Demo Portfolio ansehen
+            </Button>
+          </div>
+          <div className="mt-4">
+            <Button size="lg" variant="secondary" onClick={() => setShowGuidedTour(true)} className="text-lg px-8">
+              Geführte Tour
             </Button>
           </div>
         </div>
@@ -294,10 +301,11 @@ export default function LandingPage() {
       {/* Welcome Modal */}
       <WelcomeModal
         open={showWelcomeModal}
-        onClose={() => setShowWelcomeModal(false)}
+        onOpenChange={setShowWelcomeModal}
         onCreateDemo={handleCreateDemo}
         onStartTour={handleStartTour}
       />
+      <GuidedTourModal open={showGuidedTour} onOpenChange={setShowGuidedTour} />
     </div>
   );
 }

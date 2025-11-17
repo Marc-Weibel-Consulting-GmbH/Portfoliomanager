@@ -2622,3 +2622,6 @@
 - [x] Implement interactive tour modal with step-by-step navigation
 - [x] Add highlighted areas with tooltips/popovers to explain features
 - [x] Create tour steps covering main features of the application
+
+## Bug Fix (Nov 17, 2025)
+- [x] Fix logout behavior to stay on landing page instead of redirecting to login window

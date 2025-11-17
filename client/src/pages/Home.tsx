@@ -2279,7 +2279,7 @@ export default function Home() {
               <Button
                 onClick={() => {
                   fetch('/api/trpc/auth.logout', { method: 'POST' })
-                    .then(() => window.location.href = '/login')
+                    .then(() => window.location.reload())
                     .catch(console.error);
                 }}
                 variant="outline"
