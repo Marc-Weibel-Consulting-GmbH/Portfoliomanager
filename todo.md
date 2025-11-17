@@ -2519,3 +2519,37 @@
 - [x] Email notification to owner
 - [x] FAQ section
 - [x] Support information display
+
+
+## Navigation Restructuring (Nov 17, 2025 - User Feedback)
+
+### Simplify Portfolio Navigation
+- [x] Remove "Portfolio Optimizer" page from navigation
+- [x] Merge optimization functionality into "Portfolio Builder" 
+- [x] Restructure "Portfolio Builder" to show:
+  - [x] "Neues Portfolio erstellen" button at top
+  - [x] Grid of saved portfolios as cards/tiles below
+- [x] Update Portfolio Details page to include:
+  - [x] All positions/titles
+  - [x] Portfolio adjustment options
+  - [x] Optimization options (moved from Portfolio Optimizer)
+- [x] Implement breadcrumb navigation:
+  - [x] Portfolio Builder → Portfolio Details
+  - [x] Show current location
+  - [x] Allow easy navigation back
+- [x] Update routing in App.tsx to reflect new structure
+- [x] Remove /portfolio-optimizer route
+- [x] Update all internal links to new structure
+
+
+## Floating Chat Button (Nov 17, 2025 - User Request)
+
+### AI Assistant Chat Widget
+- [x] Create FloatingChatButton component
+- [x] Position fixed bottom-right on all pages
+- [x] Avatar icon with "Wie kann ich Dir helfen?" tooltip/text
+- [x] Chat modal/dialog opens on click
+- [x] Integrate with existing Chat functionality
+- [x] Add to DashboardLayout for global availability
+- [x] Ensure responsive design (mobile & desktop)
+- [x] Add smooth animations for open/close

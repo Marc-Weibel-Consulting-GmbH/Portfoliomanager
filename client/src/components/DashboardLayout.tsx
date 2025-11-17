@@ -27,13 +27,13 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import TrustpilotMini from "./trustpilot/TrustpilotMini";
+import { FloatingChatButton } from "./FloatingChatButton";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: TrendingUp, label: "Portfolio Builder", path: "/portfolio-builder" },
   { icon: LineChart, label: "Live Tracking", path: "/live-tracking" },
   { icon: Calendar, label: "Dividendenkalender", path: "/dividends" },
-  { icon: TrendingUp, label: "Portfolio Optimizer", path: "/optimizer" },
   { icon: Signal, label: "Signale", path: "/signals" },
   { icon: Calculator, label: "Rechner", path: "/rechner" },
   { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
@@ -325,6 +325,9 @@ function DashboardLayoutContent({
           </div>
         </footer>
       </SidebarInset>
+      
+      {/* Floating Chat Button */}
+      <FloatingChatButton />
     </>
   );
 }

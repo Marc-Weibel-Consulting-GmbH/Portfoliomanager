@@ -19,7 +19,7 @@ import { LivePerformanceChart } from "@/components/LivePerformanceChart";
 import DividendCalendarModal from "@/components/DividendCalendarModal";
 import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
 import { CsvImportModal } from "@/components/CsvImportModal";
-import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload } from "lucide-react";
+import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
@@ -437,16 +437,19 @@ export default function PortfolioDetail() {
   return (
     <div className="min-h-screen bg-slate-900 p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header with Breadcrumb */}
         <div className="mb-8">
-          <Button
-            onClick={() => window.history.back()}
-            variant="ghost"
-            className="mb-4 text-muted-foreground hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zur Übersicht
-          </Button>
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+            <button
+              onClick={() => setLocation("/portfolio-builder")}
+              className="hover:text-white transition-colors"
+            >
+              Portfolio Builder
+            </button>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-white font-medium">{portfolio.name}</span>
+          </div>
 
           <div className="flex justify-between items-start">
             <div>
