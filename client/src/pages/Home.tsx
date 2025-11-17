@@ -209,7 +209,6 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
                         const reconstructedInputs = {
                           investmentAmount: totalInvestment,
                           expectedDividendYield: avgDividendYield,
-                          numberOfPositions: stocks.length,
                           investorType: 'balanced' as const
                         };
                         
@@ -2032,7 +2031,6 @@ export default function Home() {
                                 const reconstructedInputs = {
                                   investmentAmount: totalInvestment,
                                   expectedDividendYield: avgDividendYield,
-                                  numberOfPositions: stocks.length,
                                   investorType: 'balanced' as const
                                 };
                                 
@@ -2116,7 +2114,6 @@ export default function Home() {
                   setOptimizerInputs({ 
                     investmentAmount: 10000,
                     expectedDividendYield: 2.0,
-                    numberOfPositions: 20,
                     investorType: "balanced"
                   });
                 }}

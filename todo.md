@@ -2591,3 +2591,21 @@
 - [x] Add "Zurück" and "Weiter" buttons at bottom
 - [x] Ensure dark theme styling matches screenshot (dark blue background, cyan accents)
 - [x] Progress indicator with 4 steps at top
+
+
+## NEW: Wizard Vereinfachung - Anzahl Positionen entfernen (Nov 17, 2025)
+
+### Änderungen am Portfolio Optimizer Wizard
+- [x] Schritt 3 "Anzahl Positionen" aus Wizard entfernen
+- [x] Wizard von 4 auf 3 Schritte reduzieren:
+  - [x] Schritt 1: Anlagebetrag
+  - [x] Schritt 2: Erwartete Dividendenrendite (0% - 5%, statt 0% - 10%)
+  - [x] Schritt 3: Anlegertyp (mit Test)
+- [x] OptimizerInputs Interface anpassen (numberOfPositions entfernen)
+- [x] Automatische Berechnung der optimalen Anzahl Positionen basierend auf:
+  - [x] Transaktionskosten (Mindestposition CHF 10'000)
+  - [x] Diversifikation (automatisch optimiert)
+  - [x] Gewünschter Dividendenrendite
+- [x] OptimizerResults Logik anpassen für automatische Positionsanzahl
+- [x] Alle Referenzen zu numberOfPositions im Code aktualisieren
+- [x] Progress Indicator auf 3 Schritte anpassen

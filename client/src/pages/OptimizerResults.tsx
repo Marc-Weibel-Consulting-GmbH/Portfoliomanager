@@ -19,7 +19,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 interface OptimizerInputs {
   investmentAmount: number;
   expectedDividendYield: number;
-  numberOfPositions: number;
   investorType: "conservative" | "balanced" | "dynamic";
 }
 
@@ -272,15 +271,12 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       avgYtdPerformance: 0 
     };
 
-    // PRIORITY 3: Enforce CHF 1'000 minimum position size (due to transaction costs)
-    const MIN_POSITION_SIZE = 1000; // CHF 1'000 absolute minimum
-    const avgPositionSize = currentInputs.investmentAmount / currentInputs.numberOfPositions;
+    // PRIORITY 3: Enforce CHF 10'000 minimum position size (due to transaction costs)
+    const MIN_POSITION_SIZE = 10000; // CHF 10'000 absolute minimum
     
-    // Auto-reduce number of positions if average position size < CHF 1'000
-    let effectiveNumberOfPositions = currentInputs.numberOfPositions;
-    if (avgPositionSize < MIN_POSITION_SIZE) {
-      effectiveNumberOfPositions = Math.max(1, Math.floor(currentInputs.investmentAmount / MIN_POSITION_SIZE));
-    }
+    // Automatically calculate optimal number of positions based on investment amount
+    // Each position should be at least CHF 10'000 for cost-efficiency
+    const effectiveNumberOfPositions = Math.max(1, Math.floor(currentInputs.investmentAmount / MIN_POSITION_SIZE));
     
     // Dynamic limits based on portfolio size
     const maxPositionPercent = currentInputs.investmentAmount < 20000 ? 0.10 : 0.05; // 10% for small, 5% for large

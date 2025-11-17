@@ -11,7 +11,6 @@ import InvestorTypeTest from "@/components/InvestorTypeTest";
 interface OptimizerInputs {
   investmentAmount: number;
   expectedDividendYield: number;
-  numberOfPositions: number;
   investorType: "conservative" | "balanced" | "dynamic";
 }
 
@@ -26,7 +25,6 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
   const [inputs, setInputs] = useState<OptimizerInputs>(initialInputs || {
     investmentAmount: 10000,
     expectedDividendYield: 2.0,
-    numberOfPositions: 20,
     investorType: "balanced",
   });
   const [showInvestorTest, setShowInvestorTest] = useState(false);
@@ -54,7 +52,7 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
       return;
     }
     
-    if (step < 4) {
+    if (step < 3) {
       setStep(step + 1);
     } else {
       onShowResults(inputs);
@@ -162,7 +160,7 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
               <Slider
                 id="dividend-slider"
                 min={0}
-                max={10}
+                max={5}
                 step={0.5}
                 value={[inputs.expectedDividendYield]}
                 onValueChange={(value) =>
@@ -172,14 +170,14 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
               />
               <div className="flex justify-between text-slate-500 text-sm mt-2 mb-6">
                 <span>0%</span>
-                <span>10%</span>
+                <span>5%</span>
               </div>
               <div className="relative">
                 <Input
                   id="dividend"
                   type="number"
                   min="0"
-                  max="10"
+                  max="5"
                   step="0.1"
                   value={inputs.expectedDividendYield}
                   onChange={(e) =>
@@ -201,48 +199,6 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
         );
 
       case 3:
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
-                Wie viele Aktienpositionen möchten Sie?
-              </h2>
-              <p className="text-slate-400">
-                Anzahl verschiedener Aktien in Ihrem Portfolio
-              </p>
-            </div>
-            <div className="max-w-md mx-auto">
-              <Label htmlFor="positions" className="text-white text-lg mb-4 block">
-                Anzahl Positionen
-              </Label>
-              <div className="text-center mb-6">
-                <span className="text-6xl font-bold text-cyan-400">
-                  {inputs.numberOfPositions}
-                </span>
-              </div>
-              <Slider
-                id="positions"
-                min={1}
-                max={maxPositions}
-                step={1}
-                value={[inputs.numberOfPositions]}
-                onValueChange={(value) =>
-                  setInputs({ ...inputs, numberOfPositions: value[0] })
-                }
-                className="w-full"
-              />
-              <div className="flex justify-between text-slate-500 text-sm mt-2">
-                <span>1</span>
-                <span>{maxPositions} (max.)</span>
-              </div>
-              <p className="text-slate-500 text-sm mt-6 text-center">
-                Empfehlung: 15-30 Positionen für gute Diversifikation
-              </p>
-            </div>
-          </div>
-        );
-
-      case 4:
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -349,7 +305,7 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
         {/* Progress indicator */}
         <div className="flex justify-center mb-8">
           <div className="flex gap-2">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2, 3].map((s) => (
               <div
                 key={s}
                 className={`w-12 h-2 rounded-full transition-colors ${
@@ -381,7 +337,7 @@ export default function Optimizer({ onShowResults, onBack, initialInputs }: Opti
             onClick={handleNext}
             className="bg-cyan-600 hover:bg-cyan-700 text-white"
           >
-            {step === 4 ? "Portfolio erstellen" : "Weiter"}
+            {step === 3 ? "Portfolio erstellen" : "Weiter"}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
