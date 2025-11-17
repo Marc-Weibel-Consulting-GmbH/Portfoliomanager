@@ -35,6 +35,7 @@ import WelcomeModal from '@/components/WelcomeModal';
 import InteractiveTour from '@/components/InteractiveTour';
 import OnboardingTutorial from '@/components/OnboardingTutorial';
 import DashboardLayout from '@/components/DashboardLayout';
+import LandingPage from '@/components/LandingPage';
 
 // Score threshold helper
 function getScoreLabel(score: number): string {
@@ -2217,28 +2218,9 @@ export default function Home() {
   const totalWeight = parseFloat(stats?.totalPortfolioWeight || "0");
   const avgDividend = parseFloat(stats?.avgDividendYield || "0");
 
-  // Show welcome screen for non-authenticated users
+  // Show landing page for non-authenticated users
   if (showWelcomeScreen) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="text-center text-white max-w-2xl">
-          <h1 className="text-5xl font-bold mb-4">Willkommen bei Portfolio BIG!</h1>
-          <p className="text-xl mb-8 text-blue-200">Balanced Income Growth - Verwalte und analysiere dein Aktienportfolio</p>
-          <div className="space-x-4">
-            <a href="/login" className="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-lg transition-colors">
-              Anmelden
-            </a>
-            <a href="/register" className="inline-block px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold text-lg transition-colors">
-              Kostenlos registrieren
-            </a>
-          </div>
-          <p className="mt-6 text-sm text-muted-foreground">
-            Nach der Registrierung erhältst du Zugriff auf 1 Aktie pro Kategorie (13 von 63).<br />
-            Für vollen Zugriff: CHF 10.- einmalig
-          </p>
-        </div>
-      </div>
-    );
+    return <LandingPage />;
   }
 
   return (

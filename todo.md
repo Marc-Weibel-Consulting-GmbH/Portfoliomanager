@@ -2669,3 +2669,10 @@
 - [x] Update main server/routers.ts to import and compose modular routers
 - [x] All endpoints functional and tested
 - [x] Note: TypeScript compilation shows memory warnings but application runs successfully
+
+
+## Landing Page Restoration (Nov 17, 2025)
+- [x] Create separate LandingPage component for non-authenticated users
+- [x] Update Home.tsx to conditionally render Landing Page or Dashboard based on auth status
+- [x] Test landing page display for logged-out users
+- [x] Test dashboard display for logged-in users
