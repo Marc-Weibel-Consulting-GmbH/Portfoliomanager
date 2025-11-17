@@ -5,7 +5,6 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import LandingPage from "./pages/LandingPage";
 import Newsroom from "./pages/Newsroom";
 import StockDetail from "./pages/StockDetail";
 import Register from "./pages/Register";
@@ -25,10 +24,8 @@ import NotificationSettings from "./pages/NotificationSettings";
 import Chat from "./pages/Chat";
 import LiveTracking from "./pages/LiveTracking";
 import DividendCalendar from "./pages/DividendCalendar";
-
 import Signals from "./pages/Signals";
 import AdminStocks from "./pages/AdminStocks";
-import Dashboard from "./pages/Dashboard";
 import PortfolioBuilder from "./pages/PortfolioBuilder";
 import PortfolioBuilderLanding from "./pages/PortfolioBuilderLanding";
 import PortfolioBuilderWizard from "./pages/PortfolioBuilderWizard";
@@ -40,8 +37,7 @@ function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path="/" component={LandingPage} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/" component={Home} />
       <Route path="/home" component={Home} />
       <Route path="/optimizer" component={Home} />
       <Route path="/register" component={Register} />
@@ -103,4 +99,3 @@ function App() {
 }
 
 export default App;
-

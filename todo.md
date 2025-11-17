@@ -2609,3 +2609,40 @@
 - [x] OptimizerResults Logik anpassen für automatische Positionsanzahl
 - [x] Alle Referenzen zu numberOfPositions im Code aktualisieren
 - [x] Progress Indicator auf 3 Schritte anpassen
+
+
+## Neue Aufgaben: Homepage Design Update (Nov 17, 2025)
+
+### Schritt 1: Design-Analyse und Planung
+- [ ] Analyse des bereitgestellten Homepage-Designs
+- [ ] Identifizierung aller UI-Komponenten und Sektionen
+- [ ] Farbschema und Typografie dokumentieren
+
+### Schritt 2: Homepage Implementierung
+- [ ] Hero-Sektion mit Headline und CTA-Buttons
+- [ ] "Alles, was Sie brauchen" Feature-Grid (6 Feature-Karten)
+- [ ] "Sehen Sie selbst" Screenshot-Showcase (4 Bilder mit Beschreibungen)
+- [ ] "So einfach geht's" 3-Schritte-Anleitung
+- [ ] Statistik-Sektion (99.9%, 24/7, 50+)
+- [ ] CTA-Sektion "Bereit, Ihr Portfolio zu optimieren?"
+- [ ] Footer mit Links und Copyright
+- [ ] Responsive Design für Mobile
+
+
+## Neue Features: Erweiterte Optimierung & Portfolio-Vergleich (Nov 17, 2025)
+
+### Schritt 1: Erweiterte Optimierungsstrategien
+- [x] Implementiere "Maximale Sharpe Ratio" Optimierungsziel
+- [x] Implementiere "Minimale Volatilität" Optimierungsziel
+- [x] Implementiere "ESG-fokussiert" Optimierungsziel
+- [x] Füge Auswahloptionen im Portfolio-Builder Wizard hinzu
+- [ ] Backend-Logik für verschiedene Optimierungsziele
+- [x] UI-Anpassungen für Strategieauswahl
+
+### Schritt 2: Portfolio-Vergleich
+- [x] Neue Seite für Portfolio-Vergleich erstellen
+- [x] Multi-Select für gespeicherte Portfolios
+- [x] Vergleichstabelle: Performance, Risiko, Diversifikation
+- [x] Visuelle Charts für Vergleich (Balkendiagramme)
+- [x] Export-Funktion für Vergleichsergebnisse
+- [x] Navigation vom Dashboard zum Vergleich

@@ -11,10 +11,11 @@ export default function PortfolioBuilderWizard() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [investmentAmount, setInvestmentAmount] = useState(10000);
+  const [optimizationStrategy, setOptimizationStrategy] = useState<'max_sharpe' | 'min_volatility' | 'esg_focused'>('max_sharpe');
 
   const steps = [
     { id: 1, title: "Anlagebetrag", active: currentStep === 1, completed: currentStep > 1 },
-    { id: 2, title: "Risikoprofil", active: currentStep === 2, completed: currentStep > 2 },
+    { id: 2, title: "Optimierungsstrategie", active: currentStep === 2, completed: currentStep > 2 },
     { id: 3, title: "Aktienauswahl", active: currentStep === 3, completed: currentStep > 3 },
     { id: 4, title: "Bestätigung", active: currentStep === 4, completed: false },
   ];
@@ -123,9 +124,131 @@ export default function PortfolioBuilderWizard() {
           )}
 
           {currentStep === 2 && (
-            <div className="text-center space-y-4">
-              <h2 className="text-3xl font-bold text-white">Risikoprofil</h2>
-              <p className="text-gray-400">Schritt 2 - In Entwicklung</p>
+            <div className="space-y-8">
+              <div className="text-center space-y-4">
+                <h2 className="text-3xl md:text-4xl font-bold text-white">
+                  Wählen Sie Ihre Optimierungsstrategie
+                </h2>
+                <p className="text-gray-400 text-lg">
+                  Verschiedene Strategien führen zu unterschiedlichen Portfolio-Zusammensetzungen
+                </p>
+              </div>
+
+              {/* Strategy Options */}
+              <div className="space-y-4">
+                {/* Max Sharpe Ratio */}
+                <button
+                  onClick={() => setOptimizationStrategy('max_sharpe')}
+                  className={`w-full p-6 rounded-lg border-2 transition-all text-left ${
+                    optimizationStrategy === 'max_sharpe'
+                      ? 'border-cyan-400 bg-cyan-400/10'
+                      : 'border-gray-700 bg-[oklch(0.15_0.02_250)] hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 ${
+                      optimizationStrategy === 'max_sharpe'
+                        ? 'border-cyan-400 bg-cyan-400'
+                        : 'border-gray-600'
+                    }`}>
+                      {optimizationStrategy === 'max_sharpe' && (
+                        <div className="w-3 h-3 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2">
+                        Maximale Sharpe Ratio
+                      </h3>
+                      <p className="text-gray-400 text-sm">
+                        Beste risikoadjustierte Rendite. Optimiert das Verhältnis von Rendite zu Risiko.
+                        Ideal für ausgewogene Anleger, die eine gute Balance zwischen Ertrag und Sicherheit suchen.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <span className="text-xs px-2 py-1 rounded bg-cyan-400/20 text-cyan-400">Empfohlen</span>
+                        <span className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">Ausgewogen</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Min Volatility */}
+                <button
+                  onClick={() => setOptimizationStrategy('min_volatility')}
+                  className={`w-full p-6 rounded-lg border-2 transition-all text-left ${
+                    optimizationStrategy === 'min_volatility'
+                      ? 'border-cyan-400 bg-cyan-400/10'
+                      : 'border-gray-700 bg-[oklch(0.15_0.02_250)] hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 ${
+                      optimizationStrategy === 'min_volatility'
+                        ? 'border-cyan-400 bg-cyan-400'
+                        : 'border-gray-600'
+                    }`}>
+                      {optimizationStrategy === 'min_volatility' && (
+                        <div className="w-3 h-3 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2">
+                        Minimale Volatilität
+                      </h3>
+                      <p className="text-gray-400 text-sm">
+                        Geringste Schwankungen. Minimiert das Risiko durch Fokus auf stabile Aktien.
+                        Ideal für konservative Anleger, die Wertschwankungen vermeiden möchten.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <span className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">Konservativ</span>
+                        <span className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">Geringes Risiko</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                {/* ESG Focused */}
+                <button
+                  onClick={() => setOptimizationStrategy('esg_focused')}
+                  className={`w-full p-6 rounded-lg border-2 transition-all text-left ${
+                    optimizationStrategy === 'esg_focused'
+                      ? 'border-cyan-400 bg-cyan-400/10'
+                      : 'border-gray-700 bg-[oklch(0.15_0.02_250)] hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 ${
+                      optimizationStrategy === 'esg_focused'
+                        ? 'border-cyan-400 bg-cyan-400'
+                        : 'border-gray-600'
+                    }`}>
+                      {optimizationStrategy === 'esg_focused' && (
+                        <div className="w-3 h-3 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2">
+                        ESG-fokussiert
+                      </h3>
+                      <p className="text-gray-400 text-sm">
+                        Nachhaltigkeitsorientiert. Bevorzugt Unternehmen mit hohen ESG-Scores (Environment, Social, Governance).
+                        Ideal für Anleger, die Wert auf ethische und nachhaltige Investments legen.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <span className="text-xs px-2 py-1 rounded bg-green-400/20 text-green-400">Nachhaltig</span>
+                        <span className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">ESG</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Info Box */}
+              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                <p className="text-sm text-blue-300">
+                  <strong>Hinweis:</strong> Die gewählte Strategie beeinflusst die Gewichtung der Aktien in Ihrem Portfolio.
+                  Sie können die Strategie später jederzeit ändern und neu optimieren.
+                </p>
+              </div>
             </div>
           )}
 
