@@ -30,6 +30,8 @@ import Signals from "./pages/Signals";
 import AdminStocks from "./pages/AdminStocks";
 import Dashboard from "./pages/Dashboard";
 import PortfolioBuilder from "./pages/PortfolioBuilder";
+import PortfolioBuilderLanding from "./pages/PortfolioBuilderLanding";
+import PortfolioBuilderWizard from "./pages/PortfolioBuilderWizard";
 import Rechner from "./pages/Rechner";
 import Einstellungen from "./pages/Einstellungen";
 import Kontakt from "./pages/Kontakt";
@@ -63,7 +65,9 @@ function Router() {
       <Route path="/sectors" component={Sectors} />
       <Route path="/live-tracking" component={LiveTracking} />
       <Route path="/dividends" component={DividendCalendar} />
-      <Route path="/portfolio-builder" component={PortfolioBuilder} />
+      <Route path="/portfolio-builder" component={PortfolioBuilderLanding} />
+      <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />
+      <Route path="/portfolio-builder/old" component={PortfolioBuilder} />
 
       <Route path="/signals" component={Signals} />
       <Route path="/admin/stocks" component={AdminStocks} />

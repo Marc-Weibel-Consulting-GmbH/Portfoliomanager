@@ -2581,3 +2581,13 @@
 - [x] Portfolio-Übersicht mit Wert, YTD Performance und Chart
 - [x] Holdings-Tabelle mit Asset, Preis, Änderung, Wert
 - [x] Asset Allocation Donut-Chart hinzufügen
+
+
+## NEW: Portfolio Builder Wizard Redesign (Nov 17, 2025)
+- [x] Create new landing page with two buttons: "Jetzt neues Portfolio erstellen" and "Bestehendes Portfolio wählen"
+- [x] Implement breadcrumb navigation for wizard flow
+- [x] Redesign Step 1: Investment amount input (Anlagebetrag in CHF) with slider (CHF 10'000 - CHF 500'000)
+- [x] Add input field for manual amount entry
+- [x] Add "Zurück" and "Weiter" buttons at bottom
+- [x] Ensure dark theme styling matches screenshot (dark blue background, cyan accents)
+- [x] Progress indicator with 4 steps at top
