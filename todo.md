@@ -2569,3 +2569,15 @@
 - [x] Live-Tracking Hauptseite vereinfachen
   - [x] Link zu Transaktions-Unterseite hinzufügen
   - [x] Fokus auf Portfolio-Übersicht und Performance-Metriken
+
+
+## NEW: Dashboard Redesign gemäss Landingpage (Nov 17, 2025)
+- [x] Dashboard Design an Landingpage-Stil anpassen (dunkles Theme, moderne Karten)
+- [x] Portfolio-Auswahl Dropdown hinzufügen (aktuelles Portfolio wechseln)
+- [x] "Neues Portfolio erstellen" Button prominent platzieren
+- [x] "Portfoliodetails" Button hinzufügen (Navigation zu /portfolio/:id)
+- [x] Test-/Live Modus Toggle implementieren (schneller Wechsel zwischen Modi)
+- [x] "Portfolio bearbeiten" Button hinzufügen (Name, Einstellungen ändern)
+- [x] Portfolio-Übersicht mit Wert, YTD Performance und Chart
+- [x] Holdings-Tabelle mit Asset, Preis, Änderung, Wert
+- [x] Asset Allocation Donut-Chart hinzufügen

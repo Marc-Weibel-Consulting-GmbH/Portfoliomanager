@@ -57,6 +57,7 @@ const SWISS_DOMAIN_MAP: Record<string, string> = {
  * Extract clean domain from company name
  */
 function extractDomain(companyName: string): string {
+  if (!companyName) return '';
   return companyName.toLowerCase()
     .replace(/\s+(inc|corp|corporation|ltd|limited|ag|sa|spa|nv|group|holding|holdings|technologies|technology|enterprise|enterprises|healthcare|health|energy|networks|network|semiconductor|semiconductors|therapeutics|platforms|platform|solutions|solution|international|global|systems|services|bank|bancorp|financial|kantonalbank).*$/i, '')
     .replace(/[^a-z0-9]/g, '')
@@ -76,17 +77,29 @@ export function StockLogo({ ticker, companyName, size = 'md', className = '' }: 
   const [logoError, setLogoError] = useState(false);
   const [fallbackLevel, setFallbackLevel] = useState(0);
 
-  const isSwissStock = ticker?.endsWith('.SW');
-  const knownDomain = SWISS_DOMAIN_MAP[companyName];
-  const extractedDomain = extractDomain(companyName);
-  const domainExt = isSwissStock ? 'ch' : 'com';
-
   // Size classes
   const sizeClasses = {
     sm: 'w-8 h-8 text-xl',
     md: 'w-12 h-12 text-2xl',
     lg: 'w-16 h-16 text-3xl',
   };
+
+  // Handle undefined ticker or companyName
+  if (!ticker || !companyName) {
+    const initial = (ticker || companyName || '?').charAt(0).toUpperCase();
+    return (
+      <div className={`${sizeClasses[size]} ${className} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold`}>
+        {initial}
+      </div>
+    );
+  }
+
+  const isSwissStock = ticker?.endsWith('.SW');
+  const knownDomain = SWISS_DOMAIN_MAP[companyName];
+  const extractedDomain = extractDomain(companyName);
+  const domainExt = isSwissStock ? 'ch' : 'com';
+
+
 
   // Get logo URL based on fallback level
   const getLogoUrl = () => {
