@@ -2613,3 +2613,12 @@
 ## UI Improvements (Nov 17, 2025)
 - [x] Update performance chart to match previous design (dark background, grid, colored lines)
 - [x] Update holdings table to match previous design (logo icons, score badges, all columns)
+
+
+## NEW: Geführte Tour auf Landingpage (Nov 17, 2025)
+- [x] Replace "Demo Portfolio ansehen" button with "Geführte Tour" button
+- [x] Design guided tour component with screenshot highlights and explanations
+- [x] Generate screenshots for key features (Portfolio Optimizer, Live Tracking, Dividenden-Kalender, etc.)
+- [x] Implement interactive tour modal with step-by-step navigation
+- [x] Add highlighted areas with tooltips/popovers to explain features
+- [x] Create tour steps covering main features of the application
