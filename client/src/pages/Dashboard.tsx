@@ -1,10 +1,10 @@
 import DashboardLayout from '@/components/DashboardLayout';
-import Home from './Home';
+import UserDashboard from './UserDashboard';
 
 export default function Dashboard() {
   return (
     <DashboardLayout>
-      <Home />
+      <UserDashboard />
     </DashboardLayout>
   );
 }

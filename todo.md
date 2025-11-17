@@ -2475,3 +2475,47 @@
 
 ## Navigation Bug (Nov 17, 2025)
 - [x] Fix back button navigation to use browser history instead of redirecting to landing page
+
+
+## CUSTOMER JOURNEY REDESIGN (Nov 17, 2025)
+
+### Navigation & Role-Based Access
+- [x] User Dashboard: Show portfolio overview with key metrics (NOT stock universe)
+- [x] User with no portfolio: Display large "Neues Portfolio erstellen" button
+- [x] Portfolio selector: Dropdown when user has multiple portfolios
+- [ ] Stock universe: Only visible to owner (separate admin page)
+- [x] Sidebar navigation: Add "Rechner" category
+- [x] Sidebar navigation: Add "Einstellungen" category
+- [x] Sidebar navigation: Add "Kontakt" category
+
+### User Dashboard Redesign
+- [x] Remove stock universe from user view
+- [x] Show portfolio summary cards (value, performance, allocation)
+- [x] Display portfolio list with selection capability
+- [x] Empty state: Large CTA button for portfolio creation
+- [x] Portfolio metrics: Total value, performance %, allocation chart
+
+### Owner Stock Management
+- [ ] Create separate admin route for stock universe
+- [ ] Protect route with role check (admin only)
+- [ ] Stock CRUD interface for owner
+- [ ] Import/export stock data functionality
+
+### Rechner Section
+- [x] Create Rechner page layout
+- [ ] Investment return calculator
+- [ ] Dividend yield calculator
+- [ ] Risk assessment tool
+- [ ] Portfolio rebalancing calculator
+
+### Einstellungen Section
+- [x] User profile management
+- [x] Notification preferences
+- [x] Data export functionality
+- [x] Account settings
+
+### Kontakt Section
+- [x] Contact form implementation
+- [x] Email notification to owner
+- [x] FAQ section
+- [x] Support information display

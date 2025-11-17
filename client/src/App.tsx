@@ -29,6 +29,9 @@ import Signals from "./pages/Signals";
 import AdminStocks from "./pages/AdminStocks";
 import Dashboard from "./pages/Dashboard";
 import PortfolioBuilder from "./pages/PortfolioBuilder";
+import Rechner from "./pages/Rechner";
+import Einstellungen from "./pages/Einstellungen";
+import Kontakt from "./pages/Kontakt";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -62,6 +65,9 @@ function Router() {
       <Route path="/portfolio-optimizer" component={PortfolioOptimizer} />
       <Route path="/signals" component={Signals} />
       <Route path="/admin/stocks" component={AdminStocks} />
+      <Route path="/rechner" component={Rechner} />
+      <Route path="/einstellungen" component={Einstellungen} />
+      <Route path="/kontakt" component={Kontakt} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -35,6 +35,9 @@ const menuItems = [
   { icon: Calendar, label: "Dividendenkalender", path: "/dividends" },
   { icon: TrendingUp, label: "Portfolio Optimizer", path: "/optimizer" },
   { icon: Signal, label: "Signale", path: "/signals" },
+  { icon: Calculator, label: "Rechner", path: "/rechner" },
+  { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
+  { icon: Mail, label: "Kontakt", path: "/kontakt" },
 ];
 
 const adminMenuItems = [

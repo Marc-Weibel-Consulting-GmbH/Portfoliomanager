@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface RechnerProps {
   onBackClick?: () => void;
@@ -8,6 +9,7 @@ interface RechnerProps {
 
 export default function Rechner({ onBackClick }: RechnerProps) {
   return (
+    <DashboardLayout>
     <div className="space-y-6">
       {onBackClick && (
         <Button
@@ -63,5 +65,6 @@ export default function Rechner({ onBackClick }: RechnerProps) {
         </Card>
       </div>
     </div>
+    </DashboardLayout>
   );
 }
