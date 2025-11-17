@@ -2646,3 +2646,26 @@
 - [x] Visuelle Charts für Vergleich (Balkendiagramme)
 - [x] Export-Funktion für Vergleichsergebnisse
 - [x] Navigation vom Dashboard zum Vergleich
+
+
+## Router Refactoring (Completed Nov 17, 2025)
+- [x] Create server/routers/stocksRouter.ts (stock search, prices, financial data)
+- [x] Create server/routers/portfoliosRouter.ts (CRUD operations, holdings)
+- [x] Create server/routers/performanceRouter.ts (live performance, analytics)
+- [x] Create server/routers/portfolioTransactionsRouter.ts (buy/sell/dividend transactions)
+- [x] Create server/routers/dividendCalendarRouter.ts (dividend calendar, tracking)
+- [x] Create server/routers/annualPerformanceRouter.ts (yearly performance reports)
+- [x] Create server/routers/realizedGainsHistoryRouter.ts (realized gains tracking)
+- [x] Create server/routers/priceAlertsRouter.ts (price alert notifications)
+- [x] Create server/routers/chatRouter.ts (AI chat functionality)
+- [x] Create server/routers/signalsRouter.ts (trading signals)
+- [x] Create server/routers/portfolioOptimizerRouter.ts (portfolio optimization)
+- [x] Create server/routers/adminRouter.ts (admin functions)
+- [x] Create server/routers/weeklyOverviewRouter.ts (weekly reports)
+- [x] Create server/routers/portfolioComparisonRouter.ts (portfolio comparisons)
+- [x] Create server/routers/secretsRouter.ts (API key management)
+- [x] Create server/routers/logsRouter.ts (system logs)
+- [x] Create server/routers/notificationSettingsRouter.ts (notification preferences)
+- [x] Update main server/routers.ts to import and compose modular routers
+- [x] All endpoints functional and tested
+- [x] Note: TypeScript compilation shows memory warnings but application runs successfully
