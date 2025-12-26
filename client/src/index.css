@@ -43,13 +43,13 @@
 }
 
 :root {
-  /* Blue-Green Gradient Theme */
-  --primary: oklch(0.55 0.18 240); /* Deep blue */
-  --primary-foreground: oklch(0.98 0 0); /* White */
-  --secondary: oklch(0.50 0.15 180); /* Teal/Cyan */
+  /* Teal Accent Theme (Mockup Design) */
+  --primary: oklch(0.70 0.15 180); /* Teal #00CFC1 */
+  --primary-foreground: oklch(0.11 0.02 240); /* Dark text on teal */
+  --secondary: oklch(0.50 0.15 180); /* Darker teal */
   --secondary-foreground: oklch(0.98 0 0);
-  --accent: oklch(0.45 0.20 200); /* Blue-green accent */
-  --accent-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.70 0.15 180); /* Teal accent */
+  --accent-foreground: oklch(0.11 0.02 240);
   
   --sidebar-primary: oklch(0.55 0.18 240);
   --sidebar-primary-foreground: oklch(0.98 0 0);
@@ -84,13 +84,13 @@
 }
 
 .dark {
-  /* Dark mode with blue-green accents */
-  --primary: oklch(0.60 0.18 220); /* Brighter blue for dark mode */
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.55 0.15 180); /* Brighter teal */
+  /* Dark mode with teal accent (Mockup Design) */
+  --primary: oklch(0.70 0.15 180); /* Teal #00CFC1 */
+  --primary-foreground: oklch(0.11 0.02 240); /* Dark text on teal */
+  --secondary: oklch(0.55 0.15 180); /* Darker teal */
   --secondary-foreground: oklch(0.98 0 0);
-  --accent: oklch(0.50 0.20 200);
-  --accent-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.70 0.15 180); /* Teal accent */
+  --accent-foreground: oklch(0.11 0.02 240);
   
   --sidebar-primary: oklch(0.60 0.18 220);
   --sidebar-primary-foreground: oklch(0.98 0 0);
@@ -130,6 +130,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),

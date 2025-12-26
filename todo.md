@@ -3095,3 +3095,64 @@
 - [ ] Test complete onboarding flow
 - [ ] Test skip functionality
 - [ ] Create checkpoint
+
+
+## NEUE ANFORDERUNG: Landing Page nach Mockup (Nov 10, 2025 - 18:00)
+
+### Landing Page Design & Struktur
+- [x] Dark Theme mit Teal-Akzentfarbe (#00CFC1) konfigurieren
+- [x] Google Font "Inter" einbinden in index.html
+- [x] CSS-Variablen für Mockup-Design anpassen (index.css)
+
+### Header Navigation
+- [x] Logo "Portfolio Analyzer" mit Icon links
+- [x] Navigation: Features, Pricing, About
+- [x] "Login" Button für bestehende Nutzer (rechts)
+- [x] "Get Started" / "Kostenlos starten" Button (Teal, rechts)
+- [x] Responsive Header für mobile Geräte
+
+### Hero Section
+- [x] Hauptüberschrift: "Optimiere dein Aktienportfolio mit KI-gestützter Analyse"
+- [x] Unterüberschrift: "Live-Tracking, Fundamentalanalyse und automatische Alerts für Schweizer Investoren"
+- [x] CTA-Button: "Kostenlos starten" (groß, Teal)
+- [x] Dashboard-Mockup-Bild rechts (aus Mockup extrahieren oder generieren)
+- [x] Hintergrund: Dunkles Gradient mit subtilen Partikeln/Grid
+
+### Feature Cards Section
+- [x] Card 1: Portfolio-Builder (Icon: Wachstums-Chart)
+  - Titel: "Portfolio-Builder"
+  - Text: "Erstelle und optimiere dein Portfolio basierend auf modernsten KI-Modellen und Risikoprofilen."
+  - Link: "Mehr erfahren"
+- [x] Card 2: Live-Tracking (Icon: Herzschlag/Puls)
+  - Titel: "Live-Tracking"
+  - Text: "Verfolge die Performance deines gesamten Portfolios in Echtzeit und erhalte sofortige Updates."
+  - Link: "Mehr erfahren"
+- [x] Card 3: Preisalarme (Icon: Glocke)
+  - Titel: "Preisalarme"
+  - Text: "Setze individuelle Alarme für Preisänderungen, News und technische Indikatoren."
+  - Link: "Mehr erfahren"
+- [x] Cards mit Teal-Border und Hover-Effekt
+
+### Trust Section
+- [x] "500+ Investoren vertrauen uns" Überschrift
+- [x] 5 Avatar-Bilder (Platzhalter oder generiert)
+- [x] Trust Badges:
+  - SSL verschlüsselt (Schloss-Icon)
+  - Schweizer Datenschutz (Schweizer Flagge)
+  - Stripe Payment (Stripe Logo)
+
+### Footer
+- [x] Links zu Features, Pricing, About, Kontakt
+- [x] Copyright-Hinweis
+- [x] Social Media Links (optional)
+
+### Onboarding-System Integration
+- [x] "Kostenlos starten" Button startet Onboarding-Flow
+- [x] "Login" Button öffnet Manus OAuth Login
+- [ ] Nach Login: Redirect zu Dashboard (wenn bereits registriert)
+- [ ] Nach Onboarding: Redirect zu Dashboard
+
+### Deutsche Sprache
+- [ ] ALLE Texte auf Deutsch übersetzen
+- [ ] Buttons, Labels, Fehlermeldungen auf Deutsch
+- [ ] Datum/Währungsformatierung Schweiz (CHF, dd.mm.yyyy)
