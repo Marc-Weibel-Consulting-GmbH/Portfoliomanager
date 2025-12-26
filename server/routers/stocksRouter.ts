@@ -1,5 +1,9 @@
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
+import { fetchStockMetrics } from "../_core/stockDataApi";
+import { fetchEODHDFundamentals } from "../_core/eodhdApi";
+import { fetchDividendYieldWithFallback } from "../_core/dividendYieldHelper";
+import { recalculateWeights } from "../_core/portfolioWeightHelper";
 
 export const stocksRouter = router({
     getAll: publicProcedure.query(async () => {
@@ -819,7 +823,7 @@ export const stocksRouter = router({
         
         // Trigger news update in background
         try {
-          const { updateNewsForAllStocks } = await import("./newsUpdater");
+          const { updateNewsForAllStocks } = await import("../newsUpdater");
           updateNewsForAllStocks().catch((error: any) => {
             console.error("[Refresh] News update failed:", error);
           });

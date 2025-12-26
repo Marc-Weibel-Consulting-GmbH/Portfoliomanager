@@ -60,6 +60,9 @@ export const portfolioPerformanceRouter = router({
             throw new Error('Database not available');
           }
 
+          const { historicalPrices } = await import("../../drizzle/schema");
+          const { and, eq, sql } = await import("drizzle-orm");
+
           // Fetch cached data for all tickers
           const results: Array<{ ticker: string; data: any[]; weight: number } | null> = [];
           

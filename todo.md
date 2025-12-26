@@ -2625,3 +2625,275 @@
 
 ## Bug Fix (Nov 17, 2025)
 - [x] Fix logout behavior to stay on landing page instead of redirecting to login window
+
+
+---
+
+# MVP ROADMAP - Aufbauend auf Analyse vom 26. Dezember 2025
+
+## Phase 0: Stabilität (Woche 1-2) - CURRENT PHASE
+
+### Code-Audit & Cleanup
+- [ ] Alle tRPC-Routen dokumentieren und testen
+- [ ] Ungenutzte Dependencies entfernen
+- [ ] TypeScript-Fehler systematisch beheben
+- [ ] Error Boundaries für alle Hauptrouten hinzufügen
+- [ ] Router-Refactoring: routers.ts in kleinere Module aufteilen (stocksRouter, portfolioRouter, etc.)
+
+### Datenbank-Stabilität
+- [ ] Schema-Review: Alle Relationen prüfen und dokumentieren
+- [ ] Indexes für Performance-kritische Queries hinzufügen
+- [ ] Migration-Scripts testen und dokumentieren
+- [ ] Backup-Strategie definieren und implementieren
+
+### API-Integration stabilisieren
+- [ ] EODHD API Error Handling verbessern
+- [ ] Finnhub API Rate Limiting implementieren
+- [ ] Fiscal Data API Fallback-Logik
+- [ ] API-Response-Caching für häufige Anfragen optimieren
+
+### Testing-Setup
+- [ ] Vitest für kritische Backend-Logik einrichten
+- [ ] Test-Coverage für Portfolio-Berechnungen
+- [ ] Test-Coverage für Transaktions-Logik
+- [ ] Test-Coverage für Alert-System
+- [ ] Test-Coverage für Währungsumrechnung
+
+---
+
+## Phase 1: MVP Core (Woche 3-4)
+
+### Landing Page (Neu erstellen)
+- [ ] Hero-Section mit Value Proposition
+- [ ] Feature-Highlights (3-4 Hauptfeatures mit Icons)
+- [ ] Social Proof / Testimonials-Platzhalter
+- [ ] CTA-Buttons (Kostenlos starten, Pricing ansehen)
+- [ ] Footer mit Links zu rechtlichen Seiten
+- [ ] Responsive Design (Mobile-First)
+
+### Pricing-Seite (Neu erstellen)
+- [ ] **KLÄREN**: Pricing-Modell festlegen (Empfehlung: CHF 10/Monat)
+- [ ] **KLÄREN**: Free-Tier Features definieren (Empfehlung: 1 Demo-Portfolio, 3 Analysen/Tag)
+- [ ] Pricing-Tabelle mit Feature-Vergleich (Free vs Premium)
+- [ ] FAQ-Section für häufige Fragen
+- [ ] CTA zu Stripe Checkout
+- [ ] Stripe Payment Success Page erstellen
+- [ ] Stripe Payment Cancel Page erstellen
+
+### Onboarding-Flow (Neu erstellen)
+- [ ] **KLÄREN**: Demo-Portfolio Funktionalität (Empfehlung: Editierbar, aber kein Live-Tracking)
+- [ ] Welcome-Screen nach erstem Login
+- [ ] Demo-Portfolio automatisch erstellen für Free-Tier
+- [ ] Guided Tour durch Hauptfunktionen (Tooltips/Walkthrough)
+- [ ] "Erstes Portfolio erstellen"-Wizard
+- [ ] Onboarding-Status in User-Tabelle tracken
+- [ ] Skip-Option für erfahrene Nutzer
+
+### Rechtliche Seiten (Neu erstellen)
+- [ ] Impressum-Seite
+- [ ] Datenschutzerklärung (DSGVO-konform)
+- [ ] AGB (Terms of Service)
+- [ ] Cookie-Banner (falls nötig)
+- [ ] Links im Footer zu allen rechtlichen Seiten
+
+---
+
+## Phase 2: Essential Features (Woche 5-6)
+
+### Portfolio Builder Wizard (Verbessern)
+- [ ] Step 1: Portfolio-Name & Beschreibung
+- [ ] Step 2: Aktien-Suche & Auswahl (mit Autocomplete)
+- [ ] Step 3: Transaktionen hinzufügen (Kauf/Verkauf)
+- [ ] Step 4: Portfolio-Zusammenfassung & Speichern
+- [ ] Validierung & Error Handling
+- [ ] Mobile-optimierte UI
+- [ ] Progress-Indicator (Step 1/4, 2/4, etc.)
+
+### Portfolio-Detail-Ansicht (Optimieren)
+- [ ] Portfolio-Header mit Key Metrics aufräumen
+- [ ] Holdings-Tabelle mit aktuellen Werten optimieren
+- [ ] Performance-Chart (Zeitreihe) verbessern
+- [ ] Transaktionshistorie übersichtlicher gestalten
+- [ ] "Transaktion hinzufügen"-Button prominent platzieren
+- [ ] "Portfolio bearbeiten"-Funktion erweitern
+
+### Aktien-Detail-Seite (Neu erstellen)
+- [ ] Aktienkurs-Chart (1D, 1W, 1M, 3M, 1Y, All)
+- [ ] Fundamentaldaten (P/E, Market Cap, Dividend Yield, etc.)
+- [ ] Dividenden-Historie
+- [ ] News-Feed (Top 5 News mit Finnhub API)
+- [ ] "Zu Portfolio hinzufügen"-Button
+- [ ] Responsive Design
+
+### Transaktionsverwaltung (Verbessern)
+- [ ] Transaktions-Formular (Kauf/Verkauf) optimieren
+- [ ] Validierung (Datum, Menge, Preis) verbessern
+- [ ] Transaktions-Bearbeitung vereinfachen
+- [ ] Transaktions-Löschung mit Bestätigung
+- [ ] Bulk-Import via CSV (optional, Nice-to-Have)
+
+---
+
+## Phase 3: Advanced Features (Woche 7-8)
+
+### Preisalarme (Erweitern)
+- [ ] Alert-Erstellungs-Formular optimieren
+- [ ] Alert-Typen (Preis über/unter, % Änderung)
+- [ ] Alert-Liste mit Status (aktiv/getriggert/abgelaufen)
+- [ ] Alert-Benachrichtigungen (Email via Resend)
+- [ ] **KLÄREN**: Push-Notifications implementieren?
+- [ ] Alert-Bearbeitung & Löschung
+- [ ] Alert-Historie anzeigen
+
+### Live-Tracking (Optimieren)
+- [ ] WebSocket-Integration für Echtzeit-Kurse (Finnhub)
+- [ ] Live-Update der Portfolio-Werte
+- [ ] Live-Update der Aktien-Charts
+- [ ] Connection-Status-Indicator
+- [ ] Fallback auf Polling bei WebSocket-Fehler
+- [ ] Performance-Optimierung (nur sichtbare Charts updaten)
+
+### Advanced Analytics (Erweitern)
+- [ ] Sektor-Diversifikation-Chart (Pie Chart)
+- [ ] Geografische Diversifikation (Karte oder Bar Chart)
+- [ ] Risiko-Metriken (Volatilität, Beta, Sharpe Ratio)
+- [ ] Performance-Attribution (welche Aktien tragen am meisten bei)
+- [ ] Vergleich mit Benchmark (S&P 500, SMI, etc.)
+- [ ] Export als PDF-Report (Nice-to-Have)
+
+### Watchlist (Neu erstellen)
+- [ ] Watchlist erstellen (Name, Beschreibung)
+- [ ] Aktien zu Watchlist hinzufügen
+- [ ] Watchlist-Übersicht mit Live-Kursen
+- [ ] Watchlist-Alerts konfigurieren
+- [ ] Watchlist teilen (optional)
+
+---
+
+## Phase 4: Admin & Operations (Woche 9-10)
+
+### Admin-Dashboard (Neu erstellen)
+- [ ] User-Statistiken (Total, Active, Premium, Churn)
+- [ ] Portfolio-Statistiken (Total, Durchschnitt, Top Performer)
+- [ ] Revenue-Metriken (MRR, ARR, Churn Rate)
+- [ ] API-Usage-Monitoring (EODHD, Finnhub, Fiscal)
+- [ ] Error-Log-Übersicht (Top Errors, Frequency)
+- [ ] Charts für zeitliche Entwicklung
+
+### User-Management (Neu erstellen)
+- [ ] User-Liste mit Suche & Filter
+- [ ] User-Detail-Ansicht (Portfolios, Transaktionen, Alerts)
+- [ ] User-Rolle ändern (Admin/User)
+- [ ] User sperren/entsperren
+- [ ] User löschen (GDPR-konform mit Bestätigung)
+- [ ] User-Aktivitäts-Log
+
+### System-Health-Monitoring (Neu erstellen)
+- [ ] API-Status-Dashboard (Uptime, Response Time)
+- [ ] Database-Performance-Metriken (Query Time, Connections)
+- [ ] Error-Rate-Tracking (Fehler pro Stunde/Tag)
+- [ ] Uptime-Monitoring (Server, Database, APIs)
+- [ ] Alert-System für kritische Fehler (Email an Admin)
+
+---
+
+## Phase 5: Polish & Launch (Woche 11-12)
+
+### UI/UX-Polish
+- [ ] Konsistente Farbpalette & Typography festlegen
+- [ ] Loading-States für alle Async-Operationen
+- [ ] Empty-States mit hilfreichen CTAs
+- [ ] Error-Messages benutzerfreundlich gestalten
+- [ ] Micro-Interactions & Animationen (subtil, nicht übertrieben)
+- [ ] Accessibility-Audit (WCAG 2.1 AA)
+
+### Performance-Optimierung
+- [ ] Code-Splitting für große Routen
+- [ ] Image-Optimierung (WebP, Lazy Loading)
+- [ ] API-Response-Caching optimieren
+- [ ] Database-Query-Optimierung (Indexes, N+1 vermeiden)
+- [ ] Lighthouse-Score > 90 (Performance, Accessibility, Best Practices, SEO)
+
+### Testing & QA
+- [ ] End-to-End-Tests für kritische User Flows (Cypress/Playwright)
+- [ ] Cross-Browser-Testing (Chrome, Firefox, Safari, Edge)
+- [ ] Mobile-Testing (iOS Safari, Android Chrome)
+- [ ] Performance-Testing unter Last (Artillery/k6)
+- [ ] Security-Audit (SQL Injection, XSS, CSRF)
+
+### Launch-Vorbereitung
+- [ ] SEO-Optimierung (Meta-Tags, Open Graph, Sitemap)
+- [ ] Analytics-Integration (bereits vorhanden, testen)
+- [ ] Error-Tracking (Sentry oder alternatives System)
+- [ ] Backup-Strategie finalisieren und testen
+- [ ] Launch-Checklist abarbeiten
+- [ ] Beta-Tester einladen (5-10 Personen)
+- [ ] Feedback sammeln und letzte Anpassungen
+
+---
+
+## Offene Fragen (DRINGEND zu klären vor Phase 1)
+
+- [ ] **Pricing-Modell**: Einmalzahlung oder Abo? (Empfehlung: CHF 10/Monat)
+- [ ] **Free-Tier**: Welche Features kostenlos? (Empfehlung: 1 Demo-Portfolio, 3 Analysen/Tag)
+- [ ] **Demo-Portfolio**: Editierbar oder Read-Only? (Empfehlung: Editierbar, aber kein Live-Tracking)
+- [ ] **Stripe-Konfiguration**: Test-Mode oder Live-Mode für MVP?
+- [ ] **Email-Provider**: Resend (bereits konfiguriert) oder alternatives System?
+- [ ] **Notification-Strategie**: Email, Push, oder beides?
+- [ ] **Domain**: Welche Domain für Launch? (z.B. portfolio-analyzer.ch)
+
+---
+
+## Nice-to-Have (Post-MVP)
+
+- [ ] Multi-Currency-Support (vollständig, nicht nur CHF-Basis)
+- [ ] Portfolio-Sharing (Public Links mit Read-Only-Zugriff)
+- [ ] Portfolio-Vergleich (Side-by-Side mit anderen Nutzern)
+- [ ] Export als PDF-Report (detaillierter Jahresbericht)
+- [ ] API für Drittanbieter (REST API mit OAuth)
+- [ ] Mobile App (React Native oder PWA)
+- [ ] Automatische Portfolio-Rebalancing-Vorschläge
+- [ ] Tax-Loss-Harvesting-Empfehlungen
+- [ ] Integration mit Banken (Open Banking API)
+- [ ] Community-Features (Forum, Portfolio-Kommentare)
+
+---
+
+## Nächste Schritte
+
+1. **Offene Fragen klären** (siehe oben) - PRIORITÄT 1
+2. **Phase 0 starten**: Code-Audit, Testing-Setup, Router-Refactoring
+3. **Design-System definieren**: Farbpalette, Typography, Component Library
+4. **Landing Page Mockup finalisieren** und mit Nutzer abstimmen
+5. **Pricing-Strategie festlegen** und Stripe-Integration testen
+
+
+---
+
+## ✅ ENTSCHEIDUNGEN GETROFFEN (26. Dezember 2025)
+
+- [x] **Pricing-Modell**: CHF 10/Monat (Abo) - BESTÄTIGT
+- [x] **Free-Tier**: 1 Demo-Portfolio + 3 Analysen/Tag - BESTÄTIGT
+- [x] **Demo-Portfolio**: Editierbar (aber kein Live-Tracking) - BESTÄTIGT
+- [x] **Nächster Schritt**: Phase 0 (Stabilität) - TypeScript-Fehler beheben, Router-Refactoring, Testing-Setup
+
+
+---
+
+## Phase 0 Progress (26. Dezember 2025 - 08:47)
+
+### Code-Cleanup: TypeScript-Fehler beheben
+- [x] `newsUpdater` Import-Pfad in stocksRouter.ts korrigiert (./newsUpdater → ../newsUpdater)
+- [x] `fetchStockMetrics` und `fetchEODHDFundamentals` Imports zu stocksRouter.ts hinzugefügt
+- [x] `fetchDividendYieldWithFallback` in separates Modul ausgelagert (server/_core/dividendYieldHelper.ts)
+- [x] `recalculateWeights` in separates Modul ausgelagert (server/_core/portfolioWeightHelper.ts)
+- [x] performanceRouter.ts: historicalPrices, eq, sql Imports hinzugefügt
+- [x] portfoliosRouter.ts: historicalPrices, eq, and Imports für getLivePerformanceHistory hinzugefügt
+- [x] TypeScript-Fehler von 122 → ~100 reduziert (16 kritische Fehler behoben)
+- [ ] Verbleibende ~100 TypeScript-Fehler analysieren (hauptsächlich Type-Overload-Warnungen)
+- [ ] TypeScript-Compilation-Memory-Problem lösen (exit code 137)
+
+### Nächste Schritte
+- [ ] Router-Refactoring: routers.ts aufteilen (2848 Zeilen → kleinere Module)
+- [ ] Testing-Setup: Vitest für kritische Berechnungen einrichten
+- [ ] Datenbank-Schema dokumentieren und Indexes optimieren

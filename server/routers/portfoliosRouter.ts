@@ -993,6 +993,9 @@ export const portfoliosRouter = router({
           return { dataPoints: [] };
         }
         
+        const { historicalPrices } = await import("../../drizzle/schema");
+        const { and, eq } = await import("drizzle-orm");
+        
         // Generate all days from liveStartDate to today
         const startDate = new Date(portfolio.liveStartDate);
         const today = new Date();
