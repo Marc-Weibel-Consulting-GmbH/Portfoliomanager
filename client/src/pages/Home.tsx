@@ -2481,7 +2481,7 @@ export default function Home() {
             }}
             className="px-4 py-2 rounded font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
           >
-            Analyzer
+            Analyse
           </button>
           <button
             onClick={() => setActiveTab("transactions")}
@@ -2491,7 +2491,7 @@ export default function Home() {
                 : "bg-muted text-foreground hover:bg-muted/80"
             }`}
           >
-            Transactions
+            Transaktionen
           </button>
 
 
@@ -2613,7 +2613,7 @@ export default function Home() {
                 <svg className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                {isRefreshing ? 'Aktualisiere...' : 'Refresh'}
+                {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
               </Button>
               {isRefreshing && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-border rounded-lg p-3 shadow-lg z-10 min-w-[280px]">
@@ -2638,7 +2638,7 @@ export default function Home() {
           )}
           <Button onClick={exportToPDF} className="bg-purple-600 hover:bg-purple-700 text-white">
             <Download className="w-4 h-4 mr-2" />
-            PDF Export
+            PDF Exportieren
           </Button>
 
           {isAuthenticated && (
@@ -2655,7 +2655,7 @@ export default function Home() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                {isLoadingAlternatives ? 'Analysiere...' : 'Alternativen'}
+                {isLoadingAlternatives ? 'Analysiere...' : 'Alternative Titel'}
               </Button>
               {isLoadingAlternatives && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted rounded-b overflow-hidden">
@@ -2932,7 +2932,7 @@ export default function Home() {
                         Div. Rendite {sortField === 'dividendYield' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th onClick={() => handleSort('score')} className="text-center py-2 px-2 text-muted-foreground cursor-pointer hover:text-white">
-                        Score {sortField === 'score' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        Bewertung {sortField === 'score' && (sortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th onClick={() => handleSort('portfolioWeight')} className="text-left py-2 px-2 text-muted-foreground cursor-pointer hover:text-white">
                         Portfolio % {sortField === 'portfolioWeight' && (sortDirection === 'asc' ? '↑' : '↓')}
