@@ -293,7 +293,7 @@ export type InsertRealizedGain = typeof realizedGains.$inferInsert;
 // Exchange Rates Table (for currency conversion)
 export const exchangeRates = mysqlTable("exchangeRates", {
   id: int("id").autoincrement().primaryKey(),
-  date: date("date").notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
   currencyPair: varchar("currencyPair", { length: 16 }).notNull(), // e.g., "USDCHF", "EURCHF"
   rate: decimal("rate", { precision: 10, scale: 6 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

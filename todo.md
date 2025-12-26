@@ -17,9 +17,9 @@
 - [x] Updated LivePerformanceChart to use real historical prices
 
 ### 3. Laden Button
-- [ ] Should open Optimizer Results view (not Portfolio tab)
-- [ ] Load saved portfolio data into optimizer
-- [ ] Show same view as when creating new portfolio
+- [x] Should open Optimizer Results view (not Portfolio tab)
+- [x] Load saved portfolio data into optimizer
+- [x] Show same view as when creating new portfolio
 
 ## Previously Completed
 - [x] Stock names display correctly
@@ -37,11 +37,11 @@
 
 
 ## Current Task (Nov 9, 2025 - 22:00)
-- [ ] Create initial buy transactions when portfolio is switched to live
-- [ ] Use shares from portfolioData (optimizer results)
-- [ ] Use current price as entry price
-- [ ] Set transaction date to liveStartDate
-- [ ] This ensures holdings calculation works correctly and live performance starts at 0%
+- [x] Create initial buy transactions when portfolio is switched to live
+- [x] Use shares from portfolioData (optimizer results)
+- [x] Use current price as entry price
+- [x] Set transaction date to liveStartDate
+- [x] This ensures holdings calculation works correctly and live performance starts at 0%
 
 
 ## New Task (Nov 9, 2025 - 23:15)
@@ -2981,3 +2981,79 @@
 - [ ] Build-Time: <30 Sekunden (aktuell Memory-Crash)
 - [ ] Lighthouse-Score: >85 (Performance, Accessibility, Best Practices)
 - [ ] Keine Memory-Crashes mehr bei TypeScript-Compilation
+
+
+## NEW: Complete UI/UX Redesign & Customer Journey (Dec 26, 2025)
+
+### Phase 1: Landing Page
+- [x] Hero section with compelling value proposition
+- [x] Feature highlights (3-4 main features with icons)
+- [x] Social proof section (testimonials placeholder)
+- [x] Pricing overview with comparison table
+- [x] CTA buttons: "Kostenlos starten" + "Demo Portfolio ansehen"
+- [x] Footer with legal links (Impressum, Datenschutz, AGB)
+- [x] Responsive design (mobile-first)
+- [x] Professional color scheme and typography
+- [x] **NEW: Implement mockup-based dark theme design with dashboard preview**
+
+### Phase 2: Onboarding Flow
+- [ ] Welcome modal after first login
+- [ ] Guided tour with tooltips (Portfolio Optimizer, Live Tracking, Transactions)
+- [ ] Two-path onboarding:
+  - [ ] Path A: "Demo Portfolio laden" button
+  - [ ] Path B: "Erstes Portfolio erstellen" wizard
+- [ ] Progress indicator for wizard steps
+- [ ] Skip option for experienced users
+- [ ] Store onboarding completion status in user table
+
+### Phase 3: Demo Portfolio
+- [ ] Create realistic demo portfolio with 8-10 stocks
+- [ ] Pre-populate demo transactions (buys, sells, dividends)
+- [ ] Demo performance data and charts
+- [ ] "Demo beenden" button to exit demo mode
+- [ ] Demo badge/indicator when in demo mode
+- [ ] Prevent data saving in demo mode
+- [ ] Auto-create demo portfolio for free-tier users
+
+### Phase 4: Dashboard Redesign
+- [ ] Welcome message for new users
+- [ ] Portfolio overview cards with key metrics
+- [ ] Quick action buttons (Create Portfolio, Add Stock, View Stocks)
+- [ ] Recent portfolios section
+- [ ] Getting started section for new users
+- [ ] Improved navigation clarity
+- [ ] Empty states with helpful CTAs
+
+### Phase 5: Pricing & Payment
+- [ ] Define pricing model (recommendation: CHF 10/month)
+- [ ] Define free-tier features (recommendation: 1 demo portfolio, 3 analyses/day)
+- [ ] Pricing page with feature comparison table
+- [ ] FAQ section for common questions
+- [ ] Stripe checkout integration
+- [ ] Payment success page
+- [ ] Payment cancel page
+- [ ] Subscription management in settings
+
+### Phase 6: Legal Pages
+- [x] Impressum page
+- [x] Datenschutzerklärung (GDPR-compliant)
+- [x] AGB (Terms of Service)
+- [ ] Cookie banner (if needed)
+- [x] Links in footer to all legal pages
+
+### Phase 7: Settings & Profile
+- [ ] Personal information editing
+- [ ] Email preferences
+- [ ] WhatsApp alerts toggle
+- [ ] Subscription status display
+- [ ] "Tutorial erneut anzeigen" button
+- [ ] Account deletion (GDPR-compliant)
+
+### Phase 8: Polish & Testing
+- [ ] Consistent loading states for all async operations
+- [ ] Empty states with helpful CTAs
+- [ ] Error messages user-friendly
+- [ ] Micro-interactions and animations (subtle)
+- [ ] Accessibility audit (WCAG 2.1 AA)
+- [ ] Cross-browser testing
+- [ ] Mobile testing (iOS Safari, Android Chrome)
