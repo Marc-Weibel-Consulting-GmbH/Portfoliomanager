@@ -40,6 +40,7 @@ import Impressum from "./pages/Impressum";
 import Datenschutz from "./pages/Datenschutz";
 import AGB from "./pages/AGB";
 import OnboardingWizard from "./components/OnboardingWizard";
+import Registration from "./pages/Registration";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -47,6 +48,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/onboarding" component={OnboardingWizard} />
+      <Route path="/registration" component={Registration} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/home" component={Home} />
       <Route path="/optimizer" component={Home} />

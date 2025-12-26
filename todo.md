@@ -1,5 +1,13 @@
 # Portfolio Analysis Website TODO
 
+## Registration Flow (New Requirement - Dec 26, 2025)
+- [x] Implement registration form after OAuth login
+- [x] Collect user information (name, email, investment goals, risk tolerance)
+- [x] Store registration status in database
+- [x] Redirect new users to registration form instead of direct dashboard access
+- [x] Redirect registered users directly to dashboard
+- [x] Add registration completion check in auth flow
+
 ## Platform Redesign Based on Mockups (Dec 26, 2025)
 
 ### Phase 1: Design System & Global Styles
@@ -201,3 +209,11 @@
 - [ ] Portfolio Builder Wizard (5-step process)
 - [ ] Portfolio Detail View with charts
 - [ ] Complete remaining pages
+
+
+## User Flow Korrektur (26.12.2024 - 18:50)
+- [x] Login Button führt direkt zur Login-Seite (nicht zum Onboarding)
+- [x] "Jetzt starten" / "Kostenlos starten" startet mehrstufigen Onboarding-Prozess
+- [x] Nach Login/Registration landet User im Dashboard
+- [x] Portfolio-Builder wird vom Dashboard aus gestartet (nicht von Landing Page)
+- [x] Routing-Struktur entsprechend anpassen (App.tsx)

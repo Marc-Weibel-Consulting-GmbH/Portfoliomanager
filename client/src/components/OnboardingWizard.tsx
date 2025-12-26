@@ -38,7 +38,7 @@ export default function OnboardingWizard() {
   const handleSkip = async () => {
     try {
       await completeOnboardingMutation.mutateAsync();
-      setLocation("/portfolio-optimizer");
+      setLocation("/dashboard");
     } catch (error) {
       console.error("Error skipping onboarding:", error);
     }
@@ -60,7 +60,7 @@ export default function OnboardingWizard() {
       await completeOnboardingMutation.mutateAsync();
 
       toast.success(result.message);
-      setLocation("/portfolio-optimizer");
+      setLocation("/dashboard");
     } catch (error: any) {
       toast.error(error.message || "Fehler beim Erstellen des Demo-Portfolios");
     }
@@ -79,7 +79,7 @@ export default function OnboardingWizard() {
       await completeOnboardingMutation.mutateAsync();
 
       toast.success("Willkommen! Erstelle jetzt dein erstes Portfolio.");
-      setLocation("/portfolio-optimizer");
+      setLocation("/dashboard");
     } catch (error) {
       toast.error("Fehler beim Speichern der Einstellungen");
     }

@@ -44,8 +44,15 @@ export function registerOAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      // Redirect to landing page after successful login
-      res.redirect(302, "/");
+      // Check if user has completed registration
+      const user = await db.getUser(userInfo.openId);
+      if (user && !user.hasCompletedRegistration) {
+        // Redirect to registration page for new users
+        res.redirect(302, "/registration");
+      } else {
+        // Redirect to dashboard for existing users
+        res.redirect(302, "/dashboard");
+      }
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });

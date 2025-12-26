@@ -700,6 +700,33 @@ export const appRouter = router({
   }),
 
   user: router({
+    completeRegistration: protectedProcedure
+      .input(z.object({
+        firstName: z.string(),
+        lastName: z.string(),
+        investmentGoal: z.string(),
+        riskTolerance: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        await db.update(users)
+          .set({
+            firstName: input.firstName,
+            lastName: input.lastName,
+            investmentGoal: input.investmentGoal,
+            riskTolerance: input.riskTolerance,
+            hasCompletedRegistration: 1,
+          })
+          .where(eq(users.openId, ctx.user.openId));
+        
+        return { success: true };
+      }),
+    
     updateSettings: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null) return val;

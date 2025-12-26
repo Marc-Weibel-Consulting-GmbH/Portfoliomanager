@@ -12,11 +12,9 @@ export default function Landing() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <Link href="/">
-              <a className="flex items-center gap-2 text-white hover:opacity-80 transition-opacity">
-                <TrendingUp className="h-8 w-8 text-[#00CFC1]" />
-                <span className="text-xl font-bold">Portfolio Analyzer</span>
-              </a>
+            <Link href="/" className="flex items-center gap-2 text-white hover:opacity-80 transition-opacity">
+              <TrendingUp className="h-8 w-8 text-[#00CFC1]" />
+              <span className="text-xl font-bold">Portfolio Analyzer</span>
             </Link>
 
             {/* Navigation */}
@@ -34,16 +32,16 @@ export default function Landing() {
 
             {/* Auth Buttons */}
             <div className="flex items-center gap-4">
-              <a href={getLoginUrl()}>
-                <Button variant="ghost" className="text-white hover:bg-white/10">
+              <Button variant="ghost" className="text-white hover:bg-white/10" asChild>
+                <Link href="/login">
                   Login
-                </Button>
-              </a>
-              <Link href="/onboarding">
-                <Button className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold">
+                </Link>
+              </Button>
+              <Button className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold" asChild>
+                <Link href="/onboarding">
                   Jetzt starten
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -63,11 +61,11 @@ export default function Landing() {
               Live-Tracking, Fundamentalanalyse und automatische Alerts für Schweizer Investoren
             </p>
             <div>
-              <Link href="/onboarding">
-                <Button size="lg" className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-bold text-lg px-8 py-6 rounded-full">
+              <Button size="lg" className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-bold text-lg px-8 py-6 rounded-full" asChild>
+                <Link href="/onboarding">
                   Kostenlos starten
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
 
