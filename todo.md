@@ -3057,3 +3057,41 @@
 - [ ] Accessibility audit (WCAG 2.1 AA)
 - [ ] Cross-browser testing
 - [ ] Mobile testing (iOS Safari, Android Chrome)
+
+
+## ONBOARDING SYSTEM IMPLEMENTATION (Dec 26, 2025)
+
+### Phase 1: Database Schema
+- [x] Add onboardingCompleted field to users table
+- [x] Create userPreferences table (investmentGoal, riskTolerance, investmentHorizon)
+- [x] Push database migrations
+
+### Phase 2: Backend Procedures
+- [x] Create onboarding.savePreferences mutation
+- [x] Create onboarding.getPreferences query
+- [x] Create onboarding.completeOnboarding mutation
+- [x] Create demo portfolio generation logic
+
+### Phase 3: Frontend UI
+- [x] Create OnboardingWizard component with 4 steps
+- [x] Step 1: Investment goal selection (Dividenden, Wachstum, Ausgewogen)
+- [x] Step 2: Risk tolerance assessment
+- [x] Step 3: Investment horizon selection
+- [x] Step 4: Portfolio setup options (Demo or Create New)
+- [x] Progress indicator component
+- [x] Navigation (Weiter, Zurück, Überspringen buttons)
+- [ ] Welcome modal after first login
+- [ ] Redirect new users to /onboarding after login
+
+### Phase 4: Demo Portfolio
+- [x] Create demo portfolio with 8-10 realistic stocks
+- [ ] Pre-populate demo transactions
+- [ ] Demo badge indicator
+- [ ] "Demo beenden" functionality
+
+### Phase 5: Integration & Testing
+- [x] Redirect new users to onboarding after first login
+- [x] Store onboarding completion status
+- [ ] Test complete onboarding flow
+- [ ] Test skip functionality
+- [ ] Create checkpoint

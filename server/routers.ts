@@ -21,6 +21,7 @@ import { priceAlertsRouter } from "./routers/priceAlertsRouter";
 import { chatRouter } from "./routers/chatRouter";
 import { signalsRouter } from "./routers/signalsRouter";
 import { portfolioOptimizerRouter } from "./routers/portfolioOptimizerRouter";
+import { onboardingRouter } from "./routers/onboardingRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -951,87 +952,7 @@ export const appRouter = router({
   logs: logsRouter,
   notificationSettings: notificationSettingsRouter,
   
-  // Onboarding: Demo portfolio creation
-  onboarding: router({
-    createDemoPortfolio: protectedProcedure.mutation(async ({ ctx }) => {
-      const { getDb } = await import("./db");
-      const { savedPortfolios, users, portfolioTransactions } = await import("../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
-      const db = await getDb();
-      
-      if (!db) {
-        throw new Error("Database not available");
-      }
-      
-      // Check if user already has demo portfolio
-      const [user] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
-      if (user?.hasDemoPortfolio) {
-        throw new Error("Demo-Portfolio wurde bereits erstellt");
-      }
-      
-      // Demo portfolio with realistic Swiss stocks
-      const demoStocks = [
-        { ticker: "NESN.SW", name: "Nestlé", weight: 20, shares: 5, price: 85.50, currency: "CHF" },
-        { ticker: "NOVN.SW", name: "Novartis", weight: 20, shares: 12, price: 82.30, currency: "CHF" },
-        { ticker: "ROG.SW", name: "Roche", weight: 15, shares: 6, price: 245.00, currency: "CHF" },
-        { ticker: "UBSG.SW", name: "UBS Group", weight: 15, shares: 50, price: 29.50, currency: "CHF" },
-        { ticker: "ZURN.SW", name: "Zurich Insurance", weight: 15, shares: 3, price: 520.00, currency: "CHF" },
-        { ticker: "ABBN.SW", name: "ABB", weight: 15, shares: 30, price: 52.00, currency: "CHF" },
-      ];
-      
-      const portfolioData = {
-        stocks: demoStocks,
-        metrics: {
-          expectedReturn: 8.5,
-          volatility: 12.3,
-          sharpeRatio: 0.69,
-          avgDividendYield: 3.2,
-          avgPE: 18.5,
-          avgPEG: 1.8,
-        },
-        strategy: "Max. Sharpe Ratio",
-        timeFrame: "3Y",
-      };
-      
-      // Create demo portfolio
-      const [portfolio] = await db.insert(savedPortfolios).values({
-        userId: ctx.user.id,
-        name: "Demo Portfolio - Schweizer Blue Chips",
-        description: "Beispiel-Portfolio mit Schweizer Unternehmen zum Kennenlernen!",
-        portfolioData: JSON.stringify(portfolioData),
-        isLive: 0,
-        liveStartDate: null,
-      });
-      
-      // Mark user as having demo portfolio
-      await db.update(users)
-        .set({ hasDemoPortfolio: 1 })
-        .where(eq(users.id, ctx.user.id));
-      
-      return {
-        success: true,
-        message: "Demo-Portfolio erfolgreich erstellt!",
-        portfolioId: portfolio.insertId,
-      };
-    }),
-    
-    markOnboardingSeen: protectedProcedure.mutation(async ({ ctx }) => {
-      const { getDb } = await import("./db");
-      const { users } = await import("../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
-      const db = await getDb();
-      
-      if (!db) {
-        throw new Error("Database not available");
-      }
-      
-      await db.update(users)
-        .set({ hasSeenOnboarding: 1 })
-        .where(eq(users.id, ctx.user.id));
-      
-      return { success: true };
-    }),
-  }),
+  onboarding: onboardingRouter,
 });
 
 export type AppRouter = typeof appRouter;

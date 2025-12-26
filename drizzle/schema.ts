@@ -438,3 +438,23 @@ export const chatMessages = mysqlTable("chatMessages", {
 
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
+
+// ============================================
+// User Preferences & Onboarding (Dec 26, 2025)
+// ============================================
+
+// User preferences table - stores investment preferences from onboarding
+export const userPreferences = mysqlTable("userPreferences", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  investmentGoal: mysqlEnum("investmentGoal", ["dividends", "growth", "balanced"]),
+  riskTolerance: mysqlEnum("riskTolerance", ["low", "medium", "high"]),
+  investmentHorizon: mysqlEnum("investmentHorizon", ["short", "medium", "long"]), // short: <3 years, medium: 3-10 years, long: >10 years
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  userIdIdx: index("ix_user_preferences_userId").on(t.userId),
+}));
+
+export type UserPreference = typeof userPreferences.$inferSelect;
+export type InsertUserPreference = typeof userPreferences.$inferInsert;

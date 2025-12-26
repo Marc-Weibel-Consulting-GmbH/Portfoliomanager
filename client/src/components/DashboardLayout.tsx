@@ -24,6 +24,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import TrustpilotMini from "./trustpilot/TrustpilotMini";
@@ -59,10 +60,21 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { data: onboardingStatus } = trpc.onboarding.hasCompletedOnboarding.useQuery(undefined, {
+    enabled: !!user,
+  });
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
+
+  // Redirect to onboarding if user hasn't completed it
+  useEffect(() => {
+    if (user && onboardingStatus && !onboardingStatus.hasSeenOnboarding && location !== "/onboarding") {
+      setLocation("/onboarding");
+    }
+  }, [user, onboardingStatus, location, setLocation]);
 
   if (loading) {
     return <DashboardLayoutSkeleton />
