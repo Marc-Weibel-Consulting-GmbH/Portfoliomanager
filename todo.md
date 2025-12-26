@@ -2897,3 +2897,87 @@
 - [ ] Router-Refactoring: routers.ts aufteilen (2848 Zeilen → kleinere Module)
 - [ ] Testing-Setup: Vitest für kritische Berechnungen einrichten
 - [ ] Datenbank-Schema dokumentieren und Indexes optimieren
+
+
+---
+
+## Phase 0 Fortsetzung (26. Dezember 2025 - Nachmittag)
+
+### 🎯 Prioritäten basierend auf letzten Empfehlungen:
+
+#### 1. chatRouter.ts Fehler beheben
+- [x] 97 verbleibende TypeScript-Fehler in chatRouter.ts analysieren
+- [x] Type-Mismatches im Chat-Feature korrigieren (conversationId, content normalisierung)
+- [x] LLM-Integration Type-Definitionen geprüft
+- [x] Message-Types zwischen Frontend und Backend synchronisiert
+- [x] Content-Normalisierung für LLM-Response (string | array → string)
+
+#### 2. Router-Refactoring (Memory-Problem lösen)
+- [ ] routers.ts (1037 Zeilen) in kleinere Module aufteilen:
+  - [ ] authRouter.ts (bereits vorhanden)
+  - [ ] stocksRouter.ts (bereits ausgelagert, 1180 Zeilen)
+  - [ ] portfoliosRouter.ts (bereits ausgelagert)
+  - [ ] performanceRouter.ts (bereits ausgelagert)
+  - [ ] transactionsRouter.ts (neu erstellen)
+  - [ ] dividendsRouter.ts (neu erstellen)
+  - [ ] chatRouter.ts (bereits ausgelagert)
+- [ ] stocksRouter.ts (1180 Zeilen) weiter aufteilen:
+  - [ ] stockDataRouter.ts (Quotes, Metrics, Fundamentals)
+  - [ ] stockNewsRouter.ts (News-Fetching und Updates)
+  - [ ] stockSearchRouter.ts (Search und Autocomplete)
+- [ ] TypeScript-Compilation-Memory-Problem lösen (exit code 137)
+- [ ] Incremental-Compilation optimieren
+
+#### 3. Testing-Setup mit Vitest
+- [x] Vitest-Konfiguration erstellen (vitest.config.ts) - BEREITS VORHANDEN
+- [x] Test-Utilities einrichten (Mock-Daten, Test-Helpers)
+- [x] Tests für Portfolio-Performance-Berechnungen:
+  - [x] calculateLivePerformance() getestet
+  - [x] calculateHoldings() getestet
+  - [x] calculateRealizedGains() getestet
+- [x] Tests für Währungsumrechnung:
+  - [x] FX-Rate-Fetching getestet
+  - [x] CHF-Konvertierung getestet
+  - [x] Historische Wechselkurse getestet
+- [x] Tests für Transaktions-Logik:
+  - [x] Buy/Sell-Transaktionen getestet
+  - [x] Dividend-Transaktionen getestet
+  - [x] Cash-Position-Berechnung getestet
+- [x] Regressions-Tests für kritische Bugs:
+  - [x] Negative Cash Position (getestet)
+  - [x] Falsche Live Performance bei Teilverkäufen (getestet)
+  - [x] Währungsgewinn-Aufteilung (getestet)
+- [ ] CI/CD-Integration (GitHub Actions oder alternatives System)
+
+**Test-Zusammenfassung:**
+- ✅ 24 Tests implementiert, alle bestehen
+- ✅ 2 Test-Dateien: portfolioPerformance.test.ts, currencyConversion.test.ts
+- ✅ Test-Utilities: testHelpers.ts mit Mock-Daten-Generatoren
+- ✅ Coverage: Holdings, Cash Position, Total Invested, FX Conversion, Realized Gains, Tax Reporting
+
+#### 4. Code-Quality-Verbesserungen
+- [ ] ESLint-Konfiguration überprüfen und verschärfen
+- [ ] Prettier-Konfiguration konsistent anwenden
+- [ ] Unused Imports entfernen
+- [ ] Console.log-Statements durch strukturiertes Logging ersetzen
+- [ ] Error-Handling konsistent gestalten (TRPCError mit codes)
+- [ ] Type-Safety verbessern (any-Types eliminieren)
+
+#### 5. Performance-Optimierung
+- [ ] Database-Indexes für häufige Queries hinzufügen:
+  - [ ] portfolioTransactions (portfolioId, transactionDate)
+  - [ ] historicalPrices (ticker, date)
+  - [ ] exchangeRates (currencyPair, date)
+  - [ ] realizedGains (portfolioId, ticker)
+- [ ] N+1-Query-Probleme identifizieren und beheben
+- [ ] API-Response-Caching implementieren (Redis oder In-Memory)
+- [ ] Lazy-Loading für große Datensätze (Transaktionen, Historical Prices)
+
+---
+
+## Erfolgsmetriken für Phase 0
+- [ ] TypeScript-Fehler: 0 (aktuell ~100)
+- [ ] Test-Coverage: >80% für kritische Berechnungen
+- [ ] Build-Time: <30 Sekunden (aktuell Memory-Crash)
+- [ ] Lighthouse-Score: >85 (Performance, Accessibility, Best Practices)
+- [ ] Keine Memory-Crashes mehr bei TypeScript-Compilation

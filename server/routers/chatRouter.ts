@@ -120,9 +120,9 @@ export const chatRouter = router({
       // Save user message
       await db.insert(chatMessages).values({
         conversationId: input.conversationId,
-        role: "user",
+        role: "user" as const,
         content: input.message,
-      });
+      } as const);
 
       // Get conversation history (last 10 messages for context)
       const history = await db
@@ -202,14 +202,26 @@ ${portfolioContext}`;
           messages: llmMessages,
         });
 
-        const assistantMessage = response.choices[0]?.message?.content || "Entschuldigung, ich konnte keine Antwort generieren.";
+        // Normalize content to string (LLM can return string or array)
+        const rawContent = response.choices[0]?.message?.content;
+        const assistantMessage = typeof rawContent === 'string' 
+          ? rawContent 
+          : Array.isArray(rawContent)
+            ? rawContent.map(part => {
+                if (typeof part === 'string') return part;
+                if ('text' in part) return part.text;
+                if ('image_url' in part) return `[Image: ${part.image_url.url}]`;
+                if ('file_url' in part) return `[File: ${part.file_url.url}]`;
+                return '';
+              }).join('\n')
+            : "Entschuldigung, ich konnte keine Antwort generieren.";
 
         // Save assistant response
         await db.insert(chatMessages).values({
           conversationId: input.conversationId,
-          role: "assistant",
+          role: "assistant" as const,
           content: assistantMessage,
-        });
+        } as const);
 
         // Update conversation timestamp
         await db
@@ -229,7 +241,8 @@ ${portfolioContext}`;
               ],
             });
 
-            const title = titleResponse.choices[0]?.message?.content?.trim() || conversation.title;
+            const rawContent = titleResponse.choices[0]?.message?.content;
+            const title = (typeof rawContent === 'string' ? rawContent.trim() : conversation.title);
             await db
               .update(chatConversations)
               .set({ title: title.substring(0, 50) })
