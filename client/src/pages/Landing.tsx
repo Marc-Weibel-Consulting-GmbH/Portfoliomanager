@@ -61,7 +61,7 @@ export default function Landing() {
               Live-Tracking, Fundamentalanalyse und automatische Alerts für Schweizer Investoren
             </p>
             <div>
-              <Button size="lg" className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-bold text-lg px-8 py-6 rounded-full" asChild>
+              <Button size="lg" className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-bold text-lg px-8 py-6 rounded-full shadow-[0_0_30px_rgba(0,207,193,0.5)] hover:shadow-[0_0_40px_rgba(0,207,193,0.7)] transition-all duration-300" asChild>
                 <a href={getLoginUrl()}>
                   Kostenlos starten
                 </a>
@@ -71,7 +71,13 @@ export default function Landing() {
 
           {/* Right: Dashboard Mockup */}
           <div className="relative">
-            <div className="relative rounded-2xl overflow-hidden border border-[#00CFC1]/30 shadow-2xl shadow-[#00CFC1]/20 bg-gradient-to-br from-[#1a1f2e] to-[#0f1420]">
+            <img
+              src="/portfolio-mockup-detailed.png"
+              alt="Portfolio Dashboard Preview"
+              className="relative rounded-2xl shadow-2xl border border-[#00CFC1]/30 w-full h-auto"
+            />
+            {/* Backup: Original mockup if image doesn't load */}
+            <div className="hidden relative rounded-2xl overflow-hidden border border-[#00CFC1]/30 shadow-2xl shadow-[#00CFC1]/20 bg-gradient-to-br from-[#1a1f2e] to-[#0f1420]">
               {/* Dashboard Preview */}
               <div className="p-6 space-y-4">
                 {/* Header */}
@@ -247,7 +253,12 @@ export default function Landing() {
               </div>
               <div className="flex items-center gap-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00CFC1]/30 to-[#00CFC1]/10 border border-[#00CFC1]/50"></div>
+                  <img
+                    key={i}
+                    src={`/investor-${i}.jpg`}
+                    alt={`Investor ${i}`}
+                    className="w-10 h-10 rounded-full border-2 border-[#00CFC1]/50 object-cover"
+                  />
                 ))}
               </div>
             </div>
@@ -281,7 +292,7 @@ export default function Landing() {
             Starte jetzt kostenlos und erhalte Zugriff auf alle Basis-Funktionen
           </p>
           <Link href="/onboarding">
-            <Button size="lg" className="bg-black hover:bg-black/90 text-white font-bold text-lg px-8 py-6 rounded-full">
+            <Button size="lg" className="bg-black hover:bg-black/90 text-white font-bold text-lg px-8 py-6 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] hover:shadow-[0_0_40px_rgba(0,0,0,0.7)] transition-all duration-300">
               Kostenlos starten
             </Button>
           </Link>

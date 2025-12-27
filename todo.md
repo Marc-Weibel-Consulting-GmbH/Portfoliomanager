@@ -20,13 +20,21 @@
 - [ ] Create badge/tag components for status indicators
 
 ### Phase 2: Landing Page Redesign
-- [ ] Create new hero section with gradient background
-- [ ] Add animated portfolio preview mockup
-- [ ] Implement feature cards (Portfolio-Builder, Live-Tracking, Preisalarme)
-- [ ] Add trust indicators (SSL, Schweizer Datenschutz, Stripe Payment)
-- [ ] Add user testimonials section
-- [ ] Update navigation (Features, Pricing, About, Login, Get Started)
-- [ ] Ensure responsive design for mobile
+- [x] Create new hero section with gradient background
+- [x] Add animated portfolio preview mockup
+- [x] Implement feature cards (Portfolio-Builder, Live-Tracking, Preisalarme)
+- [x] Add trust indicators (SSL, Schweizer Datenschutz, Stripe Payment)
+- [x] Add user testimonials section
+- [x] Update navigation (Features, Pricing, About, Login, Get Started)
+- [x] Ensure responsive design for mobile
+
+### Phase 2.1: Landing Page Design Refinements (Mockup Alignment - Dec 27, 2025)
+- [x] Compress hero section to fit above-the-fold (16:9 portfolio image aspect ratio)
+- [x] Add glow effects and gradients to CTA buttons
+- [x] Create detailed portfolio mockup with realistic charts, sparklines, and stock logos
+- [x] Add user profile photo in portfolio mockup (top right)
+- [x] Generate and integrate realistic profile images for "500+ Investoren" section
+- [x] Improve visual details throughout landing page to match mockup quality
 
 ### Phase 3: Onboarding Wizard
 - [ ] Create multi-step wizard component with progress indicator
