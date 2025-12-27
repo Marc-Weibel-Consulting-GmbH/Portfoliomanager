@@ -20,13 +20,13 @@ export default function Landing() {
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-gray-300 hover:text-white transition-colors">
-                Funktionen
+                Features
               </a>
-              <a href="#pricing" className="text-gray-300 hover:text-white transition-colors">
-                Preise
+              <a href="/pricing" className="text-gray-300 hover:text-white transition-colors">
+                Pricing
               </a>
-              <a href="#about" className="text-gray-300 hover:text-white transition-colors">
-                Über uns
+              <a href="/about" className="text-gray-300 hover:text-white transition-colors">
+                About
               </a>
             </nav>
 
@@ -39,7 +39,7 @@ export default function Landing() {
               </Button>
               <Button className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold" asChild>
                 <a href={getLoginUrl()}>
-                  Jetzt starten
+                  Get Started
                 </a>
               </Button>
             </div>
@@ -53,8 +53,8 @@ export default function Landing() {
           {/* Left: Text Content */}
           <div className="space-y-8">
             <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight">
-              Optimiere dein <br />
-              <span className="text-[#00CFC1]">Aktienportfolio</span> mit <br />
+              Optimiere dein<br />
+              Aktienportfolio mit<br />
               KI-gestützter Analyse
             </h1>
             <p className="text-xl text-gray-300 leading-relaxed">

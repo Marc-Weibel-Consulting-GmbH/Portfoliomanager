@@ -35,6 +35,8 @@
 - [x] Add user profile photo in portfolio mockup (top right)
 - [x] Generate and integrate realistic profile images for "500+ Investoren" section
 - [x] Improve visual details throughout landing page to match mockup quality
+- [x] Update landing page to match mockup EXACTLY (format AND content) - Dec 27, 2025
+- [ ] Update ALL pages to match their respective mockups EXACTLY (design, layout, spacing, colors) - Dec 27, 2025
 
 ### Phase 3: Onboarding Wizard
 - [ ] Create multi-step wizard component with progress indicator
