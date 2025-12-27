@@ -5,8 +5,8 @@ import { ArrowLeft } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export default function StockDetail() {
-  const [match, params] = useRoute("/stock/:ticker");
-  const ticker = (params && params.ticker) ? (params as { ticker: string }).ticker : '';
+  const [match, params] = useRoute<{ ticker: string }>("/stock/:ticker");
+  const ticker = params?.ticker || '';
 
   const { data: stock } = trpc.stocks.byTicker.useQuery(ticker, {
     enabled: !!ticker,

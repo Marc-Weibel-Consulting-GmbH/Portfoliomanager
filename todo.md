@@ -430,3 +430,190 @@
 - [x] Create separate transactions page for live portfolios
 - [x] Implement horizontal navigation for portfolio details (Positionen / Transaktionen)
 - [x] Ensure demo and live portfolios show same initial view (positions)
+
+
+## PLATFORM RESTRUCTURING - Complete Architecture (27.12.2024 - NEW)
+
+### Phase 0: Foundation & Unified Navigation
+- [ ] Remove all inconsistent old design elements
+- [ ] Create unified DashboardLayout for all authenticated pages
+- [ ] Implement comprehensive sidebar navigation covering all phases 0-5
+- [ ] Establish consistent design system (colors, typography, spacing, shadows)
+- [ ] Create reusable component library matching mockup style
+- [ ] Implement responsive layout for all screen sizes
+
+### Phase 1: Portfolio Setup & Data Import (Complete Structure)
+- [ ] Portfolio Overview page with all portfolios list
+- [ ] Manual stock entry form with validation
+- [ ] CSV/Excel import functionality with preview
+- [ ] API connection setup page (EODHD, Finnhub credentials)
+- [ ] Portfolio CRUD operations (Create, Read, Update, Delete)
+- [ ] Holdings management interface
+- [ ] Transaction import and management
+
+### Phase 2: Real-time Market Data & Visualization (Complete Structure)
+- [ ] Main Dashboard with real-time portfolio summary
+- [ ] Live price updates (WebSocket or polling)
+- [ ] Performance charts (line, area, candlestick)
+- [ ] Sector allocation donut/pie chart
+- [ ] Geographic distribution map/chart
+- [ ] Asset class breakdown visualization
+- [ ] Watchlist page with real-time updates
+- [ ] Market overview widgets
+
+### Phase 3: Analysis & Insights (Complete Structure)
+- [ ] Analysis Hub page
+- [ ] Risk metrics dashboard (volatility, Sharpe ratio, beta, VaR)
+- [ ] Correlation matrix heatmap
+- [ ] Portfolio optimization tool (efficient frontier)
+- [ ] Diversification score calculator
+- [ ] Historical performance analysis
+- [ ] Benchmark comparison charts (S&P 500, SMI, etc.)
+- [ ] What-if scenario analysis
+
+### Phase 4: AI-Powered Insights (Complete Structure)
+- [ ] AI Insights Hub page
+- [ ] LLM integration for natural language portfolio analysis
+- [ ] Automated portfolio health report
+- [ ] Risk assessment narrative
+- [ ] Personalized investment recommendations
+- [ ] Market sentiment analysis
+- [ ] News impact analysis
+- [ ] AI-powered stock screening
+
+### Phase 5: Reporting & Alerts (Complete Structure)
+- [ ] Reports Hub page
+- [ ] PDF report generation with templates
+- [ ] Custom report builder
+- [ ] Scheduled reports (daily, weekly, monthly)
+- [ ] Alert configuration center
+- [ ] Price alerts (above/below threshold, % change)
+- [ ] Performance threshold alerts
+- [ ] Dividend alerts
+- [ ] Email notification system
+- [ ] WhatsApp notification integration
+- [ ] Alert history and logs
+
+### Navigation Structure (All Pages)
+- [ ] Dashboard (Main overview)
+- [ ] Portfolios (List and management)
+- [ ] Live-Tracking (Real-time updates)
+- [ ] Analysis (Risk and performance analysis)
+- [ ] AI Insights (AI-powered recommendations)
+- [ ] Newsroom (Market news and updates)
+- [ ] Kategorien (Category analysis)
+- [ ] Sektoren (Sector analysis)
+- [ ] Preisalarme (Price alerts)
+- [ ] Dividenden (Dividend calendar)
+- [ ] Signale (Trading signals)
+- [ ] Reports (Report generation)
+- [ ] Rechner (Calculators and tools)
+- [ ] Einstellungen (Settings)
+
+### Database Schema (Complete)
+- [ ] Review and optimize portfolios table
+- [ ] Review and optimize holdings table
+- [ ] Review and optimize transactions table
+- [ ] Review and optimize alerts table
+- [ ] Create reports table
+- [ ] Create user_preferences table
+- [ ] Create watchlist table
+- [ ] Create analysis_cache table
+- [ ] Add proper indexes for performance
+- [ ] Add foreign key constraints
+
+### Backend API (tRPC - Complete)
+- [ ] Portfolio router (CRUD + analytics)
+- [ ] Holdings router (management + real-time updates)
+- [ ] Transactions router (import + management)
+- [ ] Market data router (real-time prices, historical data)
+- [ ] Analysis router (risk metrics, optimization)
+- [ ] AI router (insights, recommendations)
+- [ ] Reports router (generation, scheduling)
+- [ ] Alerts router (CRUD + triggering)
+- [ ] Notifications router (email, WhatsApp)
+- [ ] Settings router (user preferences)
+
+### Design System (Consistent Across All Pages)
+- [ ] Define color palette (primary: turquoise/cyan, secondary, accent)
+- [ ] Typography system (headings, body, captions)
+- [ ] Spacing system (consistent padding, margins, gaps)
+- [ ] Shadow system (cards, modals, dropdowns)
+- [ ] Border radius system
+- [ ] Icon library (financial icons)
+- [ ] Button variants (primary, secondary, outline, ghost)
+- [ ] Card variants (default, highlighted, interactive)
+- [ ] Chart color scheme (consistent across all charts)
+- [ ] Loading states (skeletons, spinners)
+- [ ] Empty states (illustrations, messages)
+- [ ] Error states (error messages, retry actions)
+
+### Customer Journey Testing
+- [ ] Landing page → Registration → Dashboard
+- [ ] Landing page → Login → Dashboard
+- [ ] Dashboard → Create Portfolio → Portfolio Detail
+- [ ] Dashboard → Add Transaction → Transaction List
+- [ ] Dashboard → Set Alert → Alert Management
+- [ ] Dashboard → Generate Report → View Report
+- [ ] Dashboard → AI Insights → View Recommendations
+- [ ] Navigation between all main sections
+- [ ] Mobile responsive navigation
+- [ ] Error handling throughout journey
+
+### Quality Assurance
+- [ ] Remove all old/inconsistent design elements
+- [ ] Ensure all pages use DashboardLayout
+- [ ] Verify consistent styling across all pages
+- [ ] Test all navigation links
+- [ ] Verify responsive design on mobile/tablet
+- [ ] Test loading states on all pages
+- [ ] Test empty states on all pages
+- [ ] Test error handling on all pages
+- [ ] Verify German translations throughout
+- [ ] Performance optimization (lazy loading, code splitting)
+
+
+## Platform Restructuring Progress (27.12.2024 - Current Session)
+
+### Navigation & Layout
+- [x] Updated DashboardLayout with comprehensive navigation (Dashboard, Portfolios, Live-Tracking, Analyse, KI-Insights, Newsroom, Kategorien, Sektoren, Preisalarme, Dividenden, Signale, Reports, Rechner, Einstellungen)
+- [x] Added new navigation icons (FolderKanban, BarChart3, Sparkles, FileText)
+
+### New Page Shells Created
+- [x] Portfolios overview page (/portfolios)
+- [x] Analysis hub page (/analysis) with tabs for Risk, Correlation, Optimization, Diversification, Benchmark
+- [x] AI Insights hub page (/ai-insights) with Portfolio Health, Risk Assessment, Recommendations, Sentiment, Screening
+- [x] Reports hub page (/reports) with Templates, Scheduled Reports, Recent Reports, Custom Builder
+- [x] Added all new routes to App.tsx
+
+### Next Steps
+- [ ] Fix existing TypeScript errors in PortfolioTransactions, PortfolioTransactionsPage, StockDetail
+- [ ] Review and update existing pages for design consistency
+- [ ] Create Payment Success/Cancel pages
+- [ ] Optimize Pricing page
+- [ ] Test complete navigation flow
+
+
+### Payment Pages Created (27.12.2024)
+- [x] Payment Success page (/payment/success) with Premium features overview
+- [x] Payment Cancel page (/payment/cancel) with helpful next steps
+- [x] Added routes to App.tsx
+- [ ] Pricing page optimization (already exists, needs review for consistency)
+
+
+### Design Consistency - Dark Theme (27.12.2024)
+- [x] Pricing page converted to dark theme with primary accents
+- [x] Payment Success page with dark theme
+- [x] Payment Cancel page with dark theme
+- [x] All new page shells (Portfolios, Analysis, AI Insights, Reports) with consistent dark theme
+- [x] Navigation updated with all main sections
+- [x] Consistent color palette: slate-950/900 backgrounds, primary (turquoise/cyan) accents
+- [x] Typography and spacing consistent across pages
+- [x] Trust badges and icons styled consistently
+
+### Ready for Testing
+- [ ] Test navigation flow from Landing → Registration → Dashboard
+- [ ] Test all sidebar navigation links
+- [ ] Test Payment Success/Cancel pages
+- [ ] Test responsive design on mobile
+- [ ] Verify all pages use consistent dark theme

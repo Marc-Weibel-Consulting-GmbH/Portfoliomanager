@@ -9,8 +9,8 @@ import { TransactionHistory } from "@/components/TransactionHistory";
 import { TransactionModal } from "@/components/TransactionModal";
 
 export default function PortfolioTransactionsPage() {
-  const [, params] = useRoute("/portfolio/:id/transactions");
-  const portfolioId = params?.id ? parseInt(params.id as string) : null;
+  const [, params] = useRoute<{ id: string }>("/portfolio/:id/transactions");
+  const portfolioId = params?.id ? parseInt(params.id) : null;
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
   // Fetch portfolio details

@@ -156,8 +156,8 @@ export default function PortfolioPositions() {
               <div className="text-2xl font-bold text-[#00CFC1] flex items-center gap-2">
                 {portfolio.livePerformance ? (
                   <>
-                    {portfolio.livePerformance > 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                    {portfolio.livePerformance.toFixed(2)}%
+                    {Number(portfolio.livePerformance) > 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                    {Number(portfolio.livePerformance).toFixed(2)}%
                   </>
                 ) : '--'}
               </div>
@@ -288,10 +288,10 @@ export default function PortfolioPositions() {
                           CHF {currentValue.toLocaleString('de-CH', { minimumFractionDigits: 2 })}
                         </td>
                         <td className={`text-right py-4 px-4 font-semibold ${performance >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
-                          {performance >= 0 ? '+' : ''}{performance.toFixed(2)}%
+                          {performance >= 0 ? '+' : ''}{Number(performance).toFixed(2)}%
                         </td>
                         <td className="text-right py-4 px-4 text-gray-400">
-                          {weight.toFixed(2)}%
+                          {Number(weight).toFixed(2)}%
                         </td>
                       </tr>
                     );

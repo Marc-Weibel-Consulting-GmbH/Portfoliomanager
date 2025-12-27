@@ -12,8 +12,8 @@ type SortField = 'date' | 'ticker' | 'type' | 'amount';
 type SortDirection = 'asc' | 'desc';
 
 export default function PortfolioTransactions() {
-  const [, params] = useRoute("/portfolio/:id/transactions");
-  const portfolioId = (params && params.id) ? parseInt((params as { id: string }).id) : null;
+  const [, params] = useRoute<{ id: string }>("/portfolio/:id/transactions");
+  const portfolioId = params?.id ? parseInt(params.id) : null;
 
   const [searchTicker, setSearchTicker] = useState("");
   const [filterType, setFilterType] = useState<string>("all");

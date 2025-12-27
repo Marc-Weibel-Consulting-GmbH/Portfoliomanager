@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Newspaper, Grid3x3, PieChart, Bell, Zap } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Newspaper, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -32,13 +32,17 @@ import { FloatingChatButton } from "./FloatingChatButton";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: FolderKanban, label: "Portfolios", path: "/portfolios" },
   { icon: Activity, label: "Live-Tracking", path: "/live-tracking" },
+  { icon: BarChart3, label: "Analyse", path: "/analysis" },
+  { icon: Sparkles, label: "KI-Insights", path: "/ai-insights" },
   { icon: Newspaper, label: "Newsroom", path: "/newsroom" },
   { icon: Grid3x3, label: "Kategorien", path: "/categories" },
   { icon: PieChart, label: "Sektoren", path: "/sectors" },
   { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
   { icon: TrendingUp, label: "Dividenden", path: "/dividends" },
   { icon: Zap, label: "Signale", path: "/signals" },
+  { icon: FileText, label: "Reports", path: "/reports" },
   { icon: Calculator, label: "Rechner", path: "/rechner" },
   { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
 ];

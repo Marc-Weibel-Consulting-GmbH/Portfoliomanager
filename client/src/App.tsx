@@ -46,6 +46,12 @@ import Registration from "./pages/Registration";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
+import Portfolios from "./pages/Portfolios";
+import Analysis from "./pages/Analysis";
+import AIInsights from "./pages/AIInsights";
+import Reports from "./pages/Reports";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -82,6 +88,10 @@ function Router() {
       <Route path="/sectors" component={Sectors} />
       <Route path="/live-tracking" component={LiveTracking} />
       <Route path="/dividends" component={DividendCalendar} />
+      <Route path="/portfolios" component={Portfolios} />
+      <Route path="/analysis" component={Analysis} />
+      <Route path="/ai-insights" component={AIInsights} />
+      <Route path="/reports" component={Reports} />
       <Route path="/portfolio-builder" component={PortfolioBuilderLanding} />
       <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />
       <Route path="/portfolio-builder/old" component={PortfolioBuilder} />
@@ -92,6 +102,8 @@ function Router() {
       <Route path="/einstellungen" component={Einstellungen} />
       <Route path="/kontakt" component={Kontakt} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/payment/success" component={PaymentSuccess} />
+      <Route path="/payment/cancel" component={PaymentCancel} />
       <Route path="/impressum" component={Impressum} />
       <Route path="/datenschutz" component={Datenschutz} />
       <Route path="/agb" component={AGB} />
