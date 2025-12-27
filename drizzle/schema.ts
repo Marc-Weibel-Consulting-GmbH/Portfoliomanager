@@ -29,6 +29,7 @@ export const users = mysqlTable("users", {
   paymentDate: timestamp("paymentDate"),
   stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   whatsappAlerts: tinyint("whatsappAlerts").notNull().default(0),
+  emailVerified: tinyint("emailVerified").notNull().default(0),
   hasSeenOnboarding: tinyint("hasSeenOnboarding").notNull().default(0),
   hasDemoPortfolio: tinyint("hasDemoPortfolio").notNull().default(0),
   hasCompletedRegistration: tinyint("hasCompletedRegistration").notNull().default(0),
@@ -41,6 +42,30 @@ export const users = mysqlTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+// Password reset tokens table
+export const passwordResetTokens = mysqlTable("passwordResetTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+
+// Email verification tokens table
+export const emailVerificationTokens = mysqlTable("emailVerificationTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type InsertEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
 
 // Portfolio stocks table
 export const stocks = mysqlTable("stocks", {

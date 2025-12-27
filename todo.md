@@ -339,3 +339,51 @@
   - [x] "Jetzt starten" / "Kostenlos starten" führt zu /register
   - [x] Nach Login: Weiterleitung zu /dashboard
   - [x] Nach Registration: Weiterleitung zu /dashboard
+
+
+## Passwort vergessen & Email-Verifizierung (27.12.2024)
+
+### Database Schema
+- [ ] password_reset_tokens table erstellen (userId, token, expiresAt, createdAt)
+- [ ] email_verification_tokens table erstellen (userId, token, expiresAt, createdAt)
+- [ ] users table erweitern (emailVerified boolean, password hash field)
+- [ ] Database migration durchführen (pnpm db:push)
+
+### Backend Implementation
+- [ ] Database helper functions für password reset tokens (create, verify, delete)
+- [ ] Database helper functions für email verification tokens (create, verify, delete)
+- [ ] tRPC procedures für password reset (requestReset, verifyToken, resetPassword)
+- [ ] tRPC procedures für email verification (sendVerification, verifyEmail, resendVerification)
+- [ ] Email templates für password reset (Resend)
+- [ ] Email templates für email verification (Resend)
+- [ ] Token generation und validation logic
+- [ ] Password hashing mit bcrypt
+
+### Frontend Implementation
+- [ ] "Passwort vergessen?" Link auf Login-Seite
+- [ ] Password Reset Request Page (Email eingeben)
+- [ ] Password Reset Page (Neues Passwort eingeben mit Token)
+- [ ] Email Verification Page (Token verification)
+- [ ] Email Verification Banner (für unverifizierte User)
+- [ ] Resend Verification Email Button
+- [ ] Success/Error Messages für alle Flows
+- [ ] Form validation (Password strength, Email format)
+
+### User Flow
+- [ ] User klickt "Passwort vergessen?" → Email eingeben → Email mit Reset-Link erhalten
+- [ ] User klickt Reset-Link → Neues Passwort eingeben → Passwort erfolgreich geändert
+- [ ] Nach Registration → Verification Email senden → User klickt Link → Email verifiziert
+- [ ] Unverifizierte User sehen Banner → "Email erneut senden" Button
+
+
+## Checkpoint - Password Reset & Email Verification Implemented (27.12.2024 - 07:10)
+- [x] Database schema erweitert (emailVerified, passwordResetTokens, emailVerificationTokens)
+- [x] Backend helper functions implementiert (token creation, verification, deletion)
+- [x] tRPC procedures implementiert (requestPasswordReset, verifyResetToken, resetPassword, sendEmailVerification, verifyEmail)
+- [x] Email templates erstellt (Resend integration)
+- [x] ForgotPassword page erstellt
+- [x] ResetPassword page erstellt
+- [x] VerifyEmail page erstellt
+- [x] Routes in App.tsx hinzugefügt
+- [x] "Passwort vergessen?" Link auf Login-Seite hinzugefügt
+- [x] bcrypt für Password Hashing installiert

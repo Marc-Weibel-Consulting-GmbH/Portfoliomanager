@@ -22,6 +22,7 @@ import { chatRouter } from "./routers/chatRouter";
 import { signalsRouter } from "./routers/signalsRouter";
 import { portfolioOptimizerRouter } from "./routers/portfolioOptimizerRouter";
 import { onboardingRouter } from "./routers/onboardingRouter";
+import { authRouter as authExtensionsRouter } from "./routers/authRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -236,6 +237,8 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+    // Password reset and email verification
+    ...authExtensionsRouter._def.procedures,
     register: publicProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null) return val;

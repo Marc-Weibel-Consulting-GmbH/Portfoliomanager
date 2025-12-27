@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE users ADD COLUMN emailVerified tinyint NOT NULL DEFAULT 0;\nCREATE TABLE IF NOT EXISTS passwordResetTokens (\n  id int AUTO_INCREMENT PRIMARY KEY,\n  userId int NOT NULL,\n  token varchar(255) NOT NULL UNIQUE,\n  expiresAt timestamp NOT NULL,\n  createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP\n);\nCREATE TABLE IF NOT EXISTS emailVerificationTokens (\n  id int AUTO_INCREMENT PRIMARY KEY,\n  userId int NOT NULL,\n  token varchar(255) NOT NULL UNIQUE,\n  expiresAt timestamp NOT NULL,\n  createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute ALTER TABLE users ADD COLUMN emailVerified tinyint NOT NULL DEFAULT 0;\nCREATE TABLE IF NOT EXISTS passwordResetTokens (\n  id int AUTO_INCREMENT PRIMARY KEY,\n  userId int NOT NULL,\n  token varchar(255) NOT NULL UNIQUE,\n  expiresAt timestamp NOT NULL,\n  createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP\n);\nCREATE TABLE IF NOT EXISTS emailVerificationTokens (\n  id int AUTO_INCREMENT PRIMARY KEY,\n  userId int NOT NULL,\n  token varchar(255) NOT NULL UNIQUE,\n  expiresAt timestamp NOT NULL,\n  createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 819
+}

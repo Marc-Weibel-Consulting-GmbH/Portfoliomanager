@@ -41,6 +41,9 @@ import Datenschutz from "./pages/Datenschutz";
 import AGB from "./pages/AGB";
 import OnboardingWizard from "./components/OnboardingWizard";
 import Registration from "./pages/Registration";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -54,6 +57,9 @@ function Router() {
       <Route path="/optimizer" component={Home} />
       <Route path="/register" component={Register} />
       <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/newsroom" component={Newsroom} />
       <Route path="/reviews">
         {() => <Reviews />}
