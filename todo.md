@@ -306,6 +306,9 @@
 - [ ] Checkpoint erstellen nach erfolgreichen Tests
 
 
+## Layout-Anpassung: Dashboard kompakter gestalten (27.12.2024)
+- [x] Dashboard Layout kompakter gestalten (maximale Breite reduzieren)
+
 ## Neue Anforderung: Authentifizierungsflow überarbeiten (27.12.2024)
 - [ ] "Jetzt starten" Button führt zur Manus OAuth-Anmeldung
 - [ ] Nach erfolgreicher Authentifizierung landen neue Benutzer direkt im Dashboard
@@ -405,3 +408,11 @@
 - [x] Text "Nach der Registrierung erhältst du Zugriff auf 1 Aktie pro Kategorie (13 von 63)" aus Registrierung entfernen
 - [x] Text "Für vollen Zugriff: CHF 10.- einmalig" aus Registrierung entfernen
 - [x] Diese Informationen werden später auf separater Pricing-Seite angezeigt
+
+## UI Improvements (Dec 27, 2025)
+- [x] Increase font sizes and spacing for better readability
+- [x] Generate real profile images for avatars in "500+ Investoren" section
+
+## Bug Fixes (Dec 27, 2025)
+- [x] Fix login redirect - after successful login, user should be redirected to dashboard instead of "Please sign in to continue" page
+- [x] Implement real news loading from APIs (Finnhub, EODHD) for portfolio stocks

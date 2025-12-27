@@ -48,12 +48,12 @@ export default function Landing() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Column - Text Content */}
           <div className="space-y-8 z-10">
-            <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight">
+            <h1 className="text-6xl lg:text-7xl font-bold text-white leading-tight">
               Optimiere dein<br />
               Aktienportfolio mit<br />
               KI-gestützter Analyse
             </h1>
-            <p className="text-xl text-slate-300 leading-relaxed">
+            <p className="text-2xl text-slate-300 leading-relaxed">
               Live-Tracking, Fundamentalanalyse und<br />
               automatische Alerts für Schweizer Investoren
             </p>
@@ -179,8 +179,8 @@ export default function Landing() {
                 <TrendingUp className="h-7 w-7 text-teal-400" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">Portfolio-Builder</h3>
-            <p className="text-slate-300 mb-6 leading-relaxed">
+            <h3 className="text-3xl font-bold text-white mb-4">Portfolio-Builder</h3>
+            <p className="text-lg text-slate-300 mb-6 leading-relaxed">
               Erstelle und optimiere dein Portfolio basierend auf modernsten KI-Modellen und Risikoprofilen.
             </p>
             <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
@@ -196,8 +196,8 @@ export default function Landing() {
                 <Activity className="h-7 w-7 text-teal-400" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">Live-Tracking</h3>
-            <p className="text-slate-300 mb-6 leading-relaxed">
+            <h3 className="text-3xl font-bold text-white mb-4">Live-Tracking</h3>
+            <p className="text-lg text-slate-300 mb-6 leading-relaxed">
               Verfolge die Performance deines gesamten Portfolios in Echtzeit und erhalte sofortige Updates.
             </p>
             <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
@@ -213,8 +213,8 @@ export default function Landing() {
                 <Bell className="h-7 w-7 text-teal-400" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">Preisalarme</h3>
-            <p className="text-slate-300 mb-6 leading-relaxed">
+            <h3 className="text-3xl font-bold text-white mb-4">Preisalarme</h3>
+            <p className="text-lg text-slate-300 mb-6 leading-relaxed">
               Setze individuelle Alarme für Preisänderungen, News und technische Indikatoren.
             </p>
             <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
@@ -231,31 +231,39 @@ export default function Landing() {
           {/* Left - Social Proof */}
           <div className="flex items-center gap-4">
             <div className="flex -space-x-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div
+              {[
+                "/avatars/investor-1.jpg",
+                "/avatars/investor-2.jpg",
+                "/avatars/investor-3.jpg",
+                "/avatars/investor-4.jpg",
+                "/avatars/investor-5.jpg"
+              ].map((src, i) => (
+                <img
                   key={i}
-                  className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 border-2 border-slate-900"
-                ></div>
+                  src={src}
+                  alt={`Investor ${i + 1}`}
+                  className="w-14 h-14 rounded-full border-2 border-slate-900 object-cover"
+                />
               ))}
             </div>
             <div>
-              <p className="text-white font-semibold text-lg">500+ Investoren vertrauen uns</p>
+              <p className="text-white font-semibold text-xl">500+ Investoren vertrauen uns</p>
             </div>
           </div>
 
           {/* Right - Trust Badges */}
           <div className="flex flex-wrap items-center gap-8">
             <div className="flex items-center gap-3 text-slate-300">
-              <Lock className="h-6 w-6 text-teal-400" />
-              <span className="font-medium">SSL verschlüsselt</span>
+              <Lock className="h-7 w-7 text-teal-400" />
+              <span className="font-medium text-lg">SSL verschlüsselt</span>
             </div>
             <div className="flex items-center gap-3 text-slate-300">
-              <Flag className="h-6 w-6 text-red-600" />
-              <span className="font-medium">Schweizer Datenschutz</span>
+              <Flag className="h-7 w-7 text-red-600" />
+              <span className="font-medium text-lg">Schweizer Datenschutz</span>
             </div>
             <div className="flex items-center gap-3 text-slate-300">
-              <CreditCard className="h-6 w-6 text-indigo-400" />
-              <span className="font-medium">Stripe Payment</span>
+              <CreditCard className="h-7 w-7 text-indigo-400" />
+              <span className="font-medium text-lg">Stripe Payment</span>
             </div>
           </div>
         </div>

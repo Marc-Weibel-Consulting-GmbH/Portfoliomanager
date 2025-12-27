@@ -47,16 +47,9 @@ export default function Login() {
         throw new Error(data.error || "Login fehlgeschlagen");
       }
       
-      // Success - show toast and redirect
-      toast.success("Erfolgreich angemeldet! Willkommen zurück.");
-      
-      // Invalidate auth query to force refetch with new cookie
-      await utils.auth.me.invalidate();
-      
-      // Wait 2 seconds to ensure cookie is saved on mobile, then redirect to dashboard
-      setTimeout(() => {
-        window.location.replace("/dashboard");
-      }, 2000);
+      // Success - redirect immediately with full page reload
+      // This ensures the cookie is properly set and read by the browser
+      window.location.href = "/dashboard";
     } catch (error: any) {
       setIsLoading(false);
       toast.error("Login fehlgeschlagen: " + error.message);

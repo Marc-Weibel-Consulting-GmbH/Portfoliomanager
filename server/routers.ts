@@ -369,17 +369,75 @@ export const appRouter = router({
 
   news: router({
     getByTicker: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid ticker");
-      })
+      .input(z.string())
       .query(async ({ input }) => {
-        const { getNewsByTicker } = await import("./db");
-        return await getNewsByTicker(input, 10);
+        // Fetch real news from Finnhub API
+        const { fetchCompanyNews } = await import("./_core/newsApi");
+        const articles = await fetchCompanyNews(input, 10);
+        
+        // Transform to match database schema format
+        return articles.map(article => ({
+          id: 0, // Not stored in DB
+          ticker: article.ticker,
+          title: article.title,
+          description: article.description,
+          url: article.url,
+          imageUrl: article.imageUrl,
+          source: article.source,
+          priority: "Mittel" as const,
+          publishedAt: article.publishedAt,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }));
       }),
     getAll: publicProcedure.query(async () => {
-      const { getAllNews } = await import("./db");
-      return await getAllNews(50);
+      // Fetch general market news from Finnhub
+      const { fetchMarketNews } = await import("./_core/newsApi");
+      const articles = await fetchMarketNews("general", 50);
+      
+      // Transform to match database schema format
+      return articles.map(article => ({
+        id: 0, // Not stored in DB
+        ticker: article.ticker,
+        title: article.title,
+        description: article.description,
+        url: article.url,
+        imageUrl: article.imageUrl,
+        source: article.source,
+        priority: "Mittel" as const,
+        publishedAt: article.publishedAt,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+    }),
+    getPortfolioNews: publicProcedure.query(async () => {
+      // Fetch news for all stocks in portfolio
+      const { getAllStocks } = await import("./db");
+      const { fetchMultiTickerNews } = await import("./_core/newsApi");
+      
+      const stocks = await getAllStocks();
+      const tickers = stocks.map(s => s.ticker);
+      
+      if (tickers.length === 0) {
+        return [];
+      }
+      
+      const articles = await fetchMultiTickerNews(tickers, 3);
+      
+      // Transform to match database schema format
+      return articles.map(article => ({
+        id: 0, // Not stored in DB
+        ticker: article.ticker,
+        title: article.title,
+        description: article.description,
+        url: article.url,
+        imageUrl: article.imageUrl,
+        source: article.source,
+        priority: "Mittel" as const,
+        publishedAt: article.publishedAt,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
     }),
   }),
 

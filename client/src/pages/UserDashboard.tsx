@@ -76,7 +76,7 @@ export default function UserDashboard() {
   ];
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto">
       {/* Welcome Message */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">
@@ -86,7 +86,7 @@ export default function UserDashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {summaryCards.map((card, index) => (
           <Card key={index} className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
             <CardContent className="p-6">
