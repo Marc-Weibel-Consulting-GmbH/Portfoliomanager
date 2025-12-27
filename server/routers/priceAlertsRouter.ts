@@ -35,6 +35,7 @@ export const priceAlertsRouter = router({
           alertType: "above_price" | "below_price" | "percent_change";
           targetPrice?: string;
           percentChange?: string;
+          notificationMethod?: "email" | "whatsapp" | "both";
         };
       }
       throw new Error("Invalid alert data");
@@ -66,6 +67,8 @@ export const priceAlertsRouter = router({
         alertType: input.alertType,
         targetPrice: input.targetPrice || null,
         percentChange: input.percentChange || null,
+        notificationMethod: input.notificationMethod || "email",
+        status: "active",
         isActive: 1,
       });
 
@@ -81,6 +84,8 @@ export const priceAlertsRouter = router({
           isActive?: number;
           targetPrice?: string;
           percentChange?: string;
+          notificationMethod?: "email" | "whatsapp" | "both";
+          status?: "active" | "triggered" | "disabled";
         };
       }
       throw new Error("Invalid update data");
@@ -98,12 +103,19 @@ export const priceAlertsRouter = router({
       const updates: any = {};
       if (input.isActive !== undefined) {
         updates.isActive = input.isActive;
+        updates.status = input.isActive ? "active" : "disabled";
       }
       if (input.targetPrice !== undefined) {
         updates.targetPrice = input.targetPrice;
       }
       if (input.percentChange !== undefined) {
         updates.percentChange = input.percentChange;
+      }
+      if (input.notificationMethod !== undefined) {
+        updates.notificationMethod = input.notificationMethod;
+      }
+      if (input.status !== undefined) {
+        updates.status = input.status;
       }
 
       await db
@@ -231,16 +243,49 @@ export const priceAlertsRouter = router({
       }
 
       if (shouldTrigger) {
-        // Send notification
-        await notifyOwner({
-          title: "Preis-Alert ausgelöst",
-          content: message,
-        });
+        // Send notification based on notification method
+        if (alert.notificationMethod === "email" || alert.notificationMethod === "both") {
+          // Send email notification via Resend
+          try {
+            const { sendEmail } = await import("../_core/email");
+            const { users } = await import("../../drizzle/schema");
+            const [user] = await db.select().from(users).where(eq(users.id, alert.userId)).limit(1);
+            
+            if (user && user.email) {
+              await sendEmail({
+                to: user.email,
+                subject: "Preis-Alert ausgelöst",
+                html: `<p>${message}</p>`,
+              });
+            }
+          } catch (emailError) {
+            console.error("Failed to send email notification:", emailError);
+          }
+        }
+        
+        if (alert.notificationMethod === "whatsapp" || alert.notificationMethod === "both") {
+          // Send WhatsApp notification via Twilio
+          try {
+            const { sendWhatsAppMessage } = await import("../_core/whatsapp");
+            const { users } = await import("../../drizzle/schema");
+            const [user] = await db.select().from(users).where(eq(users.id, alert.userId)).limit(1);
+            
+            if (user && user.mobile && user.whatsappAlerts) {
+              await sendWhatsAppMessage(user.mobile, message);
+            }
+          } catch (whatsappError) {
+            console.error("Failed to send WhatsApp notification:", whatsappError);
+          }
+        }
 
-        // Update lastTriggered timestamp
+        // Update alert status to triggered
         await db
           .update(priceAlerts)
-          .set({ lastTriggered: new Date() })
+          .set({ 
+            lastTriggered: new Date(),
+            triggeredAt: new Date(),
+            status: "triggered",
+          })
           .where(eq(priceAlerts.id, alert.id));
 
         triggeredCount++;

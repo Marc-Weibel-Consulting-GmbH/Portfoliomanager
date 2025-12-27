@@ -217,3 +217,69 @@
 - [x] Nach Login/Registration landet User im Dashboard
 - [x] Portfolio-Builder wird vom Dashboard aus gestartet (nicht von Landing Page)
 - [x] Routing-Struktur entsprechend anpassen (App.tsx)
+
+
+## Neue Implementierung: Portfolio Builder Wizard, Portfolio Detail View, Price Alerts (27.12.2024)
+
+### Database Schema Erweiterungen
+- [x] portfolios table erweitern (falls noch nicht vollständig) - savedPortfolios bereits vorhanden
+- [x] holdings table erweitern (falls noch nicht vollständig) - bereits vorhanden
+- [x] transactions table erweitern (falls noch nicht vollständig) - portfolioTransactions bereits vorhanden
+- [x] price_alerts table erweitern (trigger_type, threshold_value, notification_method, status)
+- [x] Database migration durchführen (pnpm db:push)
+
+### Backend Implementation
+- [x] Database helper functions für portfolios (create, list, get, update, delete) - bereits vorhanden
+- [x] Database helper functions für holdings (add, list, update, delete) - bereits vorhanden
+- [x] Database helper functions für transactions (add, list, delete) - bereits vorhanden
+- [x] Database helper functions für price_alerts (create, list, update, delete, checkTriggers)
+- [x] tRPC procedures für portfolios implementieren - bereits vorhanden (portfoliosRouter)
+- [x] tRPC procedures für holdings implementieren - bereits vorhanden
+- [x] tRPC procedures für transactions implementieren - bereits vorhanden (portfolioTransactionsRouter)
+- [x] tRPC procedures für price_alerts implementieren - erweitert mit notificationMethod und status
+- [x] External API integration für Aktienkurse (EODHD/Finnhub) - bereits vorhanden
+- [x] Notification system (Email via Resend, WhatsApp via Twilio)
+- [x] Background job für Price Alert Checking - checkAlerts procedure vorhanden
+
+### Portfolio Builder Wizard (5 Schritte)
+- [x] Wizard Component Struktur erstellen
+- [x] Schritt 1: Grundlagen (Name, Beschreibung, Währung, Startkapital)
+- [x] Schritt 2: Aktien auswählen (Suche, Filter, Hinzufügen mit Menge/Preis)
+- [x] Schritt 3: Anleihen & ETFs (Suche und Hinzufügen)
+- [x] Schritt 4: Verteilung & Risiko (Allocation Pie Chart, Risikometriken)
+- [x] Schritt 5: Abschluss (Zusammenfassung, Bestätigung)
+- [x] Navigation zwischen Schritten (Zurück/Weiter, Progress Indicator)
+- [x] Integration mit tRPC Backend
+- [x] Validierung und Error Handling
+- [x] Responsive Design
+
+### Portfolio Detail View
+- [ ] Portfolio Detail Page Layout erstellen
+- [ ] Performance Line Chart (Wert über Zeit)
+- [ ] Holdings Tabelle mit Company Logos, aktuellen Preisen, Gewinnen/Verlusten
+- [ ] Asset Allocation Donut Chart (Aktien/Anleihen/ETFs Breakdown)
+- [ ] Transaktionshistorie Tabelle mit Filtern
+- [ ] Edit/Delete Portfolio Funktionalität
+- [ ] "Neue Transaktion" Button und Modal
+- [ ] Responsive Design
+
+### Price Alert System
+- [ ] Price Alerts Page/Section erstellen
+- [ ] Alert Creation Form (Symbol, Trigger Type, Threshold, Notification Method)
+- [ ] Trigger Types unterstützen: "Unter CHF X", "Über CHF X", "Änderung +X%"
+- [ ] Notification Methods: Email, WhatsApp
+- [ ] Alert Status Management (active, triggered, disabled)
+- [ ] Background Job/Webhook für Price Trigger Checking
+- [ ] Notification Sending implementieren (Email via Resend, WhatsApp via Twilio)
+- [ ] Alerts Liste mit Status Indicators und Management Actions
+- [ ] Responsive Design
+
+### Testing & Quality Assurance
+- [ ] Portfolio Builder Wizard End-to-End testen
+- [ ] Portfolio Detail View mit echten Daten testen
+- [ ] Price Alerts Creation und Triggering testen
+- [ ] Notification Delivery testen (Email und WhatsApp)
+- [ ] Responsive Design auf Mobile Devices testen
+- [ ] Error Handling und Loading States überprüfen
+- [ ] Vitest Unit Tests für kritische Backend-Funktionen schreiben
+- [ ] Checkpoint erstellen nach erfolgreichen Tests

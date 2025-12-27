@@ -165,3 +165,66 @@ export async function getTwilioCredentials(): Promise<{
   
   return { accountSid, authToken, whatsappNumber };
 }
+
+/**
+ * Get Twilio Account SID with database fallback
+ */
+export async function getTwilioAccountSid(): Promise<string> {
+  const envKey = process.env.TWILIO_ACCOUNT_SID;
+  if (envKey) {
+    console.log('[TWILIO] Using TWILIO_ACCOUNT_SID from environment');
+    return envKey;
+  }
+  
+  console.log('[TWILIO] Environment variable not found, checking database...');
+  const dbKey = await getSecret('TWILIO_ACCOUNT_SID');
+  if (dbKey) {
+    console.log('[TWILIO] Using TWILIO_ACCOUNT_SID from database');
+    return dbKey;
+  }
+  
+  console.warn('[TWILIO] TWILIO_ACCOUNT_SID not found in environment or database');
+  return '';
+}
+
+/**
+ * Get Twilio Auth Token with database fallback
+ */
+export async function getTwilioAuthToken(): Promise<string> {
+  const envKey = process.env.TWILIO_AUTH_TOKEN;
+  if (envKey) {
+    console.log('[TWILIO] Using TWILIO_AUTH_TOKEN from environment');
+    return envKey;
+  }
+  
+  console.log('[TWILIO] Environment variable not found, checking database...');
+  const dbKey = await getSecret('TWILIO_AUTH_TOKEN');
+  if (dbKey) {
+    console.log('[TWILIO] Using TWILIO_AUTH_TOKEN from database');
+    return dbKey;
+  }
+  
+  console.warn('[TWILIO] TWILIO_AUTH_TOKEN not found in environment or database');
+  return '';
+}
+
+/**
+ * Get Twilio WhatsApp Number with database fallback
+ */
+export async function getTwilioWhatsAppNumber(): Promise<string> {
+  const envKey = process.env.TWILIO_WHATSAPP_NUMBER;
+  if (envKey) {
+    console.log('[TWILIO] Using TWILIO_WHATSAPP_NUMBER from environment');
+    return envKey;
+  }
+  
+  console.log('[TWILIO] Environment variable not found, checking database...');
+  const dbKey = await getSecret('TWILIO_WHATSAPP_NUMBER');
+  if (dbKey) {
+    console.log('[TWILIO] Using TWILIO_WHATSAPP_NUMBER from database');
+    return dbKey;
+  }
+  
+  console.warn('[TWILIO] TWILIO_WHATSAPP_NUMBER not found in environment or database');
+  return '';
+}

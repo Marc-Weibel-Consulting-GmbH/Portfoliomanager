@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "19a2c188-41a2-49e7-8ce3-147797d4eb36",
-  "prevId": "fb12aa3f-4d68-4a6f-a87d-60eede78bf1c",
+  "id": "bad8e2c5-d0ce-466d-85c6-1c05f5d87ee7",
+  "prevId": "19a2c188-41a2-49e7-8ce3-147797d4eb36",
   "tables": {
     "alertHistory": {
       "name": "alertHistory",
@@ -1220,6 +1220,22 @@
           "notNull": false,
           "autoincrement": false
         },
+        "notificationMethod": {
+          "name": "notificationMethod",
+          "type": "enum('email','whatsapp','both')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'email'"
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('active','triggered','disabled')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'active'"
+        },
         "isActive": {
           "name": "isActive",
           "type": "tinyint",
@@ -1230,6 +1246,13 @@
         },
         "lastTriggered": {
           "name": "lastTriggered",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "triggeredAt": {
+          "name": "triggeredAt",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
@@ -1253,7 +1276,22 @@
           "default": "(now())"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "ix_price_alerts_userId": {
+          "name": "ix_price_alerts_userId",
+          "columns": [
+            "userId"
+          ],
+          "isUnique": false
+        },
+        "ix_price_alerts_ticker": {
+          "name": "ix_price_alerts_ticker",
+          "columns": [
+            "ticker"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "priceAlerts_id": {

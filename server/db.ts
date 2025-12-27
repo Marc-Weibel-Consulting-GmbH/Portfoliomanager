@@ -953,3 +953,188 @@ export async function getPortfolioTransactions(portfolioId: number) {
     return [];
   }
 }
+
+// ============================================
+// Price Alerts Functions
+// ============================================
+
+export async function createPriceAlert(alert: {
+  userId: number;
+  ticker: string;
+  alertType: "above_price" | "below_price" | "percent_change";
+  targetPrice?: string;
+  percentChange?: string;
+  notificationMethod: "email" | "whatsapp" | "both";
+}) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const { priceAlerts } = await import("../drizzle/schema");
+    
+    const [result] = await db.insert(priceAlerts).values({
+      userId: alert.userId,
+      ticker: alert.ticker,
+      alertType: alert.alertType,
+      targetPrice: alert.targetPrice || null,
+      percentChange: alert.percentChange || null,
+      notificationMethod: alert.notificationMethod,
+      status: "active",
+      isActive: 1,
+    });
+
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to create price alert:", error);
+    throw error;
+  }
+}
+
+export async function getUserPriceAlerts(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const { priceAlerts } = await import("../drizzle/schema");
+    
+    const alerts = await db
+      .select()
+      .from(priceAlerts)
+      .where(eq(priceAlerts.userId, userId))
+      .orderBy(sql`${priceAlerts.createdAt} DESC`);
+
+    return alerts;
+  } catch (error) {
+    console.error("[Database] Failed to get user price alerts:", error);
+    return [];
+  }
+}
+
+export async function getActivePriceAlerts() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const { priceAlerts } = await import("../drizzle/schema");
+    
+    const alerts = await db
+      .select()
+      .from(priceAlerts)
+      .where(eq(priceAlerts.status, "active"))
+      .orderBy(sql`${priceAlerts.createdAt} DESC`);
+
+    return alerts;
+  } catch (error) {
+    console.error("[Database] Failed to get active price alerts:", error);
+    return [];
+  }
+}
+
+export async function updatePriceAlert(
+  id: number,
+  userId: number,
+  updates: {
+    targetPrice?: string;
+    percentChange?: string;
+    notificationMethod?: "email" | "whatsapp" | "both";
+    status?: "active" | "triggered" | "disabled";
+    isActive?: number;
+    lastTriggered?: Date;
+    triggeredAt?: Date;
+  }
+) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const { priceAlerts } = await import("../drizzle/schema");
+    
+    await db
+      .update(priceAlerts)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(priceAlerts.id, id), eq(priceAlerts.userId, userId)));
+
+    return { success: true };
+  } catch (error) {
+    console.error("[Database] Failed to update price alert:", error);
+    throw error;
+  }
+}
+
+export async function deletePriceAlert(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const { priceAlerts } = await import("../drizzle/schema");
+    
+    await db
+      .delete(priceAlerts)
+      .where(and(eq(priceAlerts.id, id), eq(priceAlerts.userId, userId)));
+
+    return { success: true };
+  } catch (error) {
+    console.error("[Database] Failed to delete price alert:", error);
+    throw error;
+  }
+}
+
+export async function togglePriceAlertStatus(id: number, userId: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const { priceAlerts } = await import("../drizzle/schema");
+    
+    await db
+      .update(priceAlerts)
+      .set({
+        isActive: isActive ? 1 : 0,
+        status: isActive ? "active" : "disabled",
+        updatedAt: new Date(),
+      })
+      .where(and(eq(priceAlerts.id, id), eq(priceAlerts.userId, userId)));
+
+    return { success: true };
+  } catch (error) {
+    console.error("[Database] Failed to toggle price alert status:", error);
+    throw error;
+  }
+}
+
+export async function markPriceAlertTriggered(id: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  try {
+    const { priceAlerts } = await import("../drizzle/schema");
+    
+    await db
+      .update(priceAlerts)
+      .set({
+        status: "triggered",
+        lastTriggered: new Date(),
+        triggeredAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(priceAlerts.id, id));
+
+    return { success: true };
+  } catch (error) {
+    console.error("[Database] Failed to mark price alert as triggered:", error);
+    throw error;
+  }
+}

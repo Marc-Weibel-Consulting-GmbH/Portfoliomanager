@@ -399,11 +399,17 @@ export const priceAlerts = mysqlTable("priceAlerts", {
   alertType: mysqlEnum("alertType", ["above_price", "below_price", "percent_change"]).notNull(),
   targetPrice: varchar("targetPrice", { length: 50 }), // For above_price and below_price
   percentChange: varchar("percentChange", { length: 50 }), // For percent_change (e.g., "5" for 5%)
+  notificationMethod: mysqlEnum("notificationMethod", ["email", "whatsapp", "both"]).notNull().default("email"),
+  status: mysqlEnum("status", ["active", "triggered", "disabled"]).notNull().default("active"),
   isActive: tinyint("isActive").notNull().default(1),
   lastTriggered: timestamp("lastTriggered"),
+  triggeredAt: timestamp("triggeredAt"), // When the alert was last triggered
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  userIdIdx: index("ix_price_alerts_userId").on(t.userId),
+  tickerIdx: index("ix_price_alerts_ticker").on(t.ticker),
+}));
 
 export type PriceAlert = typeof priceAlerts.$inferSelect;
 export type InsertPriceAlert = typeof priceAlerts.$inferInsert;
