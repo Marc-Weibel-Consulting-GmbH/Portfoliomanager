@@ -38,9 +38,9 @@ export default function Landing() {
                 </Link>
               </Button>
               <Button className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold" asChild>
-                <Link href="/onboarding">
+                <a href={getLoginUrl()}>
                   Jetzt starten
-                </Link>
+                </a>
               </Button>
             </div>
           </div>
@@ -62,9 +62,9 @@ export default function Landing() {
             </p>
             <div>
               <Button size="lg" className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-bold text-lg px-8 py-6 rounded-full" asChild>
-                <Link href="/onboarding">
+                <a href={getLoginUrl()}>
                   Kostenlos starten
-                </Link>
+                </a>
               </Button>
             </div>
           </div>

@@ -292,3 +292,50 @@
 - [ ] Error Handling und Loading States überprüfen
 - [ ] Vitest Unit Tests für kritische Backend-Funktionen schreiben
 - [ ] Checkpoint erstellen nach erfolgreichen Tests
+
+
+## Neue Anforderung: Authentifizierungsflow überarbeiten (27.12.2024)
+- [ ] "Jetzt starten" Button führt zur Manus OAuth-Anmeldung
+- [ ] Nach erfolgreicher Authentifizierung landen neue Benutzer direkt im Dashboard
+- [ ] Registrierungsformular entfernen oder optional machen
+- [ ] Auth-Flow vereinfachen: Login → Dashboard (ohne Zwischenschritte)
+
+
+## Klarstellung: Login vs. Registration (27.12.2024 - 19:00) ✅ ERLEDIGT
+- [x] **Login**: Für existierende Benutzer mit Zugangsdaten
+  - [x] Login-Formular mit Email/Passwort
+  - [ ] "Passwort vergessen" Funktion (kann später hinzugefügt werden)
+  - [x] Weiterleitung zum Dashboard nach erfolgreichem Login
+- [x] **Registration**: Für neue Benutzer
+  - [x] Registrierungsformular mit Email, Passwort, Name
+  - [ ] Email-Verifizierung (kann später hinzugefügt werden)
+  - [x] Automatischer Login nach erfolgreicher Registrierung
+  - [x] Weiterleitung zum Dashboard
+- [x] Beide Flows klar voneinander trennen in der UI
+- [x] Navigation zwischen Login und Registration ermöglichen
+
+
+## Implementierung: Login vs. Registration Trennung (27.12.2024 - 19:15) ✅ ERLEDIGT
+- [x] Login-Seite erstellen (/login)
+  - [x] Email/Passwort Eingabefelder
+  - [x] "Anmelden" Button
+  - [x] "Passwort vergessen?" Link (kann später hinzugefügt werden)
+  - [x] "Noch kein Konto? Jetzt registrieren" Link
+  - [x] Fehlerbehandlung für falsche Zugangsdaten
+- [x] Registrierungs-Seite erstellen (/register)
+  - [x] Name, Email, Passwort Eingabefelder
+  - [x] Passwort-Bestätigung (minLength: 6)
+  - [x] "Registrieren" Button
+  - [x] "Bereits registriert? Zum Login" Link
+  - [x] Email-Validierung
+  - [x] Passwort-Stärke-Anzeige (minLength Validierung)
+- [x] Backend Auth-Logik erweitern
+  - [x] Login-Prozedur (email/password verification)
+  - [x] Registration-Prozedur (create new user)
+  - [x] Password hashing (bcrypt)
+  - [x] Session management
+- [x] Navigation aktualisieren
+  - [x] "Login" Button führt zu /login
+  - [x] "Jetzt starten" / "Kostenlos starten" führt zu /register
+  - [x] Nach Login: Weiterleitung zu /dashboard
+  - [x] Nach Registration: Weiterleitung zu /dashboard

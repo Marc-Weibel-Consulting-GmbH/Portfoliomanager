@@ -21,7 +21,7 @@ interface AnnualPerformanceSummaryProps {
   onClose: () => void;
   summary: PerformanceSummary | null;
   isLoading: boolean;
-  error?: Error | null;
+  error?: { message: string } | null;
 }
 
 export default function AnnualPerformanceSummary({

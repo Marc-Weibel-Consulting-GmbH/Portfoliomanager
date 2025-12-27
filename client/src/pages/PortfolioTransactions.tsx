@@ -13,7 +13,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function PortfolioTransactions() {
   const [, params] = useRoute("/portfolio/:id/transactions");
-  const portfolioId = params?.id ? parseInt(params.id as string) : null;
+  const portfolioId = (params && params.id) ? parseInt((params as { id: string }).id) : null;
 
   const [searchTicker, setSearchTicker] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
