@@ -416,3 +416,17 @@
 ## Bug Fixes (Dec 27, 2025)
 - [x] Fix login redirect - after successful login, user should be redirected to dashboard instead of "Please sign in to continue" page
 - [x] Implement real news loading from APIs (Finnhub, EODHD) for portfolio stocks
+
+
+## Dashboard Enhancements (27.12.2024 - Neue Anforderungen)
+
+- [x] Add portfolio deletion functionality in dashboard
+- [x] Rename "Portfolio-Builder" to "Dashboard" in navigation
+- [x] Create detailed portfolio view with positions display
+- [x] Add donut charts for currency allocation
+- [x] Add donut charts for sector/industry allocation
+- [x] Show performance development for positions
+- [x] Display key metrics and statistics
+- [x] Create separate transactions page for live portfolios
+- [x] Implement horizontal navigation for portfolio details (Positionen / Transaktionen)
+- [x] Ensure demo and live portfolios show same initial view (positions)

@@ -32,7 +32,6 @@ import { FloatingChatButton } from "./FloatingChatButton";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Briefcase, label: "Portfolios", path: "/portfolios" },
   { icon: Activity, label: "Live-Tracking", path: "/live-tracking" },
   { icon: Newspaper, label: "Newsroom", path: "/newsroom" },
   { icon: Grid3x3, label: "Kategorien", path: "/categories" },

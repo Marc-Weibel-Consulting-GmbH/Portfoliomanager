@@ -247,13 +247,13 @@ export const portfoliosRouter = router({
     delete: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val.id;
+          return val as { id: number };
         }
         throw new Error("Invalid portfolio ID");
       })
       .mutation(async ({ input, ctx }) => {
         const { deleteSavedPortfolio } = await import("../db");
-        const success = await deleteSavedPortfolio(input, ctx.user.id);
+        const success = await deleteSavedPortfolio(input.id, ctx.user.id);
         if (!success) {
           throw new Error("Failed to delete portfolio");
         }

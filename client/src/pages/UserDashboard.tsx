@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   Plus,
   Zap,
+  Trash2,
 } from "lucide-react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -19,6 +20,20 @@ export default function UserDashboard() {
 
   // Fetch user portfolios
   const { data: portfolios, isLoading: portfoliosLoading } = trpc.savedPortfolios.list.useQuery();
+  const utils = trpc.useUtils();
+  const deletePortfolio = trpc.savedPortfolios.delete.useMutation({
+    onSuccess: () => {
+      utils.savedPortfolios.list.invalidate();
+    },
+  });
+
+  const handleDeletePortfolio = async (e: React.MouseEvent, portfolioId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm('Möchten Sie dieses Portfolio wirklich löschen?')) {
+      await deletePortfolio.mutateAsync({ id: portfolioId });
+    }
+  };
 
   // Mock data for dashboard
   const summaryCards = [
@@ -128,14 +143,21 @@ export default function UserDashboard() {
                 <div className="text-gray-400 text-center py-8">Portfolios werden geladen...</div>
               ) : portfolios && portfolios.length > 0 ? (
                 portfolios.map((portfolio) => (
-                  <Link key={portfolio.id} href={`/portfolio/${portfolio.id}`}>
-                    <div className="bg-[#0f1420]/50 border border-white/10 rounded-lg p-4 hover:border-[#00CFC1]/50 transition-all cursor-pointer">
+                  <Link key={portfolio.id} href={`/portfolio/${portfolio.id}/positions`}>
+                    <div className="bg-[#0f1420]/50 border border-white/10 rounded-lg p-4 hover:border-[#00CFC1]/50 transition-all cursor-pointer relative group">
+                      <button
+                        onClick={(e) => handleDeletePortfolio(e, portfolio.id)}
+                        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500"
+                        title="Portfolio löschen"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <div className="text-[#00CFC1] font-semibold text-lg">{portfolio.name}</div>
                           <div className="text-sm text-gray-400">{portfolio.description || "Portfolio"}</div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right mr-10">
                           <div className="text-white font-semibold">Value</div>
                           <div className="text-sm text-gray-400">CHF --</div>
                         </div>
