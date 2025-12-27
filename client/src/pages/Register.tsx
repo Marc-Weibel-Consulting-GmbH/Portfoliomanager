@@ -164,12 +164,7 @@ export default function Register() {
               </Button>
             </div>
 
-            <div className="text-center text-sm text-slate-400 pt-2">
-              Nach der Registrierung erhältst du Zugriff auf 1 Aktie pro Kategorie (13 von 63).
-              <br />
-              Für vollen Zugriff: <span className="text-blue-400 font-semibold">CHF 10.- einmalig</span>
-            </div>
-            
+
             <div className="text-center text-sm text-slate-400 pt-2 border-t border-slate-700 mt-4 pt-4">
               Bereits registriert?{" "}
               <a href="/login" className="text-blue-400 hover:text-blue-300 font-semibold">

@@ -387,3 +387,9 @@
 - [x] Routes in App.tsx hinzugefügt
 - [x] "Passwort vergessen?" Link auf Login-Seite hinzugefügt
 - [x] bcrypt für Password Hashing installiert
+
+
+## Neue Anforderung: Pricing-Info aus Registrierung entfernen (27.12.2024)
+- [x] Text "Nach der Registrierung erhältst du Zugriff auf 1 Aktie pro Kategorie (13 von 63)" aus Registrierung entfernen
+- [x] Text "Für vollen Zugriff: CHF 10.- einmalig" aus Registrierung entfernen
+- [x] Diese Informationen werden später auf separater Pricing-Seite angezeigt
