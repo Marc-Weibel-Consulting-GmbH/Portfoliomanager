@@ -16,10 +16,8 @@ export default function RealizedGainsHistory() {
     { enabled: !!portfolioId }
   );
 
-  const { data: portfolio } = trpc.savedPortfolios.getById.useQuery(
-    { id: portfolioId },
-    { enabled: !!portfolioId }
-  );
+  const { data: portfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const portfolio = portfolios.find((p: any) => p.id === portfolioId);
 
   if (isLoading) {
     return (

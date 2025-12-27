@@ -44,9 +44,9 @@ async function fetchTickerDividends(ticker: string): Promise<DividendEvent[]> {
         includeAdjustedClose: true,
         events: 'div'
       },
-    });
+    }) as any;
 
-    if (!response || !response.chart || !response.chart.result || response.chart.result.length === 0) {
+    if (!response?.chart?.result || response.chart.result.length === 0) {
       console.log(`[DividendCalendar] No data for ${ticker}`);
       return [];
     }

@@ -13,7 +13,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function PortfolioTransactions() {
   const [, params] = useRoute("/portfolio/:id/transactions");
-  const portfolioId = params?.id ? parseInt(params.id) : null;
+  const portfolioId = params?.id ? parseInt(params.id as string) : null;
 
   const [searchTicker, setSearchTicker] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
@@ -233,7 +233,7 @@ export default function PortfolioTransactions() {
                 ) : (
                   filteredAndSortedTransactions.map((tx: any) => {
                     const stock = allStocks.find((s: any) => s.ticker === tx.ticker);
-                    const stockName = stock?.name || tx.ticker;
+                    const stockName = stock?.companyName || tx.ticker;
 
                     return (
                       <tr key={tx.id} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
@@ -242,7 +242,7 @@ export default function PortfolioTransactions() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <StockLogo ticker={tx.ticker} size="sm" />
+                            <StockLogo ticker={tx.ticker} companyName={stockName} size="sm" />
                             <span className="font-medium text-white">{tx.ticker}</span>
                           </div>
                         </td>

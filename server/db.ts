@@ -572,7 +572,7 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
         console.log('[ToggleLive] Creating initial buy transactions for', stocks.length, 'positions');
         
         // Get historical prices for the live start date
-        const { historicalPrices, portfolioTransactions, stocks: stocksTable, fxRates } = await import("../drizzle/schema");
+        const { historicalPrices, portfolioTransactions, stocks: stocksTable } = await import("../drizzle/schema");
         const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
         
         // Create initial buy transaction for each position
@@ -672,7 +672,7 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
     .set({ 
       isLive: isLive ? 1 : 0,
       liveStartDate: liveStartDate,
-      livePerformance: isLive ? 0 : null,
+      livePerformance: isLive ? '0' : null,
       updatedAt: new Date()
     })
     .where(and(eq(savedPortfolios.id, id), eq(savedPortfolios.userId, userId)));

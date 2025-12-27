@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 export default function StockDetail() {
   const [match, params] = useRoute("/stock/:ticker");
-  const ticker = params?.ticker as string;
+  const ticker = (params?.ticker as string) || '';
 
   const { data: stock } = trpc.stocks.byTicker.useQuery(ticker, {
     enabled: !!ticker,

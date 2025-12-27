@@ -290,8 +290,8 @@ export const alertHistory = mysqlTable("alertHistory", {
   triggeredAt: timestamp("triggeredAt").defaultNow().notNull(),
 });
 
-export type RealizedGain = typeof realizedGains.$inferSelect;
-export type InsertRealizedGain = typeof realizedGains.$inferInsert;
+export type AlertHistory = typeof alertHistory.$inferSelect;
+export type InsertAlertHistory = typeof alertHistory.$inferInsert;
 
 // Exchange Rates Table (for currency conversion)
 export const exchangeRates = mysqlTable("exchangeRates", {

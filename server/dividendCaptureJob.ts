@@ -27,7 +27,7 @@ async function captureDividends() {
     const livePortfolios = await db
       .select()
       .from(savedPortfolios)
-      .where(eq(savedPortfolios.isLive, true));
+      .where(eq(savedPortfolios.isLive, 1));
     
     console.log(`[DividendCapture] Found ${livePortfolios.length} live portfolios`);
     
@@ -86,9 +86,7 @@ async function captureDividends() {
           const existing = await db
             .select()
             .from(portfolioTransactions)
-            .where(eq(portfolioTransactions.portfolioId, portfolio.id))
-            .where(eq(portfolioTransactions.ticker, ticker))
-            .where(eq(portfolioTransactions.transactionType, 'dividend'));
+            .where(eq(portfolioTransactions.portfolioId, portfolio.id));
           
           const alreadyRecorded = existing.some((tx: any) => {
             const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
