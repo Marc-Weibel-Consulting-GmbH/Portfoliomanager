@@ -642,9 +642,3 @@
 - [x] Style with dark theme and cyan accents
 - [x] Add CTA buttons (Kostenlos starten, Jetzt kaufen)
 - [x] Integrate Stripe payment flow for Premium upgrade
-
-
-## Navigation Fixes (Dec 28, 2025)
-- [x] Remove duplicate "Kategorien" and "Sektoren" from sidebar
-- [x] Keep only "Admin" in admin navigation section
-- [x] Create topbar navigation within Admin page for sub-sections

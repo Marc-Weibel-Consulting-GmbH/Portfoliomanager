@@ -330,20 +330,6 @@
       "when": 1766783209316,
       "tag": "0046_tense_starhawk",
       "breakpoints": true
-    },
-    {
-      "idx": 47,
-      "version": "5",
-      "when": 1766917238309,
-      "tag": "0047_curious_robin_chapel",
-      "breakpoints": true
-    },
-    {
-      "idx": 48,
-      "version": "5",
-      "when": 1766917302027,
-      "tag": "0048_absent_martin_li",
-      "breakpoints": true
     }
   ]
 }
