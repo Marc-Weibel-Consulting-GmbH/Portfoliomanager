@@ -8,6 +8,7 @@ import { Database, Plus, Edit, Trash2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { AdminTopbar } from "@/components/AdminTopbar";
 
 export default function AdminStocks() {
   const { user } = useAuth();
@@ -36,6 +37,7 @@ export default function AdminStocks() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <AdminTopbar />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">

@@ -7,6 +7,7 @@ import { DataQualityDashboard } from "../components/DataQualityDashboard";
 import { AlertManagement } from "../components/AlertManagement";
 import { Link } from "wouter";
 import { Breadcrumb } from "../components/Breadcrumb";
+import { AdminTopbar } from "../components/AdminTopbar";
 
 interface AdminProps {
   onBackClick?: () => void;
@@ -42,6 +43,9 @@ export function Admin({ onBackClick }: AdminProps) {
             )}
           </div>
         </div>
+
+        {/* Admin Navigation Tabs */}
+        <AdminTopbar />
 
         {/* System Management Category */}
         <div className="mb-8">

@@ -2,11 +2,13 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { AdminTopbar } from "@/components/AdminTopbar";
 
 export default function AdminCategories() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <AdminTopbar />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Kategorien-Verwaltung</h1>

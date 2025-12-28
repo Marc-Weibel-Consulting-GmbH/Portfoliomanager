@@ -3,11 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, Key } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AdminTopbar } from "@/components/AdminTopbar";
 
 export default function AdminSecretsManagement() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <AdminTopbar />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Secrets-Verwaltung</h1>
