@@ -734,3 +734,12 @@
 ## Status Update (28.12.2024 - 07:55)
 - [x] Preisangabe im Onboarding korrigiert - zeigt jetzt "10.- monatlich" statt "10.- einmalig"
 - [x] Onboarding-Loop behoben - completeOnboarding setzt jetzt beide Flags (hasCompletedOnboarding und hasSeenOnboarding)
+
+
+## Onboarding Loop Fix (28.12.2024 - 08:05)
+- [x] Onboarding-Loop Problem identifiziert - OnboardingWizard rief falschen Mutation-Endpoint auf
+- [x] OnboardingWizard.tsx korrigiert - verwendet jetzt trpc.onboarding.completeOnboarding statt trpc.auth.completeOnboarding
+- [x] Separate savePreferences und completeOnboarding Aufrufe implementiert
+- [x] Unit Tests für Onboarding-Flow erstellt und erfolgreich durchgeführt
+- [x] vitest.config.ts aktualisiert mit Alias-Resolution für @shared
+- [x] Onboarding-Loop endgültig behoben ✅

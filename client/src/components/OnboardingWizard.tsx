@@ -17,7 +17,8 @@ export default function OnboardingWizard() {
   const [riskTolerance, setRiskTolerance] = useState<RiskTolerance | null>(null);
   const [investmentHorizon, setInvestmentHorizon] = useState<InvestmentHorizon | null>(null);
 
-  const completeOnboardingMutation = trpc.auth.completeOnboarding.useMutation();
+  const completeOnboardingMutation = trpc.onboarding.completeOnboarding.useMutation();
+  const savePreferencesMutation = trpc.onboarding.savePreferences.useMutation();
 
   const totalSteps = 4;
 
@@ -36,11 +37,13 @@ export default function OnboardingWizard() {
   const handleSkip = async () => {
     try {
       // Set default values for skipped onboarding
-      await completeOnboardingMutation.mutateAsync({
+      await savePreferencesMutation.mutateAsync({
         investmentGoal: "balanced",
         riskTolerance: "medium",
         investmentHorizon: "medium",
       });
+      // Mark onboarding as completed
+      await completeOnboardingMutation.mutateAsync();
       setLocation("/dashboard");
     } catch (error) {
       console.error("Error skipping onboarding:", error);
@@ -55,11 +58,15 @@ export default function OnboardingWizard() {
         return;
       }
 
-      await completeOnboardingMutation.mutateAsync({
+      // Save preferences first
+      await savePreferencesMutation.mutateAsync({
         investmentGoal,
         riskTolerance,
         investmentHorizon,
       });
+
+      // Then mark onboarding as completed
+      await completeOnboardingMutation.mutateAsync();
 
       toast.success("Willkommen! Dein Profil wurde erstellt.");
       setLocation("/dashboard");
@@ -359,7 +366,7 @@ export default function OnboardingWizard() {
                   <Button
                     onClick={handleComplete}
                     className="w-full h-auto p-4 bg-teal-600 hover:bg-teal-700"
-                    disabled={completeOnboardingMutation.isPending || !investmentGoal || !riskTolerance || !investmentHorizon}
+                    disabled={completeOnboardingMutation.isPending || savePreferencesMutation.isPending || !investmentGoal || !riskTolerance || !investmentHorizon}
                   >
                     <div className="text-center">
                       <div className="font-semibold mb-1 flex items-center justify-center gap-2">
