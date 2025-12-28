@@ -123,7 +123,11 @@ export async function completeOnboarding(userId: number) {
     return;
   }
 
-  await db.update(users).set({ hasCompletedOnboarding: 1 }).where(eq(users.id, userId));
+  await db.update(users).set({ 
+    hasCompletedOnboarding: 1,
+    hasSeenOnboarding: 1,
+    updatedAt: new Date()
+  }).where(eq(users.id, userId));
 }
 
 // Stock queries

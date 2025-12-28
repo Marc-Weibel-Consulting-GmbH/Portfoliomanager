@@ -350,7 +350,7 @@ export default function OnboardingWizard() {
                           Unbegrenzte Portfolios, Live-Tracking mit IRR/MWR, Preisalarme (Email & WhatsApp), Dividendenkalender und mehr.
                         </p>
                         <p className="text-teal-400 font-semibold">
-                          Nur CHF 10.00 einmalig
+                          Nur CHF 10.00 monatlich
                         </p>
                       </div>
                     </div>

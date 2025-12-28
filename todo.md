@@ -725,3 +725,12 @@
 - [x] Responsive Design für Settings
 - [x] ProtectedRoute Component erstellt (für Route Guards)
 - [x] Registration.tsx TypeScript-Fehler behoben
+
+
+## Neue Bugs (28.12.2024)
+- [x] Onboarding-Loop beheben - Benutzer sehen Onboarding wiederholt
+- [x] Preisangabe im Onboarding korrigieren - muss "10.- monatlich" statt "10.- einmalig" anzeigen
+
+## Status Update (28.12.2024 - 07:55)
+- [x] Preisangabe im Onboarding korrigiert - zeigt jetzt "10.- monatlich" statt "10.- einmalig"
+- [x] Onboarding-Loop behoben - completeOnboarding setzt jetzt beide Flags (hasCompletedOnboarding und hasSeenOnboarding)
