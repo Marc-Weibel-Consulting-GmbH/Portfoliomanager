@@ -1030,7 +1030,7 @@ export const appRouter = router({
 
   // Extracted large routers
   stocks: stocksRouter,
-  savedPortfolios: portfoliosRouter,
+  portfolios: portfoliosRouter,
   portfolioPerformance: portfolioPerformanceRouter,
   admin: adminRouter,
   weeklyOverview: weeklyOverviewRouter,

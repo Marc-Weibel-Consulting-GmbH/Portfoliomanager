@@ -47,7 +47,7 @@ export default function PortfolioDashboard({ onCreateNew }: PortfolioDashboardPr
   const [editDescription, setEditDescription] = useState('');
 
   // Fetch all portfolios
-  const { data: portfolios = [], refetch: refetchPortfolios } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [], refetch: refetchPortfolios } = trpc.portfolios.list.useQuery();
   
   // Get selected portfolio or default to first
   const selectedPortfolio = useMemo(() => {
@@ -58,7 +58,7 @@ export default function PortfolioDashboard({ onCreateNew }: PortfolioDashboardPr
   }, [selectedPortfolioId, portfolios]);
 
   // Mutations
-  const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation({
+  const toggleLiveMutation = trpc.portfolios.toggleLive.useMutation({
     onSuccess: () => {
       refetchPortfolios();
       toast.success('Modus geändert');
@@ -68,7 +68,7 @@ export default function PortfolioDashboard({ onCreateNew }: PortfolioDashboardPr
     },
   });
 
-  const updatePortfolioMutation = trpc.savedPortfolios.update.useMutation({
+  const updatePortfolioMutation = trpc.portfolios.update.useMutation({
     onSuccess: () => {
       refetchPortfolios();
       toast.success('Portfolio aktualisiert');

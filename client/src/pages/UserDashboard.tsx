@@ -37,11 +37,11 @@ export default function UserDashboard() {
   const { user } = useAuth();
 
   // Fetch user portfolios
-  const { data: portfolios, isLoading: portfoliosLoading } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios, isLoading: portfoliosLoading } = trpc.portfolios.list.useQuery();
   const utils = trpc.useUtils();
-  const deletePortfolio = trpc.savedPortfolios.delete.useMutation({
+  const deletePortfolio = trpc.portfolios.delete.useMutation({
     onSuccess: () => {
-      utils.savedPortfolios.list.invalidate();
+      utils.portfolios.list.invalidate();
     },
   });
 

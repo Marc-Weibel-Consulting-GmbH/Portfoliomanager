@@ -27,7 +27,7 @@ export default function PortfolioComparison() {
   const [selectedPortfolios, setSelectedPortfolios] = useState<number[]>([]);
 
   // Fetch all portfolios
-  const { data: portfolios = [], isLoading } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [], isLoading } = trpc.portfolios.list.useQuery();
 
   // Fetch comparison data for selected portfolios
   const { data: comparisonData } = trpc.portfolioComparison.compare.useQuery(

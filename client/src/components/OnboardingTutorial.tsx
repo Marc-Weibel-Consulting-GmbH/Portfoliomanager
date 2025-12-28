@@ -194,7 +194,7 @@ export default function OnboardingTutorial({ open, onClose }: OnboardingTutorial
       await createDemoPortfolio.mutateAsync();
       
       // Invalidate queries to refresh data
-      await utils.savedPortfolios.list.invalidate();
+      await utils.portfolios.list.invalidate();
       
       onClose();
     } catch (error) {

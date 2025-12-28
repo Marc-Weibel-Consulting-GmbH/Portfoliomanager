@@ -9,7 +9,7 @@ import { useState } from "react";
 export default function DividendCalendar() {
   const { user } = useAuth();
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
-  const { data: savedPortfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   const { data: dividendData, isLoading } = trpc.dividendCalendar.calendar.useQuery(
     { portfolioId: selectedPortfolioId! },
     { enabled: !!selectedPortfolioId }
@@ -19,7 +19,7 @@ export default function DividendCalendar() {
     return null;
   }
 
-  const livePortfolios = savedPortfolios.filter((p: any) => p.isLive);
+  const livePortfolios = portfolios.filter((p: any) => p.isLive);
 
   return (
     <DashboardLayout>

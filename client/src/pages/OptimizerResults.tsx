@@ -169,7 +169,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     },
   });
 
-  const saveMutation = trpc.savedPortfolios.create.useMutation({
+  const saveMutation = trpc.portfolios.create.useMutation({
     onSuccess: () => {
       toast.success('Portfolio erfolgreich gespeichert!');
       setShowSaveDialog(false);
@@ -183,7 +183,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     },
   });
 
-  const updateMutation = trpc.savedPortfolios.update.useMutation({
+  const updateMutation = trpc.portfolios.update.useMutation({
     onSuccess: (data, variables) => {
       // Only show toast if it's a manual save (from dialog)
       if (!variables.isAutoSave) {
@@ -201,7 +201,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     },
   });
 
-  const { data: savedPortfolios = [], refetch: refetchPortfolios } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [], refetch: refetchPortfolios } = trpc.portfolios.list.useQuery();
   
   // Track if this is the first change to trigger save dialog for new portfolios
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -216,7 +216,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
     }
   }, [selectedPortfolioId]);
   
-  const loadMutation = trpc.savedPortfolios.delete.useMutation({
+  const loadMutation = trpc.portfolios.delete.useMutation({
     onSuccess: () => {
       refetchPortfolios();
       toast.success('Portfolio gelöscht!');
@@ -1039,7 +1039,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
       };
       
       // Find the current portfolio to get its name
-      const currentPortfolio = savedPortfolios.find(p => p.id.toString() === selectedPortfolioId);
+      const currentPortfolio = portfolios.find(p => p.id.toString() === selectedPortfolioId);
       if (currentPortfolio) {
         console.log('[AutoSave] Saving portfolio:', currentPortfolio.name, 'ID:', selectedPortfolioId);
         console.log('[AutoSave] Total positions:', editablePositions.length);
@@ -1052,7 +1052,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
           isAutoSave: true,
         });
       } else {
-        console.warn('[AutoSave] Portfolio not found in savedPortfolios, ID:', selectedPortfolioId);
+        console.warn('[AutoSave] Portfolio not found in portfolios, ID:', selectedPortfolioId);
       }
     }, 1000); // 1 second debounce
     
@@ -1334,7 +1334,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     setEditablePositions(null);
                     toast.info('Aktuelles optimiertes Portfolio angezeigt');
                   } else {
-                    const portfolio = savedPortfolios.find((p: any) => p.id.toString() === value);
+                    const portfolio = portfolios.find((p: any) => p.id.toString() === value);
                     if (portfolio) {
                       try {
                         const data = JSON.parse(portfolio.portfolioData);
@@ -1406,7 +1406,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   <SelectItem value="current" className="text-white hover:bg-slate-600">
                     🎯 Aktuelles Portfolio
                   </SelectItem>
-                  {savedPortfolios.map((portfolio: any) => (
+                  {portfolios.map((portfolio: any) => (
                     <SelectItem 
                       key={portfolio.id} 
                       value={portfolio.id.toString()}
@@ -1559,7 +1559,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   formatter={(value) => {
                     if (value === 'portfolio') {
                       const portfolioName = selectedPortfolioId 
-                        ? savedPortfolios.find(p => p.id.toString() === selectedPortfolioId)?.name
+                        ? portfolios.find(p => p.id.toString() === selectedPortfolioId)?.name
                         : null;
                       return portfolioName || 'Portfolio';
                     }
@@ -1594,17 +1594,17 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-white">
             {selectedPortfolioId 
-              ? savedPortfolios.find(p => p.id.toString() === selectedPortfolioId)?.name || 'Optimiertes Portfolio'
+              ? portfolios.find(p => p.id.toString() === selectedPortfolioId)?.name || 'Optimiertes Portfolio'
               : 'Optimiertes Portfolio'
             }
           </CardTitle>
           <div className="flex gap-2 items-center flex-wrap">
-            {savedPortfolios && savedPortfolios.length > 0 && (
+            {portfolios && portfolios.length > 0 && (
               <Select
                 value={selectedPortfolioId || ""}
                 onValueChange={async (value) => {
                   console.log('[Portfolio Load] Starting load, value:', value);
-                  const portfolio = savedPortfolios.find(p => p.id.toString() === value);
+                  const portfolio = portfolios.find(p => p.id.toString() === value);
                   if (portfolio) {
                     console.log('[Portfolio Load] Found portfolio:', portfolio.name, 'ID:', value);
                     setSelectedPortfolioId(value);
@@ -1687,7 +1687,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                   <SelectValue placeholder="Portfolio wählen..." />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
-                  {savedPortfolios.map((portfolio) => (
+                  {portfolios.map((portfolio) => (
                     <SelectItem 
                       key={portfolio.id} 
                       value={portfolio.id.toString()}
@@ -1995,7 +1995,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                 onClick={() => {
                   // Check for duplicate names (only when saving as new)
                   const trimmedName = portfolioName.trim();
-                  const isDuplicate = savedPortfolios.some(p => 
+                  const isDuplicate = portfolios.some(p => 
                     p.name.toLowerCase() === trimmedName.toLowerCase() && 
                     p.id.toString() !== selectedPortfolioId
                   );
@@ -2055,10 +2055,10 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
             <DialogTitle>Portfolio laden</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 max-h-96 overflow-y-auto">
-            {savedPortfolios.length === 0 ? (
+            {portfolios.length === 0 ? (
               <p className="text-slate-400 text-center py-8">Keine gespeicherten Portfolios gefunden.</p>
             ) : (
-              savedPortfolios.map((portfolio: any) => (
+              portfolios.map((portfolio: any) => (
                 <div key={portfolio.id} className="bg-slate-700 p-3 rounded-lg border border-slate-600">
                   <div className="flex justify-between items-start gap-3">
                     <div className="flex-1 min-w-0">

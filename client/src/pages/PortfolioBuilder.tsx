@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 export default function PortfolioBuilder() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: savedPortfolios = [], refetch } = trpc.savedPortfolios.list.useQuery();
-  const deleteMutation = trpc.savedPortfolios.delete.useMutation();
+  const { data: portfolios = [], refetch } = trpc.portfolios.list.useQuery();
+  const deleteMutation = trpc.portfolios.delete.useMutation();
 
   if (!user) {
     return null;
@@ -62,7 +62,7 @@ export default function PortfolioBuilder() {
         </div>
 
         {/* Portfolio Grid */}
-        {savedPortfolios.length === 0 ? (
+        {portfolios.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="rounded-full bg-muted p-4 mb-4">
@@ -80,7 +80,7 @@ export default function PortfolioBuilder() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {savedPortfolios.map((portfolio: any) => {
+            {portfolios.map((portfolio: any) => {
               const data = JSON.parse(portfolio.portfolioData);
               const stocks = data.stocks || [];
               const totalValue = stocks.reduce((sum: number, stock: any) => {

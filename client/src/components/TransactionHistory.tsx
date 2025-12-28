@@ -41,7 +41,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
     onSuccess: () => {
       toast.success("Transaktion storniert");
       utils.portfolioTransactions.list.invalidate({ portfolioId });
-      utils.savedPortfolios.get.invalidate({ id: portfolioId });
+      utils.portfolios.get.invalidate(portfolioId);
     },
     onError: (error) => {
       toast.error(`Fehler beim Stornieren: ${error.message}`);
@@ -52,7 +52,7 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
     onSuccess: () => {
       toast.success("Transaktion aktualisiert");
       utils.portfolioTransactions.list.invalidate({ portfolioId });
-      utils.savedPortfolios.get.invalidate({ id: portfolioId });
+      utils.portfolios.get.invalidate(portfolioId);
       setEditingTransaction(null);
     },
     onError: (error) => {

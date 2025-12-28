@@ -14,7 +14,7 @@ export default function PortfolioPositions() {
   const portfolioId = params?.id ? parseInt(params.id as string) : null;
 
   // Fetch portfolio details
-  const { data: portfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   const portfolio = portfolios.find((p: any) => p.id === portfolioId);
 
   // Fetch transactions
@@ -27,8 +27,8 @@ export default function PortfolioPositions() {
   const { data: allStocks = [] } = trpc.stocks.getAll.useQuery();
 
   // Fetch CHF-converted holdings with performance
-  const { data: chfHoldings = [] } = trpc.savedPortfolios.getHoldingsWithChfPerformance.useQuery(
-    { id: portfolioId! },
+  const { data: chfHoldings = [] } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
+    portfolioId!,
     { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
 

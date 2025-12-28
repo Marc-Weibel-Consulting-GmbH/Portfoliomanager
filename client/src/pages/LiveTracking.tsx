@@ -10,10 +10,10 @@ import { useMemo } from "react";
 export default function LiveTracking() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: savedPortfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
 
   // Filter only LIVE portfolios
-  const livePortfolios = savedPortfolios.filter((p: any) => p.isLive);
+  const livePortfolios = portfolios.filter((p: any) => p.isLive);
 
   if (!user) {
     return null;
@@ -61,13 +61,13 @@ export default function LiveTracking() {
 }
 
 function LivePortfolioCard({ portfolio, onNavigate }: { portfolio: any; onNavigate: () => void }) {
-  const { data: livePerformance } = trpc.savedPortfolios.calculateLivePerformance.useQuery(
-    { id: portfolio.id },
+  const { data: livePerformance } = trpc.portfolios.calculateLivePerformance.useQuery(
+    portfolio.id,
     { enabled: !!portfolio.isLive }
   );
 
-  const { data: chfHoldings = [] } = trpc.savedPortfolios.getHoldingsWithChfPerformance.useQuery(
-    { id: portfolio.id },
+  const { data: chfHoldings = [] } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
+    portfolio.id,
     { enabled: !!portfolio.isLive }
   );
 

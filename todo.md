@@ -925,3 +925,19 @@
 - [x] Quick-Actions (Transaktion hinzufügen, Alarm erstellen, Bearbeiten, Löschen)
 - [x] Zurück zum Dashboard Button
 - [x] Routes in App.tsx hinzugefügt (/portfolios/create, /portfolios/:id)
+
+
+## UI/UX Enhancements (28.12.2024)
+- [ ] Improve typography - larger, bolder, more readable text throughout application
+- [ ] Modernize UI design and improve user flow
+- [ ] Make stock price input auto-fill with current price when adding stocks
+- [ ] Display stock logos in selection dropdown and portfolio list
+- [ ] Build premium wizard for automatic portfolio creation based on investment amount
+
+
+## Progress Update (28.12.2024 - 09:07)
+- [x] Fixed TypeScript errors (reduced from 110 to 69)
+- [x] Updated typography for better readability
+- [ ] Implement automatic stock price fetching (in progress)
+- [ ] Display stock logos in selection dropdown and portfolio list
+- [ ] Build premium wizard for automatic portfolio creation

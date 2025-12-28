@@ -18,7 +18,7 @@ export default function PortfolioOptimizer() {
   const [targetReturn, setTargetReturn] = useState<string>("10");
   const [maxRisk, setMaxRisk] = useState<string>("15");
   
-  const { data: savedPortfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   const optimizeMutation = trpc.portfolio.optimize.useMutation({
     onSuccess: (data) => {
       toast.success("Optimierung abgeschlossen", {
@@ -79,7 +79,7 @@ export default function PortfolioOptimizer() {
                     <SelectValue placeholder="Portfolio wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {savedPortfolios.map((p: any) => (
+                    {portfolios.map((p: any) => (
                       <SelectItem key={p.id} value={p.id.toString()}>
                         {p.name} ({JSON.parse(p.portfolioData).stocks?.length || 0} Aktien)
                       </SelectItem>

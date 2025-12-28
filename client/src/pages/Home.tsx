@@ -118,8 +118,8 @@ async function analyzePortfolioMarket(stocks: any[]) {
 
 // Load Portfolio Content Component
 function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
-  const { data: savedPortfolios = [], refetch } = trpc.savedPortfolios.list.useQuery();
-  const deleteMutation = trpc.savedPortfolios.delete.useMutation();
+  const { data: portfolios = [], refetch } = trpc.portfolios.list.useQuery();
+  const deleteMutation = trpc.portfolios.delete.useMutation();
   const { refetch: refetchStocks } = trpc.stocks.list.useQuery();
 
   const handleLoad = async (portfolio: any) => {
@@ -156,7 +156,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
     }
   };
 
-  if (savedPortfolios.length === 0) {
+  if (portfolios.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <p>Keine gespeicherten Portfolios gefunden.</p>
@@ -167,7 +167,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="space-y-6 max-h-[600px] overflow-y-auto">
-      {savedPortfolios.map((portfolio: any) => {
+      {portfolios.map((portfolio: any) => {
         const data = JSON.parse(portfolio.portfolioData);
         const stocks = data.stocks || [];
         
@@ -396,11 +396,11 @@ export default function Home() {
   const [editPortfolioDescription, setEditPortfolioDescription] = useState('');
   
   // Query for saved portfolios - MUST be at top level (not conditional)
-  const { data: savedPortfoliosData = [], refetch: refetchSavedPortfolios } = trpc.savedPortfolios.list.useQuery();
-  const deletePortfolioMutation = trpc.savedPortfolios.delete.useMutation();
-  const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation();
-  const updateLiveStartDateMutation = trpc.savedPortfolios.updateLiveStartDate.useMutation();
-  const updatePortfolioMutation = trpc.savedPortfolios.update.useMutation({
+  const { data: portfoliosData = [], refetch: refetchSavedPortfolios } = trpc.portfolios.list.useQuery();
+  const deletePortfolioMutation = trpc.portfolios.delete.useMutation();
+  const toggleLiveMutation = trpc.portfolios.toggleLive.useMutation();
+  const updateLiveStartDateMutation = trpc.portfolios.updateLiveStartDate.useMutation();
+  const updatePortfolioMutation = trpc.portfolios.update.useMutation({
     onSuccess: () => {
       refetchSavedPortfolios();
       toast.success('Portfolio aktualisiert');
@@ -410,7 +410,7 @@ export default function Home() {
       toast.error('Fehler beim Aktualisieren: ' + error.message);
     },
   });
-  const savePortfolioMutation = trpc.savedPortfolios.create.useMutation({
+  const savePortfolioMutation = trpc.portfolios.create.useMutation({
     onSuccess: () => {
       refetchSavedPortfolios();
     },
@@ -1841,7 +1841,7 @@ export default function Home() {
     }
 
     // Show portfolio selection if user has saved portfolios and hasn't started questionnaire
-    if (!optimizerInputs && savedPortfoliosData.length > 0) {
+    if (!optimizerInputs && portfoliosData.length > 0) {
       return (
         <div className="min-h-screen bg-slate-900 p-8">
           <div className="max-w-5xl mx-auto">
@@ -1850,7 +1850,7 @@ export default function Home() {
                 <div className="flex-1"></div>
                 <h1 className="text-4xl font-bold text-white">Portfolio Optimizer</h1>
                 <div className="flex-1 flex justify-end">
-                  {savedPortfoliosData.length >= 2 && (
+                  {portfoliosData.length >= 2 && (
                     <Button
                       onClick={() => setLocation("/portfolio-comparison")}
                       variant="outline"
@@ -1866,7 +1866,7 @@ export default function Home() {
             </div>
 
             <div className="grid gap-6 mb-8">
-              {savedPortfoliosData.map((portfolio: any) => (
+              {portfoliosData.map((portfolio: any) => (
                 <Card key={portfolio.id} className="bg-slate-800 border-border hover:border-blue-500 transition-colors">
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -2166,7 +2166,7 @@ export default function Home() {
                       
                       // Check for duplicate names
                       const trimmedName = editPortfolioName.trim();
-                      const isDuplicate = savedPortfoliosData.some(p => 
+                      const isDuplicate = portfoliosData.some(p => 
                         p.name.toLowerCase() === trimmedName.toLowerCase() && 
                         p.id !== editingPortfolio.id
                       );

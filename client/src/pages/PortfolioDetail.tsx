@@ -42,8 +42,8 @@ export default function PortfolioDetail() {
     onSuccess: (data) => {
       toast.success(`${data.deletedCount} Initial-Transaktionen erfolgreich gelöscht`);
       utils.portfolioTransactions.list.invalidate();
-      utils.savedPortfolios.list.invalidate();
-      utils.savedPortfolios.calculateLivePerformance.invalidate();
+      utils.portfolios.list.invalidate();
+      utils.portfolios.calculateLivePerformance.invalidate();
       setShowDeleteConfirm(false);
     },
     onError: (error) => {
@@ -52,7 +52,7 @@ export default function PortfolioDetail() {
   });
 
   // Fetch portfolio details
-  const { data: portfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   const portfolio = portfolios.find((p: any) => p.id === portfolioId);
 
   // Fetch transactions
@@ -65,14 +65,14 @@ export default function PortfolioDetail() {
   const { data: allStocks = [] } = trpc.stocks.getAll.useQuery();
 
   // Fetch live performance if portfolio is live
-  const { data: livePerformance } = trpc.savedPortfolios.calculateLivePerformance.useQuery(
-    { id: portfolioId! },
+  const { data: livePerformance } = trpc.portfolios.calculateLivePerformance.useQuery(
+    portfolioId!,
     { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
 
   // Fetch CHF-converted holdings with performance
-  const { data: chfHoldings = [] } = trpc.savedPortfolios.getHoldingsWithChfPerformance.useQuery(
-    { id: portfolioId! },
+  const { data: chfHoldings = [] } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
+    portfolioId!,
     { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
   
@@ -176,9 +176,9 @@ export default function PortfolioDetail() {
   }, [transactions, holdingsByTicker, chfHoldings, portfolio?.isLive]);
 
   // Toggle live mutation
-  const toggleLiveMutation = trpc.savedPortfolios.toggleLive.useMutation({
+  const toggleLiveMutation = trpc.portfolios.toggleLive.useMutation({
     onSuccess: () => {
-      utils.savedPortfolios.list.invalidate();
+      utils.portfolios.list.invalidate();
       toast.success("Status aktualisiert");
     },
     onError: () => {
@@ -187,10 +187,10 @@ export default function PortfolioDetail() {
   });
 
   // Update live start date mutation
-  const updateLiveStartDateMutation = trpc.savedPortfolios.updateLiveStartDate.useMutation({
+  const updateLiveStartDateMutation = trpc.portfolios.updateLiveStartDate.useMutation({
     onSuccess: () => {
-      utils.savedPortfolios.list.invalidate();
-      utils.savedPortfolios.calculateLivePerformance.invalidate();
+      utils.portfolios.list.invalidate();
+      utils.portfolios.calculateLivePerformance.invalidate();
       toast.success("Live-Start-Datum aktualisiert");
     },
     onError: () => {
@@ -945,7 +945,7 @@ export default function PortfolioDetail() {
           }))}
           onSuccess={() => {
             utils.portfolioTransactions.list.invalidate();
-            utils.savedPortfolios.list.invalidate();
+            utils.portfolios.list.invalidate();
           }}
         />
       )}

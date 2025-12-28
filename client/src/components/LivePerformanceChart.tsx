@@ -33,8 +33,8 @@ interface LivePerformanceChartProps {
 
 export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerformanceChartProps) {
   // Fetch historical performance data from backend
-  const { data: historyData, isLoading } = trpc.savedPortfolios.getLivePerformanceHistory.useQuery(
-    { id: portfolioId },
+  const { data: historyData, isLoading } = trpc.portfolios.getLivePerformanceHistory.useQuery(
+    portfolioId,
     { enabled: !!portfolioId }
   );
 

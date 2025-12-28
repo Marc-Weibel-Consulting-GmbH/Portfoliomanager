@@ -45,9 +45,9 @@ export default function PortfolioDetailsPage() {
   const portfolioId = parseInt(params.id as string);
   
   // Fetch portfolio data
-  const { data: portfolio, isLoading } = trpc.savedPortfolios.getById.useQuery(portfolioId);
-  const { data: allPortfolios } = trpc.savedPortfolios.list.useQuery();
-  const deletePortfolio = trpc.savedPortfolios.delete.useMutation();
+  const { data: portfolio, isLoading } = trpc.portfolios.getById.useQuery(portfolioId);
+  const { data: allPortfolios } = trpc.portfolios.list.useQuery();
+  const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
   
   const [selectedPeriod, setSelectedPeriod] = useState("6M");

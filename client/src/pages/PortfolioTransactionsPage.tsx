@@ -14,7 +14,7 @@ export default function PortfolioTransactionsPage() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
   // Fetch portfolio details
-  const { data: portfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   const portfolio = portfolios.find((p: any) => p.id === portfolioId);
 
   // Fetch transactions

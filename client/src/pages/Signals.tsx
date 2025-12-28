@@ -17,7 +17,7 @@ export default function Signals() {
   const [signalTypeFilter, setSignalTypeFilter] = useState<SignalType>("all");
   const [strengthFilter, setStrengthFilter] = useState<SignalStrength>("all");
 
-  const { data: savedPortfolios = [] } = trpc.savedPortfolios.list.useQuery();
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   const { data: signals, isLoading } = trpc.signals.generate.useQuery(
     { portfolioId: selectedPortfolioId! },
     { enabled: !!selectedPortfolioId }
@@ -86,7 +86,7 @@ export default function Signals() {
                     <SelectValue placeholder="Portfolio wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {savedPortfolios.map((p: any) => (
+                    {portfolios.map((p: any) => (
                       <SelectItem key={p.id} value={p.id.toString()}>
                         {p.name}
                       </SelectItem>
