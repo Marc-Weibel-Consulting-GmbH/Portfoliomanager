@@ -78,6 +78,30 @@ export default function Step1Basics({ state, updateState }: Step1BasicsProps) {
               className="bg-[#0a0f1a] border-white/10 text-white min-h-[100px]"
             />
           </div>
+
+          {/* Initial Capital */}
+          <div className="space-y-2">
+            <Label htmlFor="initialCapital" className="text-white">
+              Startkapital (CHF) *
+            </Label>
+            <Input
+              id="initialCapital"
+              type="number"
+              placeholder="z.B. 100000"
+              value={state.initialCapital || ''}
+              onChange={(e) => updateState({ initialCapital: parseFloat(e.target.value) || 0 })}
+              className="bg-[#0a0f1a] border-white/10 text-white"
+            />
+            {state.initialCapital > 0 && state.initialCapital < 10000 && (
+              <p className="text-xs text-red-400">Mindestens CHF 10'000 für ETF-Portfolios</p>
+            )}
+            {state.initialCapital >= 10000 && state.initialCapital < 100000 && (
+              <p className="text-xs text-yellow-400">Für Einzeltitel-Portfolios wird CHF 100'000 empfohlen</p>
+            )}
+            {state.initialCapital >= 100000 && (
+              <p className="text-xs text-green-400">✓ Ausreichend für diversifiziertes Einzeltitel-Portfolio</p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

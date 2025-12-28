@@ -978,3 +978,51 @@
 - [x] Added "Geplant" status badge for positions without transactions
 - [x] Fixed null safety issues for stock metrics (currentPrice, ytdPerformance, etc.)
 - [x] Route registered in App.tsx: /portfolio-builder/new
+
+
+## Portfolio Detail Page Redesign (Dec 28, 2025 - 17:30)
+
+### Phase 1: Portfolio Builder Extensions
+- [x] Add capital input field in Step 1 (Grundlagen)
+- [x] Validation: Min. CHF 100'000 for stock portfolios, CHF 10'000 for ETF portfolios
+- [x] Store initialCapital in portfolio data
+- [ ] Update Step 2 to show only CHF values (hide foreign currency) - DEFERRED to activation
+- [ ] Calculate shares based on capital and weight - DEFERRED to activation
+
+### Phase 2: FX Rate Integration
+- [x] Create FX rate service (server/fxRates.ts)
+- [x] Fetch live rates from EODHD or Finnhub (USD/CHF, EUR/CHF)
+- [x] Implement caching for FX rates (5-minute cache)
+- [x] Add tRPC procedure: fxRates.getRate(from, to)
+- [x] Add tRPC procedures: fxRates.convert, fxRates.getMultiple
+- [ ] Update share calculation to use live FX rates - DEFERRED to activation
+- [ ] Test FX conversion accuracy - DEFERRED to activation
+
+### Phase 3: Portfolio Detail Page Redesign (Match Mockup)
+- [ ] Large performance chart at top (6 months, Portfolio vs Benchmark)
+- [ ] Benchmark selector dropdown (SMI, S&P 500, MSCI World, NASDAQ)
+- [ ] Key metrics cards: IRR, Dividendenrendite, Beta, Volatilität, Sharpe Ratio
+- [ ] Holdings table with stock logos, showing both foreign currency and CHF
+- [ ] Donut chart for allocation (by stock, by sector, by category tabs)
+- [ ] "Letzte Transaktionen" section (preview of 3-5 latest)
+- [ ] Quick action buttons: Bearbeiten, Löschen, Teilen, Neue Transaktion, Alarm erstellen
+- [ ] Responsive design for mobile
+
+### Phase 4: Portfolio Activation Flow
+- [ ] Add "Geplant" badge to planned portfolios
+- [ ] Add prominent "Portfolio aktivieren" CTA button
+- [ ] Create activation modal with confirmation
+- [ ] Implement automatic transaction creation based on weights and capital
+- [ ] Transaction date: default to today, editable later
+- [ ] Transition portfolio from "planned" to "live" status
+- [ ] Update portfolio detail view to show live data after activation
+
+### Phase 5: Testing & Quality Assurance
+- [ ] Test capital input validation
+- [ ] Test FX rate fetching and caching
+- [ ] Test share calculation with different currencies
+- [ ] Test portfolio activation flow end-to-end
+- [ ] Test portfolio detail page with planned portfolio
+- [ ] Test portfolio detail page with live portfolio
+- [ ] Test benchmark switching
+- [ ] Create checkpoint after successful testing

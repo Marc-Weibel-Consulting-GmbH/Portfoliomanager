@@ -27,6 +27,7 @@ export interface PortfolioBuilderState {
   description: string;
   strategy: 'growth' | 'dividends' | 'balanced' | '';
   investmentHorizon: 'short' | 'medium' | 'long' | '';
+  initialCapital: number;
   positions: Position[];
 }
 
@@ -47,6 +48,7 @@ export default function PortfolioBuilderNew() {
     description: "",
     strategy: "",
     investmentHorizon: "",
+    initialCapital: 0,
     positions: [],
   });
 
@@ -58,7 +60,7 @@ export default function PortfolioBuilderNew() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return state.portfolioName.length >= 3 && state.strategy && state.investmentHorizon;
+        return state.portfolioName.length >= 3 && state.strategy && state.investmentHorizon && state.initialCapital >= 10000;
       case 2:
         return state.positions.filter(p => p.type === 'stock').length >= 3 && Math.abs(totalWeight - 100) < 0.01;
       case 3:
