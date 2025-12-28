@@ -295,7 +295,10 @@
 - [ ] Alerts Liste mit Status Indicators und Management Actions
 - [ ] Responsive Design
 
-### Testing & Quality Assurance
+### Landing Page Verbesserungen (28.12.2024)
+- [x] Portfolio-Grafik durch bereitgestelltes Dashboard-Bild ersetzen
+
+## Testing & Quality Assurance
 - [ ] Portfolio Builder Wizard End-to-End testen
 - [ ] Portfolio Detail View mit echten Daten testen
 - [ ] Price Alerts Creation und Triggering testen

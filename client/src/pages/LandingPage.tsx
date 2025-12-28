@@ -104,120 +104,14 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Right Column - Portfolio Dashboard Mockup */}
+          {/* Right Column - Portfolio Dashboard Image */}
           <div className="relative">
-            {/* Main Dashboard Card with exact mockup styling */}
-            <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-slate-700/30 rounded-3xl p-8 shadow-2xl">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <span className="text-white font-semibold text-lg">Portfolio</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">JD</span>
-                  </div>
-                  <button className="w-9 h-9 rounded-full bg-slate-700/50 flex items-center justify-center hover:bg-slate-700 transition-colors">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Portfolio Value */}
-              <div className="mb-8">
-                <div className="flex items-baseline gap-3 mb-2">
-                  <div className="text-4xl font-bold text-white">CHF 235'000.50</div>
-                  <div className="text-sm font-semibold text-teal-400 bg-teal-500/10 px-3 py-1 rounded-full">
-                    +4.5%
-                  </div>
-                </div>
-              </div>
-
-              {/* Performance Chart & Asset Allocation Grid */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                {/* Performance Chart */}
-                <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/30">
-                  <div className="text-xs text-slate-400 mb-3 font-medium">Performance YTD</div>
-                  <div className="h-32 bg-gradient-to-t from-teal-500/10 to-transparent rounded-xl relative overflow-hidden">
-                    <svg className="w-full h-full" viewBox="0 0 400 120" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.4" />
-                          <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M0,90 L40,85 L80,78 L120,72 L160,65 L200,55 L240,48 L280,42 L320,38 L360,35 L400,30"
-                        fill="none"
-                        stroke="#14b8a6"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M0,90 L40,85 L80,78 L120,72 L160,65 L200,55 L240,48 L280,42 L320,38 L360,35 L400,30 L400,120 L0,120 Z"
-                        fill="url(#chartGradient)"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Asset Allocation */}
-                <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/30">
-                  <div className="text-xs text-slate-400 mb-3 font-medium">Asset Allocation</div>
-                  <div className="relative w-24 h-24 mx-auto mb-3">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="35" fill="none" stroke="#1e293b" strokeWidth="14" />
-                      <circle 
-                        cx="50" 
-                        cy="50" 
-                        r="35" 
-                        fill="none" 
-                        stroke="#14b8a6" 
-                        strokeWidth="14"
-                        strokeDasharray="140 220"
-                        strokeLinecap="round"
-                      />
-                      <circle 
-                        cx="50" 
-                        cy="50" 
-                        r="35" 
-                        fill="none" 
-                        stroke="#a855f7" 
-                        strokeWidth="14"
-                        strokeDasharray="44 220"
-                        strokeDashoffset="-140"
-                        strokeLinecap="round"
-                      />
-                      <circle 
-                        cx="50" 
-                        cy="50" 
-                        r="35" 
-                        fill="none" 
-                        stroke="#06b6d4" 
-                        strokeWidth="14"
-                        strokeDasharray="36 220"
-                        strokeDashoffset="-184"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-xs text-white font-semibold">Diversified</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Watchlist */}
-              <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/30">
-                <div className="text-xs text-slate-400 mb-3 font-medium">Watchlist</div>
-                <div className="space-y-3">
-                  <WatchlistItem ticker="NOVN" price="227.15" change="+3.2%" positive />
-                  <WatchlistItem ticker="NESN" price="98.40" change="+1.8%" positive />
-                  <WatchlistItem ticker="UBS" price="12.38" change="-0.5%" positive={false} />
-                </div>
-              </div>
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-700/30">
+              <img 
+                src="/portfolio-dashboard.png" 
+                alt="Portfolio Dashboard" 
+                className="w-full h-auto"
+              />
             </div>
 
             {/* Glow Effects */}
