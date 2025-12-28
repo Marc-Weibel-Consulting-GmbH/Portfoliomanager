@@ -743,3 +743,6 @@
 - [x] Unit Tests für Onboarding-Flow erstellt und erfolgreich durchgeführt
 - [x] vitest.config.ts aktualisiert mit Alias-Resolution für @shared
 - [x] Onboarding-Loop endgültig behoben ✅
+
+- [x] Fix onboarding redirect - nach Abschluss soll zum Dashboard weitergeleitet werden, nicht zurück zum Anfang
+- [ ] Fix auth flow - eingeloggte User sollen nicht zur Registrierung weitergeleitet werden

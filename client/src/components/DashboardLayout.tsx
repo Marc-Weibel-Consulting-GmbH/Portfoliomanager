@@ -74,7 +74,7 @@ export default function DashboardLayout({
 
   // Redirect to onboarding if user hasn't completed it
   useEffect(() => {
-    if (user && onboardingStatus && !onboardingStatus.hasSeenOnboarding && location !== "/onboarding") {
+    if (user && onboardingStatus !== undefined && !onboardingStatus.hasSeenOnboarding && location !== "/onboarding") {
       setLocation("/onboarding");
     }
   }, [user, onboardingStatus, location, setLocation]);
