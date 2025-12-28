@@ -1,0 +1,1138 @@
+[
+    {
+        "company_name": "Roche Holding AG",
+        "ticker": "ROG.SW",
+        "current_price": 281.0,
+        "currency": "CHF",
+        "pe_ratio": 23.935265,
+        "peg_ratio": null,
+        "dividend_yield": 3.45,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Starke F&E-Pipeline",
+            "Globale Pr\u00e4senz und Vertriebsnetz",
+            "Patentschutz f\u00fcr Schl\u00fcsselmedikamente"
+        ]
+    },
+    {
+        "company_name": "Kuehne + Nagel Int",
+        "ticker": "KNIN.SW",
+        "current_price": 155.6,
+        "currency": "CHF",
+        "pe_ratio": 16.07438,
+        "peg_ratio": null,
+        "dividend_yield": 5.28,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Globales Logistiknetzwerk",
+            "Technologief\u00fchrerschaft in der Lieferkettenverwaltung",
+            "Starke Kundenbeziehungen in Schl\u00fcsselindustrien"
+        ]
+    },
+    {
+        "company_name": "St Galler Kantonalbank",
+        "ticker": "SGKN.SW",
+        "current_price": 502.0,
+        "currency": "CHF",
+        "pe_ratio": 13.124183,
+        "peg_ratio": null,
+        "dividend_yield": 3.75,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Starke regionale Verankerung und Kundenbindung",
+            "Staatsgarantie des Kantons St. Gallen",
+            "Konservatives Gesch\u00e4ftsmodell und hohe Eigenkapitalquote"
+        ]
+    },
+    {
+        "company_name": "NVIDIA Corp",
+        "ticker": "NVDA",
+        "current_price": 181.16,
+        "currency": "USD",
+        "pe_ratio": 51.612537,
+        "peg_ratio": null,
+        "dividend_yield": 0.02,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Technologief\u00fchrerschaft bei GPUs",
+            "Starkes \u00d6kosystem (CUDA-Plattform)",
+            "Hohe Eintrittsbarrieren durch F&E-Aufwand"
+        ]
+    },
+    {
+        "company_name": "NextEra Energy Inc",
+        "ticker": "NEE",
+        "current_price": 83.99,
+        "currency": "USD",
+        "pe_ratio": 29.264809,
+        "peg_ratio": null,
+        "dividend_yield": 2.7,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Dividendenaktien",
+        "moats": [
+            "F\u00fchrender Betreiber von erneuerbaren Energien",
+            "Reguliertes Monopol in Florida",
+            "Skaleneffekte bei der Energieerzeugung"
+        ]
+    },
+    {
+        "company_name": "Johnson & Johnson",
+        "ticker": "JNJ",
+        "current_price": 191.88,
+        "currency": "USD",
+        "pe_ratio": 18.55706,
+        "peg_ratio": null,
+        "dividend_yield": 2.71,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Diversifiziertes Produktportfolio (Pharma, Medizintechnik, Konsumg\u00fcter)",
+            "Starke Markenbekanntheit und Vertrauen",
+            "Umfangreiche F&E-Kapazit\u00e4ten"
+        ]
+    },
+    {
+        "company_name": "Tesla Inc",
+        "ticker": "TSLA",
+        "current_price": 442.6,
+        "currency": "USD",
+        "pe_ratio": 263.4524,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Markenimage und Kultstatus",
+            "Technolog Vorsprung bei Batterien und autonomem Fahren",
+            "Supercharger-Netzwerk als propriet\u00e4re Infrastruktur"
+        ]
+    },
+    {
+        "company_name": "Verizon Communications",
+        "ticker": "VZ",
+        "current_price": 40.3,
+        "currency": "USD",
+        "pe_ratio": 9.372092,
+        "peg_ratio": null,
+        "dividend_yield": 6.85,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Gr\u00f6sstes und zuverl\u00e4ssigstes Mobilfunknetz in den USA",
+            "Hohe Wechselkosten f\u00fcr Kunden",
+            "Skaleneffekte im Telekommunikationsmarkt"
+        ]
+    },
+    {
+        "company_name": "Nestle SA",
+        "ticker": "NESN.SW",
+        "current_price": 81.24,
+        "currency": "CHF",
+        "pe_ratio": 20.31,
+        "peg_ratio": null,
+        "dividend_yield": 3.69,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Portfolio starker globaler Marken",
+            "Weltweites Vertriebsnetz",
+            "Skaleneffekte in Produktion und Einkauf"
+        ]
+    },
+    {
+        "company_name": "Alphabet Inc",
+        "ticker": "GOOGL",
+        "current_price": 250.46,
+        "currency": "USD",
+        "pe_ratio": 26.673056,
+        "peg_ratio": null,
+        "dividend_yield": 0.34,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Dominanz in der Online-Suche (Google)",
+            "Umfassendes \u00d6kosystem (Android, Chrome, etc.)",
+            "Datenvorsprung f\u00fcr KI und maschinelles Lernen"
+        ]
+    },
+    {
+        "company_name": "Novo Nordisk A/S",
+        "ticker": "NOVOB.CO",
+        "current_price": null,
+        "currency": null,
+        "pe_ratio": null,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1,
+        "category": "Andere",
+        "moats": [
+            "Marktf\u00fchrerschaft bei Diabetes- und Adipositas-Medikamenten",
+            "Starke F&E-Pipeline",
+            "Hohe Eintrittsbarrieren durch Patente und regulatorische H\u00fcrden"
+        ]
+    },
+    {
+        "company_name": "Schneider Electric",
+        "ticker": "SU.PA",
+        "current_price": 257.25,
+        "currency": "EUR",
+        "pe_ratio": 31.99627,
+        "peg_ratio": null,
+        "dividend_yield": 1.56,
+        "exchange_rate_to_chf": 1.08,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Breites Portfolio an Energiemanagement- und Automatisierungsl\u00f6sungen",
+            "Starke Position in Rechenzentren und bei der Elektrifizierung",
+            "Globales Vertriebsnetz und starke Kundenbeziehungen"
+        ]
+    },
+    {
+        "company_name": "MercadoLibre Inc",
+        "ticker": "MELI",
+        "current_price": 2142.05,
+        "currency": "USD",
+        "pe_ratio": 52.916256,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "F\u00fchrende E-Commerce-Plattform in Lateinamerika",
+            "Integriertes Fintech-\u00d6kosystem (Mercado Pago)",
+            "Netzwerkeffekt zwischen K\u00e4ufern und Verk\u00e4ufern"
+        ]
+    },
+    {
+        "company_name": "Meta Platforms Inc",
+        "ticker": "META",
+        "current_price": 733.27,
+        "currency": "USD",
+        "pe_ratio": 26.596664,
+        "peg_ratio": null,
+        "dividend_yield": 0.29,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Netzwerkeffekt durch Facebook, Instagram, WhatsApp",
+            "Datenreichtum f\u00fcr gezielte Werbung",
+            "Hohe Wechselkosten f\u00fcr Nutzer"
+        ]
+    },
+    {
+        "company_name": "Swissquote Group",
+        "ticker": "SQN.SW",
+        "current_price": 480.6,
+        "currency": "CHF",
+        "pe_ratio": 23.59352,
+        "peg_ratio": null,
+        "dividend_yield": 1.25,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "F\u00fchrende Online-Trading-Plattform in der Schweiz",
+            "Starke Marke und Vertrauen bei Anlegern",
+            "Breites Angebot an Finanzprodukten und -dienstleistungen"
+        ]
+    },
+    {
+        "company_name": "Deutsche Boerse A",
+        "ticker": "DB1.DE",
+        "current_price": 223.9,
+        "currency": "EUR",
+        "pe_ratio": 20.750694,
+        "peg_ratio": null,
+        "dividend_yield": 1.78,
+        "exchange_rate_to_chf": 1.08,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Dominante Stellung als B\u00f6rsenbetreiber in Deutschland",
+            "Hohe Eintrittsbarrieren durch regulatorische Anforderungen",
+            "Netzwerkeffekt durch hohe Liquidit\u00e4t"
+        ]
+    },
+    {
+        "company_name": "Krones AG",
+        "ticker": "KRNU.DE",
+        "current_price": null,
+        "currency": null,
+        "pe_ratio": null,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1,
+        "category": "Andere",
+        "moats": [
+            "Technologief\u00fchrerschaft in der Abf\u00fcll- und Verpackungstechnik",
+            "Starke Kundenbeziehungen zu globalen Getr\u00e4nkeherstellern",
+            "Umfassendes Service- und Ersatzteilgesch\u00e4ft"
+        ]
+    },
+    {
+        "company_name": "Cloudflare Inc",
+        "ticker": "NET",
+        "current_price": 212.98,
+        "currency": "USD",
+        "pe_ratio": 247.65115,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Globales Content Delivery Network (CDN)",
+            "Starke Sicherheits- und Performance-L\u00f6sungen",
+            "Netzwerkeffekt durch wachsende Nutzerbasis"
+        ]
+    },
+    {
+        "company_name": "Straumann Holding",
+        "ticker": "STMN.SW",
+        "current_price": 87.9,
+        "currency": "CHF",
+        "pe_ratio": 32.67658,
+        "peg_ratio": null,
+        "dividend_yield": 1.07,
+        "exchange_rate_to_chf": 1,
+        "category": "Andere",
+        "moats": [
+            "Weltmarktf\u00fchrer f\u00fcr Zahnimplantate",
+            "Starke Marke und Vertrauen bei Zahn\u00e4rzten",
+            "Hohe Investitionen in F&E und klinische Studien"
+        ]
+    },
+    {
+        "company_name": "Berkshire Hathaway",
+        "ticker": "BRK-B",
+        "current_price": 491.29,
+        "currency": "USD",
+        "pe_ratio": 16.836533,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Diversifiziertes Portfolio an hochwertigen Unternehmen",
+            "Permanentes Kapital durch Versicherungsgesch\u00e4ft",
+            "Warren Buffetts Reputation und Investitionsphilosophie"
+        ]
+    },
+    {
+        "company_name": "Chocoladefabriken",
+        "ticker": "LISN.SW",
+        "current_price": 130800.0,
+        "currency": "CHF",
+        "pe_ratio": 47.329567,
+        "peg_ratio": null,
+        "dividend_yield": 1.14,
+        "exchange_rate_to_chf": 1,
+        "category": "Andere",
+        "moats": [
+            "Starke Marke (Lindt) und Premium-Positionierung",
+            "Kontrolle \u00fcber die gesamte Wertsch\u00f6pfungskette",
+            "Globales Vertriebsnetz"
+        ]
+    },
+    {
+        "company_name": "Swisscom AG",
+        "ticker": "SCMN.SW",
+        "current_price": 591.5,
+        "currency": "CHF",
+        "pe_ratio": 22.98873,
+        "peg_ratio": null,
+        "dividend_yield": 3.69,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "F\u00fchrender Telekommunikationsanbieter in der Schweiz",
+            "Hochwertige Netzinfrastruktur",
+            "Starke Kundenbindung und Markenbekanntheit"
+        ]
+    },
+    {
+        "company_name": "Galderma Group A",
+        "ticker": "GALD.SW",
+        "current_price": 136.5,
+        "currency": "CHF",
+        "pe_ratio": 108.333336,
+        "peg_ratio": null,
+        "dividend_yield": 0.11,
+        "exchange_rate_to_chf": 1,
+        "category": "Andere",
+        "moats": [
+            "Spezialisierung auf Dermatologie",
+            "Breites Portfolio an verschreibungspflichtigen und rezeptfreien Produkten",
+            "Starke Beziehungen zu Dermatologen und Apotheken"
+        ]
+    },
+    {
+        "company_name": "Taiwan Semiconduc",
+        "ticker": "TSM",
+        "current_price": 294.51,
+        "currency": "USD",
+        "pe_ratio": 32.363735,
+        "peg_ratio": null,
+        "dividend_yield": 1.13,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Technologief\u00fchrerschaft in der Halbleiterfertigung",
+            "Hohe Wechselkosten f\u00fcr Kunden (Chip-Designs)",
+            "Skaleneffekte und hohe Investitionen in neue Fabriken"
+        ]
+    },
+    {
+        "company_name": "Broadcom Inc",
+        "ticker": "AVGO",
+        "current_price": 342.66,
+        "currency": "USD",
+        "pe_ratio": 87.636826,
+        "peg_ratio": null,
+        "dividend_yield": 0.69,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "F\u00fchrende Position in verschiedenen Halbleiter-Nischen",
+            "Starke Kundenbeziehungen zu grossen Technologieunternehmen",
+            "Hohe Wechselkosten durch Integration in Kundenprodukte"
+        ]
+    },
+    {
+        "company_name": "Moncler SpA",
+        "ticker": "MONC.MI",
+        "current_price": 52.18,
+        "currency": "EUR",
+        "pe_ratio": 23.088495,
+        "peg_ratio": null,
+        "dividend_yield": 2.44,
+        "exchange_rate_to_chf": 1.08,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Starke Luxusmarke und hohe Preissetzungsmacht",
+            "Exklusives Vertriebsnetz",
+            "Fokus auf hochwertige Materialien und Handwerkskunst"
+        ]
+    },
+    {
+        "company_name": "Amazon.com Inc",
+        "ticker": "AMZN",
+        "current_price": 222.03,
+        "currency": "USD",
+        "pe_ratio": 33.89771,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Dominante E-Commerce-Plattform",
+            "Netzwerkeffekt (Marketplace, Prime)",
+            "F\u00fchrende Position im Cloud Computing (AWS)"
+        ]
+    },
+    {
+        "company_name": "Flughafen Zurich A",
+        "ticker": "FHZN.SW",
+        "current_price": 234.0,
+        "currency": "CHF",
+        "pe_ratio": 21.369864,
+        "peg_ratio": null,
+        "dividend_yield": 2.47,
+        "exchange_rate_to_chf": 1,
+        "category": "Andere",
+        "moats": [
+            "Monopolstellung als internationaler Flughafen f\u00fcr Z\u00fcrich",
+            "Hohe regulatorische H\u00fcrden f\u00fcr neue Konkurrenten",
+            "Diversifizierte Einnahmequellen (Fluggeb\u00fchren, Immobilien, Retail)"
+        ]
+    },
+    {
+        "company_name": "Burkhalter Holding",
+        "ticker": "BRKN.SW",
+        "current_price": 143.0,
+        "currency": "CHF",
+        "pe_ratio": 26.190475,
+        "peg_ratio": null,
+        "dividend_yield": 3.44,
+        "exchange_rate_to_chf": 1,
+        "category": "Andere",
+        "moats": [
+            "F\u00fchrende Position im Schweizer Elektroinstallationsmarkt",
+            "Starke regionale Pr\u00e4senz durch Akquisitionen",
+            "Hohe Kundenbindung im Service- und Unterhaltsgesch\u00e4ft"
+        ]
+    },
+    {
+        "company_name": "Zurich Insurance G",
+        "ticker": "ZURN.SW",
+        "current_price": 565.8,
+        "currency": "CHF",
+        "pe_ratio": 17.533312,
+        "peg_ratio": null,
+        "dividend_yield": 4.99,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Globale Pr\u00e4senz und diversifiziertes Versicherungsportfolio",
+            "Starke Marke und finanzielle Stabilit\u00e4t",
+            "Umfangreiches Vertriebsnetz aus Agenten und Brokern"
+        ]
+    },
+    {
+        "company_name": "Visa Inc",
+        "ticker": "V",
+        "current_price": 347.21,
+        "currency": "USD",
+        "pe_ratio": 33.907227,
+        "peg_ratio": null,
+        "dividend_yield": 0.68,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Globales Zahlungsnetzwerk mit Duopolstellung (mit Mastercard)",
+            "Netzwerkeffekt zwischen H\u00e4ndlern, Banken und Konsumenten",
+            "Starke Marke und hohes Vertrauen"
+        ]
+    },
+    {
+        "company_name": "Swiss Re AG",
+        "ticker": "SREN.SW",
+        "current_price": 149.1,
+        "currency": "CHF",
+        "pe_ratio": 14.984925,
+        "peg_ratio": null,
+        "dividend_yield": 4.05,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Einer der weltweit f\u00fchrenden R\u00fcckversicherer",
+            "Hohe Expertise in der Risikobewertung",
+            "Globale Pr\u00e4senz und diversifiziertes Portfolio"
+        ]
+    },
+    {
+        "company_name": "Galenica AG",
+        "ticker": "GALE.SW",
+        "current_price": 89.6,
+        "currency": "CHF",
+        "pe_ratio": 23.212435,
+        "peg_ratio": null,
+        "dividend_yield": 2.57,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "F\u00fchrendes Gesundheitsunternehmen in der Schweiz",
+            "Integriertes Gesch\u00e4ftsmodell (Apotheken, Logistik, Dienstleistungen)",
+            "Starke Partnerschaften mit Pharmaunternehmen und \u00c4rzten"
+        ]
+    },
+    {
+        "company_name": "LVMH Moet Hennessy",
+        "ticker": "MC.PA",
+        "current_price": 619.6,
+        "currency": "EUR",
+        "pe_ratio": 28.138054,
+        "peg_ratio": null,
+        "dividend_yield": 2.11,
+        "exchange_rate_to_chf": 1.08,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Portfolio der weltweit f\u00fchrenden Luxusmarken",
+            "Hohe Preissetzungsmacht und Markentreue",
+            "Kontrolle \u00fcber Vertrieb und Marketing"
+        ]
+    },
+    {
+        "company_name": "Swiss Life Holding",
+        "ticker": "SLHN.SW",
+        "current_price": 859.8,
+        "currency": "CHF",
+        "pe_ratio": 20.74807,
+        "peg_ratio": null,
+        "dividend_yield": 4.09,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "F\u00fchrender Anbieter von Vorsorge- und Finanzl\u00f6sungen in der Schweiz",
+            "Starke Marke und Vertriebsnetz",
+            "Stabiles Gesch\u00e4ftsmodell mit langfristigen Vertr\u00e4gen"
+        ]
+    },
+    {
+        "company_name": "Holcim AG",
+        "ticker": "HOLN.SW",
+        "current_price": 68.0,
+        "currency": "CHF",
+        "pe_ratio": 11.971831,
+        "peg_ratio": null,
+        "dividend_yield": 4.59,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "Weltmarktf\u00fchrer bei Baustoffen",
+            "Globale Pr\u00e4senz und Skaleneffekte",
+            "Fokus auf nachhaltige Baul\u00f6sungen"
+        ]
+    },
+    {
+        "company_name": "Microsoft Corp",
+        "ticker": "MSFT",
+        "current_price": 517.66,
+        "currency": "USD",
+        "pe_ratio": 38.035267,
+        "peg_ratio": null,
+        "dividend_yield": 0.7,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Dominanz bei Betriebssystemen (Windows) und Office-Software",
+            "Stark wachsende Cloud-Plattform (Azure)",
+            "Starkes Vertriebsnetz und Unternehmenskundenbeziehungen"
+        ]
+    },
+    {
+        "company_name": "ASML Holding NV",
+        "ticker": "ASML",
+        "current_price": 1025.02,
+        "currency": "USD",
+        "pe_ratio": 36.490566,
+        "peg_ratio": null,
+        "dividend_yield": 0.72,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Monopolstellung bei EUV-Lithografiesystemen f\u00fcr die Chipherstellung",
+            "Hohe technologische Barrieren f\u00fcr Konkurrenten",
+            "Enge Partnerschaften mit f\u00fchrenden Chipherstellern"
+        ]
+    },
+    {
+        "company_name": "BKW AG",
+        "ticker": "BKW.SW",
+        "current_price": 181.0,
+        "currency": "CHF",
+        "pe_ratio": 20.75688,
+        "peg_ratio": null,
+        "dividend_yield": 2.05,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "F\u00fchrendes Energie- und Infrastrukturunternehmen in der Schweiz",
+            "Diversifiziertes Portfolio aus Energieerzeugung, Netzen und Dienstleistungen",
+            "Starke regionale Verankerung"
+        ]
+    },
+    {
+        "company_name": "Cembra Money Bank",
+        "ticker": "CMBN.SW",
+        "current_price": 90.15,
+        "currency": "CHF",
+        "pe_ratio": 14.778689,
+        "peg_ratio": null,
+        "dividend_yield": 4.72,
+        "exchange_rate_to_chf": 1,
+        "category": "Dividendenaktien",
+        "moats": [
+            "F\u00fchrender Anbieter von Konsumkrediten und Kreditkarten in der Schweiz",
+            "Starke Partnerschaften im Detailhandel",
+            "Effiziente Prozesse und Risikomanagement"
+        ]
+    },
+    {
+        "company_name": "AppLovin Corp",
+        "ticker": "APP",
+        "current_price": 552.64,
+        "currency": "USD",
+        "pe_ratio": 75.80796,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "F\u00fchrende Plattform f\u00fcr die Monetarisierung von mobilen Apps",
+            "Starkes Wachstum im Bereich Mobile Gaming",
+            "Datenbasierte Optimierung von Werbung"
+        ]
+    },
+    {
+        "company_name": "Bloom Energy Corp",
+        "ticker": "BE",
+        "current_price": 104.38,
+        "currency": "USD",
+        "pe_ratio": 948.90906,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Innovative Brennstoffzellentechnologie (Solid Oxide Fuel Cells)",
+            "Fokus auf saubere und dezentrale Energieerzeugung",
+            "Partnerschaften mit grossen Unternehmen f\u00fcr den Einsatz der Technologie"
+        ]
+    },
+    {
+        "company_name": "Eos Energy Enterprise",
+        "ticker": "EOSE",
+        "current_price": 16.3,
+        "currency": "USD",
+        "pe_ratio": -14.684684,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Neuartige Zink-Hybrid-Kathoden-Batteriespeichertechnologie",
+            "Fokus auf langlebige und kosteng\u00fcnstige Energiespeicherung",
+            "Potenzial f\u00fcr den Einsatz in grossen Stromnetzen"
+        ]
+    },
+    {
+        "company_name": "Dell Technologies",
+        "ticker": "DELL",
+        "current_price": 149.43,
+        "currency": "USD",
+        "pe_ratio": 21.846489,
+        "peg_ratio": null,
+        "dividend_yield": 1.41,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Starke Position im PC- und Server-Markt",
+            "Breites Portfolio an IT-Infrastrukturl\u00f6sungen",
+            "Starke Kundenbeziehungen im Unternehmensbereich"
+        ]
+    },
+    {
+        "company_name": "Astera Labs Inc",
+        "ticker": "ALAB",
+        "current_price": 157.51,
+        "currency": "USD",
+        "pe_ratio": 196.8875,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Spezialisierung auf Konnektivit\u00e4tsl\u00f6sungen f\u00fcr Rechenzentren",
+            "Wachsender Bedarf an schnellen Datenverbindungen f\u00fcr KI",
+            "Enge Zusammenarbeit mit grossen Cloud-Anbietern"
+        ]
+    },
+    {
+        "company_name": "Arista Networks Inc",
+        "ticker": "ANET",
+        "current_price": 145.94,
+        "currency": "USD",
+        "pe_ratio": 57.231373,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "F\u00fchrender Anbieter von Cloud-Netzwerkl\u00f6sungen",
+            "Fokus auf offene Standards und Software-Defined Networking (SDN)",
+            "Starkes Wachstum im Bereich von Rechenzentren und KI-Netzwerken"
+        ]
+    },
+    {
+        "company_name": "Advanced Micro Devices",
+        "ticker": "AMD",
+        "current_price": 238.03,
+        "currency": "USD",
+        "pe_ratio": 142.53294,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Starker Wettbewerber von Intel im CPU-Markt",
+            "Wachsender Marktanteil bei Server- und PC-Prozessoren",
+            "Erfolgreiche Produkte im Bereich Grafikprozessoren (GPUs)"
+        ]
+    },
+    {
+        "company_name": "Micron Technology",
+        "ticker": "MU",
+        "current_price": 202.29,
+        "currency": "USD",
+        "pe_ratio": 26.652172,
+        "peg_ratio": null,
+        "dividend_yield": 0.23,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Einer der gr\u00f6ssten Hersteller von Speicherchips (DRAM und NAND)",
+            "Zyklischer Markt mit hohen Kapitalanforderungen",
+            "Technologische Fortschritte bei der Speicherchip-Herstellung"
+        ]
+    },
+    {
+        "company_name": "IREN Ltd",
+        "ticker": "IREN",
+        "current_price": 55.195,
+        "currency": "USD",
+        "pe_ratio": 141.52565,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Italienisches Multi-Utility-Unternehmen",
+            "Regulierte Gesch\u00e4ftsaktivit\u00e4ten in den Bereichen Energie, Wasser und Abfall",
+            "Stabile Cashflows und Dividenden"
+        ]
+    },
+    {
+        "company_name": "Cipher Mining Inc",
+        "ticker": "CIFR",
+        "current_price": 18.075,
+        "currency": "USD",
+        "pe_ratio": 27.386364,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Bitcoin-Mining-Unternehmen",
+            "Fokus auf den Einsatz von kosteng\u00fcnstiger Energie",
+            "Abh\u00e4ngigkeit vom Bitcoin-Preis"
+        ]
+    },
+    {
+        "company_name": "MongoDB Inc",
+        "ticker": "MDB",
+        "current_price": 325.76,
+        "currency": "USD",
+        "pe_ratio": 100.54321,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "F\u00fchrende NoSQL-Datenbankplattform",
+            "Wachsende Beliebtheit bei Entwicklern",
+            "Starkes Wachstum im Bereich Cloud-Datenbanken (Atlas)"
+        ]
+    },
+    {
+        "company_name": "ResMed Inc",
+        "ticker": "RMD",
+        "current_price": 268.22,
+        "currency": "USD",
+        "pe_ratio": 28.174368,
+        "peg_ratio": null,
+        "dividend_yield": 0.89,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Marktf\u00fchrer bei Ger\u00e4ten zur Behandlung von Schlafapnoe",
+            "Wachsender Markt durch zunehmende Diagnose von Schlafst\u00f6rungen",
+            "Starke Marke und Vertriebsnetz bei \u00c4rzten und Patienten"
+        ]
+    },
+    {
+        "company_name": "ARM Holdings PLC",
+        "ticker": "ARM",
+        "current_price": 169.38,
+        "currency": "USD",
+        "pe_ratio": 256.63635,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Dominante Architektur f\u00fcr mobile Prozessoren",
+            "Lizenzmodell mit breiter Marktdurchdringung",
+            "Wachsende Pr\u00e4senz in Rechenzentren und im IoT-Bereich"
+        ]
+    },
+    {
+        "company_name": "CoreWeave Inc",
+        "ticker": "CRWV",
+        "current_price": 125.06,
+        "currency": "USD",
+        "pe_ratio": -526.4354,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Spezialisierter Cloud-Anbieter f\u00fcr GPU-intensive Workloads (KI, Rendering)",
+            "Zugang zu grossen Mengen an NVIDIA-GPUs",
+            "Starkes Wachstum im KI-Markt"
+        ]
+    },
+    {
+        "company_name": "Marvell Technology",
+        "ticker": "MRVL",
+        "current_price": 84.26,
+        "currency": "USD",
+        "pe_ratio": 33.704002,
+        "peg_ratio": null,
+        "dividend_yield": 0.28,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Breites Portfolio an Halbleiterl\u00f6sungen f\u00fcr Netzwerke, Speicher und Prozessoren",
+            "Starke Position in den Bereichen 5G, Rechenzentren und Automotive",
+            "Fokus auf kundenspezifische L\u00f6sungen"
+        ]
+    },
+    {
+        "company_name": "Intellia Therapeutic",
+        "ticker": "NTLA",
+        "current_price": 26.97,
+        "currency": "USD",
+        "pe_ratio": -4.8947363,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "F\u00fchrendes Unternehmen in der CRISPR-Gen-Editierungs-Technologie",
+            "Potenzial zur Heilung von genetischen Krankheiten",
+            "Hohe Risiken und lange Entwicklungszyklen in der Biotechnologie"
+        ]
+    },
+    {
+        "company_name": "Tempus AI Inc",
+        "ticker": "TEM",
+        "current_price": 89.1,
+        "currency": "USD",
+        "pe_ratio": 41.441856,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Plattform f\u00fcr personalisierte Medizin durch die Analyse von klinischen und molekularen Daten",
+            "Grosses Datenarchiv und KI-Expertise",
+            "Partnerschaften mit Krankenh\u00e4usern und Pharmaunternehmen"
+        ]
+    },
+    {
+        "company_name": "Hims & Hers Health",
+        "ticker": "HIMS",
+        "current_price": 49.36,
+        "currency": "USD",
+        "pe_ratio": 62.48101,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Telemedizin-Plattform mit Fokus auf Lifestyle-Medikamente",
+            "Starke Marke und Direktvertrieb an Konsumenten",
+            "Wachsender Markt f\u00fcr personalisierte Gesundheit"
+        ]
+    },
+    {
+        "company_name": "Vistra Corp",
+        "ticker": "VST",
+        "current_price": 186.52,
+        "currency": "USD",
+        "pe_ratio": 29.939005,
+        "peg_ratio": null,
+        "dividend_yield": 0.48,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Grosser unabh\u00e4ngiger Stromerzeuger in den USA",
+            "Diversifiziertes Portfolio aus Erdgas-, Kohle- und Kernkraftwerken",
+            "\u00dcbergang zu erneuerbaren Energien und Batteriespeichern"
+        ]
+    },
+    {
+        "company_name": "VanEck Rare Earth",
+        "ticker": "REMX",
+        "current_price": null,
+        "currency": "USD",
+        "pe_ratio": 29.137806,
+        "peg_ratio": null,
+        "dividend_yield": 1.52,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "ETF, der in Unternehmen investiert, die Seltene Erden abbauen und verarbeiten",
+            "Abh\u00e4ngigkeit von den Preisen f\u00fcr Seltene Erden",
+            "Geopolitische Risiken im Zusammenhang mit China"
+        ]
+    },
+    {
+        "company_name": "Axon Enterprise Inc",
+        "ticker": "AXON",
+        "current_price": 707.04,
+        "currency": "USD",
+        "pe_ratio": 175.44415,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Monopolstellung bei Taser-Waffen und K\u00f6rperkameras f\u00fcr die Polizei",
+            "Integriertes \u00d6kosystem aus Hardware, Software und Cloud-Speicher (Evidence.com)",
+            "Hohe Wechselkosten f\u00fcr Polizeibeh\u00f6rden"
+        ]
+    },
+    {
+        "company_name": "UiPath Inc",
+        "ticker": "PATH",
+        "current_price": 16.28,
+        "currency": "USD",
+        "pe_ratio": 542.6667,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "F\u00fchrende Plattform f\u00fcr Robotic Process Automation (RPA)",
+            "Wachsender Markt f\u00fcr Automatisierung von Gesch\u00e4ftsprozessen",
+            "Starke Entwickler-Community und Partnernetzwerk"
+        ]
+    },
+    {
+        "company_name": "Carlisle Cos Inc",
+        "ticker": "CSL",
+        "current_price": 335.25,
+        "currency": "USD",
+        "pe_ratio": 18.760492,
+        "peg_ratio": null,
+        "dividend_yield": 1.31,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Diversifizierter Hersteller von Bau- und Industrieprodukten",
+            "F\u00fchrende Position in Nischenm\u00e4rkten (z.B. Dachmaterialien)",
+            "Fokus auf energieeffiziente und nachhaltige Produkte"
+        ]
+    },
+    {
+        "company_name": "Trimble Inc",
+        "ticker": "TRMB",
+        "current_price": 79.65,
+        "currency": "USD",
+        "pe_ratio": 68.07693,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "F\u00fchrender Anbieter von Positionierungstechnologien (GPS, Laser, etc.)",
+            "Breite Anwendung in den Bereichen Landwirtschaft, Bau und Transport",
+            "Starke Integration von Hardware und Software"
+        ]
+    },
+    {
+        "company_name": "Synopsys Inc",
+        "ticker": "SNPS",
+        "current_price": 459.04,
+        "currency": "USD",
+        "pe_ratio": 62.116375,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "F\u00fchrender Anbieter von Software f\u00fcr das Chip-Design (EDA)",
+            "Hohe Wechselkosten f\u00fcr Chiphersteller",
+            "Wichtiger Partner im Halbleiter-\u00d6kosystem"
+        ]
+    },
+    {
+        "company_name": "Snowflake Inc",
+        "ticker": "SNOW",
+        "current_price": 247.52,
+        "currency": "USD",
+        "pe_ratio": 266.15054,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Cloud-basierte Datenplattform (Data Warehouse)",
+            "Starkes Wachstum und hohe Kundenbindung",
+            "Innovative Architektur, die Speicher und Rechenleistung trennt"
+        ]
+    },
+    {
+        "company_name": "SoFi Technologies",
+        "ticker": "SOFI",
+        "current_price": 28.75,
+        "currency": "USD",
+        "pe_ratio": 57.5,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Digitale All-in-One-Finanzplattform f\u00fcr Kredite, Investitionen und Banking",
+            "Starke Marke bei Millennials und Gen Z",
+            "Wachsendes Produktangebot und Kundenbasis"
+        ]
+    },
+    {
+        "company_name": "Crowdstrike Holding",
+        "ticker": "CRWD",
+        "current_price": 503.95,
+        "currency": "USD",
+        "pe_ratio": 118.02108,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "F\u00fchrender Anbieter von Cloud-basierter Endpunkt-Sicherheit",
+            "KI-gest\u00fctzte Plattform zur Erkennung von Bedrohungen",
+            "Starkes Wachstum und hohe Kundenbindung"
+        ]
+    },
+    {
+        "company_name": "Palantir Technologi",
+        "ticker": "PLTR",
+        "current_price": 181.51,
+        "currency": "USD",
+        "pe_ratio": 585.5161,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "Software-Plattform f\u00fcr die Analyse grosser Datenmengen",
+            "Starke Kundenbeziehungen zu Regierungen und grossen Unternehmen",
+            "Hohe Wechselkosten und komplexe Implementierungen"
+        ]
+    },
+    {
+        "company_name": "Molina Healthcare",
+        "ticker": "MOH",
+        "current_price": 196.8,
+        "currency": "USD",
+        "pe_ratio": 9.708929,
+        "peg_ratio": null,
+        "dividend_yield": null,
+        "exchange_rate_to_chf": 1.26,
+        "category": "Andere",
+        "moats": [
+            "Anbieter von Managed-Care-Dienstleistungen f\u00fcr einkommensschwache Bev\u00f6lkerungsgruppen (Medicaid)",
+            "Staatlich finanzierte Programme bieten stabile Einnahmen",
+            "Wachsender Markt durch Ausweitung von Medicaid"
+        ]
+    },
+    {
+        "company_name": "KLA Corp",
+        "ticker": "KLAC",
+        "current_price": 1147.43,
+        "currency": "USD",
+        "pe_ratio": 37.732,
+        "peg_ratio": null,
+        "dividend_yield": 0.66,
+        "exchange_rate_to_chf": 1.26,
+        "category": "KI Narrativ",
+        "moats": [
+            "F\u00fchrender Anbieter von Prozesskontroll- und Messtechnik f\u00fcr die Halbleiterindustrie",
+            "Wichtiger Partner f\u00fcr die Qualit\u00e4tssicherung in der Chipherstellung",
+            "Hohe technologische Barrieren f\u00fcr Konkurrenten"
+        ]
+    }
+]

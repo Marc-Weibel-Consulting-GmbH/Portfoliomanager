@@ -1,0 +1,22 @@
+{
+  "query": "SELECT \n  transactionType,\n  COUNT(*) as count,\n  SUM(CAST(totalAmountCHF AS DECIMAL(15,2))) as total_chf,\n  SUM(CAST(fees AS DECIMAL(15,2))) as total_fees\nFROM portfolioTransactions \nWHERE portfolioId = 90001\nGROUP BY transactionType\nORDER BY transactionType;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  transactionType,\n  COUNT(*) as count,\n  SUM(CAST(totalAmountCHF AS DECIMAL(15,2))) as total_chf,\n  SUM(CAST(fees AS DECIMAL(15,2))) as total_fees\nFROM portfolioTransactions \nWHERE portfolioId = 90001\nGROUP BY transactionType\nORDER BY transactionType;",
+  "rows": [
+    {
+      "transactionType": "buy",
+      "count": "11",
+      "total_chf": "36750.74",
+      "total_fees": "50.00"
+    },
+    {
+      "transactionType": "sell",
+      "count": "4",
+      "total_chf": "2229.17",
+      "total_fees": "55.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "transactionType\tcount\ttotal_chf\ttotal_fees\nbuy\t11\t36750.74\t50.00\nsell\t4\t2229.17\t55.00\n",
+  "stderr": "",
+  "execution_time_ms": 50
+}

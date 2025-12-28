@@ -1,4 +1,5 @@
-import { getLoginUrl } from "@/const";
+// OAuth disabled - using /login directly
+// import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -9,13 +10,15 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
+  const { redirectOnUnauthenticated = false, redirectPath = "/login" } =
     options ?? {};
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
+    refetchOnMount: true, // Always refetch when component mounts to catch new logins
+    staleTime: 0, // Always consider data stale to force refetch after login
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({

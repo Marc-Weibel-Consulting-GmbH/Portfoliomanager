@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE `realizedGains` ADD `stockGainLocal` varchar(50);\nALTER TABLE `realizedGains` ADD `fxGain` varchar(50);\nALTER TABLE `realizedGains` ADD `currency` varchar(10);\nALTER TABLE `realizedGains` ADD `buyFxRate` varchar(50);\nALTER TABLE `realizedGains` ADD `sellFxRate` varchar(50);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute ALTER TABLE `realizedGains` ADD `stockGainLocal` varchar(50);\nALTER TABLE `realizedGains` ADD `fxGain` varchar(50);\nALTER TABLE `realizedGains` ADD `currency` varchar(10);\nALTER TABLE `realizedGains` ADD `buyFxRate` varchar(50);\nALTER TABLE `realizedGains` ADD `sellFxRate` varchar(50);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1060 (42S21) at line 1: Duplicate column name 'stockGainLocal'"
+  ]
+}

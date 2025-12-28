@@ -1,0 +1,8 @@
+{
+  "query": "SELECT \n  h1.ticker,\n  h1.date as split_date,\n  h1.close as price_before,\n  h2.close as price_after,\n  ROUND((h2.close / h1.close - 1) * 100, 2) as price_change_pct\nFROM historicalPrices h1\nJOIN historicalPrices h2 ON h1.ticker = h2.ticker \n  AND h2.date = (\n    SELECT MIN(date) \n    FROM historicalPrices \n    WHERE ticker = h1.ticker \n    AND date > h1.date\n  )\nWHERE h1.ticker IN (SELECT ticker FROM stocks)\n  AND h1.date >= '2022-11-01'\n  AND (h2.close / h1.close) < 0.6\nORDER BY h1.date DESC, price_change_pct ASC\nLIMIT 50;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  h1.ticker,\n  h1.date as split_date,\n  h1.close as price_before,\n  h2.close as price_after,\n  ROUND((h2.close / h1.close - 1) * 100, 2) as price_change_pct\nFROM historicalPrices h1\nJOIN historicalPrices h2 ON h1.ticker = h2.ticker \n  AND h2.date = (\n    SELECT MIN(date) \n    FROM historicalPrices \n    WHERE ticker = h1.ticker \n    AND date > h1.date\n  )\nWHERE h1.ticker IN (SELECT ticker FROM stocks)\n  AND h1.date >= '2022-11-01'\n  AND (h2.close / h1.close) < 0.6\nORDER BY h1.date DESC, price_change_pct ASC\nLIMIT 50;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1105 (HY000) at line 1: ON condition doesn't support subqueries yet"
+  ]
+}

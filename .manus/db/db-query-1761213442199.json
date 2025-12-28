@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COUNT(*) as total_stocks, SUM(CAST(portfolioWeight AS DECIMAL(10,4))) as total_weight FROM stocks;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT COUNT(*) as total_stocks, SUM(CAST(portfolioWeight AS DECIMAL(10,4))) as total_weight FROM stocks;",
+  "rows": [
+    {
+      "total_stocks": "65",
+      "total_weight": "98.4880"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_stocks\ttotal_weight\n65\t98.4880\n",
+  "stderr": "",
+  "execution_time_ms": 48
+}

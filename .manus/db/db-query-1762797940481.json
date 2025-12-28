@@ -1,0 +1,22 @@
+{
+  "query": "SELECT DATE(transactionDate) as date, ticker, shares, CAST(totalAmountCHF AS DECIMAL(10,2)) as amount_chf FROM portfolioTransactions WHERE portfolioId = 90001 AND transactionType = 'buy' AND DATE(transactionDate) > '2025-10-29' ORDER BY transactionDate",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT DATE(transactionDate) as date, ticker, shares, CAST(totalAmountCHF AS DECIMAL(10,2)) as amount_chf FROM portfolioTransactions WHERE portfolioId = 90001 AND transactionType = 'buy' AND DATE(transactionDate) > '2025-10-29' ORDER BY transactionDate",
+  "rows": [
+    {
+      "date": "2025-11-10",
+      "ticker": "EOSE",
+      "shares": "100",
+      "amount_chf": "NULL"
+    },
+    {
+      "date": "2025-11-10",
+      "ticker": "BRK-B",
+      "shares": "12",
+      "amount_chf": "4876.31"
+    }
+  ],
+  "messages": [],
+  "stdout": "date\tticker\tshares\tamount_chf\n2025-11-10\tEOSE\t100\tNULL\n2025-11-10\tBRK-B\t12\t4876.31\n",
+  "stderr": "",
+  "execution_time_ms": 48
+}

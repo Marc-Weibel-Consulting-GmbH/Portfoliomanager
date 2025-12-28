@@ -1,0 +1,94 @@
+{
+  "query": "SELECT DISTINCT category FROM stocks WHERE category IS NOT NULL AND category != '' ORDER BY category",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT DISTINCT category FROM stocks WHERE category IS NOT NULL AND category != '' ORDER BY category",
+  "rows": [
+    {
+      "category": "Automotive"
+    },
+    {
+      "category": "Biotech"
+    },
+    {
+      "category": "Dividendenaktien"
+    },
+    {
+      "category": "E-Commerce"
+    },
+    {
+      "category": "ETF - Bonds"
+    },
+    {
+      "category": "ETF - Consumer"
+    },
+    {
+      "category": "ETF - Emerging Markets"
+    },
+    {
+      "category": "ETF - Energy"
+    },
+    {
+      "category": "ETF - Europe"
+    },
+    {
+      "category": "ETF - Financials"
+    },
+    {
+      "category": "ETF - Gold"
+    },
+    {
+      "category": "ETF - Healthcare"
+    },
+    {
+      "category": "ETF - Silver"
+    },
+    {
+      "category": "ETF - Switzerland"
+    },
+    {
+      "category": "ETF - Technology"
+    },
+    {
+      "category": "ETF - US Market"
+    },
+    {
+      "category": "ETF - US Small Cap"
+    },
+    {
+      "category": "ETF - US Tech"
+    },
+    {
+      "category": "ETF - World"
+    },
+    {
+      "category": "Energie"
+    },
+    {
+      "category": "Finanzdienstleistungen"
+    },
+    {
+      "category": "Healthcare"
+    },
+    {
+      "category": "Industrie"
+    },
+    {
+      "category": "Infrastruktur"
+    },
+    {
+      "category": "KI Narrativ"
+    },
+    {
+      "category": "Konsumgüter"
+    },
+    {
+      "category": "Rohstoffe"
+    },
+    {
+      "category": "Technologie"
+    }
+  ],
+  "messages": [],
+  "stdout": "category\nAutomotive\nBiotech\nDividendenaktien\nE-Commerce\nETF - Bonds\nETF - Consumer\nETF - Emerging Markets\nETF - Energy\nETF - Europe\nETF - Financials\nETF - Gold\nETF - Healthcare\nETF - Silver\nETF - Switzerland\nETF - Technology\nETF - US Market\nETF - US Small Cap\nETF - US Tech\nETF - World\nEnergie\nFinanzdienstleistungen\nHealthcare\nIndustrie\nInfrastruktur\nKI Narrativ\nKonsumgüter\nRohstoffe\nTechnologie\n",
+  "stderr": "",
+  "execution_time_ms": 78
+}

@@ -1,0 +1,21 @@
+{
+  "query": "SELECT ticker, companyName, currentPrice, peRatio, pegRatio, sharpeRatio, dividendYield, ytdPerformance, category FROM stocks WHERE ticker LIKE '%IBM%' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, currentPrice, peRatio, pegRatio, sharpeRatio, dividendYield, ytdPerformance, category FROM stocks WHERE ticker LIKE '%IBM%' LIMIT 1;",
+  "rows": [
+    {
+      "ticker": "IBM.US",
+      "companyName": "International Business Machines",
+      "currentPrice": "306.38",
+      "peRatio": "37.182",
+      "pegRatio": "1.735",
+      "sharpeRatio": "0",
+      "dividendYield": "2.1399999999999997",
+      "ytdPerformance": "39.37",
+      "category": "Technologie"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tcurrentPrice\tpeRatio\tpegRatio\tsharpeRatio\tdividendYield\tytdPerformance\tcategory\nIBM.US\tInternational Business Machines\t306.38\t37.182\t1.735\t0\t2.1399999999999997\t39.37\tTechnologie\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

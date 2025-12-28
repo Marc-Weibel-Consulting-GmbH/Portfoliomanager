@@ -1,0 +1,80 @@
+{
+  "query": "SELECT * FROM exchangeRates ORDER BY date DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT * FROM exchangeRates ORDER BY date DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "120001",
+      "date": "2025-11-14",
+      "currencyPair": "USDCHF",
+      "rate": "0.792100",
+      "createdAt": "2025-11-14 05:52:01"
+    },
+    {
+      "id": "120002",
+      "date": "2025-11-14",
+      "currencyPair": "EURCHF",
+      "rate": "0.922100",
+      "createdAt": "2025-11-14 05:52:02"
+    },
+    {
+      "id": "120003",
+      "date": "2025-11-14",
+      "currencyPair": "GBPCHF",
+      "rate": "1.041100",
+      "createdAt": "2025-11-14 05:52:02"
+    },
+    {
+      "id": "90003",
+      "date": "2025-11-13",
+      "currencyPair": "GBPCHF",
+      "rate": "1.047200",
+      "createdAt": "2025-11-13 07:15:22"
+    },
+    {
+      "id": "90001",
+      "date": "2025-11-13",
+      "currencyPair": "USDCHF",
+      "rate": "0.798500",
+      "createdAt": "2025-11-13 07:15:22"
+    },
+    {
+      "id": "90002",
+      "date": "2025-11-13",
+      "currencyPair": "EURCHF",
+      "rate": "0.925300",
+      "createdAt": "2025-11-13 07:15:22"
+    },
+    {
+      "id": "60003",
+      "date": "2025-11-12",
+      "currencyPair": "GBPCHF",
+      "rate": "1.051600",
+      "createdAt": "2025-11-12 07:07:13"
+    },
+    {
+      "id": "60002",
+      "date": "2025-11-12",
+      "currencyPair": "EURCHF",
+      "rate": "0.926900",
+      "createdAt": "2025-11-12 07:07:13"
+    },
+    {
+      "id": "60001",
+      "date": "2025-11-12",
+      "currencyPair": "USDCHF",
+      "rate": "0.799900",
+      "createdAt": "2025-11-12 07:07:13"
+    },
+    {
+      "id": "30002",
+      "date": "2025-11-11",
+      "currencyPair": "EURCHF",
+      "rate": "0.929700",
+      "createdAt": "2025-11-11 06:07:20"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdate\tcurrencyPair\trate\tcreatedAt\n120001\t2025-11-14\tUSDCHF\t0.792100\t2025-11-14 05:52:01\n120002\t2025-11-14\tEURCHF\t0.922100\t2025-11-14 05:52:02\n120003\t2025-11-14\tGBPCHF\t1.041100\t2025-11-14 05:52:02\n90003\t2025-11-13\tGBPCHF\t1.047200\t2025-11-13 07:15:22\n90001\t2025-11-13\tUSDCHF\t0.798500\t2025-11-13 07:15:22\n90002\t2025-11-13\tEURCHF\t0.925300\t2025-11-13 07:15:22\n60003\t2025-11-12\tGBPCHF\t1.051600\t2025-11-12 07:07:13\n60002\t2025-11-12\tEURCHF\t0.926900\t2025-11-12 07:07:13\n60001\t2025-11-12\tUSDCHF\t0.799900\t2025-11-12 07:07:13\n30002\t2025-11-11\tEURCHF\t0.929700\t2025-11-11 06:07:20\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}

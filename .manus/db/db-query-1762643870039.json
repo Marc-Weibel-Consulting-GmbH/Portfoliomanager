@@ -1,0 +1,86 @@
+{
+  "query": "\nSELECT date, close\nFROM historicalPrices\nWHERE ticker = 'NVDA'\nAND date BETWEEN '2024-06-01' AND '2024-06-30'\nORDER BY date;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute \nSELECT date, close\nFROM historicalPrices\nWHERE ticker = 'NVDA'\nAND date BETWEEN '2024-06-01' AND '2024-06-30'\nORDER BY date;\n",
+  "rows": [
+    {
+      "date": "2024-06-03",
+      "close": "115.000000"
+    },
+    {
+      "date": "2024-06-04",
+      "close": "116.436996"
+    },
+    {
+      "date": "2024-06-05",
+      "close": "122.440002"
+    },
+    {
+      "date": "2024-06-06",
+      "close": "120.998001"
+    },
+    {
+      "date": "2024-06-07",
+      "close": "120.888000"
+    },
+    {
+      "date": "2024-06-10",
+      "close": "121.790001"
+    },
+    {
+      "date": "2024-06-11",
+      "close": "120.910004"
+    },
+    {
+      "date": "2024-06-12",
+      "close": "125.199997"
+    },
+    {
+      "date": "2024-06-13",
+      "close": "129.610001"
+    },
+    {
+      "date": "2024-06-14",
+      "close": "131.880005"
+    },
+    {
+      "date": "2024-06-17",
+      "close": "130.979996"
+    },
+    {
+      "date": "2024-06-18",
+      "close": "135.580002"
+    },
+    {
+      "date": "2024-06-20",
+      "close": "130.779999"
+    },
+    {
+      "date": "2024-06-21",
+      "close": "126.570000"
+    },
+    {
+      "date": "2024-06-24",
+      "close": "118.110001"
+    },
+    {
+      "date": "2024-06-25",
+      "close": "126.089996"
+    },
+    {
+      "date": "2024-06-26",
+      "close": "126.400002"
+    },
+    {
+      "date": "2024-06-27",
+      "close": "123.989998"
+    },
+    {
+      "date": "2024-06-28",
+      "close": "123.540001"
+    }
+  ],
+  "messages": [],
+  "stdout": "date\tclose\n2024-06-03\t115.000000\n2024-06-04\t116.436996\n2024-06-05\t122.440002\n2024-06-06\t120.998001\n2024-06-07\t120.888000\n2024-06-10\t121.790001\n2024-06-11\t120.910004\n2024-06-12\t125.199997\n2024-06-13\t129.610001\n2024-06-14\t131.880005\n2024-06-17\t130.979996\n2024-06-18\t135.580002\n2024-06-20\t130.779999\n2024-06-21\t126.570000\n2024-06-24\t118.110001\n2024-06-25\t126.089996\n2024-06-26\t126.400002\n2024-06-27\t123.989998\n2024-06-28\t123.540001\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}

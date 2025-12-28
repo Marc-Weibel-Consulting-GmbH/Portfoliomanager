@@ -1,0 +1,26 @@
+{
+  "query": "SELECT * FROM portfolioTransactions WHERE ticker = 'NESN.SW' ORDER BY transactionDate DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT * FROM portfolioTransactions WHERE ticker = 'NESN.SW' ORDER BY transactionDate DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "480002",
+      "portfolioId": "240001",
+      "transactionType": "buy",
+      "ticker": "NESN.SW",
+      "shares": "125",
+      "pricePerShare": "81.09",
+      "currency": "CHF",
+      "totalAmount": "10136.25",
+      "fees": "0",
+      "notes": "Initial position (price from 2025-11-13)",
+      "transactionDate": "2025-11-01 00:00:00",
+      "createdAt": "2025-11-13 21:01:28",
+      "fxRate": "1.0000",
+      "totalAmountCHF": "10136.25"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tportfolioId\ttransactionType\tticker\tshares\tpricePerShare\tcurrency\ttotalAmount\tfees\tnotes\ttransactionDate\tcreatedAt\tfxRate\ttotalAmountCHF\n480002\t240001\tbuy\tNESN.SW\t125\t81.09\tCHF\t10136.25\t0\tInitial position (price from 2025-11-13)\t2025-11-01 00:00:00\t2025-11-13 21:01:28\t1.0000\t10136.25\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}

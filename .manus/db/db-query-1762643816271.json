@@ -1,0 +1,160 @@
+{
+  "query": "\nSELECT s.ticker, s.companyName, MIN(hp.date) as first_date\nFROM stocks s\nLEFT JOIN historicalPrices hp ON s.ticker = hp.ticker\nGROUP BY s.ticker, s.companyName\nHAVING MIN(hp.date) > '2022-11-08' OR MIN(hp.date) IS NULL\nORDER BY MIN(hp.date) DESC\nLIMIT 30;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute \nSELECT s.ticker, s.companyName, MIN(hp.date) as first_date\nFROM stocks s\nLEFT JOIN historicalPrices hp ON s.ticker = hp.ticker\nGROUP BY s.ticker, s.companyName\nHAVING MIN(hp.date) > '2022-11-08' OR MIN(hp.date) IS NULL\nORDER BY MIN(hp.date) DESC\nLIMIT 30;\n",
+  "rows": [
+    {
+      "ticker": "CRWV",
+      "companyName": "CoreWeave Inc",
+      "first_date": "2025-03-27"
+    },
+    {
+      "ticker": "MSTR.US",
+      "companyName": "MicroStrategy Incorporated",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "VGK.US",
+      "companyName": "Vanguard FTSE Europe ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "VTI.US",
+      "companyName": "Vanguard Total Stock Market ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "XLV.US",
+      "companyName": "Health Care Select Sector SPDR Fund",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "EMR.US",
+      "companyName": "Emerson Electric Company",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "GLD.US",
+      "companyName": "SPDR Gold Shares",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "IWM.US",
+      "companyName": "iShares Russell 2000 ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "XLY.US",
+      "companyName": "Consumer Discretionary Select Sector SPDR Fund",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "ACWI.US",
+      "companyName": "iShares MSCI ACWI ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "AGG.US",
+      "companyName": "iShares Core U.S. Aggregate Bond ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "VOO.US",
+      "companyName": "Vanguard S&P 500 ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "XLE.US",
+      "companyName": "Energy Select Sector SPDR Fund",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "XLK.US",
+      "companyName": "Technology Select Sector SPDR Fund",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "EEM.US",
+      "companyName": "iShares MSCI Emerging Markets ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "EWL.US",
+      "companyName": "iShares MSCI Switzerland ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "AAPL.US",
+      "companyName": "Apple Inc",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "MESA.US",
+      "companyName": "Mesa Air Group Inc",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "VWO.US",
+      "companyName": "Vanguard FTSE Emerging Markets ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "SPY.US",
+      "companyName": "SPDR S&P 500 ETF Trust",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "SLV.US",
+      "companyName": "iShares Silver Trust",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "IBM.US",
+      "companyName": "International Business Machines",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "URTH.US",
+      "companyName": "iShares MSCI World ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "XLF.US",
+      "companyName": "Financial Select Sector SPDR Fund",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "BND.US",
+      "companyName": "Vanguard Total Bond Market ETF",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "PINS.US",
+      "companyName": "Pinterest Inc",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "QQQ.US",
+      "companyName": "Invesco QQQ Trust",
+      "first_date": "2025-01-02"
+    },
+    {
+      "ticker": "TSM",
+      "companyName": "Taiwan Semiconduc",
+      "first_date": "2024-11-08"
+    },
+    {
+      "ticker": "APP",
+      "companyName": "AppLovin Corp",
+      "first_date": "2024-11-08"
+    },
+    {
+      "ticker": "ARM",
+      "companyName": "ARM Holdings PLC",
+      "first_date": "2024-11-08"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tfirst_date\nCRWV\tCoreWeave Inc\t2025-03-27\nMSTR.US\tMicroStrategy Incorporated\t2025-01-02\nVGK.US\tVanguard FTSE Europe ETF\t2025-01-02\nVTI.US\tVanguard Total Stock Market ETF\t2025-01-02\nXLV.US\tHealth Care Select Sector SPDR Fund\t2025-01-02\nEMR.US\tEmerson Electric Company\t2025-01-02\nGLD.US\tSPDR Gold Shares\t2025-01-02\nIWM.US\tiShares Russell 2000 ETF\t2025-01-02\nXLY.US\tConsumer Discretionary Select Sector SPDR Fund\t2025-01-02\nACWI.US\tiShares MSCI ACWI ETF\t2025-01-02\nAGG.US\tiShares Core U.S. Aggregate Bond ETF\t2025-01-02\nVOO.US\tVanguard S&P 500 ETF\t2025-01-02\nXLE.US\tEnergy Select Sector SPDR Fund\t2025-01-02\nXLK.US\tTechnology Select Sector SPDR Fund\t2025-01-02\nEEM.US\tiShares MSCI Emerging Markets ETF\t2025-01-02\nEWL.US\tiShares MSCI Switzerland ETF\t2025-01-02\nAAPL.US\tApple Inc\t2025-01-02\nMESA.US\tMesa Air Group Inc\t2025-01-02\nVWO.US\tVanguard FTSE Emerging Markets ETF\t2025-01-02\nSPY.US\tSPDR S&P 500 ETF Trust\t2025-01-02\nSLV.US\tiShares Silver Trust\t2025-01-02\nIBM.US\tInternational Business Machines\t2025-01-02\nURTH.US\tiShares MSCI World ETF\t2025-01-02\nXLF.US\tFinancial Select Sector SPDR Fund\t2025-01-02\nBND.US\tVanguard Total Bond Market ETF\t2025-01-02\nPINS.US\tPinterest Inc\t2025-01-02\nQQQ.US\tInvesco QQQ Trust\t2025-01-02\nTSM\tTaiwan Semiconduc\t2024-11-08\nAPP\tAppLovin Corp\t2024-11-08\nARM\tARM Holdings PLC\t2024-11-08\n",
+  "stderr": "",
+  "execution_time_ms": 111
+}

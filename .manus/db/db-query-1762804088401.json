@@ -1,0 +1,87 @@
+{
+  "query": "SELECT id, transactionDate, transactionType, ticker, notes FROM portfolioTransactions WHERE portfolioId = 90001 ORDER BY transactionDate LIMIT 15",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, transactionDate, transactionType, ticker, notes FROM portfolioTransactions WHERE portfolioId = 90001 ORDER BY transactionDate LIMIT 15",
+  "rows": [
+    {
+      "id": "120012",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "JNJ",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120013",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "SREN.SW",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120014",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "MONC.MI",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120015",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "EOSE",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120016",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "TSM",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120017",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "BRK-B",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120018",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "VWO.US",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120019",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "EEM.US",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "120020",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "EWL.US",
+      "notes": "Initial position (price from 2025-10-29)"
+    },
+    {
+      "id": "300001",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "deposit",
+      "ticker": "NULL",
+      "notes": ""
+    },
+    {
+      "id": "120011",
+      "transactionDate": "2025-10-29 00:00:00",
+      "transactionType": "buy",
+      "ticker": "HELN.SW",
+      "notes": "Initial position (price from 2025-10-29)"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttransactionDate\ttransactionType\tticker\tnotes\n120012\t2025-10-29 00:00:00\tbuy\tJNJ\tInitial position (price from 2025-10-29)\n120013\t2025-10-29 00:00:00\tbuy\tSREN.SW\tInitial position (price from 2025-10-29)\n120014\t2025-10-29 00:00:00\tbuy\tMONC.MI\tInitial position (price from 2025-10-29)\n120015\t2025-10-29 00:00:00\tbuy\tEOSE\tInitial position (price from 2025-10-29)\n120016\t2025-10-29 00:00:00\tbuy\tTSM\tInitial position (price from 2025-10-29)\n120017\t2025-10-29 00:00:00\tbuy\tBRK-B\tInitial position (price from 2025-10-29)\n120018\t2025-10-29 00:00:00\tbuy\tVWO.US\tInitial position (price from 2025-10-29)\n120019\t2025-10-29 00:00:00\tbuy\tEEM.US\tInitial position (price from 2025-10-29)\n120020\t2025-10-29 00:00:00\tbuy\tEWL.US\tInitial position (price from 2025-10-29)\n300001\t2025-10-29 00:00:00\tdeposit\tNULL\t\n120011\t2025-10-29 00:00:00\tbuy\tHELN.SW\tInitial position (price from 2025-10-29)\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}
