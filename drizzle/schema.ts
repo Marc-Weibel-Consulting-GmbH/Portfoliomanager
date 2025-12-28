@@ -212,6 +212,9 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   description: text("description"), // Optional description
   portfolioData: text("portfolioData").notNull(), // JSON string with stocks and weights
   portfolioType: varchar("portfolioType", { length: 50 }), // Portfolio type: dividends, growth, balanced, etf
+  status: mysqlEnum("status", ["planned", "live"]).notNull().default("planned"), // Portfolio status: planned or live
+  startCapital: varchar("startCapital", { length: 50 }), // Initial capital when portfolio is activated
+  benchmark: mysqlEnum("benchmark", ["SMI", "SP500", "MSCI_WORLD"]), // Benchmark for comparison
   isLive: tinyint("isLive").notNull().default(0), // 1 = Live tracking enabled, 0 = Test mode
   liveStartDate: timestamp("liveStartDate"), // Date when live tracking started
   livePerformance: varchar("livePerformance", { length: 50 }), // IRR/MWR performance (e.g., "12.5")
@@ -495,3 +498,19 @@ export const userPreferences = mysqlTable("userPreferences", {
 
 export type UserPreference = typeof userPreferences.$inferSelect;
 export type InsertUserPreference = typeof userPreferences.$inferInsert;
+
+// Benchmark data table - stores historical prices for benchmarks (SMI, S&P 500, MSCI World)
+export const benchmarkData = mysqlTable("benchmarkData", {
+  id: int("id").autoincrement().primaryKey(),
+  benchmark: mysqlEnum("benchmark", ["SMI", "SP500", "MSCI_WORLD"]).notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
+  close: varchar("close", { length: 50 }).notNull(), // Closing price
+  source: varchar("source", { length: 50 }).notNull().default("eodhd"), // Data source
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  benchmarkDateIdx: index("ix_benchmark_data_benchmark_date").on(t.benchmark, t.date),
+}));
+
+export type BenchmarkData = typeof benchmarkData.$inferSelect;
+export type InsertBenchmarkData = typeof benchmarkData.$inferInsert;

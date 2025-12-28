@@ -25,6 +25,7 @@ import { onboardingRouter } from "./routers/onboardingRouter";
 import { authRouter as authExtensionsRouter } from "./routers/authRouter";
 import { autoPortfolioRouter } from "./routers/autoPortfolioRouter";
 import { fxRatesRouter } from "./routers/fxRatesRouter";
+import { portfolioManagementRouter } from "./routers/portfolioManagementRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -1034,6 +1035,7 @@ export const appRouter = router({
   stocks: stocksRouter,
   portfolios: portfoliosRouter,
   autoPortfolio: autoPortfolioRouter,
+  portfolioManagement: portfolioManagementRouter,
   portfolioPerformance: portfolioPerformanceRouter,
   fxRates: fxRatesRouter,
   admin: adminRouter,

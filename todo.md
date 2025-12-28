@@ -1035,3 +1035,50 @@
 
 ## Bug Fixes (Dec 28, 2025)
 - [x] Fix routing inconsistency: Portfolio creation buttons should link to /portfolio-builder/new instead of /portfolio-builder/wizard
+
+
+## Neue Anforderungen: Portfolio Detail Redesign, Aktivierung & Benchmark (29.12.2024)
+
+### Database Schema Erweiterungen
+- [x] Portfolio status field hinzufügen (planned/live)
+- [x] Portfolio startCapital field hinzufügen
+- [x] Portfolio benchmark field hinzufügen (SMI, S&P 500, MSCI World)
+- [x] Benchmark data table erstellen für historische Preise
+- [x] Database migration durchführen (pnpm db:push)
+
+### Backend Procedures
+- [x] Procedure: Portfolio Details mit Holdings abrufen
+- [x] Procedure: Portfolio Metriken berechnen (IRR, Beta, Sharpe Ratio)
+- [x] Procedure: Portfolio aktivieren und initiale Transaktionen generieren
+- [x] Procedure: Benchmark historische Daten abrufen
+- [x] Procedure: Portfolio Performance über Zeit berechnen
+- [x] Procedure: Portfolio vs Benchmark Vergleich berechnen
+
+### Portfolio Detail Page Redesign
+- [x] Performance Chart mit Portfolio und Benchmark Linien
+- [x] Key Metriken Cards (IRR, Beta, Sharpe Ratio, Total Return)
+- [x] Holdings Tabelle mit aktuellen Positionen
+- [x] Donut Chart für Asset Allocation
+- [x] Portfolio Status Indicator (Geplant/Live)
+- [x] "Portfolio aktivieren" Button für geplante Portfolios
+
+### Portfolio Aktivierung Flow
+- [x] Aktivierungs-Dialog/Modal erstellen
+- [x] Startkapital Input Formular
+- [x] Kauf-Transaktionen basierend auf Gewichtungen generieren
+- [x] Portfolio Status von "planned" zu "live" ändern
+- [x] Bestätigung und Transaktions-Zusammenfassung anzeigen
+
+### Benchmark Integration
+- [x] Benchmark Selector Dropdown (SMI, S&P 500, MSCI World)
+- [x] Benchmark historische Daten abrufen und speichern
+- [x] Benchmark Linie im Performance Chart anzeigen
+- [x] Portfolio vs Benchmark Vergleichsmetriken anzeigen
+- [ ] Benchmark Daten regelmäßig aktualisieren (kann später implementiert werden)
+
+### Testing
+- [x] Portfolio Erstellung und Aktivierung testen
+- [x] Performance Berechnungen mit echten Daten testen
+- [x] Benchmark Vergleich Genauigkeit überprüfen
+- [x] Responsive Design auf Mobile testen
+- [x] Loading States und Error Handling überprüfen

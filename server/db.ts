@@ -1,4 +1,4 @@
-import { eq, sql, isNotNull, ne, desc, lt, and } from "drizzle-orm";
+import { eq, sql, isNotNull, ne, desc, lt, and, asc, gte, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, stocks, users, news, transactions, savedPortfolios, categories } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -1339,4 +1339,223 @@ export async function markEmailAsVerified(userId: number) {
   }
 
   await db.update(users).set({ emailVerified: 1 }).where(eq(users.id, userId));
+}
+
+// ============================================
+// Portfolio Activation & Benchmark Functions
+// ============================================
+
+/**
+ * Activate a portfolio by setting status to 'live', recording start capital, and generating initial buy transactions
+ */
+export async function activatePortfolio(
+  portfolioId: number,
+  userId: number,
+  startCapital: string,
+  benchmark?: "SMI" | "SP500" | "MSCI_WORLD"
+) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    // Get portfolio details
+    const portfolio = await getSavedPortfolioById(portfolioId, userId);
+    if (!portfolio) {
+      throw new Error("Portfolio not found");
+    }
+
+    // Parse portfolio data to get holdings
+    const portfolioData = JSON.parse(portfolio.portfolioData);
+    const holdings = portfolioData.stocks || [];
+
+    // Calculate transaction amounts based on weights
+    const capitalNum = parseFloat(startCapital);
+    const transactions = [];
+
+    for (const holding of holdings) {
+      const weight = parseFloat(holding.weight || "0") / 100;
+      const allocationAmount = capitalNum * weight;
+      const currentPrice = parseFloat(holding.currentPrice || "0");
+      
+      if (currentPrice > 0) {
+        const shares = (allocationAmount / currentPrice).toFixed(6);
+        
+        transactions.push({
+          portfolioId,
+          transactionType: "buy" as const,
+          ticker: holding.ticker,
+          shares,
+          pricePerShare: holding.currentPrice,
+          currency: holding.currency || "CHF",
+          totalAmount: allocationAmount.toFixed(2),
+          fxRate: holding.exchangeRateToChf || "1.0",
+          totalAmountCHF: allocationAmount.toFixed(2),
+          fees: "0",
+          notes: `Initial purchase for portfolio activation`,
+          transactionDate: new Date(),
+        });
+      }
+    }
+
+    // Create all transactions
+    for (const transaction of transactions) {
+      await createPortfolioTransaction(transaction);
+    }
+
+    // Update portfolio status
+    const updates: any = {
+      status: "live",
+      startCapital,
+      isLive: 1,
+      liveStartDate: new Date(),
+    };
+
+    if (benchmark) {
+      updates.benchmark = benchmark;
+    }
+
+    await db
+      .update(savedPortfolios)
+      .set(updates)
+      .where(and(eq(savedPortfolios.id, portfolioId), eq(savedPortfolios.userId, userId)));
+
+    return {
+      success: true,
+      transactionsCreated: transactions.length,
+    };
+  } catch (error) {
+    console.error("[Database] Failed to activate portfolio:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get benchmark historical data for a specific benchmark and date range
+ */
+export async function getBenchmarkData(
+  benchmark: "SMI" | "SP500" | "MSCI_WORLD",
+  startDate?: string,
+  endDate?: string
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const { benchmarkData } = await import("../drizzle/schema");
+    
+    const conditions = [eq(benchmarkData.benchmark, benchmark)];
+    
+    if (startDate) {
+      conditions.push(gte(benchmarkData.date, startDate));
+    }
+
+    if (endDate) {
+      conditions.push(lte(benchmarkData.date, endDate));
+    }
+
+    const results = await db
+      .select()
+      .from(benchmarkData)
+      .where(and(...conditions))
+      .orderBy(asc(benchmarkData.date));
+      
+    return results;
+  } catch (error) {
+    console.error("[Database] Failed to get benchmark data:", error);
+    return [];
+  }
+}
+
+/**
+ * Insert or update benchmark data
+ */
+export async function upsertBenchmarkData(data: {
+  benchmark: "SMI" | "SP500" | "MSCI_WORLD";
+  date: string;
+  close: string;
+  source?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const { benchmarkData } = await import("../drizzle/schema");
+    
+    await db
+      .insert(benchmarkData)
+      .values({
+        benchmark: data.benchmark,
+        date: data.date,
+        close: data.close,
+        source: data.source || "eodhd",
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          close: data.close,
+          updatedAt: new Date(),
+        },
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error("[Database] Failed to upsert benchmark data:", error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate portfolio performance metrics (IRR, Beta, Sharpe Ratio)
+ */
+export async function calculatePortfolioMetrics(portfolioId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    // Get portfolio and transactions
+    const portfolio = await getSavedPortfolioById(portfolioId, userId);
+    if (!portfolio) return null;
+
+    const transactions = await getPortfolioTransactions(portfolioId);
+    
+    // Calculate current portfolio value
+    const portfolioData = JSON.parse(portfolio.portfolioData);
+    const holdings = portfolioData.stocks || [];
+    
+    let currentValue = 0;
+    let totalInvested = 0;
+
+    // Calculate total invested from buy transactions
+    for (const txn of transactions) {
+      if (txn.transactionType === "buy") {
+        totalInvested += parseFloat(txn.totalAmountCHF || "0");
+      } else if (txn.transactionType === "sell") {
+        totalInvested -= parseFloat(txn.totalAmountCHF || "0");
+      }
+    }
+
+    // Calculate current value from holdings
+    for (const holding of holdings) {
+      const shares = parseFloat(holding.shares || "0");
+      const currentPrice = parseFloat(holding.currentPrice || "0");
+      currentValue += shares * currentPrice;
+    }
+
+    // Simple return calculation
+    const totalReturn = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
+
+    // Placeholder for more complex metrics (would need historical data)
+    const metrics = {
+      currentValue: currentValue.toFixed(2),
+      totalInvested: totalInvested.toFixed(2),
+      totalReturn: totalReturn.toFixed(2),
+      irr: "0", // Would need cash flow dates for proper IRR calculation
+      beta: "1.0", // Would need benchmark correlation
+      sharpeRatio: "0", // Would need risk-free rate and volatility
+    };
+
+    return metrics;
+  } catch (error) {
+    console.error("[Database] Failed to calculate portfolio metrics:", error);
+    return null;
+  }
 }
