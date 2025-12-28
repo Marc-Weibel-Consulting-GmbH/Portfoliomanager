@@ -642,3 +642,8 @@
 - [x] Style with dark theme and cyan accents
 - [x] Add CTA buttons (Kostenlos starten, Jetzt kaufen)
 - [x] Integrate Stripe payment flow for Premium upgrade
+
+## Bug Fix: Topbar Navigation (Dec 28, 2025)
+- [x] Fix AdminTopbar design to match mockup (dark background, icons before labels, proper styling)
+- [x] Add AdminTopbar to AdminKPIs page
+- [x] Add KPIs tab to AdminTopbar navigation

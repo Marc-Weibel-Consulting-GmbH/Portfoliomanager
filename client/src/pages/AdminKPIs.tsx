@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Activity } from "lucide-react";
+import { AdminTopbar } from "@/components/AdminTopbar";
 
 export default function AdminKPIs() {
   // Placeholder data - will be replaced with real data from backend
@@ -38,6 +39,7 @@ export default function AdminKPIs() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <AdminTopbar />
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Platform-KPIs</h1>
           <p className="text-muted-foreground mt-2">

@@ -1,7 +1,7 @@
-import { Shield, Database, Grid3x3, PieChart, Key } from "lucide-react";
+import { Shield, Database, Grid3x3, PieChart, Key, BarChart3 } from "lucide-react";
 import { useLocation } from "wouter";
 
-type AdminTab = "overview" | "stocks" | "categories" | "sectors" | "secrets";
+type AdminTab = "overview" | "stocks" | "categories" | "sectors" | "secrets" | "kpis";
 
 export function AdminTopbar() {
   const [location, setLocation] = useLocation();
@@ -12,6 +12,7 @@ export function AdminTopbar() {
     if (location.startsWith("/admin/categories")) return "categories";
     if (location.startsWith("/admin/sectors")) return "sectors";
     if (location.startsWith("/admin/secrets")) return "secrets";
+    if (location.startsWith("/admin/kpis")) return "kpis";
     return "overview";
   };
   
@@ -22,12 +23,13 @@ export function AdminTopbar() {
     { id: "stocks" as const, label: "Aktien-Verwaltung", icon: Database, path: "/admin/stocks" },
     { id: "categories" as const, label: "Kategorien-Verwaltung", icon: Grid3x3, path: "/admin/categories" },
     { id: "sectors" as const, label: "Sektoren-Verwaltung", icon: PieChart, path: "/admin/sectors" },
+    { id: "kpis" as const, label: "KPI-Verwaltung", icon: BarChart3, path: "/admin/kpis" },
     { id: "secrets" as const, label: "Secrets-Verwaltung", icon: Key, path: "/admin/secrets" },
   ];
 
   return (
-    <div className="border-b border-border mb-6">
-      <nav className="flex gap-1 -mb-px overflow-x-auto">
+    <div className="bg-zinc-900/50 border-b border-zinc-800 mb-6 -mx-6 px-6">
+      <nav className="flex gap-1 overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -36,10 +38,10 @@ export function AdminTopbar() {
               key={tab.id}
               onClick={() => setLocation(tab.path)}
               className={`
-                flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap rounded-t-lg
                 ${isActive 
-                  ? "border-teal-500 text-teal-500" 
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  ? "bg-teal-500/10 text-teal-400" 
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
                 }
               `}
             >
