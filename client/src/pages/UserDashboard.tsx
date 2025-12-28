@@ -11,11 +11,27 @@ import {
   Plus,
   Zap,
   Trash2,
+  DollarSign,
+  Scale,
+  PieChart,
 } from "lucide-react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import PremiumTeaser from "@/components/PremiumTeaser";
 import { Activity, TrendingUp as TrendingUpIcon, Bell as BellIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  dividends: { label: "Dividenden", icon: <DollarSign className="h-3 w-3" />, color: "bg-blue-500" },
+  growth: { label: "Wachstum", icon: <TrendingUp className="h-3 w-3" />, color: "bg-green-500" },
+  balanced: { label: "Balanced", icon: <Scale className="h-3 w-3" />, color: "bg-purple-500" },
+  etf: { label: "ETF", icon: <PieChart className="h-3 w-3" />, color: "bg-orange-500" },
+};
+
+const formatDate = (date: Date | string) => {
+  const d = new Date(date);
+  return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
 
 export default function UserDashboard() {
   const { user } = useAuth();
@@ -144,8 +160,10 @@ export default function UserDashboard() {
               {portfoliosLoading ? (
                 <div className="text-gray-400 text-center py-8">Portfolios werden geladen...</div>
               ) : portfolios && portfolios.length > 0 ? (
-                portfolios.map((portfolio) => (
-                  <Link key={portfolio.id} href={`/portfolio/${portfolio.id}/positions`}>
+                portfolios.map((portfolio) => {
+                  const typeConfig = portfolio.portfolioType ? portfolioTypeConfig[portfolio.portfolioType] : null;
+                  return (
+                  <Link key={portfolio.id} href={`/portfolios/${portfolio.id}`}>
                     <div className="bg-[#0f1420]/50 border border-white/10 rounded-lg p-4 hover:border-[#00CFC1]/50 transition-all cursor-pointer relative group">
                       <button
                         onClick={(e) => handleDeletePortfolio(e, portfolio.id)}
@@ -155,9 +173,29 @@ export default function UserDashboard() {
                         <Trash2 className="h-4 w-4" />
                       </button>
                       <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <div className="text-[#00CFC1] font-semibold text-lg">{portfolio.name}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="text-[#00CFC1] font-semibold text-lg">{portfolio.name}</div>
+                            {portfolio.isLive === 1 && (
+                              <Badge variant="default" className="bg-green-500 text-white text-xs">
+                                <span className="relative flex h-2 w-2 mr-1">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                </span>
+                                Live
+                              </Badge>
+                            )}
+                            {typeConfig && (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1">
+                                {typeConfig.icon}
+                                {typeConfig.label}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-400">{portfolio.description || "Portfolio"}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Aktualisiert: {formatDate(portfolio.updatedAt)}
+                          </div>
                         </div>
                         <div className="text-right mr-10">
                           <div className="text-white font-semibold">Value</div>
@@ -166,7 +204,7 @@ export default function UserDashboard() {
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-400">Performance</div>
-                        <div className="text-[#00CFC1] font-semibold">--</div>
+                        <div className="text-[#00CFC1] font-semibold">{portfolio.livePerformance || "--"}</div>
                       </div>
                       <div className="mt-3 h-12 bg-gradient-to-t from-[#00CFC1]/20 to-transparent rounded relative">
                         <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
@@ -180,7 +218,8 @@ export default function UserDashboard() {
                       </div>
                     </div>
                   </Link>
-                ))
+                  );
+                })
               ) : (
                 mockPortfolios.map((portfolio, index) => (
                   <div
@@ -227,7 +266,7 @@ export default function UserDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
-                <Link href="/portfolio-builder">
+                <Link href="/portfolios/create">
                   <Button className="w-full bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold flex items-center gap-2">
                     <Plus className="h-4 w-4" />
                     Neues Portfolio

@@ -57,6 +57,7 @@ import AIInsights from "./pages/AIInsights";
 import Reports from "./pages/Reports";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
+import PortfolioDetailsPage from "./pages/PortfolioDetailsPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -94,6 +95,8 @@ function Router() {
       <Route path="/live-tracking" component={LiveTracking} />
       <Route path="/dividends" component={DividendCalendar} />
       <Route path="/portfolios" component={Portfolios} />
+      <Route path="/portfolios/create" component={PortfolioBuilderWizard} />
+      <Route path="/portfolios/:id" component={PortfolioDetailsPage} />
       <Route path="/analysis" component={Analysis} />
       <Route path="/ai-insights" component={AIInsights} />
       <Route path="/reports" component={Reports} />

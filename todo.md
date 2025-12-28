@@ -801,3 +801,127 @@
 - [x] Display appropriate UI based on user's subscription tier
 
 - [x] Fix: Existing users should be redirected to dashboard, not onboarding after login
+
+
+## Flow Optimization: Dashboard → Portfolio Builder → Portfolio Details (28.12.2024)
+
+### Anforderungen aus MVP Roadmap (Abschnitte 1.4, 1.5, 1.6)
+
+#### 1. Portfolio Builder Wizard Optimierung (1.5)
+- [ ] Multi-step wizard überarbeiten mit klarem Fortschrittsindikator
+- [ ] Schritt 1: Portfolio-Typ wählen (Dividenden, Wachstum, Balanced, ETF) - mit Icons
+- [ ] Schritt 2: Aktien auswählen (Suche, Filter nach Dividenden/Wachstum/ETF/Sektoren, Empfehlungen)
+- [ ] Schritt 3: Gewichtung festlegen (manuell mit Slider oder automatisch gleichgewichtet)
+- [ ] Schritt 4: Portfolio-Details (Name, Beschreibung, **Live-Tracking Toggle**)
+- [ ] Schritt 5: Zusammenfassung & Speichern (Übersicht aller Eingaben)
+- [ ] Validierung: Gewichtung muss 100% ergeben (visueller Progress Bar)
+- [ ] Speichern in `savedPortfolios`-Tabelle mit portfolioType und isLive
+
+#### 2. Dashboard Updates (1.4)
+- [ ] **Visueller Indikator** für Live vs. Non-Live Portfolios hinzufügen (Badge "Live" mit Puls-Animation)
+- [ ] Portfolio-Typ Badge anzeigen (Dividenden/Wachstum/Balanced/ETF) mit entsprechenden Icons
+- [ ] "Neues Portfolio erstellen" Button navigiert zum Portfolio Builder (/portfolios/create)
+- [ ] **Klick auf Portfolio-Card** navigiert zur dedizierten Portfolio-Detail-Seite (/portfolios/:id)
+- [ ] Letztes Update-Datum für jedes Portfolio anzeigen
+- [ ] Performance-Sparkline für jedes Portfolio in der Card
+- [ ] Klare visuelle Unterscheidung zwischen Free und Premium Features
+
+#### 3. Portfolio Details Seite (1.6)
+- [ ] **Dedizierte Route erstellen**: /portfolios/:id (separate Seite, nicht im Dashboard)
+- [ ] **Portfolio-Navigation**: Dropdown oder Tabs zum Wechseln zwischen Portfolios
+- [ ] **Performance-Übersicht**: 
+  - [ ] Großer Chart mit Portfolio-Wert über Zeit (6 Monate)
+  - [ ] Vergleich mit Benchmark (S&P 500 oder SMI)
+  - [ ] Zeitraum-Auswahl (1M, 3M, 6M, 1Y, YTD, All)
+- [ ] **Key-Metriken Cards**:
+  - [ ] IRR (Internal Rate of Return)
+  - [ ] Beta (Marktrisiko)
+  - [ ] Volatilität (Standardabweichung)
+  - [ ] Sharpe Ratio (Risiko-adjustierte Rendite)
+  - [ ] Dividendenrendite
+  - [ ] Gesamtwert
+- [ ] **Holdings-Tabelle**:
+  - [ ] Alle Positionen mit Logo, Ticker, Name, Anzahl, Gewichtung %, aktueller Preis, Wert, Performance %, Dividendenrendite
+  - [ ] Sortierung nach Aktie, Sektor, Kategorie
+  - [ ] Filter-Optionen
+- [ ] **Allocation-Charts**:
+  - [ ] Donut Chart: Verteilung nach Aktie
+  - [ ] Donut Chart: Verteilung nach Sektor
+  - [ ] Donut Chart: Verteilung nach Kategorie (Dividenden/Wachstum/ETF)
+- [ ] **Letzte Transaktionen** (Preview, nur bei Live-Portfolios):
+  - [ ] Tabelle mit letzten 5 Transaktionen
+  - [ ] Link zu vollständiger Transaktionshistorie
+- [ ] **Quick-Actions**:
+  - [ ] "Transaktion hinzufügen" Button (nur Live-Portfolios)
+  - [ ] "Alarm erstellen" Button
+  - [ ] "Portfolio bearbeiten" Button
+  - [ ] "Portfolio löschen" Button
+  - [ ] "Zurück zum Dashboard" Button
+- [ ] **Live-Status Indikator**: Prominente Anzeige ob Portfolio live ist oder nicht
+
+#### 4. Database Schema Updates
+- [ ] `savedPortfolios` Tabelle erweitern:
+  - [ ] `portfolioType` enum hinzufügen ('dividends', 'growth', 'balanced', 'etf')
+  - [ ] `isLive` boolean hinzufügen (default: false)
+  - [ ] `lastUpdated` timestamp hinzufügen (automatisch bei Änderungen)
+  - [ ] `description` text hinzufügen (optional)
+- [ ] Migration durchführen: `pnpm db:push`
+
+#### 5. tRPC Procedures
+- [ ] `portfolio.getById` - Portfolio mit allen Details abrufen (Holdings, Metriken, Transaktionen)
+- [ ] `portfolio.create` - Neues Portfolio erstellen (aus Wizard)
+- [ ] `portfolio.update` - Portfolio aktualisieren (Name, Beschreibung, Typ, Live-Status)
+- [ ] `portfolio.delete` - Portfolio löschen (mit Bestätigung)
+- [ ] `portfolio.list` - Alle Portfolios mit Typ und Live-Status abrufen
+- [ ] `portfolio.calculateMetrics` - IRR, Beta, Volatilität, Sharpe Ratio berechnen
+
+#### 6. Navigation Flow
+- [ ] Landing Page → "Jetzt starten" → Registration/Login → Dashboard
+- [ ] Dashboard → "Neues Portfolio" Button → Portfolio Builder Wizard
+- [ ] Portfolio Builder → Fertigstellung → Redirect zu Portfolio Details (/portfolios/:id)
+- [ ] Dashboard → Klick auf Portfolio Card → Portfolio Details (/portfolios/:id)
+- [ ] Portfolio Details → Portfolio Switcher → Anderes Portfolio Details
+- [ ] Portfolio Details → "Zurück" Button → Dashboard
+
+#### 7. UI/UX Verbesserungen
+- [ ] Live-Badge mit Puls-Animation (grüner Punkt)
+- [ ] Portfolio-Typ Icons (💰 Dividenden, 📈 Wachstum, ⚖️ Balanced, 📊 ETF)
+- [ ] Smooth Transitions zwischen Seiten
+- [ ] Loading States für alle Daten-Fetches
+- [ ] Error Handling mit benutzerfreundlichen Meldungen
+- [ ] Responsive Design für alle neuen Komponenten
+- [ ] Tooltips für komplexe Metriken (IRR, Beta, Sharpe Ratio)
+
+#### 8. Testing
+- [ ] Flow testen: Dashboard → Portfolio Builder → Portfolio Details
+- [ ] Portfolio-Typ Auswahl testen
+- [ ] Live-Tracking Toggle testen
+- [ ] Portfolio-Navigation zwischen verschiedenen Portfolios testen
+- [ ] Metriken-Berechnung validieren
+- [ ] Responsive Design auf Mobile testen
+- [ ] Error Cases testen (fehlende Daten, API-Fehler)
+
+
+## Completed (28.12.2024 - Flow Optimization)
+- [x] Portfolio Builder Wizard überarbeitet mit Portfolio-Typ Auswahl
+- [x] Schritt 1: Portfolio-Typ wählen (Dividenden, Wachstum, Balanced, ETF) mit Icons
+- [x] Schritt 4: Live-Tracking Toggle hinzugefügt
+- [x] Asset-Verteilung Übersicht in Schritt 4
+- [x] Zusammenfassung in Schritt 5 mit allen Details
+- [x] portfolioType und isLive werden beim Speichern übergeben
+- [x] Dashboard aktualisiert mit Live-Status Badge (Puls-Animation)
+- [x] Portfolio-Typ Badge hinzugefügt (Dividenden/Wachstum/Balanced/ETF) mit Icons
+- [x] Navigation zu /portfolios/:id statt /portfolio/:id/positions
+- [x] "Neues Portfolio" Button navigiert zu /portfolios/create
+- [x] Letztes Update-Datum wird angezeigt
+- [x] Live-Performance wird angezeigt (falls vorhanden)
+- [x] Portfolio Details Page erstellt (/portfolios/:id)
+- [x] Portfolio-Switcher implementiert (Dropdown zum Wechseln zwischen Portfolios)
+- [x] Performance-Übersicht mit Chart-Placeholder
+- [x] Key-Metriken Cards (IRR, Beta, Volatilität, Sharpe Ratio, Dividendenrendite)
+- [x] Holdings-Tabelle mit allen Positionen
+- [x] Allocation-Charts Placeholder (Asset & Sector)
+- [x] Transaktionen-Preview (nur bei Live-Portfolios)
+- [x] Quick-Actions (Transaktion hinzufügen, Alarm erstellen, Bearbeiten, Löschen)
+- [x] Zurück zum Dashboard Button
+- [x] Routes in App.tsx hinzugefügt (/portfolios/create, /portfolios/:id)

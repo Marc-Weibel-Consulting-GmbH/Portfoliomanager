@@ -211,7 +211,7 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   name: varchar("name", { length: 255 }).notNull(), // User-defined portfolio name
   description: text("description"), // Optional description
   portfolioData: text("portfolioData").notNull(), // JSON string with stocks and weights
-  portfolioType: varchar("portfolioType", { length: 50 }), // Auto-calculated: Dividenden, Wachstum, Balanced, ETF
+  portfolioType: varchar("portfolioType", { length: 50 }), // Portfolio type: dividends, growth, balanced, etf
   isLive: tinyint("isLive").notNull().default(0), // 1 = Live tracking enabled, 0 = Test mode
   liveStartDate: timestamp("liveStartDate"), // Date when live tracking started
   livePerformance: varchar("livePerformance", { length: 50 }), // IRR/MWR performance (e.g., "12.5")
