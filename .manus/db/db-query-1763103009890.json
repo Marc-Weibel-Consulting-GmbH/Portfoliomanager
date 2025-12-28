@@ -1,0 +1,52 @@
+{
+  "query": "SELECT * FROM exchangeRates WHERE date = '2025-11-14' ORDER BY currencyPair;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT * FROM exchangeRates WHERE date = '2025-11-14' ORDER BY currencyPair;",
+  "rows": [
+    {
+      "id": "120002",
+      "date": "2025-11-14",
+      "currencyPair": "EURCHF",
+      "rate": "0.922100",
+      "createdAt": "2025-11-14 05:52:02"
+    },
+    {
+      "id": "150002",
+      "date": "2025-11-14",
+      "currencyPair": "EURCHF",
+      "rate": "0.925300",
+      "createdAt": "2025-11-14 06:48:30"
+    },
+    {
+      "id": "120003",
+      "date": "2025-11-14",
+      "currencyPair": "GBPCHF",
+      "rate": "1.041100",
+      "createdAt": "2025-11-14 05:52:02"
+    },
+    {
+      "id": "150003",
+      "date": "2025-11-14",
+      "currencyPair": "GBPCHF",
+      "rate": "1.047200",
+      "createdAt": "2025-11-14 06:48:30"
+    },
+    {
+      "id": "120001",
+      "date": "2025-11-14",
+      "currencyPair": "USDCHF",
+      "rate": "0.792100",
+      "createdAt": "2025-11-14 05:52:01"
+    },
+    {
+      "id": "150001",
+      "date": "2025-11-14",
+      "currencyPair": "USDCHF",
+      "rate": "0.798500",
+      "createdAt": "2025-11-14 06:48:30"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tdate\tcurrencyPair\trate\tcreatedAt\n120002\t2025-11-14\tEURCHF\t0.922100\t2025-11-14 05:52:02\n150002\t2025-11-14\tEURCHF\t0.925300\t2025-11-14 06:48:30\n120003\t2025-11-14\tGBPCHF\t1.041100\t2025-11-14 05:52:02\n150003\t2025-11-14\tGBPCHF\t1.047200\t2025-11-14 06:48:30\n120001\t2025-11-14\tUSDCHF\t0.792100\t2025-11-14 05:52:01\n150001\t2025-11-14\tUSDCHF\t0.798500\t2025-11-14 06:48:30\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

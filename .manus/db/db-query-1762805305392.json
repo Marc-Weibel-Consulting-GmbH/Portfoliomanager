@@ -1,0 +1,130 @@
+{
+  "query": "SELECT id, ticker, transactionType, transactionDate, shares, pricePerShare, totalAmount, currency, fxRate, totalAmountCHF FROM portfolioTransactions WHERE portfolioId = 90001 AND transactionType = 'buy' ORDER BY transactionDate",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, ticker, transactionType, transactionDate, shares, pricePerShare, totalAmount, currency, fxRate, totalAmountCHF FROM portfolioTransactions WHERE portfolioId = 90001 AND transactionType = 'buy' ORDER BY transactionDate",
+  "rows": [
+    {
+      "id": "120011",
+      "ticker": "HELN.SW",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "24",
+      "pricePerShare": "199.5",
+      "totalAmount": "4788.00",
+      "currency": "CHF",
+      "fxRate": "1.0",
+      "totalAmountCHF": "4788.00"
+    },
+    {
+      "id": "120012",
+      "ticker": "JNJ",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "26",
+      "pricePerShare": "186.6",
+      "totalAmount": "4851.60",
+      "currency": "USD",
+      "fxRate": "0.88",
+      "totalAmountCHF": "4269.4080"
+    },
+    {
+      "id": "120013",
+      "ticker": "SREN.SW",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "33",
+      "pricePerShare": "148.5",
+      "totalAmount": "4900.50",
+      "currency": "CHF",
+      "fxRate": "1.0",
+      "totalAmountCHF": "4900.50"
+    },
+    {
+      "id": "120014",
+      "ticker": "MONC.MI",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "72",
+      "pricePerShare": "51.84",
+      "totalAmount": "3732.48",
+      "currency": "EUR",
+      "fxRate": "0.9300",
+      "totalAmountCHF": "3471.21"
+    },
+    {
+      "id": "120015",
+      "ticker": "EOSE",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "209",
+      "pricePerShare": "14.37",
+      "totalAmount": "3003.33",
+      "currency": "USD",
+      "fxRate": "0.88",
+      "totalAmountCHF": "2642.9304"
+    },
+    {
+      "id": "120016",
+      "ticker": "TSM",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "13",
+      "pricePerShare": "305.089996",
+      "totalAmount": "3966.17",
+      "currency": "USD",
+      "fxRate": "0.88",
+      "totalAmountCHF": "3490.2296"
+    },
+    {
+      "id": "120017",
+      "ticker": "BRK-B",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "8",
+      "pricePerShare": "475.76",
+      "totalAmount": "3806.08",
+      "currency": "USD",
+      "fxRate": "0.88",
+      "totalAmountCHF": "3349.3504"
+    },
+    {
+      "id": "120018",
+      "ticker": "VWO.US",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "91",
+      "pricePerShare": "55.77",
+      "totalAmount": "5075.07",
+      "currency": "USD",
+      "fxRate": "0.88",
+      "totalAmountCHF": "4466.0616"
+    },
+    {
+      "id": "120019",
+      "ticker": "EEM.US",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "90",
+      "pricePerShare": "56.01",
+      "totalAmount": "5040.90",
+      "currency": "USD",
+      "fxRate": "0.88",
+      "totalAmountCHF": "4435.9920"
+    },
+    {
+      "id": "120020",
+      "ticker": "EWL.US",
+      "transactionType": "buy",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "90",
+      "pricePerShare": "55.66",
+      "totalAmount": "5009.40",
+      "currency": "USD",
+      "fxRate": "0.88",
+      "totalAmountCHF": "4408.2720"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tticker\ttransactionType\ttransactionDate\tshares\tpricePerShare\ttotalAmount\tcurrency\tfxRate\ttotalAmountCHF\n120011\tHELN.SW\tbuy\t2025-10-29 00:00:00\t24\t199.5\t4788.00\tCHF\t1.0\t4788.00\n120012\tJNJ\tbuy\t2025-10-29 00:00:00\t26\t186.6\t4851.60\tUSD\t0.88\t4269.4080\n120013\tSREN.SW\tbuy\t2025-10-29 00:00:00\t33\t148.5\t4900.50\tCHF\t1.0\t4900.50\n120014\tMONC.MI\tbuy\t2025-10-29 00:00:00\t72\t51.84\t3732.48\tEUR\t0.9300\t3471.21\n120015\tEOSE\tbuy\t2025-10-29 00:00:00\t209\t14.37\t3003.33\tUSD\t0.88\t2642.9304\n120016\tTSM\tbuy\t2025-10-29 00:00:00\t13\t305.089996\t3966.17\tUSD\t0.88\t3490.2296\n120017\tBRK-B\tbuy\t2025-10-29 00:00:00\t8\t475.76\t3806.08\tUSD\t0.88\t3349.3504\n120018\tVWO.US\tbuy\t2025-10-29 00:00:00\t91\t55.77\t5075.07\tUSD\t0.88\t4466.0616\n120019\tEEM.US\tbuy\t2025-10-29 00:00:00\t90\t56.01\t5040.90\tUSD\t0.88\t4435.9920\n120020\tEWL.US\tbuy\t2025-10-29 00:00:00\t90\t55.66\t5009.40\tUSD\t0.88\t4408.2720\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}

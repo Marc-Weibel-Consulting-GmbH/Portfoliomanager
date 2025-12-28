@@ -1,0 +1,46 @@
+{
+  "query": "SELECT id, ticker, transactionDate, shares, pricePerShare, currency, totalAmount, fxRate, totalAmountCHF, fees FROM portfolioTransactions WHERE ticker = 'MONC.MI' ORDER BY transactionDate DESC LIMIT 5",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, ticker, transactionDate, shares, pricePerShare, currency, totalAmount, fxRate, totalAmountCHF, fees FROM portfolioTransactions WHERE ticker = 'MONC.MI' ORDER BY transactionDate DESC LIMIT 5",
+  "rows": [
+    {
+      "id": "90013",
+      "ticker": "MONC.MI",
+      "transactionDate": "2025-11-10 09:31:05",
+      "shares": "226",
+      "pricePerShare": "55.26",
+      "currency": "EUR",
+      "totalAmount": "12488.76",
+      "fxRate": "NULL",
+      "totalAmountCHF": "NULL",
+      "fees": "0"
+    },
+    {
+      "id": "30015",
+      "ticker": "MONC.MI",
+      "transactionDate": "2025-11-09 21:03:36",
+      "shares": "226",
+      "pricePerShare": "55.26",
+      "currency": "EUR",
+      "totalAmount": "12488.76",
+      "fxRate": "NULL",
+      "totalAmountCHF": "NULL",
+      "fees": "0"
+    },
+    {
+      "id": "120014",
+      "ticker": "MONC.MI",
+      "transactionDate": "2025-10-29 00:00:00",
+      "shares": "72",
+      "pricePerShare": "51.84",
+      "currency": "EUR",
+      "totalAmount": "3732.48",
+      "fxRate": "NULL",
+      "totalAmountCHF": "NULL",
+      "fees": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tticker\ttransactionDate\tshares\tpricePerShare\tcurrency\ttotalAmount\tfxRate\ttotalAmountCHF\tfees\n90013\tMONC.MI\t2025-11-10 09:31:05\t226\t55.26\tEUR\t12488.76\tNULL\tNULL\t0\n30015\tMONC.MI\t2025-11-09 21:03:36\t226\t55.26\tEUR\t12488.76\tNULL\tNULL\t0\n120014\tMONC.MI\t2025-10-29 00:00:00\t72\t51.84\tEUR\t3732.48\tNULL\tNULL\t0\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}

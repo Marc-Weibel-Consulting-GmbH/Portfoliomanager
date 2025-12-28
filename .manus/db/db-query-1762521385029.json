@@ -1,0 +1,26 @@
+{
+  "query": "SELECT ticker, companyName, currentPrice, ytdPerformance, dividendYield, portfolioWeight\nFROM stocks \nWHERE ticker IN ('ADEN.SW', 'AMGN') \nOR companyName LIKE '%Adecco%' \nOR companyName LIKE '%Amgen%'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, currentPrice, ytdPerformance, dividendYield, portfolioWeight\nFROM stocks \nWHERE ticker IN ('ADEN.SW', 'AMGN') \nOR companyName LIKE '%Adecco%' \nOR companyName LIKE '%Amgen%'",
+  "rows": [
+    {
+      "ticker": "ADEN.SW",
+      "companyName": "Adecco Group AG Class N",
+      "currentPrice": "NULL",
+      "ytdPerformance": "NULL",
+      "dividendYield": "0",
+      "portfolioWeight": "1.0753"
+    },
+    {
+      "ticker": "AMGN",
+      "companyName": "Amgen Inc",
+      "currentPrice": "0",
+      "ytdPerformance": "0.00",
+      "dividendYield": "2.9000000000000004",
+      "portfolioWeight": "1.0638"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tcurrentPrice\tytdPerformance\tdividendYield\tportfolioWeight\nADEN.SW\tAdecco Group AG Class N\tNULL\tNULL\t0\t1.0753\nAMGN\tAmgen Inc\t0\t0.00\t2.9000000000000004\t1.0638\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

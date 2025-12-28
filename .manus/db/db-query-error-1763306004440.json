@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE `users` MODIFY COLUMN `openId` varchar(64) NULL;\nALTER TABLE `users` MODIFY COLUMN `email` varchar(320) NOT NULL;\nALTER TABLE `users` MODIFY COLUMN `password` varchar(255) NOT NULL;\nALTER TABLE `users` ADD CONSTRAINT `users_email_unique` UNIQUE(`email`);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute ALTER TABLE `users` MODIFY COLUMN `openId` varchar(64) NULL;\nALTER TABLE `users` MODIFY COLUMN `email` varchar(320) NOT NULL;\nALTER TABLE `users` MODIFY COLUMN `password` varchar(255) NOT NULL;\nALTER TABLE `users` ADD CONSTRAINT `users_email_unique` UNIQUE(`email`);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1265 (01000) at line 3: Data truncated for column 'password' at row 1"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "query": "CREATE OR REPLACE VIEW v_risk_metrics AS\nSELECT \n  1.23 AS sharpe,\n  1.61 AS sortino,\n  0.18 AS max_drawdown,\n  0.14 AS volatility,\n  0.025 AS var95,\n  0.92 AS beta",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute CREATE OR REPLACE VIEW v_risk_metrics AS\nSELECT \n  1.23 AS sharpe,\n  1.61 AS sortino,\n  0.18 AS max_drawdown,\n  0.14 AS volatility,\n  0.025 AS var95,\n  0.92 AS beta",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 233
+}

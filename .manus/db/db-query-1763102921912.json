@@ -1,0 +1,66 @@
+{
+  "query": "SELECT pt.id, pt.ticker, pt.currency, pt.fxRate, DATE(pt.transactionDate) as txDate, er.rate as availableRate\nFROM portfolioTransactions pt\nLEFT JOIN exchangeRates er ON CONCAT(pt.currency, 'CHF') = er.currencyPair AND DATE(pt.transactionDate) = er.date\nWHERE pt.currency IN ('USD', 'EUR', 'GBP')\nORDER BY pt.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT pt.id, pt.ticker, pt.currency, pt.fxRate, DATE(pt.transactionDate) as txDate, er.rate as availableRate\nFROM portfolioTransactions pt\nLEFT JOIN exchangeRates er ON CONCAT(pt.currency, 'CHF') = er.currencyPair AND DATE(pt.transactionDate) = er.date\nWHERE pt.currency IN ('USD', 'EUR', 'GBP')\nORDER BY pt.id;",
+  "rows": [
+    {
+      "id": "480004",
+      "ticker": "MONC.MI",
+      "currency": "EUR",
+      "fxRate": "0.925300",
+      "txDate": "2025-11-13",
+      "availableRate": "0.925300"
+    },
+    {
+      "id": "480005",
+      "ticker": "EOSE",
+      "currency": "USD",
+      "fxRate": "0.798500",
+      "txDate": "2025-11-13",
+      "availableRate": "0.798500"
+    },
+    {
+      "id": "480006",
+      "ticker": "TSM",
+      "currency": "USD",
+      "fxRate": "0.798500",
+      "txDate": "2025-11-13",
+      "availableRate": "0.798500"
+    },
+    {
+      "id": "480008",
+      "ticker": "AAPL.US",
+      "currency": "USD",
+      "fxRate": "0.798500",
+      "txDate": "2025-11-13",
+      "availableRate": "0.798500"
+    },
+    {
+      "id": "480009",
+      "ticker": "VGK.US",
+      "currency": "USD",
+      "fxRate": "0.798500",
+      "txDate": "2025-11-13",
+      "availableRate": "0.798500"
+    },
+    {
+      "id": "480010",
+      "ticker": "XLE.US",
+      "currency": "USD",
+      "fxRate": "0.798500",
+      "txDate": "2025-11-13",
+      "availableRate": "0.798500"
+    },
+    {
+      "id": "480011",
+      "ticker": "VWO.US",
+      "currency": "USD",
+      "fxRate": "0.798500",
+      "txDate": "2025-11-13",
+      "availableRate": "0.798500"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tticker\tcurrency\tfxRate\ttxDate\tavailableRate\n480004\tMONC.MI\tEUR\t0.925300\t2025-11-13\t0.925300\n480005\tEOSE\tUSD\t0.798500\t2025-11-13\t0.798500\n480006\tTSM\tUSD\t0.798500\t2025-11-13\t0.798500\n480008\tAAPL.US\tUSD\t0.798500\t2025-11-13\t0.798500\n480009\tVGK.US\tUSD\t0.798500\t2025-11-13\t0.798500\n480010\tXLE.US\tUSD\t0.798500\t2025-11-13\t0.798500\n480011\tVWO.US\tUSD\t0.798500\t2025-11-13\t0.798500\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

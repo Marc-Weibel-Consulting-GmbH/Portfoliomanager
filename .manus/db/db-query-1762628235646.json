@@ -1,0 +1,45 @@
+{
+  "query": "SELECT ticker, companyName, currentPrice, ytdStartPrice, ytdPerformance FROM stocks ORDER BY id LIMIT 5",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, currentPrice, ytdStartPrice, ytdPerformance FROM stocks ORDER BY id LIMIT 5",
+  "rows": [
+    {
+      "ticker": "SGKN.SW",
+      "companyName": "St Galler Kantonalbank",
+      "currentPrice": "520",
+      "ytdStartPrice": "438.00",
+      "ytdPerformance": "18.72"
+    },
+    {
+      "ticker": "NVDA",
+      "companyName": "NVIDIA Corp",
+      "currentPrice": "188.15",
+      "ytdStartPrice": "138.03",
+      "ytdPerformance": "36.31"
+    },
+    {
+      "ticker": "NEE",
+      "companyName": "NextEra Energy Inc",
+      "currentPrice": "83.93",
+      "ytdStartPrice": "71.86",
+      "ytdPerformance": "16.80"
+    },
+    {
+      "ticker": "JNJ",
+      "companyName": "Johnson & Johnson",
+      "currentPrice": "186.57",
+      "ytdStartPrice": "143.76",
+      "ytdPerformance": "29.78"
+    },
+    {
+      "ticker": "TSLA",
+      "companyName": "Tesla Inc",
+      "currentPrice": "429.52",
+      "ytdStartPrice": "423.79",
+      "ytdPerformance": "1.35"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tcurrentPrice\tytdStartPrice\tytdPerformance\nSGKN.SW\tSt Galler Kantonalbank\t520\t438.00\t18.72\nNVDA\tNVIDIA Corp\t188.15\t138.03\t36.31\nNEE\tNextEra Energy Inc\t83.93\t71.86\t16.80\nJNJ\tJohnson & Johnson\t186.57\t143.76\t29.78\nTSLA\tTesla Inc\t429.52\t423.79\t1.35\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}
