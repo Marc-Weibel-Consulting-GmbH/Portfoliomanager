@@ -26,7 +26,7 @@ export default function Registration() {
   const completeRegistration = trpc.user.completeRegistration.useMutation({
     onSuccess: () => {
       toast.success("Registrierung erfolgreich abgeschlossen!");
-      setLocation("/dashboard");
+      setLocation("/onboarding");
     },
     onError: (error) => {
       toast.error("Fehler bei der Registrierung: " + error.message);

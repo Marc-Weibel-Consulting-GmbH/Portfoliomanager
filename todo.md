@@ -755,3 +755,12 @@
 - [x] Fix "Anmelden" button to route to new dashboard (/dashboard)
 - [x] Fix "Konto erstellen" button to route to onboarding process (/onboarding)
 - [x] Applied changes to Landing.tsx (the active landing page)
+
+
+## Authentication & Routing Bugs (28.12.2024 - Neue Meldung)
+
+- [x] Fix "Kostenlos starten" button - should start registration + onboarding, not direct Manus login
+- [x] Fix "Anmelden" button - should go directly to new dashboard without showing old dashboard
+- [x] Fix "Konto erstellen" button - should show registration form first, then start onboarding
+- [x] Ensure after successful login (existing users) → redirect to new dashboard
+- [x] Ensure after onboarding completion (new users) → redirect to new dashboard

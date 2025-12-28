@@ -61,9 +61,9 @@ export default function Register() {
       // Invalidate auth query to force refetch with new cookie
       await utils.auth.me.invalidate();
       
-      // Wait 2 seconds to ensure cookie is saved on mobile, then redirect to dashboard
+      // Wait 2 seconds to ensure cookie is saved on mobile, then redirect to onboarding
       setTimeout(() => {
-        window.location.replace("/dashboard");
+        window.location.replace("/onboarding");
       }, 2000);
     } catch (error: any) {
       setIsLoading(false);

@@ -20,9 +20,9 @@ export default function Landing() {
 
   const handleGetStarted = () => {
     if (isAuthenticated) {
-      setLocation('/home');
+      setLocation('/dashboard');
     } else {
-      window.location.href = getLoginUrl();
+      setLocation('/registration');
     }
   };
 
@@ -83,8 +83,8 @@ export default function Landing() {
               <a href="#funktionen" className="text-slate-300 hover:text-white transition-colors">Funktionen</a>
               <a href="#pricing" className="text-slate-300 hover:text-white transition-colors">Preise</a>
               <a href="#about" className="text-slate-300 hover:text-white transition-colors">Über uns</a>
-              <a href="/dashboard" className="text-slate-300 hover:text-white transition-colors font-medium">Anmelden</a>
-              <Button onClick={() => setLocation('/onboarding')} variant="outline" className="border-2 border-teal-500 bg-transparent hover:bg-teal-500/10 text-teal-400">
+              <a href="/login" className="text-slate-300 hover:text-white transition-colors font-medium">Anmelden</a>
+              <Button onClick={() => setLocation('/registration')} variant="outline" className="border-2 border-teal-500 bg-transparent hover:bg-teal-500/10 text-teal-400">
                 Konto erstellen
               </Button>
             </div>
