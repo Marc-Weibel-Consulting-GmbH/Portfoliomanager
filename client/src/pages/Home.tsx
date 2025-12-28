@@ -2112,12 +2112,8 @@ export default function Home() {
               </Button>
               <Button
                 onClick={() => {
-                  // Start new questionnaire
-                  setOptimizerInputs({ 
-                    investmentAmount: 10000,
-                    expectedDividendYield: 2.0,
-                    investorType: "balanced"
-                  });
+                  // Navigate to portfolio builder
+                  window.location.href = '/portfolio-builder/new';
                 }}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >

@@ -22,7 +22,7 @@ export default function PortfolioBuilderLanding() {
         <div className="grid md:grid-cols-2 gap-6">
           {/* Create New Portfolio Card */}
           <Card className="bg-[oklch(0.20_0.03_250)] border-[oklch(0.30_0.04_260)] hover:border-cyan-400/50 transition-all duration-300 p-8 cursor-pointer group"
-            onClick={() => setLocation("/portfolio-builder/wizard")}>
+            onClick={() => setLocation("/portfolio-builder/new")}>
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="w-20 h-20 rounded-full bg-cyan-400/10 flex items-center justify-center group-hover:bg-cyan-400/20 transition-colors">
                 <TrendingUp className="w-10 h-10 text-cyan-400" />
@@ -35,7 +35,7 @@ export default function PortfolioBuilderLanding() {
                 className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-6 text-lg"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setLocation("/portfolio-builder/wizard");
+                  setLocation("/portfolio-builder/new");
                 }}
               >
                 Jetzt erstellen

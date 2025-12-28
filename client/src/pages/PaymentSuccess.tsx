@@ -100,7 +100,7 @@ export default function PaymentSuccess() {
               Zum Dashboard
             </Button>
             <Button
-              onClick={() => setLocation("/portfolio-builder/wizard")}
+              onClick={() => setLocation("/portfolio-builder/new")}
               variant="outline"
               className="flex-1 h-12 text-base"
               size="lg"

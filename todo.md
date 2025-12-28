@@ -1029,3 +1029,9 @@
 
 ## Bug Fix: Portfolio Creation Button (Dec 28, 2025)
 - [x] Fix ALL "Portfolio erstellen" / "Neues Portfolio" buttons across entire app to redirect to new Portfolio Builder (/portfolio-builder) instead of old wizard (/portfolios/create)
+
+## Bug Fix: Portfolio Creation Links (Dec 28, 2025)
+- [x] Fix portfolio creation buttons to link to /portfolio-builder/new
+
+## Bug Fixes (Dec 28, 2025)
+- [x] Fix routing inconsistency: Portfolio creation buttons should link to /portfolio-builder/new instead of /portfolio-builder/wizard
