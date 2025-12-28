@@ -647,3 +647,10 @@
 - [x] Fix AdminTopbar design to match mockup (dark background, icons before labels, proper styling)
 - [x] Add AdminTopbar to AdminKPIs page
 - [x] Add KPIs tab to AdminTopbar navigation
+
+## Pricing Page Corrections (Dec 28, 2025)
+- [x] Remove "Newsroom" from Free plan features (no longer separate feature)
+- [x] Change Premium pricing from "Einmalige Zahlung" to "Monatliches Abo"
+- [x] Update Premium price display to "CHF 10.00/Monat"
+- [x] Review all feature descriptions for consistency with current platform
+- [x] Update FAQ section to reflect monthly subscription model

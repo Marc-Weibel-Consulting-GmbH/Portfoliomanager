@@ -81,7 +81,7 @@ export default function Pricing() {
                 <FeatureItem included={true} text="3 Analysen pro Tag" />
                 <FeatureItem included={true} text="Echtzeit-Kursdaten" />
                 <FeatureItem included={true} text="Fundamentaldaten" />
-                <FeatureItem included={true} text="Newsroom" />
+                <FeatureItem included={true} text="Tägliche News" />
                 <FeatureItem included={false} text="Live Performance-Tracking" />
                 <FeatureItem included={false} text="Automatische Dividenden" />
                 <FeatureItem included={false} text="Transaktionshistorie" />
@@ -112,7 +112,7 @@ export default function Pricing() {
               <CardTitle className="text-2xl mb-2 text-white">Premium</CardTitle>
               <div className="mt-4">
                 <span className="text-5xl font-bold text-white">CHF 10</span>
-                <span className="text-slate-400 ml-2">einmalig</span>
+                <span className="text-slate-400 ml-2">/Monat</span>
               </div>
               <p className="text-sm text-slate-400 mt-4">
                 Für ernsthafte Investoren mit professionellen Ansprüchen
@@ -186,8 +186,8 @@ export default function Pricing() {
             </div>
             <div className="flex flex-col items-center text-center p-6 rounded-lg bg-slate-900/50 border border-slate-800">
               <Sparkles className="h-10 w-10 text-primary mb-3" />
-              <h3 className="font-semibold text-white mb-2">14 Tage Garantie</h3>
-              <p className="text-sm text-slate-400">Geld zurück bei Unzufriedenheit</p>
+              <h3 className="font-semibold text-white mb-2">Jederzeit kündbar</h3>
+              <p className="text-sm text-slate-400">Keine Mindestlaufzeit</p>
             </div>
           </div>
         </div>
@@ -202,8 +202,8 @@ export default function Pricing() {
           
           <div className="space-y-6">
             <FAQItem
-              question="Was beinhaltet die 'Einmalige Zahlung'?"
-              answer="Mit der einmaligen Zahlung von CHF 10.00 erhalten Sie lebenslangen Zugriff auf alle Premium-Features. Keine monatlichen Gebühren, keine Abos."
+              question="Was beinhaltet das monatliche Abo?"
+              answer="Mit dem monatlichen Abo für CHF 10.00 erhalten Sie Zugriff auf alle Premium-Features. Sie können jederzeit kündigen, keine Mindestlaufzeit."
             />
             <FAQItem
               question="Kann ich mein kostenloses Konto später upgraden?"
@@ -214,8 +214,8 @@ export default function Pricing() {
               answer="Wir akzeptieren alle gängigen Kreditkarten (Visa, Mastercard, American Express), TWINT und PostFinance über unseren sicheren Payment-Provider Stripe."
             />
             <FAQItem
-              question="Gibt es eine Geld-zurück-Garantie?"
-              answer="Ja, wenn Sie innerhalb der ersten 14 Tage nicht zufrieden sind, erstatten wir Ihnen den vollen Betrag zurück - ohne Fragen."
+              question="Wie funktioniert die Kündigung?"
+              answer="Sie können Ihr Abo jederzeit mit einem Klick in den Einstellungen kündigen. Es gibt keine Mindestlaufzeit oder versteckte Gebühren."
             />
             <FAQItem
               question="Kann ich mehrere Portfolios verwalten?"
@@ -234,7 +234,7 @@ export default function Pricing() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4 text-white">Bereit zu starten?</h2>
           <p className="text-xl mb-8 text-slate-300">
-            Testen Sie alle Features risikofrei mit 14 Tage Geld-zurück-Garantie
+            Starten Sie kostenlos und upgraden Sie jederzeit auf Premium
           </p>
           <Button 
             size="lg" 
