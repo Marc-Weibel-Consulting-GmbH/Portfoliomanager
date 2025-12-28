@@ -25,9 +25,9 @@ import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
 export default function PortfolioDetail() {
-  const [, params] = useRoute("/portfolio/:id");
+  const [, params] = useRoute<{ id: string }>("/portfolio/:id");
   const [, setLocation] = useLocation();
-  const portfolioId = params?.id ? parseInt(params.id as string) : null;
+  const portfolioId = params?.id ? parseInt(params.id) : null;
 
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [showDividendCalendar, setShowDividendCalendar] = useState(false);

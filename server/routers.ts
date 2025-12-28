@@ -1036,7 +1036,7 @@ export const appRouter = router({
   weeklyOverview: weeklyOverviewRouter,
   portfolioComparison: portfolioComparisonRouter,
   signals: signalsRouter,
-  portfolio: portfolioOptimizerRouter,
+  portfolioOptimizer: portfolioOptimizerRouter,
 
   fx: router({
     getCurrentRate: publicProcedure

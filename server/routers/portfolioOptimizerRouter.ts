@@ -108,6 +108,147 @@ function optimizePortfolio(stocks: any[], criterion: OptimizationCriterion, targ
   };
 }
 
+/**
+ * Generate smart portfolio based on investment amount and investor type
+ */
+async function generateSmartPortfolio(
+  investmentAmount: number,
+  investorType: "conservative" | "balanced" | "dynamic",
+  userId: number
+): Promise<{ portfolioId: number; stocks: any[] }> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  // Fetch all available stocks from database
+  const { getAllStocks } = await import("../db");
+  const allStocks = await getAllStocks();
+
+  if (allStocks.length === 0) {
+    throw new Error("No stocks available in database");
+  }
+
+  // Filter and score stocks based on investor type
+  let scoredStocks = allStocks.map(stock => {
+    const currentPrice = parseFloat(stock.currentPrice || "0");
+    const dividendYield = parseFloat(stock.dividendYield || "0");
+    const ytdPerformance = parseFloat(stock.ytdPerformance || "0");
+    const peRatio = parseFloat(stock.peRatio || "0");
+    
+    let score = 0;
+    
+    switch (investorType) {
+      case "conservative":
+        // Prioritize high dividend yield, low volatility, established companies
+        score = dividendYield * 3 + (peRatio > 0 && peRatio < 20 ? 2 : 0);
+        if (ytdPerformance > -10 && ytdPerformance < 20) score += 2; // Stable performance
+        break;
+        
+      case "balanced":
+        // Balance between growth and dividends
+        score = dividendYield * 1.5 + (ytdPerformance > 0 ? ytdPerformance * 0.1 : 0);
+        if (peRatio > 0 && peRatio < 30) score += 1;
+        break;
+        
+      case "dynamic":
+        // Prioritize growth and performance
+        score = (ytdPerformance > 0 ? ytdPerformance * 0.2 : 0) + (peRatio > 20 ? 1 : 0);
+        if (dividendYield > 0) score += dividendYield * 0.5; // Bonus for dividends but not primary
+        break;
+    }
+    
+    return { ...stock, score, currentPrice, dividendYield, ytdPerformance };
+  });
+
+  // Filter out stocks with invalid prices
+  scoredStocks = scoredStocks.filter(s => s.currentPrice > 0);
+
+  // Sort by score and select top stocks
+  scoredStocks.sort((a, b) => b.score - a.score);
+  
+  // Determine number of positions based on investment amount
+  let numberOfPositions: number;
+  if (investmentAmount < 5000) {
+    numberOfPositions = 5;
+  } else if (investmentAmount < 15000) {
+    numberOfPositions = 8;
+  } else if (investmentAmount < 30000) {
+    numberOfPositions = 10;
+  } else {
+    numberOfPositions = 12;
+  }
+  
+  const selectedStocks = scoredStocks.slice(0, numberOfPositions);
+
+  // Calculate weights based on investor type
+  let weights: number[];
+  
+  if (investorType === "conservative") {
+    // More equal weighting for conservative
+    weights = selectedStocks.map(() => 100 / numberOfPositions);
+  } else {
+    // Exponential decay for balanced/dynamic (favor top performers)
+    weights = selectedStocks.map((_, i) => Math.exp(-i * 0.15));
+    const sumWeights = weights.reduce((a, b) => a + b, 0);
+    weights = weights.map(w => (w / sumWeights) * 100);
+  }
+
+  // Calculate shares for each stock
+  const portfolioStocks = selectedStocks.map((stock, i) => {
+    const allocation = (weights[i] / 100) * investmentAmount;
+    const shares = Math.floor(allocation / stock.currentPrice);
+    
+    return {
+      ticker: stock.ticker,
+      companyName: stock.companyName,
+      currentPrice: stock.currentPrice,
+      portfolioWeight: weights[i],
+      shares,
+      value: shares * stock.currentPrice,
+      dividendYield: stock.dividendYield,
+      ytdPerformance: stock.ytdPerformance,
+      peRatio: stock.peRatio,
+    };
+  });
+
+  // Calculate portfolio metrics
+  const totalValue = portfolioStocks.reduce((sum, s) => sum + s.value, 0);
+  const avgDividendYield = portfolioStocks.reduce((sum, s) => 
+    sum + s.dividendYield * (s.portfolioWeight / 100), 0
+  );
+  const expectedReturn = portfolioStocks.reduce((sum, s) => 
+    sum + s.ytdPerformance * (s.portfolioWeight / 100), 0
+  );
+
+  // Save portfolio to database
+  const portfolioName = `${investorType.charAt(0).toUpperCase() + investorType.slice(1)} Portfolio (${new Date().toLocaleDateString('de-CH')})`;
+  const portfolioDescription = `Automatisch generiertes ${investorType} Portfolio mit CHF ${investmentAmount.toLocaleString('de-CH')} Investitionssumme`;
+  
+  const portfolioData = {
+    stocks: portfolioStocks,
+    metrics: {
+      totalValue,
+      avgDividendYield,
+      expectedReturn,
+      numberOfPositions,
+      investorType,
+    },
+  };
+
+  const [insertResult] = await db.insert(savedPortfolios).values({
+    userId,
+    name: portfolioName,
+    description: portfolioDescription,
+    portfolioData: JSON.stringify(portfolioData),
+  });
+
+  return {
+    portfolioId: insertResult.insertId,
+    stocks: portfolioStocks,
+  };
+}
+
 export const portfolioOptimizerRouter = router({
   /**
    * Optimize a portfolio based on selected criterion
@@ -148,5 +289,22 @@ export const portfolioOptimizerRouter = router({
       const result = optimizePortfolio(stocks, input.criterion, input.targetReturn, input.maxRisk);
 
       return result;
-    })
+    }),
+
+  /**
+   * Generate smart portfolio based on investment amount and investor type
+   */
+  generateSmartPortfolio: protectedProcedure
+    .input(z.object({
+      investmentAmount: z.number().min(1000),
+      investorType: z.enum(["conservative", "balanced", "dynamic"]),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const result = await generateSmartPortfolio(
+        input.investmentAmount,
+        input.investorType,
+        ctx.user.id
+      );
+      return result;
+    }),
 });

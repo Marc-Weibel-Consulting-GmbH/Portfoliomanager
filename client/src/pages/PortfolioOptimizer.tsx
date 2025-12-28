@@ -19,7 +19,7 @@ export default function PortfolioOptimizer() {
   const [maxRisk, setMaxRisk] = useState<string>("15");
   
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
-  const optimizeMutation = trpc.portfolio.optimize.useMutation({
+  const optimizeMutation = trpc.portfolioOptimizer.optimize.useMutation({
     onSuccess: (data) => {
       toast.success("Optimierung abgeschlossen", {
         description: `Neues Portfolio mit ${data.stocks.length} Aktien erstellt`

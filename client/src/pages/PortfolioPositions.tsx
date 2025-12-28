@@ -10,8 +10,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 const COLORS = ['#00CFC1', '#00b8ad', '#00a199', '#008a85', '#007371', '#005c5d', '#004549'];
 
 export default function PortfolioPositions() {
-  const [, params] = useRoute("/portfolio/:id/positions");
-  const portfolioId = params?.id ? parseInt(params.id as string) : null;
+  const [, params] = useRoute<{ id: string }>("/portfolio/:id/positions");
+  const portfolioId = params?.id ? parseInt(params.id) : null;
 
   // Fetch portfolio details
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();

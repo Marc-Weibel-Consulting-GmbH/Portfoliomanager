@@ -4,6 +4,7 @@ import { fetchStockMetrics } from "../_core/stockDataApi";
 import { fetchEODHDFundamentals } from "../_core/eodhdApi";
 import { fetchDividendYieldWithFallback } from "../_core/dividendYieldHelper";
 import { recalculateWeights } from "../_core/portfolioWeightHelper";
+import { getStockLogoUrl } from "../_core/stockLogo";
 
 export const stocksRouter = router({
     getAll: publicProcedure.query(async () => {
@@ -96,6 +97,16 @@ export const stocksRouter = router({
       .query(async ({ input }) => {
         const { getStockByTicker } = await import("../db");
         return await getStockByTicker(input.ticker);
+      }),
+
+    getLogo: publicProcedure
+      .input(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+      }))
+      .query(async ({ input }) => {
+        const logoUrl = getStockLogoUrl(input.ticker, input.companyName);
+        return { logoUrl };
       }),
 
     getHistoricalPE: publicProcedure

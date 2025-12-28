@@ -217,7 +217,7 @@ export const portfoliosRouter = router({
     create: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "name" in val && "portfolioData" in val) {
-          return val as { name: string; description?: string; portfolioData: string };
+          return val as { name: string; description?: string; portfolioData: string; portfolioType?: string; isLive?: boolean };
         }
         throw new Error("Invalid portfolio data");
       })
@@ -228,19 +228,21 @@ export const portfoliosRouter = router({
           name: input.name,
           description: input.description || null,
           portfolioData: input.portfolioData,
+          portfolioType: input.portfolioType || null,
+          isLive: input.isLive ? 1 : 0,
         });
       }),
 
     update: protectedProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val as { id: number; name?: string; description?: string; portfolioData?: string };
+          return val as { id: number; name?: string; description?: string; portfolioData?: string; isAutoSave?: boolean };
         }
         throw new Error("Invalid update data");
       })
       .mutation(async ({ input, ctx }) => {
         const { updateSavedPortfolio } = await import("../db");
-        const { id, ...updates } = input;
+        const { id, isAutoSave, ...updates } = input;
         return await updateSavedPortfolio(id, ctx.user.id, updates);
       }),
 

@@ -941,3 +941,9 @@
 - [ ] Implement automatic stock price fetching (in progress)
 - [ ] Display stock logos in selection dropdown and portfolio list
 - [ ] Build premium wizard for automatic portfolio creation
+
+
+## Advanced Features Implementation (Dec 28, 2025)
+- [x] Stock-Logos Integration: Add company logos in stock selection and portfolio list for visual identification (Already implemented with StockLogo component)
+- [x] Premium-Wizard: Create intelligent assistant that automatically suggests diversified portfolio based on investment amount (Implemented with /premium-wizard route and generateSmartPortfolio endpoint)
+- [x] Automatische Preisabfüllung: Implement automatic filling of current stock price when adding new positions to portfolio (Already implemented in TransactionModal)

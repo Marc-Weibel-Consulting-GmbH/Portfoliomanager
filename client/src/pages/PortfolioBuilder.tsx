@@ -25,7 +25,7 @@ export default function PortfolioBuilder() {
     }
 
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync({ id });
       toast.success('Gelöscht', { description: `Portfolio "${name}" wurde gelöscht` });
       refetch();
     } catch (error) {

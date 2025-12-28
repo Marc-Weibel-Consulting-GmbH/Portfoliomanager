@@ -40,12 +40,12 @@ const formatDate = (date: Date | string) => {
 };
 
 export default function PortfolioDetailsPage() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
-  const portfolioId = parseInt(params.id as string);
+  const portfolioId = params.id ? parseInt(params.id) : 0;
   
   // Fetch portfolio data
-  const { data: portfolio, isLoading } = trpc.portfolios.getById.useQuery(portfolioId);
+  const { data: portfolio, isLoading } = trpc.portfolios.get.useQuery(portfolioId);
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();

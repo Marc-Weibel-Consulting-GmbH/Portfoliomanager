@@ -19,6 +19,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 interface OptimizerInputs {
   investmentAmount: number;
   expectedDividendYield: number;
+  numberOfPositions: number;
   investorType: "conservative" | "balanced" | "dynamic";
 }
 
@@ -47,6 +48,8 @@ interface OptimizedPosition {
   portfolioWeight: number;
   score: number;
   isDividendStock: boolean;
+  currency?: string;
+  fxRate?: string;
   isGrowthStock: boolean;
 }
 
@@ -1347,7 +1350,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                           // Enrich loaded stocks with database data
                           const enrichedStocks = data.stocks.map((stock: any) => {
                             const dbStock = stocksMap.get(stock.ticker);
-                            const divYield = dbStock?.dividendYield || parseFloat(stock.dividendYield || '0');
+                            const divYieldRaw = dbStock?.dividendYield || stock.dividendYield || '0';
+                            const divYield = typeof divYieldRaw === 'string' ? parseFloat(divYieldRaw) : divYieldRaw;
                             return {
                               ticker: stock.ticker,
                               companyName: stock.companyName || dbStock?.companyName || '',
@@ -1364,7 +1368,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                               score: dbStock?.score || stock.score || 0,
                               category: dbStock?.category || stock.category || '',
                               currency: dbStock?.currency || stock.currency || 'CHF',
-                              fxRate: dbStock?.fxRate || stock.fxRate || '1.0000',
                               isDividendStock: divYield >= 2.5,
                               isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                             };
@@ -1629,7 +1632,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                         // Enrich loaded stocks
                         const enrichedStocks = data.stocks.map((stock: any) => {
                           const dbStock = stocksMap.get(stock.ticker);
-                          const divYield = dbStock?.dividendYield || parseFloat(stock.dividendYield || '0');
+                          const divYieldRaw = dbStock?.dividendYield || stock.dividendYield || '0';
+                          const divYield = typeof divYieldRaw === 'string' ? parseFloat(divYieldRaw) : divYieldRaw;
                           return {
                             ticker: stock.ticker,
                             companyName: stock.companyName || dbStock?.companyName || '',
@@ -1646,7 +1650,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                             score: dbStock?.score || stock.score || 0,
                             category: dbStock?.category || stock.category || '',
                             currency: dbStock?.currency || stock.currency || 'CHF',
-                            fxRate: dbStock?.fxRate || stock.fxRate || '1.0000',
                             isDividendStock: divYield >= 2.5,
                             isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                           };
@@ -2113,7 +2116,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                               // Enrich loaded stocks with database data
                               const enrichedStocks = data.stocks.map((stock: any) => {
                                 const dbStock = stocksMap.get(stock.ticker);
-                                const divYield = dbStock?.dividendYield || parseFloat(stock.dividendYield || '0');
+                                const divYieldRaw = dbStock?.dividendYield || stock.dividendYield || '0';
+                                const divYield = typeof divYieldRaw === 'string' ? parseFloat(divYieldRaw) : divYieldRaw;
                                 return {
                                   ticker: stock.ticker,
                                   companyName: stock.companyName || dbStock?.companyName || '',
@@ -2130,7 +2134,6 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                                   score: dbStock?.score || stock.score || 0,
                                   category: dbStock?.category || stock.category || '',
                                   currency: dbStock?.currency || stock.currency || 'CHF',
-                                  fxRate: dbStock?.fxRate || stock.fxRate || '1.0000',
                                 isDividendStock: divYield >= 2.5,
                                 isGrowthStock: (dbStock?.ytdPerformance ? parseFloat(dbStock.ytdPerformance) > 10 : false) || ["Technology", "E-Commerce", "Fintech", "Biotech"].includes(dbStock?.category || stock.category || '')
                                 };

@@ -58,6 +58,7 @@ import Reports from "./pages/Reports";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import PortfolioDetailsPage from "./pages/PortfolioDetailsPage";
+import PremiumWizard from "./pages/PremiumWizard";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/onboarding" component={OnboardingWizard} />
       <Route path="/registration" component={Registration} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/premium-wizard" component={PremiumWizard} />
       <Route path="/home" component={Home} />
       <Route path="/optimizer" component={Home} />
       <Route path="/register" component={Register} />
