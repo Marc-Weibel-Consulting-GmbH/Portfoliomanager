@@ -72,10 +72,15 @@ export default function DashboardLayout({
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  // Redirect to onboarding if user hasn't completed it
+  // Redirect to onboarding only if user hasn't completed registration
+  // Users who have completed registration but not onboarding can skip onboarding
   useEffect(() => {
     if (user && onboardingStatus !== undefined && !onboardingStatus.hasCompletedOnboarding && location !== "/onboarding") {
-      setLocation("/onboarding");
+      // Only redirect to onboarding if user hasn't completed registration
+      // This means they are truly new users who need to go through the onboarding flow
+      if (!user.hasCompletedRegistration) {
+        setLocation("/onboarding");
+      }
     }
   }, [user, onboardingStatus, location, setLocation]);
 

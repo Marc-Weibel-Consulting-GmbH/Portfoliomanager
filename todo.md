@@ -799,3 +799,5 @@
   - [x] 🔒 Premium: Erweiterte Metriken (show teaser for free users)
 - [x] Add subscription tier checks in tRPC procedures
 - [x] Display appropriate UI based on user's subscription tier
+
+- [x] Fix: Existing users should be redirected to dashboard, not onboarding after login
