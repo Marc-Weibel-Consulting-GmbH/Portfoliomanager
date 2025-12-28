@@ -11,7 +11,12 @@ import { Loader2 } from "lucide-react";
 
 export default function Registration() {
   const [, setLocation] = useLocation();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    firstName: string;
+    lastName: string;
+    investmentGoal: "dividends" | "growth" | "balanced" | "";
+    riskTolerance: "low" | "medium" | "high" | "";
+  }>({
     firstName: "",
     lastName: "",
     investmentGoal: "",
@@ -36,7 +41,12 @@ export default function Registration() {
       return;
     }
 
-    completeRegistration.mutate(formData);
+    completeRegistration.mutate({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      investmentGoal: formData.investmentGoal as "dividends" | "growth" | "balanced",
+      riskTolerance: formData.riskTolerance as "low" | "medium" | "high",
+    });
   };
 
   return (
@@ -84,7 +94,7 @@ export default function Registration() {
               <h3 className="text-lg font-semibold text-white">Anlageziel *</h3>
               <RadioGroup
                 value={formData.investmentGoal}
-                onValueChange={(value) => setFormData({ ...formData, investmentGoal: value })}
+                onValueChange={(value) => setFormData({ ...formData, investmentGoal: value as "dividends" | "growth" | "balanced" })}
                 className="space-y-3"
               >
                 <div className="flex items-start space-x-3 p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
@@ -128,7 +138,7 @@ export default function Registration() {
               <h3 className="text-lg font-semibold text-white">Risikobereitschaft *</h3>
               <RadioGroup
                 value={formData.riskTolerance}
-                onValueChange={(value) => setFormData({ ...formData, riskTolerance: value })}
+                onValueChange={(value) => setFormData({ ...formData, riskTolerance: value as "low" | "medium" | "high" })}
                 className="space-y-3"
               >
                 <div className="flex items-start space-x-3 p-4 rounded-lg border border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 transition-colors">

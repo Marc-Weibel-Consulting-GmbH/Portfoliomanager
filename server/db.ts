@@ -89,6 +89,43 @@ export async function getUser(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function updateUserPreferences(userId: number, preferences: {
+  investmentGoal?: "dividends" | "growth" | "balanced";
+  riskTolerance?: "low" | "medium" | "high";
+  investmentHorizon?: "short" | "medium" | "long";
+}) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot update user preferences: database not available");
+    return;
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (preferences.investmentGoal !== undefined) {
+    updates.investmentGoal = preferences.investmentGoal;
+  }
+  if (preferences.riskTolerance !== undefined) {
+    updates.riskTolerance = preferences.riskTolerance;
+  }
+  if (preferences.investmentHorizon !== undefined) {
+    updates.investmentHorizon = preferences.investmentHorizon;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(users).set(updates).where(eq(users.id, userId));
+  }
+}
+
+export async function completeOnboarding(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot complete onboarding: database not available");
+    return;
+  }
+
+  await db.update(users).set({ hasCompletedOnboarding: 1 }).where(eq(users.id, userId));
+}
+
 // Stock queries
 export async function getAllStocks() {
   const db = await getDb();

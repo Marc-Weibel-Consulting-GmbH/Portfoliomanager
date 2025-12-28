@@ -654,3 +654,74 @@
 - [x] Update Premium price display to "CHF 10.00/Monat"
 - [x] Review all feature descriptions for consistency with current platform
 - [x] Update FAQ section to reflect monthly subscription model
+
+
+## User Journey Optimierung - Onboarding Loop Fix (28.12.2024)
+
+### Phase 1: Database Schema & Backend (JETZT)
+- [ ] hasCompletedOnboarding Flag zur users Tabelle hinzufügen
+- [ ] subscriptionTier Feld hinzufügen (free | premium)
+- [ ] investmentGoal Feld hinzufügen (dividends | growth | balanced)
+- [ ] riskTolerance Feld hinzufügen (low | medium | high)
+- [ ] investmentHorizon Feld hinzufügen (short | medium | long)
+- [ ] Database migration durchführen (pnpm db:push)
+- [ ] updateUserPreferences() Funktion in server/db.ts erstellen
+- [ ] completeOnboarding() Funktion in server/db.ts erstellen
+- [ ] tRPC procedures für Onboarding-Completion erstellen
+- [ ] tRPC procedures für Preference-Updates erstellen
+
+### Phase 2: Onboarding Flow Fix (JETZT)
+- [ ] Onboarding-Redirect-Logic überarbeiten (nach Completion → Dashboard)
+- [ ] Route Guard implementieren (verhindert Re-Entry ins Onboarding)
+- [ ] Schritt 4 des Onboardings: Premium-Teaser hinzufügen
+- [ ] hasCompletedOnboarding Flag nach Abschluss setzen
+- [ ] Redirect zu /dashboard nach Onboarding-Completion
+
+### Phase 3: Einstellungen-Seite (JETZT)
+- [ ] Settings Page erstellen (/settings)
+- [ ] Navigation Link im Dashboard Sidebar hinzufügen
+- [ ] Formular für Anlagepräferenzen (investmentGoal, riskTolerance, investmentHorizon)
+- [ ] Save-Funktion mit tRPC mutation
+- [ ] Success-Notification nach Update
+- [ ] Responsive Design
+
+### Phase 4: Landing Page Optimierung (JETZT)
+- [ ] Value Proposition klarer herausstellen
+- [ ] "Jetzt starten" CTA führt zu OAuth Login
+- [ ] Nach Login: Check hasCompletedOnboarding
+  - [ ] Falls false → Redirect zu /onboarding
+  - [ ] Falls true → Redirect zu /dashboard
+- [ ] Premium-Teaser Section hinzufügen
+
+### Phase 5: Testing & Checkpoint
+- [ ] Kompletten User Flow testen (Landing → Login → Onboarding → Dashboard)
+- [ ] Onboarding-Loop Bugfix verifizieren
+- [ ] Settings Page testen (Preferences Update)
+- [ ] Responsive Design testen
+- [ ] Checkpoint erstellen
+
+
+## Progress Update (28.12.2024 - 06:42)
+- [x] hasCompletedOnboarding Flag zur users Tabelle hinzugefügt
+- [x] subscriptionTier Feld hinzugefügt (free | premium)
+- [x] investmentGoal Feld zu enum konvertiert (dividends | growth | balanced)
+- [x] riskTolerance Feld zu enum konvertiert (low | medium | high)
+- [x] investmentHorizon Feld hinzugefügt (short | medium | long)
+- [x] Database migration durchgeführt
+- [x] updateUserPreferences() Funktion in server/db.ts erstellt
+- [x] completeOnboarding() Funktion in server/db.ts erstellt
+- [x] tRPC procedures für Onboarding-Completion erstellt (auth.completeOnboarding)
+- [x] tRPC procedures für Preference-Updates erstellt (auth.updatePreferences)
+
+
+## Abgeschlossen (28.12.2024 - 06:48)
+- [x] Onboarding-Redirect-Logic überarbeitet (nach Completion → Dashboard)
+- [x] Schritt 4 des Onboardings: Premium-Teaser hinzugefügt
+- [x] hasCompletedOnboarding Flag nach Abschluss setzen
+- [x] Redirect zu /dashboard nach Onboarding-Completion
+- [x] Settings Page: Tab für Anlagepräferenzen hinzugefügt
+- [x] Save-Funktion mit tRPC mutation (auth.updatePreferences)
+- [x] Success-Notification nach Update
+- [x] Responsive Design für Settings
+- [x] ProtectedRoute Component erstellt (für Route Guards)
+- [x] Registration.tsx TypeScript-Fehler behoben

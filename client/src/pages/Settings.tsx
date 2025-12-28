@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,6 +22,17 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
   const [whatsappAlerts, setWhatsappAlerts] = useState(user?.whatsappAlerts === 1);
   const [emailNotifications, setEmailNotifications] = useState(true); // TODO: Add to schema
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false); // TODO: Add to schema
+
+  // Investment preferences
+  const [investmentGoal, setInvestmentGoal] = useState<"dividends" | "growth" | "balanced" | null>(
+    user?.investmentGoal || null
+  );
+  const [riskTolerance, setRiskTolerance] = useState<"low" | "medium" | "high" | null>(
+    user?.riskTolerance || null
+  );
+  const [investmentHorizon, setInvestmentHorizon] = useState<"short" | "medium" | "long" | null>(
+    user?.investmentHorizon || null
+  );
 
   const updateProfileMutation = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
@@ -56,6 +68,21 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
       toast.success("Benachrichtigungen aktualisiert", {
         description: "Ihre Einstellungen wurden gespeichert",
       });
+    },
+    onError: (error) => {
+      toast.error("Fehler", {
+        description: error.message,
+      });
+    },
+  });
+
+  const updatePreferencesMutation = trpc.auth.updatePreferences.useMutation({
+    onSuccess: () => {
+      toast.success("Anlagepräferenzen aktualisiert", {
+        description: "Ihre Einstellungen wurden gespeichert",
+      });
+      // Refresh page to update user data
+      window.location.reload();
     },
     onError: (error) => {
       toast.error("Fehler", {
@@ -108,6 +135,25 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
     });
   };
 
+  const handleUpdatePreferences = () => {
+    const updates: {
+      investmentGoal?: "dividends" | "growth" | "balanced";
+      riskTolerance?: "low" | "medium" | "high";
+      investmentHorizon?: "short" | "medium" | "long";
+    } = {};
+
+    if (investmentGoal) updates.investmentGoal = investmentGoal;
+    if (riskTolerance) updates.riskTolerance = riskTolerance;
+    if (investmentHorizon) updates.investmentHorizon = investmentHorizon;
+
+    if (Object.keys(updates).length === 0) {
+      toast.error("Fehler", { description: "Keine Änderungen vorgenommen" });
+      return;
+    }
+
+    updatePreferencesMutation.mutate(updates);
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto">
@@ -122,9 +168,12 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 gradient-card border-border/50">
+          <TabsList className="grid w-full grid-cols-3 gradient-card border-border/50">
             <TabsTrigger value="profile" className="text-white data-[state=active]:bg-teal-600 data-[state=active]:text-white">
               Profil
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="text-white data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              Anlagepräferenzen
             </TabsTrigger>
             <TabsTrigger value="notifications" className="text-white data-[state=active]:bg-teal-600 data-[state=active]:text-white">
               Benachrichtigungen
@@ -236,6 +285,137 @@ export default function Settings({ onBackClick }: { onBackClick: () => void }) {
                   className="bg-teal-600 hover:bg-teal-700 text-white"
                 >
                   {updatePasswordMutation.isPending ? "Ändern..." : "Passwort ändern"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="preferences" className="space-y-6 mt-6">
+            <Card className="gradient-card border-border/50">
+              <CardHeader>
+                <CardTitle className="text-white">Anlagepräferenzen</CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Passen Sie Ihre Investmentstrategie an Ihre Ziele an
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Investment Goal */}
+                <div className="space-y-3">
+                  <Label className="text-white font-medium">Anlageziel</Label>
+                  <RadioGroup
+                    value={investmentGoal || ""}
+                    onValueChange={(value) => setInvestmentGoal(value as "dividends" | "growth" | "balanced")}
+                  >
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="dividends" id="div-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="div-pref" className="text-white cursor-pointer">Dividenden</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Fokus auf regelmäßige Ausschüttungen und passives Einkommen
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="growth" id="growth-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="growth-pref" className="text-white cursor-pointer">Wachstum</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Maximierung der Kapitalgewinne durch Wertsteigerung
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="balanced" id="bal-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="bal-pref" className="text-white cursor-pointer">Ausgewogen</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Kombination aus Dividenden und Wachstum
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Risk Tolerance */}
+                <div className="space-y-3">
+                  <Label className="text-white font-medium">Risikobereitschaft</Label>
+                  <RadioGroup
+                    value={riskTolerance || ""}
+                    onValueChange={(value) => setRiskTolerance(value as "low" | "medium" | "high")}
+                  >
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="low" id="low-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="low-pref" className="text-white cursor-pointer">Niedrig (Konservativ)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Geringe Schwankungen, stabile Renditen
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="medium" id="med-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="med-pref" className="text-white cursor-pointer">Mittel (Moderat)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Ausgewogenes Verhältnis zwischen Risiko und Rendite
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="high" id="high-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="high-pref" className="text-white cursor-pointer">Hoch (Aggressiv)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Höhere Schwankungen für potenziell höhere Renditen
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Investment Horizon */}
+                <div className="space-y-3">
+                  <Label className="text-white font-medium">Anlagehorizont</Label>
+                  <RadioGroup
+                    value={investmentHorizon || ""}
+                    onValueChange={(value) => setInvestmentHorizon(value as "short" | "medium" | "long")}
+                  >
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="short" id="short-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="short-pref" className="text-white cursor-pointer">Kurzfristig (&lt; 3 Jahre)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Für kurzfristige Sparziele
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="medium" id="med-hor-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="med-hor-pref" className="text-white cursor-pointer">Mittelfristig (3-10 Jahre)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Für mittelfristige Vermögensbildung
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg">
+                      <RadioGroupItem value="long" id="long-pref" />
+                      <div className="flex-1">
+                        <Label htmlFor="long-pref" className="text-white cursor-pointer">Langfristig (&gt; 10 Jahre)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Für Altersvorsorge und langfristigen Vermögensaufbau
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <Button
+                  onClick={handleUpdatePreferences}
+                  disabled={updatePreferencesMutation.isPending}
+                  className="bg-teal-600 hover:bg-teal-700 text-white w-full"
+                >
+                  {updatePreferencesMutation.isPending ? "Speichern..." : "Präferenzen speichern"}
                 </Button>
               </CardContent>
             </Card>

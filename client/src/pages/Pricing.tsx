@@ -112,10 +112,10 @@ export default function Pricing() {
               <CardTitle className="text-2xl mb-2 text-white">Premium</CardTitle>
               <div className="mt-4">
                 <span className="text-5xl font-bold text-white">CHF 10</span>
-                <span className="text-slate-400 ml-2">/Monat</span>
+                <span className="text-slate-400 ml-2">einmalig</span>
               </div>
               <p className="text-sm text-slate-400 mt-4">
-                Für ernsthafte Investoren mit professionellen Ansprüchen
+                Lebenslanger Zugriff für eine einmalige Zahlung
               </p>
             </CardHeader>
             <CardContent>

@@ -17,9 +17,7 @@ export default function OnboardingWizard() {
   const [riskTolerance, setRiskTolerance] = useState<RiskTolerance | null>(null);
   const [investmentHorizon, setInvestmentHorizon] = useState<InvestmentHorizon | null>(null);
 
-  const savePreferencesMutation = trpc.onboarding.savePreferences.useMutation();
-  const completeOnboardingMutation = trpc.onboarding.completeOnboarding.useMutation();
-  const createDemoMutation = trpc.onboarding.createDemoPortfolio.useMutation();
+  const completeOnboardingMutation = trpc.auth.completeOnboarding.useMutation();
 
   const totalSteps = 4;
 
@@ -37,53 +35,40 @@ export default function OnboardingWizard() {
 
   const handleSkip = async () => {
     try {
-      await completeOnboardingMutation.mutateAsync();
+      // Set default values for skipped onboarding
+      await completeOnboardingMutation.mutateAsync({
+        investmentGoal: "balanced",
+        riskTolerance: "medium",
+        investmentHorizon: "medium",
+      });
       setLocation("/dashboard");
     } catch (error) {
       console.error("Error skipping onboarding:", error);
+      toast.error("Fehler beim Überspringen");
     }
   };
 
-  const handleCreateDemo = async () => {
+  const handleComplete = async () => {
     try {
-      // Save preferences first
-      await savePreferencesMutation.mutateAsync({
-        investmentGoal: investmentGoal || undefined,
-        riskTolerance: riskTolerance || undefined,
-        investmentHorizon: investmentHorizon || undefined,
+      if (!investmentGoal || !riskTolerance || !investmentHorizon) {
+        toast.error("Bitte wähle alle Optionen aus");
+        return;
+      }
+
+      await completeOnboardingMutation.mutateAsync({
+        investmentGoal,
+        riskTolerance,
+        investmentHorizon,
       });
 
-      // Create demo portfolio
-      const result = await createDemoMutation.mutateAsync();
-      
-      // Mark onboarding as complete
-      await completeOnboardingMutation.mutateAsync();
-
-      toast.success(result.message);
+      toast.success("Willkommen! Dein Profil wurde erstellt.");
       setLocation("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || "Fehler beim Erstellen des Demo-Portfolios");
+      toast.error(error.message || "Fehler beim Abschließen des Onboardings");
     }
   };
 
-  const handleCreateNew = async () => {
-    try {
-      // Save preferences
-      await savePreferencesMutation.mutateAsync({
-        investmentGoal: investmentGoal || undefined,
-        riskTolerance: riskTolerance || undefined,
-        investmentHorizon: investmentHorizon || undefined,
-      });
 
-      // Mark onboarding as complete
-      await completeOnboardingMutation.mutateAsync();
-
-      toast.success("Willkommen! Erstelle jetzt dein erstes Portfolio.");
-      setLocation("/dashboard");
-    } catch (error) {
-      toast.error("Fehler beim Speichern der Einstellungen");
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -352,43 +337,40 @@ export default function OnboardingWizard() {
                   </button>
                 </div>
 
+                {/* Premium Teaser */}
                 <div className="pt-6 border-t border-slate-700">
-                  <h3 className="font-semibold text-white text-lg mb-4">
-                    Wie möchtest du starten?
-                  </h3>
-                  <div className="grid gap-4">
-                    <Button
-                      onClick={handleCreateDemo}
-                      variant="outline"
-                      className="h-auto p-4 justify-start border-slate-600 hover:border-teal-500 hover:bg-teal-500/10"
-                      disabled={createDemoMutation.isPending}
-                    >
-                      <div className="text-left">
-                        <div className="font-semibold text-white mb-1">
-                          Demo-Portfolio laden
-                        </div>
-                        <div className="text-sm text-slate-400">
-                          Erkunde die Funktionen mit einem vorgefertigten Portfolio
-                        </div>
+                  <div className="bg-gradient-to-br from-teal-600/20 to-blue-600/20 border-2 border-teal-500/50 rounded-lg p-6 mb-6">
+                    <div className="flex items-start gap-4">
+                      <Rocket className="w-10 h-10 text-teal-400" />
+                      <div>
+                        <h3 className="font-bold text-white text-lg mb-2">
+                          Upgrade zu Premium
+                        </h3>
+                        <p className="text-sm text-slate-300 mb-3">
+                          Unbegrenzte Portfolios, Live-Tracking mit IRR/MWR, Preisalarme (Email & WhatsApp), Dividendenkalender und mehr.
+                        </p>
+                        <p className="text-teal-400 font-semibold">
+                          Nur CHF 10.00 einmalig
+                        </p>
                       </div>
-                    </Button>
-
-                    <Button
-                      onClick={handleCreateNew}
-                      className="h-auto p-4 justify-start bg-teal-600 hover:bg-teal-700"
-                      disabled={completeOnboardingMutation.isPending}
-                    >
-                      <div className="text-left">
-                        <div className="font-semibold mb-1 flex items-center gap-2">
-                          <Rocket className="w-5 h-5" />
-                          Eigenes Portfolio erstellen
-                        </div>
-                        <div className="text-sm opacity-90">
-                          Starte direkt mit deinem eigenen Portfolio
-                        </div>
-                      </div>
-                    </Button>
+                    </div>
                   </div>
+                  
+                  <Button
+                    onClick={handleComplete}
+                    className="w-full h-auto p-4 bg-teal-600 hover:bg-teal-700"
+                    disabled={completeOnboardingMutation.isPending || !investmentGoal || !riskTolerance || !investmentHorizon}
+                  >
+                    <div className="text-center">
+                      <div className="font-semibold mb-1 flex items-center justify-center gap-2">
+                        <Rocket className="w-5 h-5" />
+                        Jetzt starten (Free)
+                      </div>
+                      <div className="text-sm opacity-90">
+                        Du kannst jederzeit upgraden
+                      </div>
+                    </div>
+                  </Button>
                 </div>
               </div>
             )}

@@ -364,6 +364,40 @@ export const appRouter = router({
         
         return { success: true };
       }),
+    completeOnboarding: protectedProcedure
+      .input(z.object({
+        investmentGoal: z.enum(["dividends", "growth", "balanced"]),
+        riskTolerance: z.enum(["low", "medium", "high"]),
+        investmentHorizon: z.enum(["short", "medium", "long"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { updateUserPreferences, completeOnboarding } = await import("./db");
+        
+        // Update user preferences
+        await updateUserPreferences(ctx.user.id, {
+          investmentGoal: input.investmentGoal,
+          riskTolerance: input.riskTolerance,
+          investmentHorizon: input.investmentHorizon,
+        });
+        
+        // Mark onboarding as completed
+        await completeOnboarding(ctx.user.id);
+        
+        return { success: true };
+      }),
+    updatePreferences: protectedProcedure
+      .input(z.object({
+        investmentGoal: z.enum(["dividends", "growth", "balanced"]).optional(),
+        riskTolerance: z.enum(["low", "medium", "high"]).optional(),
+        investmentHorizon: z.enum(["short", "medium", "long"]).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { updateUserPreferences } = await import("./db");
+        
+        await updateUserPreferences(ctx.user.id, input);
+        
+        return { success: true };
+      }),
   }),
 
 
@@ -765,8 +799,8 @@ export const appRouter = router({
       .input(z.object({
         firstName: z.string(),
         lastName: z.string(),
-        investmentGoal: z.string(),
-        riskTolerance: z.string(),
+        investmentGoal: z.enum(["dividends", "growth", "balanced"]),
+        riskTolerance: z.enum(["low", "medium", "high"]),
       }))
       .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("./db");
