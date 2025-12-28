@@ -947,3 +947,34 @@
 - [x] Stock-Logos Integration: Add company logos in stock selection and portfolio list for visual identification (Already implemented with StockLogo component)
 - [x] Premium-Wizard: Create intelligent assistant that automatically suggests diversified portfolio based on investment amount (Implemented with /premium-wizard route and generateSmartPortfolio endpoint)
 - [x] Automatische Preisabfüllung: Implement automatic filling of current stock price when adding new positions to portfolio (Already implemented in TransactionModal)
+
+## CRITICAL BUGS (Dec 28, 2025)
+- [x] Portfolio not found when clicking from dashboard - FIXED: Route mismatch corrected
+- [x] Portfolio count showing 0 on dashboard - FIXED: Now shows correct count
+- [x] Fix TypeScript error: Property 'mwr' does not exist on LiveTracking page - FIXED
+- [ ] Portfolio Builder design does not match mockup - needs complete redesign
+- [ ] Missing automatic portfolio creation feature based on investment profile (Anlageprofil)
+
+
+## CRITICAL BUGS FIXED (Dec 28, 2025 - 17:21)
+- [x] Portfolio not found when clicking from dashboard - FIXED: Route mismatch corrected (/portfolios/ → /portfolio/)
+- [x] Portfolio count showing 0 on dashboard - FIXED: Now shows correct count
+- [x] Fix TypeScript error: Property 'mwr' does not exist on LiveTracking page - FIXED
+- [x] Portfolio Builder design does not match mockup - FIXED: Complete 5-step wizard implemented
+- [x] Missing automatic portfolio creation feature based on investment profile - FIXED: LLM-based auto-generation working
+- [x] Planned positions not showing in portfolio detail - FIXED: Now shows with weight and "Geplant" status
+
+## New Portfolio Builder Wizard Implementation (Dec 28, 2025)
+- [x] Created new 5-step wizard structure with progress indicator
+- [x] Step 1: Grundlagen (Portfolio name, strategy, investment horizon)
+- [x] Step 2: Aktien auswählen with automatic portfolio generation via LLM
+- [x] Step 3: Anleihen & ETFs (optional, placeholder for future)
+- [x] Step 4: Verteilung & Risiko (portfolio overview, metrics, sector allocation)
+- [x] Step 5: Abschluss (summary, save with options)
+- [x] Integrated LLM-based automatic portfolio creation based on user profile
+- [x] Stock selection with search, filters, and stock cards
+- [x] Portfolio data saved as JSON in portfolioData field
+- [x] Portfolio Detail View updated to show planned positions with weight
+- [x] Added "Geplant" status badge for positions without transactions
+- [x] Fixed null safety issues for stock metrics (currentPrice, ytdPerformance, etc.)
+- [x] Route registered in App.tsx: /portfolio-builder/new

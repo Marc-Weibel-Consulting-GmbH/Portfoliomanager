@@ -37,6 +37,7 @@ import AdminSecretsManagement from "./pages/AdminSecretsManagement";
 import AdminKPIs from "./pages/AdminKPIs";
 import Dashboard from "./pages/Dashboard";
 import PortfolioBuilder from "./pages/PortfolioBuilder";
+import PortfolioBuilderNew from "./pages/PortfolioBuilderNew";
 import PortfolioBuilderLanding from "./pages/PortfolioBuilderLanding";
 import PortfolioBuilderWizard from "./pages/PortfolioBuilderWizard";
 import Rechner from "./pages/Rechner";
@@ -104,6 +105,7 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/portfolio-builder" component={PortfolioBuilderLanding} />
       <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />
+      <Route path="/portfolio-builder/new" component={PortfolioBuilderNew} />
       <Route path="/portfolio-builder/old" component={PortfolioBuilder} />
 
       <Route path="/signals" component={Signals} />

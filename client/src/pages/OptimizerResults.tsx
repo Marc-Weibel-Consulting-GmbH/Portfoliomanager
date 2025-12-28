@@ -189,7 +189,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
   const updateMutation = trpc.portfolios.update.useMutation({
     onSuccess: (data, variables) => {
       // Only show toast if it's a manual save (from dialog)
-      if (!variables.isAutoSave) {
+      if (!variables || !('isAutoSave' in variables) || !(variables as any).isAutoSave) {
         toast.success('Portfolio erfolgreich aktualisiert!');
         setShowSaveDialog(false);
       } else {

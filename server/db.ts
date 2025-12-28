@@ -434,7 +434,17 @@ export async function createSavedPortfolio(portfolio: InsertSavedPortfolio) {
       ...portfolio,
       portfolioType,
     });
-    return { id: Number((result as any).insertId), ...portfolio, portfolioType };
+    
+    // Get the inserted ID
+    const insertId = (result as any)[0]?.insertId || (result as any).insertId;
+    console.log('[Database] Created portfolio with insertId:', insertId);
+    
+    if (!insertId) {
+      console.error('[Database] No insertId returned from insert');
+      throw new Error('Failed to get portfolio ID');
+    }
+    
+    return { id: Number(insertId), ...portfolio, portfolioType };
   } catch (error) {
     console.error("[Database] Failed to create saved portfolio:", error);
     return null;

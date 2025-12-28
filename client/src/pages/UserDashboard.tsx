@@ -163,7 +163,7 @@ export default function UserDashboard() {
                 portfolios.map((portfolio) => {
                   const typeConfig = portfolio.portfolioType ? portfolioTypeConfig[portfolio.portfolioType] : null;
                   return (
-                  <Link key={portfolio.id} href={`/portfolios/${portfolio.id}`}>
+                  <Link key={portfolio.id} href={`/portfolio/${portfolio.id}`}>
                     <div className="bg-[#0f1420]/50 border border-white/10 rounded-lg p-4 hover:border-[#00CFC1]/50 transition-all cursor-pointer relative group">
                       <button
                         onClick={(e) => handleDeletePortfolio(e, portfolio.id)}

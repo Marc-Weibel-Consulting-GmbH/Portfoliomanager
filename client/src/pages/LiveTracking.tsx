@@ -1,93 +1,101 @@
+import { useState, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
-import DashboardLayout from "@/components/DashboardLayout";
+import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { trpc } from "@/lib/trpc";
-import { TrendingUp, TrendingDown, Activity, DollarSign, Calendar, BarChart3 } from "lucide-react";
-import { useLocation } from "wouter";
-import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Wallet,
+  BarChart3,
+  PieChart,
+  Calendar,
+  AlertCircle,
+  ArrowLeft,
+} from "lucide-react";
+import { Link, useRoute } from "wouter";
+import DashboardLayout from "@/components/DashboardLayout";
+import { StockLogo } from "@/components/StockLogo";
+import PremiumTeaser from "@/components/PremiumTeaser";
 
 export default function LiveTracking() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
-  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
+  const [, params] = useRoute<{ id: string }>("/live-tracking/:id");
+  const portfolioId = params?.id ? parseInt(params.id) : null;
 
-  // Filter only LIVE portfolios
+  // Fetch portfolios
+  const { data: portfolios = [], isLoading: portfoliosLoading } = trpc.portfolios.list.useQuery();
+  
+  // Find the selected portfolio or use first live portfolio
   const livePortfolios = portfolios.filter((p: any) => p.isLive);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(
+    portfolioId || (livePortfolios.length > 0 ? livePortfolios[0].id : null)
+  );
+
+  const portfolio = portfolios.find((p: any) => p.id === selectedPortfolioId);
+
+  // Fetch live performance
+  const { data: livePerformance, isLoading: performanceLoading } = trpc.portfolios.calculateLivePerformance.useQuery(
+    selectedPortfolioId!,
+    { enabled: !!selectedPortfolioId }
+  );
+
+  // Fetch CHF-converted holdings with performance
+  const { data: chfHoldings = [], isLoading: holdingsLoading } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
+    selectedPortfolioId!,
+    { enabled: !!selectedPortfolioId }
+  );
 
   if (!user) {
     return null;
   }
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Live Tracking</h1>
-            <p className="text-muted-foreground mt-1">
-              Echtzeit-Überwachung Ihrer aktiven Portfolios
-            </p>
+  if (portfoliosLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Portfolios werden geladen...</p>
           </div>
         </div>
+      </DashboardLayout>
+    );
+  }
 
-        {livePortfolios.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Keine Live-Portfolios</h3>
-              <p className="text-muted-foreground mb-4">
-                Aktivieren Sie Live-Tracking für ein Portfolio, um Echtzeit-Daten zu sehen.
+  if (livePortfolios.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Kein Live-Portfolio gefunden</h3>
+              <p className="text-muted-foreground text-center mb-6 max-w-md">
+                Sie haben noch kein Portfolio im Live-Modus. Aktivieren Sie ein Portfolio, um Live-Tracking zu nutzen.
               </p>
-              <Button onClick={() => setLocation("/portfolios")}>
-                Zu Portfolios
+              <Button asChild>
+                <Link href="/portfolios">Zu Portfolios</Link>
               </Button>
             </CardContent>
           </Card>
-        ) : (
-          <div className="grid gap-6">
-            {livePortfolios.map((portfolio: any) => (
-              <LivePortfolioCard
-                key={portfolio.id}
-                portfolio={portfolio}
-                onNavigate={() => setLocation(`/portfolio/${portfolio.id}`)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </DashboardLayout>
-  );
-}
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-function LivePortfolioCard({ portfolio, onNavigate }: { portfolio: any; onNavigate: () => void }) {
-  const { data: livePerformance } = trpc.portfolios.calculateLivePerformance.useQuery(
-    portfolio.id,
-    { enabled: !!portfolio.isLive }
-  );
-
-  const { data: chfHoldings = [] } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
-    portfolio.id,
-    { enabled: !!portfolio.isLive }
-  );
-
-  const portfolioData = useMemo(() => {
-    try {
-      const data = JSON.parse(portfolio.portfolioData);
-      return data.stocks || [];
-    } catch {
-      return [];
-    }
-  }, [portfolio.portfolioData]);
+  if (!portfolio) {
+    return null;
+  }
 
   // Calculate metrics
-  const totalInvestedCHF = livePerformance?.totalInvestedCHF || 0;
-  const totalValueCHF = livePerformance?.totalValueCHF || 0;
+  const totalInvestedCHF = livePerformance?.totalInvested || 0;
+  const totalValueCHF = livePerformance?.currentValue || 0;
   const cashPosition = livePerformance?.cashPosition || 0;
-  const performanceCHF = livePerformance?.performanceCHF || 0;
-  const performancePercent = livePerformance?.performancePercent || 0;
-  const irr = livePerformance?.irr || 0;
-  const mwr = livePerformance?.mwr || 0;
+  const performanceCHF = totalValueCHF - totalInvestedCHF;
+  const performancePercent = totalInvestedCHF > 0 ? ((totalValueCHF - totalInvestedCHF) / totalInvestedCHF) * 100 : 0;
 
   const isPositive = performancePercent >= 0;
 
@@ -103,130 +111,205 @@ function LivePortfolioCard({ portfolio, onNavigate }: { portfolio: any; onNaviga
     return weightedYield;
   }, [chfHoldings]);
 
+  // Calculate portfolio composition
+  const composition = useMemo(() => {
+    const totalValue = chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0);
+    return chfHoldings.map((h: any) => ({
+      ...h,
+      weight: totalValue > 0 ? (h.currentValueCHF / totalValue) * 100 : 0,
+    }));
+  }, [chfHoldings]);
+
   return (
-    <Card
-      className="hover:border-primary/50 transition-all cursor-pointer group"
-      onClick={onNavigate}
-    >
-      <CardHeader>
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-2xl">{portfolio.name}</CardTitle>
-            {portfolio.portfolioType && (
-              <span
-                className={`px-3 py-1 text-sm rounded-full font-medium ${
-                  portfolio.portfolioType === "Dividenden"
-                    ? "bg-green-600/20 text-green-400 border border-green-600/30"
-                    : portfolio.portfolioType === "Wachstum"
-                    ? "bg-blue-600/20 text-blue-400 border border-blue-600/30"
-                    : portfolio.portfolioType === "ETF"
-                    ? "bg-yellow-600/20 text-yellow-400 border border-yellow-600/30"
-                    : "bg-purple-600/20 text-purple-400 border border-purple-600/30"
-                }`}
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
+              <Badge variant="default" className="bg-green-500 text-white">
+                <span className="relative flex h-2 w-2 mr-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                </span>
+                Live
+              </Badge>
+            </div>
+            <p className="text-gray-400">
+              Echtzeit-Tracking seit {new Date(portfolio.liveStartDate).toLocaleDateString("de-CH")}
+            </p>
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/dashboard">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Zurück
+            </Link>
+          </Button>
+        </div>
+
+        {/* Portfolio Selector */}
+        {livePortfolios.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {livePortfolios.map((p: any) => (
+              <Button
+                key={p.id}
+                variant={p.id === selectedPortfolioId ? "default" : "outline"}
+                onClick={() => setSelectedPortfolioId(p.id)}
+                className="shrink-0"
               >
-                {portfolio.portfolioType}
-              </span>
-            )}
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-sm text-green-500 font-medium">Live</span>
+                {p.name}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {performanceLoading || holdingsLoading ? (
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Performance wird berechnet...</p>
             </div>
           </div>
-          <div
-            className={`flex items-center gap-2 text-2xl font-bold ${
-              isPositive ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {isPositive ? (
-              <TrendingUp className="h-6 w-6" />
-            ) : (
-              <TrendingDown className="h-6 w-6" />
-            )}
-            {isPositive ? "+" : ""}
-            {performancePercent.toFixed(2)}%
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="h-4 w-4 text-cyan-400" />
-              <p className="text-sm text-muted-foreground">Gesamtwert</p>
+        ) : (
+          <>
+            {/* Key Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wallet className="h-4 w-4 text-blue-400" />
+                  <p className="text-sm text-muted-foreground">Gesamtwert</p>
+                </div>
+                <p className="text-2xl font-bold text-white">
+                  CHF {totalValueCHF.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="h-4 w-4 text-blue-400" />
+                  <p className="text-sm text-muted-foreground">Performance</p>
+                </div>
+                <p className="text-2xl font-bold text-white">
+                  {performancePercent.toFixed(1)}%
+                </p>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  {isPositive ? (
+                    <TrendingUp className="h-4 w-4 text-green-400" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-400" />
+                  )}
+                  <p className="text-sm text-muted-foreground">Gewinn/Verlust</p>
+                </div>
+                <p className={`text-2xl font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}>
+                  {isPositive ? "+" : ""}
+                  CHF {performanceCHF.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="h-4 w-4 text-green-400" />
+                  <p className="text-sm text-muted-foreground">Ø Dividendenrendite</p>
+                </div>
+                <p className="text-2xl font-bold text-white">{avgDividendYield.toFixed(2)}%</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-white">
-              CHF {Math.round(totalValueCHF).toLocaleString("de-CH")}
-            </p>
-          </div>
 
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-green-400" />
-              <p className="text-sm text-muted-foreground">Performance</p>
-            </div>
-            <p
-              className={`text-2xl font-bold ${
-                performanceCHF >= 0 ? "text-green-400" : "text-red-400"
-              }`}
-            >
-              {performanceCHF >= 0 ? "+" : ""}CHF {Math.round(performanceCHF).toLocaleString("de-CH")}
-            </p>
-          </div>
+            {/* Holdings Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChart className="h-5 w-5" />
+                  Positionen ({chfHoldings.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-2">Aktie</th>
+                        <th className="text-right py-3 px-2">Anzahl</th>
+                        <th className="text-right py-3 px-2">Ø Kaufpreis</th>
+                        <th className="text-right py-3 px-2">Aktueller Preis</th>
+                        <th className="text-right py-3 px-2">Wert (CHF)</th>
+                        <th className="text-right py-3 px-2">Gewicht</th>
+                        <th className="text-right py-3 px-2">Performance</th>
+                        <th className="text-right py-3 px-2">Div. Rendite</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {composition.map((holding: any) => {
+                        const perfPercent = holding.avgCostCHF > 0
+                          ? ((holding.currentPriceCHF - holding.avgCostCHF) / holding.avgCostCHF) * 100
+                          : 0;
+                        const isProfitable = perfPercent >= 0;
 
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="h-4 w-4 text-blue-400" />
-              <p className="text-sm text-muted-foreground">IRR / MWR</p>
-            </div>
-            <p className="text-2xl font-bold text-white">
-              {irr.toFixed(1)}% / {mwr.toFixed(1)}%
-            </p>
-          </div>
+                        return (
+                          <tr key={holding.ticker} className="border-b border-border/50 hover:bg-muted/50">
+                            <td className="py-3 px-2">
+                              <div className="flex items-center gap-2">
+                                <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
+                                <div>
+                                  <div className="font-medium">{holding.ticker}</div>
+                                  <div className="text-xs text-muted-foreground">{holding.companyName}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="text-right py-3 px-2">{holding.shares.toFixed(2)}</td>
+                            <td className="text-right py-3 px-2">
+                              CHF {holding.avgCostCHF.toFixed(2)}
+                            </td>
+                            <td className="text-right py-3 px-2">
+                              CHF {holding.currentPriceCHF.toFixed(2)}
+                            </td>
+                            <td className="text-right py-3 px-2 font-medium">
+                              CHF {holding.currentValueCHF.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="text-right py-3 px-2">{holding.weight.toFixed(1)}%</td>
+                            <td className={`text-right py-3 px-2 font-medium ${isProfitable ? "text-green-500" : "text-red-500"}`}>
+                              {isProfitable ? "+" : ""}
+                              {perfPercent.toFixed(2)}%
+                            </td>
+                            <td className="text-right py-3 px-2">
+                              {holding.dividendYield ? `${holding.dividendYield.toFixed(2)}%` : "-"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-purple-400" />
-              <p className="text-sm text-muted-foreground">Dividende</p>
-            </div>
-            <p className="text-2xl font-bold text-white">{avgDividendYield.toFixed(2)}%</p>
-          </div>
-        </div>
+                {/* Cash Position */}
+                {cashPosition > 0 && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-blue-400" />
+                        <span className="font-medium">Cash Position</span>
+                      </div>
+                      <span className="font-bold text-blue-400">
+                        CHF {cashPosition.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Portfolio Details */}
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-700">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Positionen</p>
-            <p className="text-lg font-semibold">{portfolioData.length} Aktien</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Investiert</p>
-            <p className="text-lg font-semibold">
-              CHF {Math.round(totalInvestedCHF).toLocaleString("de-CH")}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Live seit</p>
-            <p className="text-lg font-semibold">
-              {portfolio.liveStartDate
-                ? new Date(portfolio.liveStartDate).toLocaleDateString("de-DE")
-                : "N/A"}
-            </p>
-          </div>
-        </div>
-
-        {/* View Details Button */}
-        <Button
-          className="w-full mt-4"
-          variant="outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            onNavigate();
-          }}
-        >
-          Details anzeigen →
-        </Button>
-      </CardContent>
-    </Card>
+            {/* Premium Teaser */}
+            <PremiumTeaser
+              title="Live-Tracking"
+              description="Verfolge dein Portfolio in Echtzeit mit IRR, MWR und detaillierten Performance-Metriken."
+            />
+          </>
+        )}
+      </div>
+    </DashboardLayout>
   );
 }

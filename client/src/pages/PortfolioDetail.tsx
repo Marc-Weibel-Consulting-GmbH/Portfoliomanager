@@ -388,7 +388,7 @@ export default function PortfolioDetail() {
       const currentPrice = parseFloat(stock.currentPrice || stock.price || dbStock?.currentPrice || '0');
       
       // For live portfolios: ALWAYS use transaction-based shares (even if 0)
-      // For test portfolios: use optimizer shares
+      // For test/planned portfolios: show as planned positions with weight
       const shares = portfolio.isLive 
         ? holdings.shares 
         : (parseFloat(stock.shares || '0') || holdings.shares);
@@ -396,6 +396,9 @@ export default function PortfolioDetail() {
         ? holdings.totalInvested
         : (parseFloat(stock.investmentAmount || '0') || holdings.totalInvested);
       const currentValue = shares * currentPrice;
+      
+      // Mark as planned position if no transactions exist
+      const isPlanned = !portfolio.isLive && holdings.shares === 0 && stock.weight > 0;
       
       return {
         ticker,
@@ -407,7 +410,8 @@ export default function PortfolioDetail() {
         currentValue,
         dividendYield: stock.dividendYield || dbStock?.dividendYield || 0,
         ytdPerformance: stock.ytdPerformance || stock.performance || dbStock?.ytdPerformance || 0,
-        currency
+        currency,
+        isPlanned
       };
       });
     } catch (error) {
@@ -730,7 +734,7 @@ export default function PortfolioDetail() {
 
             {/* Stock Positions - Accordion */}
             <Accordion type="multiple" className="space-y-2">
-              {portfolioData.filter((stock: any) => stock.shares > 0).map((stock: any, index: number) => {
+              {portfolioData.filter((stock: any) => stock.shares > 0 || stock.isPlanned).map((stock: any, index: number) => {
                 const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
                 const holding = holdingsByTicker[stock.ticker];
                 
@@ -760,20 +764,39 @@ export default function PortfolioDetail() {
                           </div>
                         </div>
                         <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground">Stückzahl</p>
-                            <p className="font-semibold text-white">{Math.round(stock.shares).toLocaleString('de-CH')}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground">Aktueller Wert</p>
-                            <p className="font-semibold text-green-400">CHF {Math.round(currentValueCHF).toLocaleString('de-CH')}</p>
-                          </div>
-                          <div className="text-right min-w-[80px]">
-                            <p className="text-xs text-muted-foreground">Performance</p>
-                            <p className={`font-bold ${performanceCHF >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              {performanceCHF >= 0 ? '+' : ''}{performanceCHF.toFixed(1)}%
-                            </p>
-                          </div>
+                          {stock.isPlanned ? (
+                            <>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Status</p>
+                                <p className="font-semibold text-cyan-400">Geplant</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Gewichtung</p>
+                                <p className="font-semibold text-white">{(parseFloat(stock.weight) || 0).toFixed(1)}%</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Aktueller Kurs</p>
+                                <p className="font-semibold text-green-400">{stock.currency} {stock.currentPrice.toFixed(2)}</p>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Stückzahl</p>
+                                <p className="font-semibold text-white">{Math.round(stock.shares).toLocaleString('de-CH')}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Aktueller Wert</p>
+                                <p className="font-semibold text-green-400">CHF {Math.round(currentValueCHF).toLocaleString('de-CH')}</p>
+                              </div>
+                              <div className="text-right min-w-[80px]">
+                                <p className="text-xs text-muted-foreground">Performance</p>
+                                <p className={`font-bold ${performanceCHF >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {performanceCHF >= 0 ? '+' : ''}{performanceCHF.toFixed(1)}%
+                                </p>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </AccordionTrigger>

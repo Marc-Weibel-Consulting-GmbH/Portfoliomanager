@@ -222,8 +222,10 @@ export const portfoliosRouter = router({
         throw new Error("Invalid portfolio data");
       })
       .mutation(async ({ input, ctx }) => {
-        const { createSavedPortfolio } = await import("../db");
-        return await createSavedPortfolio({
+        const { createSavedPortfolio, createPortfolioTransaction } = await import("../db");
+        
+        // Create the portfolio
+        const portfolio = await createSavedPortfolio({
           userId: ctx.user.id,
           name: input.name,
           description: input.description || null,
@@ -231,6 +233,16 @@ export const portfoliosRouter = router({
           portfolioType: input.portfolioType || null,
           isLive: input.isLive ? 1 : 0,
         });
+        
+        if (!portfolio) {
+          throw new Error('Failed to create portfolio');
+        }
+        
+        // Note: portfolioData contains the stock positions with weights
+        // Transactions will be created when user actually buys stocks
+        // The portfolioData serves as a template/plan for the portfolio
+        
+        return portfolio;
       }),
 
     update: protectedProcedure
