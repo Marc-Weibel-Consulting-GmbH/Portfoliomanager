@@ -1026,3 +1026,6 @@
 - [ ] Test portfolio detail page with live portfolio
 - [ ] Test benchmark switching
 - [ ] Create checkpoint after successful testing
+
+## Bug Fix: Portfolio Creation Button (Dec 28, 2025)
+- [x] Fix ALL "Portfolio erstellen" / "Neues Portfolio" buttons across entire app to redirect to new Portfolio Builder (/portfolio-builder) instead of old wizard (/portfolios/create)

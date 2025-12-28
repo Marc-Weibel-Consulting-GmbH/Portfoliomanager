@@ -266,7 +266,7 @@ export default function UserDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
-                <Link href="/portfolios/create">
+                <Link href="/portfolio-builder">
                   <Button className="w-full bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold flex items-center gap-2">
                     <Plus className="h-4 w-4" />
                     Neues Portfolio

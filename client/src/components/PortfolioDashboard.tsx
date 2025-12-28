@@ -35,11 +35,7 @@ ChartJS.register(
   ArcElement
 );
 
-interface PortfolioDashboardProps {
-  onCreateNew: () => void;
-}
-
-export default function PortfolioDashboard({ onCreateNew }: PortfolioDashboardProps) {
+export default function PortfolioDashboard() {
   const [, setLocation] = useLocation();
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -243,7 +239,7 @@ export default function PortfolioDashboard({ onCreateNew }: PortfolioDashboardPr
             <p className="text-slate-300">
               Erstellen Sie Ihr erstes Portfolio mit dem Portfolio Optimizer.
             </p>
-            <Button onClick={onCreateNew} className="w-full">
+            <Button onClick={() => setLocation('/portfolio-builder')} className="w-full">
               <Plus className="w-4 h-4 mr-2" />
               Neues Portfolio erstellen
             </Button>
@@ -282,7 +278,7 @@ export default function PortfolioDashboard({ onCreateNew }: PortfolioDashboardPr
 
           <div className="flex items-center gap-2 flex-wrap">
             <Button
-              onClick={onCreateNew}
+              onClick={() => setLocation('/portfolio-builder')}
               variant="default"
               className="bg-blue-600 hover:bg-blue-700"
             >

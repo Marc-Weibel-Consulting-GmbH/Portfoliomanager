@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -98,7 +98,9 @@ function Router() {
       <Route path="/live-tracking" component={LiveTracking} />
       <Route path="/dividends" component={DividendCalendar} />
       <Route path="/portfolios" component={Portfolios} />
-      <Route path="/portfolios/create" component={PortfolioBuilderWizard} />
+      <Route path="/portfolios/create">
+        <Redirect to="/portfolio-builder" />
+      </Route>
       <Route path="/portfolios/:id" component={PortfolioDetailsPage} />
       <Route path="/analysis" component={Analysis} />
       <Route path="/ai-insights" component={AIInsights} />
