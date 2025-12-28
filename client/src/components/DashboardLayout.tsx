@@ -36,8 +36,6 @@ const menuItems = [
   { icon: Activity, label: "Live-Tracking", path: "/live-tracking" },
   { icon: BarChart3, label: "Analyse", path: "/analysis" },
   { icon: Sparkles, label: "KI-Insights", path: "/ai-insights" },
-  { icon: Grid3x3, label: "Kategorien", path: "/categories" },
-  { icon: PieChart, label: "Sektoren", path: "/sectors" },
   { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
   { icon: TrendingUp, label: "Dividenden", path: "/dividends" },
   { icon: Zap, label: "Signale", path: "/signals" },
@@ -48,11 +46,6 @@ const menuItems = [
 
 const adminMenuItems = [
   { icon: Shield, label: "Admin", path: "/admin" },
-  { icon: Database, label: "Aktien-Verwaltung", path: "/admin/stocks" },
-  { icon: Grid3x3, label: "Kategorien-Verwaltung", path: "/admin/categories" },
-  { icon: PieChart, label: "Sektoren-Verwaltung", path: "/admin/sectors" },
-  { icon: Key, label: "Secrets-Verwaltung", path: "/admin/secrets" },
-  { icon: BarChart3, label: "Platform-KPIs", path: "/admin/kpis" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
