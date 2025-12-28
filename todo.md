@@ -617,3 +617,28 @@
 - [ ] Test Payment Success/Cancel pages
 - [ ] Test responsive design on mobile
 - [ ] Verify all pages use consistent dark theme
+
+
+## Navigation & Admin Consolidation (Dec 28, 2025)
+- [x] Remove Newsroom from main navigation (news only in portfolio/stock details)
+- [x] Ensure sidebar remains visible across all category pages
+- [x] Consolidate admin section with:
+  - [x] Admin Dashboard overview page
+  - [x] Kategorien-Verwaltung (Categories Management)
+  - [x] Sektoren-Verwaltung (Sectors Management)
+  - [x] Aktienliste-Verwaltung (Stock List Management - already exists)
+  - [x] Secrets-Verwaltung (Secrets Management)
+  - [x] Platform-KPIs (Platform Metrics)
+- [x] Align Live-Tracking portfolio details design with new Portfolio design
+- [x] Update Live-Tracking portfolio detail page to match Portfolio detail mockup design
+
+
+## Pricing Page Implementation (Dec 28, 2025)
+- [x] Create Pricing page with two-column layout (Free vs Premium)
+- [x] Add Free plan features and pricing
+- [x] Add Premium plan features and pricing (CHF 10.00 einmalige Zahlung)
+- [x] Add payment provider logos (Stripe, TWINT, PostFinance)
+- [x] Add FAQ section with common questions
+- [x] Style with dark theme and cyan accents
+- [x] Add CTA buttons (Kostenlos starten, Jetzt kaufen)
+- [x] Integrate Stripe payment flow for Premium upgrade

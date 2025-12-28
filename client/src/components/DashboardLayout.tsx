@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Newspaper, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -36,7 +36,6 @@ const menuItems = [
   { icon: Activity, label: "Live-Tracking", path: "/live-tracking" },
   { icon: BarChart3, label: "Analyse", path: "/analysis" },
   { icon: Sparkles, label: "KI-Insights", path: "/ai-insights" },
-  { icon: Newspaper, label: "Newsroom", path: "/newsroom" },
   { icon: Grid3x3, label: "Kategorien", path: "/categories" },
   { icon: PieChart, label: "Sektoren", path: "/sectors" },
   { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
@@ -48,7 +47,12 @@ const menuItems = [
 ];
 
 const adminMenuItems = [
-  { icon: Database, label: "Aktien (Admin)", path: "/admin/stocks" },
+  { icon: Shield, label: "Admin", path: "/admin" },
+  { icon: Database, label: "Aktien-Verwaltung", path: "/admin/stocks" },
+  { icon: Grid3x3, label: "Kategorien-Verwaltung", path: "/admin/categories" },
+  { icon: PieChart, label: "Sektoren-Verwaltung", path: "/admin/sectors" },
+  { icon: Key, label: "Secrets-Verwaltung", path: "/admin/secrets" },
+  { icon: BarChart3, label: "Platform-KPIs", path: "/admin/kpis" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

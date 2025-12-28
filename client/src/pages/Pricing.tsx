@@ -146,6 +146,30 @@ export default function Pricing() {
         </div>
       </section>
 
+      {/* Payment Providers */}
+      <section className="container mx-auto px-4 pb-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-sm text-slate-400 mb-6">Sichere Zahlung mit</p>
+          <div className="flex justify-center items-center gap-8 flex-wrap">
+            <img 
+              src="/stripe-logo.png" 
+              alt="Stripe" 
+              className="h-8 opacity-70 hover:opacity-100 transition-opacity"
+            />
+            <img 
+              src="/twint-logo.jpg" 
+              alt="TWINT" 
+              className="h-10 opacity-70 hover:opacity-100 transition-opacity"
+            />
+            <img 
+              src="/postfinance-logo.png" 
+              alt="PostFinance" 
+              className="h-8 opacity-70 hover:opacity-100 transition-opacity"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Trust Badges */}
       <section className="container mx-auto px-4 pb-16">
         <div className="max-w-4xl mx-auto">
