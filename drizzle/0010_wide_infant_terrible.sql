@@ -1,1 +1,0 @@
-ALTER TABLE `stocks` ADD `isManualWeight` tinyint DEFAULT 0 NOT NULL;

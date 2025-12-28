@@ -1,8 +1,0 @@
-{
-  "query": "UPDATE portfolioTransactions pt\nJOIN fxRates fx ON DATE(pt.transactionDate) = fx.date AND fx.currencyPair = 'USDCHF'\nSET pt.fxRate = fx.rate,\n    pt.totalAmountCHF = CAST(pt.totalAmount AS DECIMAL(20,2)) * CAST(fx.rate AS DECIMAL(10,4))\nWHERE pt.currency = 'USD';",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute UPDATE portfolioTransactions pt\nJOIN fxRates fx ON DATE(pt.transactionDate) = fx.date AND fx.currencyPair = 'USDCHF'\nSET pt.fxRate = fx.rate,\n    pt.totalAmountCHF = CAST(pt.totalAmount AS DECIMAL(20,2)) * CAST(fx.rate AS DECIMAL(10,4))\nWHERE pt.currency = 'USD';",
-  "returncode": 1,
-  "logs": [
-    "ERROR 1146 (42S02) at line 1: Table 'aqvizp6ne8lkembgrk5vq4.fxRates' doesn't exist"
-  ]
-}

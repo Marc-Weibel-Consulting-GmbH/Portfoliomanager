@@ -5,20 +5,10 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-// OAuth disabled - using email/password login
-// import { getLoginUrl } from "./const";
+import { getLoginUrl } from "./const";
 import "./index.css";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30000, // 30 seconds default cache
-      gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
-      retry: 1, // Only retry once on failure
-      refetchOnWindowFocus: false, // Don't refetch on window focus
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
@@ -28,8 +18,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  // Redirect to login page instead of OAuth
-  window.location.href = "/login";
+  window.location.href = getLoginUrl();
 };
 
 queryClient.getQueryCache().subscribe(event => {
