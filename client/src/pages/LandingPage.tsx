@@ -34,44 +34,31 @@ export default function LandingPage() {
 
             {/* Center Navigation */}
             <div className="hidden md:flex gap-8 items-center">
-              <a href="#features" className="text-slate-400 hover:text-white transition-colors text-sm">
-                Features
+              <a href="#analysen" className="text-slate-400 hover:text-white transition-colors text-sm">
+                Analysen
+              </a>
+              <a href="#funktionen" className="text-slate-400 hover:text-white transition-colors text-sm">
+                Funktionen
               </a>
               <a href="/pricing" className="text-slate-400 hover:text-white transition-colors text-sm">
-                Pricing
+                Preise
               </a>
               <a href="/about" className="text-slate-400 hover:text-white transition-colors text-sm">
-                About
+                Über uns
               </a>
             </div>
 
             {/* Right Actions */}
-            <div className="flex gap-3 items-center">
-              {!isAuthenticated && (
-                <>
-                  <Button 
-                    variant="ghost" 
-                    onClick={handleLogin} 
-                    className="text-white hover:text-white hover:bg-slate-800 text-sm"
-                  >
-                    Login
-                  </Button>
-                  <Button 
-                    onClick={handleGetStarted} 
-                    className="bg-teal-500 hover:bg-teal-600 text-white px-6 text-sm font-medium"
-                  >
-                    Get Started
-                  </Button>
-                </>
-              )}
-              {isAuthenticated && (
-                <Button 
-                  onClick={() => window.location.href = "/dashboard"} 
-                  className="bg-teal-500 hover:bg-teal-600 text-white px-6"
-                >
-                  Zum Dashboard
-                </Button>
-              )}
+            <div className="flex gap-6 items-center">
+              <a href="/dashboard" className="text-slate-400 hover:text-white transition-colors text-sm font-medium">
+                Anmelden
+              </a>
+              <Button 
+                onClick={() => window.location.href = "/onboarding"} 
+                className="border-2 border-teal-500 bg-transparent hover:bg-teal-500/10 text-teal-400 px-6 text-sm font-medium"
+              >
+                Konto erstellen
+              </Button>
             </div>
           </div>
         </div>

@@ -749,3 +749,9 @@
 
 - [x] Fix onboarding redirect - nach Abschluss soll zum Dashboard weitergeleitet werden, nicht zurück zum Anfang
 - [ ] Fix auth flow - eingeloggte User sollen nicht zur Registrierung weitergeleitet werden
+
+## Navigation Update (28.12.2024) ✅ COMPLETED
+- [x] Update navigation header to match screenshot with links: Analysen, Funktionen, Preise, Über uns, Anmelden, Konto erstellen
+- [x] Fix "Anmelden" button to route to new dashboard (/dashboard)
+- [x] Fix "Konto erstellen" button to route to onboarding process (/onboarding)
+- [x] Applied changes to Landing.tsx (the active landing page)
