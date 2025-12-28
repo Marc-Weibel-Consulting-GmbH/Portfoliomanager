@@ -78,6 +78,7 @@ export const onboardingRouter = router({
       .update(users)
       .set({
         hasSeenOnboarding: 1,
+        hasCompletedOnboarding: 1,
         updatedAt: new Date(),
       })
       .where(eq(users.id, ctx.user.id));
@@ -91,6 +92,7 @@ export const onboardingRouter = router({
   hasCompletedOnboarding: protectedProcedure.query(async ({ ctx }) => {
     return {
       hasSeenOnboarding: ctx.user.hasSeenOnboarding === 1,
+      hasCompletedOnboarding: ctx.user.hasCompletedOnboarding === 1,
       hasDemoPortfolio: ctx.user.hasDemoPortfolio === 1,
     };
   }),

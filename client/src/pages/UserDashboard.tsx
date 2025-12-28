@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import PremiumTeaser from "@/components/PremiumTeaser";
+import { Activity, TrendingUp as TrendingUpIcon, Bell as BellIcon } from "lucide-react";
 
 export default function UserDashboard() {
   const { user } = useAuth();
@@ -244,6 +246,34 @@ export default function UserDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Premium Features Section */}
+          <div className="space-y-6">
+            {user?.subscriptionTier === "free" && (
+              <>
+                {/* Live-Tracking Teaser */}
+                <PremiumTeaser
+                  title="Live-Tracking"
+                  description="Verfolge dein Portfolio in Echtzeit mit IRR, MWR und detaillierten Performance-Metriken."
+                  icon={<Activity className="w-8 h-8 text-teal-500" />}
+                />
+
+                {/* Trading-Signale Teaser */}
+                <PremiumTeaser
+                  title="Trading-Signale"
+                  description="Erhalte KI-gestützte Kauf- und Verkaufsempfehlungen basierend auf Fundamentalanalyse."
+                  icon={<TrendingUpIcon className="w-8 h-8 text-teal-500" />}
+                />
+
+                {/* Erweiterte Metriken Teaser */}
+                <PremiumTeaser
+                  title="Erweiterte Metriken"
+                  description="Zugriff auf vollständige Fundamentalanalyse, Sharpe Ratio, Beta, und mehr."
+                  icon={<BellIcon className="w-8 h-8 text-teal-500" />}
+                />
+              </>
+            )}
+          </div>
         </div>
 
         {/* Right Column: Alerts & News */}

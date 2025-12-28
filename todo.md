@@ -746,3 +746,56 @@
 
 - [x] Fix onboarding redirect - nach Abschluss soll zum Dashboard weitergeleitet werden, nicht zurück zum Anfang
 - [ ] Fix auth flow - eingeloggte User sollen nicht zur Registrierung weitergeleitet werden
+
+
+## Onboarding & Premium Features (Dec 28, 2025)
+
+### Onboarding Loop Fix
+- [x] Add hasCompletedOnboarding field to user table
+- [x] Update onboarding flow to set hasCompletedOnboarding = true after completion
+- [x] Prevent onboarding loop by checking hasCompletedOnboarding status
+- [x] Redirect users who completed onboarding directly to dashboard
+
+### Subscription Tier System
+- [x] Add subscriptionTier field to user table (enum: 'free', 'premium')
+- [x] Set default subscriptionTier to 'free' for new users
+- [x] Create database migration for new fields
+- [x] Add tRPC procedures for subscription management
+
+### Settings Page
+- [x] Create settings page route and navigation
+- [x] Add "Anlagepräferenzen" section
+  - [x] Investment goals (Dividenden, Wachstum, Ausgewogen)
+  - [x] Risk tolerance slider
+  - [x] Preferred sectors/categories
+- [x] Add "Benachrichtigungen" section
+  - [x] Email notifications toggle
+  - [x] WhatsApp notifications toggle
+  - [x] Price alert preferences
+- [x] Add "Profil" section
+  - [x] Name, email display
+  - [x] Change password option
+- [x] Add "Abonnement" section
+  - [x] Display current tier (Free/Premium)
+  - [x] Upgrade button for free users
+  - [x] Subscription details for premium users
+- [x] Save settings functionality with tRPC
+
+### PremiumTeaser Component
+- [x] Create reusable PremiumTeaser component
+- [x] Props: title, description, ctaText, feature icon
+- [x] Visual design: blur effect, "Premium" badge, gradient border
+- [x] "Jetzt upgraden" button with routing to pricing page
+- [x] Responsive design
+
+### Feature Gating Implementation
+- [x] Implement feature gating in Dashboard
+  - [x] ✅ Free: Gesamtwert, Performance, Dividenden (all users)
+  - [x] ✅ Free: Portfolio-Übersicht (all users)
+  - [x] ✅ Free: Top News (all users)
+  - [x] 🔒 Premium: Live-Tracking (show teaser for free users)
+  - [x] 🔒 Premium: Preisalarme (show teaser for free users)
+  - [x] 🔒 Premium: Trading-Signale (show teaser for free users)
+  - [x] 🔒 Premium: Erweiterte Metriken (show teaser for free users)
+- [x] Add subscription tier checks in tRPC procedures
+- [x] Display appropriate UI based on user's subscription tier
