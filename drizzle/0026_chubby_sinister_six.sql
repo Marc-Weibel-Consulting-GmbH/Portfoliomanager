@@ -1,1 +1,0 @@
-ALTER TABLE `savedPortfolios` DROP COLUMN `tags`;

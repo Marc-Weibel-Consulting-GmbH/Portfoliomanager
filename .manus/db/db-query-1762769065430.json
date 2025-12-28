@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS `realizedGains` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `portfolioId` int NOT NULL,\n  `transactionId` int NOT NULL,\n  `ticker` varchar(50) NOT NULL,\n  `shares` varchar(50) NOT NULL,\n  `avgCostBasis` varchar(50) NOT NULL,\n  `sellPrice` varchar(50) NOT NULL,\n  `realizedGain` varchar(50) NOT NULL,\n  `realizedGainPercent` varchar(50) NOT NULL,\n  `transactionDate` timestamp NOT NULL,\n  `createdAt` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  INDEX `ix_realized_gains_portfolio` (`portfolioId`),\n  INDEX `ix_realized_gains_ticker` (`ticker`)\n)",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute CREATE TABLE IF NOT EXISTS `realizedGains` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `portfolioId` int NOT NULL,\n  `transactionId` int NOT NULL,\n  `ticker` varchar(50) NOT NULL,\n  `shares` varchar(50) NOT NULL,\n  `avgCostBasis` varchar(50) NOT NULL,\n  `sellPrice` varchar(50) NOT NULL,\n  `realizedGain` varchar(50) NOT NULL,\n  `realizedGainPercent` varchar(50) NOT NULL,\n  `transactionDate` timestamp NOT NULL,\n  `createdAt` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  INDEX `ix_realized_gains_portfolio` (`portfolioId`),\n  INDEX `ix_realized_gains_ticker` (`ticker`)\n)",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 483
-}

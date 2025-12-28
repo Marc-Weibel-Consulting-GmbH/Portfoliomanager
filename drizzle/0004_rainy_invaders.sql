@@ -1,1 +1,0 @@
-ALTER TABLE `news` ADD `priority` enum('Wichtig','Mittel','Niedrig') DEFAULT 'Mittel';

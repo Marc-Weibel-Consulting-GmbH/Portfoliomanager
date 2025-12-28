@@ -1,4 +1,0 @@
-Portfolio BIG - Version with Rechner Tab
-Build: 2025-11-02-05-35
-Features: All 67 stocks, Rechner tab, Portfolio Optimizer, Premium system
-

@@ -7,7 +7,7 @@ export default function NotFound() {
   const [, setLocation] = useLocation();
 
   const handleGoHome = () => {
-    window.history.back();
+    setLocation("/");
   };
 
   return (

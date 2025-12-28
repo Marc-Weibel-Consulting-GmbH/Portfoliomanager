@@ -1,1 +1,0 @@
-ALTER TABLE `stocks` ADD `portfolioWeight` varchar(50) DEFAULT '0';
