@@ -38,7 +38,7 @@ export const realizedGainsHistoryRouter = router({
           sellFees: portfolioTransactions.fees,
         })
         .from(realizedGains)
-        .leftJoin(portfolioTransactions, eq(realizedGains.transactionId, portfolioTransactions.id))
+        .leftJoin(portfolioTransactions, eq(portfolioTransactions.id, realizedGains.transactionId))
         .where(eq(realizedGains.portfolioId, input.portfolioId))
         .orderBy(desc(realizedGains.transactionDate));
 

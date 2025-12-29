@@ -26,6 +26,7 @@ import { authRouter as authExtensionsRouter } from "./routers/authRouter";
 import { autoPortfolioRouter } from "./routers/autoPortfolioRouter";
 import { fxRatesRouter } from "./routers/fxRatesRouter";
 import { portfolioManagementRouter } from "./routers/portfolioManagementRouter";
+import { dashboardRouter } from "./routers/dashboardRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -1074,6 +1075,7 @@ export const appRouter = router({
 
   chat: chatRouter,
 
+  dashboard: dashboardRouter,
   realizedGainsHistory: realizedGainsHistoryRouter,
   secrets: secretsRouter,
   testSecrets: testSecretsRouter,

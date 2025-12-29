@@ -1132,3 +1132,36 @@
 - [x] Convert all custom input validation in portfoliosRouter to Zod schemas
 - [x] Test portfolio detail page loading after migration
 - [x] Verify all portfoliosRouter procedures work correctly
+
+## Dashboard & Portfolios Redesign - Redundanz beseitigen (29.12.2025)
+
+### Problem
+- Dashboard zeigt Portfolio-Liste mit Mini-Charts
+- Portfolios-Seite zeigt ebenfalls Portfolio-Liste mit ähnlichen Informationen
+- Redundanz und wenig Mehrwert durch doppelte Darstellung
+
+### Lösung basierend auf Mockups
+
+#### Dashboard Redesign (Mockup 3)
+- [x] Aggregierte Metriken über ALLE Live-Portfolios (Gesamtwert, Performance, Dividenden)
+- [x] Portfolio-Anzahl als Metrik-Card hinzufügen
+- [x] "Meine Portfolios" Section: Nur Top 3-4 Portfolios mit Sparkline-Charts anzeigen
+- [x] "Aktuelle Alerts" Section mit Preisalarmen für einzelne Assets
+- [x] "Top News" Section mit Markt-News und Bildern
+- [x] "Quick Actions" Buttons für häufige Aktionen
+
+#### Portfolios-Seite Redesign (Mockup 4 Übersicht)
+- [x] Summary-Cards oben: Gesamt-Portfolios, Gesamtwert, Performance (nur Live-Portfolios)
+- [x] Vollständige Portfolio-Liste mit ALLEN Portfolios (Live + Test)
+- [x] Portfolio-Cards mit erweiterten Informationen:
+  - [x] Wert, Performance, Anzahl Positionen
+  - [x] Erstelldatum, letztes Update
+  - [x] Status-Badge (Live/Test)
+  - [x] Sparkline-Chart für Performance-Verlauf
+- [x] Filter/Sortierung: Nach Status (Live/Test), Performance, Datum
+- [x] "Neues Portfolio" Button prominent platzieren
+
+#### Backend Support
+- [x] tRPC procedure für aggregierte Portfolio-Metriken (alle Live-Portfolios)
+- [x] tRPC procedure für Top-Portfolios (nach Wert oder Performance sortiert)
+- [x] Portfolio-Liste Procedure um zusätzliche Felder erweitern (falls nötig)
