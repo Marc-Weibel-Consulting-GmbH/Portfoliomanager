@@ -1201,3 +1201,12 @@
   - [x] Dividendenkalender aus trpc.dividendCalendar.getUpcoming
   - [x] Jahresperformance aus trpc.annualPerformance.getSummary
 - [x] TypeScript-Fehler behoben (dashboardRouter, UserDashboard, PortfolioDetail, etc.)
+
+
+## Live Testing Fixes (Dec 29, 2025)
+- [x] Fix holdings table to show real portfolio data instead of mock data
+- [x] Fix sector allocation to use real data from holdings
+- [x] Add currency conversion - show local currency (USD) and CHF with exchange rate
+- [x] Add new getWithCurrency tRPC endpoint for portfolio data with FX rates
+- [x] Fix Asset Allocation to show actual asset types from portfolio
+- [x] Fix TypeScript error in main.tsx (SuperJSON transformer)

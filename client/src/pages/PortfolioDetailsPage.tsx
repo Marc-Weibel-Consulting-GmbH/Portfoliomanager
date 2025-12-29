@@ -17,8 +17,6 @@ import {
   Edit,
   Trash2,
   Share2,
-  Plus,
-  Bell,
   DollarSign,
   Scale,
   PieChart,
@@ -39,24 +37,29 @@ const formatDate = (date: Date | string) => {
   return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
+const formatCurrency = (value: number, currency: string = 'CHF') => {
+  return new Intl.NumberFormat('de-CH', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
 export default function PortfolioDetailsPage() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const portfolioId = params.id ? parseInt(params.id) : 0;
   
-  console.log('[PortfolioDetailsPage] params:', params);
-  console.log('[PortfolioDetailsPage] portfolioId:', portfolioId, 'type:', typeof portfolioId);
-  
-  // Fetch portfolio data
-  const { data: portfolio, isLoading } = trpc.portfolios.get.useQuery(
+  // Fetch portfolio data with currency information
+  const { data: portfolio, isLoading } = trpc.portfolios.getWithCurrency.useQuery(
     portfolioId,
     {
-      enabled: portfolioId > 0, // Only fetch if portfolioId is valid
+      enabled: portfolioId > 0,
     }
   );
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
-  const utils = trpc.useUtils();
   
   const [selectedPeriod, setSelectedPeriod] = useState("6M");
   
@@ -86,13 +89,20 @@ export default function PortfolioDetailsPage() {
   
   const typeConfig = portfolio.portfolioType ? portfolioTypeConfig[portfolio.portfolioType] : null;
   
-  // Parse portfolio data
-  let portfolioData: { stocks: Array<{ ticker: string; weight: number }> } = { stocks: [] };
-  try {
-    portfolioData = JSON.parse(portfolio.portfolioData);
-  } catch (e) {
-    console.error("Failed to parse portfolio data:", e);
-  }
+  // Use enriched stocks from the API
+  const holdings = portfolio.enrichedStocks || [];
+  
+  // Calculate sector allocation
+  const sectorWeights: Record<string, number> = {};
+  holdings.forEach((h: any) => {
+    const sector = h.sector || 'Other';
+    sectorWeights[sector] = (sectorWeights[sector] || 0) + (h.weight || 0);
+  });
+  
+  // Calculate total portfolio value based on initial capital and weights
+  // For now, we use a placeholder calculation
+  const totalValueCHF = portfolio.totalValueCHF || 0;
+  const avgDividendYield = portfolio.avgDividendYield || 0;
   
   const handleDelete = async () => {
     if (confirm("Möchten Sie dieses Portfolio wirklich löschen?")) {
@@ -109,32 +119,6 @@ export default function PortfolioDetailsPage() {
   const handlePortfolioSwitch = (newId: string) => {
     navigate(`/portfolios/${newId}`);
   };
-  
-  // Mock data for charts and metrics (replace with real data later)
-  const mockMetrics = {
-    totalValue: "CHF 45,230",
-    performance: "+18.5%",
-    performanceValue: "+7,230",
-    irr: "16.2%",
-    beta: "1.15",
-    volatility: "18.3%",
-    sharpeRatio: "1.42",
-    dividendYield: "2.1%",
-  };
-  
-  const mockHoldings = [
-    { ticker: "GOOGL", name: "Alphabet Inc.", shares: 50, weight: 55, currentPrice: 2501.45, value: 125072.5, performance: 12.3, dividendYield: 0.0 },
-    { ticker: "MSFT", name: "Microsoft Corp.", shares: 100, weight: 22, currentPrice: 368.8, value: 36880, performance: 8.4, dividendYield: 0.8 },
-    { ticker: "AAPL", name: "Apple Inc.", shares: 150, weight: 20, currentPrice: 160.3, value: 24045, performance: 11.1, dividendYield: 0.5 },
-    { ticker: "AMZN", name: "Amazon.com Inc.", shares: 60, weight: 18, currentPrice: 3340.6, value: 200436, performance: 15.3, dividendYield: 0.0 },
-    { ticker: "TSLA", name: "Tesla Inc.", shares: 40, weight: 15, currentPrice: 1031.5, value: 41260, performance: 21.1, dividendYield: 0.0 },
-  ];
-  
-  const mockTransactions = [
-    { date: "2024-06-15", type: "Kauf", ticker: "MSFT", shares: 10, price: 335.2, total: 3352 },
-    { date: "2024-06-10", type: "Dividende", ticker: "AAPL", shares: 150, price: 0.24, total: 36 },
-    { date: "2024-06-01", type: "Kauf", ticker: "GOOGL", shares: 5, price: 2501.45, total: 12507.25 },
-  ];
   
   return (
     <DashboardLayout>
@@ -221,7 +205,7 @@ export default function PortfolioDetailsPage() {
               {/* Chart */}
               <div className="lg:col-span-2">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Portfolio Value Over Time (6 Months)</h3>
+                  <h3 className="text-lg font-semibold text-white">Portfolio-Wertentwicklung</h3>
                   <div className="flex gap-2">
                     {["1M", "3M", "6M", "1Y", "YTD", "All"].map((period) => (
                       <Button
@@ -244,35 +228,18 @@ export default function PortfolioDetailsPage() {
               {/* Performance Stats */}
               <div className="space-y-4">
                 <div>
-                  <div className="text-sm text-gray-400 mb-1">Portfolio Value</div>
-                  <div className="text-3xl font-bold text-white">{mockMetrics.totalValue}</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                    <span className="text-green-500 font-semibold">{mockMetrics.performance}</span>
-                    <span className="text-sm text-gray-400">({mockMetrics.performanceValue})</span>
-                  </div>
+                  <div className="text-sm text-gray-400 mb-1">Portfolio-Übersicht</div>
+                  <div className="text-2xl font-bold text-white">{holdings.length} Positionen</div>
                 </div>
                 
                 <div className="pt-4 border-t border-white/10 space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">IRR</span>
-                    <span className="text-sm font-semibold text-white">{mockMetrics.irr}</span>
+                    <span className="text-sm text-gray-400">Durchschn. Dividendenrendite</span>
+                    <span className="text-sm font-semibold text-[#00CFC1]">{avgDividendYield.toFixed(2)}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">Beta</span>
-                    <span className="text-sm font-semibold text-white">{mockMetrics.beta}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">Volatilität</span>
-                    <span className="text-sm font-semibold text-white">{mockMetrics.volatility}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">Sharpe Ratio</span>
-                    <span className="text-sm font-semibold text-white">{mockMetrics.sharpeRatio}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">Dividendenrendite</span>
-                    <span className="text-sm font-semibold text-white">{mockMetrics.dividendYield}</span>
+                    <span className="text-sm text-gray-400">Sektoren</span>
+                    <span className="text-sm font-semibold text-white">{Object.keys(sectorWeights).length}</span>
                   </div>
                 </div>
               </div>
@@ -286,7 +253,7 @@ export default function PortfolioDetailsPage() {
           <div className="lg:col-span-2">
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <CardHeader>
-                <CardTitle className="text-white">Holdings ({mockHoldings.length})</CardTitle>
+                <CardTitle className="text-white">Positionen ({holdings.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -295,16 +262,15 @@ export default function PortfolioDetailsPage() {
                       <tr className="text-gray-400">
                         <th className="text-left p-3">Ticker</th>
                         <th className="text-left p-3">Name</th>
-                        <th className="text-right p-3">Shares</th>
-                        <th className="text-right p-3">Weight %</th>
-                        <th className="text-right p-3">Current Price</th>
-                        <th className="text-right p-3">Value</th>
-                        <th className="text-right p-3">Performance %</th>
-                        <th className="text-right p-3">Div. Yield</th>
+                        <th className="text-right p-3">Gewicht</th>
+                        <th className="text-right p-3">Kurs (Lokal)</th>
+                        <th className="text-right p-3">Kurs (CHF)</th>
+                        <th className="text-right p-3">YTD</th>
+                        <th className="text-right p-3">Div. Rendite</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {mockHoldings.map((holding) => (
+                      {holdings.map((holding: any) => (
                         <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5">
                           <td className="p-3">
                             <Link href={`/stocks/${holding.ticker}`}>
@@ -313,19 +279,31 @@ export default function PortfolioDetailsPage() {
                               </span>
                             </Link>
                           </td>
-                          <td className="p-3 text-gray-300">{holding.name}</td>
-                          <td className="text-right p-3 text-white">{holding.shares}</td>
+                          <td className="p-3 text-gray-300">{holding.companyName}</td>
                           <td className="text-right p-3">
                             <Badge variant="outline">{holding.weight}%</Badge>
                           </td>
-                          <td className="text-right p-3 text-white">CHF {holding.currentPrice.toFixed(2)}</td>
-                          <td className="text-right p-3 text-white">CHF {holding.value.toLocaleString("de-CH", { minimumFractionDigits: 2 })}</td>
+                          <td className="text-right p-3 text-white">
+                            <div className="flex flex-col items-end">
+                              <span>{formatCurrency(holding.currentPriceLocal || 0, holding.currency || 'USD')}</span>
+                              {holding.currency !== 'CHF' && (
+                                <span className="text-xs text-gray-500">
+                                  FX: {holding.fxRate?.toFixed(4) || '1.0000'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-right p-3 text-white">
+                            {formatCurrency(holding.currentPriceCHF || 0, 'CHF')}
+                          </td>
                           <td className="text-right p-3">
-                            <span className={holding.performance > 0 ? "text-green-500" : "text-red-500"}>
-                              {holding.performance > 0 ? "+" : ""}{holding.performance}%
+                            <span className={parseFloat(holding.ytdPerformance || '0') >= 0 ? "text-green-500" : "text-red-500"}>
+                              {parseFloat(holding.ytdPerformance || '0') >= 0 ? "+" : ""}{parseFloat(holding.ytdPerformance || '0').toFixed(2)}%
                             </span>
                           </td>
-                          <td className="text-right p-3 text-gray-300">{holding.dividendYield}%</td>
+                          <td className="text-right p-3 text-gray-300">
+                            {parseFloat(holding.dividendYield || '0').toFixed(2)}%
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -337,9 +315,10 @@ export default function PortfolioDetailsPage() {
           
           {/* Allocation Charts */}
           <div className="space-y-6">
+            {/* Asset Allocation */}
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <CardHeader>
-                <CardTitle className="text-white">Asset Allocation</CardTitle>
+                <CardTitle className="text-white">Asset-Allokation</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-48 flex items-center justify-center">
@@ -348,121 +327,52 @@ export default function PortfolioDetailsPage() {
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Aktien</span>
-                    <span className="text-white font-semibold">85%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Anleihen</span>
-                    <span className="text-white font-semibold">10%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">ETFs</span>
-                    <span className="text-white font-semibold">5%</span>
+                    <span className="text-white font-semibold">100%</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
             
+            {/* Sector Allocation */}
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <CardHeader>
-                <CardTitle className="text-white">Sector Allocation</CardTitle>
+                <CardTitle className="text-white">Sektor-Allokation</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-48 flex items-center justify-center">
                   <p className="text-gray-500 text-sm">Donut Chart Placeholder</p>
                 </div>
                 <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Technology</span>
-                    <span className="text-white font-semibold">60%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Healthcare</span>
-                    <span className="text-white font-semibold">20%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Finance</span>
-                    <span className="text-white font-semibold">15%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Other</span>
-                    <span className="text-white font-semibold">5%</span>
-                  </div>
+                  {Object.entries(sectorWeights)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([sector, weight]) => (
+                      <div key={sector} className="flex justify-between text-sm">
+                        <span className="text-gray-400">{sector}</span>
+                        <span className="text-white font-semibold">{weight.toFixed(0)}%</span>
+                      </div>
+                    ))}
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
         
-        {/* Transactions (only for Live portfolios) */}
-        {portfolio.isLive === 1 && (
-          <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-white">Letzte Transaktionen</CardTitle>
-                <Link href={`/portfolios/${portfolioId}/transactions`}>
-                  <Button variant="outline" size="sm">
-                    Alle anzeigen
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-white/10">
-                    <tr className="text-gray-400">
-                      <th className="text-left p-3">Datum</th>
-                      <th className="text-left p-3">Typ</th>
-                      <th className="text-left p-3">Ticker</th>
-                      <th className="text-right p-3">Anzahl</th>
-                      <th className="text-right p-3">Preis</th>
-                      <th className="text-right p-3">Gesamt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockTransactions.map((tx, index) => (
-                      <tr key={index} className="border-b border-white/5">
-                        <td className="p-3 text-gray-300">{tx.date}</td>
-                        <td className="p-3">
-                          <Badge variant={tx.type === "Kauf" ? "default" : "outline"}>
-                            {tx.type}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-[#00CFC1] font-semibold">{tx.ticker}</td>
-                        <td className="text-right p-3 text-white">{tx.shares}</td>
-                        <td className="text-right p-3 text-white">CHF {tx.price.toFixed(2)}</td>
-                        <td className="text-right p-3 text-white">CHF {tx.total.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
         {/* Quick Actions */}
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
           <CardHeader>
-            <CardTitle className="text-white">Quick Actions</CardTitle>
+            <CardTitle className="text-white">Schnellaktionen</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {portfolio.isLive === 1 && (
-                <Button className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Transaktion hinzufügen
-                </Button>
-              )}
-              <Button variant="outline" className="border-[#00CFC1]/50 text-[#00CFC1] hover:bg-[#00CFC1]/10">
-                <Bell className="h-4 w-4 mr-2" />
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" size="sm">
+                <TrendingUp className="h-4 w-4 mr-2" />
                 Alarm erstellen
               </Button>
-              <Button variant="outline" className="border-[#00CFC1]/50 text-[#00CFC1] hover:bg-[#00CFC1]/10">
+              <Button variant="outline" size="sm">
                 <Edit className="h-4 w-4 mr-2" />
                 Portfolio bearbeiten
               </Button>
-              <Button variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500/10" onClick={handleDelete}>
+              <Button variant="outline" size="sm" onClick={handleDelete}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Portfolio löschen
               </Button>

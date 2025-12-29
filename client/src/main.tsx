@@ -52,6 +52,7 @@ const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
+      // @ts-expect-error - tRPC v11 type inference issue with transformer
       transformer: superjson,
       fetch(input, init) {
         return globalThis.fetch(input, {

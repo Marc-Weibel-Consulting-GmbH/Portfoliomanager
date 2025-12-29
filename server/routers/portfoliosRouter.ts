@@ -212,6 +212,71 @@ export const portfoliosRouter = router({
         return result;
       }),
 
+    // Get portfolio with currency conversion data
+    getWithCurrency: protectedProcedure
+      .input(z.number().int().positive())
+      .query(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, getStockByTicker } = await import("../db");
+        const { getStockCurrency, getCurrentFxRate, convertToCHF } = await import("../fxHelper");
+        
+        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        if (!portfolio) return null;
+        
+        // Parse portfolio data
+        let portfolioData: { stocks: any[] } = { stocks: [] };
+        try {
+          portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+        } catch (e) {
+          console.error('[getWithCurrency] Failed to parse portfolio data:', e);
+        }
+        
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        // Enrich stocks with currency and FX data
+        const enrichedStocks = await Promise.all(
+          (portfolioData.stocks || []).map(async (stock: any) => {
+            const ticker = stock.ticker;
+            const dbStock = await getStockByTicker(ticker);
+            const currency = dbStock?.currency || await getStockCurrency(ticker);
+            const currentPrice = parseFloat(stock.currentPrice) || parseFloat(dbStock?.currentPrice || '0');
+            
+            // Get FX rate for this currency
+            let fxRate = 1.0;
+            if (currency !== 'CHF') {
+              fxRate = await getCurrentFxRate(`${currency}CHF`);
+            }
+            
+            const priceCHF = currentPrice * fxRate;
+            
+            return {
+              ...stock,
+              currency,
+              currentPriceLocal: currentPrice,
+              currentPriceCHF: priceCHF,
+              fxRate,
+              companyName: stock.companyName || dbStock?.companyName || ticker,
+            };
+          })
+        );
+        
+        // Calculate total portfolio value in CHF
+        const totalValueCHF = enrichedStocks.reduce((sum, stock) => {
+          return sum + (stock.currentPriceCHF * (stock.weight / 100));
+        }, 0);
+        
+        // Calculate weighted average dividend yield
+        const avgDividendYield = enrichedStocks.reduce((sum, stock) => {
+          return sum + (parseFloat(stock.dividendYield || '0') * (stock.weight / 100));
+        }, 0);
+        
+        return {
+          ...portfolio,
+          enrichedStocks,
+          totalValueCHF,
+          avgDividendYield,
+        };
+      }),
+
     create: protectedProcedure
       .input(z.object({
         name: z.string(),

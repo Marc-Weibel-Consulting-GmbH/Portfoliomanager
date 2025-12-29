@@ -83,8 +83,16 @@ async function startServer() {
         return res.status(401).json({ error: "E-Mail oder Passwort falsch" });
       }
       
+      // Ensure user has an openId (for email/password login users)
+      let userOpenId = user.openId;
+      if (!userOpenId) {
+        userOpenId = `email_${user.id}`;
+        // Update user with openId if missing
+        await db.update(users).set({ openId: userOpenId }).where(eq(users.id, user.id));
+      }
+      
       // Create session token and set cookie
-      const sessionToken = await sdk.createSessionToken(user.openId, {
+      const sessionToken = await sdk.createSessionToken(userOpenId, {
         name: user.name || `${user.firstName} ${user.lastName}`,
         expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
       });
