@@ -495,30 +495,53 @@ export const portfoliosRouter = router({
             new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
           );
           
-          sortedTx.forEach((tx: any) => {
+          // Check if all transactions are after ytdStartDate (portfolio started after period start)
+          const allTransactionsAfterStart = sortedTx.every((tx: any) => {
             const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-            if (txDate >= ytdStartDate) return; // Only process transactions before YTD
-            
-            const ticker = tx.ticker;
-            if (!ticker) return;
-            
-            if (!holdingsAtYtdStart[ticker]) {
-              holdingsAtYtdStart[ticker] = { shares: 0, avgCost: 0, weight: 0 };
-            }
-            
-            const shares = parseFloat(tx.shares) || 0;
-            const price = parseFloat(tx.pricePerShare) || 0;
-            
-            if (tx.transactionType === 'buy') {
-              const totalCost = holdingsAtYtdStart[ticker].shares * holdingsAtYtdStart[ticker].avgCost + shares * price;
-              holdingsAtYtdStart[ticker].shares += shares;
-              holdingsAtYtdStart[ticker].avgCost = holdingsAtYtdStart[ticker].shares > 0 
-                ? totalCost / holdingsAtYtdStart[ticker].shares 
-                : 0;
-            } else if (tx.transactionType === 'sell') {
-              holdingsAtYtdStart[ticker].shares -= shares;
-            }
+            return txDate >= ytdStartDate;
           });
+          
+          if (allTransactionsAfterStart) {
+            // For portfolios that started during the period, initialize holdings from first transactions
+            // and use the first transaction date as the effective start
+            console.log(`[HistoricalPerformance] Portfolio started after ${ytdStartDate}, initializing from first transactions`);
+            // Don't process transactions here - they will be processed in the main loop
+            // Just initialize empty holdings for each ticker
+            sortedTx.forEach((tx: any) => {
+              const ticker = tx.ticker;
+              if (!ticker) return;
+              
+              if (!holdingsAtYtdStart[ticker]) {
+                holdingsAtYtdStart[ticker] = { shares: 0, avgCost: 0, weight: 0 };
+              }
+            });
+          } else {
+            // Normal case: process transactions before ytdStartDate
+            sortedTx.forEach((tx: any) => {
+              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+              if (txDate >= ytdStartDate) return; // Only process transactions before YTD
+              
+              const ticker = tx.ticker;
+              if (!ticker) return;
+              
+              if (!holdingsAtYtdStart[ticker]) {
+                holdingsAtYtdStart[ticker] = { shares: 0, avgCost: 0, weight: 0 };
+              }
+              
+              const shares = parseFloat(tx.shares) || 0;
+              const price = parseFloat(tx.pricePerShare) || 0;
+              
+              if (tx.transactionType === 'buy') {
+                const totalCost = holdingsAtYtdStart[ticker].shares * holdingsAtYtdStart[ticker].avgCost + shares * price;
+                holdingsAtYtdStart[ticker].shares += shares;
+                holdingsAtYtdStart[ticker].avgCost = holdingsAtYtdStart[ticker].shares > 0 
+                  ? totalCost / holdingsAtYtdStart[ticker].shares 
+                  : 0;
+              } else if (tx.transactionType === 'sell') {
+                holdingsAtYtdStart[ticker].shares -= shares;
+              }
+            });
+          }
         } else {
           // For test portfolios, assume all stocks were held from period start with equal weight
           tickers = portfolioStocks.map((s: any) => s.ticker).filter(Boolean);
@@ -598,8 +621,20 @@ export const portfoliosRouter = router({
           benchmarkMap[p.date] = parseFloat(p.close) || 0;
         });
         
-        // Get benchmark starting price
-        const benchmarkStartPrice = parseFloat(String(benchmarkMap[ytdStartDate] || benchmarkPrices[0]?.close || 0));
+        // Get benchmark starting price - find the first available price at or after ytdStartDate
+        let benchmarkStartPrice = 0;
+        const sortedBenchmarkDates = Object.keys(benchmarkMap).sort();
+        for (const date of sortedBenchmarkDates) {
+          if (date >= ytdStartDate) {
+            benchmarkStartPrice = benchmarkMap[date];
+            break;
+          }
+        }
+        // Fallback to first available price if no price found at or after start date
+        if (benchmarkStartPrice === 0 && benchmarkPrices.length > 0) {
+          benchmarkStartPrice = parseFloat(String(benchmarkPrices[0]?.close || 0));
+        }
+        console.log(`[HistoricalPerformance] Benchmark ${benchmark} start price: ${benchmarkStartPrice}, ytdStartDate: ${ytdStartDate}`);
         
         // Get all dates with price data
         const allDates = new Set<string>();
@@ -614,6 +649,26 @@ export const portfoliosRouter = router({
         let startingValueCHF = 0;
         const startingPricesCHF: Record<string, number> = {};
         
+        console.log(`[HistoricalPerformance] holdingsAtYtdStart:`, JSON.stringify(holdingsAtYtdStart));
+        console.log(`[HistoricalPerformance] isLivePortfolio: ${isLivePortfolio}, ytdStartDate: ${ytdStartDate}`);
+        
+        // For live portfolios that started during the period, we need to calculate starting value
+        // based on the first transaction date, not YTD start
+        const allTransactionsAfterStart = isLivePortfolio && transactions.length > 0 && transactions.every((tx: any) => {
+          const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+          return txDate >= ytdStartDate;
+        });
+        
+        // Get the first transaction date for portfolios that started during the period
+        let effectiveStartDate = ytdStartDate;
+        if (allTransactionsAfterStart && transactions.length > 0) {
+          const sortedTransactions = [...transactions].sort((a: any, b: any) => 
+            new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+          );
+          effectiveStartDate = new Date(sortedTransactions[0].transactionDate).toISOString().split('T')[0];
+          console.log(`[HistoricalPerformance] Portfolio started during period, effective start date: ${effectiveStartDate}`);
+        }
+        
         for (const [ticker, holding] of Object.entries(currentHoldings)) {
           if (holding.shares <= 0 && !holding.weight) continue;
           
@@ -627,10 +682,13 @@ export const portfoliosRouter = router({
           const priceCHF = await convertToCHF(price, currency, firstDate);
           startingPricesCHF[ticker] = priceCHF;
           
-          if (isLivePortfolio) {
+          if (isLivePortfolio && !allTransactionsAfterStart) {
+            // Only calculate starting value for portfolios that existed before the period
             startingValueCHF += holding.shares * priceCHF;
+            console.log(`[HistoricalPerformance] ${ticker}: shares=${holding.shares}, price=${price}, priceCHF=${priceCHF}, subtotal=${holding.shares * priceCHF}`);
           }
         }
+        console.log(`[HistoricalPerformance] startingValueCHF: ${startingValueCHF}`);
         
         // For test portfolios, we use weight-based calculation
         const isTestPortfolio = !isLivePortfolio;
@@ -728,6 +786,12 @@ export const portfoliosRouter = router({
               const currency = stockCurrencies[ticker] || 'CHF';
               const priceCHF = convertToCHFCached(price, currency, date);
               totalValueCHF += holding.shares * priceCHF;
+            }
+            
+            // For portfolios that started during the period, set starting value on first date with holdings
+            if (startingValueCHF === 0 && totalValueCHF > 0) {
+              startingValueCHF = totalValueCHF;
+              console.log(`[HistoricalPerformance] Setting starting value on ${date}: ${startingValueCHF}`);
             }
             
             portfolioPerformance = startingValueCHF > 0 

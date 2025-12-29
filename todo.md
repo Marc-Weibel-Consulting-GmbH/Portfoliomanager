@@ -1260,3 +1260,18 @@
 - [ ] Performance soll bei 100 (oder 0%) beginnen, nicht bei anderem Wert
 
 - [x] Live-Portfolio Chart: Nur ab erstem Transaktionsdatum anzeigen, Performance bei 0% starten
+
+
+## Portfolio Chart Bugs (29.12.2025)
+
+- [ ] Tooltip legend shows "Benchmark" for both lines - portfolio line should show portfolio name
+- [ ] Benchmark is flat 0% line for live portfolios - should show actual benchmark performance
+- [ ] Missing legend below X-axis - should show both portfolio and benchmark legends
+- [ ] Portfolio "Regula live" has no performance data displayed
+
+
+## Portfolio Chart Bugs Fixed (29.12.2025)
+- [x] Tooltip legend shows "Benchmark" for both lines - now shows portfolio name for solid line
+- [x] Benchmark is 0% line for live portfolios - now shows actual benchmark performance  
+- [x] Legend now visible below X-axis showing portfolio name and benchmark
+- [ ] Portfolio "Regula live" has no performance data (waiting for historical price data after Dec 28 - portfolio was created Dec 28, but price data only goes to Dec 26)

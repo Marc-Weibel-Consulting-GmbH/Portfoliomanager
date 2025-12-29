@@ -11,7 +11,7 @@ import {
   PieChart as RechartsPieChart,
   Pie,
   Cell,
-  Legend,
+  Legend as RechartsLegend,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -356,13 +356,23 @@ export default function PortfolioDetailsPage() {
                           labelStyle={{ color: '#fff' }}
                           formatter={(value: number, name: string) => [
                             `${value.toFixed(2)}%`, 
-                            name === 'portfolio' ? 'Portfolio' : benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'
+                            name === 'portfolio' ? portfolio.name : benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'
                           ]}
+                        />
+                        <RechartsLegend 
+                          verticalAlign="bottom" 
+                          height={36}
+                          formatter={(value: string) => {
+                            if (value === 'portfolio') return portfolio.name;
+                            if (value === 'benchmark') return benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
+                            return value;
+                          }}
+                          wrapperStyle={{ paddingTop: '10px' }}
                         />
                         <Area 
                           type="monotone" 
                           dataKey="portfolio" 
-                          name="Portfolio" 
+                          name="portfolio" 
                           stroke="#00CFC1" 
                           strokeWidth={2}
                           fill="url(#portfolioGradient)"
@@ -370,7 +380,7 @@ export default function PortfolioDetailsPage() {
                         <Area 
                           type="monotone" 
                           dataKey="benchmark" 
-                          name="Benchmark" 
+                          name="benchmark" 
                           stroke="#6366f1" 
                           strokeWidth={1.5}
                           strokeDasharray="5 5"
