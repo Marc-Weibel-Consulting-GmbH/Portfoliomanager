@@ -2,7 +2,7 @@
 
 ## Bugs (29.12.2025)
 
-- [x] "Neues Portfolio" Button im Dashboard soll direkt zum Portfolio Builder führen (Zwischenschritt entfernen)
+- [x] "Neues Portfolio" Button überall soll direkt zum Portfolio Builder Wizard führen (Zwischenschritt /portfolio-builder komplett entfernen)
 - [x] Navigation "Portfolios" → "Neues Portfolio" führt zum alten Builder (auf neuen Builder umstellen)
 - [x] Portfolio-Detailseite erscheint unter Dashboard statt unter Portfolios in der Sidebar
 - [x] Submenu in DashboardLayout einklappbar machen

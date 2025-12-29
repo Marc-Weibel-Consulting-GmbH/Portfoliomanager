@@ -238,7 +238,7 @@ export default function PortfolioDashboard() {
             <p className="text-slate-300">
               Erstellen Sie Ihr erstes Portfolio mit dem Portfolio Optimizer.
             </p>
-            <Button onClick={() => setLocation('/portfolio-builder/new')} className="w-full">
+            <Button onClick={() => setLocation('/portfolio-builder/wizard')} className="w-full">
               <Plus className="w-4 h-4 mr-2" />
               Neues Portfolio erstellen
             </Button>
@@ -277,7 +277,7 @@ export default function PortfolioDashboard() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <Button
-              onClick={() => setLocation('/portfolio-builder/new')}
+              onClick={() => setLocation('/portfolio-builder/wizard')}
               variant="default"
               className="bg-blue-600 hover:bg-blue-700"
             >
