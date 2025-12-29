@@ -1353,3 +1353,16 @@
 - [x] Action-Buttons: Zu Portfolio hinzufügen, Preisalarm erstellen, Factsheet ansehen
 - [x] Backend-Endpoint für Aktien-Detaildaten (stocks.byTicker bereits vorhanden)
 - [x] Navigation von Positionenliste zur Detailseite (Links in PortfolioPositions, PortfolioDetailRedesign, PortfolioDetailsPage)
+
+
+## Stock Analysis Page Improvements (29.12.2025)
+
+- [x] Fix historical data loading - show all data for selected time periods (not just from October)
+- [x] Evaluate and integrate TradingView chart widget for professional charting (improved existing chart with candlestick + volume)
+- [x] Add score calculation explanation (how the 66/100 score is composed)
+- [x] Implement visual metric ratings (colors/scores) for key metrics in cards
+- [x] Fix back button to navigate to portfolio positions list
+- [x] Activate "Zu Portfolio hinzufügen" (Add to Portfolio) functionality
+- [x] Activate "Preisalarm erstellen" (Create Price Alert) functionality
+- [x] Implement Swiss stock logo fallback sources (CH stocks showing wrong logos)
+- [x] Add small thematic graphics to news items for visual variety

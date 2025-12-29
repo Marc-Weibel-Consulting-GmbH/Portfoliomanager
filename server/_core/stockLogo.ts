@@ -110,7 +110,7 @@ function getCompanyDomain(ticker: string, companyName?: string): string | null {
     'VZ': 'verizon.com',
     'TMUS': 't-mobile.com',
     
-    // Swiss Stocks
+    // Swiss Stocks (SIX Swiss Exchange)
     'NESN.SW': 'nestle.com',
     'NOVN.SW': 'novartis.com',
     'ROG.SW': 'roche.com',
@@ -121,6 +121,23 @@ function getCompanyDomain(ticker: string, companyName?: string): string | null {
     'SLHN.SW': 'swisslife.com',
     'SREN.SW': 'swissre.com',
     'GIVN.SW': 'givaudan.com',
+    'LONN.SW': 'lonza.com',
+    'SIKA.SW': 'sika.com',
+    'GEBN.SW': 'geberit.com',
+    'CFR.SW': 'richemont.com',
+    'SCMN.SW': 'swisscom.com',
+    'SGSN.SW': 'sgs.com',
+    'HOLN.SW': 'holcim.com',
+    'ALC.SW': 'alcon.com',
+    'PGHN.SW': 'partners-group.com',
+    'BAER.SW': 'juliusbaer.com',
+    'KNIN.SW': 'kuehne-nagel.com',
+    'SOON.SW': 'sonova.com',
+    'STMN.SW': 'straumann.com',
+    'ADEN.SW': 'adecco.com',
+    'BUCN.SW': 'bucher.com',
+    'EFGN.SW': 'efginternational.com',
+    'LISN.SW': 'lindt.com',
   };
 
   // Check direct mapping

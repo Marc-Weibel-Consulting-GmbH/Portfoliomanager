@@ -21,13 +21,13 @@ async function fetchChartData(ticker: string): Promise<any[] | null> {
       region = regionMap[suffix] || "US";
     }
 
-    // Get last 30 days of data for better chart visualization
+    // Get last 2 years of data to support all time periods (1D, 1W, 1M, 3M, 6M, 1Y, YTD, All)
     const response = await callDataApi("YahooFinance/get_stock_chart", {
       query: {
         symbol: ticker,
         region: region,
         interval: "1d",
-        range: "1mo" // Last 1 month
+        range: "2y" // Last 2 years for comprehensive historical data
       }
     }) as any;
 
