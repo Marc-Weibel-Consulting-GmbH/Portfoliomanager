@@ -20,7 +20,9 @@ import { LivePerformanceChart } from "@/components/LivePerformanceChart";
 import DividendCalendarModal from "@/components/DividendCalendarModal";
 import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
 import { CsvImportModal } from "@/components/CsvImportModal";
-import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload, ChevronRight, ChevronDown, List } from "lucide-react";
+import { EditPositionModal } from "@/components/EditPositionModal";
+import { SectorAllocation } from "@/components/SectorAllocation";
+import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload, ChevronRight, ChevronDown, List, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
@@ -34,6 +36,7 @@ export default function PortfolioDetail() {
   const [showAnnualPerformance, setShowAnnualPerformance] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
+  const [editingPosition, setEditingPosition] = useState<any | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -687,6 +690,26 @@ export default function PortfolioDetail() {
           </div>
         )}
 
+        {/* Sector Allocation */}
+        {Boolean(portfolio.isLive) && portfolioData.length > 0 && (
+          <div className="mb-8">
+            <SectorAllocation
+              holdings={portfolioData.filter((s: any) => s.shares > 0).map((stock: any) => {
+                const chfHolding = chfHoldings.find((h: any) => h.ticker === stock.ticker);
+                return {
+                  ticker: stock.ticker,
+                  name: stock.name,
+                  sector: stock.sector,
+                  currentValueCHF: chfHolding?.currentValueCHF || stock.currentValue || 0,
+                  shares: stock.shares,
+                  currentPrice: stock.currentPrice
+                };
+              })}
+              totalValue={chfHoldings.reduce((sum: number, h: any) => sum + (h.currentValueCHF || 0), 0)}
+            />
+          </div>
+        )}
+
         {/* Portfolio Holdings - Collapsible */}
         <Card className="gradient-card border-border/50">
           <CardHeader>
@@ -847,6 +870,38 @@ export default function PortfolioDetail() {
                           </p>
                         </div>
                       </div>
+
+                      {/* Edit Position Button */}
+                      {Boolean(portfolio.isLive) && (
+                        <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
+                          <div className="flex items-center gap-4">
+                            {stock.sector && (
+                              <span className="text-xs px-2 py-1 bg-slate-700 rounded text-muted-foreground">
+                                Sektor: {stock.sector}
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingPosition({
+                                ticker: stock.ticker,
+                                name: stock.name,
+                                shares: stock.shares,
+                                avgBuyPrice: chfHolding?.avgBuyPrice || holding?.avgBuyPrice,
+                                currency: stock.currency,
+                                totalInvestedCHF: totalInvestedCHF
+                              });
+                            }}
+                            className="text-cyan-400 border-cyan-400/50 hover:bg-cyan-400/10"
+                          >
+                            <Pencil className="w-3 h-3 mr-1" />
+                            Position bearbeiten
+                          </Button>
+                        </div>
+                      )}
 
                       {/* Transactions for this stock */}
                       {Boolean(portfolio.isLive) && stockTransactions.length > 0 && (
@@ -1017,6 +1072,22 @@ export default function PortfolioDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Position Modal */}
+      {Boolean(portfolio?.isLive) && (
+        <EditPositionModal
+          open={!!editingPosition}
+          onClose={() => setEditingPosition(null)}
+          portfolioId={portfolioId!}
+          position={editingPosition}
+          transactions={transactions}
+          onSuccess={() => {
+            utils.portfolioTransactions.list.invalidate({ portfolioId: portfolioId! });
+            utils.portfolios.list.invalidate();
+            utils.portfolios.getHoldingsWithChfPerformance.invalidate({ id: portfolioId! });
+          }}
+        />
+      )}
     </div>
   );
 }

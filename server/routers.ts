@@ -1025,6 +1025,46 @@ export const appRouter = router({
         await updateStockSector(input.ticker, input.sector);
         return { success: true };
       }),
+    // Fetch and update sectors for all stocks without sector data
+    refreshMissingSectors: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        // Only admins can refresh sectors
+        if (ctx.user.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        const { getAllStocks, updateStock } = await import("./db");
+        const { fetchEODHDFundamentals } = await import("./_core/eodhdApi");
+        
+        const allStocks = await getAllStocks();
+        const stocksWithoutSector = allStocks.filter(s => !s.sector || s.sector === '');
+        
+        console.log(`[Sectors] Found ${stocksWithoutSector.length} stocks without sector data`);
+        
+        let updated = 0;
+        let failed = 0;
+        
+        for (const stock of stocksWithoutSector) {
+          try {
+            const fundamentals = await fetchEODHDFundamentals(stock.ticker);
+            if (fundamentals.sector) {
+              await updateStock(stock.ticker, { sector: fundamentals.sector });
+              console.log(`[Sectors] Updated ${stock.ticker}: ${fundamentals.sector}`);
+              updated++;
+            } else {
+              console.log(`[Sectors] No sector found for ${stock.ticker}`);
+              failed++;
+            }
+            // Rate limiting: wait 200ms between API calls
+            await new Promise(resolve => setTimeout(resolve, 200));
+          } catch (error) {
+            console.error(`[Sectors] Error updating ${stock.ticker}:`, error);
+            failed++;
+          }
+        }
+        
+        return { updated, failed, total: stocksWithoutSector.length };
+      }),
   }),
 
   portfolioTransactions: portfolioTransactionsRouter,

@@ -1275,3 +1275,25 @@
 - [x] Benchmark is 0% line for live portfolios - now shows actual benchmark performance  
 - [x] Legend now visible below X-axis showing portfolio name and benchmark
 - [x] Portfolio "Regula live" has no performance data - fixed by correcting transaction dates to match portfolio creation date (12.11.2025)
+
+
+## Portfolio-Bearbeitung & Sektor-Daten (29.12.2025)
+
+- [ ] Portfolio-Bearbeiten-Funktion aktivieren auf Portfolio-Detail-Seite
+- [ ] Sektor-Daten für Aktien in der Datenbank hinterlegen
+- [ ] Kaufdatum pro Aktie/Position hinzufügen
+- [ ] Einstandspreis pro Aktie/Position hinzufügen
+- [ ] Backend-Routen für Portfolio-Position-Bearbeitung
+- [ ] Frontend-Dialog für Position-Bearbeitung
+- [ ] Sektor-Allokation mit echten Daten anzeigen
+
+
+## Portfolio-Bearbeitung & Sektor-Daten (29.12.2024)
+- [x] Bearbeiten-Funktion für Portfolio-Positionen aktivieren
+- [x] Sektor-Daten für Aktien in der Datenbank hinterlegen
+- [x] Kaufdatum/Einstandspreis pro Aktie für Live-Portfolios
+- [x] Sektor-Allokation korrekt anzeigen (nicht mehr "Other 100%")
+- [x] EditPositionModal Komponente erstellt
+- [x] SectorAllocation Komponente erstellt
+- [x] Admin-Funktion zum Laden fehlender Sektor-Daten
+- [x] Tests für neue Funktionen geschrieben

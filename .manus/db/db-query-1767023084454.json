@@ -1,0 +1,15 @@
+{
+  "query": "SELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN sector IS NOT NULL AND sector != '' THEN 1 ELSE 0 END) as with_sector,\n  SUM(CASE WHEN sector IS NULL OR sector = '' THEN 1 ELSE 0 END) as without_sector\nFROM stocks;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN sector IS NOT NULL AND sector != '' THEN 1 ELSE 0 END) as with_sector,\n  SUM(CASE WHEN sector IS NULL OR sector = '' THEN 1 ELSE 0 END) as without_sector\nFROM stocks;",
+  "rows": [
+    {
+      "total": "106",
+      "with_sector": "106",
+      "without_sector": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\twith_sector\twithout_sector\n106\t106\t0\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}
