@@ -128,27 +128,75 @@ export const dashboardRouter = router({
   
   // Get all portfolios with YTD performance
   getTopPortfolios: protectedProcedure.query(async ({ ctx }) => {
-    const { getSavedPortfolios, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
-    const portfolios = await getSavedPortfolios(ctx.user.id);
+    const { getSavedPortfolios } = await import("../db");
+    const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+    const { convertToCHF } = await import("../fxHelper");
     
+    const portfolios = await getSavedPortfolios(ctx.user.id);
     const livePortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
     
     if (livePortfolios.length === 0) {
       return [];
     }
     
-    const db = await getDb();
-    if (!db) return [];
-    
-    const { getStockCurrency, convertToCHF, getHistoricalPrice } = await import("../fxHelper");
     const ytdStartDate = getYTDStartDate();
     const today = new Date().toISOString().split('T')[0];
     
+    // Batch load all data
+    const portfolioIds = livePortfolios.map(p => p.id);
+    const transactionsByPortfolio = await batchGetPortfolioTransactions(portfolioIds);
+    
+    // Collect all unique tickers
+    const allTickers = new Set<string>();
+    for (const transactions of Array.from(transactionsByPortfolio.values())) {
+      transactions.forEach(tx => {
+        if (tx.ticker) allTickers.add(tx.ticker);
+      });
+    }
+    
+    if (allTickers.size === 0) {
+      return [];
+    }
+    
+    // Batch load stocks and historical prices
+    const stocksMap = await batchGetStocks(Array.from(allTickers));
+    const ytdPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), ytdStartDate);
+    
+    // Pre-warm FX cache
+    const uniqueCurrencies = new Set<string>();
+    for (const stock of Array.from(stocksMap.values())) {
+      if (stock.currency) uniqueCurrencies.add(stock.currency);
+    }
+    
+    const fxPromises = [];
+    for (const currency of Array.from(uniqueCurrencies)) {
+      if (currency !== 'CHF') {
+        if (!getCachedFxRate(currency, today)) {
+          fxPromises.push(
+            convertToCHF(1, currency, today).then(rate => {
+              setCachedFxRate(currency, today, rate);
+              return rate;
+            })
+          );
+        }
+        if (!getCachedFxRate(currency, ytdStartDate)) {
+          fxPromises.push(
+            convertToCHF(1, currency, ytdStartDate).then(rate => {
+              setCachedFxRate(currency, ytdStartDate, rate);
+              return rate;
+            })
+          );
+        }
+      }
+    }
+    
+    await Promise.all(fxPromises);
+    
+    // Calculate metrics for each portfolio
     const portfolioMetrics = [];
     
-    // Calculate metrics for each live portfolio
     for (const portfolio of livePortfolios) {
-      const transactions = await getPortfolioTransactions(portfolio.id);
+      const transactions = transactionsByPortfolio.get(portfolio.id) || [];
       
       // Calculate current holdings
       const holdingsMap = new Map<string, { shares: number; totalInvestedCHF: number }>();
@@ -181,16 +229,16 @@ export const dashboardRouter = router({
       for (const [ticker, holding] of Array.from(holdingsMap.entries())) {
         if (holding.shares <= 0) continue;
         
-        const stock = await getStockByTicker(ticker);
+        const stock = stocksMap.get(ticker);
         if (!stock) continue;
         
-        const currency = await getStockCurrency(stock.ticker);
+        const currency = stock.currency || 'CHF';
         const currentPrice = parseFloat(stock.currentPrice || '0');
         
-        // Get YTD start price from historical data
-        const ytdStartPrice = await getHistoricalPrice(ticker, ytdStartDate) || currentPrice;
+        // Get YTD start price from pre-loaded map
+        const ytdStartPrice = ytdPricesMap.get(ticker) || currentPrice;
         
-        // Convert to CHF
+        // Convert to CHF (using cached FX rates)
         const currentPriceCHF = await convertToCHF(currentPrice, currency, today);
         const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
         

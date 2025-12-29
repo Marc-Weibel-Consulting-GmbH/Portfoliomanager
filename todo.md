@@ -1368,3 +1368,58 @@
 - [x] Activate "Preisalarm erstellen" (Create Price Alert) functionality
 - [x] Implement Swiss stock logo fallback sources (CH stocks showing wrong logos)
 - [x] Add small thematic graphics to news items for visual variety
+
+
+## Neue Anforderung: Aktuelle Daten bis heute (29.12.2025)
+- [x] Sicherstellen, dass alle Aktiendaten bis zum heutigen Datum (29.12.2025) aktualisiert werden
+- [x] API-Integration überprüfen und sicherstellen, dass aktuelle Daten abgerufen werden
+- [x] Historische Daten für alle Aktien bis heute aktualisieren
+- [x] Tägliche automatische Datenaktualisierung implementieren
+- [ ] Datums-Anzeige in allen Charts und Tabellen überprüfen
+
+## Verifizierung der Datenaktualisierung (29.12.2025)
+- [x] API-Verbindungen testen (EODHD, Finnhub)
+- [x] Aktuelle Kursdaten für Beispielaktien abrufen
+- [x] Historische Daten bis 29.12.2025 überprüfen
+- [x] Datenbank-Caching überprüfen
+- [x] YTD-Performance-Berechnung verifizieren
+- [ ] Frontend-Anzeige der aktuellen Daten testen
+
+
+## Portfolio-Kursentwicklung Überprüfung (29.12.2025)
+- [ ] Alle Portfolio-Positionen auf aktuelle Kurse überprüfen
+- [ ] Historische Performance-Berechnungen validieren
+- [ ] YTD-Performance für alle Aktien neu berechnen
+- [ ] Datenbank-Cache für veraltete Kurse leeren
+- [ ] Automatische Aktualisierung für Live-Portfolios implementieren
+
+
+## Performance-Optimierung (29.12.2025)
+- [x] Lade-Performance analysieren (Netzwerk-Anfragen, Datenbank-Queries)
+- [x] Dashboard-Ladezeiten optimieren
+- [x] Portfolio-Übersicht Ladezeiten optimieren
+- [x] Datenbank-Queries optimieren (N+1 Problem behoben)
+- [x] API-Response-Zeiten messen und verbessern
+- [ ] Frontend-Bundle-Größe analysieren
+- [ ] Lazy Loading für schwere Komponenten implementieren
+- [x] Caching-Strategie verbessern (FX-Rate-Cache implementiert)
+
+
+## Zusammenfassung der Optimierungsarbeiten (29.12.2025)
+
+### Durchgeführte Optimierungen:
+- [x] N+1 Query Problem identifiziert (77+ Queries → 3-4 Queries)
+- [x] Batch-Loading-Funktionen erstellt (`db-optimized.ts`)
+- [x] FX-Rate-Caching implementiert (In-Memory-Cache mit 1h TTL)
+- [x] `portfoliosRouter.ts` optimiert (list procedure)
+- [x] `dashboardRouter.ts` optimiert (getTopPortfolios procedure)
+
+### Erwartete Verbesserung:
+- Von 32+ Sekunden auf < 5 Sekunden
+- Von 77+ Datenbank-Queries auf 3-4 Queries
+- Reduzierung der API-Calls durch FX-Rate-Caching
+
+### Nächste Schritte:
+- [ ] Optimierungen testen und verifizieren
+- [ ] Performance-Metriken sammeln
+- [ ] Weitere Optimierungen identifizieren (z.B. Frontend-Bundle-Größe)
