@@ -286,14 +286,19 @@ function DashboardLayoutContent({
                     
                     {shouldShowSubmenu && !isCollapsed && isSubmenuOpen && (
                       <SidebarMenuSub>
-                        {portfolios.slice(0, 5).map((portfolio: any) => (
+                        {portfolios.slice(0, 8).map((portfolio: any) => (
                           <SidebarMenuSubItem key={portfolio.id}>
                             <SidebarMenuSubButton
                               isActive={location === `/portfolios/${portfolio.id}`}
                               onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
                               className="text-sm"
                             >
-                              <span className="truncate">{portfolio.name}</span>
+                              <span className="truncate flex items-center gap-2">
+                                {portfolio.name}
+                                {portfolio.isLive ? (
+                                  <span className="text-[10px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1.5 py-0.5 rounded">Live</span>
+                                ) : null}
+                              </span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         ))}

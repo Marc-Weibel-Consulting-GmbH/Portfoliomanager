@@ -1,5 +1,11 @@
 import { protectedProcedure, router } from "../_core/trpc";
 
+// Helper to get YTD start date (January 1st of current year)
+function getYTDStartDate(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-01-01`;
+}
+
 export const dashboardRouter = router({
   // Get aggregated metrics across all live portfolios
   getAggregatedMetrics: protectedProcedure.query(async ({ ctx }) => {
@@ -31,35 +37,28 @@ export const dashboardRouter = router({
       };
     }
     
-    const { getStockCurrency, convertToCHF } = await import("../fxHelper");
+    const { getStockCurrency, convertToCHF, getHistoricalPrice } = await import("../fxHelper");
+    const ytdStartDate = getYTDStartDate();
+    const today = new Date().toISOString().split('T')[0];
     
     let totalValueCHF = 0;
-    let totalInvestedCHF = 0;
+    let totalValueYTDStartCHF = 0;  // Value at start of year
     let totalDividendsCHF = 0;
     
     // Calculate metrics for each live portfolio
     for (const portfolio of livePortfolios) {
       const transactions = await getPortfolioTransactions(portfolio.id);
       
-      // Calculate total deposits and withdrawals
-      let totalDeposits = 0;
-      let totalWithdrawals = 0;
+      // Calculate dividend income
       let dividendIncome = 0;
-      
       for (const tx of transactions) {
-        // Use transactionType instead of type, and totalAmountCHF instead of totalCHF
-        if (tx.transactionType === 'deposit') {
-          totalDeposits += parseFloat(tx.totalAmountCHF || '0');
-        } else if (tx.transactionType === 'withdrawal') {
-          totalWithdrawals += parseFloat(tx.totalAmountCHF || '0');
-        } else if (tx.transactionType === 'dividend') {
+        if (tx.transactionType === 'dividend') {
           dividendIncome += parseFloat(tx.totalAmountCHF || '0');
         }
       }
-      
       totalDividendsCHF += dividendIncome;
       
-      // Calculate current holdings value
+      // Calculate current holdings
       const holdingsMap = new Map<string, { shares: number; totalInvestedCHF: number }>();
       
       for (const tx of transactions) {
@@ -83,9 +82,9 @@ export const dashboardRouter = router({
         }
       }
       
-      // Calculate current value of holdings
+      // Calculate current value and YTD start value
       let portfolioValueCHF = 0;
-      let portfolioInvestedCHF = 0;
+      let portfolioValueYTDStartCHF = 0;
       
       for (const [ticker, holding] of Array.from(holdingsMap.entries())) {
         if (holding.shares <= 0) continue;
@@ -95,24 +94,27 @@ export const dashboardRouter = router({
         
         const currency = await getStockCurrency(stock.ticker);
         const currentPrice = parseFloat(stock.currentPrice || '0');
-        const today = new Date().toISOString().split('T')[0];
-        const currentPriceCHF = await convertToCHF(currentPrice, currency, today);
-        const currentValueCHF = holding.shares * currentPriceCHF;
         
-        portfolioValueCHF += currentValueCHF;
-        portfolioInvestedCHF += holding.totalInvestedCHF;
+        // Get YTD start price from historical data
+        const ytdStartPrice = await getHistoricalPrice(ticker, ytdStartDate) || currentPrice;
+        
+        // Convert to CHF
+        const currentPriceCHF = await convertToCHF(currentPrice, currency, today);
+        const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+        
+        portfolioValueCHF += holding.shares * currentPriceCHF;
+        portfolioValueYTDStartCHF += holding.shares * ytdStartPriceCHF;
       }
       
-      // Add cash position
-      const cashPosition = totalDeposits - totalWithdrawals - portfolioInvestedCHF;
-      portfolioValueCHF += cashPosition;
-      
       totalValueCHF += portfolioValueCHF;
-      totalInvestedCHF += totalDeposits - totalWithdrawals;
+      totalValueYTDStartCHF += portfolioValueYTDStartCHF;
     }
     
-    const totalPerformanceCHF = totalValueCHF - totalInvestedCHF;
-    const totalPerformancePercent = totalInvestedCHF > 0 ? (totalPerformanceCHF / totalInvestedCHF) * 100 : 0;
+    // Calculate YTD performance
+    const totalPerformanceCHF = totalValueCHF - totalValueYTDStartCHF;
+    const totalPerformancePercent = totalValueYTDStartCHF > 0 
+      ? (totalPerformanceCHF / totalValueYTDStartCHF) * 100 
+      : 0;
     
     return {
       totalValue: totalValueCHF,
@@ -124,7 +126,7 @@ export const dashboardRouter = router({
     };
   }),
   
-  // Get top portfolios by performance
+  // Get all portfolios with YTD performance
   getTopPortfolios: protectedProcedure.query(async ({ ctx }) => {
     const { getSavedPortfolios, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
     const portfolios = await getSavedPortfolios(ctx.user.id);
@@ -138,7 +140,9 @@ export const dashboardRouter = router({
     const db = await getDb();
     if (!db) return [];
     
-    const { getStockCurrency, convertToCHF } = await import("../fxHelper");
+    const { getStockCurrency, convertToCHF, getHistoricalPrice } = await import("../fxHelper");
+    const ytdStartDate = getYTDStartDate();
+    const today = new Date().toISOString().split('T')[0];
     
     const portfolioMetrics = [];
     
@@ -146,20 +150,7 @@ export const dashboardRouter = router({
     for (const portfolio of livePortfolios) {
       const transactions = await getPortfolioTransactions(portfolio.id);
       
-      // Calculate total deposits and withdrawals
-      let totalDeposits = 0;
-      let totalWithdrawals = 0;
-      
-      for (const tx of transactions) {
-        // Use transactionType instead of type, and totalAmountCHF instead of totalCHF
-        if (tx.transactionType === 'deposit') {
-          totalDeposits += parseFloat(tx.totalAmountCHF || '0');
-        } else if (tx.transactionType === 'withdrawal') {
-          totalWithdrawals += parseFloat(tx.totalAmountCHF || '0');
-        }
-      }
-      
-      // Calculate current holdings value
+      // Calculate current holdings
       const holdingsMap = new Map<string, { shares: number; totalInvestedCHF: number }>();
       
       for (const tx of transactions) {
@@ -183,9 +174,9 @@ export const dashboardRouter = router({
         }
       }
       
-      // Calculate current value of holdings
+      // Calculate current value and YTD start value
       let portfolioValueCHF = 0;
-      let portfolioInvestedCHF = 0;
+      let portfolioValueYTDStartCHF = 0;
       
       for (const [ticker, holding] of Array.from(holdingsMap.entries())) {
         if (holding.shares <= 0) continue;
@@ -195,21 +186,23 @@ export const dashboardRouter = router({
         
         const currency = await getStockCurrency(stock.ticker);
         const currentPrice = parseFloat(stock.currentPrice || '0');
-        const today = new Date().toISOString().split('T')[0];
-        const currentPriceCHF = await convertToCHF(currentPrice, currency, today);
-        const currentValueCHF = holding.shares * currentPriceCHF;
         
-        portfolioValueCHF += currentValueCHF;
-        portfolioInvestedCHF += holding.totalInvestedCHF;
+        // Get YTD start price from historical data
+        const ytdStartPrice = await getHistoricalPrice(ticker, ytdStartDate) || currentPrice;
+        
+        // Convert to CHF
+        const currentPriceCHF = await convertToCHF(currentPrice, currency, today);
+        const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+        
+        portfolioValueCHF += holding.shares * currentPriceCHF;
+        portfolioValueYTDStartCHF += holding.shares * ytdStartPriceCHF;
       }
       
-      // Add cash position
-      const cashPosition = totalDeposits - totalWithdrawals - portfolioInvestedCHF;
-      portfolioValueCHF += cashPosition;
-      
-      const totalInvested = totalDeposits - totalWithdrawals;
-      const performanceCHF = portfolioValueCHF - totalInvested;
-      const performancePercent = totalInvested > 0 ? (performanceCHF / totalInvested) * 100 : 0;
+      // Calculate YTD performance
+      const performanceCHF = portfolioValueCHF - portfolioValueYTDStartCHF;
+      const performancePercent = portfolioValueYTDStartCHF > 0 
+        ? (performanceCHF / portfolioValueYTDStartCHF) * 100 
+        : 0;
       
       portfolioMetrics.push({
         id: portfolio.id,
@@ -221,8 +214,8 @@ export const dashboardRouter = router({
       });
     }
     
-    // Sort by performance and return top 4
+    // Sort by performance and return all portfolios
     portfolioMetrics.sort((a, b) => b.performance - a.performance);
-    return portfolioMetrics.slice(0, 4);
+    return portfolioMetrics;
   }),
 });

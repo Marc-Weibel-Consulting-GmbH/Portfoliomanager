@@ -135,3 +135,63 @@ export async function getCurrentFxRate(currencyPair: string): Promise<number> {
   const today = new Date().toISOString().split('T')[0];
   return getFxRate(today, currencyPair);
 }
+
+
+/**
+ * Get historical price for a stock on a specific date
+ * @param ticker - Stock ticker symbol
+ * @param date - Date in YYYY-MM-DD format
+ * @returns Historical close price or null if not found
+ */
+export async function getHistoricalPrice(ticker: string, date: string): Promise<number | null> {
+  const db = await getDb();
+  if (!db) {
+    console.error('[FxHelper] Database not available');
+    return null;
+  }
+  
+  try {
+    const { historicalPrices } = await import('../drizzle/schema');
+    const { desc, lte } = await import('drizzle-orm');
+    
+    // First try exact date
+    const [exactPrice] = await db
+      .select()
+      .from(historicalPrices)
+      .where(
+        and(
+          eq(historicalPrices.ticker, ticker),
+          eq(historicalPrices.date, date)
+        )
+      )
+      .limit(1);
+    
+    if (exactPrice && exactPrice.close) {
+      return parseFloat(exactPrice.close);
+    }
+    
+    // If exact date not found, try to find nearest previous date (for weekends/holidays)
+    const [nearestPrice] = await db
+      .select()
+      .from(historicalPrices)
+      .where(
+        and(
+          eq(historicalPrices.ticker, ticker),
+          lte(historicalPrices.date, date)
+        )
+      )
+      .orderBy(desc(historicalPrices.date))
+      .limit(1);
+    
+    if (nearestPrice && nearestPrice.close) {
+      console.warn(`[FxHelper] Using nearest price for ${ticker} on ${date}: ${nearestPrice.close} from ${nearestPrice.date}`);
+      return parseFloat(nearestPrice.close);
+    }
+    
+    console.warn(`[FxHelper] No historical price found for ${ticker} on ${date}`);
+    return null;
+  } catch (error) {
+    console.error(`[FxHelper] Error fetching historical price for ${ticker}:`, error);
+    return null;
+  }
+}

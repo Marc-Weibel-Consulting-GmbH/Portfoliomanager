@@ -1210,3 +1210,30 @@
 - [x] Add new getWithCurrency tRPC endpoint for portfolio data with FX rates
 - [x] Fix Asset Allocation to show actual asset types from portfolio
 - [x] Fix TypeScript error in main.tsx (SuperJSON transformer)
+
+
+## Bug Fixes (29.12.2025 - Aktuelle Session)
+
+### Kritische Bugs
+- [ ] Portfolios-Seite: TypeError bei livePerformance.replace (livePerformance ist kein String)
+- [ ] Dashboard zeigt nur 2 Portfolios statt alle (5-6 vorhanden)
+- [ ] Kennzahlen im Dashboard sind falsch (Gesamtwert, Performance, Dividenden)
+
+### Kennzahlen-Korrektur
+- [ ] Performance basiert auf YTD (seit 01.01. des laufenden Jahres)
+- [ ] Dividendenzahlungen basieren auf Durchschnittsperformance aller Portfolios
+- [ ] Portfolio-Performance auf Dashboard und Detail-Seite = YTD aller Titel
+- [ ] Später: Bei Live-Portfolios Kaufdatum und Einstandspreis pro Aktie ermöglichen
+
+
+
+## Portfolio-Karten mit echten Werten (29.12.2025)
+- [ ] Portfolio-Karten auf Portfolios-Seite sollen echten Wert aus Transaktionen anzeigen
+- [ ] Portfolio-Karten sollen echte Performance (YTD) anzeigen
+- [ ] Anzahl Positionen aus echten Holdings berechnen
+
+
+- [ ] Portfolios-Liste auf YTD-Performance-Berechnung umstellen (konsistent mit Dashboard)
+
+- [ ] Dashboard: Beschriftung "Meine Portfolios" zu "Meine Live-Portfolios" ändern
+- [ ] Sidebar: Nur Live-Portfolios im Untermenü anzeigen oder entsprechend beschriften

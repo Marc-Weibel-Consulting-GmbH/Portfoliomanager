@@ -1,0 +1,27 @@
+{
+  "query": "SHOW CREATE TABLE portfolios",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SHOW CREATE TABLE portfolios",
+  "rows": [
+    {
+      "Table": "portfolios",
+      "Create Table": "CREATE TABLE `portfolios` ("
+    }
+  ],
+  "messages": [
+    "  `id` int(11) NOT NULL AUTO_INCREMENT,",
+    "  `userId` int(11) NOT NULL,",
+    "  `name` varchar(255) NOT NULL,",
+    "  `description` text DEFAULT NULL,",
+    "  `portfolioData` text NOT NULL,",
+    "  `portfolioType` varchar(50) DEFAULT NULL,",
+    "  `isLive` tinyint(1) DEFAULT '0',",
+    "  `liveStartDate` timestamp NULL DEFAULT NULL,",
+    "  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"
+  ],
+  "stdout": "Table\tCreate Table\nportfolios\tCREATE TABLE `portfolios` (\n  `id` int(11) NOT NULL AUTO_INCREMENT,\n  `userId` int(11) NOT NULL,\n  `name` varchar(255) NOT NULL,\n  `description` text DEFAULT NULL,\n  `portfolioData` text NOT NULL,\n  `portfolioType` varchar(50) DEFAULT NULL,\n  `isLive` tinyint(1) DEFAULT '0',\n  `liveStartDate` timestamp NULL DEFAULT NULL,\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

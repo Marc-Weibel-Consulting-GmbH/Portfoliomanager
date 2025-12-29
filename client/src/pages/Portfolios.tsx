@@ -86,9 +86,9 @@ export default function Portfolios() {
   // Sort portfolios
   const sortedPortfolios = [...filteredPortfolios].sort((a: any, b: any) => {
     if (sortBy === "performance") {
-      // Parse performance values (e.g., "+12.5%" -> 12.5)
-      const perfA = parseFloat((a.livePerformance || "0").replace(/[^0-9.-]/g, ""));
-      const perfB = parseFloat((b.livePerformance || "0").replace(/[^0-9.-]/g, ""));
+      // livePerformance is now a number (or null/undefined)
+      const perfA = typeof a.livePerformance === 'number' ? a.livePerformance : 0;
+      const perfB = typeof b.livePerformance === 'number' ? b.livePerformance : 0;
       return perfB - perfA;
     } else if (sortBy === "date") {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -280,26 +280,26 @@ export default function Portfolios() {
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Positionen</div>
                         <div className="text-lg font-semibold text-white">
-                          {positionCount} Aktien
+                          {portfolio.positionCount ?? positionCount} Aktien
                         </div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Wert</div>
                         <div className="text-lg font-semibold text-white">
-                          CHF 0.00
+                          {formatCurrency(portfolio.currentValue ?? 0)}
                         </div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Performance</div>
                         <div className={`text-lg font-semibold flex items-center gap-1 ${
-                          (portfolio.livePerformance || "").startsWith("+") ? "text-[#00CFC1]" : "text-red-500"
+                          (typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0) >= 0 ? "text-[#00CFC1]" : "text-red-500"
                         }`}>
-                          {(portfolio.livePerformance || "").startsWith("+") ? (
+                          {(typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0) >= 0 ? (
                             <TrendingUp className="h-4 w-4" />
                           ) : (
                             <TrendingDown className="h-4 w-4" />
                           )}
-                          {portfolio.livePerformance || "+0.00%"}
+                          {formatPercent(typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0)}
                         </div>
                       </div>
                     </div>
@@ -308,7 +308,7 @@ export default function Portfolios() {
                     <div className="h-16 bg-gradient-to-t from-[#00CFC1]/20 to-transparent rounded relative">
                       <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
                         <path
-                          d={(portfolio.livePerformance || "").startsWith("+")
+                          d={(typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0) >= 0
                             ? "M 0,35 L 40,30 L 80,25 L 120,20 L 160,15 L 200,10"
                             : "M 0,10 L 40,15 L 80,20 L 120,25 L 160,30 L 200,35"
                           }
