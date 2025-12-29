@@ -15,6 +15,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
@@ -155,6 +158,9 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+  
+  // Fetch portfolios for sidebar submenu
+  const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
 
   useEffect(() => {
     if (isCollapsed) {
@@ -243,19 +249,38 @@ function DashboardLayoutContent({
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
                 const isActive = location === item.path;
+                const isPortfolioDetailPage = location.startsWith('/portfolios/') && item.path === '/portfolios';
+                const shouldShowSubmenu = item.path === '/portfolios' && portfolios.length > 0;
+                
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
-                      isActive={isActive}
+                      isActive={isActive || isPortfolioDetailPage}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
                       className={`h-10 transition-all font-normal`}
                     >
                       <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                        className={`h-4 w-4 ${isActive || isPortfolioDetailPage ? "text-primary" : ""}`}
                       />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
+                    
+                    {shouldShowSubmenu && !isCollapsed && (
+                      <SidebarMenuSub>
+                        {portfolios.slice(0, 5).map((portfolio: any) => (
+                          <SidebarMenuSubItem key={portfolio.id}>
+                            <SidebarMenuSubButton
+                              isActive={location === `/portfolios/${portfolio.id}`}
+                              onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
+                              className="text-sm"
+                            >
+                              <span className="truncate">{portfolio.name}</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    )}
                   </SidebarMenuItem>
                 );
               })}

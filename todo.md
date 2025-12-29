@@ -1,5 +1,11 @@
 # Portfolio Analysis Website TODO
 
+## Bugs (29.12.2025)
+
+- [x] "Neues Portfolio" Button im Dashboard soll direkt zum Portfolio Builder führen (Zwischenschritt entfernen)
+- [x] Navigation "Portfolios" → "Neues Portfolio" führt zum alten Builder (auf neuen Builder umstellen)
+- [x] Portfolio-Detailseite erscheint unter Dashboard statt unter Portfolios in der Sidebar
+
 ## Registration Flow (New Requirement - Dec 26, 2025)
 - [x] Implement registration form after OAuth login
 - [x] Collect user information (name, email, investment goals, risk tolerance)
