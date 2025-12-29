@@ -61,7 +61,6 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import PortfolioDetailsPage from "./pages/PortfolioDetailsPage";
 import PremiumWizard from "./pages/PremiumWizard";
-import StockDetailPage from "./pages/StockDetailPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -84,7 +83,6 @@ function Router() {
         {() => <Reviews />}
       </Route>
       <Route path="/stock/:ticker" component={StockDetail} />
-      <Route path="/stocks/:ticker" component={StockDetailPage} />
       <Route path="/portfolio/:id" component={PortfolioDetailRedesign} />
       <Route path="/portfolio/:id/old" component={PortfolioDetail} />
       <Route path="/portfolio/:id/positions" component={PortfolioPositions} />
