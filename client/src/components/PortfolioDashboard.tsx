@@ -199,7 +199,6 @@ export default function PortfolioDashboard() {
     toggleLiveMutation.mutate({
       id: selectedPortfolio.id,
       isLive: !selectedPortfolio.isLive,
-      liveStartDate: !selectedPortfolio.isLive ? new Date() : undefined,
     });
   };
 
@@ -311,7 +310,7 @@ export default function PortfolioDashboard() {
                     {selectedPortfolio.isLive ? 'LIVE' : 'TEST'}
                   </span>
                   <Switch
-                    checked={selectedPortfolio.isLive}
+                    checked={!!selectedPortfolio.isLive}
                     onCheckedChange={handleToggleLive}
                   />
                 </div>
@@ -406,7 +405,7 @@ export default function PortfolioDashboard() {
                         <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                           <td className="py-3 px-2">
                             <div className="flex items-center gap-3">
-                              <StockLogo ticker={holding.ticker} size="sm" />
+                              <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
                               <div>
                                 <div className="text-white font-medium">{holding.companyName}</div>
                                 <div className="text-slate-400 text-sm">{holding.ticker}</div>

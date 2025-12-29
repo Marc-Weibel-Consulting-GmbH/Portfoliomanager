@@ -100,10 +100,10 @@ function Router() {
       <Route path="/live-tracking" component={LiveTracking} />
       <Route path="/dividends" component={DividendCalendar} />
       <Route path="/portfolios" component={Portfolios} />
+      <Route path="/portfolios/:id" component={PortfolioDetailsPage} />
       <Route path="/portfolios/create">
         <Redirect to="/portfolio-builder" />
       </Route>
-      <Route path="/portfolios/:id" component={PortfolioDetailsPage} />
       <Route path="/analysis" component={Analysis} />
       <Route path="/ai-insights" component={AIInsights} />
       <Route path="/reports" component={Reports} />

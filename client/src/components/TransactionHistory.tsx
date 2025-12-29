@@ -191,13 +191,13 @@ export function TransactionHistory({ portfolioId, portfolioName }: TransactionHi
           type: getTypeLabel(tx.transactionType),
           ticker: tx.ticker || "-",
           shares: tx.shares || "-",
-          price: tx.pricePerShare ? `${tx.currency || 'CHF'} ${tx.pricePerShare.toFixed(2)}` : "-",
+          price: tx.pricePerShare ? `${tx.currency || 'CHF'} ${(typeof tx.pricePerShare === 'string' ? parseFloat(tx.pricePerShare) : tx.pricePerShare).toFixed(2)}` : "-",
           fxRate: isForeignCurrency ? fxRate.toFixed(3) : "1.000",
           amountForeign: isForeignCurrency && tx.pricePerShare && tx.shares 
-            ? `${tx.currency} ${(tx.pricePerShare * tx.shares).toFixed(2)}` 
+            ? `${tx.currency} ${((typeof tx.pricePerShare === 'string' ? parseFloat(tx.pricePerShare) : tx.pricePerShare) * (typeof tx.shares === 'string' ? parseFloat(tx.shares) : tx.shares)).toFixed(2)}` 
             : "-",
-          amountCHF: `CHF ${tx.totalAmount.toFixed(2)}`,
-          fees: tx.fees ? `CHF ${tx.fees.toFixed(2)}` : "CHF 0.00",
+          amountCHF: `CHF ${(typeof tx.totalAmount === 'string' ? parseFloat(tx.totalAmount) : tx.totalAmount).toFixed(2)}`,
+          fees: tx.fees ? `CHF ${(typeof tx.fees === 'string' ? parseFloat(tx.fees) : tx.fees).toFixed(2)}` : "CHF 0.00",
           notes: tx.notes || "-"
         });
       });

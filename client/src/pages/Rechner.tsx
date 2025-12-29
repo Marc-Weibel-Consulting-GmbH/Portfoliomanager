@@ -3,26 +3,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import DashboardLayout from '@/components/DashboardLayout';
 
-interface RechnerProps {
-  onBackClick?: () => void;
-}
-
-export default function Rechner({ onBackClick }: RechnerProps) {
+export default function Rechner() {
   return (
     <DashboardLayout>
     <div className="space-y-6">
-      {onBackClick && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBackClick}
-          className="text-slate-400 hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Zurück
-        </Button>
-      )}
-      
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Rechner</h1>
         <p className="text-slate-400">

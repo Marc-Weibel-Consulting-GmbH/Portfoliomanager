@@ -148,9 +148,11 @@ export function FloatingChatButton() {
                       }`}
                     >
                       {msg.role === "assistant" ? (
-                        <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">
-                          {msg.content}
-                        </ReactMarkdown>
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown>
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
                       ) : (
                         <p className="text-sm">{msg.content}</p>
                       )}

@@ -16,10 +16,13 @@ export default function AdminStocks() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: stocks = [], refetch, isLoading } = trpc.stocks.list.useQuery();
-  const refreshMutation = trpc.stocks.refreshAll.useMutation({
+  const refreshMutation = trpc.stocks.refreshData.useMutation({
     onSuccess: () => {
       toast.success("Aktiendaten aktualisiert");
       refetch();
+    },
+    onError: (error) => {
+      toast.error(`Fehler beim Aktualisieren: ${error.message}`);
     }
   });
 

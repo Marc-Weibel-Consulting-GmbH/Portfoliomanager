@@ -169,7 +169,7 @@ const steps = [
 
 export default function OnboardingTutorial({ open, onClose }: OnboardingTutorialProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const markOnboardingSeen = trpc.onboarding.markOnboardingSeen.useMutation();
+  const markOnboardingSeen = trpc.onboarding.completeOnboarding.useMutation();
   const createDemoPortfolio = trpc.onboarding.createDemoPortfolio.useMutation();
   const utils = trpc.useUtils();
 

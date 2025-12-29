@@ -1086,3 +1086,30 @@
 ## Bugs
 - [x] Fix TypeScript errors preventing Portfolio page from loading (setShowOptimizerResults, setActiveTab scope issue, autoTable headers type)
 - [x] Update Portfolios page to load and display real portfolio data from database
+
+## Navigation Fix (Dec 29, 2025)
+- [ ] Fix Portfolio navigation - make all portfolios (Live + Test) clickable and link to new PortfolioDetailRedesign page
+- [ ] Remove old/duplicate route /portfolios/:id from App.tsx
+
+
+## WICHTIGE KLARSTELLUNG: Portfolio-Builder Routes (29.12.2024)
+- [ ] **NEUER Portfolio-Builder**: Route `/new` verwenden (dieser ist der aktuelle und zu verwendende Builder)
+- [ ] Alter Wizard/Portfolio-Builder: NICHT mehr verwenden, wird durch `/new` ersetzt
+- [ ] Alle Referenzen zum alten Builder entfernen oder auf `/new` umleiten
+- [ ] Sicherstellen, dass Dashboard und Navigation auf `/new` verweisen
+- [ ] Dokumentation aktualisieren, um Verwirrung zu vermeiden
+
+
+## Navigation-Anpassungen für Portfolio Detail-Seite (29.12.2024)
+- [ ] Portfolio Detail-Seite unter Navigationspunkt "Portfolios" erreichbar machen
+- [ ] Dashboard Portfolio-Karten: Klick führt zur neuen Portfolio Detail-Seite
+- [ ] Routing für Portfolio Detail-Seite korrekt einrichten (z.B. /portfolios/:id)
+- [ ] Navigation testen: Dashboard → Portfolio Detail
+- [ ] Navigation testen: Sidebar "Portfolios" → Portfolio Detail
+
+
+## Navigation-Anpassungen für Portfolio Detail-Seite (29.12.2024)
+- [x] PortfolioDetailsPage unter Route /portfolios/:id einrichten
+- [x] Dashboard: Portfolio-Karten sollen zu /portfolios/:id verlinken (statt /portfolio/:id)
+- [x] Sidebar "Portfolios": Soll zur Portfolio-Übersicht führen, von dort zu Detail-Seiten
+- [ ] Navigation testen: Dashboard → Portfolio Detail

@@ -69,7 +69,7 @@ export default function AdminSecrets() {
     setSecretMutation.mutate(secretForm);
   };
 
-  const handleEditSecret = async (secret: { key: string; description: string | null }) => {
+  const handleEditSecret = async (secret: { key: string; description: string }) => {
     setEditingKey(secret.key);
     
     // Fetch the current value
@@ -220,7 +220,7 @@ export default function AdminSecrets() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEditSecret(secret)}
+                      onClick={() => handleEditSecret({ key: secret.key || '', description: secret.description || '' })}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>

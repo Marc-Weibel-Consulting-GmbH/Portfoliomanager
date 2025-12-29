@@ -57,13 +57,8 @@ export default function Portfolios() {
   };
 
   const handleViewPortfolio = (portfolio: any) => {
-    if (portfolio.isLive) {
-      setLocation(`/portfolio/${portfolio.id}`);
-    } else {
-      toast.info('Test-Portfolio', { 
-        description: 'Dies ist ein Test-Portfolio. Aktivieren Sie es, um Details anzuzeigen.' 
-      });
-    }
+    // Navigate to portfolio detail page for both Live and Test portfolios
+    setLocation(`/portfolio/${portfolio.id}`);
   };
 
   return (
