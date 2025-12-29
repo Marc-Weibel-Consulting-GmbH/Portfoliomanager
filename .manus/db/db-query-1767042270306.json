@@ -1,0 +1,80 @@
+{
+  "query": "SELECT id, name, userId, isLive, createdAt FROM savedPortfolios LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, name, userId, isLive, createdAt FROM savedPortfolios LIMIT 10;",
+  "rows": [
+    {
+      "id": "240001",
+      "name": "Portfolio Test 1",
+      "userId": "4082029",
+      "isLive": "1",
+      "createdAt": "2025-11-11 15:46:36"
+    },
+    {
+      "id": "270001",
+      "name": "Regula",
+      "userId": "4082029",
+      "isLive": "1",
+      "createdAt": "2025-11-12 07:42:40"
+    },
+    {
+      "id": "300001",
+      "name": "Demo Portfolio - Schweizer Blue Chips",
+      "userId": "4082029",
+      "isLive": "0",
+      "createdAt": "2025-11-16 18:56:58"
+    },
+    {
+      "id": "330001",
+      "name": "Demo Portfolio - Schweizer Blue Chips",
+      "userId": "14310138",
+      "isLive": "0",
+      "createdAt": "2025-11-16 21:03:12"
+    },
+    {
+      "id": "420001",
+      "name": "Test Navigation Portfolio",
+      "userId": "19410075",
+      "isLive": "0",
+      "createdAt": "2025-12-29 08:03:48"
+    },
+    {
+      "id": "420002",
+      "name": "Test Portfolio 2",
+      "userId": "19410075",
+      "isLive": "0",
+      "createdAt": "2025-12-29 08:08:52"
+    },
+    {
+      "id": "420003",
+      "name": "Test Portfolio Final",
+      "userId": "19410075",
+      "isLive": "0",
+      "createdAt": "2025-12-29 08:20:01"
+    },
+    {
+      "id": "420004",
+      "name": "Final Test",
+      "userId": "19410075",
+      "isLive": "0",
+      "createdAt": "2025-12-29 08:24:47"
+    },
+    {
+      "id": "420005",
+      "name": "Test 10",
+      "userId": "4082029",
+      "isLive": "0",
+      "createdAt": "2025-12-29 08:48:07"
+    },
+    {
+      "id": "450001",
+      "name": "Test Portfolio Live",
+      "userId": "19650007",
+      "isLive": "0",
+      "createdAt": "2025-12-29 12:27:19"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tuserId\tisLive\tcreatedAt\n240001\tPortfolio Test 1\t4082029\t1\t2025-11-11 15:46:36\n270001\tRegula\t4082029\t1\t2025-11-12 07:42:40\n300001\tDemo Portfolio - Schweizer Blue Chips\t4082029\t0\t2025-11-16 18:56:58\n330001\tDemo Portfolio - Schweizer Blue Chips\t14310138\t0\t2025-11-16 21:03:12\n420001\tTest Navigation Portfolio\t19410075\t0\t2025-12-29 08:03:48\n420002\tTest Portfolio 2\t19410075\t0\t2025-12-29 08:08:52\n420003\tTest Portfolio Final\t19410075\t0\t2025-12-29 08:20:01\n420004\tFinal Test\t19410075\t0\t2025-12-29 08:24:47\n420005\tTest 10\t4082029\t0\t2025-12-29 08:48:07\n450001\tTest Portfolio Live\t19650007\t0\t2025-12-29 12:27:19\n",
+  "stderr": "",
+  "execution_time_ms": 1519
+}

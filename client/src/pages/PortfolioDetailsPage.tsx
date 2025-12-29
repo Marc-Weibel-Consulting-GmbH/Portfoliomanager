@@ -465,7 +465,7 @@ export default function PortfolioDetailsPage() {
                       {holdings.map((holding: any) => (
                         <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5">
                           <td className="p-3">
-                            <Link href={`/stocks/${holding.ticker}`}>
+                            <Link href={`/stock/${holding.ticker}`}>
                               <span className="font-semibold text-[#00CFC1] hover:underline cursor-pointer">
                                 {holding.ticker}
                               </span>

@@ -1340,3 +1340,16 @@
   - [x] Marc Test 29 Live: OK
   - [x] Test 10: OK
   - [x] Demo Portfolio - Schweizer Blue Chips: OK (ROG.SW, UBSG.SW hinzugefügt)
+
+
+## Aktien-Detailseite Implementation (29.12.2025)
+- [x] Header mit Logo, Ticker, Firmenname, Preis, Änderung, Score-Circle
+- [x] Interaktiver Linien-Chart mit Zeitraum-Auswahl (1D, 1W, 1M, 3M, 6M, 1Y, YTD, All)
+- [x] Fundamentaldaten-Panel (P/E, PEG, Dividendenrendite, Beta, Volatilität, Sharpe, Marktkapitalisierung, 52W Hoch/Tief, YTD Performance)
+- [x] Wettbewerbsvorteile (Moats) - 3 Karten mit Icons
+- [x] Financial Highlights (Revenue Growth, Net Income Margin, Free Cash Flow)
+- [x] Kategorie & Sektor Badges
+- [x] News-Sektion mit Placeholder-Daten
+- [x] Action-Buttons: Zu Portfolio hinzufügen, Preisalarm erstellen, Factsheet ansehen
+- [x] Backend-Endpoint für Aktien-Detaildaten (stocks.byTicker bereits vorhanden)
+- [x] Navigation von Positionenliste zur Detailseite (Links in PortfolioPositions, PortfolioDetailRedesign, PortfolioDetailsPage)

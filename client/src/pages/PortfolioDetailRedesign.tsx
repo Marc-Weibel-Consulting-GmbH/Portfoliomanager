@@ -276,17 +276,19 @@ export default function PortfolioDetailRedesign() {
               </TableHeader>
               <TableBody>
                 {holdings.map((holding: any) => (
-                  <TableRow key={holding.ticker}>
+                  <TableRow key={holding.ticker} className="cursor-pointer hover:bg-muted/50">
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
-                        <div>
-                          <div className="font-medium">{holding.ticker}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {holding.companyName}
+                      <Link href={`/stock/${holding.ticker}`}>
+                        <div className="flex items-center gap-2">
+                          <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
+                          <div>
+                            <div className="font-medium text-primary hover:underline">{holding.ticker}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {holding.companyName}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     </TableCell>
                     <TableCell className="text-right">{holding.weight}%</TableCell>
                     <TableCell className="text-right">

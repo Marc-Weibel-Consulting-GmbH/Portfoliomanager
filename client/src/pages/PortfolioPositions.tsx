@@ -268,15 +268,17 @@ export default function PortfolioPositions() {
                     const performance = parseFloat(holding.performancePercent || '0');
                     
                     return (
-                      <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
                         <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <StockLogo ticker={holding.ticker} companyName={stock?.companyName || holding.ticker} size="sm" />
-                            <div>
-                              <div className="text-white font-semibold">{holding.ticker}</div>
-                              <div className="text-sm text-gray-400">{stock?.companyName || holding.ticker}</div>
+                          <Link href={`/stock/${holding.ticker}`}>
+                            <div className="flex items-center gap-3">
+                              <StockLogo ticker={holding.ticker} companyName={stock?.companyName || holding.ticker} size="sm" />
+                              <div>
+                                <div className="text-[#00CFC1] font-semibold hover:underline">{holding.ticker}</div>
+                                <div className="text-sm text-gray-400">{stock?.companyName || holding.ticker}</div>
+                              </div>
                             </div>
-                          </div>
+                          </Link>
                         </td>
                         <td className="text-right py-4 px-4 text-white">
                           {parseFloat(holding.shares || '0').toLocaleString('de-CH', { minimumFractionDigits: 2 })}
