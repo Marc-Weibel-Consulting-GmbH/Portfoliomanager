@@ -30,7 +30,7 @@ export function CsvImportModal({ isOpen, onClose, portfolioId }: CsvImportModalP
         toast.success(`${result.success} Transaktionen erfolgreich importiert`);
         utils.portfolioTransactions.list.invalidate();
         utils.portfolios.list.invalidate();
-        utils.portfolios.calculateLivePerformance.invalidate();
+        // utils.portfolios.calculateLivePerformance.invalidate(); // TODO: implement
       }
       if (result.failed > 0) {
         toast.error(`${result.failed} Transaktionen fehlgeschlagen`);

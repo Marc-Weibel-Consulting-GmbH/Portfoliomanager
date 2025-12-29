@@ -1,0 +1,34 @@
+{
+  "query": "SELECT ticker, MIN(date) as earliest, MAX(date) as latest, COUNT(*) as total_records\nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'AAPL.US', 'TSM', 'NVDA.US')\nGROUP BY ticker;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, MIN(date) as earliest, MAX(date) as latest, COUNT(*) as total_records\nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'AAPL.US', 'TSM', 'NVDA.US')\nGROUP BY ticker;",
+  "rows": [
+    {
+      "ticker": "AAPL.US",
+      "earliest": "2022-11-01",
+      "latest": "2025-11-14",
+      "total_records": "1633"
+    },
+    {
+      "ticker": "NESN.SW",
+      "earliest": "2020-11-09",
+      "latest": "2025-11-13",
+      "total_records": "2133"
+    },
+    {
+      "ticker": "TSM",
+      "earliest": "2024-11-08",
+      "latest": "2025-11-12",
+      "total_records": "680"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "earliest": "2024-11-08",
+      "latest": "2025-11-21",
+      "total_records": "1789"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest\tlatest\ttotal_records\nAAPL.US\t2022-11-01\t2025-11-14\t1633\nNESN.SW\t2020-11-09\t2025-11-13\t2133\nTSM\t2024-11-08\t2025-11-12\t680\nNOVN.SW\t2024-11-08\t2025-11-21\t1789\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

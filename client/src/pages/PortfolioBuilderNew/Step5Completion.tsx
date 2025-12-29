@@ -51,9 +51,8 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
       await createMutation.mutateAsync({
         name: state.portfolioName,
         description: state.description || undefined,
-        portfolioType: state.strategy === 'growth' ? 'growth' : state.strategy === 'dividends' ? 'dividend' : 'balanced',
         portfolioData: JSON.stringify(portfolioData),
-        isLive: activateAsLive,
+        isLive: activateAsLive ? 1 : 0,
       });
     } catch (error) {
       // Error handled in onError

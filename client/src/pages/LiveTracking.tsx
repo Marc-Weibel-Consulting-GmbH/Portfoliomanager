@@ -36,11 +36,9 @@ export default function LiveTracking() {
 
   const portfolio = portfolios.find((p: any) => p.id === selectedPortfolioId);
 
-  // Fetch live performance
-  const { data: livePerformance, isLoading: performanceLoading } = trpc.portfolios.calculateLivePerformance.useQuery(
-    { id: selectedPortfolioId! },
-    { enabled: !!selectedPortfolioId }
-  );
+  // Fetch live performance - placeholder
+  const livePerformance = null; // TODO: implement calculateLivePerformance procedure
+  const performanceLoading = false;
 
   // Fetch CHF-converted holdings with performance
   const { data: chfHoldings = [], isLoading: holdingsLoading } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(

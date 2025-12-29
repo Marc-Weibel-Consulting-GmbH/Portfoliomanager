@@ -412,8 +412,17 @@ export default function Home() {
   // Query for saved portfolios - MUST be at top level (not conditional)
   const { data: portfoliosData = [], refetch: refetchSavedPortfolios } = trpc.portfolios.list.useQuery();
   const deletePortfolioMutation = trpc.portfolios.delete.useMutation();
-  const toggleLiveMutation = trpc.portfolios.toggleLive.useMutation();
-  const updateLiveStartDateMutation = trpc.portfolios.updateLiveStartDate.useMutation();
+  // Placeholder mutations - TODO: implement toggleLive and updateLiveStartDate procedures
+  const toggleLiveMutation = {
+    mutate: (data: any) => toast.info("Toggle Live Funktion wird noch implementiert"),
+    mutateAsync: async (data: any) => { toast.info("Toggle Live Funktion wird noch implementiert"); },
+    isPending: false
+  };
+  const updateLiveStartDateMutation = {
+    mutate: (data: any) => toast.info("Live-Start-Datum Funktion wird noch implementiert"),
+    mutateAsync: async (data: any) => { toast.info("Live-Start-Datum Funktion wird noch implementiert"); },
+    isPending: false
+  };
   const updatePortfolioMutation = trpc.portfolios.update.useMutation({
     onSuccess: () => {
       refetchSavedPortfolios();

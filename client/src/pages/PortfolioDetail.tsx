@@ -43,7 +43,7 @@ export default function PortfolioDetail() {
       toast.success(`${data.deletedCount} Initial-Transaktionen erfolgreich gelöscht`);
       utils.portfolioTransactions.list.invalidate();
       utils.portfolios.list.invalidate();
-      utils.portfolios.calculateLivePerformance.invalidate();
+      // utils.portfolios.calculateLivePerformance.invalidate(); // TODO: implement
       setShowDeleteConfirm(false);
     },
     onError: (error) => {
@@ -64,11 +64,8 @@ export default function PortfolioDetail() {
   // Fetch all stocks to get company names
   const { data: allStocks = [] } = trpc.stocks.getAll.useQuery();
 
-  // Fetch live performance if portfolio is live
-  const { data: livePerformance } = trpc.portfolios.calculateLivePerformance.useQuery(
-    { id: portfolioId! },
-    { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
-  );
+  // Fetch live performance if portfolio is live - placeholder
+  const livePerformance = null; // TODO: implement calculateLivePerformance procedure
 
   // Fetch CHF-converted holdings with performance
   const { data: chfHoldings = [] } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
@@ -175,28 +172,21 @@ export default function PortfolioDetail() {
     };
   }, [transactions, holdingsByTicker, chfHoldings, portfolio?.isLive]);
 
-  // Toggle live mutation
-  const toggleLiveMutation = trpc.portfolios.toggleLive.useMutation({
-    onSuccess: () => {
-      utils.portfolios.list.invalidate();
-      toast.success("Status aktualisiert");
+  // Toggle live mutation - placeholder for future implementation
+  const toggleLiveMutation = {
+    mutate: (data: { portfolioId: number; isLive: boolean }) => {
+      toast.info("Toggle Live Funktion wird noch implementiert");
     },
-    onError: () => {
-      toast.error("Fehler beim Aktualisieren des Status");
-    }
-  });
+    isPending: false
+  };
 
-  // Update live start date mutation
-  const updateLiveStartDateMutation = trpc.portfolios.updateLiveStartDate.useMutation({
-    onSuccess: () => {
-      utils.portfolios.list.invalidate();
-      utils.portfolios.calculateLivePerformance.invalidate();
-      toast.success("Live-Start-Datum aktualisiert");
+  // Update live start date mutation - placeholder for future implementation
+  const updateLiveStartDateMutation = {
+    mutate: (data: { portfolioId: number; startDate: Date }) => {
+      toast.info("Live-Start-Datum Funktion wird noch implementiert");
     },
-    onError: () => {
-      toast.error("Fehler beim Aktualisieren des Datums");
-    }
-  });
+    isPending: false
+  };
 
   // Export to Excel function
   const exportToExcel = async () => {
@@ -490,7 +480,7 @@ export default function PortfolioDetail() {
                     newStatus: !isCurrentlyLive
                   });
                   toggleLiveMutation.mutate({
-                    id: portfolio.id,
+                    portfolioId: portfolio.id,
                     isLive: !isCurrentlyLive
                   });
                 }}
@@ -510,8 +500,8 @@ export default function PortfolioDetail() {
                     const newDate = e.target.value;
                     if (!newDate) return;
                     updateLiveStartDateMutation.mutate({
-                      id: portfolio.id,
-                      liveStartDate: newDate
+                      portfolioId: portfolio.id,
+                      startDate: new Date(newDate)
                     });
                   }}
                   className="px-3 py-2 text-sm bg-muted border border-border rounded text-foreground hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-green-500"

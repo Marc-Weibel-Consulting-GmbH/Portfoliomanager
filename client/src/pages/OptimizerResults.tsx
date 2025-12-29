@@ -1052,7 +1052,7 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
           name: currentPortfolio.name,
           description: currentPortfolio.description || '',
           portfolioData: JSON.stringify(portfolioDataObj),
-          isAutoSave: true,
+          // Note: isAutoSave is handled client-side only
         });
       } else {
         console.warn('[AutoSave] Portfolio not found in portfolios, ID:', selectedPortfolioId);

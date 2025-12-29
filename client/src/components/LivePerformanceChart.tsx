@@ -32,28 +32,28 @@ interface LivePerformanceChartProps {
 }
 
 export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerformanceChartProps) {
-  // Fetch historical performance data from backend
-  const { data: historyData, isLoading } = trpc.portfolios.getLivePerformanceHistory.useQuery(
-    { id: portfolioId },
+  // Fetch historical performance data from backend using getHistoricalPerformance
+  const { data: historyData, isLoading } = trpc.portfolios.getHistoricalPerformance.useQuery(
+    { portfolioId, period: 'YTD', benchmark: 'SPY' },
     { enabled: !!portfolioId }
   );
 
   const chartData = useMemo(() => {
-    if (!historyData || historyData.dataPoints.length === 0) {
+    if (!historyData || !historyData.chartData || historyData.chartData.length === 0) {
       return { labels: [], datasets: [], latestPerformance: 0, latestValue: 0, latestInvested: 0 };
     }
 
-    const dataPoints = historyData.dataPoints;
+    const dataPoints = historyData.chartData;
 
     // Format labels and data
-    const labels = dataPoints.map(dp => {
+    const labels = dataPoints.map((dp: any) => {
       const date = new Date(dp.date);
       return date.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' });
     });
 
-    const performanceData = dataPoints.map(dp => dp.performance);
-    const valueData = dataPoints.map(dp => dp.value);
-    const investedData = dataPoints.map(dp => dp.invested);
+    const performanceData = dataPoints.map((dp: any) => dp.portfolio);
+    const valueData = historyData.totalValueHistory?.map((v: any) => v.value) || dataPoints.map(() => 0);
+    const investedData = dataPoints.map(() => 100); // Base value
 
     // Get latest values for legend
     const latestPerformance = performanceData[performanceData.length - 1] || 0;

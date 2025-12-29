@@ -200,19 +200,41 @@ export const portfoliosRouter = router({
             
             const priceCHF = currentPrice * fxRate;
             
+            // Calculate weight - for test portfolios, use equal weight if not specified
+            const stockCount = portfolioData.stocks?.length || 1;
+            const defaultWeight = 100 / stockCount;
+            const weight = stock.portfolioWeight || stock.weight || defaultWeight;
+            
             return {
               ...stock,
               currency,
               fxRate,
               currentPrice,
+              currentPriceLocal: currentPrice,
               priceCHF,
+              currentPriceCHF: priceCHF,
+              weight: parseFloat(weight.toFixed(2)),
             };
           })
         );
         
+        // Calculate total value and avg dividend yield
+        let totalValueCHF = 0;
+        let totalDividendYield = 0;
+        enrichedStocks.forEach((stock: any) => {
+          const shares = parseFloat(stock.shares) || 0;
+          const priceCHF = stock.priceCHF || 0;
+          totalValueCHF += shares * priceCHF;
+          totalDividendYield += parseFloat(stock.dividendYield) || 0;
+        });
+        const avgDividendYield = enrichedStocks.length > 0 ? totalDividendYield / enrichedStocks.length : 0;
+        
         return {
           ...portfolio,
           portfolioData: JSON.stringify({ ...portfolioData, stocks: enrichedStocks }),
+          enrichedStocks,
+          totalValueCHF,
+          avgDividendYield,
         };
       }),
 
@@ -234,7 +256,7 @@ export const portfoliosRouter = router({
           description: input.description || null,
           portfolioData: input.portfolioData,
           isLive: input.isLive,
-          liveStartDate: input.liveStartDate || null,
+          liveStartDate: input.liveStartDate ? new Date(input.liveStartDate) : null,
         });
         return result;
       }),
@@ -257,7 +279,7 @@ export const portfoliosRouter = router({
           description: input.description,
           portfolioData: input.portfolioData,
           isLive: input.isLive,
-          liveStartDate: input.liveStartDate,
+          liveStartDate: input.liveStartDate ? new Date(input.liveStartDate) : undefined,
         });
         return result;
       }),
@@ -349,5 +371,386 @@ export const portfoliosRouter = router({
         }
         
         return results;
+      }),
+
+    // Get historical portfolio performance based on daily closing prices
+    getHistoricalPerformance: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        period: z.enum(['1M', '3M', '6M', '1Y', 'YTD', '3Y', '5Y', 'All']).default('YTD'),
+        benchmark: z.string().default('SPY'),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { portfolioId, period, benchmark } = input;
+        const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
+        const { convertToCHF } = await import("../fxHelper");
+        
+        const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
+        if (!portfolio) {
+          return { chartData: [], totalValueHistory: [] };
+        }
+        
+        const isLivePortfolio = portfolio.isLive;
+        let transactions: any[] = [];
+        let portfolioStocks: any[] = [];
+        
+        if (isLivePortfolio) {
+          transactions = await getPortfolioTransactions(portfolioId);
+          if (transactions.length === 0) {
+            return { chartData: [], totalValueHistory: [] };
+          }
+        } else {
+          // For test portfolios, get stocks from portfolioData
+          try {
+            const portfolioData = typeof portfolio.portfolioData === 'string' 
+              ? JSON.parse(portfolio.portfolioData) 
+              : portfolio.portfolioData;
+            portfolioStocks = portfolioData?.stocks || [];
+            if (portfolioStocks.length === 0) {
+              return { chartData: [], totalValueHistory: [] };
+            }
+          } catch (e) {
+            return { chartData: [], totalValueHistory: [] };
+          }
+        }
+        
+        const db = await getDb();
+        if (!db) return { chartData: [], totalValueHistory: [] };
+        
+        const { historicalPrices } = await import("../../drizzle/schema");
+        const { eq, and, gte, lte, asc } = await import("drizzle-orm");
+        
+        // Calculate start date based on period
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        let startDate: Date;
+        
+        // For live portfolios, find the earliest transaction date
+        let earliestTransactionDate: Date | null = null;
+        if (isLivePortfolio && transactions.length > 0) {
+          const sortedTx = [...transactions].sort((a: any, b: any) => 
+            new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+          );
+          earliestTransactionDate = new Date(sortedTx[0].transactionDate);
+        }
+        
+        switch (period) {
+          case '1M':
+            startDate = new Date(today);
+            startDate.setMonth(startDate.getMonth() - 1);
+            break;
+          case '3M':
+            startDate = new Date(today);
+            startDate.setMonth(startDate.getMonth() - 3);
+            break;
+          case '6M':
+            startDate = new Date(today);
+            startDate.setMonth(startDate.getMonth() - 6);
+            break;
+          case '1Y':
+            startDate = new Date(today);
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+          case '3Y':
+            startDate = new Date(today);
+            startDate.setFullYear(startDate.getFullYear() - 3);
+            break;
+          case '5Y':
+            startDate = new Date(today);
+            startDate.setFullYear(startDate.getFullYear() - 5);
+            break;
+          case 'All':
+            // Use earliest transaction date for live portfolios
+            if (earliestTransactionDate) {
+              startDate = earliestTransactionDate;
+            } else {
+              startDate = new Date(today);
+              startDate.setFullYear(startDate.getFullYear() - 5);
+            }
+            break;
+          case 'YTD':
+          default:
+            startDate = new Date(`${today.getFullYear()}-01-01`);
+            break;
+        }
+        
+        // For live portfolios, never start before the first transaction
+        if (isLivePortfolio && earliestTransactionDate && startDate < earliestTransactionDate) {
+          startDate = earliestTransactionDate;
+        }
+        
+        const ytdStartDate = startDate.toISOString().split('T')[0];
+        
+        // Get all unique tickers - different logic for live vs test portfolios
+        let tickers: string[] = [];
+        const holdingsAtYtdStart: Record<string, { shares: number; avgCost: number; weight: number }> = {};
+        
+        if (isLivePortfolio) {
+          // For live portfolios, get tickers from transactions
+          const tickerSet = new Set(transactions.map((tx: any) => tx.ticker).filter(Boolean));
+          tickers = Array.from(tickerSet);
+          
+          // Build holdings at YTD start based on transactions before that date
+          const sortedTx = [...transactions].sort((a: any, b: any) => 
+            new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+          );
+          
+          sortedTx.forEach((tx: any) => {
+            const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+            if (txDate >= ytdStartDate) return; // Only process transactions before YTD
+            
+            const ticker = tx.ticker;
+            if (!ticker) return;
+            
+            if (!holdingsAtYtdStart[ticker]) {
+              holdingsAtYtdStart[ticker] = { shares: 0, avgCost: 0, weight: 0 };
+            }
+            
+            const shares = parseFloat(tx.shares) || 0;
+            const price = parseFloat(tx.pricePerShare) || 0;
+            
+            if (tx.transactionType === 'buy') {
+              const totalCost = holdingsAtYtdStart[ticker].shares * holdingsAtYtdStart[ticker].avgCost + shares * price;
+              holdingsAtYtdStart[ticker].shares += shares;
+              holdingsAtYtdStart[ticker].avgCost = holdingsAtYtdStart[ticker].shares > 0 
+                ? totalCost / holdingsAtYtdStart[ticker].shares 
+                : 0;
+            } else if (tx.transactionType === 'sell') {
+              holdingsAtYtdStart[ticker].shares -= shares;
+            }
+          });
+        } else {
+          // For test portfolios, assume all stocks were held from period start with equal weight
+          tickers = portfolioStocks.map((s: any) => s.ticker).filter(Boolean);
+          const weightPerStock = 100 / tickers.length;
+          
+          tickers.forEach((ticker: string) => {
+            holdingsAtYtdStart[ticker] = { 
+              shares: 1, // Use 1 share as base for percentage calculation
+              avgCost: 0, 
+              weight: weightPerStock 
+            };
+          });
+        }
+        
+        // For live portfolios, continue with transaction-based logic
+        let sortedTx: any[] = [];
+        if (isLivePortfolio) {
+          sortedTx = [...transactions].sort((a: any, b: any) => 
+            new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+          );
+          
+          // This part was already processed above for holdingsAtYtdStart
+          // Now we need to handle transactions during the period
+        }
+        
+
+        
+        // Get historical prices for all tickers from YTD start to today
+        const pricesMap: Record<string, Record<string, number>> = {};
+        
+        for (const ticker of tickers) {
+          const prices = await db
+            .select()
+            .from(historicalPrices)
+            .where(
+              and(
+                eq(historicalPrices.ticker, ticker),
+                gte(historicalPrices.date, ytdStartDate),
+                lte(historicalPrices.date, todayStr)
+              )
+            )
+            .orderBy(asc(historicalPrices.date));
+          
+          pricesMap[ticker] = {};
+          prices.forEach((p: any) => {
+            pricesMap[ticker][p.date] = parseFloat(p.close) || 0;
+          });
+        }
+        
+        // Get stock currencies
+        const stockCurrencies: Record<string, string> = {};
+        for (const ticker of tickers) {
+          const stock = await getStockByTicker(ticker);
+          stockCurrencies[ticker] = stock?.currency || 'CHF';
+        }
+        
+        // Generate daily portfolio values
+        const chartData: { date: string; portfolio: number; benchmark: number }[] = [];
+        let currentHoldings = { ...holdingsAtYtdStart };
+        let txIndex = 0;
+        
+        // Fetch benchmark prices
+        const benchmarkPrices = await db
+          .select()
+          .from(historicalPrices)
+          .where(
+            and(
+              eq(historicalPrices.ticker, benchmark),
+              gte(historicalPrices.date, ytdStartDate),
+              lte(historicalPrices.date, todayStr)
+            )
+          )
+          .orderBy(asc(historicalPrices.date));
+        
+        const benchmarkMap: Record<string, number> = {};
+        benchmarkPrices.forEach((p: any) => {
+          benchmarkMap[p.date] = parseFloat(p.close) || 0;
+        });
+        
+        // Get benchmark starting price
+        const benchmarkStartPrice = parseFloat(String(benchmarkMap[ytdStartDate] || benchmarkPrices[0]?.close || 0));
+        
+        // Get all dates with price data
+        const allDates = new Set<string>();
+        Object.values(pricesMap).forEach(prices => {
+          Object.keys(prices).forEach(date => allDates.add(date));
+        });
+        // Also add benchmark dates
+        Object.keys(benchmarkMap).forEach(date => allDates.add(date));
+        const sortedDates = Array.from(allDates).sort();
+        
+        // Calculate starting value at YTD start
+        let startingValueCHF = 0;
+        const startingPricesCHF: Record<string, number> = {};
+        
+        for (const [ticker, holding] of Object.entries(currentHoldings)) {
+          if (holding.shares <= 0 && !holding.weight) continue;
+          
+          // Find the first available price (might not be exactly ytdStartDate)
+          const tickerPrices = pricesMap[ticker] || {};
+          const availableDates = Object.keys(tickerPrices).sort();
+          const firstDate = availableDates[0] || ytdStartDate;
+          const price = tickerPrices[firstDate] || tickerPrices[ytdStartDate] || 0;
+          
+          const currency = stockCurrencies[ticker] || 'CHF';
+          const priceCHF = await convertToCHF(price, currency, firstDate);
+          startingPricesCHF[ticker] = priceCHF;
+          
+          if (isLivePortfolio) {
+            startingValueCHF += holding.shares * priceCHF;
+          }
+        }
+        
+        // For test portfolios, we use weight-based calculation
+        const isTestPortfolio = !isLivePortfolio;
+        
+        // Pre-calculate FX rates for all dates to avoid repeated API calls
+        const fxRatesCache: Record<string, Record<string, number>> = {};
+        const uniqueCurrencies = Array.from(new Set(Object.values(stockCurrencies)));
+        
+        for (const currency of uniqueCurrencies) {
+          if (currency === 'CHF') continue;
+          fxRatesCache[currency] = {};
+          // Get FX rate for first date only (use same rate for all dates to speed up)
+          const firstDate = sortedDates[0] || ytdStartDate;
+          const rate = await convertToCHF(1, currency, firstDate);
+          // Apply same rate to all dates
+          for (const date of sortedDates) {
+            fxRatesCache[currency][date] = rate;
+          }
+        }
+        
+        // Helper function to convert using cached rates
+        const convertToCHFCached = (price: number, currency: string, date: string): number => {
+          if (currency === 'CHF') return price;
+          const rate = fxRatesCache[currency]?.[date] || 1;
+          return price * rate;
+        };
+        
+        // Sample dates to reduce data points (max 100 points for chart)
+        const maxDataPoints = 100;
+        const sampleInterval = Math.max(1, Math.floor(sortedDates.length / maxDataPoints));
+        const sampledDates = sortedDates.filter((_, idx) => idx % sampleInterval === 0 || idx === sortedDates.length - 1);
+        
+        // Process each sampled date
+        for (const date of sampledDates) {
+          // Apply any transactions on this date (for live portfolios)
+          while (txIndex < sortedTx.length) {
+            const tx = sortedTx[txIndex] as any;
+            const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+            if (txDate > date) break;
+            
+            const ticker = tx.ticker;
+            if (ticker && txDate >= ytdStartDate) {
+              if (!currentHoldings[ticker]) {
+                currentHoldings[ticker] = { shares: 0, avgCost: 0, weight: 0 };
+              }
+              
+              const shares = parseFloat(tx.shares) || 0;
+              const price = parseFloat(tx.pricePerShare) || 0;
+              
+              if (tx.transactionType === 'buy') {
+                const totalCost = currentHoldings[ticker].shares * currentHoldings[ticker].avgCost + shares * price;
+                currentHoldings[ticker].shares += shares;
+                currentHoldings[ticker].avgCost = currentHoldings[ticker].shares > 0 
+                  ? totalCost / currentHoldings[ticker].shares 
+                  : 0;
+              } else if (tx.transactionType === 'sell') {
+                currentHoldings[ticker].shares -= shares;
+              }
+            }
+            txIndex++;
+          }
+          
+          // Calculate portfolio performance on this date
+          let portfolioPerformance = 0;
+          
+          if (isTestPortfolio) {
+            // For test portfolios: calculate weighted average performance of all stocks
+            let totalWeight = 0;
+            let weightedPerformance = 0;
+            
+            for (const [ticker, holding] of Object.entries(currentHoldings)) {
+              const weight = holding.weight || 0;
+              if (weight <= 0) continue;
+              
+              const currentPrice = pricesMap[ticker]?.[date] || 0;
+              const startPrice = startingPricesCHF[ticker] || 0;
+              
+              if (currentPrice > 0 && startPrice > 0) {
+                const currency = stockCurrencies[ticker] || 'CHF';
+                const currentPriceCHF = convertToCHFCached(currentPrice, currency, date);
+                const stockPerformance = ((currentPriceCHF - startPrice) / startPrice) * 100;
+                weightedPerformance += stockPerformance * (weight / 100);
+                totalWeight += weight;
+              }
+            }
+            
+            portfolioPerformance = totalWeight > 0 ? weightedPerformance : 0;
+          } else {
+            // For live portfolios: calculate based on actual holdings value
+            let totalValueCHF = 0;
+            for (const [ticker, holding] of Object.entries(currentHoldings)) {
+              if (holding.shares <= 0) continue;
+              const price = pricesMap[ticker]?.[date] || 0;
+              if (price === 0) continue;
+              const currency = stockCurrencies[ticker] || 'CHF';
+              const priceCHF = convertToCHFCached(price, currency, date);
+              totalValueCHF += holding.shares * priceCHF;
+            }
+            
+            portfolioPerformance = startingValueCHF > 0 
+              ? ((totalValueCHF - startingValueCHF) / startingValueCHF) * 100 
+              : 0;
+          }
+          
+          // Calculate benchmark performance from actual prices
+          const benchmarkCurrentPrice = parseFloat(String(benchmarkMap[date] || 0));
+          const benchmarkPerformance = benchmarkStartPrice > 0 && benchmarkCurrentPrice > 0
+            ? ((benchmarkCurrentPrice - benchmarkStartPrice) / benchmarkStartPrice) * 100
+            : 0;
+          
+          // Only add data point if we have valid performance data
+          if (portfolioPerformance !== 0 || benchmarkPerformance !== 0) {
+            chartData.push({
+              date,
+              portfolio: parseFloat(portfolioPerformance.toFixed(2)),
+              benchmark: parseFloat(benchmarkPerformance.toFixed(2)),
+            });
+          }
+        }
+        
+        return { chartData };
       }),
 });

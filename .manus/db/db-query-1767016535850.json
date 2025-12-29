@@ -1,0 +1,130 @@
+{
+  "query": "SELECT ticker, COUNT(*) as count, MIN(date) as min_date, MAX(date) as max_date \nFROM historicalPrices \nGROUP BY ticker\nORDER BY count DESC\nLIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, COUNT(*) as count, MIN(date) as min_date, MAX(date) as max_date \nFROM historicalPrices \nGROUP BY ticker\nORDER BY count DESC\nLIMIT 20;",
+  "rows": [
+    {
+      "ticker": "NEE",
+      "count": "2346",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "BND.US",
+      "count": "2296",
+      "min_date": "2022-11-01",
+      "max_date": "2025-11-25"
+    },
+    {
+      "ticker": "VWRL.L",
+      "count": "2242",
+      "min_date": "2024-11-08",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "VTI.US",
+      "count": "2186",
+      "min_date": "2025-01-02",
+      "max_date": "2025-11-21"
+    },
+    {
+      "ticker": "NESN.SW",
+      "count": "2133",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-13"
+    },
+    {
+      "ticker": "EEM.US",
+      "count": "2076",
+      "min_date": "2022-11-01",
+      "max_date": "2025-11-21"
+    },
+    {
+      "ticker": "VGK.US",
+      "count": "1963",
+      "min_date": "2025-01-02",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "SGKN.SW",
+      "count": "1918",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "NET",
+      "count": "1907",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-13"
+    },
+    {
+      "ticker": "NVDA",
+      "count": "1907",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-13"
+    },
+    {
+      "ticker": "HELN.SW",
+      "count": "1860",
+      "min_date": "2022-11-01",
+      "max_date": "2025-11-21"
+    },
+    {
+      "ticker": "CHSPI.SW",
+      "count": "1857",
+      "min_date": "2022-11-01",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "GEBN.SW",
+      "count": "1855",
+      "min_date": "2022-11-01",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "ACWI.US",
+      "count": "1851",
+      "min_date": "2022-11-01",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "AGG.US",
+      "count": "1850",
+      "min_date": "2022-11-01",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "count": "1789",
+      "min_date": "2024-11-08",
+      "max_date": "2025-11-21"
+    },
+    {
+      "ticker": "URTH.US",
+      "count": "1743",
+      "min_date": "2025-01-02",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "BRK-B",
+      "count": "1694",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "TSLA",
+      "count": "1692",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-14"
+    },
+    {
+      "ticker": "JNJ",
+      "count": "1691",
+      "min_date": "2020-11-09",
+      "max_date": "2025-11-13"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcount\tmin_date\tmax_date\nNEE\t2346\t2020-11-09\t2025-11-14\nBND.US\t2296\t2022-11-01\t2025-11-25\nVWRL.L\t2242\t2024-11-08\t2025-11-14\nVTI.US\t2186\t2025-01-02\t2025-11-21\nNESN.SW\t2133\t2020-11-09\t2025-11-13\nEEM.US\t2076\t2022-11-01\t2025-11-21\nVGK.US\t1963\t2025-01-02\t2025-11-14\nSGKN.SW\t1918\t2020-11-09\t2025-11-14\nNET\t1907\t2020-11-09\t2025-11-13\nNVDA\t1907\t2020-11-09\t2025-11-13\nHELN.SW\t1860\t2022-11-01\t2025-11-21\nCHSPI.SW\t1857\t2022-11-01\t2025-11-14\nGEBN.SW\t1855\t2022-11-01\t2025-11-14\nACWI.US\t1851\t2022-11-01\t2025-11-14\nAGG.US\t1850\t2022-11-01\t2025-11-14\nNOVN.SW\t1789\t2024-11-08\t2025-11-21\nURTH.US\t1743\t2025-01-02\t2025-11-14\nBRK-B\t1694\t2020-11-09\t2025-11-14\nTSLA\t1692\t2020-11-09\t2025-11-14\nJNJ\t1691\t2020-11-09\t2025-11-13\n",
+  "stderr": "",
+  "execution_time_ms": 129
+}

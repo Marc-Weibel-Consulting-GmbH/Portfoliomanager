@@ -104,7 +104,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     onSuccess: (data: any) => {
       // Invalidate queries to refresh data
       utils.portfolios.list.invalidate();
-      utils.portfolios.calculateLivePerformance.invalidate({ id: portfolioId });
+      // utils.portfolios.calculateLivePerformance.invalidate({ id: portfolioId }); // TODO: implement
       utils.portfolioTransactions.list.invalidate({ portfolioId });
       
       // If this was a sell transaction and we have realized gain data, show the modal

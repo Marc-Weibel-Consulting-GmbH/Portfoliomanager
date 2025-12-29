@@ -1,5 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useLocation, Link } from "wouter";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +74,89 @@ export default function PortfolioDetailsPage() {
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
   
-  const [selectedPeriod, setSelectedPeriod] = useState("6M");
+  const [selectedPeriod, setSelectedPeriod] = useState("YTD");
+  const [selectedBenchmark, setSelectedBenchmark] = useState("SPY");
+  
+  const benchmarkOptions = [
+    { value: "SPY", label: "S&P 500" },
+    { value: "QQQ", label: "Nasdaq 100" },
+    { value: "SSMI.SW", label: "SMI" },
+    { value: "FEZ", label: "EuroStoxx 50" },
+  ];
+  
+  // Use enriched stocks from the API (must be before conditional returns)
+  const holdings = portfolio?.enrichedStocks || [];
+  
+  // Calculate sector allocation
+  const sectorWeights: Record<string, number> = useMemo(() => {
+    const weights: Record<string, number> = {};
+    holdings.forEach((h: any) => {
+      const sector = h.sector || 'Other';
+      weights[sector] = (weights[sector] || 0) + (h.weight || 0);
+    });
+    return weights;
+  }, [holdings]);
+  
+  // Calculate total portfolio value based on initial capital and weights
+  const totalValueCHF = portfolio?.totalValueCHF || 0;
+  const avgDividendYield = portfolio?.avgDividendYield || 0;
+  
+  // Fetch historical performance data from API
+  const { data: historicalData, isLoading: isLoadingHistory } = trpc.portfolios.getHistoricalPerformance.useQuery(
+    { 
+      portfolioId, 
+      period: selectedPeriod as '1M' | '3M' | '6M' | '1Y' | 'YTD' | '3Y' | '5Y' | 'All',
+      benchmark: selectedBenchmark,
+    },
+    { enabled: portfolioId > 0 }
+  );
+  
+  // Process chart data - sample to reduce data points for display
+  const chartData = useMemo(() => {
+    if (!historicalData?.chartData || historicalData.chartData.length === 0) {
+      return [];
+    }
+    
+    const data = historicalData.chartData;
+    
+    // Sample data to show roughly one point per week for better visualization
+    const sampleInterval = Math.max(1, Math.floor(data.length / 52));
+    const sampledData = data.filter((_: any, index: number) => index % sampleInterval === 0 || index === data.length - 1);
+    
+    // Format dates for display
+    return sampledData.map((d: any) => ({
+      date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short' }),
+      portfolio: d.portfolio,
+      benchmark: d.benchmark,
+    }));
+  }, [historicalData]);
+  
+  // Prepare pie chart data for asset allocation
+  const assetAllocationData = useMemo(() => {
+    // Group by category/type
+    const categories: Record<string, number> = {};
+    holdings.forEach((h: any) => {
+      const category = h.category || 'Aktien';
+      const weight = parseFloat(h.weight || '0');
+      categories[category] = (categories[category] || 0) + weight;
+    });
+    
+    return Object.entries(categories).map(([name, value]) => ({
+      name,
+      value: parseFloat(value.toFixed(2)),
+    }));
+  }, [holdings]);
+  
+  // Prepare pie chart data for sector allocation  
+  const sectorAllocationData = useMemo(() => {
+    return Object.entries(sectorWeights).map(([name, value]) => ({
+      name,
+      value: parseFloat(value.toFixed(2)),
+    }));
+  }, [sectorWeights]);
+  
+  // Colors for pie charts
+  const COLORS = ['#00CFC1', '#00A89D', '#007D74', '#00524C', '#003D38', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'];
   
   if (isLoading) {
     return (
@@ -88,21 +183,6 @@ export default function PortfolioDetailsPage() {
   }
   
   const typeConfig = portfolio.portfolioType ? portfolioTypeConfig[portfolio.portfolioType] : null;
-  
-  // Use enriched stocks from the API
-  const holdings = portfolio.enrichedStocks || [];
-  
-  // Calculate sector allocation
-  const sectorWeights: Record<string, number> = {};
-  holdings.forEach((h: any) => {
-    const sector = h.sector || 'Other';
-    sectorWeights[sector] = (sectorWeights[sector] || 0) + (h.weight || 0);
-  });
-  
-  // Calculate total portfolio value based on initial capital and weights
-  // For now, we use a placeholder calculation
-  const totalValueCHF = portfolio.totalValueCHF || 0;
-  const avgDividendYield = portfolio.avgDividendYield || 0;
   
   const handleDelete = async () => {
     if (confirm("Möchten Sie dieses Portfolio wirklich löschen?")) {
@@ -204,10 +284,27 @@ export default function PortfolioDetailsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Chart */}
               <div className="lg:col-span-2">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Portfolio-Wertentwicklung</h3>
-                  <div className="flex gap-2">
-                    {["1M", "3M", "6M", "1Y", "YTD", "All"].map((period) => (
+                <div className="flex flex-col gap-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">Portfolio-Wertentwicklung</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-400">Benchmark:</span>
+                      <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
+                        <SelectTrigger className="w-[140px] h-8 bg-[#0f1420] border-white/10 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1f2e] border-white/10">
+                          {benchmarkOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-white hover:bg-white/10">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {["1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "All"].map((period) => (
                       <Button
                         key={period}
                         variant={selectedPeriod === period ? "default" : "ghost"}
@@ -220,8 +317,68 @@ export default function PortfolioDetailsPage() {
                     ))}
                   </div>
                 </div>
-                <div className="h-64 bg-[#0f1420]/50 rounded-lg flex items-center justify-center">
-                  <p className="text-gray-500">Chart Placeholder (Portfolio vs. Benchmark)</p>
+                <div className="h-64 bg-[#0f1420]/50 rounded-lg">
+                  {isLoadingHistory ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">Lade Kursdaten...</p>
+                    </div>
+                  ) : chartData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">Keine historischen Daten verfügbar</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#00CFC1" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#00CFC1" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                        <XAxis 
+                          dataKey="date" 
+                          stroke="#666" 
+                          fontSize={11} 
+                          tickLine={false}
+                          axisLine={{ stroke: '#333' }}
+                        />
+                        <YAxis 
+                          stroke="#666" 
+                          fontSize={11} 
+                          tickFormatter={(v) => `${v.toFixed(0)}%`}
+                          tickLine={false}
+                          axisLine={false}
+                          domain={['auto', 'auto']}
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px' }}
+                          labelStyle={{ color: '#fff' }}
+                          formatter={(value: number, name: string) => [
+                            `${value.toFixed(2)}%`, 
+                            name === 'portfolio' ? 'Portfolio' : benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'
+                          ]}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="portfolio" 
+                          name="Portfolio" 
+                          stroke="#00CFC1" 
+                          strokeWidth={2}
+                          fill="url(#portfolioGradient)"
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="benchmark" 
+                          name="Benchmark" 
+                          stroke="#6366f1" 
+                          strokeWidth={1.5}
+                          strokeDasharray="5 5"
+                          fill="none"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
               
@@ -281,7 +438,7 @@ export default function PortfolioDetailsPage() {
                           </td>
                           <td className="p-3 text-gray-300">{holding.companyName}</td>
                           <td className="text-right p-3">
-                            <Badge variant="outline">{holding.weight}%</Badge>
+                            <Badge variant="outline">{parseFloat(holding.weight || '0').toFixed(2)}%</Badge>
                           </td>
                           <td className="text-right p-3 text-white">
                             <div className="flex flex-col items-end">
@@ -321,14 +478,39 @@ export default function PortfolioDetailsPage() {
                 <CardTitle className="text-white">Asset-Allokation</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-48 flex items-center justify-center">
-                  <p className="text-gray-500 text-sm">Donut Chart Placeholder</p>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={assetAllocationData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={70}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {assetAllocationData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px' }}
+                        formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
+                      />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
                 </div>
                 <div className="mt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Aktien</span>
-                    <span className="text-white font-semibold">100%</span>
-                  </div>
+                  {assetAllocationData.map((item, index) => (
+                    <div key={item.name} className="flex justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                        <span className="text-gray-400">{item.name}</span>
+                      </div>
+                      <span className="text-white font-semibold">{item.value.toFixed(2)}%</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -339,16 +521,39 @@ export default function PortfolioDetailsPage() {
                 <CardTitle className="text-white">Sektor-Allokation</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-48 flex items-center justify-center">
-                  <p className="text-gray-500 text-sm">Donut Chart Placeholder</p>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={sectorAllocationData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={70}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {sectorAllocationData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px' }}
+                        formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
+                      />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="mt-4 space-y-2">
-                  {Object.entries(sectorWeights)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([sector, weight]) => (
-                      <div key={sector} className="flex justify-between text-sm">
-                        <span className="text-gray-400">{sector}</span>
-                        <span className="text-white font-semibold">{weight.toFixed(0)}%</span>
+                <div className="mt-4 space-y-2 max-h-32 overflow-y-auto">
+                  {sectorAllocationData
+                    .sort((a, b) => b.value - a.value)
+                    .map((item, index) => (
+                      <div key={item.name} className="flex justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                          <span className="text-gray-400">{item.name}</span>
+                        </div>
+                        <span className="text-white font-semibold">{item.value.toFixed(2)}%</span>
                       </div>
                     ))}
                 </div>

@@ -1,0 +1,37 @@
+{
+  "query": "SELECT * FROM historicalPrices WHERE ticker = 'NOVN.SW' LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT * FROM historicalPrices WHERE ticker = 'NOVN.SW' LIMIT 3;",
+  "rows": [
+    {
+      "id": "41396",
+      "ticker": "NOVN.SW",
+      "date": "2024-11-08",
+      "close": "92.860001",
+      "source": "yahoo",
+      "createdAt": "2025-11-08 18:54:15",
+      "updatedAt": "2025-11-08 18:54:15"
+    },
+    {
+      "id": "41397",
+      "ticker": "NOVN.SW",
+      "date": "2024-11-11",
+      "close": "93.089996",
+      "source": "yahoo",
+      "createdAt": "2025-11-08 18:54:15",
+      "updatedAt": "2025-11-08 18:54:15"
+    },
+    {
+      "id": "41398",
+      "ticker": "NOVN.SW",
+      "date": "2024-11-12",
+      "close": "92.360001",
+      "source": "yahoo",
+      "createdAt": "2025-11-08 18:54:15",
+      "updatedAt": "2025-11-08 18:54:15"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tticker\tdate\tclose\tsource\tcreatedAt\tupdatedAt\n41396\tNOVN.SW\t2024-11-08\t92.860001\tyahoo\t2025-11-08 18:54:15\t2025-11-08 18:54:15\n41397\tNOVN.SW\t2024-11-11\t93.089996\tyahoo\t2025-11-08 18:54:15\t2025-11-08 18:54:15\n41398\tNOVN.SW\t2024-11-12\t92.360001\tyahoo\t2025-11-08 18:54:15\t2025-11-08 18:54:15\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

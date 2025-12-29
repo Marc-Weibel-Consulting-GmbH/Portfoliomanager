@@ -53,16 +53,13 @@ export default function PortfolioDashboard() {
     return portfolios[0];
   }, [selectedPortfolioId, portfolios]);
 
-  // Mutations
-  const toggleLiveMutation = trpc.portfolios.toggleLive.useMutation({
-    onSuccess: () => {
-      refetchPortfolios();
-      toast.success('Modus geändert');
+  // Mutations - placeholder for toggleLive
+  const toggleLiveMutation = {
+    mutate: (data: any) => {
+      toast.info("Toggle Live Funktion wird noch implementiert");
     },
-    onError: (error) => {
-      toast.error('Fehler: ' + error.message);
-    },
-  });
+    isPending: false
+  };
 
   const updatePortfolioMutation = trpc.portfolios.update.useMutation({
     onSuccess: () => {

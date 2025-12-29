@@ -1237,3 +1237,26 @@
 
 - [ ] Dashboard: Beschriftung "Meine Portfolios" zu "Meine Live-Portfolios" ändern
 - [ ] Sidebar: Nur Live-Portfolios im Untermenü anzeigen oder entsprechend beschriften
+
+- [ ] Portfolio-Detailseite: Titel, Performancedaten fehlen - prüfen und beheben
+
+- [ ] Portfolio-Detailseite: Gewichtung auf 2 Dezimalstellen formatieren
+- [ ] Portfolio-Detailseite: Portfolio-Wertentwicklung mit echtem Chart implementieren
+- [ ] Portfolio-Detailseite: Asset-Allokation mit echtem Donut-Chart implementieren
+
+- [ ] Portfolio-Wertentwicklung: Berechnung auf Basis täglicher Schlusskurse implementieren
+
+- [ ] Zeitraum-Buttons (1M, 3M, 6M, YTD, 1Y, 3Y, 5Y) funktionsfähig machen
+- [ ] Historische Kursdaten für längere Zeiträume laden (falls nicht vorhanden)
+
+- [ ] Historische Preise bis heute nachladen für alle Portfolio-Aktien
+- [ ] Chart als Area-Chart (gefüllte Fläche) umgestalten
+- [ ] Benchmark-Auswahl hinzufügen: S&P 500, Nasdaq, SMI, EuroStoxx50
+
+
+## Chart-Bugs (29.12.2025)
+- [ ] Test-Portfolio (nicht live): YTD ab 1.1.25 berechnen (Annahme: alle Titel waren am 1.1.25 im Portfolio)
+- [ ] Live-Portfolio: Dip auf 0% am 27.11. untersuchen und beheben
+- [ ] Performance soll bei 100 (oder 0%) beginnen, nicht bei anderem Wert
+
+- [x] Live-Portfolio Chart: Nur ab erstem Transaktionsdatum anzeigen, Performance bei 0% starten
