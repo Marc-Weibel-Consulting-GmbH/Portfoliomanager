@@ -49,7 +49,7 @@ export default function PortfolioDetailsPage() {
   
   // Fetch portfolio data
   const { data: portfolio, isLoading } = trpc.portfolios.get.useQuery(
-    { id: portfolioId },
+    portfolioId,
     {
       enabled: portfolioId > 0, // Only fetch if portfolioId is valid
     }

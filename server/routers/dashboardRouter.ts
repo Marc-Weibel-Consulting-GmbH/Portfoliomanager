@@ -31,8 +31,6 @@ export const dashboardRouter = router({
       };
     }
     
-    const { historicalPrices, realizedGains } = await import("../../drizzle/schema");
-    const { eq, and } = await import("drizzle-orm");
     const { getStockCurrency, convertToCHF } = await import("../fxHelper");
     
     let totalValueCHF = 0;
@@ -49,12 +47,13 @@ export const dashboardRouter = router({
       let dividendIncome = 0;
       
       for (const tx of transactions) {
-        if (tx.type === 'deposit') {
-          totalDeposits += parseFloat(tx.totalCHF || '0');
-        } else if (tx.type === 'withdrawal') {
-          totalWithdrawals += parseFloat(tx.totalCHF || '0');
-        } else if (tx.type === 'dividend') {
-          dividendIncome += parseFloat(tx.totalCHF || '0');
+        // Use transactionType instead of type, and totalAmountCHF instead of totalCHF
+        if (tx.transactionType === 'deposit') {
+          totalDeposits += parseFloat(tx.totalAmountCHF || '0');
+        } else if (tx.transactionType === 'withdrawal') {
+          totalWithdrawals += parseFloat(tx.totalAmountCHF || '0');
+        } else if (tx.transactionType === 'dividend') {
+          dividendIncome += parseFloat(tx.totalAmountCHF || '0');
         }
       }
       
@@ -64,16 +63,16 @@ export const dashboardRouter = router({
       const holdingsMap = new Map<string, { shares: number; totalInvestedCHF: number }>();
       
       for (const tx of transactions) {
-        if (tx.type === 'buy' || tx.type === 'sell') {
+        if (tx.transactionType === 'buy' || tx.transactionType === 'sell') {
           const ticker = tx.ticker;
           if (!ticker) continue;
           
           const existing = holdingsMap.get(ticker) || { shares: 0, totalInvestedCHF: 0 };
           
-          if (tx.type === 'buy') {
+          if (tx.transactionType === 'buy') {
             existing.shares += parseFloat(tx.shares || '0');
-            existing.totalInvestedCHF += parseFloat(tx.totalCHF || '0');
-          } else if (tx.type === 'sell') {
+            existing.totalInvestedCHF += parseFloat(tx.totalAmountCHF || '0');
+          } else if (tx.transactionType === 'sell') {
             const sellShares = parseFloat(tx.shares || '0');
             const avgCost = existing.shares > 0 ? existing.totalInvestedCHF / existing.shares : 0;
             existing.shares -= sellShares;
@@ -88,14 +87,16 @@ export const dashboardRouter = router({
       let portfolioValueCHF = 0;
       let portfolioInvestedCHF = 0;
       
-      for (const [ticker, holding] of holdingsMap) {
+      for (const [ticker, holding] of Array.from(holdingsMap.entries())) {
         if (holding.shares <= 0) continue;
         
         const stock = await getStockByTicker(ticker);
         if (!stock) continue;
         
-        const currency = getStockCurrency(stock.ticker);
-        const currentPriceCHF = await convertToCHF(stock.currentPrice, currency);
+        const currency = await getStockCurrency(stock.ticker);
+        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const today = new Date().toISOString().split('T')[0];
+        const currentPriceCHF = await convertToCHF(currentPrice, currency, today);
         const currentValueCHF = holding.shares * currentPriceCHF;
         
         portfolioValueCHF += currentValueCHF;
@@ -150,10 +151,11 @@ export const dashboardRouter = router({
       let totalWithdrawals = 0;
       
       for (const tx of transactions) {
-        if (tx.type === 'deposit') {
-          totalDeposits += parseFloat(tx.totalCHF || '0');
-        } else if (tx.type === 'withdrawal') {
-          totalWithdrawals += parseFloat(tx.totalCHF || '0');
+        // Use transactionType instead of type, and totalAmountCHF instead of totalCHF
+        if (tx.transactionType === 'deposit') {
+          totalDeposits += parseFloat(tx.totalAmountCHF || '0');
+        } else if (tx.transactionType === 'withdrawal') {
+          totalWithdrawals += parseFloat(tx.totalAmountCHF || '0');
         }
       }
       
@@ -161,16 +163,16 @@ export const dashboardRouter = router({
       const holdingsMap = new Map<string, { shares: number; totalInvestedCHF: number }>();
       
       for (const tx of transactions) {
-        if (tx.type === 'buy' || tx.type === 'sell') {
+        if (tx.transactionType === 'buy' || tx.transactionType === 'sell') {
           const ticker = tx.ticker;
           if (!ticker) continue;
           
           const existing = holdingsMap.get(ticker) || { shares: 0, totalInvestedCHF: 0 };
           
-          if (tx.type === 'buy') {
+          if (tx.transactionType === 'buy') {
             existing.shares += parseFloat(tx.shares || '0');
-            existing.totalInvestedCHF += parseFloat(tx.totalCHF || '0');
-          } else if (tx.type === 'sell') {
+            existing.totalInvestedCHF += parseFloat(tx.totalAmountCHF || '0');
+          } else if (tx.transactionType === 'sell') {
             const sellShares = parseFloat(tx.shares || '0');
             const avgCost = existing.shares > 0 ? existing.totalInvestedCHF / existing.shares : 0;
             existing.shares -= sellShares;
@@ -185,14 +187,16 @@ export const dashboardRouter = router({
       let portfolioValueCHF = 0;
       let portfolioInvestedCHF = 0;
       
-      for (const [ticker, holding] of holdingsMap) {
+      for (const [ticker, holding] of Array.from(holdingsMap.entries())) {
         if (holding.shares <= 0) continue;
         
         const stock = await getStockByTicker(ticker);
         if (!stock) continue;
         
-        const currency = getStockCurrency(stock.ticker);
-        const currentPriceCHF = await convertToCHF(stock.currentPrice, currency);
+        const currency = await getStockCurrency(stock.ticker);
+        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const today = new Date().toISOString().split('T')[0];
+        const currentPriceCHF = await convertToCHF(currentPrice, currency, today);
         const currentValueCHF = holding.shares * currentPriceCHF;
         
         portfolioValueCHF += currentValueCHF;

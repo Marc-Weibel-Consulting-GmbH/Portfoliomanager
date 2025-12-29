@@ -28,7 +28,7 @@ export default function PortfolioPositions() {
 
   // Fetch CHF-converted holdings with performance
   const { data: chfHoldings = [] } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
-    portfolioId!,
+    { id: portfolioId! },
     { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
 

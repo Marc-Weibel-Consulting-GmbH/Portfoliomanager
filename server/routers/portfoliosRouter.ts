@@ -207,7 +207,7 @@ export const portfoliosRouter = router({
       .query(async ({ input, ctx }) => {
         console.log('[portfolios.get] input:', input, 'type:', typeof input, 'userId:', ctx.user.id);
         const { getSavedPortfolioById } = await import("../db");
-        const result = await getSavedPortfolioById(input.id, ctx.user.id);
+        const result = await getSavedPortfolioById(input, ctx.user.id);
         console.log('[portfolios.get] result:', result ? 'found' : 'not found');
         return result;
       }),
@@ -547,7 +547,7 @@ export const portfoliosRouter = router({
           const gains = await db
             .select()
             .from(realizedGains)
-            .where(eq(realizedGains.portfolioId, input));
+            .where(eq(realizedGains.portfolioId, input.id));
           
           // Sum all realized gains (realizedGain is in CHF, includes stock gain + FX gain)
           totalRealizedGains = gains.reduce((sum, gain) => sum + parseFloat(gain.realizedGain || '0'), 0);
@@ -773,7 +773,8 @@ export const portfoliosRouter = router({
       .input(z.object({
         id: z.number().int().positive(),
       }))
-      .query(async ({ input: portfolioId, ctx }) => {
+      .query(async ({ input, ctx }) => {
+        const portfolioId = input.id;
         console.log(`\n========== getHoldingsWithChfPerformance START ==========`);
         console.log(`Portfolio ID: ${portfolioId}`);
         console.log(`Timestamp: ${new Date().toISOString()}`);

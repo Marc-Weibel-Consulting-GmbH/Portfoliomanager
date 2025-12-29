@@ -27,6 +27,7 @@ import { autoPortfolioRouter } from "./routers/autoPortfolioRouter";
 import { fxRatesRouter } from "./routers/fxRatesRouter";
 import { portfolioManagementRouter } from "./routers/portfolioManagementRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
+import { newsRouter } from "./routers/newsRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";

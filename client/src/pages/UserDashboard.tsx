@@ -50,27 +50,42 @@ export default function UserDashboard() {
   const { data: alerts } = trpc.priceAlerts.list.useQuery();
   const activeAlerts = alerts?.filter(a => a.status === 'active').slice(0, 2) || [];
 
-  // Mock news data (could be replaced with real news API)
-  const mockNews = [
-    {
-      title: "DAX erreicht neues Allzeithoch nach EZB-Entscheidung",
-      excerpt: "DAX erreicht neues Allzeithoch nach Allzeithoch nach EZB-Entscheidung",
-      time: "Vor 30 Minuten",
-      image: "/api/placeholder/80/60",
-    },
-    {
-      title: "Globale Märkte reagieren auf US-Wirtschaftsdaten",
-      excerpt: "Globale Märkte reagieren auf Märkte reagieren auf US-Wirtschaftsdaten",
-      time: "Vor 1 Stunde",
-      image: "/api/placeholder/80/60",
-    },
-    {
-      title: "Tech-Aktien ziehen nach positiven Quartalszahlen an",
-      excerpt: "Tech-Aktien ziehen nach positiven Quartalszahlen an. Tech stocks...",
-      time: "Vor 1 Stunde",
-      image: "/api/placeholder/80/60",
-    },
-  ];
+  // Fetch real news from API
+  const { data: newsData } = trpc.news.getAll.useQuery();
+  
+  // Format time ago helper
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 60) return `Vor ${diffMins} Minuten`;
+    if (diffHours < 24) return `Vor ${diffHours} Stunde${diffHours > 1 ? 'n' : ''}`;
+    return `Vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''}`;
+  };
+  
+  // Transform news data for display (limit to 3)
+  const displayNews = (newsData?.slice(0, 3) || []).map(n => {
+    let timeStr = 'Kürzlich';
+    if (n.publishedAt) {
+      const pubDate = n.publishedAt as unknown;
+      if (typeof pubDate === 'string') {
+        timeStr = formatTimeAgo(pubDate);
+      } else if (pubDate instanceof Date) {
+        timeStr = formatTimeAgo(pubDate.toISOString());
+      }
+    }
+    return {
+      title: n.title,
+      excerpt: n.description || n.title.substring(0, 80) + '...',
+      time: timeStr,
+      url: n.url || '',
+      ticker: n.ticker,
+    };
+  });
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -284,9 +299,9 @@ export default function UserDashboard() {
                   >
                     <div className="flex items-start gap-3">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        alert.triggerType === 'below' ? 'bg-yellow-500/20' : 'bg-green-500/20'
+                        alert.alertType === 'below_price' ? 'bg-yellow-500/20' : 'bg-green-500/20'
                       }`}>
-                        {alert.triggerType === 'below' ? (
+                        {alert.alertType === 'below_price' ? (
                           <AlertTriangle className="h-4 w-4 text-yellow-500" />
                         ) : (
                           <TrendingUp className="h-4 w-4 text-green-500" />
@@ -295,9 +310,9 @@ export default function UserDashboard() {
                       <div className="flex-1">
                         <div className="text-white font-semibold">{alert.ticker}</div>
                         <div className="text-sm text-gray-400">
-                          {alert.triggerType === 'below' ? 'Unter' : 'Über'} {formatCurrency(alert.thresholdValue)}
+                          {alert.alertType === 'below_price' ? 'Unter' : 'Über'} {formatCurrency(parseFloat(alert.targetPrice || '0'))}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">Vor 30 Minuten</div>
+                        <div className="text-xs text-gray-500 mt-1">Aktiv</div>
                       </div>
                     </div>
                   </div>
@@ -319,23 +334,32 @@ export default function UserDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockNews.map((news, index) => (
-                <div
-                  key={index}
-                  className="bg-[#0f1420]/50 border border-white/10 rounded-lg p-3 hover:border-[#00CFC1]/50 transition-all cursor-pointer"
-                >
-                  <div className="flex gap-3">
-                    <div className="w-20 h-14 bg-gradient-to-br from-[#00CFC1]/20 to-[#00CFC1]/5 rounded flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white text-sm font-medium line-clamp-2 mb-1">
-                        {news.title}
+              {displayNews.length > 0 ? (
+                displayNews.map((news, index) => (
+                  <div
+                    key={index}
+                    className="bg-[#0f1420]/50 border border-white/10 rounded-lg p-3 hover:border-[#00CFC1]/50 transition-all cursor-pointer"
+                    onClick={() => news.url && window.open(news.url, '_blank')}
+                  >
+                    <div className="flex gap-3">
+                      <div className="w-20 h-14 bg-gradient-to-br from-[#00CFC1]/20 to-[#00CFC1]/5 rounded flex-shrink-0 flex items-center justify-center">
+                        <span className="text-[#00CFC1] text-xs font-bold">{news.ticker || 'NEWS'}</span>
                       </div>
-                      <div className="text-xs text-gray-400">{news.excerpt}</div>
-                      <div className="text-xs text-gray-500 mt-1">{news.time}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white text-sm font-medium line-clamp-2 mb-1">
+                          {news.title}
+                        </div>
+                        <div className="text-xs text-gray-400 line-clamp-1">{news.excerpt}</div>
+                        <div className="text-xs text-gray-500 mt-1">{news.time}</div>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-400 text-sm">
+                  Keine News verfügbar
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
         </div>

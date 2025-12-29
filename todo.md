@@ -1165,3 +1165,39 @@
 - [x] tRPC procedure für aggregierte Portfolio-Metriken (alle Live-Portfolios)
 - [x] tRPC procedure für Top-Portfolios (nach Wert oder Performance sortiert)
 - [x] Portfolio-Liste Procedure um zusätzliche Felder erweitern (falls nötig)
+
+
+## Datenintegration: Dashboard & Portfolio Detail (29.12.2024)
+
+### Dashboard - Echte Daten verknüpfen
+- [ ] Gesamtwert-Karte mit echten Portfolio-Summen
+- [ ] Performance-Karte mit berechneter Rendite
+- [ ] Dividenden-Karte mit echten Dividendenzahlungen
+- [ ] Portfolio-Karten mit echten Holdings und Mini-Charts
+- [ ] Aktuelle Alerts mit echten Price Alerts aus DB
+- [ ] Top News mit echten Finanznachrichten (API)
+
+### Portfolio Detail - Echte Daten verknüpfen
+- [ ] Performance-Chart mit echten historischen Daten
+- [ ] Holdings-Tabelle mit Live-Aktienkursen (EODHD)
+- [ ] Asset Allocation Donut Chart mit echten Gewichtungen
+- [ ] Transaktionshistorie aus Datenbank
+- [ ] Kennzahlen (IRR, Dividendenrendite, Beta, etc.) berechnen
+
+
+
+## Datenintegration: Dashboard & Portfolio Detail (Dec 29, 2025)
+
+- [x] Dashboard mit echten Daten verknüpfen
+  - [x] Gesamtwert, Performance, Dividenden aus trpc.dashboard.getAggregatedMetrics
+  - [x] Portfolio-Karten aus trpc.dashboard.getTopPortfolios
+  - [x] Alerts aus trpc.priceAlerts.list
+  - [x] News aus trpc.news.getAll (Finnhub API)
+- [x] Portfolio Detail mit echten Daten verknüpfen
+  - [x] Portfolio-Daten aus trpc.portfolios.list
+  - [x] Transaktionen aus trpc.portfolioTransactions.list
+  - [x] Live-Performance aus trpc.portfolios.calculateLivePerformance
+  - [x] Holdings mit CHF-Performance aus trpc.portfolios.getHoldingsWithChfPerformance
+  - [x] Dividendenkalender aus trpc.dividendCalendar.getUpcoming
+  - [x] Jahresperformance aus trpc.annualPerformance.getSummary
+- [x] TypeScript-Fehler behoben (dashboardRouter, UserDashboard, PortfolioDetail, etc.)

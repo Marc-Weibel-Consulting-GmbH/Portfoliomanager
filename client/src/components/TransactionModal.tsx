@@ -103,8 +103,8 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
   const createTransactionMutation = trpc.portfolioTransactions.create.useMutation({
     onSuccess: (data: any) => {
       // Invalidate queries to refresh data
-      utils.portfolios.getHoldingsWithChfPerformance.invalidate(portfolioId);
-      utils.portfolios.calculateLivePerformance.invalidate(portfolioId);
+      utils.portfolios.getHoldingsWithChfPerformance.invalidate({ id: portfolioId });
+      utils.portfolios.calculateLivePerformance.invalidate({ id: portfolioId });
       utils.portfolioTransactions.list.invalidate({ portfolioId });
       
       // If this was a sell transaction and we have realized gain data, show the modal

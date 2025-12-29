@@ -66,13 +66,13 @@ export default function PortfolioDetail() {
 
   // Fetch live performance if portfolio is live
   const { data: livePerformance } = trpc.portfolios.calculateLivePerformance.useQuery(
-    portfolioId!,
+    { id: portfolioId! },
     { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
 
   // Fetch CHF-converted holdings with performance
   const { data: chfHoldings = [] } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
-    portfolioId!,
+    { id: portfolioId! },
     { enabled: !!portfolioId && !!portfolio && Boolean(portfolio.isLive) }
   );
   
