@@ -203,7 +203,9 @@ export const portfoliosRouter = router({
             // Calculate weight - for test portfolios, use equal weight if not specified
             const stockCount = portfolioData.stocks?.length || 1;
             const defaultWeight = 100 / stockCount;
-            const weight = stock.portfolioWeight || stock.weight || defaultWeight;
+            const rawWeight = stock.portfolioWeight || stock.weight || defaultWeight;
+            // Ensure weight is a number before calling toFixed
+            const weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight)) || defaultWeight;
             
             return {
               ...stock,
@@ -214,6 +216,12 @@ export const portfoliosRouter = router({
               priceCHF,
               currentPriceCHF: priceCHF,
               weight: parseFloat(weight.toFixed(2)),
+              // Add missing fields from database
+              sector: dbStock?.sector || stock.sector || 'Other',
+              ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || '0',
+              dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
+              companyName: dbStock?.companyName || stock.companyName || ticker,
+              category: dbStock?.category || stock.category || 'Aktien',
             };
           })
         );

@@ -1325,3 +1325,18 @@
   - [x] Performance-Berechnung korrigiert in portfoliosRouter.ts
   - [x] Chart zeigt jetzt realistischen Verlauf (ca. +3% bis -9%)
   - [x] Live-Portfolio (Regula Live) Performance korrekt angezeigt
+
+
+## Portfolio-Detailseite Bugs (29.12.2025 - Aktuelle Session)
+- [x] Sektor-Allokation zeigt "Other 100%" statt echte Sektoren
+  - [x] getWithCurrency Endpoint erweitert um sector, ytdPerformance, dividendYield aus DB
+- [x] YTD Performance zeigt überall +0.00% statt echte Werte
+  - [x] ytdPerformance wird jetzt aus der stocks-Tabelle geladen
+- [x] Dividendenrendite zeigt 0.00% statt echte Werte
+  - [x] dividendYield wird jetzt aus der stocks-Tabelle geladen
+- [x] Alle Portfolios einzeln testen nach Bugfixes
+  - [x] Portfolio Test 1: OK
+  - [x] Regula Live: OK
+  - [x] Marc Test 29 Live: OK
+  - [x] Test 10: OK
+  - [x] Demo Portfolio - Schweizer Blue Chips: OK (ROG.SW, UBSG.SW hinzugefügt)
