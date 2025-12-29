@@ -1274,4 +1274,4 @@
 - [x] Tooltip legend shows "Benchmark" for both lines - now shows portfolio name for solid line
 - [x] Benchmark is 0% line for live portfolios - now shows actual benchmark performance  
 - [x] Legend now visible below X-axis showing portfolio name and benchmark
-- [ ] Portfolio "Regula live" has no performance data (waiting for historical price data after Dec 28 - portfolio was created Dec 28, but price data only goes to Dec 26)
+- [x] Portfolio "Regula live" has no performance data - fixed by correcting transaction dates to match portfolio creation date (12.11.2025)
