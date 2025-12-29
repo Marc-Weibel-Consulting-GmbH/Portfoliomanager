@@ -1,0 +1,60 @@
+{
+  "query": "SELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date = '2025-11-27'\nORDER BY ticker",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date = '2025-11-27'\nORDER BY ticker",
+  "rows": [
+    {
+      "ticker": "ADEN.SW",
+      "date": "2025-11-27",
+      "close": "22.08"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "date": "2025-11-27",
+      "close": "22.08"
+    },
+    {
+      "ticker": "NESN.SW",
+      "date": "2025-11-27",
+      "close": "79.92"
+    },
+    {
+      "ticker": "NESN.SW",
+      "date": "2025-11-27",
+      "close": "79.92"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "date": "2025-11-27",
+      "close": "104.64"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "date": "2025-11-27",
+      "close": "104.64"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "date": "2025-11-27",
+      "close": "583.5"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "date": "2025-11-27",
+      "close": "583.5"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "date": "2025-11-27",
+      "close": "880.4"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "date": "2025-11-27",
+      "close": "880.4"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tdate\tclose\nADEN.SW\t2025-11-27\t22.08\nADEN.SW\t2025-11-27\t22.08\nNESN.SW\t2025-11-27\t79.92\nNESN.SW\t2025-11-27\t79.92\nNOVN.SW\t2025-11-27\t104.64\nNOVN.SW\t2025-11-27\t104.64\nSCMN.SW\t2025-11-27\t583.5\nSCMN.SW\t2025-11-27\t583.5\nSLHN.SW\t2025-11-27\t880.4\nSLHN.SW\t2025-11-27\t880.4\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}

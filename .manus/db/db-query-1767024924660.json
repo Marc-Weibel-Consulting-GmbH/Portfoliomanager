@@ -1,0 +1,130 @@
+{
+  "query": "SELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date IN ('2025-11-28', '2025-11-29')\nORDER BY date, ticker",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date IN ('2025-11-28', '2025-11-29')\nORDER BY date, ticker",
+  "rows": [
+    {
+      "ticker": "AAPL.US",
+      "date": "2025-11-28",
+      "close": "278.85"
+    },
+    {
+      "ticker": "AAPL.US",
+      "date": "2025-11-28",
+      "close": "278.85"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "date": "2025-11-28",
+      "close": "22.46"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "date": "2025-11-28",
+      "close": "22.46"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-28",
+      "close": "15.05"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-28",
+      "close": "15.05"
+    },
+    {
+      "ticker": "NESN.SW",
+      "date": "2025-11-28",
+      "close": "79.83"
+    },
+    {
+      "ticker": "NESN.SW",
+      "date": "2025-11-28",
+      "close": "79.83"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "date": "2025-11-28",
+      "close": "104.48"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "date": "2025-11-28",
+      "close": "104.48"
+    },
+    {
+      "ticker": "NVDA.US",
+      "date": "2025-11-28",
+      "close": "177"
+    },
+    {
+      "ticker": "NVDA.US",
+      "date": "2025-11-28",
+      "close": "177"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "date": "2025-11-28",
+      "close": "576.5"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "date": "2025-11-28",
+      "close": "576.5"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "date": "2025-11-28",
+      "close": "880.8"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "date": "2025-11-28",
+      "close": "880.8"
+    },
+    {
+      "ticker": "TSM",
+      "date": "2025-11-28",
+      "close": "291.51"
+    },
+    {
+      "ticker": "TSM",
+      "date": "2025-11-28",
+      "close": "291.51"
+    },
+    {
+      "ticker": "VGK.US",
+      "date": "2025-11-28",
+      "close": "81.53"
+    },
+    {
+      "ticker": "VGK.US",
+      "date": "2025-11-28",
+      "close": "81.53"
+    },
+    {
+      "ticker": "VWO.US",
+      "date": "2025-11-28",
+      "close": "54.3"
+    },
+    {
+      "ticker": "VWO.US",
+      "date": "2025-11-28",
+      "close": "54.3"
+    },
+    {
+      "ticker": "XLE.US",
+      "date": "2025-11-28",
+      "close": "90.45"
+    },
+    {
+      "ticker": "XLE.US",
+      "date": "2025-11-28",
+      "close": "90.45"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tdate\tclose\nAAPL.US\t2025-11-28\t278.85\nAAPL.US\t2025-11-28\t278.85\nADEN.SW\t2025-11-28\t22.46\nADEN.SW\t2025-11-28\t22.46\nEOSE\t2025-11-28\t15.05\nEOSE\t2025-11-28\t15.05\nNESN.SW\t2025-11-28\t79.83\nNESN.SW\t2025-11-28\t79.83\nNOVN.SW\t2025-11-28\t104.48\nNOVN.SW\t2025-11-28\t104.48\nNVDA.US\t2025-11-28\t177\nNVDA.US\t2025-11-28\t177\nSCMN.SW\t2025-11-28\t576.5\nSCMN.SW\t2025-11-28\t576.5\nSLHN.SW\t2025-11-28\t880.8\nSLHN.SW\t2025-11-28\t880.8\nTSM\t2025-11-28\t291.51\nTSM\t2025-11-28\t291.51\nVGK.US\t2025-11-28\t81.53\nVGK.US\t2025-11-28\t81.53\nVWO.US\t2025-11-28\t54.3\nVWO.US\t2025-11-28\t54.3\nXLE.US\t2025-11-28\t90.45\nXLE.US\t2025-11-28\t90.45\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

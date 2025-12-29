@@ -1,0 +1,127 @@
+{
+  "query": "SELECT id, ticker, transactionType, shares, pricePerShare, currency, DATE(transactionDate) as txDate\nFROM portfolioTransactions \nWHERE portfolioId = 270001 \nORDER BY transactionDate ASC",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, ticker, transactionType, shares, pricePerShare, currency, DATE(transactionDate) as txDate\nFROM portfolioTransactions \nWHERE portfolioId = 270001 \nORDER BY transactionDate ASC",
+  "rows": [
+    {
+      "id": "660001",
+      "ticker": "NOVN.SW",
+      "transactionType": "buy",
+      "shares": "97",
+      "pricePerShare": "104.42",
+      "currency": "CHF",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660002",
+      "ticker": "NESN.SW",
+      "transactionType": "buy",
+      "shares": "125",
+      "pricePerShare": "80.31",
+      "currency": "CHF",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660003",
+      "ticker": "SLHN.SW",
+      "transactionType": "buy",
+      "shares": "11",
+      "pricePerShare": "870.2",
+      "currency": "CHF",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660004",
+      "ticker": "MONC.MI",
+      "transactionType": "buy",
+      "shares": "141",
+      "pricePerShare": "57.14",
+      "currency": "EUR",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660005",
+      "ticker": "EOSE",
+      "transactionType": "buy",
+      "shares": "366",
+      "pricePerShare": "13.8",
+      "currency": "USD",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660006",
+      "ticker": "TSM",
+      "transactionType": "buy",
+      "shares": "27",
+      "pricePerShare": "284.82",
+      "currency": "USD",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660007",
+      "ticker": "ADEN.SW",
+      "transactionType": "buy",
+      "shares": "306",
+      "pricePerShare": "25.2",
+      "currency": "CHF",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660008",
+      "ticker": "AAPL.US",
+      "transactionType": "buy",
+      "shares": "29",
+      "pricePerShare": "268.47",
+      "currency": "USD",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660009",
+      "ticker": "VGK.US",
+      "transactionType": "buy",
+      "shares": "125",
+      "pricePerShare": "79.97",
+      "currency": "USD",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660010",
+      "ticker": "XLE.US",
+      "transactionType": "buy",
+      "shares": "114",
+      "pricePerShare": "87.42",
+      "currency": "USD",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660011",
+      "ticker": "VWO.US",
+      "transactionType": "buy",
+      "shares": "182",
+      "pricePerShare": "54.8",
+      "currency": "USD",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660012",
+      "ticker": "SCMN.SW",
+      "transactionType": "buy",
+      "shares": "10",
+      "pricePerShare": "582",
+      "currency": "CHF",
+      "txDate": "2025-11-12"
+    },
+    {
+      "id": "660013",
+      "ticker": "NVDA.US",
+      "transactionType": "buy",
+      "shares": "20",
+      "pricePerShare": "193.16",
+      "currency": "CHF",
+      "txDate": "2025-11-12"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tticker\ttransactionType\tshares\tpricePerShare\tcurrency\ttxDate\n660001\tNOVN.SW\tbuy\t97\t104.42\tCHF\t2025-11-12\n660002\tNESN.SW\tbuy\t125\t80.31\tCHF\t2025-11-12\n660003\tSLHN.SW\tbuy\t11\t870.2\tCHF\t2025-11-12\n660004\tMONC.MI\tbuy\t141\t57.14\tEUR\t2025-11-12\n660005\tEOSE\tbuy\t366\t13.8\tUSD\t2025-11-12\n660006\tTSM\tbuy\t27\t284.82\tUSD\t2025-11-12\n660007\tADEN.SW\tbuy\t306\t25.2\tCHF\t2025-11-12\n660008\tAAPL.US\tbuy\t29\t268.47\tUSD\t2025-11-12\n660009\tVGK.US\tbuy\t125\t79.97\tUSD\t2025-11-12\n660010\tXLE.US\tbuy\t114\t87.42\tUSD\t2025-11-12\n660011\tVWO.US\tbuy\t182\t54.8\tUSD\t2025-11-12\n660012\tSCMN.SW\tbuy\t10\t582\tCHF\t2025-11-12\n660013\tNVDA.US\tbuy\t20\t193.16\tCHF\t2025-11-12\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}

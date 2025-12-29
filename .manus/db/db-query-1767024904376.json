@@ -1,0 +1,120 @@
+{
+  "query": "SELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker = 'EOSE' \nAND date BETWEEN '2025-11-20' AND '2025-12-05'\nORDER BY date ASC",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, date, close \nFROM historicalPrices \nWHERE ticker = 'EOSE' \nAND date BETWEEN '2025-11-20' AND '2025-12-05'\nORDER BY date ASC",
+  "rows": [
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-20",
+      "close": "12.88"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-20",
+      "close": "12.88"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-21",
+      "close": "12.36"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-21",
+      "close": "12.36"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-24",
+      "close": "13.12"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-24",
+      "close": "13.12"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-25",
+      "close": "13.4"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-25",
+      "close": "13.4"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-26",
+      "close": "14.21"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-26",
+      "close": "14.21"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-28",
+      "close": "15.05"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-11-28",
+      "close": "15.05"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-01",
+      "close": "13.605"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-01",
+      "close": "13.605"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-02",
+      "close": "12.78"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-02",
+      "close": "12.78"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-03",
+      "close": "13.55"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-03",
+      "close": "13.55"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-04",
+      "close": "15.59"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-04",
+      "close": "15.59"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-05",
+      "close": "14.99"
+    },
+    {
+      "ticker": "EOSE",
+      "date": "2025-12-05",
+      "close": "14.99"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tdate\tclose\nEOSE\t2025-11-20\t12.88\nEOSE\t2025-11-20\t12.88\nEOSE\t2025-11-21\t12.36\nEOSE\t2025-11-21\t12.36\nEOSE\t2025-11-24\t13.12\nEOSE\t2025-11-24\t13.12\nEOSE\t2025-11-25\t13.4\nEOSE\t2025-11-25\t13.4\nEOSE\t2025-11-26\t14.21\nEOSE\t2025-11-26\t14.21\nEOSE\t2025-11-28\t15.05\nEOSE\t2025-11-28\t15.05\nEOSE\t2025-12-01\t13.605\nEOSE\t2025-12-01\t13.605\nEOSE\t2025-12-02\t12.78\nEOSE\t2025-12-02\t12.78\nEOSE\t2025-12-03\t13.55\nEOSE\t2025-12-03\t13.55\nEOSE\t2025-12-04\t15.59\nEOSE\t2025-12-04\t15.59\nEOSE\t2025-12-05\t14.99\nEOSE\t2025-12-05\t14.99\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}

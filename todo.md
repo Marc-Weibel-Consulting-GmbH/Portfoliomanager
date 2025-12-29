@@ -1297,3 +1297,31 @@
 - [x] SectorAllocation Komponente erstellt
 - [x] Admin-Funktion zum Laden fehlender Sektor-Daten
 - [x] Tests für neue Funktionen geschrieben
+
+
+## Quick Steps Bearbeiten-Button & Performance-Bugs (29.12.2025)
+- [ ] Quick Steps "Bearbeiten" Button aktivieren für Portfolio-Positionsbearbeitung
+- [ ] Bearbeitungsmodus: Positionen hinzufügen, löschen, Gewichtung ändern
+- [ ] Zentrale Speichern-Funktion für alle Änderungen im Bearbeitungsmodus
+- [ ] Performance-Daten Fehler/Inkonsistenzen auf Live-Server identifizieren und beheben
+
+
+## Neue Anforderung: Portfolio-Bearbeitungsmodus (29.12.2025)
+- [x] Quick Steps "Bearbeiten"-Button aktivieren mit vollständiger Bearbeitungsfunktion
+  - [x] PortfolioEditModal Komponente erstellen
+  - [x] Positionen hinzufügen (Suchfeld für Ticker/Firmennamen)
+  - [x] Positionen löschen (Trash-Button für jede Position)
+  - [x] Gewichtungen ändern (Eingabefeld für Prozentanteile)
+  - [x] Gesamtgewicht anzeigen (mit Normalisierungs-Button)
+  - [x] Zentrale Speichern-Funktion (Änderungen speichern Button)
+  - [x] Modal in PortfolioDetailsPage integrieren
+  - [x] Funktioniert auf Test-Portfolios (Demo Portfolio - Schweizer Blue Chips)
+
+## Performance-Fehler behoben (29.12.2025)
+- [x] Performance-Chart zeigt unrealistischen Dip (ca. -60% am 27. November)
+  - [x] Ursache identifiziert: Fehlende historische Kursdaten führen zu Wert 0
+  - [x] Forward-Fill implementiert für fehlende Kursdaten
+  - [x] Letzte bekannte Preise werden für Tage ohne Daten verwendet
+  - [x] Performance-Berechnung korrigiert in portfoliosRouter.ts
+  - [x] Chart zeigt jetzt realistischen Verlauf (ca. +3% bis -9%)
+  - [x] Live-Portfolio (Regula Live) Performance korrekt angezeigt

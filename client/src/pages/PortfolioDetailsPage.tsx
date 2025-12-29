@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import {
   AreaChart,
@@ -33,10 +33,12 @@ import {
   DollarSign,
   Scale,
   PieChart,
+  Bell,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 
 const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   dividends: { label: "Dividenden", icon: <DollarSign className="h-4 w-4" />, color: "bg-blue-500" },
@@ -64,8 +66,11 @@ export default function PortfolioDetailsPage() {
   const [, navigate] = useLocation();
   const portfolioId = params.id ? parseInt(params.id) : 0;
   
+  // State for edit modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
   // Fetch portfolio data with currency information
-  const { data: portfolio, isLoading } = trpc.portfolios.getWithCurrency.useQuery(
+  const { data: portfolio, isLoading, refetch } = trpc.portfolios.getWithCurrency.useQuery(
     portfolioId,
     {
       enabled: portfolioId > 0,
@@ -73,6 +78,7 @@ export default function PortfolioDetailsPage() {
   );
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
+  const utils = trpc.useUtils();
   
   const [selectedPeriod, setSelectedPeriod] = useState("YTD");
   const [selectedBenchmark, setSelectedBenchmark] = useState("SPY");
@@ -158,6 +164,17 @@ export default function PortfolioDetailsPage() {
   // Colors for pie charts
   const COLORS = ['#00CFC1', '#00A89D', '#007D74', '#00524C', '#003D38', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'];
   
+  // Prepare stocks for edit modal
+  const stocksForEdit = useMemo(() => {
+    return holdings.map((h: any) => ({
+      ticker: h.ticker,
+      companyName: h.companyName,
+      weight: parseFloat(h.weight || '0'),
+      currentPrice: h.currentPriceLocal || h.currentPriceCHF || 0,
+      currency: h.currency || 'CHF'
+    }));
+  }, [holdings]);
+  
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -200,6 +217,14 @@ export default function PortfolioDetailsPage() {
     navigate(`/portfolios/${newId}`);
   };
   
+  const handleEditSuccess = () => {
+    // Invalidate and refetch data
+    utils.portfolios.list.invalidate();
+    utils.portfolios.getWithCurrency.invalidate(portfolioId);
+    utils.portfolios.getHistoricalPerformance.invalidate({ portfolioId });
+    refetch();
+  };
+  
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-6">
@@ -235,7 +260,7 @@ export default function PortfolioDetailsPage() {
           
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
               Bearbeiten
             </Button>
@@ -580,10 +605,15 @@ export default function PortfolioDetailsPage() {
           <CardContent>
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" size="sm">
-                <TrendingUp className="h-4 w-4 mr-2" />
+                <Bell className="h-4 w-4 mr-2" />
                 Alarm erstellen
               </Button>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsEditModalOpen(true)}
+                className="border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10"
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Portfolio bearbeiten
               </Button>
@@ -595,6 +625,17 @@ export default function PortfolioDetailsPage() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Edit Modal */}
+      <PortfolioEditModal
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        portfolioId={portfolioId}
+        portfolioName={portfolio.name}
+        initialStocks={stocksForEdit}
+        isLive={portfolio.isLive === 1}
+        onSuccess={handleEditSuccess}
+      />
     </DashboardLayout>
   );
 }

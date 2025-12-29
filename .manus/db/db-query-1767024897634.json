@@ -1,0 +1,153 @@
+{
+  "query": "SELECT id, portfolioId, transactionType, ticker, shares, pricePerShare, currency, transactionDate, notes \nFROM portfolioTransactions \nWHERE portfolioId = 270001 \nORDER BY transactionDate ASC \nLIMIT 30",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, portfolioId, transactionType, ticker, shares, pricePerShare, currency, transactionDate, notes \nFROM portfolioTransactions \nWHERE portfolioId = 270001 \nORDER BY transactionDate ASC \nLIMIT 30",
+  "rows": [
+    {
+      "id": "660002",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "NESN.SW",
+      "shares": "125",
+      "pricePerShare": "80.31",
+      "currency": "CHF",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660003",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "SLHN.SW",
+      "shares": "11",
+      "pricePerShare": "870.2",
+      "currency": "CHF",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660004",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "MONC.MI",
+      "shares": "141",
+      "pricePerShare": "57.14",
+      "currency": "EUR",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660005",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "EOSE",
+      "shares": "366",
+      "pricePerShare": "13.8",
+      "currency": "USD",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660006",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "TSM",
+      "shares": "27",
+      "pricePerShare": "284.82",
+      "currency": "USD",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660007",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "ADEN.SW",
+      "shares": "306",
+      "pricePerShare": "25.2",
+      "currency": "CHF",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660008",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "AAPL.US",
+      "shares": "29",
+      "pricePerShare": "268.47",
+      "currency": "USD",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660009",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "VGK.US",
+      "shares": "125",
+      "pricePerShare": "79.97",
+      "currency": "USD",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660010",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "XLE.US",
+      "shares": "114",
+      "pricePerShare": "87.42",
+      "currency": "USD",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660011",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "VWO.US",
+      "shares": "182",
+      "pricePerShare": "54.8",
+      "currency": "USD",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660012",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "SCMN.SW",
+      "shares": "10",
+      "pricePerShare": "582",
+      "currency": "CHF",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660013",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "NVDA.US",
+      "shares": "20",
+      "pricePerShare": "193.16",
+      "currency": "CHF",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    },
+    {
+      "id": "660001",
+      "portfolioId": "270001",
+      "transactionType": "buy",
+      "ticker": "NOVN.SW",
+      "shares": "97",
+      "pricePerShare": "104.42",
+      "currency": "CHF",
+      "transactionDate": "2025-11-12 07:42:40",
+      "notes": "Initial position (price from 2025-12-28)"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tportfolioId\ttransactionType\tticker\tshares\tpricePerShare\tcurrency\ttransactionDate\tnotes\n660002\t270001\tbuy\tNESN.SW\t125\t80.31\tCHF\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660003\t270001\tbuy\tSLHN.SW\t11\t870.2\tCHF\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660004\t270001\tbuy\tMONC.MI\t141\t57.14\tEUR\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660005\t270001\tbuy\tEOSE\t366\t13.8\tUSD\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660006\t270001\tbuy\tTSM\t27\t284.82\tUSD\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660007\t270001\tbuy\tADEN.SW\t306\t25.2\tCHF\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660008\t270001\tbuy\tAAPL.US\t29\t268.47\tUSD\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660009\t270001\tbuy\tVGK.US\t125\t79.97\tUSD\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660010\t270001\tbuy\tXLE.US\t114\t87.42\tUSD\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660011\t270001\tbuy\tVWO.US\t182\t54.8\tUSD\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660012\t270001\tbuy\tSCMN.SW\t10\t582\tCHF\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660013\t270001\tbuy\tNVDA.US\t20\t193.16\tCHF\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n660001\t270001\tbuy\tNOVN.SW\t97\t104.42\tCHF\t2025-11-12 07:42:40\tInitial position (price from 2025-12-28)\n",
+  "stderr": "",
+  "execution_time_ms": 110
+}

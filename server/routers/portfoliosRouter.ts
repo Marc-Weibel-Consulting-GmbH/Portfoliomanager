@@ -571,6 +571,8 @@ export const portfoliosRouter = router({
         
         // Get historical prices for all tickers from YTD start to today
         const pricesMap: Record<string, Record<string, number>> = {};
+        // Store last known price for forward-fill
+        const lastKnownPrices: Record<string, number> = {};
         
         for (const ticker of tickers) {
           const prices = await db
@@ -587,7 +589,11 @@ export const portfoliosRouter = router({
           
           pricesMap[ticker] = {};
           prices.forEach((p: any) => {
-            pricesMap[ticker][p.date] = parseFloat(p.close) || 0;
+            const price = parseFloat(p.close) || 0;
+            if (price > 0) {
+              pricesMap[ticker][p.date] = price;
+              lastKnownPrices[ticker] = price; // Track last known price
+            }
           });
         }
         
@@ -779,10 +785,35 @@ export const portfoliosRouter = router({
           } else {
             // For live portfolios: calculate based on actual holdings value
             let totalValueCHF = 0;
+            // Track forward-filled prices for this date
+            const forwardFilledPrices: Record<string, number> = {};
+            
             for (const [ticker, holding] of Object.entries(currentHoldings)) {
               if (holding.shares <= 0) continue;
-              const price = pricesMap[ticker]?.[date] || 0;
+              
+              // Get price with forward-fill: use current date price, or last known price
+              let price = pricesMap[ticker]?.[date] || 0;
+              
+              // Forward-fill: if no price for this date, use last known price
+              if (price === 0) {
+                // Find the most recent price before this date
+                const tickerPrices = pricesMap[ticker] || {};
+                const sortedPriceDates = Object.keys(tickerPrices).sort();
+                for (const priceDate of sortedPriceDates) {
+                  if (priceDate <= date && tickerPrices[priceDate] > 0) {
+                    price = tickerPrices[priceDate];
+                  }
+                }
+              }
+              
+              // Store the forward-filled price for future reference
+              if (price > 0) {
+                forwardFilledPrices[ticker] = price;
+              }
+              
+              // Skip if still no price available
               if (price === 0) continue;
+              
               const currency = stockCurrencies[ticker] || 'CHF';
               const priceCHF = convertToCHFCached(price, currency, date);
               totalValueCHF += holding.shares * priceCHF;

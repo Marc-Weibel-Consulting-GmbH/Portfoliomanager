@@ -1,0 +1,82 @@
+{
+  "query": "SELECT ticker, COUNT(*) as count, MIN(date) as first_date, MAX(date) as last_date\nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date BETWEEN '2025-11-25' AND '2025-11-30'\nGROUP BY ticker\nORDER BY ticker",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, COUNT(*) as count, MIN(date) as first_date, MAX(date) as last_date\nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date BETWEEN '2025-11-25' AND '2025-11-30'\nGROUP BY ticker\nORDER BY ticker",
+  "rows": [
+    {
+      "ticker": "AAPL.US",
+      "count": "6",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "count": "8",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "EOSE",
+      "count": "6",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "NESN.SW",
+      "count": "8",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "count": "8",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "NVDA.US",
+      "count": "6",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "count": "8",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "count": "8",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "TSM",
+      "count": "6",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "VGK.US",
+      "count": "6",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "VWO.US",
+      "count": "6",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    },
+    {
+      "ticker": "XLE.US",
+      "count": "6",
+      "first_date": "2025-11-25",
+      "last_date": "2025-11-28"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcount\tfirst_date\tlast_date\nAAPL.US\t6\t2025-11-25\t2025-11-28\nADEN.SW\t8\t2025-11-25\t2025-11-28\nEOSE\t6\t2025-11-25\t2025-11-28\nNESN.SW\t8\t2025-11-25\t2025-11-28\nNOVN.SW\t8\t2025-11-25\t2025-11-28\nNVDA.US\t6\t2025-11-25\t2025-11-28\nSCMN.SW\t8\t2025-11-25\t2025-11-28\nSLHN.SW\t8\t2025-11-25\t2025-11-28\nTSM\t6\t2025-11-25\t2025-11-28\nVGK.US\t6\t2025-11-25\t2025-11-28\nVWO.US\t6\t2025-11-25\t2025-11-28\nXLE.US\t6\t2025-11-25\t2025-11-28\n",
+  "stderr": "",
+  "execution_time_ms": 58
+}

@@ -1,0 +1,25 @@
+{
+  "query": "SELECT DISTINCT ticker \nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date = '2025-11-27'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT DISTINCT ticker \nFROM historicalPrices \nWHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW', 'MONC.MI', 'EOSE', 'TSM', 'ADEN.SW', 'AAPL.US', 'VGK.US', 'XLE.US', 'VWO.US', 'SCMN.SW', 'NVDA.US')\nAND date = '2025-11-27'",
+  "rows": [
+    {
+      "ticker": "ADEN.SW"
+    },
+    {
+      "ticker": "NESN.SW"
+    },
+    {
+      "ticker": "NOVN.SW"
+    },
+    {
+      "ticker": "SCMN.SW"
+    },
+    {
+      "ticker": "SLHN.SW"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\nADEN.SW\nNESN.SW\nNOVN.SW\nSCMN.SW\nSLHN.SW\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}
