@@ -189,8 +189,8 @@ export default function StockDetail() {
     const data: any[] = [];
     const now = new Date();
     
-    // Generate 730 days of data (2 years) to support all time periods
-    for (let i = 730; i >= 0; i--) {
+    // Generate 1825 days of data (5 years) to support all time periods
+    for (let i = 1825; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       
