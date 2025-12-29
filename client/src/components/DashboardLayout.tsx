@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -161,6 +161,9 @@ function DashboardLayoutContent({
   
   // Fetch portfolios for sidebar submenu
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
+  
+  // State for collapsible submenu
+  const [isSubmenuOpen, setIsSubmenuOpen] = useState(true);
 
   useEffect(() => {
     if (isCollapsed) {
@@ -254,19 +257,34 @@ function DashboardLayoutContent({
                 
                 return (
                   <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive || isPortfolioDetailPage}
-                      onClick={() => setLocation(item.path)}
-                      tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
-                    >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive || isPortfolioDetailPage ? "text-primary" : ""}`}
-                      />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
+                    <div className="flex items-center">
+                      <SidebarMenuButton
+                        isActive={isActive || isPortfolioDetailPage}
+                        onClick={() => setLocation(item.path)}
+                        tooltip={item.label}
+                        className={`h-10 transition-all font-normal flex-1`}
+                      >
+                        <item.icon
+                          className={`h-4 w-4 ${isActive || isPortfolioDetailPage ? "text-primary" : ""}`}
+                        />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                      {shouldShowSubmenu && !isCollapsed && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsSubmenuOpen(!isSubmenuOpen);
+                          }}
+                          className="h-10 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0 mr-2"
+                        >
+                          <ChevronDown
+                            className={`h-4 w-4 text-muted-foreground transition-transform ${isSubmenuOpen ? "" : "-rotate-90"}`}
+                          />
+                        </button>
+                      )}
+                    </div>
                     
-                    {shouldShowSubmenu && !isCollapsed && (
+                    {shouldShowSubmenu && !isCollapsed && isSubmenuOpen && (
                       <SidebarMenuSub>
                         {portfolios.slice(0, 5).map((portfolio: any) => (
                           <SidebarMenuSubItem key={portfolio.id}>

@@ -5,6 +5,7 @@
 - [x] "Neues Portfolio" Button im Dashboard soll direkt zum Portfolio Builder führen (Zwischenschritt entfernen)
 - [x] Navigation "Portfolios" → "Neues Portfolio" führt zum alten Builder (auf neuen Builder umstellen)
 - [x] Portfolio-Detailseite erscheint unter Dashboard statt unter Portfolios in der Sidebar
+- [x] Submenu in DashboardLayout einklappbar machen
 
 ## Registration Flow (New Requirement - Dec 26, 2025)
 - [x] Implement registration form after OAuth login
