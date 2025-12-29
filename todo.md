@@ -1112,4 +1112,16 @@
 - [x] PortfolioDetailsPage unter Route /portfolios/:id einrichten
 - [x] Dashboard: Portfolio-Karten sollen zu /portfolios/:id verlinken (statt /portfolio/:id)
 - [x] Sidebar "Portfolios": Soll zur Portfolio-Übersicht führen, von dort zu Detail-Seiten
-- [ ] Navigation testen: Dashboard → Portfolio Detail
+- [x] Navigation testen: Dashboard → Portfolio Detail
+
+
+## Portfolio Builder Redirect Fix (29.12.2024)
+- [x] Portfolio-Builder leitet nach Speichern zu /portfolio/:id statt /portfolios/:id weiter
+- [x] Redirect im Portfolio-Builder auf /portfolios/:id ändern
+- [x] Testen: Portfolio erstellen → Detail-Seite sollte korrekt laden
+
+
+## Zod Input Validation Migration (29.12.2024)
+- [x] Convert all custom input validation in portfoliosRouter to Zod schemas
+- [x] Test portfolio detail page loading after migration
+- [x] Verify all portfoliosRouter procedures work correctly

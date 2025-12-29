@@ -44,8 +44,16 @@ export default function PortfolioDetailsPage() {
   const [, navigate] = useLocation();
   const portfolioId = params.id ? parseInt(params.id) : 0;
   
+  console.log('[PortfolioDetailsPage] params:', params);
+  console.log('[PortfolioDetailsPage] portfolioId:', portfolioId, 'type:', typeof portfolioId);
+  
   // Fetch portfolio data
-  const { data: portfolio, isLoading } = trpc.portfolios.get.useQuery(portfolioId);
+  const { data: portfolio, isLoading } = trpc.portfolios.get.useQuery(
+    { id: portfolioId },
+    {
+      enabled: portfolioId > 0, // Only fetch if portfolioId is valid
+    }
+  );
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();

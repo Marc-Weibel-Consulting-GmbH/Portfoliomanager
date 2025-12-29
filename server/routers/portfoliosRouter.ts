@@ -203,24 +203,23 @@ export const portfoliosRouter = router({
     }),
 
     get: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val.id;
-        }
-        throw new Error("Invalid portfolio ID");
-      })
+      .input(z.number().int().positive())
       .query(async ({ input, ctx }) => {
+        console.log('[portfolios.get] input:', input, 'type:', typeof input, 'userId:', ctx.user.id);
         const { getSavedPortfolioById } = await import("../db");
-        return await getSavedPortfolioById(input, ctx.user.id);
+        const result = await getSavedPortfolioById(input.id, ctx.user.id);
+        console.log('[portfolios.get] result:', result ? 'found' : 'not found');
+        return result;
       }),
 
     create: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "name" in val && "portfolioData" in val) {
-          return val as { name: string; description?: string; portfolioData: string; portfolioType?: string; isLive?: boolean };
-        }
-        throw new Error("Invalid portfolio data");
-      })
+      .input(z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        portfolioData: z.string(),
+        portfolioType: z.string().optional(),
+        isLive: z.boolean().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { createSavedPortfolio, createPortfolioTransaction } = await import("../db");
         
@@ -246,12 +245,13 @@ export const portfoliosRouter = router({
       }),
 
     update: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val as { id: number; name?: string; description?: string; portfolioData?: string; isAutoSave?: boolean };
-        }
-        throw new Error("Invalid update data");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        portfolioData: z.string().optional(),
+        isAutoSave: z.boolean().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { updateSavedPortfolio } = await import("../db");
         const { id, isAutoSave, ...updates } = input;
@@ -259,12 +259,9 @@ export const portfoliosRouter = router({
       }),
 
     delete: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val as { id: number };
-        }
-        throw new Error("Invalid portfolio ID");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { deleteSavedPortfolio } = await import("../db");
         const success = await deleteSavedPortfolio(input.id, ctx.user.id);
@@ -275,24 +272,20 @@ export const portfoliosRouter = router({
       }),
 
     toggleLive: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number" && "isLive" in val && typeof val.isLive === "boolean") {
-          return val as { id: number; isLive: boolean };
-        }
-        throw new Error("Invalid toggle data");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+        isLive: z.boolean(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { togglePortfolioLive } = await import("../db");
         return await togglePortfolioLive(input.id, ctx.user.id, input.isLive);
       }),
 
     updateLiveStartDate: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number" && "liveStartDate" in val && typeof val.liveStartDate === "string") {
-          return val as { id: number; liveStartDate: string };
-        }
-        throw new Error("Invalid update data");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+        liveStartDate: z.string(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getDb, getSavedPortfolioById } = await import("../db");
         const db = await getDb();
@@ -397,22 +390,19 @@ export const portfoliosRouter = router({
       }),
 
     calculateLivePerformance: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val.id;
-        }
-        throw new Error("Invalid portfolio ID");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+      }))
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
         
         // Get portfolio and transactions
-        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        const portfolio = await getSavedPortfolioById(input.id, ctx.user.id);
         if (!portfolio || !portfolio.isLive || !portfolio.liveStartDate) {
           return { performance: null, error: "Portfolio is not in live mode" };
         }
         
-        const transactions = await getPortfolioTransactions(input);
+        const transactions = await getPortfolioTransactions(input.id);
         if (transactions.length === 0) {
           return { performance: 0, currentValue: 0, totalInvested: 0 };
         }
@@ -432,7 +422,7 @@ export const portfoliosRouter = router({
         const liveStartDateStr = liveStartDate.toISOString().split('T')[0];
         
         console.log('\n========== [calculateLivePerformance] START ==========');
-        console.log('[calculateLivePerformance] Portfolio ID:', input);
+        console.log('[calculateLivePerformance] Portfolio ID:', input.id);
         console.log('[calculateLivePerformance] Live Start Date:', liveStartDateStr);
         console.log('[calculateLivePerformance] Total Transactions:', transactions.length);
         console.log('\n[calculateLivePerformance] Processing transactions...');
@@ -619,20 +609,17 @@ export const portfoliosRouter = router({
       }),
 
     validateCalculations: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val.id;
-        }
-        throw new Error("Invalid portfolio ID");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+      }))
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
         
         console.log('\n========== [validateCalculations] START ==========');
-        console.log('[validateCalculations] Portfolio ID:', input);
+        console.log('[validateCalculations] Portfolio ID:', input.id);
         
         // Get portfolio
-        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        const portfolio = await getSavedPortfolioById(input.id, ctx.user.id);
         if (!portfolio) {
           return { error: "Portfolio not found" };
         }
@@ -642,7 +629,7 @@ export const portfoliosRouter = router({
         }
         
         // Get all transactions
-        const transactions = await getPortfolioTransactions(input);
+        const transactions = await getPortfolioTransactions(input.id);
         console.log('[validateCalculations] Total transactions:', transactions.length);
         
         // Initialize tracking variables
@@ -783,12 +770,9 @@ export const portfoliosRouter = router({
       }),
 
     getHoldingsWithChfPerformance: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val.id;
-        }
-        throw new Error("Invalid portfolio ID");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+      }))
       .query(async ({ input: portfolioId, ctx }) => {
         console.log(`\n========== getHoldingsWithChfPerformance START ==========`);
         console.log(`Portfolio ID: ${portfolioId}`);
@@ -981,23 +965,20 @@ export const portfoliosRouter = router({
       }),
 
     getLivePerformanceHistory: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-          return val.id;
-        }
-        throw new Error("Invalid portfolio ID");
-      })
+      .input(z.object({
+        id: z.number().int().positive(),
+      }))
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
         const { getDb } = await import("../db");
         
         // Get portfolio
-        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
+        const portfolio = await getSavedPortfolioById(input.id, ctx.user.id);
         if (!portfolio || !portfolio.isLive || !portfolio.liveStartDate) {
           return { dataPoints: [] };
         }
         
-        const transactions = await getPortfolioTransactions(input);
+        const transactions = await getPortfolioTransactions(input.id);
         if (transactions.length === 0) {
           return { dataPoints: [] };
         }

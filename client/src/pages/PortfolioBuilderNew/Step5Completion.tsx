@@ -23,7 +23,7 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
   const createMutation = trpc.portfolios.create.useMutation({
     onSuccess: (data) => {
       toast.success('Portfolio erfolgreich erstellt!');
-      setLocation(`/portfolio/${data.id}`);
+      setLocation(`/portfolios/${data.id}`);
     },
     onError: (error) => {
       toast.error('Fehler beim Speichern: ' + error.message);
