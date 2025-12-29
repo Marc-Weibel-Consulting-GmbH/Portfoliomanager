@@ -117,7 +117,21 @@ async function analyzePortfolioMarket(stocks: any[]) {
 }
 
 // Load Portfolio Content Component
-function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
+function LoadPortfolioContent({ 
+  onClose, 
+  setOptimizerInputs, 
+  setOptimizerInitialStocks, 
+  setShowOptimizerResults, 
+  setActiveTab,
+  setLocation 
+}: { 
+  onClose: () => void;
+  setOptimizerInputs: (inputs: any) => void;
+  setOptimizerInitialStocks: (stocks: any) => void;
+  setShowOptimizerResults: (show: boolean) => void;
+  setActiveTab: (tab: string) => void;
+  setLocation: (path: string) => void;
+}) {
   const { data: portfolios = [], refetch } = trpc.portfolios.list.useQuery();
   const deleteMutation = trpc.portfolios.delete.useMutation();
   const { refetch: refetchStocks } = trpc.stocks.list.useQuery();
@@ -147,7 +161,7 @@ function LoadPortfolioContent({ onClose }: { onClose: () => void }) {
     }
 
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync({ id });
       toast.success('Gelöscht', { description: `Portfolio "${name}" wurde gelöscht` });
       refetch();
     } catch (error) {
@@ -603,7 +617,8 @@ export default function Home() {
   });
 
   const deleteStockMutation = trpc.stocks.delete.useMutation({
-    onMutate: async ({ ticker }) => {
+    onMutate: async (variables) => {
+      const ticker = typeof variables === 'object' && variables !== null ? (variables as any).ticker : variables;
       // Cancel outgoing refetches
       await utils.stocks.list.cancel();
       
@@ -960,7 +975,7 @@ export default function Home() {
     // Table
     autoTable(doc, {
       startY: 70,
-      headers: ['Titel', 'Ticker', 'Kurs', 'YTD %', 'P/E', 'PEG', 'Div. %', 'Port. %', 'Kategorie', 'Branche'],
+      head: [['Titel', 'Ticker', 'Kurs', 'YTD %', 'P/E', 'PEG', 'Div. %', 'Port. %', 'Kategorie', 'Branche']],
       body: filteredStocks.map(stock => [
         stock.companyName,
         stock.ticker,
@@ -3757,7 +3772,14 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Portfolio laden</DialogTitle>
           </DialogHeader>
-          <LoadPortfolioContent onClose={() => setIsLoadPortfolioDialogOpen(false)} />
+          <LoadPortfolioContent 
+            onClose={() => setIsLoadPortfolioDialogOpen(false)} 
+            setOptimizerInputs={setOptimizerInputs}
+            setOptimizerInitialStocks={setOptimizerInitialStocks}
+            setShowOptimizerResults={setShowOptimizerResults}
+            setActiveTab={setActiveTab}
+            setLocation={setLocation}
+          />
         </DialogContent>
       </Dialog>
 

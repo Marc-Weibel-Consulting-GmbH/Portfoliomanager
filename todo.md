@@ -1082,3 +1082,7 @@
 - [x] Benchmark Vergleich Genauigkeit überprüfen
 - [x] Responsive Design auf Mobile testen
 - [x] Loading States und Error Handling überprüfen
+
+## Bugs
+- [x] Fix TypeScript errors preventing Portfolio page from loading (setShowOptimizerResults, setActiveTab scope issue, autoTable headers type)
+- [x] Update Portfolios page to load and display real portfolio data from database
