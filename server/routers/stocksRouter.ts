@@ -1192,4 +1192,48 @@ export const stocksRouter = router({
           results,
         };
       }),
+
+  /**
+   * Get detailed stock information by ticker for stock detail page
+   */
+  getDetailByTicker: publicProcedure
+    .input(z.object({ ticker: z.string() }))
+    .query(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { stocks, news: newsTable, historicalPrices } = await import("../../drizzle/schema");
+      const { eq, desc } = await import("drizzle-orm");
+      
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      // Get stock data
+      const [stock] = await db.select().from(stocks).where(eq(stocks.ticker, input.ticker)).limit(1);
+      if (!stock) throw new Error(`Stock ${input.ticker} not found`);
+      
+      // Get news for this stock (last 10)
+      const stockNews = await db
+        .select()
+        .from(newsTable)
+        .where(eq(newsTable.ticker, input.ticker))
+        .orderBy(desc(newsTable.publishedAt))
+        .limit(10);
+      
+      // Get historical prices for chart (last 6 months by default)
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const startDate = sixMonthsAgo.toISOString().split('T')[0];
+      
+      const prices = await db
+        .select()
+        .from(historicalPrices)
+        .where(eq(historicalPrices.ticker, input.ticker))
+        .orderBy(desc(historicalPrices.date))
+        .limit(200); // Last ~200 trading days
+      
+      return {
+        stock,
+        news: stockNews,
+        historicalPrices: prices.reverse(), // Oldest first for chart
+      };
+    }),
 });

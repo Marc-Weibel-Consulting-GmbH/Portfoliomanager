@@ -1340,3 +1340,33 @@
   - [x] Marc Test 29 Live: OK
   - [x] Test 10: OK
   - [x] Demo Portfolio - Schweizer Blue Chips: OK (ROG.SW, UBSG.SW hinzugefügt)
+
+
+## Logo Design-Bugs (29.12.2025)
+- [x] Schweizer Aktien-Logos werden nicht geladen (z.B. NESN.SW, NOVN.SW, ROG.SW)
+  - [x] SWISS_DOMAIN_MAP erweitert um Novartis, Roche, UBS, Lonza, Alcon, Sonova, etc.
+  - [x] Logos für Novartis, Roche, ABB, Apple werden jetzt korrekt geladen
+- [x] Firmenlogos vor dem Ticker in der Positionstabelle auf Portfolio-Detailseite hinzufügen
+  - [x] StockLogo Komponente in PortfolioDetailsPage.tsx importiert
+  - [x] Logos werden jetzt neben dem Ticker angezeigt
+
+
+## Aktien-Detailseite (29.12.2025)
+- [ ] Header mit Logo, Ticker, Preis, Quality Score
+- [ ] Preis-Chart mit verschiedenen Zeiträumen (1D, 1W, 1M, 3M, 6M, 1Y, YTD, All)
+- [ ] Fundamentaldaten-Panel (P/E, PEG, Dividendenrendite, Beta, Volatilität, Sharpe Ratio, Marktkapitalisierung, 52W High/Low, YTD Performance)
+- [ ] Wettbewerbsvorteile (Moats) - 3 Karten
+- [ ] Financial Highlights (Revenue Growth, Net Income Margin, Free Cash Flow)
+- [ ] Kategorie & Sektor Badges
+- [ ] News-Sektion mit 3 aktuellen Artikeln
+- [ ] Action Buttons: "Zu Portfolio hinzufügen", "Preisalarm erstellen", "Factsheet ansehen"
+- [ ] Backend-Endpoint für Stock-Details mit allen Daten
+- [ ] Route /stocks/:ticker einrichten
+
+
+## Aktien-Detailseite Chart-Verbesserungen (29.12.2025)
+- [x] Y-Achse dynamisch anpassen (nicht bei 0 starten, sondern am Minimum der Daten)
+- [x] Y-Achse Bereich mit Padding für bessere Sichtbarkeit
+- [x] Chart glätten - Kurse sind zu abgehackt (Area Chart mit basis smoothing implementiert)
+- [ ] Schweizer Aktien-Logos: Alle CH-Aktien sollen echte Firmenlogos zeigen (NESN.SW, UBSG.SW, ZURN.SW, etc.)
+- [ ] News-Generierung mit LLM: Echte News zu einzelnen Aktien mit integrierten APIs generieren

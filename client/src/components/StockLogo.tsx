@@ -12,8 +12,13 @@ const FMP_LOGO_BLACKLIST = new Set(['GIVN.SW', 'GIVN', 'GF.SW', 'GF']);
 
 // Swiss company domain mapping for known companies
 const SWISS_DOMAIN_MAP: Record<string, string> = {
+  // Banks & Insurance
   'St Galler Kantonalbank': 'sgkb.ch',
   'Zurich Insurance Group': 'zurich.com',
+  'Zurich Insurance G': 'zurich.com',
+  'UBS Group AG': 'ubs.com',
+  'UBS Group': 'ubs.com',
+  'UBS': 'ubs.com',
   'Swiss Re AG': 'swissre.com',
   'Swiss Life Holding': 'swisslife.com',
   'Swisscom AG': 'swisscom.ch',
@@ -51,6 +56,47 @@ const SWISS_DOMAIN_MAP: Record<string, string> = {
   'EFG International AG': 'efginternational.com',
   'EFG International': 'efginternational.com',
   'EFG': 'efginternational.com',
+  // Pharma & Healthcare
+  'Novartis AG': 'novartis.com',
+  'Novartis': 'novartis.com',
+  'Roche Holding AG': 'roche.com',
+  'Roche Holding': 'roche.com',
+  'Roche': 'roche.com',
+  'Lonza Group AG': 'lonza.com',
+  'Lonza Group': 'lonza.com',
+  'Lonza': 'lonza.com',
+  'Alcon Inc': 'alcon.com',
+  'Alcon': 'alcon.com',
+  'Sonova Holding AG': 'sonova.com',
+  'Sonova Holding': 'sonova.com',
+  'Sonova': 'sonova.com',
+  // Consumer & Food
+  'Nestle': 'nestle.com',
+  'Lindt & Spruengli': 'lindt.com',
+  'Lindt': 'lindt.com',
+  'Barry Callebaut AG': 'barry-callebaut.com',
+  'Barry Callebaut': 'barry-callebaut.com',
+  // Industrial
+  'Schindler Holding AG': 'schindler.com',
+  'Schindler Holding': 'schindler.com',
+  'Schindler': 'schindler.com',
+  'Geberit AG': 'geberit.com',
+  'Geberit': 'geberit.com',
+  'SGS SA': 'sgs.com',
+  'SGS': 'sgs.com',
+  // Tech & Watches
+  'Richemont SA': 'richemont.com',
+  'Richemont': 'richemont.com',
+  'Swatch Group AG': 'swatchgroup.com',
+  'Swatch Group': 'swatchgroup.com',
+  'Swatch': 'swatchgroup.com',
+  'Temenos AG': 'temenos.com',
+  'Temenos': 'temenos.com',
+  'VAT Group AG': 'vatvalve.com',
+  'VAT Group': 'vatvalve.com',
+  // Energy & Utilities
+  'Partners Group Holding AG': 'partnersgroup.com',
+  'Partners Group': 'partnersgroup.com',
 };
 
 /**
