@@ -1443,3 +1443,19 @@
 - [x] Backend-seitige Stock-Filterung: stocks.getByTickers Procedure
 - [x] Database Indexing: portfolioTransactions.portfolioId, stocks.ticker, historicalPrices.ticker+date
 - [x] Response Caching: tRPC Query-Caching mit staleTime
+
+
+## Neue Anforderung: Korrekte Performance-Berechnung (30.12.2025)
+- [x] Performance-Berechnungslogik überprüfen und korrigieren
+- [x] Time-Weighted Return (TWR) korrekt implementieren
+- [x] Money-Weighted Return (IRR/MWR) korrekt implementieren
+- [x] Total Return (absolut und prozentual) berechnen
+- [x] Unrealisierte Gewinne/Verluste pro Position berechnen
+- [x] Realisierte Gewinne/Verluste aus geschlossenen Positionen berechnen
+- [x] Portfolio-Wert über Zeit korrekt tracken
+- [x] Cashflows (Ein- und Auszahlungen) korrekt berücksichtigen
+- [x] Dividenden in Performance-Berechnung einbeziehen
+- [x] Gebühren in Performance-Berechnung einbeziehen
+- [x] Vitest Tests für alle Performance-Berechnungen schreiben (18 Tests bestanden)
+- [x] Edge Cases testen (Splits, Dividenden, Teilverkäufe)
+- [ ] Performance-Charts mit korrekten Daten aktualisieren

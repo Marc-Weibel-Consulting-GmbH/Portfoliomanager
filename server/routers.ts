@@ -6,6 +6,7 @@ import { ENV } from "./_core/env";
 import { stocksRouter } from "./routers/stocksRouter";
 import { portfoliosRouter } from "./routers/portfoliosRouter";
 import { portfolioPerformanceRouter } from "./routers/performanceRouter";
+import { portfolioMetricsRouter } from "./routers/portfolioPerformanceRouter";
 import { adminRouter } from "./routers/adminRouter";
 import { weeklyOverviewRouter } from "./routers/weeklyOverviewRouter";
 import { portfolioComparisonRouter } from "./routers/portfolioComparisonRouter";
@@ -1079,6 +1080,7 @@ export const appRouter = router({
   autoPortfolio: autoPortfolioRouter,
   portfolioManagement: portfolioManagementRouter,
   portfolioPerformance: portfolioPerformanceRouter,
+  portfolioMetrics: portfolioMetricsRouter,
   fxRates: fxRatesRouter,
   admin: adminRouter,
   weeklyOverview: weeklyOverviewRouter,
