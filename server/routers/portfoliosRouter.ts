@@ -389,9 +389,67 @@ export const portfoliosRouter = router({
         portfolioId: z.number().int().positive(),
         period: z.enum(['1M', '3M', '6M', '1Y', 'YTD', '3Y', '5Y', 'All']).default('YTD'),
         benchmark: z.string().default('SPY'),
+        debug: z.boolean().optional().default(false), // Enable debug payload
       }))
       .query(async ({ input, ctx }) => {
-        const { portfolioId, period, benchmark } = input;
+        const { portfolioId, period, benchmark, debug: debugEnabled } = input;
+        
+        // === LOCAL HELPERS FOR DEBUG ===
+        const mkRangeInfo = (points: any[]) => ({
+          count: points?.length || 0,
+          firstDate: points?.[0]?.date || null,
+          lastDate: points?.[points.length - 1]?.date || null,
+        });
+        
+        const safeExec = async <T>(label: string, fn: () => Promise<T> | T): Promise<{ ok: boolean; value?: T; error?: string }> => {
+          try {
+            const value = await fn();
+            return { ok: true, value };
+          } catch (err: any) {
+            return { ok: false, error: err?.message || String(err) };
+          }
+        };
+        
+        const assertOrDebug = (debug: any, condition: boolean, code: string, msg: string) => {
+          if (!condition && debug) {
+            debug.assertions = debug.assertions || [];
+            debug.assertions.push({ code, msg });
+          }
+        };
+        
+        // Check if debug should be enabled
+        const debugOn = debugEnabled === true || ctx.user?.role === 'admin';
+        
+        // Initialize debug payload
+        const debug: any = debugOn ? {
+          version: "perf-chart-debug-v1",
+          now: new Date().toISOString(),
+          portfolioId,
+          period,
+          creationDate: null,
+          ytdStartDate: null,
+          endDate: null,
+          allowHypotheticalPerformance: false,
+          earliestTransactionDate: null,
+          branchSelected: "legacy" as "stitched" | "realOnly" | "legacy",
+          hypo: { ok: false, error: null, count: 0, firstDate: null, lastDate: null },
+          real: { ok: false, error: null, count: 0, firstDate: null, lastDate: null },
+          stitched: { ok: false, error: null, count: 0, firstDate: null, lastDate: null },
+          priceData: {
+            tickers: [],
+            missingTickers: [],
+            sampleTicker: null,
+            sampleHasYtdStartPrice: false,
+            sampleFirstPriceDate: null,
+            sampleLastPriceDate: null,
+          },
+          weights: {
+            method: "fallback" as "currentHoldings" | "portfolioStocks" | "fallback",
+            sumWeights: 0,
+            count: 0,
+            top: [],
+          }
+        } : null;
         const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
         const { convertToCHF } = await import("../fxHelper");
         
@@ -470,8 +528,11 @@ export const portfoliosRouter = router({
             startDate.setFullYear(startDate.getFullYear() - 5);
             break;
           case 'All':
-            // Use earliest transaction date for live portfolios
-            if (earliestTransactionDate) {
+            // For live portfolios, start from year beginning to show hypothetical performance
+            // For test portfolios, use earliest transaction date or 5 years ago
+            if (isLivePortfolio) {
+              startDate = new Date(`${today.getFullYear()}-01-01`);
+            } else if (earliestTransactionDate) {
               startDate = earliestTransactionDate;
             } else {
               startDate = new Date(today);
@@ -484,9 +545,296 @@ export const portfoliosRouter = router({
             break;
         }
         
-        // For live portfolios with YTD or All period, allow starting from year beginning
-        // to show hypothetical performance before portfolio creation
-        const allowHypotheticalPerformance = isLivePortfolio && (period === 'YTD' || period === 'All');
+        // BRANCH DECISION: Live + (YTD || All) + creationDate => ALWAYS try stitched
+        // Hypo needs ONLY: Weights (current) + Price data from 01.01
+        // earliestTransactionDate is IRRELEVANT for hypo!
+        const creationDate = portfolio.liveStartDate ? new Date(portfolio.liveStartDate) : null;
+        const shouldUseStitchedBranch = isLivePortfolio && (period === 'YTD' || period === 'All') && creationDate;
+        const allowHypotheticalPerformance = shouldUseStitchedBranch; // Keep for backward compatibility
+        
+        if (debug) {
+          debug.creationDate = creationDate?.toISOString() || null;
+          debug.ytdStartDate = startDate.toISOString().split('T')[0];
+          debug.endDate = todayStr;
+          debug.earliestTransactionDate = earliestTransactionDate?.toISOString() || null;
+          debug.allowHypotheticalPerformance = shouldUseStitchedBranch;
+        }
+        
+        // NEW ARCHITECTURE: Use two-phase calculation for hypothetical + real performance
+        if (shouldUseStitchedBranch) {
+          if (debug) debug.branchSelected = "stitched";
+          console.log(`[NewArchitecture] Using two-phase calculation for portfolio ${portfolioId}`);
+          
+          const creationDateStr = earliestTransactionDate.toISOString().split('T')[0];
+          const ytdStartStr = startDate.toISOString().split('T')[0];
+          
+          // Import new functions
+          const { 
+            getHypotheticalSeriesFromWeights, 
+            getRealTwrSeriesFromTransactions, 
+            stitchSeries 
+          } = await import("../performanceHypothetical");
+          
+          // Get portfolio stocks for weights
+          // For live portfolios, calculate weights from current holdings
+          let portfolioStocks: any[] = [];
+          
+          // Calculate current holdings from all transactions
+          const currentHoldings: Record<string, number> = {};
+          for (const tx of transactions) {
+            const ticker = tx.ticker;
+            const shares = parseFloat(tx.shares) || 0;
+            const type = tx.transactionType || tx.type;
+            
+            if (!ticker) continue;
+            
+            if (type === 'buy') {
+              currentHoldings[ticker] = (currentHoldings[ticker] || 0) + shares;
+            } else if (type === 'sell') {
+              currentHoldings[ticker] = (currentHoldings[ticker] || 0) - shares;
+            }
+          }
+          
+          // Get current prices to calculate portfolio value
+          const { stocks: stocksTable } = await import("../../drizzle/schema");
+          let totalValue = 0;
+          const holdingValues: Record<string, number> = {};
+          
+          for (const [ticker, shares] of Object.entries(currentHoldings)) {
+            if (shares <= 0) continue;
+            
+            // Get latest price
+            const allPrices = await db
+              .select()
+              .from(historicalPrices)
+              .where(eq(historicalPrices.ticker, ticker));
+            
+            if (allPrices.length > 0) {
+              // Sort by date descending and get latest
+              allPrices.sort((a, b) => b.date.localeCompare(a.date));
+              const price = parseFloat(String(allPrices[0].close)) || 0;
+              const value = shares * price;
+              holdingValues[ticker] = value;
+              totalValue += value;
+            }
+          }
+          
+          // Calculate weights
+          if (totalValue > 0) {
+            portfolioStocks = Object.entries(holdingValues).map(([ticker, value]) => ({
+              ticker,
+              weight: value / totalValue
+            }));
+          }
+          
+          console.log(`[NewArchitecture] Calculated ${portfolioStocks.length} positions from holdings`);
+          console.log(`[NewArchitecture] Total portfolio value: ${totalValue} CHF`);
+          
+          if (portfolioStocks.length === 0) {
+            console.warn(`[NewArchitecture] No portfolio stocks found, falling back to old logic`);
+            // Fall through to old logic
+          } else {
+            // Calculate start capital
+            const startCapitalHypo = parseFloat(String(portfolio.startCapital)) || 10000;
+            
+            console.log(`[NewArchitecture] Start capital: ${startCapitalHypo} CHF`);
+            console.log(`[NewArchitecture] Portfolio stocks:`, portfolioStocks.map((s: any) => ({ ticker: s.ticker, weight: s.weight })));
+            
+            // Prepare weights
+            const weights = portfolioStocks.map((s: any) => ({
+              ticker: s.ticker,
+              weight: parseFloat(s.weight) || 0
+            })).filter((w: any) => w.weight > 0);
+            
+            // Fill debug.weights
+            if (debug) {
+              debug.weights.method = "currentHoldings";
+              debug.weights.count = weights.length;
+              debug.weights.sumWeights = weights.reduce((a: number, w: any) => a + w.weight, 0);
+              debug.weights.top = weights
+                .sort((a: any, b: any) => b.weight - a.weight)
+                .slice(0, 5)
+                .map((w: any) => ({ ticker: w.ticker, weight: w.weight }));
+              
+              // Assertion: weights not empty
+              assertOrDebug(debug, weights.length > 0, "weightsEmpty", "No weights available for hypothetical series");
+              // Assertion: weights normalized
+              assertOrDebug(debug, debug.weights.sumWeights >= 0.98 && debug.weights.sumWeights <= 1.02, "weightsNotNormalized", `sumWeights=${debug.weights.sumWeights}`);
+              
+              // Fill debug.priceData (tickers)
+              debug.priceData.tickers = weights.map((w: any) => w.ticker);
+              debug.priceData.sampleTicker = weights[0]?.ticker || null;
+            }
+            
+            // Phase 1: Hypothetical performance (ytdStart to creationDate - 1 day)
+            const dayBeforeCreation = new Date(earliestTransactionDate);
+            dayBeforeCreation.setDate(dayBeforeCreation.getDate() - 1);
+            const hypotheticalEndDate = dayBeforeCreation.toISOString().split('T')[0];
+            
+            let hypotheticalSeries: any[] = [];
+            const hypoRes = await safeExec("hypo", async () => {
+              if (ytdStartStr < creationDateStr) {
+                console.log(`[NewArchitecture] Calculating hypothetical performance from ${ytdStartStr} to ${hypotheticalEndDate}`);
+                return await getHypotheticalSeriesFromWeights(
+                  weights,
+                  ytdStartStr,
+                  hypotheticalEndDate,
+                  startCapitalHypo
+                );
+              }
+              return [];
+            });
+            
+            if (debug) {
+              debug.hypo.ok = hypoRes.ok;
+              debug.hypo.error = hypoRes.error || null;
+              if (hypoRes.ok && hypoRes.value) {
+                const r = mkRangeInfo(hypoRes.value);
+                debug.hypo.count = r.count;
+                debug.hypo.firstDate = r.firstDate;
+                debug.hypo.lastDate = r.lastDate;
+                
+                // Assertion A1: hypoMissingYtdStart
+                if (r.count > 0) {
+                  const firstDate = new Date(r.firstDate);
+                  const ytdDate = new Date(ytdStartStr);
+                  const diffDays = (firstDate.getTime() - ytdDate.getTime()) / (1000 * 60 * 60 * 24);
+                  assertOrDebug(debug, diffDays <= 3, "hypoMissingYtdStart", `hypo.firstDate=${r.firstDate}, ytd=${ytdStartStr}, diff=${diffDays}days`);
+                }
+                
+                // Assertion A2: hypoTooShort
+                if (period === 'YTD' || period === 'All') {
+                  assertOrDebug(debug, r.count >= 10, "hypoTooShort", `hypo.count=${r.count}`);
+                }
+              }
+            }
+            
+            if (!hypoRes.ok || !hypoRes.value || hypoRes.value.length === 0) {
+              if (debug) {
+                assertOrDebug(debug, false, "hypoEmptyOrFailed", "Hypothetical series failed or empty; falling back to realOnly");
+                debug.branchSelected = "realOnly";
+              }
+              // Fall back to realOnly - will be handled below
+            } else {
+              hypotheticalSeries = hypoRes.value;
+            }
+            
+            // Phase 2: Real performance (creationDate to today)
+            console.log(`[NewArchitecture] Calculating real performance from ${creationDateStr} to ${todayStr}`);
+            
+            // Build initial holdings from first transactions
+            const initialHoldings: Record<string, number> = {};
+            let initialCash = 0;
+            
+            // Get transactions on creation date
+            const creationTransactions = transactions.filter((tx: any) => {
+              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+              return txDate === creationDateStr;
+            });
+            
+            // Process creation transactions to get initial state
+            for (const tx of creationTransactions) {
+              const ticker = tx.ticker;
+              const shares = parseFloat(tx.shares) || 0;
+              const type = tx.transactionType || tx.type;
+              
+              if (type === 'buy') {
+                initialHoldings[ticker] = (initialHoldings[ticker] || 0) + shares;
+              } else if (type === 'deposit') {
+                initialCash += parseFloat(tx.amountCHF) || 0;
+              }
+            }
+            
+            const realRes = await safeExec("real", async () => {
+              return await getRealTwrSeriesFromTransactions(
+                creationDateStr,
+                todayStr,
+                transactions,
+                initialHoldings,
+                initialCash
+              );
+            });
+            
+            if (debug) {
+              debug.real.ok = realRes.ok;
+              debug.real.error = realRes.error || null;
+              if (realRes.ok && realRes.value) {
+                const r = mkRangeInfo(realRes.value);
+                debug.real.count = r.count;
+                debug.real.firstDate = r.firstDate;
+                debug.real.lastDate = r.lastDate;
+                
+                // Assertion A5: realStartsTooEarly
+                if (r.firstDate && creationDateStr) {
+                  assertOrDebug(debug, r.firstDate >= creationDateStr, "realStartsTooEarly", `real.firstDate=${r.firstDate}, creation=${creationDateStr}`);
+                }
+              }
+            }
+            
+            if (!realRes.ok || !realRes.value || realRes.value.length === 0) {
+              if (debug) {
+                assertOrDebug(debug, false, "realEmptyOrFailed", "Real series failed or empty");
+              }
+              // Return empty chart with debug
+              return { chartData: [], ...(debugOn ? { debug } : {}) };
+            }
+            
+            const realSeries = realRes.value;
+            
+            // Phase 3: Stitch series
+            console.log(`[NewArchitecture] Stitching series`);
+            const stitchedRes = await safeExec("stitched", async () => {
+              return stitchSeries(hypotheticalSeries, realSeries);
+            });
+            
+            if (debug) {
+              debug.stitched.ok = stitchedRes.ok;
+              debug.stitched.error = stitchedRes.error || null;
+              if (stitchedRes.ok && stitchedRes.value) {
+                const r = mkRangeInfo(stitchedRes.value);
+                debug.stitched.count = r.count;
+                debug.stitched.firstDate = r.firstDate;
+                debug.stitched.lastDate = r.lastDate;
+                
+                // Assertion A4: stitchedNotStartingAtYtd
+                if (r.firstDate && ytdStartStr) {
+                  assertOrDebug(debug, r.firstDate === ytdStartStr || Math.abs(new Date(r.firstDate).getTime() - new Date(ytdStartStr).getTime()) < 7 * 24 * 60 * 60 * 1000, "stitchedNotStartingAtYtd", `stitched.firstDate=${r.firstDate}, ytd=${ytdStartStr}`);
+                }
+              }
+            }
+            
+            if (!stitchedRes.ok || !stitchedRes.value || stitchedRes.value.length === 0) {
+              if (debug) {
+                assertOrDebug(debug, false, "stitchedFailed", "Stitch failed, falling back to realOnly");
+                debug.branchSelected = "realOnly";
+              }
+              // Fall back to realOnly
+              const chartData = realSeries.map((point: any) => ({
+                date: point.date,
+                portfolio: point.portfolioReturn * 100,
+                benchmark: 0,
+                segment: "real"
+              }));
+              return { chartData, ...(debugOn ? { debug } : {}) };
+            }
+            
+            const stitchedSeries = stitchedRes.value;
+            
+            // Convert to chartData format
+            const chartData = stitchedSeries.map(point => ({
+              date: point.date,
+              portfolio: point.portfolioReturn * 100, // Convert to percentage
+              benchmark: 0, // TODO: Add benchmark calculation
+              segment: point.segment // Include segment for frontend
+            }));
+            
+            console.log(`[NewArchitecture] Generated ${chartData.length} chart points`);
+            console.log(`[NewArchitecture] First point:`, chartData[0]);
+            console.log(`[NewArchitecture] Last point:`, chartData[chartData.length - 1]);
+            
+            return { chartData, ...(debugOn ? { debug } : {}) };
+          }
+        }
         
         // For other periods (1M, 3M, etc.), never start before the first transaction
         if (isLivePortfolio && !allowHypotheticalPerformance && earliestTransactionDate && startDate < earliestTransactionDate) {
@@ -681,6 +1029,20 @@ export const portfoliosRouter = router({
         
         // Get all dates with price data
         const allDates = new Set<string>();
+        
+        // For hypothetical performance, generate complete date range from ytdStartDate
+        if (allowHypotheticalPerformance) {
+          // Generate all dates from ytdStartDate to today
+          const start = new Date(ytdStartDate);
+          const end = new Date(todayStr);
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            allDates.add(dateStr);
+          }
+          console.log(`[HistoricalPerformance] Generated ${allDates.size} dates from ${ytdStartDate} to ${todayStr}`);
+        }
+        
+        // Add dates from price data
         Object.values(pricesMap).forEach(prices => {
           Object.keys(prices).forEach(date => allDates.add(date));
         });
@@ -800,7 +1162,13 @@ export const portfoliosRouter = router({
           // Calculate portfolio performance on this date
           let portfolioPerformance = 0;
           
-          if (isTestPortfolio) {
+          // Determine if we should use weight-based calculation
+          // Use weight-based for:
+          // 1. Test portfolios (always)
+          // 2. Live portfolios BEFORE creation date (hypothetical performance)
+          const useWeightBased = isTestPortfolio || (isLivePortfolio && allowHypotheticalPerformance && date < effectiveStartDate);
+          
+          if (useWeightBased) {
             // For test portfolios: calculate weighted average performance of all stocks
             let totalWeight = 0;
             let weightedPerformance = 0;
@@ -896,21 +1264,36 @@ export const portfoliosRouter = router({
         portfolioId: z.number().int().positive(),
         startDate: z.string(), // YYYY-MM-DD format (e.g., start of year)
         endDate: z.string(), // YYYY-MM-DD format (portfolio creation date)
+        debug: z.boolean().optional(),
       }))
       .query(async ({ input, ctx }) => {
-        const { portfolioId, startDate, endDate } = input;
+        const { portfolioId, startDate, endDate, debug } = input;
         const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
         const { convertToCHF } = await import("../fxHelper");
         
+        if (debug) {
+          console.log('[getHypotheticalPerformance] DEBUG START', {
+            portfolioId,
+            startDate,
+            endDate
+          });
+        }
+        
         const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
         if (!portfolio) {
+          if (debug) console.log('[getHypotheticalPerformance] Portfolio not found');
           return { chartData: [] };
         }
         
         // Get transactions to determine initial holdings
         const transactions = await getPortfolioTransactions(portfolioId);
         if (transactions.length === 0) {
+          if (debug) console.log('[getHypotheticalPerformance] No transactions found');
           return { chartData: [] };
+        }
+        
+        if (debug) {
+          console.log('[getHypotheticalPerformance] Found transactions:', transactions.length);
         }
         
         // Get initial holdings (first buy transactions)
@@ -931,6 +1314,11 @@ export const portfoliosRouter = router({
         const tickers = Object.keys(initialHoldings);
         for (const ticker of tickers) {
           initialHoldings[ticker].weight = (initialHoldings[ticker].shares / totalShares) * 100;
+        }
+        
+        if (debug) {
+          console.log('[getHypotheticalPerformance] Initial holdings:', initialHoldings);
+          console.log('[getHypotheticalPerformance] Tickers:', tickers);
         }
         
         const db = await getDb();
@@ -961,6 +1349,14 @@ export const portfoliosRouter = router({
               pricesMap[ticker][p.date] = price;
             }
           });
+          
+          if (debug) {
+            console.log(`[getHypotheticalPerformance] Prices for ${ticker}:`, {
+              count: prices.length,
+              firstDate: prices[0]?.date,
+              lastDate: prices[prices.length - 1]?.date
+            });
+          }
         }
         
         // Get stock currencies
@@ -1045,6 +1441,14 @@ export const portfoliosRouter = router({
           chartData.push({
             date,
             performance: parseFloat(performance.toFixed(2)),
+          });
+        }
+        
+        if (debug) {
+          console.log('[getHypotheticalPerformance] DEBUG END', {
+            chartDataLength: chartData.length,
+            firstPoint: chartData[0],
+            lastPoint: chartData[chartData.length - 1]
           });
         }
         

@@ -699,7 +699,7 @@ export default function PortfolioDetail() {
         </div>
 
         {/* Live Performance Chart */}
-        {Boolean(portfolio.isLive) && transactions.length > 0 && livePerformance && (
+        {Boolean(portfolio.isLive) && transactions.length > 0 && (
           <div className="mb-8">
             <LivePerformanceChart
               portfolioId={portfolio.id}

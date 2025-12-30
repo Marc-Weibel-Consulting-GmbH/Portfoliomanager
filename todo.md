@@ -1514,3 +1514,36 @@
 2. Separate Funktion für hypothetische Performance erstellen
 3. Schrittweise testen nach jeder Änderung
 4. Visuelle Trennung im Chart verifizieren
+
+
+### Phase 2 Completion (30.12.2025 - Neuer Ansatz):
+- [ ] Demo-Portfolio-Logik analysieren und verstehen
+- [ ] Test-Portfolio-Logik für Live-Portfolios adaptieren
+- [ ] Hypothetische Performance vor Erstellungsdatum implementieren
+- [ ] Alle Zeitraum-Filter testen (1M, 3M, YTD, All)
+- [ ] Regula Portfolio Performance-Inkonsistenz beheben
+- [ ] Beide Portfolios (Test 1 + Regula) vergleichen und validieren
+
+
+## Neue Architektur: Hypothetische + Reale Performance (30.12.2025)
+- [x] getHypotheticalSeriesFromWeights() implementieren
+- [x] getRealTwrSeriesFromTransactions() implementieren
+- [x] stitchSeries() implementieren
+- [x] Alte allowHypotheticalPerformance Patches entfernen (via Early Return)
+- [x] Integration in getHistoricalPerformance
+- [ ] Debug-Logging hinzufügen
+- [ ] Unit Tests schreiben (vitest)
+- [ ] Mit Live-Portfolios testen (Portfolio Test 1, Regula)
+
+
+## KRITISCHER FIX: Branch-Bedingung (30.12.2025)
+- [ ] Branch-Bedingung OHNE earliestTransactionDate: Live + (YTD || ALL) + creationDate => IMMER stitched
+- [ ] Hypo braucht NUR: Weights (heutige Gewichte) + Preisdaten ab 01.01
+- [ ] earliestTransactionDate ist IRRELEVANT für Hypo
+- [ ] Fail-open: Wenn Hypo scheitert => realOnly + debug payload
+
+## Bug: Hypothetical Performance Not Showing (Dec 30, 2025)
+- [x] Create historicalPrices table in database
+- [ ] Import historical price data for all portfolio stocks (January - November 2025)
+- [ ] Verify hypothetical performance calculation works with real data
+- [ ] Add fallback UI when no historical data is available

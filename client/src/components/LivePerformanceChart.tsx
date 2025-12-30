@@ -45,12 +45,22 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
     return `${year}-01-01`;
   }, [creationDate]);
   
+  // Debug: Log the dates and enabled condition
+  console.log('[LivePerformanceChart] Hypothetical query params:', {
+    portfolioId,
+    yearStart,
+    creationDate,
+    enabled: !!portfolioId && yearStart < creationDate,
+    comparison: `${yearStart} < ${creationDate}`
+  });
+  
   // Fetch hypothetical performance BEFORE creation date
   const { data: hypotheticalData } = trpc.portfolios.getHypotheticalPerformance.useQuery(
     { 
       portfolioId, 
       startDate: yearStart, 
-      endDate: creationDate 
+      endDate: creationDate,
+      debug: true
     },
     { enabled: !!portfolioId && yearStart < creationDate }
   );

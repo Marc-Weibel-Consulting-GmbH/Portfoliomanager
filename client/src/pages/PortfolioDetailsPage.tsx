@@ -121,6 +121,7 @@ export default function PortfolioDetailsPage() {
     { 
       portfolioId, 
       period: selectedPeriod as '1M' | '3M' | '6M' | '1Y' | 'YTD' | '3Y' | '5Y' | 'All',
+      debug: true, // Enable debug payload
       benchmark: selectedBenchmark,
     },
     { enabled: portfolioId > 0 }
