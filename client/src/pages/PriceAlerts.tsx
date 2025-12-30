@@ -1,23 +1,51 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Plus, Bell, BellOff, Trash2, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Bell, Mail, MessageSquare, Edit, Trash2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import DashboardLayout from "@/components/DashboardLayout";
+
+type AlertType = "above_price" | "below_price" | "percent_change";
+type NotificationMethod = "email" | "whatsapp" | "both";
+type AlertStatus = "active" | "triggered" | "disabled";
+
+interface PriceAlert {
+  id: number;
+  userId: number;
+  ticker: string;
+  alertType: AlertType;
+  targetPrice: string | null;
+  percentChange: string | null;
+  notificationMethod: NotificationMethod;
+  status: AlertStatus;
+  isActive: number;
+  lastTriggered: string | null;
+  triggeredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function PriceAlerts() {
-  const [, setLocation] = useLocation();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [tickerFilter, setTickerFilter] = useState<string>("all");
+  
   const [newAlert, setNewAlert] = useState({
     ticker: "",
-    alertType: "above_price" as "above_price" | "below_price" | "percent_change",
+    alertType: "above_price" as AlertType,
     targetPrice: "",
     percentChange: "",
+    notificationMethod: "email" as NotificationMethod,
+    emailEnabled: true,
+    whatsappEnabled: false,
   });
 
   const utils = trpc.useUtils();
@@ -31,15 +59,10 @@ export default function PriceAlerts() {
   // Create alert mutation
   const createMutation = trpc.priceAlerts.create.useMutation({
     onSuccess: () => {
-      toast.success("Alert erfolgreich erstellt");
+      toast.success("Alarm erfolgreich erstellt");
       utils.priceAlerts.list.invalidate();
       setShowCreateDialog(false);
-      setNewAlert({
-        ticker: "",
-        alertType: "above_price",
-        targetPrice: "",
-        percentChange: "",
-      });
+      resetForm();
     },
     onError: (error) => {
       toast.error(`Fehler: ${error.message}`);
@@ -49,8 +72,10 @@ export default function PriceAlerts() {
   // Update alert mutation
   const updateMutation = trpc.priceAlerts.update.useMutation({
     onSuccess: () => {
-      toast.success("Alert aktualisiert");
+      toast.success("Alarm aktualisiert");
       utils.priceAlerts.list.invalidate();
+      setEditingAlert(null);
+      setShowCreateDialog(false);
     },
     onError: (error) => {
       toast.error(`Fehler: ${error.message}`);
@@ -60,7 +85,7 @@ export default function PriceAlerts() {
   // Delete alert mutation
   const deleteMutation = trpc.priceAlerts.delete.useMutation({
     onSuccess: () => {
-      toast.success("Alert gelöscht");
+      toast.success("Alarm gelöscht");
       utils.priceAlerts.list.invalidate();
     },
     onError: (error) => {
@@ -68,7 +93,20 @@ export default function PriceAlerts() {
     },
   });
 
-  const handleCreateAlert = () => {
+  const resetForm = () => {
+    setNewAlert({
+      ticker: "",
+      alertType: "above_price",
+      targetPrice: "",
+      percentChange: "",
+      notificationMethod: "email",
+      emailEnabled: true,
+      whatsappEnabled: false,
+    });
+    setEditingAlert(null);
+  };
+
+  const handleCreateOrUpdateAlert = () => {
     if (!newAlert.ticker) {
       toast.error("Bitte Ticker eingeben");
       return;
@@ -87,7 +125,26 @@ export default function PriceAlerts() {
       return;
     }
 
-    createMutation.mutate(newAlert);
+    // Determine notification method based on checkboxes
+    let notificationMethod: NotificationMethod = "email";
+    if (newAlert.emailEnabled && newAlert.whatsappEnabled) {
+      notificationMethod = "both";
+    } else if (newAlert.whatsappEnabled) {
+      notificationMethod = "whatsapp";
+    }
+
+    if (editingAlert) {
+      updateMutation.mutate({
+        id: editingAlert.id,
+        ...newAlert,
+        notificationMethod,
+      });
+    } else {
+      createMutation.mutate({
+        ...newAlert,
+        notificationMethod,
+      });
+    }
   };
 
   const toggleAlert = (id: number, currentStatus: number) => {
@@ -98,71 +155,94 @@ export default function PriceAlerts() {
   };
 
   const deleteAlert = (id: number) => {
-    if (confirm("Alert wirklich löschen?")) {
+    if (confirm("Alarm wirklich löschen?")) {
       deleteMutation.mutate({ id });
     }
   };
 
-  const getAlertIcon = (alertType: string) => {
+  const openEditDialog = (alert: PriceAlert) => {
+    setEditingAlert(alert);
+    setNewAlert({
+      ticker: alert.ticker,
+      alertType: alert.alertType,
+      targetPrice: alert.targetPrice || "",
+      percentChange: alert.percentChange || "",
+      notificationMethod: alert.notificationMethod,
+      emailEnabled: alert.notificationMethod === "email" || alert.notificationMethod === "both",
+      whatsappEnabled: alert.notificationMethod === "whatsapp" || alert.notificationMethod === "both",
+    });
+    setShowCreateDialog(true);
+  };
+
+  // Get unique tickers for filter
+  const uniqueTickers = useMemo(() => {
+    const tickers = new Set((alerts as PriceAlert[]).map((a) => a.ticker));
+    return Array.from(tickers).sort();
+  }, [alerts]);
+
+  // Filter alerts
+  const filteredAlerts = useMemo(() => {
+    return (alerts as PriceAlert[]).filter((alert) => {
+      const matchesStatus = statusFilter === "all" || 
+        (statusFilter === "active" && alert.status === "active") ||
+        (statusFilter === "triggered" && alert.status === "triggered") ||
+        (statusFilter === "disabled" && alert.status === "disabled");
+      
+      const matchesTicker = tickerFilter === "all" || alert.ticker === tickerFilter;
+      
+      return matchesStatus && matchesTicker;
+    });
+  }, [alerts, statusFilter, tickerFilter]);
+
+  // Calculate summary stats
+  const stats = useMemo(() => {
+    const typedAlerts = alerts as PriceAlert[];
+    const active = typedAlerts.filter((a) => a.status === "active").length;
+    const triggeredToday = typedAlerts.filter((a) => {
+      if (!a.triggeredAt) return false;
+      const today = new Date();
+      const triggered = new Date(a.triggeredAt);
+      return triggered.toDateString() === today.toDateString();
+    }).length;
+    const disabled = typedAlerts.filter((a) => a.status === "disabled").length;
+    
+    return { active, triggeredToday, disabled };
+  }, [alerts]);
+
+  const getTriggerTypeLabel = (alertType: AlertType, targetPrice?: string | null, percentChange?: string | null) => {
     switch (alertType) {
       case "above_price":
-        return <TrendingUp className="w-5 h-5 text-green-400" />;
+        return `Über CHF ${targetPrice}`;
       case "below_price":
-        return <TrendingDown className="w-5 h-5 text-red-400" />;
+        return `Unter CHF ${targetPrice}`;
       case "percent_change":
-        return <Activity className="w-5 h-5 text-blue-400" />;
+        return `Änderung ${percentChange}%`;
       default:
-        return <Bell className="w-5 h-5 text-slate-400" />;
+        return "";
     }
   };
 
-  const getAlertDescription = (alert: any) => {
-    const stock = allStocks.find((s: any) => s.ticker === alert.ticker);
-    const currentPrice = stock?.currentPrice ? parseFloat(stock.currentPrice) : null;
-
-    switch (alert.alertType) {
+  const getTriggerTypeBadgeClass = (alertType: AlertType) => {
+    switch (alertType) {
       case "above_price":
-        return (
-          <div>
-            <p className="text-slate-300">
-              Benachrichtigung wenn Preis über{" "}
-              <span className="font-bold text-green-400">{alert.targetPrice}</span> steigt
-            </p>
-            {currentPrice && (
-              <p className="text-sm text-slate-400 mt-1">
-                Aktueller Preis: {currentPrice.toFixed(2)}
-              </p>
-            )}
-          </div>
-        );
+        return "bg-green-500/20 text-green-400 border-green-500/30";
       case "below_price":
-        return (
-          <div>
-            <p className="text-slate-300">
-              Benachrichtigung wenn Preis unter{" "}
-              <span className="font-bold text-red-400">{alert.targetPrice}</span> fällt
-            </p>
-            {currentPrice && (
-              <p className="text-sm text-slate-400 mt-1">
-                Aktueller Preis: {currentPrice.toFixed(2)}
-              </p>
-            )}
-          </div>
-        );
+        return "bg-red-500/20 text-red-400 border-red-500/30";
       case "percent_change":
-        return (
-          <div>
-            <p className="text-slate-300">
-              Benachrichtigung bei Änderung von{" "}
-              <span className="font-bold text-blue-400">±{alert.percentChange}%</span>
-            </p>
-            {alert.lastTriggered && (
-              <p className="text-sm text-slate-400 mt-1">
-                Zuletzt ausgelöst: {new Date(alert.lastTriggered).toLocaleDateString("de-CH")}
-              </p>
-            )}
-          </div>
-        );
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+      default:
+        return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+    }
+  };
+
+  const getStatusBadge = (status: AlertStatus) => {
+    switch (status) {
+      case "active":
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">● Aktiv</span>;
+      case "triggered":
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">● Ausgelöst</span>;
+      case "disabled":
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30">● Deaktiviert</span>;
       default:
         return null;
     }
@@ -170,178 +250,314 @@ export default function PriceAlerts() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 p-8">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-slate-400 text-center">Lade Alerts...</p>
+      <DashboardLayout>
+        <div className="p-8">
+          <p className="text-slate-400 text-center">Lade Alarme...</p>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-8">
-      <div className="max-w-5xl mx-auto">
+    <DashboardLayout>
+      <div className="p-8 space-y-6">
         {/* Header */}
-        <div className="mb-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Preisalarme</h1>
+            <p className="text-slate-400">
+              Erhalte Benachrichtigungen bei Preisänderungen
+            </p>
+          </div>
+
           <Button
-            onClick={() => window.history.back()}
-            variant="ghost"
-            className="mb-4 text-slate-400 hover:text-white"
+            onClick={() => {
+              resetForm();
+              setShowCreateDialog(true);
+            }}
+            className="bg-teal-500 hover:bg-teal-600 text-white"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zur Übersicht
+            <Plus className="w-4 h-4 mr-2" />
+            Neuer Alarm
           </Button>
+        </div>
 
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">Preis-Alerts</h1>
-              <p className="text-slate-400">
-                Erhalten Sie Benachrichtigungen bei Preisänderungen
-              </p>
-            </div>
+        {/* Filters */}
+        <div className="flex gap-4">
+          <div className="w-48">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectItem value="all">Alle</SelectItem>
+                <SelectItem value="active">Aktiv</SelectItem>
+                <SelectItem value="triggered">Ausgelöst</SelectItem>
+                <SelectItem value="disabled">Deaktiviert</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <Button
-              onClick={() => setShowCreateDialog(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Neuer Alert
-            </Button>
+          <div className="w-48">
+            <Select value={tickerFilter} onValueChange={setTickerFilter}>
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue placeholder="Ticker (Alle)" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectItem value="all">Alle</SelectItem>
+                {uniqueTickers.map((ticker) => (
+                  <SelectItem key={ticker} value={ticker}>
+                    {ticker}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        {/* Alerts List */}
-        {alerts.length === 0 ? (
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Aktive Alarme</p>
+                  <p className="text-3xl font-bold text-white">{stats.active}</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-teal-500/20 flex items-center justify-center">
+                  <Bell className="w-6 h-6 text-teal-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Ausgelöst (heute)</p>
+                  <p className="text-3xl font-bold text-white">{stats.triggeredToday}</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                  <Bell className="w-6 h-6 text-yellow-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm mb-1">Deaktiviert</p>
+                  <p className="text-3xl font-bold text-white">{stats.disabled}</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-slate-500/20 flex items-center justify-center">
+                  <Bell className="w-6 h-6 text-slate-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Alerts Table */}
+        {filteredAlerts.length === 0 ? (
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="py-12 text-center">
               <Bell className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400 text-lg mb-2">Keine Alerts vorhanden</p>
-              <p className="text-slate-500 text-sm mb-6">
-                Erstellen Sie Ihren ersten Alert, um bei Preisänderungen benachrichtigt zu werden
+              <p className="text-slate-400 text-lg mb-2">
+                {alerts.length === 0 ? "Keine Alarme vorhanden" : "Keine Alarme gefunden"}
               </p>
-              <Button
-                onClick={() => setShowCreateDialog(true)}
-                variant="outline"
-                className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Alert erstellen
-              </Button>
+              <p className="text-slate-500 text-sm mb-6">
+                {alerts.length === 0 
+                  ? "Erstelle deinen ersten Alarm, um bei Preisänderungen benachrichtigt zu werden"
+                  : "Versuche einen anderen Filter"}
+              </p>
+              {alerts.length === 0 && (
+                <Button
+                  onClick={() => {
+                    resetForm();
+                    setShowCreateDialog(true);
+                  }}
+                  variant="outline"
+                  className="text-teal-400 border-teal-400 hover:bg-teal-400/10"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Alarm erstellen
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {alerts.map((alert: any) => {
-              const stock = allStocks.find((s: any) => s.ticker === alert.ticker);
-              
-              return (
-                <Card
-                  key={alert.id}
-                  className={`bg-slate-800 border-slate-700 ${
-                    !alert.isActive ? "opacity-50" : ""
-                  }`}
-                >
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-3 flex-1">
-                        {getAlertIcon(alert.alertType)}
-                        <div className="flex-1">
-                          <CardTitle className="text-white text-xl mb-1">
-                            {alert.ticker}
-                            {stock && (
-                              <span className="text-slate-400 text-sm font-normal ml-2">
-                                {stock.companyName}
-                              </span>
+          <Card className="bg-slate-800 border-slate-700">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700">
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Ticker</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Trigger-Typ</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Zielpreis</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Aktueller Preis</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Status</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Benachrichtigung</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Erstellt am</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(filteredAlerts as PriceAlert[]).map((alert) => {
+                    const stock = allStocks.find((s: any) => s.ticker === alert.ticker);
+                    const currentPrice = stock?.currentPrice ? parseFloat(stock.currentPrice) : null;
+                    
+                    return (
+                      <tr key={alert.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            {stock?.logoUrl && (
+                              <img 
+                                src={stock.logoUrl} 
+                                alt={alert.ticker}
+                                className="w-8 h-8 rounded-full"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
                             )}
-                          </CardTitle>
-                          {getAlertDescription(alert)}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Active Toggle */}
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={Boolean(alert.isActive)}
-                            onCheckedChange={() => toggleAlert(alert.id, alert.isActive)}
-                          />
-                          {alert.isActive ? (
-                            <Bell className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <BellOff className="w-4 h-4 text-slate-500" />
-                          )}
-                        </div>
-
-                        {/* Delete Button */}
-                        <Button
-                          onClick={() => deleteAlert(alert.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              );
-            })}
-          </div>
+                            <div>
+                              <p className="text-white font-medium">{alert.ticker}</p>
+                              {stock && (
+                                <p className="text-slate-400 text-sm">{stock.companyName}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getTriggerTypeBadgeClass(alert.alertType)}`}>
+                            {getTriggerTypeLabel(alert.alertType, alert.targetPrice, alert.percentChange)}
+                          </span>
+                        </td>
+                        <td className="p-4 text-white">
+                          {alert.alertType === "percent_change" 
+                            ? `${alert.percentChange}%`
+                            : `CHF ${alert.targetPrice}`}
+                        </td>
+                        <td className="p-4 text-white">
+                          {currentPrice ? `CHF ${currentPrice.toFixed(2)}` : "-"}
+                        </td>
+                        <td className="p-4">
+                          {getStatusBadge(alert.status)}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            {(alert.notificationMethod === "email" || alert.notificationMethod === "both") && (
+                              <Mail className="w-4 h-4 text-slate-400" />
+                            )}
+                            {(alert.notificationMethod === "whatsapp" || alert.notificationMethod === "both") && (
+                              <MessageSquare className="w-4 h-4 text-slate-400" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-400 text-sm">
+                          {new Date(alert.createdAt).toLocaleDateString("de-CH")}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => openEditDialog(alert)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-400 hover:text-white"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => deleteAlert(alert.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                            <Switch
+                              checked={Boolean(alert.isActive)}
+                              onCheckedChange={() => toggleAlert(alert.id, alert.isActive)}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         )}
 
-        {/* Create Alert Dialog */}
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogContent className="bg-slate-800 text-white border-slate-700">
+        {/* Create/Edit Alert Dialog */}
+        <Dialog open={showCreateDialog} onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (!open) {
+            resetForm();
+          }
+        }}>
+          <DialogContent className="bg-slate-800 text-white border-slate-700 max-w-md">
             <DialogHeader>
-              <DialogTitle>Neuer Preis-Alert</DialogTitle>
+              <DialogTitle>{editingAlert ? "Alarm bearbeiten" : "Neuer Alarm"}</DialogTitle>
               <DialogDescription className="text-slate-400">
-                Erstellen Sie einen Alert für Preisänderungen
+                {editingAlert ? "Bearbeite die Alarm-Einstellungen" : "Erstelle einen Alarm für Preisänderungen"}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              {/* Ticker Input */}
+              {/* Ticker Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Ticker</label>
-                <Input
-                  value={newAlert.ticker}
-                  onChange={(e) =>
-                    setNewAlert({ ...newAlert, ticker: e.target.value.toUpperCase() })
-                  }
-                  placeholder="z.B. AAPL, NESN.SW"
-                  className="bg-slate-900 border-slate-700 text-white"
-                />
-              </div>
-
-              {/* Alert Type */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Alert-Typ</label>
+                <Label htmlFor="ticker" className="text-white">Ticker *</Label>
                 <Select
-                  value={newAlert.alertType}
-                  onValueChange={(value: any) => setNewAlert({ ...newAlert, alertType: value })}
+                  value={newAlert.ticker}
+                  onValueChange={(value) => setNewAlert({ ...newAlert, ticker: value })}
                 >
                   <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
-                    <SelectValue />
+                    <SelectValue placeholder="Ticker auswählen" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-700">
-                    <SelectItem value="above_price">Preis über Zielwert</SelectItem>
-                    <SelectItem value="below_price">Preis unter Zielwert</SelectItem>
-                    <SelectItem value="percent_change">Prozentuale Änderung</SelectItem>
+                  <SelectContent className="bg-slate-800 border-slate-700 max-h-60">
+                    {allStocks.map((stock: any) => (
+                      <SelectItem key={stock.ticker} value={stock.ticker}>
+                        {stock.ticker} - {stock.companyName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Conditional Inputs */}
+              {/* Alert Type */}
+              <div className="space-y-2">
+                <Label htmlFor="alertType" className="text-white">Trigger-Typ *</Label>
+                <Select
+                  value={newAlert.alertType}
+                  onValueChange={(value: AlertType) => setNewAlert({ ...newAlert, alertType: value })}
+                >
+                  <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectItem value="above_price">Über CHF X</SelectItem>
+                    <SelectItem value="below_price">Unter CHF X</SelectItem>
+                    <SelectItem value="percent_change">Änderung +/- X%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Target Price or Percent Change */}
               {(newAlert.alertType === "above_price" || newAlert.alertType === "below_price") && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Zielpreis</label>
+                  <Label htmlFor="targetPrice" className="text-white">Zielpreis (CHF) *</Label>
                   <Input
+                    id="targetPrice"
                     type="number"
                     step="0.01"
+                    placeholder="z.B. 150.00"
                     value={newAlert.targetPrice}
                     onChange={(e) => setNewAlert({ ...newAlert, targetPrice: e.target.value })}
-                    placeholder="z.B. 150.00"
                     className="bg-slate-900 border-slate-700 text-white"
                   />
                 </div>
@@ -349,40 +565,81 @@ export default function PriceAlerts() {
 
               {newAlert.alertType === "percent_change" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Prozentänderung (%)
-                  </label>
+                  <Label htmlFor="percentChange" className="text-white">Prozentänderung (%) *</Label>
                   <Input
+                    id="percentChange"
                     type="number"
                     step="0.1"
+                    placeholder="z.B. 5"
                     value={newAlert.percentChange}
                     onChange={(e) => setNewAlert({ ...newAlert, percentChange: e.target.value })}
-                    placeholder="z.B. 5"
                     className="bg-slate-900 border-slate-700 text-white"
                   />
                 </div>
               )}
+
+              {/* Notification Channels */}
+              <div className="space-y-2">
+                <Label className="text-white">Benachrichtigungskanäle *</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="email"
+                      checked={newAlert.emailEnabled}
+                      onCheckedChange={(checked) => 
+                        setNewAlert({ ...newAlert, emailEnabled: checked as boolean })
+                      }
+                    />
+                    <label
+                      htmlFor="email"
+                      className="text-sm text-slate-300 cursor-pointer flex items-center gap-2"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="whatsapp"
+                      checked={newAlert.whatsappEnabled}
+                      onCheckedChange={(checked) => 
+                        setNewAlert({ ...newAlert, whatsappEnabled: checked as boolean })
+                      }
+                    />
+                    <label
+                      htmlFor="whatsapp"
+                      className="text-sm text-slate-300 cursor-pointer flex items-center gap-2"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      WhatsApp
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <DialogFooter>
               <Button
-                onClick={() => setShowCreateDialog(false)}
                 variant="outline"
-                className="text-slate-300 border-slate-600 hover:bg-slate-700"
+                onClick={() => {
+                  setShowCreateDialog(false);
+                  resetForm();
+                }}
+                className="border-slate-700 text-slate-300 hover:bg-slate-700"
               >
                 Abbrechen
               </Button>
               <Button
-                onClick={handleCreateAlert}
-                disabled={createMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleCreateOrUpdateAlert}
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="bg-teal-500 hover:bg-teal-600 text-white"
               >
-                {createMutation.isPending ? "Erstelle..." : "Alert erstellen"}
+                {editingAlert ? "Aktualisieren" : "Erstellen"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

@@ -126,15 +126,31 @@
 - [ ] Add pagination
 - [ ] Add "Neue Transaktion" button
 
-### Phase 9: Price Alerts
-- [ ] Create status filter dropdown: Alle, Aktiv, Ausgelöst, Deaktiviert
-- [ ] Add ticker filter
-- [ ] Show summary cards: Aktive Alarme, Ausgelöst (heute), Deaktiviert
-- [ ] Create alerts table: Ticker, Trigger-Typ, Zielpreis, Aktueller Preis, Status, Benachrichtigung (Email/WhatsApp), Erstellt am, Actions
-- [ ] Add colored badges for trigger types (Unter CHF X, Über CHF X, Änderung +X%)
-- [ ] Implement toggle switches for enable/disable
-- [ ] Add edit and delete actions
-- [ ] Add "Neuer Alarm" button
+### Phase 9: Price Alerts (COMPLETED - Dec 30, 2025)
+- [x] Improve dashboard metrics clarity:
+  - [x] Add time period labels to performance metrics (YTD)
+  - [x] Clarify what's included in portfolio value (Wertschriften only)
+  - [x] Replace dividends percentage with dividend calendar link
+  - [x] Add "Seit 1. Januar 2025" label to Performance YTD
+  - [ ] Show original investment amount alongside current portfolio value (future enhancement)
+  - [ ] Replace placeholder chart with actual performance/price history (future enhancement)
+- [x] Create status filter dropdown: Alle, Aktiv, Ausgelöst, Deaktiviert
+- [x] Add ticker filter (Alle option)
+- [x] Show summary cards: Aktive Alarme (count), Ausgelöst (heute) (count), Deaktiviert (count)
+- [x] Create alerts table: Ticker (with logo), Trigger-Typ, Zielpreis, Aktueller Preis, Status, Benachrichtigung (Email/WhatsApp icons), Erstellt am, Actions (edit, delete, toggle)
+- [x] Add colored badges for trigger types (Unter CHF X, Über CHF X, Änderung +X%)
+- [x] Implement toggle switches for enable/disable alerts
+- [x] Add edit action (opens modal with prefilled data)
+- [x] Add delete action (with confirmation)
+- [x] Add "Neuer Alarm" button (opens creation modal)
+- [x] Create "Neuer Alarm" modal:
+  - [x] Ticker search/select dropdown
+  - [x] Trigger type selector (Unter CHF X, Über CHF X, Änderung +/-X%)
+  - [x] Target price/percentage input
+  - [x] Notification channel checkboxes (Email, WhatsApp)
+  - [x] Submit button
+- [x] Backend alert checking logic already implemented (cron job ready)
+- [x] Test alert creation, filtering, and UI interactions
 
 ### Phase 10: Admin Dashboard
 - [ ] Create sidebar navigation for admin

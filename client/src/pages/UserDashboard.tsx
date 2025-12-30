@@ -11,6 +11,8 @@ import {
   Zap,
   DollarSign,
   AlertTriangle,
+  Calendar,
+  TrendingDown,
 } from "lucide-react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -102,7 +104,7 @@ export default function UserDashboard() {
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-400">Gesamtwert</div>
+              <div className="text-sm text-gray-400">Portfolio-Wert (Wertschriften)</div>
               <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center">
                 <ArrowUpRight className="h-4 w-4 text-[#00CFC1]" />
               </div>
@@ -111,9 +113,8 @@ export default function UserDashboard() {
               {metricsLoading ? "..." : formatCurrency(metrics?.totalValue || 0)}
             </div>
             {!metricsLoading && metrics && (
-              <div className="text-sm text-[#00CFC1] flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                {formatPercent(metrics.totalPerformancePercent)}
+              <div className="text-sm text-gray-400">
+                Aktueller Marktwert
               </div>
             )}
           </CardContent>
@@ -122,40 +123,49 @@ export default function UserDashboard() {
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-400">Performance</div>
+              <div className="text-sm text-gray-400">Performance YTD</div>
               <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-[#00CFC1]" />
+                {!metricsLoading && metrics && metrics.totalPerformancePercent >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-[#00CFC1]" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-400" />
+                )}
               </div>
             </div>
-            <div className="text-2xl font-bold text-white mb-1">
+            <div className={`text-2xl font-bold mb-1 ${
+              !metricsLoading && metrics && metrics.totalPerformancePercent >= 0 
+                ? 'text-[#00CFC1]' 
+                : 'text-red-400'
+            }`}>
               {metricsLoading ? "..." : formatPercent(metrics?.totalPerformancePercent || 0)}
             </div>
             {!metricsLoading && metrics && (
-              <div className="text-sm text-[#00CFC1] flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                +2.3%
+              <div className="text-sm text-gray-400">
+                Seit 1. Januar {new Date().getFullYear()}
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-400">Dividenden</div>
-              <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-[#00CFC1]" />
+        <Link href="/dividends">
+          <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30 hover:border-[#00CFC1]/50 transition-all cursor-pointer">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-gray-400">Dividenden YTD</div>
+                <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center">
+                  <DollarSign className="h-4 w-4 text-[#00CFC1]" />
+                </div>
               </div>
-            </div>
-            <div className="text-2xl font-bold text-white mb-1">
-              {metricsLoading ? "..." : formatCurrency(metrics?.totalDividends || 0)}
-            </div>
-            <div className="text-sm text-[#00CFC1] flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              +5.2%
-            </div>
-          </CardContent>
-        </Card>
+              <div className="text-2xl font-bold text-white mb-1">
+                {metricsLoading ? "..." : formatCurrency(metrics?.totalDividends || 0)}
+              </div>
+              <div className="text-sm text-[#00CFC1] flex items-center gap-1 hover:underline">
+                <Calendar className="h-3 w-3" />
+                Zum Dividenden-Kalender
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
           <CardContent className="p-6">
