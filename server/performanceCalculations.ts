@@ -256,12 +256,14 @@ export function calculateHoldingsPerformance(
  * @param transactions All transactions for the portfolio
  * @param currentPrices Map of ticker to current price
  * @param realizedGainsTotal Total realized gains from closed positions
+ * @param portfolioCreationDate Optional: Date when portfolio was created (for initial investment handling)
  * @returns Complete performance metrics
  */
 export function calculatePerformanceMetrics(
   transactions: PortfolioTransaction[],
   currentPrices: Map<string, number>,
-  realizedGainsTotal: number = 0
+  realizedGainsTotal: number = 0,
+  portfolioCreationDate?: Date
 ): PerformanceMetrics {
   // Calculate holdings performance
   const holdings = calculateHoldingsPerformance(transactions, currentPrices);
@@ -303,7 +305,7 @@ export function calculatePerformanceMetrics(
     : 0;
   
   // Build value points for TWR and MWR calculations
-  const valuePoints = buildValuePoints(transactions, currentPrices);
+  const valuePoints = buildValuePoints(transactions, currentPrices, portfolioCreationDate);
   
   const timeWeightedReturn = calculateTimeWeightedReturn(valuePoints);
   const moneyWeightedReturn = calculateMoneyWeightedReturn(valuePoints, currentValue);
@@ -327,13 +329,19 @@ export function calculatePerformanceMetrics(
  * Build portfolio value points from transactions
  * This creates a timeline of portfolio values and cash flows
  * 
+ * IMPORTANT: Initial investments (first buy transactions on portfolio creation date)
+ * are treated as performance-neutral (cashFlow = 0) to establish the baseline.
+ * Only subsequent cash flows affect TWR calculation.
+ * 
  * @param transactions All transactions for the portfolio
  * @param currentPrices Map of ticker to current price
+ * @param portfolioCreationDate Optional: Date when portfolio was created (for initial investment handling)
  * @returns Array of value points sorted by date
  */
 export function buildValuePoints(
   transactions: PortfolioTransaction[],
-  currentPrices: Map<string, number>
+  currentPrices: Map<string, number>,
+  portfolioCreationDate?: Date
 ): PortfolioValuePoint[] {
   if (transactions.length === 0) return [];
   
@@ -341,6 +349,11 @@ export function buildValuePoints(
   const sorted = [...transactions].sort((a, b) => 
     a.transactionDate.toISOString().localeCompare(b.transactionDate.toISOString())
   );
+  
+  // Determine creation date: use provided date or first transaction date
+  const creationDateStr = portfolioCreationDate 
+    ? portfolioCreationDate.toISOString().split('T')[0]
+    : sorted[0].transactionDate.toISOString().split('T')[0];
   
   // Group transactions by date
   const dateGroups = new Map<string, PortfolioTransaction[]>();
@@ -355,8 +368,12 @@ export function buildValuePoints(
   const valuePoints: PortfolioValuePoint[] = [];
   const holdings = new Map<string, { shares: number; totalCost: number }>();
   
+  // Track if this is the initial investment (first date = creation date)
+  const isInitialInvestment = (date: string) => date === creationDateStr;
+  
   for (const [date, txs] of Array.from(dateGroups.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
     let cashFlows = 0;
+    const isInitial = isInitialInvestment(date);
     
     for (const tx of txs) {
       const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || "0");
@@ -364,7 +381,10 @@ export function buildValuePoints(
       const fees = parseFloat(tx.fees || "0");
       
       if (tx.transactionType === "deposit") {
-        cashFlows += amount;
+        // Initial deposit is performance-neutral
+        if (!isInitial) {
+          cashFlows += amount;
+        }
       } else if (tx.transactionType === "withdrawal") {
         cashFlows -= amount;
       } else if (tx.transactionType === "dividend") {
@@ -374,7 +394,10 @@ export function buildValuePoints(
         holding.shares += shares;
         holding.totalCost += amount + fees;
         holdings.set(tx.ticker, holding);
-        cashFlows += amount + fees; // Buying is a cash outflow
+        // Initial buys are performance-neutral (establish baseline)
+        if (!isInitial) {
+          cashFlows += amount + fees; // Buying is a cash outflow
+        }
       } else if (tx.transactionType === "sell" && tx.ticker) {
         const holding = holdings.get(tx.ticker);
         if (holding && holding.shares > 0) {

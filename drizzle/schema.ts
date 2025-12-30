@@ -517,3 +517,21 @@ export const benchmarkData = mysqlTable("benchmarkData", {
 
 export type BenchmarkData = typeof benchmarkData.$inferSelect;
 export type InsertBenchmarkData = typeof benchmarkData.$inferInsert;
+
+// Portfolio snapshots table - tracks portfolio value over time for accurate performance calculation
+// Stores daily snapshots of portfolio value and cash flows for TWR/MWR calculations
+export const portfolioSnapshots = mysqlTable("portfolioSnapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  portfolioId: int("portfolioId").notNull(), // References savedPortfolios.id
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull(), // YYYY-MM-DD format
+  totalValue: varchar("totalValue", { length: 50 }).notNull(), // Total portfolio value in CHF
+  cashFlow: varchar("cashFlow", { length: 50 }).notNull().default("0"), // Net cash flow on this date (deposits - withdrawals)
+  isInitial: tinyint("isInitial").notNull().default(0), // 1 = Initial snapshot at portfolio creation
+  notes: text("notes"), // Optional notes about this snapshot
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  portfolioDateIdx: index("ix_portfolio_snapshots_portfolio_date").on(t.portfolioId, t.snapshotDate),
+}));
+
+export type PortfolioSnapshot = typeof portfolioSnapshots.$inferSelect;
+export type InsertPortfolioSnapshot = typeof portfolioSnapshots.$inferInsert;

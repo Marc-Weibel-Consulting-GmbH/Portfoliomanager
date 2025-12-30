@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `portfolioSnapshots` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `portfolioId` int NOT NULL,\n  `snapshotDate` varchar(10) NOT NULL,\n  `totalValue` varchar(50) NOT NULL,\n  `cashFlow` varchar(50) NOT NULL DEFAULT '0',\n  `isInitial` tinyint NOT NULL DEFAULT 0,\n  `notes` text,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `portfolioSnapshots_id` PRIMARY KEY(`id`)\n);\n\nCREATE INDEX `ix_portfolio_snapshots_portfolio_date` ON `portfolioSnapshots` (`portfolioId`,`snapshotDate`);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute CREATE TABLE IF NOT EXISTS `portfolioSnapshots` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `portfolioId` int NOT NULL,\n  `snapshotDate` varchar(10) NOT NULL,\n  `totalValue` varchar(50) NOT NULL,\n  `cashFlow` varchar(50) NOT NULL DEFAULT '0',\n  `isInitial` tinyint NOT NULL DEFAULT 0,\n  `notes` text,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `portfolioSnapshots_id` PRIMARY KEY(`id`)\n);\n\nCREATE INDEX `ix_portfolio_snapshots_portfolio_date` ON `portfolioSnapshots` (`portfolioId`,`snapshotDate`);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2393
+}

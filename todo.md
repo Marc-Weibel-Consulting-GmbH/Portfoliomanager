@@ -78,15 +78,17 @@
 - [ ] Step 3-5: Additional configuration
 - [ ] Add stock cards with logos, prices, YTD performance, dividend yield, score
 
-### Phase 6: Portfolio Detail View
-- [ ] Large performance chart at top (Portfolio vs Benchmark)
-- [ ] Show portfolio value, performance %, IRR, dividend yield, beta, volatility, Sharpe ratio
-- [ ] Add action buttons: Bearbeiten, Löschen, Teilen
-- [ ] Create holdings table with logos, ticker, name, shares, weight %, current price, value, performance %, dividend yield
-- [ ] Add donut chart for asset allocation
-- [ ] Add "Letzte Transaktionen" section
-- [ ] Implement sorting by stock, sector, category
-- [ ] Add "Neue Transaktion" button
+### Phase 6: Portfolio Detail View (WICHTIG: Viele Features bereits implementiert!)
+- [x] Large performance chart at top (Portfolio vs Benchmark) - BEREITS VORHANDEN: LivePerformanceChart mit SPY Benchmark
+- [x] Show portfolio value, performance % - BEREITS VORHANDEN
+- [ ] Show IRR, dividend yield, beta, volatility, Sharpe ratio - TEILWEISE: Einige Metriken fehlen noch
+- [x] Add action buttons: Bearbeiten, Löschen - BEREITS VORHANDEN
+- [ ] Add action button: Teilen - FEHLT NOCH
+- [x] Create holdings table with logos, ticker, name, shares, weight %, current price, value, performance %, dividend yield - BEREITS VORHANDEN
+- [x] Add donut chart for asset allocation - BEREITS VORHANDEN: SectorAllocation Component
+- [x] Add "Letzte Transaktionen" section - BEREITS VORHANDEN: TransactionHistory Component
+- [ ] Implement sorting by stock, sector, category - PRÜFEN ob bereits vorhanden
+- [x] Add "Neue Transaktion" button - BEREITS VORHANDEN
 
 ### Phase 7: Stock Detail Page
 - [ ] Large candlestick chart with time period selector (1D, 1W, 1M, 3M, 6M, 1Y, YTD, All)
@@ -1459,3 +1461,56 @@
 - [x] Vitest Tests für alle Performance-Berechnungen schreiben (18 Tests bestanden)
 - [x] Edge Cases testen (Splits, Dividenden, Teilverkäufe)
 - [ ] Performance-Charts mit korrekten Daten aktualisieren
+
+## Fehlende Landing Page Elemente (30.12.2025)
+- [x] Company Logos Section (Vertraut von...) auf Landing Page hinzufügen
+- [ ] Features Page erstellen mit detaillierten Feature-Beschreibungen
+- [ ] Pricing Page erstellen mit Preismodellen
+- [ ] About Page erstellen mit Unternehmensinformationen
+- [ ] Navigation Links zu neuen Seiten verbinden
+
+## Performance Chart Korrektur (30.12.2025)
+
+### Phase 1 (Kritisch):
+- [x] Initialer Investitionsbetrag als Performance-neutral behandeln
+- [x] TWR-Berechnung AB Erstellungsdatum korrigieren
+- [ ] Anzahl Stück beim Live-Tracking erfassen (Modal/Dialog)
+- [x] Performance-Inkonsistenz zwischen Chart und Übersicht beheben (Regula Portfolio)
+
+### Phase 2 (Wichtig):
+- [x] Hypothetische Performance VOR Erstellungsdatum berechnen (wie Demo-Portfolio)
+- [x] Visuelle Trennung im Chart (gestrichelte Linie vor Erstellungsdatum)
+- [x] Portfolio-Snapshots für Performance-Tracking nutzen
+- [ ] Tooltip beim Hover über Erstellungsdatum
+- [ ] Portfolio-Snapshots für Performance-Tracking implementieren
+
+### Phase 3 (Nice-to-have - im Hinterkopf behalten):
+- [ ] Erweiterte Transaktionsverwaltung
+- [ ] Detaillierte Performance-Attribution
+- [ ] Gewichtete TWR-Berechnung pro Position
+
+
+## Performance Chart Korrektur (30.12.2025)
+
+### Phase 1 (Kritisch):
+- [x] Initialer Investitionsbetrag als Performance-neutral behandeln
+- [x] TWR-Berechnung AB Erstellungsdatum korrigieren
+- [ ] Anzahl Stück beim Live-Tracking erfassen (Modal/Dialog)
+- [x] Performance-Inkonsistenz zwischen Chart und Übersicht beheben (Regula Portfolio)
+- [x] portfolioSnapshots Tabelle erstellt
+- [x] buildValuePoints Funktion angepasst
+- [x] calculatePerformanceMetrics nutzt Portfolio-Erstellungsdatum
+
+### Phase 2 (Wichtig) - TEILWEISE IMPLEMENTIERT:
+- [x] Backend-Logik für hypothetische Performance vorbereitet
+- [x] Frontend visuelle Trennung implementiert (gestrichelte Linie)
+- [ ] **BUG: Chart zeigt immer noch nur Daten ab erstem Transaktionsdatum (06. Nov statt 01. Jan)**
+- [ ] **TODO: Demo-Portfolio-Logik für Live-Portfolios adaptieren**
+- [ ] **PROBLEM IDENTIFIZIERT:** sortedDates wird aus verfügbaren Preisdaten generiert, nicht aus gewünschtem Zeitraum
+- [ ] **LÖSUNG:** Separate Logik für hypothetische Performance vor Erstellungsdatum (wie bei Test-Portfolios)
+
+### Nächste Schritte (Nach Checkpoint):
+1. Demo-Portfolio-Logik analysieren und verstehen
+2. Separate Funktion für hypothetische Performance erstellen
+3. Schrittweise testen nach jeder Änderung
+4. Visuelle Trennung im Chart verifizieren

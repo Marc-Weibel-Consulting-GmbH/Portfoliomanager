@@ -32,6 +32,29 @@ interface LivePerformanceChartProps {
 }
 
 export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerformanceChartProps) {
+  // Determine start and end dates for hypothetical performance
+  const creationDate = useMemo(() => {
+    if (typeof liveStartDate === 'string') {
+      return liveStartDate.split('T')[0];
+    }
+    return new Date(liveStartDate).toISOString().split('T')[0];
+  }, [liveStartDate]);
+  
+  const yearStart = useMemo(() => {
+    const year = new Date(creationDate).getFullYear();
+    return `${year}-01-01`;
+  }, [creationDate]);
+  
+  // Fetch hypothetical performance BEFORE creation date
+  const { data: hypotheticalData } = trpc.portfolios.getHypotheticalPerformance.useQuery(
+    { 
+      portfolioId, 
+      startDate: yearStart, 
+      endDate: creationDate 
+    },
+    { enabled: !!portfolioId && yearStart < creationDate }
+  );
+  
   // Fetch historical performance data from backend using getHistoricalPerformance
   const { data: historyData, isLoading } = trpc.portfolios.getHistoricalPerformance.useQuery(
     { portfolioId, period: 'YTD', benchmark: 'SPY' },
@@ -40,23 +63,45 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
 
   const chartData = useMemo(() => {
     if (!historyData || !historyData.chartData || historyData.chartData.length === 0) {
-      return { labels: [], datasets: [], latestPerformance: 0, latestValue: 0, latestInvested: 0 };
+      return { labels: [], datasets: [], latestPerformance: 0, latestValue: 0, latestInvested: 0, creationDateIndex: -1 };
     }
 
-    const dataPoints = historyData.chartData;
-
-    // Format labels and data
-    const labels = dataPoints.map((dp: any) => {
+    const realDataPoints = historyData.chartData;
+    const hypotheticalPoints = hypotheticalData?.chartData || [];
+    
+    // Combine hypothetical and real data
+    const allDataPoints = [...hypotheticalPoints, ...realDataPoints];
+    
+    // Format labels
+    const labels = allDataPoints.map((dp: any) => {
       const date = new Date(dp.date);
       return date.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' });
     });
+    
+    // Find the index where real data starts (creation date)
+    const creationDateIndex = hypotheticalPoints.length;
+    
+    // Prepare performance data with separation
+    const hypotheticalPerformanceData = hypotheticalPoints.map((dp: any) => dp.performance);
+    const realPerformanceData = realDataPoints.map((dp: any) => dp.portfolio);
+    
+    // For hypothetical line: show data before creation date, null after
+    const hypotheticalLineData = [
+      ...hypotheticalPerformanceData,
+      ...Array(realPerformanceData.length).fill(null)
+    ];
+    
+    // For real line: null before creation date, data after
+    const realLineData = [
+      ...Array(hypotheticalPerformanceData.length).fill(null),
+      ...realPerformanceData
+    ];
 
-    const performanceData = dataPoints.map((dp: any) => dp.portfolio);
-    const valueData = historyData.totalValueHistory?.map((v: any) => v.value) || dataPoints.map(() => 0);
-    const investedData = dataPoints.map(() => 100); // Base value
+    const valueData = historyData.totalValueHistory?.map((v: any) => v.value) || realDataPoints.map(() => 0);
+    const investedData = realDataPoints.map(() => 100); // Base value
 
     // Get latest values for legend
-    const latestPerformance = performanceData[performanceData.length - 1] || 0;
+    const latestPerformance = realPerformanceData[realPerformanceData.length - 1] || 0;
     const latestValue = valueData[valueData.length - 1] || 0;
     const latestInvested = investedData[investedData.length - 1] || 0;
 
@@ -65,41 +110,59 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
       latestPerformance,
       latestValue,
       latestInvested,
+      creationDateIndex,
       datasets: [
+        // Hypothetical performance (before creation date) - dashed line
+        {
+          label: "Hypothetische Performance (%)",
+          data: hypotheticalLineData,
+          borderColor: "rgba(59, 130, 246, 0.5)",
+          backgroundColor: "rgba(59, 130, 246, 0.05)",
+          borderWidth: 2,
+          borderDash: [5, 5],
+          fill: false,
+          tension: 0.4,
+          yAxisID: "y",
+          pointRadius: 0,
+        },
+        // Real performance (after creation date) - solid line
         {
           label: "Performance (%)",
-          data: performanceData,
+          data: realLineData,
           borderColor: "rgb(59, 130, 246)",
           backgroundColor: "rgba(59, 130, 246, 0.1)",
           borderWidth: 2,
           fill: true,
           tension: 0.4,
-          yAxisID: "y"
+          yAxisID: "y",
+          pointRadius: 0,
         },
         {
           label: "Portfolio-Wert (CHF)",
-          data: valueData,
+          data: [...Array(hypotheticalPerformanceData.length).fill(null), ...valueData],
           borderColor: "rgb(34, 197, 94)",
           backgroundColor: "rgba(34, 197, 94, 0.1)",
           borderWidth: 2,
           fill: false,
           tension: 0.4,
-          yAxisID: "y1"
+          yAxisID: "y1",
+          pointRadius: 0,
         },
         {
           label: "Investiert (CHF)",
-          data: investedData,
+          data: [...Array(hypotheticalPerformanceData.length).fill(null), ...investedData],
           borderColor: "rgb(148, 163, 184)",
           backgroundColor: "rgba(148, 163, 184, 0.1)",
           borderWidth: 1,
           borderDash: [5, 5],
           fill: false,
           tension: 0.4,
-          yAxisID: "y1"
+          yAxisID: "y1",
+          pointRadius: 0,
         }
       ]
     };
-  }, [historyData]);
+  }, [historyData, hypotheticalData]);
 
   const options = {
     responsive: true,

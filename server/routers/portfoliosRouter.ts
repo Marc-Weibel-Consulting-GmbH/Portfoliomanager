@@ -484,8 +484,12 @@ export const portfoliosRouter = router({
             break;
         }
         
-        // For live portfolios, never start before the first transaction
-        if (isLivePortfolio && earliestTransactionDate && startDate < earliestTransactionDate) {
+        // For live portfolios with YTD or All period, allow starting from year beginning
+        // to show hypothetical performance before portfolio creation
+        const allowHypotheticalPerformance = isLivePortfolio && (period === 'YTD' || period === 'All');
+        
+        // For other periods (1M, 3M, etc.), never start before the first transaction
+        if (isLivePortfolio && !allowHypotheticalPerformance && earliestTransactionDate && startDate < earliestTransactionDate) {
           startDate = earliestTransactionDate;
         }
         
@@ -511,12 +515,35 @@ export const portfoliosRouter = router({
             return txDate >= ytdStartDate;
           });
           
-          if (allTransactionsAfterStart) {
-            // For portfolios that started during the period, initialize holdings from first transactions
-            // and use the first transaction date as the effective start
+          console.log(`[DEBUG] allTransactionsAfterStart: ${allTransactionsAfterStart}, allowHypotheticalPerformance: ${allowHypotheticalPerformance}`);
+          console.log(`[DEBUG] portfolioStocks length: ${portfolioStocks.length}`);
+          
+          if (allTransactionsAfterStart && allowHypotheticalPerformance) {
+            // For YTD/All periods: calculate hypothetical performance before creation date
+            // Use current portfolio weights (from portfolioStocks) for hypothetical period
+            console.log(`[HistoricalPerformance] Calculating hypothetical performance before ${earliestTransactionDate?.toISOString().split('T')[0]}`);
+            console.log(`[DEBUG] portfolioStocks:`, JSON.stringify(portfolioStocks.map((s: any) => ({ ticker: s.ticker, weight: s.weight }))));
+            
+            // Use weights from portfolioStocks (current portfolio composition)
+            portfolioStocks.forEach((stock: any) => {
+              const ticker = stock.ticker;
+              const weight = parseFloat(stock.weight) || 0;
+              
+              console.log(`[DEBUG] Processing stock: ${ticker}, weight: ${weight}`);
+              
+              if (ticker && weight > 0) {
+                holdingsAtYtdStart[ticker] = { 
+                  shares: 1, // Use 1 share as base for percentage calculation
+                  avgCost: 0, 
+                  weight: weight 
+                };
+              }
+            });
+            
+            console.log(`[DEBUG] holdingsAtYtdStart:`, JSON.stringify(holdingsAtYtdStart));
+          } else if (allTransactionsAfterStart) {
+            // For other periods (1M, 3M, etc.): just initialize empty holdings
             console.log(`[HistoricalPerformance] Portfolio started after ${ytdStartDate}, initializing from first transactions`);
-            // Don't process transactions here - they will be processed in the main loop
-            // Just initialize empty holdings for each ticker
             sortedTx.forEach((tx: any) => {
               const ticker = tx.ticker;
               if (!ticker) return;
@@ -677,12 +704,15 @@ export const portfoliosRouter = router({
         
         // Get the first transaction date for portfolios that started during the period
         let effectiveStartDate = ytdStartDate;
-        if (allTransactionsAfterStart && transactions.length > 0) {
+        // Only adjust effectiveStartDate if we're NOT showing hypothetical performance
+        if (allTransactionsAfterStart && transactions.length > 0 && !allowHypotheticalPerformance) {
           const sortedTransactions = [...transactions].sort((a: any, b: any) => 
             new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
           );
           effectiveStartDate = new Date(sortedTransactions[0].transactionDate).toISOString().split('T')[0];
           console.log(`[HistoricalPerformance] Portfolio started during period, effective start date: ${effectiveStartDate}`);
+        } else if (allowHypotheticalPerformance) {
+          console.log(`[HistoricalPerformance] Showing hypothetical performance from ${ytdStartDate}`);
         }
         
         for (const [ticker, holding] of Object.entries(currentHoldings)) {
@@ -857,5 +887,167 @@ export const portfoliosRouter = router({
         }
         
         return { chartData };
+      }),
+
+    // Get hypothetical performance before portfolio creation date
+    // This shows what the performance would have been if the portfolio existed earlier
+    getHypotheticalPerformance: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        startDate: z.string(), // YYYY-MM-DD format (e.g., start of year)
+        endDate: z.string(), // YYYY-MM-DD format (portfolio creation date)
+      }))
+      .query(async ({ input, ctx }) => {
+        const { portfolioId, startDate, endDate } = input;
+        const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
+        const { convertToCHF } = await import("../fxHelper");
+        
+        const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
+        if (!portfolio) {
+          return { chartData: [] };
+        }
+        
+        // Get transactions to determine initial holdings
+        const transactions = await getPortfolioTransactions(portfolioId);
+        if (transactions.length === 0) {
+          return { chartData: [] };
+        }
+        
+        // Get initial holdings (first buy transactions)
+        const initialHoldings: Record<string, { shares: number; weight: number }> = {};
+        let totalShares = 0;
+        
+        for (const tx of transactions) {
+          if (tx.transactionType === 'buy' && tx.ticker) {
+            if (!initialHoldings[tx.ticker]) {
+              initialHoldings[tx.ticker] = { shares: 0, weight: 0 };
+            }
+            initialHoldings[tx.ticker].shares += parseFloat(tx.shares || "0");
+            totalShares += parseFloat(tx.shares || "0");
+          }
+        }
+        
+        // Calculate weights based on initial shares
+        const tickers = Object.keys(initialHoldings);
+        for (const ticker of tickers) {
+          initialHoldings[ticker].weight = (initialHoldings[ticker].shares / totalShares) * 100;
+        }
+        
+        const db = await getDb();
+        if (!db) return { chartData: [] };
+        
+        const { historicalPrices } = await import("../../drizzle/schema");
+        const { eq, and, gte, lte, asc } = await import("drizzle-orm");
+        
+        // Get historical prices for all tickers
+        const pricesMap: Record<string, Record<string, number>> = {};
+        for (const ticker of tickers) {
+          const prices = await db
+            .select()
+            .from(historicalPrices)
+            .where(
+              and(
+                eq(historicalPrices.ticker, ticker),
+                gte(historicalPrices.date, startDate),
+                lte(historicalPrices.date, endDate)
+              )
+            )
+            .orderBy(asc(historicalPrices.date));
+          
+          pricesMap[ticker] = {};
+          prices.forEach((p: any) => {
+            const price = parseFloat(p.close) || 0;
+            if (price > 0) {
+              pricesMap[ticker][p.date] = price;
+            }
+          });
+        }
+        
+        // Get stock currencies
+        const stockCurrencies: Record<string, string> = {};
+        for (const ticker of tickers) {
+          const stock = await getStockByTicker(ticker);
+          stockCurrencies[ticker] = stock?.currency || 'CHF';
+        }
+        
+        // Get all dates with price data
+        const allDates = new Set<string>();
+        Object.values(pricesMap).forEach(prices => {
+          Object.keys(prices).forEach(date => allDates.add(date));
+        });
+        const sortedDates = Array.from(allDates).sort();
+        
+        // Calculate starting prices in CHF
+        const startingPricesCHF: Record<string, number> = {};
+        for (const ticker of tickers) {
+          const tickerPrices = pricesMap[ticker] || {};
+          const availableDates = Object.keys(tickerPrices).sort();
+          const firstDate = availableDates[0] || startDate;
+          const price = tickerPrices[firstDate] || 0;
+          
+          if (price > 0) {
+            const currency = stockCurrencies[ticker] || 'CHF';
+            const priceCHF = await convertToCHF(price, currency, firstDate);
+            startingPricesCHF[ticker] = priceCHF;
+          }
+        }
+        
+        // Pre-calculate FX rates cache
+        const fxRatesCache: Record<string, Record<string, number>> = {};
+        const uniqueCurrencies = Array.from(new Set(Object.values(stockCurrencies)));
+        
+        for (const currency of uniqueCurrencies) {
+          if (currency === 'CHF') continue;
+          fxRatesCache[currency] = {};
+          const firstDate = sortedDates[0] || startDate;
+          const rate = await convertToCHF(1, currency, firstDate);
+          for (const date of sortedDates) {
+            fxRatesCache[currency][date] = rate;
+          }
+        }
+        
+        const convertToCHFCached = (price: number, currency: string, date: string): number => {
+          if (currency === 'CHF') return price;
+          const rate = fxRatesCache[currency]?.[date] || 1;
+          return price * rate;
+        };
+        
+        // Sample dates to reduce data points
+        const maxDataPoints = 100;
+        const sampleInterval = Math.max(1, Math.floor(sortedDates.length / maxDataPoints));
+        const sampledDates = sortedDates.filter((_, idx) => idx % sampleInterval === 0 || idx === sortedDates.length - 1);
+        
+        // Calculate hypothetical performance for each date
+        const chartData: { date: string; performance: number }[] = [];
+        
+        for (const date of sampledDates) {
+          let totalWeight = 0;
+          let weightedPerformance = 0;
+          
+          for (const [ticker, holding] of Object.entries(initialHoldings)) {
+            const weight = holding.weight || 0;
+            if (weight <= 0) continue;
+            
+            const currentPrice = pricesMap[ticker]?.[date] || 0;
+            const startPrice = startingPricesCHF[ticker] || 0;
+            
+            if (currentPrice > 0 && startPrice > 0) {
+              const currency = stockCurrencies[ticker] || 'CHF';
+              const currentPriceCHF = convertToCHFCached(currentPrice, currency, date);
+              const stockPerformance = ((currentPriceCHF - startPrice) / startPrice) * 100;
+              weightedPerformance += stockPerformance * (weight / 100);
+              totalWeight += weight;
+            }
+          }
+          
+          const performance = totalWeight > 0 ? weightedPerformance : 0;
+          
+          chartData.push({
+            date,
+            performance: parseFloat(performance.toFixed(2)),
+          });
+        }
+        
+        return { chartData, creationDate: endDate };
       }),
 });

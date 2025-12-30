@@ -69,11 +69,12 @@ export const portfolioMetricsRouter = router({
         0
       );
 
-      // Calculate comprehensive metrics
+      // Calculate comprehensive metrics with portfolio creation date
       const metrics = calculatePerformanceMetrics(
         transactions,
         currentPrices,
-        totalRealizedGains
+        totalRealizedGains,
+        portfolio.createdAt // Pass portfolio creation date for initial investment handling
       );
 
       return metrics;
@@ -255,11 +256,12 @@ export const portfolioMetricsRouter = router({
           0
         );
 
-        // Calculate metrics
+        // Calculate metrics with portfolio creation date
         const metrics = calculatePerformanceMetrics(
           transactions,
           currentPrices,
-          totalRealizedGains
+          totalRealizedGains,
+          portfolio.createdAt
         );
 
         comparisons.push({

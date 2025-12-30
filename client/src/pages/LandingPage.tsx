@@ -248,6 +248,65 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Company Logos Section */}
+      <section className="container mx-auto px-6 py-16">
+        <div className="text-center mb-12">
+          <p className="text-slate-400 text-sm font-medium mb-8">Tracke Aktien von führenden Schweizer und internationalen Unternehmen</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+          {/* Swiss Companies */}
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">N</span>
+            </div>
+            <span className="text-lg font-semibold">Nestlé</span>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">R</span>
+            </div>
+            <span className="text-lg font-semibold">Roche</span>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">N</span>
+            </div>
+            <span className="text-lg font-semibold">Novartis</span>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">U</span>
+            </div>
+            <span className="text-lg font-semibold">UBS</span>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">Z</span>
+            </div>
+            <span className="text-lg font-semibold">Zurich</span>
+          </div>
+          {/* International Companies */}
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">A</span>
+            </div>
+            <span className="text-lg font-semibold">Apple</span>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">M</span>
+            </div>
+            <span className="text-lg font-semibold">Microsoft</span>
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white transition-colors">
+            <div className="w-12 h-12 bg-slate-800/50 rounded-lg flex items-center justify-center border border-slate-700/30">
+              <span className="text-xl font-bold">T</span>
+            </div>
+            <span className="text-lg font-semibold">Tesla</span>
+          </div>
+        </div>
+      </section>
+
       {/* Social Proof Section */}
       <section className="container mx-auto px-6 py-12">
         <div className="flex flex-wrap items-center justify-between gap-8 bg-slate-800/20 backdrop-blur-sm border border-slate-700/30 rounded-2xl p-8">

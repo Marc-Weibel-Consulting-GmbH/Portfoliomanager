@@ -107,6 +107,15 @@ export default function PortfolioDetailsPage() {
   const totalValueCHF = portfolio?.totalValueCHF || 0;
   const avgDividendYield = portfolio?.avgDividendYield || 0;
   
+  // Determine creation date for visual separation in chart
+  const creationDate = useMemo(() => {
+    if (!portfolio?.liveStartDate) return null;
+    if (typeof portfolio.liveStartDate === 'string') {
+      return portfolio.liveStartDate.split('T')[0];
+    }
+    return new Date(portfolio.liveStartDate).toISOString().split('T')[0];
+  }, [portfolio?.liveStartDate]);
+  
   // Fetch historical performance data from API
   const { data: historicalData, isLoading: isLoadingHistory } = trpc.portfolios.getHistoricalPerformance.useQuery(
     { 
@@ -117,25 +126,43 @@ export default function PortfolioDetailsPage() {
     { enabled: portfolioId > 0 }
   );
   
-  // Process chart data - sample to reduce data points for display
+  // Process chart data - add visual separation at creation date for live portfolios
   const chartData = useMemo(() => {
     if (!historicalData?.chartData || historicalData.chartData.length === 0) {
-      return [];
+      return { data: [], creationDateIndex: -1, hasHypothetical: false };
     }
     
-    const data = historicalData.chartData;
+    const realData = historicalData.chartData;
     
     // Sample data to show roughly one point per week for better visualization
-    const sampleInterval = Math.max(1, Math.floor(data.length / 52));
-    const sampledData = data.filter((_: any, index: number) => index % sampleInterval === 0 || index === data.length - 1);
+    const sampleInterval = Math.max(1, Math.floor(realData.length / 52));
+    const sampledData = realData.filter((_: any, index: number) => index % sampleInterval === 0 || index === realData.length - 1);
     
-    // Format dates for display
-    return sampledData.map((d: any) => ({
-      date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short' }),
-      portfolio: d.portfolio,
-      benchmark: d.benchmark,
-    }));
-  }, [historicalData]);
+    // Find the index where portfolio was created (for visual separation)
+    const creationDateIndex = portfolio?.isLive && creationDate ? sampledData.findIndex((d: any) => {
+      const dataDate = new Date(d.date).toISOString().split('T')[0];
+      return dataDate >= creationDate;
+    }) : -1;
+    
+    // Format dates and separate hypothetical from real data
+    const formattedData = sampledData.map((d: any, index: number) => {
+      const isHypothetical = creationDateIndex >= 0 && index < creationDateIndex;
+      return {
+        date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short' }),
+        // Before creation date: show as hypothetical (dashed line)
+        // After creation date: show as real portfolio (solid line)
+        portfolio: isHypothetical ? null : d.portfolio,
+        hypothetical: isHypothetical ? d.portfolio : null,
+        benchmark: d.benchmark,
+      };
+    });
+    
+    return { 
+      data: formattedData, 
+      creationDateIndex,
+      hasHypothetical: creationDateIndex > 0
+    };
+  }, [historicalData, creationDate, portfolio?.isLive]);
   
   // Prepare pie chart data for asset allocation
   const assetAllocationData = useMemo(() => {
@@ -347,13 +374,13 @@ export default function PortfolioDetailsPage() {
                     <div className="flex items-center justify-center h-full">
                       <p className="text-gray-500">Lade Kursdaten...</p>
                     </div>
-                  ) : chartData.length === 0 ? (
+                  ) : chartData.data.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
                       <p className="text-gray-500">Keine historischen Daten verfügbar</p>
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <AreaChart data={chartData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#00CFC1" stopOpacity={0.3}/>
@@ -394,6 +421,20 @@ export default function PortfolioDetailsPage() {
                           }}
                           wrapperStyle={{ paddingTop: '10px' }}
                         />
+                        {/* Hypothetical performance (before creation date) - dashed line */}
+                        {chartData.hasHypothetical && (
+                          <Area 
+                            type="monotone" 
+                            dataKey="hypothetical" 
+                            name="hypothetical" 
+                            stroke="rgba(0, 207, 193, 0.5)" 
+                            strokeWidth={2}
+                            strokeDasharray="5 5"
+                            fill="none"
+                            connectNulls={false}
+                          />
+                        )}
+                        {/* Real performance (after creation date) - solid line */}
                         <Area 
                           type="monotone" 
                           dataKey="portfolio" 
@@ -401,6 +442,7 @@ export default function PortfolioDetailsPage() {
                           stroke="#00CFC1" 
                           strokeWidth={2}
                           fill="url(#portfolioGradient)"
+                          connectNulls={false}
                         />
                         <Area 
                           type="monotone" 
