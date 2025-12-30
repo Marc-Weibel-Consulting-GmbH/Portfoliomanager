@@ -338,9 +338,20 @@ export const portfoliosRouter = router({
         // If activating live tracking, create entry transactions for current positions
         if (input.isLive && !portfolio.isLive) {
           try {
+            console.log('[toggleLive] Activating live tracking for portfolio:', input.id);
             const portfolioData = JSON.parse(portfolio.portfolioData);
             const stocks = portfolioData.stocks || [];
             const startCapital = parseFloat(portfolio.startCapital || '0');
+            
+            console.log('[toggleLive] Portfolio data:', { stocks: stocks.length, startCapital });
+            
+            if (!startCapital || startCapital <= 0) {
+              throw new Error('Portfolio muss ein Startkapital haben, um Live-Tracking zu aktivieren');
+            }
+            
+            if (stocks.length === 0) {
+              throw new Error('Portfolio muss mindestens eine Position haben, um Live-Tracking zu aktivieren');
+            }
             
             let totalPositionValue = 0;
             const todayStr = new Date().toISOString().split('T')[0];
@@ -351,20 +362,41 @@ export const portfoliosRouter = router({
               const weight = parseFloat(stock.weight || '0');
               const positionValueCHF = (startCapital * weight) / 100;
               
+              console.log(`[toggleLive] Processing ${ticker}: weight=${weight}%, value=${positionValueCHF} CHF`);
+              
               // Get current stock data
               const dbStock = await getStockByTicker(ticker);
-              if (!dbStock || !dbStock.currentPrice) continue;
+              if (!dbStock) {
+                console.warn(`[toggleLive] Stock ${ticker} not found in database, skipping`);
+                continue;
+              }
+              
+              if (!dbStock.currentPrice) {
+                console.warn(`[toggleLive] Stock ${ticker} has no current price, skipping`);
+                continue;
+              }
               
               const currentPrice = parseFloat(dbStock.currentPrice);
               const currency = dbStock.currency || 'CHF';
               
+              console.log(`[toggleLive] ${ticker} price: ${currentPrice} ${currency}`);
+              
               // Convert price to CHF
-              const priceCHF = currency === 'CHF' 
-                ? currentPrice 
-                : await convertToCHF(currentPrice, currency, todayStr);
+              let priceCHF = currentPrice;
+              if (currency !== 'CHF') {
+                try {
+                  priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                  console.log(`[toggleLive] ${ticker} converted to CHF: ${priceCHF}`);
+                } catch (fxError) {
+                  console.error(`[toggleLive] FX conversion failed for ${ticker}, using 1:1 rate`, fxError);
+                  priceCHF = currentPrice; // Fallback to 1:1 if conversion fails
+                }
+              }
               
               // Calculate number of shares
               const shares = positionValueCHF / priceCHF;
+              
+              console.log(`[toggleLive] Creating entry transaction for ${ticker}: ${shares.toFixed(6)} shares`);
               
               // Create entry transaction (Eingang)
               await createPortfolioTransaction({
@@ -384,8 +416,12 @@ export const portfoliosRouter = router({
               totalPositionValue += positionValueCHF;
             }
             
+            console.log(`[toggleLive] Total position value: ${totalPositionValue} CHF`);
+            
             // Calculate and store cash balance (Liquidität)
             const cashBalance = startCapital - totalPositionValue;
+            
+            console.log(`[toggleLive] Cash balance: ${cashBalance} CHF`);
             
             // Create deposit transaction for remaining cash if positive
             if (cashBalance > 0) {
@@ -411,10 +447,13 @@ export const portfoliosRouter = router({
               cashBalance: cashBalance.toFixed(2),
             });
             
+            console.log('[toggleLive] Live tracking activated successfully');
+            
             return { success: true, portfolio: await getSavedPortfolioById(input.id, ctx.user.id) };
           } catch (error) {
             console.error('[toggleLive] Error creating initial transactions:', error);
-            throw new Error('Failed to create initial transactions for live tracking');
+            const errorMessage = error instanceof Error ? error.message : 'Failed to create initial transactions for live tracking';
+            throw new Error(errorMessage);
           }
         }
         

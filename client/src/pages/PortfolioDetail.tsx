@@ -18,6 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
+import { RealizedGainsTable } from "@/components/RealizedGainsTable";
+import { CostFeesReport } from "@/components/CostFeesReport";
 
 export default function PortfolioDetail() {
   const [, params] = useRoute<{ id: string }>("/portfolio/:id");
@@ -39,11 +41,16 @@ export default function PortfolioDetail() {
     { enabled: !!portfolioId }
   );
 
-  // Fetch realized gains
-  const { data: realizedGains = [] } = trpc.portfolios.getRealizedGains.useQuery(
+  // Fetch realized gains with detailed breakdown
+  const { data: realizedGainsDetailed = [] } = trpc.realizedGainsHistory.getAll.useQuery(
     { portfolioId: portfolioId! },
     { enabled: !!portfolioId }
   );
+
+  // Calculate simple total for the summary card
+  const realizedGainsTotal = useMemo(() => {
+    return realizedGainsDetailed.reduce((sum, g) => sum + g.totalGain, 0);
+  }, [realizedGainsDetailed]);
 
   // Get unique tickers from transactions
   const uniqueTickers = useMemo(() => {
@@ -207,8 +214,10 @@ export default function PortfolioDetail() {
                     toast.success(checked ? 'Live-Tracking aktiviert' : 'Live-Tracking deaktiviert');
                     // Refetch portfolio data
                     window.location.reload();
-                  } catch (error) {
-                    toast.error('Fehler beim Aktualisieren des Live-Status');
+                  } catch (error: any) {
+                    console.error('[Live Toggle] Error:', error);
+                    const errorMessage = error?.message || 'Fehler beim Aktualisieren des Live-Status';
+                    toast.error(errorMessage);
                   }
                 }}
               />
@@ -288,18 +297,18 @@ export default function PortfolioDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {realizedGains.length > 0 ? (
+              {realizedGainsDetailed.length > 0 ? (
                 <>
                   <p className={`text-2xl font-bold ${
-                    realizedGains.reduce((sum, g) => sum + parseFloat(g.realizedGain || '0'), 0) >= 0 
+                    realizedGainsTotal >= 0 
                       ? 'text-green-500' 
                       : 'text-red-500'
                   }`}>
-                    {realizedGains.reduce((sum, g) => sum + parseFloat(g.realizedGain || '0'), 0) >= 0 ? '+' : ''}
-                    CHF {Math.abs(realizedGains.reduce((sum, g) => sum + parseFloat(g.realizedGain || '0'), 0)).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {realizedGainsTotal >= 0 ? '+' : ''}
+                    CHF {Math.abs(realizedGainsTotal).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {realizedGains.length} Transaktion{realizedGains.length !== 1 ? 'en' : ''}
+                    {realizedGainsDetailed.length} Transaktion{realizedGainsDetailed.length !== 1 ? 'en' : ''}
                   </p>
                 </>
               ) : (
@@ -411,6 +420,16 @@ export default function PortfolioDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Realized Gains/Losses Detailed Table */}
+      {realizedGainsDetailed.length > 0 && (
+        <RealizedGainsTable gains={realizedGainsDetailed} />
+      )}
+
+      {/* Cost & Fees Report for Tax */}
+      {transactions.length > 0 && (
+        <CostFeesReport transactions={transactions} portfolioId={portfolioId!} />
+      )}
 
       {/* Edit Position Dialog */}
       <Dialog open={isEditPositionOpen} onOpenChange={setIsEditPositionOpen}>

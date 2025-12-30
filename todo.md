@@ -1731,3 +1731,32 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
 - [ ] 18. Live-Testen: Transaktionen Portfolio-Auswahl
 - [ ] 19. Live-Testen: Realisierte Gewinne/Verluste Anzeige
 - [ ] 20. Live-Testen: Gesamter Flow von Demo → Live → Transaktionen → Reporting
+
+## New Features (30.12.2025 - Afternoon)
+- [ ] Realisierte Gewinne/Verluste implementieren - Anzeige von Kurs- und FX-Gewinnen/-Verlusten auf Portfolio-Detail und Transaktionen-Seite
+- [ ] Kosten/Gebühren-Tracking verbessern - Summierung und separate Anzeige aller Transaktionskosten für Steuer-Reporting
+- [ ] Live-Toggle Debug - Backend-Fehler beheben, damit Portfolios zwischen Demo und Live umgeschaltet werden können
+
+
+## New Features (30.12.2025 - 17:16)
+
+- [x] Realisierte Gewinne/Verluste implementieren - Anzeige von Kurs- und FX-Gewinnen/-Verlusten auf Portfolio-Detail und Transaktionen-Seite
+  - Created RealizedGainsTable component with separate display of price gains and FX gains
+  - Integrated into PortfolioDetail page
+  - Uses existing realizedGainsHistory router
+  - Unit tests: ✅ All passed (10/10)
+
+- [x] Kosten/Gebühren-Tracking verbessern - Summierung und separate Anzeige aller Transaktionskosten für Steuer-Reporting
+  - Created CostFeesReport component with breakdown by transaction type and year
+  - Added CSV export functionality for tax reporting
+  - Summary cards showing total fees, buy fees, and sell fees
+  - Integrated into PortfolioDetail page
+  - Unit tests: ✅ All passed (10/10)
+
+- [x] Live-Toggle Debug - Backend-Fehler beheben, damit Portfolios zwischen Demo und Live umgeschaltet werden können
+  - Added detailed logging to toggleLive procedure
+  - Improved error handling with specific error messages
+  - Added validation for start capital and positions
+  - Added FX conversion fallback on error (1:1 rate)
+  - Improved frontend error display
+  - Unit tests: ✅ All passed (10/10)
