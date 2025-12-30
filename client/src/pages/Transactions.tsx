@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, Download, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Download, Plus, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { toast } from "sonner";
 
 type TransactionType = "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
@@ -323,7 +323,19 @@ export default function Transactions() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{portfolio?.name || "Portfolio"}</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold">{portfolio?.name || "Portfolio"}</h1>
+            {portfolio?.isLive ? (
+              <Badge variant="default" className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30">
+                <Activity className="w-3 h-3 mr-1" />
+                Live
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-gray-600 text-gray-400">
+                Test
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">Transaktionsverwaltung</p>
         </div>
         <div className="flex gap-2">

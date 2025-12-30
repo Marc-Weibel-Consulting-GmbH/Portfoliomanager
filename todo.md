@@ -1683,3 +1683,19 @@
 - [x] Add Volatility metric display to key metrics section
 - [x] Add Dividend Yield metric display to key metrics section
 - [ ] Verify all metrics (IRR, Beta, Sharpe Ratio, Volatility) are calculated correctly on backend
+
+
+## Live Portfolio Tracking & Transaction Improvements (30.12.2025 - User Request)
+- [x] Add isLive toggle functionality to all portfolios (not just new ones)
+- [x] When portfolio is switched to "live": sync current positions as "Eingänge" (deposit transactions)
+- [x] Calculate cash balance (Liquiditätskonto) as difference between investment amount and position values
+- [x] Show live toggle/status in Dashboard page
+- [x] Show live toggle/status in Portfolio Overview page (filter already exists)
+- [x] Show live toggle/status in Portfolio Detail page (badge already exists)
+- [x] Show live toggle/status in Transactions page
+- [ ] Fix: Make portfolios selectable/visible in Transactions page dropdown
+- [x] Display realized gains/losses (Kursgewinne und Devisenkursgewinne) on Portfolio Detail page
+- [ ] Display realized gains/losses and costs (Gebühren) on Transactions page
+- [x] Enable editing of position quantity (Anzahl Aktien) in Portfolio Detail edit dialog
+- [x] Enable editing of entry price (Einstandspreis) in Portfolio Detail edit dialog
+- [x] Add "Anzahl Titel" column to position list in Portfolio Detail page (already exists as "Stückzahl")

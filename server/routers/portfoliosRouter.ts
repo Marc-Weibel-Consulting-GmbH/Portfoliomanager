@@ -315,6 +315,125 @@ export const portfoliosRouter = router({
         return { success: true };
       }),
 
+    // Toggle live tracking for a portfolio
+    toggleLive: protectedProcedure
+      .input(
+        z.object({
+          id: z.number().int().positive(),
+          isLive: z.boolean(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { getSavedPortfolioById, updateSavedPortfolio, createPortfolioTransaction, getStockByTicker } = await import("../db");
+        const { convertToCHF } = await import("../fxHelper");
+        
+        const portfolio = await getSavedPortfolioById(input.id, ctx.user.id);
+        if (!portfolio) {
+          throw new Error("Portfolio not found");
+        }
+        
+        const isLiveValue = input.isLive ? 1 : 0;
+        const liveStartDate = input.isLive ? new Date() : null;
+        
+        // If activating live tracking, create deposit transactions for current positions
+        if (input.isLive && !portfolio.isLive) {
+          try {
+            const portfolioData = JSON.parse(portfolio.portfolioData);
+            const stocks = portfolioData.stocks || [];
+            const startCapital = parseFloat(portfolio.startCapital || '0');
+            
+            let totalPositionValue = 0;
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            // Create "buy" transactions for each position based on current weights
+            for (const stock of stocks) {
+              const ticker = stock.ticker;
+              const weight = parseFloat(stock.weight || '0');
+              const positionValueCHF = (startCapital * weight) / 100;
+              
+              // Get current stock data
+              const dbStock = await getStockByTicker(ticker);
+              if (!dbStock || !dbStock.currentPrice) continue;
+              
+              const currentPrice = parseFloat(dbStock.currentPrice);
+              const currency = dbStock.currency || 'CHF';
+              
+              // Convert price to CHF
+              const priceCHF = currency === 'CHF' 
+                ? currentPrice 
+                : await convertToCHF(currentPrice, currency, todayStr);
+              
+              // Calculate number of shares
+              const shares = positionValueCHF / priceCHF;
+              
+              // Create buy transaction (Eingang)
+              await createPortfolioTransaction({
+                portfolioId: input.id,
+                transactionType: 'buy',
+                ticker: ticker,
+                shares: shares.toFixed(6),
+                pricePerShare: currentPrice.toFixed(2),
+                currency: currency,
+                totalAmount: positionValueCHF.toFixed(2),
+                totalAmountCHF: positionValueCHF.toFixed(2),
+                fees: '0',
+                transactionDate: new Date(),
+                notes: 'Automatischer Eingang bei Live-Aktivierung',
+              });
+              
+              totalPositionValue += positionValueCHF;
+            }
+            
+            // Create deposit transaction for remaining cash (Liquidität)
+            const cashBalance = startCapital - totalPositionValue;
+            if (cashBalance > 0) {
+              await createPortfolioTransaction({
+                portfolioId: input.id,
+                transactionType: 'deposit',
+                ticker: null,
+                shares: null,
+                pricePerShare: null,
+                currency: 'CHF',
+                totalAmount: cashBalance.toFixed(2),
+                totalAmountCHF: cashBalance.toFixed(2),
+                fees: '0',
+                transactionDate: new Date(),
+                notes: 'Liquiditätskonto (Differenz zu Investitionssumme)',
+              });
+            }
+          } catch (error) {
+            console.error('[toggleLive] Error creating initial transactions:', error);
+            throw new Error('Failed to create initial transactions for live tracking');
+          }
+        }
+        
+        // Update portfolio
+        const result = await updateSavedPortfolio(input.id, ctx.user.id, {
+          isLive: isLiveValue,
+          liveStartDate: liveStartDate,
+        });
+        
+        return { success: true, portfolio: result };
+      }),
+
+    // Get realized gains/losses for a portfolio
+    getRealizedGains: protectedProcedure
+      .input(z.object({ portfolioId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const { getDb } = await import("../db");
+        const { realizedGains } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        
+        const db = await getDb();
+        if (!db) return [];
+        
+        const gains = await db.select().from(realizedGains)
+          .where(eq(realizedGains.portfolioId, input.portfolioId))
+          .orderBy(realizedGains.transactionDate);
+        
+        return gains;
+      }),
+
     // Get holdings with CHF performance for a portfolio
     getHoldingsWithChfPerformance: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))

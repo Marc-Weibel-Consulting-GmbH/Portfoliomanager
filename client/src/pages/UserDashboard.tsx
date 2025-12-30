@@ -227,8 +227,19 @@ export default function UserDashboard() {
                     <div className="bg-[#0f1420]/50 border border-white/10 rounded-lg p-4 hover:border-[#00CFC1]/50 transition-all cursor-pointer">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <div className="text-[#00CFC1] font-semibold text-lg mb-1">
-                            {portfolio.name}
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="text-[#00CFC1] font-semibold text-lg">
+                              {portfolio.name}
+                            </div>
+                            {portfolio.isLive ? (
+                              <Badge variant="default" className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30">
+                                Live
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-gray-600 text-gray-400">
+                                Test
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-sm text-gray-400">Performance</div>
                         </div>

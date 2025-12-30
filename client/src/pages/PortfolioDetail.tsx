@@ -3,12 +3,31 @@ import { useRoute, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, PieChart, Activity, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
 export default function PortfolioDetail() {
   const [, params] = useRoute<{ id: string }>("/portfolio/:id");
   const portfolioId = params?.id ? parseInt(params.id) : null;
+  
+  // Edit position modal state
+  const [isEditPositionOpen, setIsEditPositionOpen] = useState(false);
+  const [editingPosition, setEditingPosition] = useState<any>(null);
+  const [editShares, setEditShares] = useState("");
+  const [editEntryPrice, setEditEntryPrice] = useState("");
 
   // Fetch portfolio details
   const { data: portfolios = [], isLoading: portfoliosLoading } = trpc.portfolios.list.useQuery();
@@ -16,6 +35,12 @@ export default function PortfolioDetail() {
 
   // Fetch transactions
   const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
+    { portfolioId: portfolioId! },
+    { enabled: !!portfolioId }
+  );
+
+  // Fetch realized gains
+  const { data: realizedGains = [] } = trpc.portfolios.getRealizedGains.useQuery(
     { portfolioId: portfolioId! },
     { enabled: !!portfolioId }
   );
@@ -147,16 +172,52 @@ export default function PortfolioDetail() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">{portfolio.name}</h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-3xl font-bold text-foreground">{portfolio.name}</h1>
+                {portfolio.isLive ? (
+                  <Badge variant="default" className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30">
+                    <Activity className="w-3 h-3 mr-1" />
+                    Live
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-gray-600 text-gray-400">
+                    Test
+                  </Badge>
+                )}
+              </div>
               <p className="text-muted-foreground text-sm mt-1">
                 {portfolioData.length} Position{portfolioData.length !== 1 ? 'en' : ''}
               </p>
             </div>
           </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="live-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                Live-Tracking
+              </Label>
+              <Switch 
+                id="live-toggle"
+                checked={portfolio.isLive === 1}
+                onCheckedChange={async (checked) => {
+                  try {
+                    await trpc.portfolios.toggleLive.mutate({ 
+                      id: portfolioId!, 
+                      isLive: checked 
+                    });
+                    toast.success(checked ? 'Live-Tracking aktiviert' : 'Live-Tracking deaktiviert');
+                    // Refetch portfolio data
+                    window.location.reload();
+                  } catch (error) {
+                    toast.error('Fehler beim Aktualisieren des Live-Status');
+                  }
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card className="border-border/50">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-normal text-muted-foreground flex items-center gap-2">
@@ -218,6 +279,34 @@ export default function PortfolioDetail() {
               </p>
             </CardContent>
           </Card>
+
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-normal text-muted-foreground flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Realisierte Gewinne
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {realizedGains.length > 0 ? (
+                <>
+                  <p className={`text-2xl font-bold ${
+                    realizedGains.reduce((sum, g) => sum + parseFloat(g.realizedGain || '0'), 0) >= 0 
+                      ? 'text-green-500' 
+                      : 'text-red-500'
+                  }`}>
+                    {realizedGains.reduce((sum, g) => sum + parseFloat(g.realizedGain || '0'), 0) >= 0 ? '+' : ''}
+                    CHF {Math.abs(realizedGains.reduce((sum, g) => sum + parseFloat(g.realizedGain || '0'), 0)).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {realizedGains.length} Transaktion{realizedGains.length !== 1 ? 'en' : ''}
+                  </p>
+                </>
+              ) : (
+                <p className="text-2xl font-bold text-muted-foreground">-</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Holdings Table */}
@@ -237,6 +326,7 @@ export default function PortfolioDetail() {
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Wert</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Performance</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Dividende</th>
+                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Aktionen</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -271,6 +361,20 @@ export default function PortfolioDetail() {
                       </td>
                       <td className="text-right py-3 px-4 text-green-500">
                         {position.dividendYield.toFixed(2)}%
+                      </td>
+                      <td className="text-right py-3 px-4">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingPosition(position);
+                            setEditShares(position.shares.toString());
+                            setEditEntryPrice(position.avgBuyPrice.toString());
+                            setIsEditPositionOpen(true);
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -307,6 +411,89 @@ export default function PortfolioDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Position Dialog */}
+      <Dialog open={isEditPositionOpen} onOpenChange={setIsEditPositionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Position bearbeiten</DialogTitle>
+            <DialogDescription>
+              Bearbeiten Sie die Anzahl Aktien und den Einstandspreis für {editingPosition?.ticker}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-shares">Anzahl Aktien</Label>
+              <Input
+                id="edit-shares"
+                type="number"
+                step="0.01"
+                value={editShares}
+                onChange={(e) => setEditShares(e.target.value)}
+                placeholder="z.B. 10.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-entry-price">Einstandspreis (CHF)</Label>
+              <Input
+                id="edit-entry-price"
+                type="number"
+                step="0.01"
+                value={editEntryPrice}
+                onChange={(e) => setEditEntryPrice(e.target.value)}
+                placeholder="z.B. 150.00"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditPositionOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!editingPosition || !portfolioId) return;
+                
+                try {
+                  // Calculate the difference and create adjustment transactions
+                  const currentShares = editingPosition.shares;
+                  const newShares = parseFloat(editShares);
+                  const sharesDiff = newShares - currentShares;
+                  
+                  const newEntryPrice = parseFloat(editEntryPrice);
+                  
+                  if (sharesDiff !== 0) {
+                    // Create buy or sell transaction to adjust shares
+                    const transactionType = sharesDiff > 0 ? 'buy' : 'sell';
+                    const absShares = Math.abs(sharesDiff);
+                    
+                    await trpc.portfolioTransactions.create.mutate({
+                      portfolioId: portfolioId,
+                      transactionType: transactionType,
+                      ticker: editingPosition.ticker,
+                      shares: absShares.toString(),
+                      pricePerShare: newEntryPrice.toString(),
+                      currency: 'CHF',
+                      totalAmount: (absShares * newEntryPrice).toString(),
+                      totalAmountCHF: (absShares * newEntryPrice).toString(),
+                      fees: '0',
+                      transactionDate: new Date(),
+                      notes: 'Manuelle Anpassung der Position',
+                    });
+                  }
+                  
+                  toast.success('Position erfolgreich aktualisiert');
+                  setIsEditPositionOpen(false);
+                  window.location.reload();
+                } catch (error) {
+                  toast.error('Fehler beim Aktualisieren der Position');
+                }
+              }}
+            >
+              Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
