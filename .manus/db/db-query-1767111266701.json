@@ -1,0 +1,80 @@
+{
+  "query": "\nSELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count,\n  DATEDIFF(MAX(date), MIN(date)) as days_covered\nFROM historical_prices\nGROUP BY ticker\nORDER BY price_count DESC\nLIMIT 10;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute \nSELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count,\n  DATEDIFF(MAX(date), MIN(date)) as days_covered\nFROM historical_prices\nGROUP BY ticker\nORDER BY price_count DESC\nLIMIT 10;\n",
+  "rows": [
+    {
+      "ticker": "MC.PA",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "765",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "SU.PA",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "765",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "SIE.XETRA",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "762",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "NVDA",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "CSL",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "ACWI",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "ACWI.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "MOH",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "RMD",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751",
+      "days_covered": "1095"
+    },
+    {
+      "ticker": "VTI",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751",
+      "days_covered": "1095"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest_date\tlatest_date\tprice_count\tdays_covered\nMC.PA\t2022-12-30\t2025-12-29\t765\t1095\nSU.PA\t2022-12-30\t2025-12-29\t765\t1095\nSIE.XETRA\t2022-12-30\t2025-12-29\t762\t1095\nNVDA\t2022-12-30\t2025-12-29\t751\t1095\nCSL\t2022-12-30\t2025-12-29\t751\t1095\nACWI\t2022-12-30\t2025-12-29\t751\t1095\nACWI.US\t2022-12-30\t2025-12-29\t751\t1095\nMOH\t2022-12-30\t2025-12-29\t751\t1095\nRMD\t2022-12-30\t2025-12-29\t751\t1095\nVTI\t2022-12-30\t2025-12-29\t751\t1095\n",
+  "stderr": "",
+  "execution_time_ms": 1575
+}

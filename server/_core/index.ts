@@ -17,6 +17,7 @@ import { initDividendCaptureJob } from "../dividendCaptureJob";
 import { initFxRatesCron } from "../fxRatesFetchJob";
 import { initTransactionFxUpdateCron } from "../transactionFxUpdateJob";
 import { initHistoricalPricesCron } from "../cron/historicalPricesCron";
+import { checkDatabaseHealth } from "./dbHealthcheck";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -224,8 +225,12 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
+  server.listen(port, async () => {
     console.log(`Server running on http://localhost:${port}/`);
+    
+    // Run database healthcheck (dev only)
+    await checkDatabaseHealth();
+    
     // Start price updater
     startPriceUpdater().catch(console.error);
     // Chart data updater disabled to prevent memory leaks

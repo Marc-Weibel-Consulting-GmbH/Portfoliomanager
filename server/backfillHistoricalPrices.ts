@@ -93,8 +93,8 @@ async function storeHistoricalPrices(
   // Prepare batch insert data
   const insertData = prices.map((price) => ({
     ticker: normalizedTicker,
-    date: price.date,
-    close: price.close.toString(),
+    date: price.date, // Keep as string (YYYY-MM-DD format)
+    close: price.close.toString(), // Keep as string, Drizzle will convert to decimal
     source: "eodhd" as const,
   }));
 

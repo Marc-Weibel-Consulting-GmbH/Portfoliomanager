@@ -1,0 +1,130 @@
+{
+  "query": "\nSELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count\nFROM historical_prices\nGROUP BY ticker\nORDER BY price_count DESC\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute \nSELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count\nFROM historical_prices\nGROUP BY ticker\nORDER BY price_count DESC\nLIMIT 20;\n",
+  "rows": [
+    {
+      "ticker": "MC.PA",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "765"
+    },
+    {
+      "ticker": "SU.PA",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "765"
+    },
+    {
+      "ticker": "SIE.XETRA",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "762"
+    },
+    {
+      "ticker": "MSTR.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "ANET",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "XLE",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "SLV.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "PLTR",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "ACWI.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "VWO.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "MOH",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "SNPS",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "BRK-B",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "HIMS",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "SPY.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "BND",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "ACWI",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "XLV",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "VTI.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    },
+    {
+      "ticker": "CSL",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-29",
+      "price_count": "751"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest_date\tlatest_date\tprice_count\nMC.PA\t2022-12-30\t2025-12-29\t765\nSU.PA\t2022-12-30\t2025-12-29\t765\nSIE.XETRA\t2022-12-30\t2025-12-29\t762\nMSTR.US\t2022-12-30\t2025-12-29\t751\nANET\t2022-12-30\t2025-12-29\t751\nXLE\t2022-12-30\t2025-12-29\t751\nSLV.US\t2022-12-30\t2025-12-29\t751\nPLTR\t2022-12-30\t2025-12-29\t751\nACWI.US\t2022-12-30\t2025-12-29\t751\nVWO.US\t2022-12-30\t2025-12-29\t751\nMOH\t2022-12-30\t2025-12-29\t751\nSNPS\t2022-12-30\t2025-12-29\t751\nBRK-B\t2022-12-30\t2025-12-29\t751\nHIMS\t2022-12-30\t2025-12-29\t751\nSPY.US\t2022-12-30\t2025-12-29\t751\nBND\t2022-12-30\t2025-12-29\t751\nACWI\t2022-12-30\t2025-12-29\t751\nXLV\t2022-12-30\t2025-12-29\t751\nVTI.US\t2022-12-30\t2025-12-29\t751\nCSL\t2022-12-30\t2025-12-29\t751\n",
+  "stderr": "",
+  "execution_time_ms": 1648
+}

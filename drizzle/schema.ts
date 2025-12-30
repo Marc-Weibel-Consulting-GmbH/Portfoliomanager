@@ -1,4 +1,4 @@
-import { date, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, tinyint, varchar } from "drizzle-orm/mysql-core";
+import { date, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -396,20 +396,24 @@ export type AnalyzerReport = typeof analyzerReports.$inferSelect;
 export type InsertAnalyzerReport = typeof analyzerReports.$inferInsert;
 
 // Historical prices cache table - stores daily closing prices for chart performance
-export const historicalPrices = mysqlTable("historicalPrices", {
+export const historicalPrices = mysqlTable("historical_prices", {
   id: int("id").autoincrement().primaryKey(),
   ticker: varchar("ticker", { length: 50 }).notNull(),
   date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
-  close: varchar("close", { length: 50 }).notNull(), // Store as string for precision
-  source: varchar("source", { length: 50 }).notNull().default("yahoo"), // "yahoo", "eodhd", "manual"
+  close: decimal("close", { precision: 20, scale: 6 }).notNull(), // Decimal for precision
+  currency: varchar("currency", { length: 10 }), // Optional: USD, CHF, EUR, etc.
+  source: varchar("source", { length: 50 }).notNull().default("eodhd"), // "eodhd", "yahoo", "manual"
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({
+  tickerDateUnique: unique("uq_historical_prices_ticker_date").on(t.ticker, t.date),
   tickerDateIdx: index("ix_historical_prices_ticker_date").on(t.ticker, t.date),
 }));
 
 export type HistoricalPrice = typeof historicalPrices.$inferSelect;
 export type InsertHistoricalPrice = typeof historicalPrices.$inferInsert;
+
+// Note: Table name is 'historical_prices' (snake_case) to follow MySQL conventions
 
 
 // App secrets table for encrypted storage of API keys and credentials

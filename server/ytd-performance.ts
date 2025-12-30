@@ -74,7 +74,7 @@ async function cachePrices(ticker: string, prices: DailyPrice[], source: string 
         .insert(historicalPrices)
         .values({
           ticker,
-          date: price.date,
+          date: price.date, // Keep as string (YYYY-MM-DD format)
           close: price.close.toString(),
           source,
         })

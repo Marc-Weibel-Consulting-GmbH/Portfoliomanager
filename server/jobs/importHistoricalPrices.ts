@@ -1,6 +1,6 @@
 import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { historicalPrices, transactions } from "../../drizzle/schema";
+import { historicalPrices, transactions, savedPortfolios } from "../../drizzle/schema";
 
 /**
  * Batch job to import historical prices from EODHD API
@@ -55,7 +55,7 @@ async function fetchHistoricalPrices(
 }
 
 /**
- * Get all unique tickers from user transactions
+ * Get all unique tickers from user transactions AND portfolio holdings
  */
 async function getUniqueTickers(): Promise<string[]> {
   const db = await getDb();
@@ -63,13 +63,48 @@ async function getUniqueTickers(): Promise<string[]> {
     throw new Error("Database not available");
   }
 
-  const result = await db
+  // Get tickers from transactions
+  const transactionTickers = await db
     .select({ ticker: transactions.ticker })
     .from(transactions)
     .where(sql`${transactions.ticker} IS NOT NULL AND ${transactions.ticker} != ''`)
     .groupBy(transactions.ticker);
 
-  return result.map((r) => r.ticker).filter((t): t is string => !!t);
+  // Get tickers from portfolio holdings (stored in portfolioData JSON)
+  const portfolios = await db
+    .select({ portfolioData: savedPortfolios.portfolioData })
+    .from(savedPortfolios)
+    .where(sql`${savedPortfolios.portfolioData} IS NOT NULL`);
+
+  const portfolioTickers = new Set<string>();
+  for (const portfolio of portfolios) {
+    if (portfolio.portfolioData) {
+      try {
+        const data = typeof portfolio.portfolioData === 'string' 
+          ? JSON.parse(portfolio.portfolioData) 
+          : portfolio.portfolioData;
+        
+        // portfolioData contains { stocks: [...] }
+        if (data && Array.isArray(data.stocks)) {
+          data.stocks.forEach((stock: any) => {
+            if (stock.ticker) {
+              portfolioTickers.add(stock.ticker);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('[importHistoricalPrices] Error parsing portfolio data:', error);
+      }
+    }
+  }
+
+  // Combine both sources and deduplicate
+  const allTickers = new Set<string>([
+    ...transactionTickers.map((r) => r.ticker).filter((t): t is string => !!t),
+    ...Array.from(portfolioTickers)
+  ]);
+
+  return Array.from(allTickers);
 }
 
 /**
