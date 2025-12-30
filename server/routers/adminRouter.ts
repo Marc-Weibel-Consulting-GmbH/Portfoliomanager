@@ -1,6 +1,8 @@
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { importHistoricalPrices, importHistoricalPricesForTicker } from "../jobs/importHistoricalPrices";
+import { checkPriceCoverage, getRelevantTickersForPortfolio, getAllPortfolioTickers } from "../priceCoverage";
+import { backfillHistoricalPrices } from "../backfillHistoricalPrices";
 
 export const adminRouter = router({
     exportData: protectedProcedure.query(async () => {
@@ -279,5 +281,122 @@ export const adminRouter = router({
         
         const result = await importHistoricalPricesForTicker(input.ticker, input.fromDate, input.toDate);
         return result;
+      }),
+
+    /**
+     * Check price coverage for specified tickers
+     * Useful for debugging missing historical price data
+     */
+    priceCoverage: protectedProcedure
+      .input(z.object({
+        tickers: z.array(z.string()).optional(),
+        portfolioId: z.number().optional(),
+        from: z.string().optional(),
+        to: z.string().optional()
+      }))
+      .query(async ({ ctx, input }) => {
+        // Only admin can check price coverage
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        let tickers: string[] = [];
+
+        // If portfolioId provided, get tickers from that portfolio
+        if (input.portfolioId) {
+          tickers = await getRelevantTickersForPortfolio(input.portfolioId);
+        }
+        // If tickers array provided, use that
+        else if (input.tickers && input.tickers.length > 0) {
+          tickers = input.tickers;
+        }
+        // Otherwise get all portfolio tickers
+        else {
+          tickers = await getAllPortfolioTickers();
+        }
+
+        if (tickers.length === 0) {
+          return {
+            tickers: [],
+            distinctTickerSample: [],
+            requestedRange: {
+              from: input.from || "2025-01-01",
+              to: input.to || new Date().toISOString().split('T')[0]
+            }
+          };
+        }
+
+        return await checkPriceCoverage(tickers, input.from, input.to);
+      }),
+
+    /**
+     * Backfill historical prices for specified tickers
+     * Admin-only operation to populate missing historical price data
+     */
+    backfillPrices: protectedProcedure
+      .input(z.object({
+        tickers: z.array(z.string()).optional(),
+        portfolioId: z.number().optional(),
+        from: z.string(),
+        to: z.string()
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Only admin can backfill prices
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        let tickers: string[] = [];
+
+        // If portfolioId provided, get tickers from that portfolio
+        if (input.portfolioId) {
+          tickers = await getRelevantTickersForPortfolio(input.portfolioId);
+        }
+        // If tickers array provided, use that
+        else if (input.tickers && input.tickers.length > 0) {
+          tickers = input.tickers;
+        }
+        // Otherwise get all portfolio tickers
+        else {
+          tickers = await getAllPortfolioTickers();
+        }
+
+        if (tickers.length === 0) {
+          throw new Error('No tickers found to backfill');
+        }
+
+        console.log(`[adminRouter.backfillPrices] Starting backfill for ${tickers.length} tickers`);
+
+        const result = await backfillHistoricalPrices(tickers, input.from, input.to);
+
+        return {
+          success: result.success,
+          summary: {
+            tickersProcessed: result.tickersProcessed,
+            pricesInserted: result.pricesInserted,
+            pricesUpdated: result.pricesUpdated,
+            missingTickers: result.missingTickers,
+            errorCount: result.errors.length
+          },
+          errors: result.errors.slice(0, 10) // Return first 10 errors only
+        };
+      }),
+
+    /**
+     * Get all portfolio tickers
+     * Useful for seeing what tickers are in use across all portfolios
+     */
+    getAllTickers: protectedProcedure
+      .query(async ({ ctx }) => {
+        // Only admin can get all tickers
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        const tickers = await getAllPortfolioTickers();
+        return {
+          tickers,
+          count: tickers.length
+        };
       }),
 });

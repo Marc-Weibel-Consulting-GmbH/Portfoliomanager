@@ -14,6 +14,9 @@ import { getDb } from "./db";
 import { historicalPrices, stocks } from "../drizzle/schema";
 import { and, eq, gte, lte, asc } from "drizzle-orm";
 import { convertToCHF } from "./fxHelper";
+import { checkPriceCoverage } from "./priceCoverage";
+import { backfillHistoricalPrices } from "./backfillHistoricalPrices";
+import { normalizeTickerForDb } from "./tickerNormalization";
 
 export interface WeightedPosition {
   ticker: string;
@@ -53,6 +56,44 @@ export async function getHypotheticalSeriesFromWeights(
   if (weights.length === 0) {
     console.warn(`[HypotheticalPerformance] No weights provided, returning empty series`);
     return [];
+  }
+
+  // Check price coverage and trigger backfill if needed
+  const tickers = weights.map(w => normalizeTickerForDb(w.ticker));
+  console.log(`[HypotheticalPerformance] Checking price coverage for ${tickers.length} tickers...`);
+  
+  try {
+    const coverage = await checkPriceCoverage(tickers, startDate, endDate);
+    
+    // Check if any ticker has insufficient data
+    const insufficientTickers = coverage.tickers.filter(t => {
+      const hasInsufficientData = t.rowsInRange < 10;
+      const startsLate = t.minDate && t.minDate > startDate;
+      return hasInsufficientData || startsLate;
+    });
+
+    if (insufficientTickers.length > 0) {
+      console.warn(`[HypotheticalPerformance] Insufficient price data for ${insufficientTickers.length} tickers:`, 
+        insufficientTickers.map(t => `${t.ticker} (${t.rowsInRange} rows, min: ${t.minDate})`));
+      
+      // Trigger backfill for missing tickers
+      const tickersToBackfill = insufficientTickers.map(t => t.ticker);
+      console.log(`[HypotheticalPerformance] Triggering backfill for ${tickersToBackfill.length} tickers...`);
+      
+      // In production, this should be async/queued. For now, we'll await it.
+      const backfillResult = await backfillHistoricalPrices(tickersToBackfill, startDate, endDate);
+      
+      if (backfillResult.success && backfillResult.pricesInserted > 0) {
+        console.log(`[HypotheticalPerformance] Backfill completed: ${backfillResult.pricesInserted} prices inserted`);
+      } else {
+        console.warn(`[HypotheticalPerformance] Backfill failed or no new data:`, backfillResult.errors);
+      }
+    } else {
+      console.log(`[HypotheticalPerformance] Price coverage OK for all tickers`);
+    }
+  } catch (error) {
+    console.error(`[HypotheticalPerformance] Error checking price coverage:`, error);
+    // Continue with calculation even if coverage check fails
   }
 
   const totalWeight = weights.reduce((sum, w) => sum + w.weight, 0);

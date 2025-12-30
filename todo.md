@@ -1569,3 +1569,22 @@
   - Issue: When all holdings have avgCostCHF = 0, the performance calculation results in NaN
   - Impact: Confusing display for users, should show CHF 0.00 or handle the case gracefully
   - Fix: Added check to return 0 when totalInvestedCHF is 0
+
+
+## Price Data Availability Fix (Hypothetical Performance) - Dec 30, 2025
+
+### Backend Implementation
+- [x] Implement ticker normalization utilities (normalizeTickerForDb)
+- [x] Implement getRelevantTickersForPortfolio function (union transactions + holdings tickers)
+- [x] Implement price coverage debug endpoint (priceCoverage) with min/max/count/distinctTickerSample
+- [x] Implement backfillHistoricalPrices function with chunking (90 days per call)
+- [x] Add admin.backfillPrices mutation (admin-only)
+- [x] Add on-demand coverage check in hypothetical performance path
+- [x] Trigger backfill when rowsInRange < 10 or minDate > ytdStartDate
+
+### Testing
+- [x] Write vitest tests for price coverage functionality
+- [x] Write vitest tests for ticker normalization
+- [x] Write vitest tests for getRelevantTickersForPortfolio
+- [x] Test price data availability for Jan-Nov 2025 range
+- [x] Verify hypothetical performance never shows empty due to missing prices
