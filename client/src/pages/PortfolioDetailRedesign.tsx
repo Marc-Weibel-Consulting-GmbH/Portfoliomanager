@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, TrendingUp, TrendingDown, Play } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Play, Share2, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -44,6 +44,8 @@ export default function PortfolioDetailRedesign() {
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
   const [startCapital, setStartCapital] = useState("");
   const [selectedBenchmark, setSelectedBenchmark] = useState<"SMI" | "SP500" | "MSCI_WORLD">("SMI");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const utils = trpc.useUtils();
 
@@ -92,26 +94,14 @@ export default function PortfolioDetailRedesign() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-8">
-        <div className="text-center">Lädt Portfolio-Details...</div>
-      </div>
-    );
-  }
+  // Extract data safely for hooks (must be before any early returns)
+  const portfolio = portfolioDetails?.portfolio;
+  const holdings = portfolioDetails?.holdings;
+  const transactions = portfolioDetails?.transactions;
+  const metrics = portfolioDetails?.metrics;
+  const isLive = portfolio?.status === "live";
 
-  if (!portfolioDetails) {
-    return (
-      <div className="container mx-auto py-8">
-        <div className="text-center">Portfolio nicht gefunden</div>
-      </div>
-    );
-  }
-
-  const { portfolio, holdings, transactions, metrics } = portfolioDetails;
-  const isLive = portfolio.status === "live";
-
-  // Prepare chart data for performance
+  // Prepare chart data for performance (must be before early returns)
   const performanceChartData = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
 
@@ -132,7 +122,7 @@ export default function PortfolioDetailRedesign() {
     return Object.values(dataByDate).sort((a, b) => a.date.localeCompare(b.date));
   }, [transactions]);
 
-  // Prepare asset allocation data
+  // Prepare asset allocation data (must be before early returns)
   const allocationData = useMemo(() => {
     if (!holdings || holdings.length === 0) return [];
 
@@ -141,6 +131,104 @@ export default function PortfolioDetailRedesign() {
       value: parseFloat(holding.weight || "0"),
     }));
   }, [holdings]);
+
+  // Sort holdings based on selected column
+  const sortedHoldings = useMemo(() => {
+    if (!holdings || holdings.length === 0) return [];
+    if (!sortColumn) return holdings;
+
+    const sorted = [...holdings].sort((a: any, b: any) => {
+      let aVal, bVal;
+      
+      switch (sortColumn) {
+        case 'ticker':
+          aVal = a.ticker || '';
+          bVal = b.ticker || '';
+          return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'shares':
+          aVal = parseFloat(a.shares || a.quantity || '0');
+          bVal = parseFloat(b.shares || b.quantity || '0');
+          break;
+        case 'weight':
+          aVal = parseFloat(a.weight || '0');
+          bVal = parseFloat(b.weight || '0');
+          break;
+        case 'price':
+          aVal = parseFloat(a.currentPriceCHF || a.currentPrice || '0');
+          bVal = parseFloat(b.currentPriceCHF || b.currentPrice || '0');
+          break;
+        case 'ytd':
+          aVal = parseFloat(a.ytdPerformance || '0');
+          bVal = parseFloat(b.ytdPerformance || '0');
+          break;
+        case 'dividend':
+          aVal = parseFloat(a.dividendYield || '0');
+          bVal = parseFloat(b.dividendYield || '0');
+          break;
+        default:
+          return 0;
+      }
+      
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    
+    return sorted;
+  }, [holdings, sortColumn, sortDirection]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/portfolio/${portfolioId}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: portfolio?.name || 'Mein Portfolio',
+          text: `Schau dir mein Portfolio an: ${portfolio?.name}`,
+          url: shareUrl,
+        });
+        toast.success('Portfolio geteilt!');
+      } catch (error) {
+        // User cancelled or error occurred
+        if ((error as Error).name !== 'AbortError') {
+          copyToClipboard(shareUrl);
+        }
+      }
+    } else {
+      copyToClipboard(shareUrl);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success('Link in Zwischenablage kopiert!');
+    }).catch(() => {
+      toast.error('Fehler beim Kopieren');
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="text-center">Lädt Portfolio-Details...</div>
+      </div>
+    );
+  }
+
+  if (!portfolioDetails || !portfolio) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="text-center">Portfolio nicht gefunden</div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -159,6 +247,10 @@ export default function PortfolioDetailRedesign() {
           <Badge variant={isLive ? "default" : "secondary"}>
             {isLive ? "Live" : "Geplant"}
           </Badge>
+          <Button variant="outline" onClick={handleShare} className="gap-2">
+            <Share2 className="h-4 w-4" />
+            Teilen
+          </Button>
           {!isLive && (
             <Button onClick={() => setIsActivationModalOpen(true)} className="gap-2">
               <Play className="h-4 w-4" />
@@ -206,7 +298,7 @@ export default function PortfolioDetailRedesign() {
 
       {/* Key Metrics */}
       {isLive && metrics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -253,6 +345,28 @@ export default function PortfolioDetailRedesign() {
               <div className="text-2xl font-bold">{metrics.sharpeRatio}</div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Volatilität
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.volatility ? `${metrics.volatility}%` : 'N/A'}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Div. Rendite
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.dividendYield ? `${metrics.dividendYield}%` : 'N/A'}</div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -267,46 +381,87 @@ export default function PortfolioDetailRedesign() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Aktie</TableHead>
-                  <TableHead className="text-right">Gewichtung</TableHead>
-                  <TableHead className="text-right">Aktueller Preis</TableHead>
-                  {isLive && <TableHead className="text-right">Anteile</TableHead>}
-                  {isLive && <TableHead className="text-right">Wert (CHF)</TableHead>}
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('ticker')}>
+                    <div className="flex items-center gap-1">
+                      Aktie
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('shares')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Stückzahl
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('weight')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Gewicht
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Kurs (Lokal)</TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('price')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Kurs (CHF)
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('ytd')}>
+                    <div className="flex items-center justify-end gap-1">
+                      YTD
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('dividend')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Div. Rendite
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {holdings.map((holding: any) => (
-                  <TableRow key={holding.ticker} className="cursor-pointer hover:bg-muted/50">
-                    <TableCell>
-                      <Link href={`/stock/${holding.ticker}`}>
-                        <div className="flex items-center gap-2">
-                          <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
-                          <div>
-                            <div className="font-medium text-primary hover:underline">{holding.ticker}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {holding.companyName}
+                {sortedHoldings.map((holding: any) => {
+                  const shares = parseFloat(holding.shares || holding.quantity || "0");
+                  const currentPrice = parseFloat(holding.currentPrice || "0");
+                  const currentPriceCHF = parseFloat(holding.currentPriceCHF || holding.currentPrice || "0");
+                  const ytdPerformance = parseFloat(holding.ytdPerformance || "0");
+                  const dividendYield = parseFloat(holding.dividendYield || "0");
+                  
+                  return (
+                    <TableRow key={holding.ticker} className="cursor-pointer hover:bg-muted/50">
+                      <TableCell>
+                        <Link href={`/stock/${holding.ticker}`}>
+                          <div className="flex items-center gap-2">
+                            <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
+                            <div>
+                              <div className="font-medium text-primary hover:underline">{holding.ticker}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {holding.companyName}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-right">{holding.weight}%</TableCell>
-                    <TableCell className="text-right">
-                      {holding.currentPrice} {holding.currency}
-                    </TableCell>
-                    {isLive && (
-                      <>
-                        <TableCell className="text-right">{holding.shares || "0"}</TableCell>
-                        <TableCell className="text-right">
-                          {(
-                            parseFloat(holding.shares || "0") *
-                            parseFloat(holding.currentPrice || "0")
-                          ).toFixed(2)}
-                        </TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                ))}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {shares > 0 ? shares.toLocaleString('de-CH') : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">{holding.weight}%</TableCell>
+                      <TableCell className="text-right">
+                        {holding.currency || 'CHF'} {currentPrice.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        CHF {currentPriceCHF.toFixed(2)}
+                      </TableCell>
+                      <TableCell className={`text-right ${ytdPerformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {ytdPerformance >= 0 ? '+' : ''}{ytdPerformance.toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {dividendYield.toFixed(2)}%
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>

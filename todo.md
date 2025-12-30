@@ -1662,3 +1662,13 @@
 - [x] Integrate logo fetching into adminRouter (bulk update)
 - [x] Test logo fetching with various Swiss stocks (Nestlé, Novartis, Roche, etc.) - 19 unit tests passing
 - [ ] Ensure logos display correctly in all UI components (portfolio cards, holdings tables, alerts, etc.) - needs live testing
+
+## Bug Report (30.12.2025 - User Feedback)
+- [ ] BUG: Stückzahl (Anzahl Aktien) fehlt in der Portfolio-Detailansicht Positionstabelle - muss zwischen "Name" und "Gewicht" eingefügt werden
+
+## Portfolio Detail Redesign - Missing Features (30.12.2025)
+- [x] Add "Teilen" (Share) button to portfolio detail page
+- [x] Implement table sorting for holdings (by ticker, sector, category, weight, performance)
+- [x] Add Volatility metric display to key metrics section
+- [x] Add Dividend Yield metric display to key metrics section
+- [ ] Verify all metrics (IRR, Beta, Sharpe Ratio, Volatility) are calculated correctly on backend
