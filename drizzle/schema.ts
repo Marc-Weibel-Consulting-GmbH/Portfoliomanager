@@ -241,7 +241,10 @@ export const portfolioTransactions = mysqlTable("portfolioTransactions", {
   notes: text("notes"), // Optional user notes
   transactionDate: timestamp("transactionDate").notNull(), // Date of the transaction
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (t) => ({
+  portfolioIdIdx: index("ix_portfolio_transactions_portfolio_id").on(t.portfolioId),
+  tickerIdx: index("ix_portfolio_transactions_ticker").on(t.ticker),
+}));
 
 export type PortfolioTransaction = typeof portfolioTransactions.$inferSelect;
 export type InsertPortfolioTransaction = typeof portfolioTransactions.$inferInsert;

@@ -1438,3 +1438,8 @@
   - [x] Dashboard lädt erfolgreich mit Metriken und Live-Portfolios
   - [x] Portfolio-Detail lädt alle 13 Positionen mit Charts
 
+
+## Backend-Optimierungen (Dec 30, 2025)
+- [x] Backend-seitige Stock-Filterung: stocks.getByTickers Procedure
+- [x] Database Indexing: portfolioTransactions.portfolioId, stocks.ticker, historicalPrices.ticker+date
+- [x] Response Caching: tRPC Query-Caching mit staleTime
