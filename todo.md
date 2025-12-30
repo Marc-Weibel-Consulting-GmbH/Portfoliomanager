@@ -23,6 +23,13 @@
 - [x] Portfolio-Detailseite erscheint unter Dashboard statt unter Portfolios in der Sidebar
 - [x] Submenu in DashboardLayout einklappbar machen
 
+## New Bugs & Features (30.12.2025)
+- [x] Bug: YTD Performance-Berechnung überprüfen und korrigieren (seit 01.01.25) - FIXED: Added graceful fallback when historical data missing, logs warning
+- [x] Bug: Dividenden-Kalender zeigt 0 Aktien überall - FIXED: calendar endpoint now calculates holdings from transactions
+- [x] Feature: Cron-Job für automatische Alarm-Prüfung (täglich/stündlich) mit Email/WhatsApp Benachrichtigungen - COMPLETED: Runs every hour, sends Email/WhatsApp
+- [x] Feature: Performance-Chart im Dashboard mit echten historischen Daten - COMPLETED: Added dashboardPerformance.getHistoricalPerformance endpoint
+- [x] Feature: Ursprüngliche Investitionssumme anzeigen (Investiert vs. Aktueller Wert) - COMPLETED: Added totalInvested to dashboard metrics
+
 ## Registration Flow (New Requirement - Dec 26, 2025)
 - [x] Implement registration form after OAuth login
 - [x] Collect user information (name, email, investment goals, risk tolerance)

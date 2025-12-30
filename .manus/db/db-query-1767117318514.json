@@ -1,0 +1,16 @@
+{
+  "query": "SELECT MIN(date) as min_date, MAX(date) as max_date, COUNT(*) as total_count, COUNT(DISTINCT ticker) as ticker_count FROM historical_prices",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT MIN(date) as min_date, MAX(date) as max_date, COUNT(*) as total_count, COUNT(DISTINCT ticker) as ticker_count FROM historical_prices",
+  "rows": [
+    {
+      "min_date": "2022-12-30",
+      "max_date": "2025-12-29",
+      "total_count": "96648",
+      "ticker_count": "131"
+    }
+  ],
+  "messages": [],
+  "stdout": "min_date\tmax_date\ttotal_count\tticker_count\n2022-12-30\t2025-12-29\t96648\t131\n",
+  "stderr": "",
+  "execution_time_ms": 1559
+}

@@ -110,6 +110,7 @@ export const portfoliosRouter = router({
             // Calculate current value and YTD start value
             let currentValueCHF = 0;
             let ytdStartValueCHF = 0;
+            let hasHistoricalData = false;
             
             for (const [ticker, shares] of Object.entries(holdings)) {
               if (shares <= 0) continue;
@@ -121,21 +122,33 @@ export const portfoliosRouter = router({
               const currentPrice = parseFloat(stock.currentPrice || '0');
               
               // Get YTD start price from pre-loaded map
-              const ytdStartPrice = ytdPricesMap.get(ticker) || currentPrice;
+              const ytdStartPrice = ytdPricesMap.get(ticker);
               
-              // Convert to CHF (using cached FX rates)
-              const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-              const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
-              
-              currentValueCHF += shares * currentPriceCHF;
-              ytdStartValueCHF += shares * ytdStartPriceCHF;
+              // If we have historical data, use it; otherwise skip YTD calculation
+              if (ytdStartPrice) {
+                hasHistoricalData = true;
+                // Convert to CHF (using cached FX rates)
+                const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                
+                currentValueCHF += shares * currentPriceCHF;
+                ytdStartValueCHF += shares * ytdStartPriceCHF;
+              } else {
+                // No historical data - just calculate current value
+                const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                currentValueCHF += shares * currentPriceCHF;
+              }
             }
             
-            // Calculate YTD performance
-            const performanceCHF = currentValueCHF - ytdStartValueCHF;
-            const performancePercent = ytdStartValueCHF > 0 
-              ? (performanceCHF / ytdStartValueCHF) * 100 
-              : 0;
+            // Calculate YTD performance only if we have historical data
+            let performancePercent = 0;
+            if (hasHistoricalData && ytdStartValueCHF > 0) {
+              const performanceCHF = currentValueCHF - ytdStartValueCHF;
+              performancePercent = (performanceCHF / ytdStartValueCHF) * 100;
+            } else {
+              // No historical data available - log warning and return 0%
+              console.warn(`[Portfolio ${portfolio.id}] No historical price data for YTD calculation. Run admin.importHistoricalPrices to load data.`);
+            }
             
             // Count unique positions with shares > 0
             const positionCount = Object.values(holdings).filter(s => s > 0).length;

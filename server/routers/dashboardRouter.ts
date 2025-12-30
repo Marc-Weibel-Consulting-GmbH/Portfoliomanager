@@ -91,6 +91,7 @@ export const dashboardRouter = router({
     let totalValueCHF = 0;
     let totalValueYTDStartCHF = 0;
     let totalDividendsCHF = 0;
+    let totalInvestedCHF = 0;
     
     // Calculate metrics for each live portfolio (now all data is in memory)
     for (const portfolio of livePortfolios) {
@@ -151,6 +152,9 @@ export const dashboardRouter = router({
         
         portfolioValueCHF += holding.shares * currentPriceCHF;
         portfolioValueYTDStartCHF += holding.shares * ytdStartPriceCHF;
+        
+        // Add to total invested (cost basis of current holdings)
+        totalInvestedCHF += holding.totalInvestedCHF;
       }
       
       totalValueCHF += portfolioValueCHF;
@@ -165,6 +169,7 @@ export const dashboardRouter = router({
     
     return {
       totalValue: totalValueCHF,
+      totalInvested: totalInvestedCHF,
       totalPerformance: totalPerformanceCHF,
       totalPerformancePercent: totalPerformancePercent,
       totalDividends: totalDividendsCHF,

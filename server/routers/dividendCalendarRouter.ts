@@ -12,51 +12,60 @@ export const dividendCalendarRouter = router({
       throw new Error("Invalid portfolio ID");
     })
     .query(async ({ input, ctx }) => {
-      const { getDb } = await import("../db");
-      const { savedPortfolios } = await import("../../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
+      const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
+      const { getPortfolioDividends } = await import("../dividendCalendar");
       
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
-      // Fetch portfolio
-      const [portfolio] = await db
-        .select()
-        .from(savedPortfolios)
-        .where(eq(savedPortfolios.id, input.portfolioId))
-        .limit(1);
-
+      // Get portfolio
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
       if (!portfolio) {
         throw new Error("Portfolio not found");
       }
-
-      // Parse portfolio data
+      
+      // Parse portfolio data to get tickers and company names
       const portfolioData = JSON.parse(portfolio.portfolioData);
-      const stocks = portfolioData.stocks || [];
-
-      // Mock dividend data (in production, fetch from Finnhub or other API)
-      const today = new Date();
-      const dividends = stocks.map((stock: any, idx: number) => {
-        const exDate = new Date(today);
-        exDate.setDate(today.getDate() + (idx * 30)); // Spread over next 12 months
+      const tickers = portfolioData.map((stock: any) => stock.ticker);
+      
+      // Get actual holdings from transactions
+      const transactions = await getPortfolioTransactions(input.portfolioId);
+      const holdings: Record<string, number> = {};
+      
+      transactions.forEach((tx: any) => {
+        if (!holdings[tx.ticker]) {
+          holdings[tx.ticker] = 0;
+        }
+        const shares = parseFloat(tx.shares || '0');
+        if (tx.transactionType === 'buy') {
+          holdings[tx.ticker] += shares;
+        } else if (tx.transactionType === 'sell') {
+          holdings[tx.ticker] -= shares;
+        }
+      });
+      
+      // Fetch upcoming dividends (365 days ahead)
+      const dividends = await getPortfolioDividends(tickers, 365);
+      
+      // Enrich dividend data with company names and expected income
+      const enrichedDividends = dividends.map(div => {
+        const stock = portfolioData.find((s: any) => s.ticker.toUpperCase() === div.ticker.toUpperCase());
+        const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
         
-        const paymentDate = new Date(exDate);
-        paymentDate.setDate(exDate.getDate() + 14); // Payment 2 weeks after ex-date
+        // Convert to CHF if needed (simplified - would need real exchange rates)
+        const amountInCHF = div.currency === 'USD' ? div.amount * 0.88 : div.amount;
+        const expectedIncome = shares * amountInCHF;
         
         return {
-          ticker: stock.ticker,
-          companyName: stock.companyName,
-          exDate: exDate.toISOString(),
-          paymentDate: paymentDate.toISOString(),
-          dividendPerShare: (stock.dividendYield || 2) * stock.currentPrice / 100,
-          shares: stock.shares || 0,
-          expectedAmount: ((stock.dividendYield || 2) * stock.currentPrice / 100) * (stock.shares || 0)
+          ticker: div.ticker,
+          companyName: stock?.name || div.ticker,
+          exDate: div.exDividendDate,
+          paymentDate: div.paymentDate,
+          dividendPerShare: div.amount,
+          currency: div.currency,
+          shares,
+          expectedAmount: expectedIncome
         };
-      });
-
-      return dividends;
+      }).filter(div => div.shares > 0); // Only show dividends for stocks we own
+      
+      return enrichedDividends;
     }),
 
   getUpcoming: protectedProcedure

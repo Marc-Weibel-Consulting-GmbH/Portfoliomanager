@@ -28,6 +28,7 @@ import { autoPortfolioRouter } from "./routers/autoPortfolioRouter";
 import { fxRatesRouter } from "./routers/fxRatesRouter";
 import { portfolioManagementRouter } from "./routers/portfolioManagementRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
+import { dashboardPerformanceRouter } from "./routers/dashboardPerformanceRouter";
 import { newsRouter } from "./routers/newsRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -1119,6 +1120,7 @@ export const appRouter = router({
   chat: chatRouter,
 
   dashboard: dashboardRouter,
+  dashboardPerformance: dashboardPerformanceRouter,
   realizedGainsHistory: realizedGainsHistoryRouter,
   secrets: secretsRouter,
   testSecrets: testSecretsRouter,
