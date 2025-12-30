@@ -218,6 +218,7 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   isLive: tinyint("isLive").notNull().default(0), // 1 = Live tracking enabled, 0 = Test mode
   liveStartDate: timestamp("liveStartDate"), // Date when live tracking started
   livePerformance: varchar("livePerformance", { length: 50 }), // IRR/MWR performance (e.g., "12.5")
+  cashBalance: varchar("cashBalance", { length: 50 }).default("0"), // Current cash/liquidity balance in CHF
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -229,7 +230,7 @@ export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
 export const portfolioTransactions = mysqlTable("portfolioTransactions", {
   id: int("id").autoincrement().primaryKey(),
   portfolioId: int("portfolioId").notNull(), // References savedPortfolios.id
-  transactionType: mysqlEnum("transactionType", ["buy", "sell", "dividend", "deposit", "withdrawal"]).notNull(),
+  transactionType: mysqlEnum("transactionType", ["buy", "sell", "dividend", "deposit", "withdrawal", "entry"]).notNull(),
   ticker: varchar("ticker", { length: 50 }), // null for deposit/withdrawal
   shares: varchar("shares", { length: 50 }), // Number of shares (for buy/sell)
   pricePerShare: varchar("pricePerShare", { length: 50 }), // Price per share in original currency

@@ -39,6 +39,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PortfolioEditModal } from "@/components/PortfolioEditModal";
+import { EditPositionModal } from "@/components/EditPositionModal";
 
 const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   dividends: { label: "Dividenden", icon: <DollarSign className="h-4 w-4" />, color: "bg-blue-500" },
@@ -68,6 +69,26 @@ export default function PortfolioDetailsPage() {
   
   // State for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPosition, setEditingPosition] = useState<any>(null);
+  const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
+  
+  // Fetch transactions for edit modal
+  const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
+    { portfolioId },
+    { enabled: portfolioId > 0 }
+  );
+  
+  const handleEditPosition = (holding: any) => {
+    setEditingPosition({
+      ticker: holding.ticker,
+      name: holding.companyName,
+      shares: holding.shares || 0,
+      avgBuyPrice: holding.currentPriceLocal,
+      currency: holding.currency,
+      totalInvestedCHF: holding.valueCHF
+    });
+    setIsEditPositionModalOpen(true);
+  };
   
   // Fetch portfolio data with currency information
   const { data: portfolio, isLoading, refetch } = trpc.portfolios.getWithCurrency.useQuery(
@@ -497,11 +518,13 @@ export default function PortfolioDetailsPage() {
                       <tr className="text-gray-400">
                         <th className="text-left p-3">Ticker</th>
                         <th className="text-left p-3">Name</th>
+                        <th className="text-right p-3">Anzahl</th>
                         <th className="text-right p-3">Gewicht</th>
                         <th className="text-right p-3">Kurs (Lokal)</th>
                         <th className="text-right p-3">Kurs (CHF)</th>
                         <th className="text-right p-3">YTD</th>
                         <th className="text-right p-3">Div. Rendite</th>
+                        <th className="text-right p-3">Aktionen</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -515,6 +538,9 @@ export default function PortfolioDetailsPage() {
                             </Link>
                           </td>
                           <td className="p-3 text-gray-300">{holding.companyName}</td>
+                          <td className="text-right p-3 text-white">
+                            {holding.shares ? parseFloat(holding.shares).toFixed(2) : '-'}
+                          </td>
                           <td className="text-right p-3">
                             <Badge variant="outline">{parseFloat(holding.weight || '0').toFixed(2)}%</Badge>
                           </td>
@@ -538,6 +564,16 @@ export default function PortfolioDetailsPage() {
                           </td>
                           <td className="text-right p-3 text-gray-300">
                             {parseFloat(holding.dividendYield || '0').toFixed(2)}%
+                          </td>
+                          <td className="text-right p-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[#00CFC1] hover:bg-[#00CFC1]/10"
+                              onClick={() => handleEditPosition(holding)}
+                            >
+                              Bearbeiten
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -678,6 +714,18 @@ export default function PortfolioDetailsPage() {
         initialStocks={stocksForEdit}
         isLive={portfolio.isLive === 1}
         onSuccess={handleEditSuccess}
+      />
+      
+      <EditPositionModal
+        open={isEditPositionModalOpen}
+        onClose={() => setIsEditPositionModalOpen(false)}
+        portfolioId={portfolioId}
+        position={editingPosition}
+        transactions={transactions}
+        onSuccess={() => {
+          refetch();
+          setIsEditPositionModalOpen(false);
+        }}
       />
     </DashboardLayout>
   );

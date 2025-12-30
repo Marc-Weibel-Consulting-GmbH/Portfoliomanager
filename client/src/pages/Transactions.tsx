@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,13 @@ type TransactionType = "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
 
 export default function Transactions() {
   const params = useParams();
-  const portfolioId = parseInt(params.id || "0");
+  const urlPortfolioId = parseInt(params.id || "0");
+  
+  // Portfolio selection state
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<number>(urlPortfolioId);
+  
+  // Use selected portfolio ID (from dropdown or URL)
+  const portfolioId = selectedPortfolioId || urlPortfolioId;
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -65,8 +71,16 @@ export default function Transactions() {
   });
 
   // Queries
-  const { data: portfolio } = trpc.portfolios.getById.useQuery({ portfolioId });
-  const { data: allTransactions = [], refetch } = trpc.portfolioTransactions.list.useQuery({ portfolioId });
+  const { data: allPortfolios = [] } = trpc.portfolios.list.useQuery();
+  const { data: portfolio } = trpc.portfolios.getById.useQuery({ portfolioId }, { enabled: portfolioId > 0 });
+  const { data: allTransactions = [], refetch } = trpc.portfolioTransactions.list.useQuery({ portfolioId }, { enabled: portfolioId > 0 });
+  
+  // Set default portfolio if none selected
+  useEffect(() => {
+    if (!selectedPortfolioId && allPortfolios.length > 0) {
+      setSelectedPortfolioId(allPortfolios[0].id);
+    }
+  }, [allPortfolios, selectedPortfolioId]);
 
   // Mutations
   const createMutation = trpc.portfolioTransactions.create.useMutation({
@@ -322,9 +336,36 @@ export default function Transactions() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold">{portfolio?.name || "Portfolio"}</h1>
+            <h1 className="text-3xl font-bold">Transaktionen</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <Label htmlFor="portfolio-select" className="text-sm text-muted-foreground">Portfolio:</Label>
+            <Select
+              value={selectedPortfolioId?.toString() || ""}
+              onValueChange={(value) => setSelectedPortfolioId(parseInt(value))}
+            >
+              <SelectTrigger id="portfolio-select" className="w-[300px]">
+                <SelectValue placeholder="Portfolio auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {allPortfolios.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id.toString()}>
+                    <div className="flex items-center gap-2">
+                      <span>{p.name}</span>
+                      {p.isLive ? (
+                        <Badge variant="outline" className="text-xs bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30">
+                          Live
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">Test</Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {portfolio?.isLive ? (
               <Badge variant="default" className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30">
                 <Activity className="w-3 h-3 mr-1" />

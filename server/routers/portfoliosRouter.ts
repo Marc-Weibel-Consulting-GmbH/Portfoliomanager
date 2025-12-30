@@ -335,7 +335,7 @@ export const portfoliosRouter = router({
         const isLiveValue = input.isLive ? 1 : 0;
         const liveStartDate = input.isLive ? new Date() : null;
         
-        // If activating live tracking, create deposit transactions for current positions
+        // If activating live tracking, create entry transactions for current positions
         if (input.isLive && !portfolio.isLive) {
           try {
             const portfolioData = JSON.parse(portfolio.portfolioData);
@@ -345,7 +345,7 @@ export const portfoliosRouter = router({
             let totalPositionValue = 0;
             const todayStr = new Date().toISOString().split('T')[0];
             
-            // Create "buy" transactions for each position based on current weights
+            // Create "entry" transactions for each position based on current weights
             for (const stock of stocks) {
               const ticker = stock.ticker;
               const weight = parseFloat(stock.weight || '0');
@@ -366,10 +366,10 @@ export const portfoliosRouter = router({
               // Calculate number of shares
               const shares = positionValueCHF / priceCHF;
               
-              // Create buy transaction (Eingang)
+              // Create entry transaction (Eingang)
               await createPortfolioTransaction({
                 portfolioId: input.id,
-                transactionType: 'buy',
+                transactionType: 'entry',
                 ticker: ticker,
                 shares: shares.toFixed(6),
                 pricePerShare: currentPrice.toFixed(2),
@@ -384,8 +384,10 @@ export const portfoliosRouter = router({
               totalPositionValue += positionValueCHF;
             }
             
-            // Create deposit transaction for remaining cash (Liquidität)
+            // Calculate and store cash balance (Liquidität)
             const cashBalance = startCapital - totalPositionValue;
+            
+            // Create deposit transaction for remaining cash if positive
             if (cashBalance > 0) {
               await createPortfolioTransaction({
                 portfolioId: input.id,
@@ -401,13 +403,22 @@ export const portfoliosRouter = router({
                 notes: 'Liquiditätskonto (Differenz zu Investitionssumme)',
               });
             }
+            
+            // Update portfolio with cash balance
+            await updateSavedPortfolio(input.id, ctx.user.id, {
+              isLive: isLiveValue,
+              liveStartDate: liveStartDate,
+              cashBalance: cashBalance.toFixed(2),
+            });
+            
+            return { success: true, portfolio: await getSavedPortfolioById(input.id, ctx.user.id) };
           } catch (error) {
             console.error('[toggleLive] Error creating initial transactions:', error);
             throw new Error('Failed to create initial transactions for live tracking');
           }
         }
         
-        // Update portfolio
+        // If deactivating live tracking, just update the flags
         const result = await updateSavedPortfolio(input.id, ctx.user.id, {
           isLive: isLiveValue,
           liveStartDate: liveStartDate,

@@ -1699,3 +1699,35 @@
 - [x] Enable editing of position quantity (Anzahl Aktien) in Portfolio Detail edit dialog
 - [x] Enable editing of entry price (Einstandspreis) in Portfolio Detail edit dialog
 - [x] Add "Anzahl Titel" column to position list in Portfolio Detail page (already exists as "Stückzahl")
+
+
+## Live-Toggle Feature Implementation (30.12.2025 - Neue Anforderungen)
+
+### Konzept:
+Live-Toggle schaltet Portfolio von "Demo" auf "Live":
+- Aktuelle Positionen werden als "Eingang"-Transaktionen verbucht
+- Differenz zur Investitionssumme = Liquidität auf Konto
+- Ermöglicht echtes Transaction-Tracking
+
+### Aufgaben:
+
+- [x] 1. Schema: cashBalance Spalte zu savedPortfolios hinzugefügt
+- [x] 2. Schema: 'entry' Transaktionstyp zu portfolioTransactions hinzugefügt
+- [ ] 3. Portfolio-Erstellung: Investitionssumme für ALLE Portfolios verpflichtend machen
+- [ ] 2. Live-Toggle UI auf Dashboard implementieren (für jedes Portfolio-Card)
+- [ ] 3. Live-Toggle UI auf Portfolio-Übersicht implementieren
+- [ ] 4. Live-Toggle UI auf Portfolio-Detail implementieren
+- [ ] 5. Live-Toggle UI auf Transaktionen-Seite implementieren
+- [x] 6. Backend: Live-Toggle Logik - Positionen in 'entry'-Transaktionen konvertieren
+- [x] 7. Backend: Liquiditätskonto-Berechnung (Investitionssumme - Positionen) und cashBalance speicher- [x] 12. Transaktionen: Portfolio-Auswahl hinzugefügt (Dropdown mit allen Portfolios + Live/Test Badges) ] 9. Portfolio-Detail: "Anzahl Titel" Spalte in Positionsliste hinzufügen
+- [ ] 10. Portfolio-Detail: "Bearbeiten" Button - Anzahl + Einstandspreis änderbar machen
+- [ ] 11. Realisierte Gewinne/Verluste: Kursgewinne/-verluste berechnen und anzeigen
+- [ ] 12. Realisierte Gewinne/Verluste: FX-Gewinne/-verluste berechnen und anzeigen
+- [ ] 13. Realisierte Gewinne/Verluste: Kosten/Gebühren summieren und anzeigen
+- [ ] 14. Integration mit bestehender RealizedGains Funktion prüfen und erweitern
+- [ ] 15. Live-Testen: Dashboard Live-Toggle
+- [ ] 16. Live-Testen: Portfolio-Übersicht Live-Toggle
+- [ ] 17. Live-Testen: Portfolio-Detail Live-Toggle + Bearbeiten
+- [ ] 18. Live-Testen: Transaktionen Portfolio-Auswahl
+- [ ] 19. Live-Testen: Realisierte Gewinne/Verluste Anzeige
+- [ ] 20. Live-Testen: Gesamter Flow von Demo → Live → Transaktionen → Reporting

@@ -44,13 +44,35 @@ const formatDate = () => {
 
 export default function UserDashboard() {
   const { user } = useAuth();
-  const [showLiveOnly, setShowLiveOnly] = useState(true);
+  const [showLiveOnly, setShowLiveOnly] = useState(false); // Changed to false to show all portfolios by default
 
   // Fetch aggregated metrics
   const { data: metrics, isLoading: metricsLoading } = trpc.dashboard.getAggregatedMetrics.useQuery();
   
   // Fetch top portfolios
   const { data: allPortfolios, isLoading: portfoliosLoading } = trpc.dashboard.getTopPortfolios.useQuery();
+  
+  // Toggle live mutation
+  const utils = trpc.useUtils();
+  const toggleLiveMutation = trpc.portfolios.toggleLive.useMutation({
+    onSuccess: () => {
+      utils.dashboard.getTopPortfolios.invalidate();
+      utils.dashboard.getAggregatedMetrics.invalidate();
+    },
+  });
+  
+  const handleToggleLive = async (e: React.MouseEvent, portfolioId: number, currentIsLive: boolean) => {
+    e.preventDefault(); // Prevent navigation
+    e.stopPropagation();
+    try {
+      await toggleLiveMutation.mutateAsync({
+        id: portfolioId,
+        isLive: !currentIsLive,
+      });
+    } catch (error) {
+      console.error('Failed to toggle live status:', error);
+    }
+  };
   
   // Filter portfolios based on live toggle
   const topPortfolios = useMemo(() => {
@@ -237,9 +259,20 @@ export default function UserDashboard() {
                               </Badge>
                             ) : (
                               <Badge variant="outline" className="border-gray-600 text-gray-400">
-                                Test
+                                Demo
                               </Badge>
                             )}
+                            <div className="flex items-center gap-1.5 ml-2" onClick={(e) => handleToggleLive(e, portfolio.id, !!portfolio.isLive)}>
+                              <Label htmlFor={`live-toggle-${portfolio.id}`} className="text-xs text-gray-400 cursor-pointer">
+                                Live
+                              </Label>
+                              <Switch 
+                                id={`live-toggle-${portfolio.id}`}
+                                checked={!!portfolio.isLive} 
+                                disabled={toggleLiveMutation.isLoading}
+                                className="scale-75"
+                              />
+                            </div>
                           </div>
                           <div className="text-sm text-gray-400">Performance</div>
                         </div>
