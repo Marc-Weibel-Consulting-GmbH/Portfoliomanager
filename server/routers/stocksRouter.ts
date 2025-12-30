@@ -202,6 +202,7 @@ export const stocksRouter = router({
         if (completeData.dividendYield !== null) updateData.dividendYield = completeData.dividendYield.toString();
         if (completeData.beta !== null) updateData.beta = completeData.beta.toString();
         if (completeData.volatility !== null) updateData.volatility = completeData.volatility.toString();
+        if (completeData.logoUrl) updateData.logoUrl = completeData.logoUrl;
 
         // Update in database
         await db.update(stocks)
@@ -327,6 +328,7 @@ export const stocksRouter = router({
             volatility: completeData.volatility,
             beta: completeData.beta,
             currency: completeData.currency || 'USD',
+            logoUrl: completeData.logoUrl || null,
           };
         } catch (error: any) {
           console.error("[fetchStockData] Error:", error);
@@ -463,6 +465,10 @@ export const stocksRouter = router({
         if (!stockData.companyName && completeData.companyName) {
           stockData.companyName = completeData.companyName;
           console.log(`[AddStock] Auto-filled companyName: ${stockData.companyName}`);
+        }
+        if (!stockData.logoUrl && completeData.logoUrl) {
+          stockData.logoUrl = completeData.logoUrl;
+          console.log(`[AddStock] Auto-filled logoUrl: ${stockData.logoUrl} (from ${completeData.dataSources.logoUrl})`);
         }
         
         // Set default values for required fields

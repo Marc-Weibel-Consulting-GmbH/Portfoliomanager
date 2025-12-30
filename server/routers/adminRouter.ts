@@ -138,6 +138,7 @@ export const adminRouter = router({
           if (completeData.dividendYield !== null) updateData.dividendYield = completeData.dividendYield.toString();
           if (completeData.beta !== null) updateData.beta = completeData.beta.toString();
           if (completeData.volatility !== null) updateData.volatility = completeData.volatility.toString();
+          if (completeData.logoUrl) updateData.logoUrl = completeData.logoUrl;
 
           // Update timestamp
           updateData.lastDataRefresh = new Date();

@@ -1648,3 +1648,17 @@
 - [x] Portfolio-Detailseite: Donut-Chart farbig gestalten mit größten Aktienpositionen
 - [x] Portfolio-Detailseite: "Alarm einstellen"-Button aktivieren
 - [x] Portfolio-Bearbeitungsdialog: Anzahl Aktien und Einstandspreis in Fremdwährung für Live-Portfolios hinzufügen
+
+
+## Logo Fetching Strategy - Clearbit + FMP Fallback (30.12.2025)
+- [x] Implement Clearbit logo fetching service (domain-based, primary source)
+- [x] Implement FMP logo fallback (ticker-based, secondary source)
+- [x] Create generic SVG logo generator (ticker initials, last resort)
+- [x] Build unified logo service with automatic fallback chain
+- [x] Update stock_metadata table to cache logo URLs (logoUrl field already exists in stocks table)
+- [x] Replace all existing logo fetching calls with new service (integrated into multiApiDataMerger)
+- [x] Expand Swiss stock domain mapping (60+ Swiss companies including SMI, banks, insurance, industrial)
+- [x] Integrate logo fetching into stocksRouter (refresh, fetchStockData, add)
+- [x] Integrate logo fetching into adminRouter (bulk update)
+- [x] Test logo fetching with various Swiss stocks (Nestlé, Novartis, Roche, etc.) - 19 unit tests passing
+- [ ] Ensure logos display correctly in all UI components (portfolio cards, holdings tables, alerts, etc.) - needs live testing

@@ -7,6 +7,7 @@
 import { fetchStockMetrics } from './stockDataApi';
 import { fetchEODHDFundamentals } from './eodhdApi';
 import { ENV } from './env';
+import { fetchLogo, getSwissStockDomain } from '../logoService';
 
 export interface CompleteStockData {
   ticker: string;
@@ -20,12 +21,14 @@ export interface CompleteStockData {
   marketCap: number | null;
   currency: string | null;
   companyName: string | null;
+  logoUrl: string | null;
   dataSources: {
     currentPrice?: string;
     pe?: string;
     peg?: string;
     sharpe?: string;
     dividendYield?: string;
+    logoUrl?: string;
   };
 }
 
@@ -244,12 +247,12 @@ async function fetchFromFinnhub(ticker: string): Promise<Partial<CompleteStockDa
  * Priority: EODHD > Yahoo > Finnhub (for most fields)
  * Exception: Sharpe Ratio prioritizes Yahoo (more accurate calculation)
  */
-function mergeData(
+async function mergeData(
   eodhd: Partial<CompleteStockData>,
   yahoo: Partial<CompleteStockData>,
   finnhub: Partial<CompleteStockData>,
   ticker: string
-): CompleteStockData {
+): Promise<CompleteStockData> {
   const dataSources: CompleteStockData['dataSources'] = {};
 
   // Current Price: EODHD > Yahoo > Finnhub
@@ -297,12 +300,28 @@ function mergeData(
   // Company Name: EODHD
   const companyName = eodhd.companyName ?? null;
 
+  // Logo URL: Use logo service with Clearbit + FMP fallback
+  let logoUrl: string | null = null;
+  let logoSource: string | undefined = undefined;
+  try {
+    const domain = getSwissStockDomain(ticker);
+    const logoResult = await fetchLogo(ticker, domain);
+    logoUrl = logoResult.url;
+    logoSource = logoResult.source;
+  } catch (error) {
+    console.warn(`[MultiAPI] Logo fetch failed for ${ticker}:`, error);
+  }
+  if (logoSource) {
+    dataSources.logoUrl = logoSource;
+  }
+
   console.log(`[MultiAPI] Merged data for ${ticker}:`, {
     currentPrice: `${currentPrice} (${dataSources.currentPrice || 'N/A'})`,
     pe: `${pe} (${dataSources.pe || 'N/A'})`,
     peg: `${peg} (${dataSources.peg || 'N/A'})`,
     sharpe: `${sharpe} (${dataSources.sharpe || 'N/A'})`,
     dividendYield: `${dividendYield} (${dataSources.dividendYield || 'N/A'})`,
+    logoUrl: `${logoUrl ? 'fetched' : 'N/A'} (${dataSources.logoUrl || 'N/A'})`,
   });
 
   return {
@@ -317,6 +336,7 @@ function mergeData(
     marketCap,
     currency,
     companyName,
+    logoUrl,
     dataSources,
   };
 }
@@ -345,7 +365,7 @@ export async function fetchCompleteStockData(ticker: string): Promise<CompleteSt
   ]);
 
   // Merge data from all sources
-  const completeData = mergeData(eodhdData, yahooData, finnhubData, ticker);
+  const completeData = await mergeData(eodhdData, yahooData, finnhubData, ticker);
 
   // Calculate completeness
   const fields = ['currentPrice', 'pe', 'peg', 'sharpe', 'dividendYield'];
