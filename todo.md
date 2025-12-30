@@ -122,17 +122,27 @@
 - [ ] Implement "News" section with article cards
 - [ ] Add action buttons: Zu Portfolio hinzufügen, Preisalarm erstellen, Factsheet ansehen
 
-### Phase 8: Transaction Management
-- [ ] Create breadcrumb navigation
-- [ ] Add filter tabs: Alle, Kauf, Verkauf, Dividende, Einzahlung, Auszahlung
-- [ ] Add time period filter: Alle, Letzte 30 Tage, Letzte 3 Monate, Dieses Jahr
-- [ ] Add ticker filter dropdown
-- [ ] Show summary cards: Gesamt investiert, Gesamt entnommen, Dividenden erhalten, Gebühren bezahlt
-- [ ] Create transaction table with columns: Datum, Typ, Ticker, Anzahl, Preis/Aktie, Währung, Gesamt (CHF), Gebühren, Notizen, Actions
-- [ ] Add colored badges for transaction types
-- [ ] Implement edit and delete actions
-- [ ] Add pagination
-- [ ] Add "Neue Transaktion" button
+### Phase 8: Transaction Management (COMPLETED - Dec 30, 2025)
+- [x] Remove "Live Tracking" navigation and replace with "Transaktionen"
+- [x] Create transactions database schema (buy, sell, dividend, deposit, withdrawal) - Already existed
+- [x] Add multi-currency support (CHF, USD, EUR) with automatic FX rate conversion - Already implemented
+- [x] Implement transaction backend procedures (CRUD operations) - Extended with listFiltered and exportToCsv
+- [x] Create breadcrumb navigation (Portfolio → Tech Growth Portfolio → Transaktionen)
+- [x] Add filter tabs: Alle, Kauf, Verkauf, Dividende, Einzahlung, Auszahlung
+- [x] Add time period filter: Alle, Letzte 30 Tage, Letzte 3 Monate, Dieses Jahr
+- [x] Add ticker filter dropdown (Alle option)
+- [x] Show summary cards: Gesamt investiert, Gesamt entnommen, Dividenden erhalten, Gebühren bezahlt
+- [x] Create transaction table with columns: Datum, Typ, Ticker, Anzahl, Preis/Aktie, Währung, Gesamt (CHF), Gebühren, Notizen, Actions
+- [x] Add colored badges for transaction types (Kauf=green, Verkauf=red, Dividende=blue, Einzahlung=cyan, Auszahlung=orange)
+- [x] Implement "Neue Transaktion" modal with all transaction types
+- [x] Add fee tracking to all transactions
+- [x] Implement edit transaction functionality (opens modal with prefilled data)
+- [x] Implement delete transaction with confirmation
+- [x] Add CSV export for tax reporting (Steuererklärung)
+- [x] Add pagination (8 items per page as shown in mockup)
+- [x] Add live toggle to Dashboard page
+- [x] Portfolio Overview page already has status filter (Alle/Live/Test)
+- [x] Portfolio Detail page already shows Live badge
 
 ### Phase 9: Price Alerts (COMPLETED - Dec 30, 2025)
 - [x] Improve dashboard metrics clarity:

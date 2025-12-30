@@ -28,6 +28,7 @@ import NotificationSettings from "./pages/NotificationSettings";
 import Chat from "./pages/Chat";
 import LiveTracking from "./pages/LiveTracking";
 import DividendCalendar from "./pages/DividendCalendar";
+import Transactions from "./pages/Transactions";
 
 import Signals from "./pages/Signals";
 import AdminStocks from "./pages/AdminStocks";
@@ -99,6 +100,8 @@ function Router() {
       <Route path="/sectors" component={Sectors} />
       <Route path="/live-tracking" component={LiveTracking} />
       <Route path="/dividends" component={DividendCalendar} />
+      <Route path="/transactions" component={Transactions} />
+      <Route path="/portfolios/:id/transactions" component={Transactions} />
       <Route path="/portfolios" component={Portfolios} />
       <Route path="/portfolios/:id" component={PortfolioDetailsPage} />
       <Route path="/portfolios/create">

@@ -48,6 +48,94 @@ export const portfolioTransactionsRouter = router({
       return await getPortfolioTransactions(input.portfolioId);
     }),
 
+  listFiltered: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "portfolioId" in val) {
+        return val as {
+          portfolioId: number;
+          transactionType?: "buy" | "sell" | "dividend" | "deposit" | "withdrawal" | null;
+          ticker?: string | null;
+          startDate?: string | null;
+          endDate?: string | null;
+        };
+      }
+      throw new Error("Invalid filter parameters");
+    })
+    .query(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { portfolioTransactions } = await import("../../drizzle/schema");
+      const { eq, and, gte, lte, desc } = await import("drizzle-orm");
+      
+      const db = await getDb();
+      if (!db) {
+        throw new Error("Database not available");
+      }
+      
+      // Build where conditions
+      const conditions = [eq(portfolioTransactions.portfolioId, input.portfolioId)];
+      
+      if (input.transactionType) {
+        conditions.push(eq(portfolioTransactions.transactionType, input.transactionType));
+      }
+      
+      if (input.ticker) {
+        conditions.push(eq(portfolioTransactions.ticker, input.ticker));
+      }
+      
+      if (input.startDate) {
+        conditions.push(gte(portfolioTransactions.transactionDate, new Date(input.startDate)));
+      }
+      
+      if (input.endDate) {
+        conditions.push(lte(portfolioTransactions.transactionDate, new Date(input.endDate)));
+      }
+      
+      const transactions = await db
+        .select()
+        .from(portfolioTransactions)
+        .where(and(...conditions))
+        .orderBy(desc(portfolioTransactions.transactionDate));
+      
+      return transactions;
+    }),
+
+  exportToCsv: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
+        return { portfolioId: val.portfolioId };
+      }
+      throw new Error("Invalid portfolio ID");
+    })
+    .query(async ({ input, ctx }) => {
+      const { getPortfolioTransactions } = await import("../db");
+      const transactions = await getPortfolioTransactions(input.portfolioId);
+      
+      // Build CSV header
+      const header = "Datum,Typ,Ticker,Anzahl,Preis/Aktie,Währung,Gesamt (CHF),Gebühren,Notizen";
+      
+      // Build CSV rows
+      const rows = transactions.map(tx => {
+        const date = new Date(tx.transactionDate).toISOString().split('T')[0];
+        const type = tx.transactionType === 'buy' ? 'Kauf' : 
+                     tx.transactionType === 'sell' ? 'Verkauf' : 
+                     tx.transactionType === 'dividend' ? 'Dividende' :
+                     tx.transactionType === 'deposit' ? 'Einzahlung' : 'Auszahlung';
+        const ticker = tx.ticker || '-';
+        const shares = tx.shares || '-';
+        const pricePerShare = tx.pricePerShare || '-';
+        const currency = tx.currency || 'CHF';
+        const totalAmountCHF = tx.totalAmountCHF || tx.totalAmount || '0';
+        const fees = tx.fees || '0';
+        const notes = (tx.notes || '').replace(/,/g, ';').replace(/\n/g, ' ');
+        
+        return `${date},${type},${ticker},${shares},${pricePerShare},${currency},${totalAmountCHF},${fees},"${notes}"`;
+      });
+      
+      const csv = [header, ...rows].join('\n');
+      
+      return { csv, filename: `transactions_portfolio_${input.portfolioId}_${new Date().toISOString().split('T')[0]}.csv` };
+    }),
+
   deleteInitialTransactions: protectedProcedure
     .input((val: unknown) => {
       if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {

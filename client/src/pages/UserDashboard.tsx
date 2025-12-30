@@ -1,6 +1,9 @@
+import { useState, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Briefcase,
   Bell,
@@ -41,12 +44,22 @@ const formatDate = () => {
 
 export default function UserDashboard() {
   const { user } = useAuth();
+  const [showLiveOnly, setShowLiveOnly] = useState(true);
 
   // Fetch aggregated metrics
   const { data: metrics, isLoading: metricsLoading } = trpc.dashboard.getAggregatedMetrics.useQuery();
   
   // Fetch top portfolios
-  const { data: topPortfolios, isLoading: portfoliosLoading } = trpc.dashboard.getTopPortfolios.useQuery();
+  const { data: allPortfolios, isLoading: portfoliosLoading } = trpc.dashboard.getTopPortfolios.useQuery();
+  
+  // Filter portfolios based on live toggle
+  const topPortfolios = useMemo(() => {
+    if (!allPortfolios) return [];
+    if (showLiveOnly) {
+      return allPortfolios.filter(p => p.isLive);
+    }
+    return allPortfolios;
+  }, [allPortfolios, showLiveOnly]);
   
   // Fetch price alerts
   const { data: alerts } = trpc.priceAlerts.list.useQuery();
@@ -191,8 +204,18 @@ export default function UserDashboard() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-white flex items-center gap-2">
                   <Briefcase className="h-5 w-5 text-[#00CFC1]" />
-                  Meine Live-Portfolios
+                  Meine Portfolios
                 </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="live-toggle" className="text-sm text-gray-400 cursor-pointer">
+                    Nur Live
+                  </Label>
+                  <Switch 
+                    id="live-toggle"
+                    checked={showLiveOnly} 
+                    onCheckedChange={setShowLiveOnly}
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

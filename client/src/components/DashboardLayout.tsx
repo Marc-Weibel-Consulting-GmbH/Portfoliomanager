@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, Receipt } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -36,7 +36,7 @@ import { FloatingChatButton } from "./FloatingChatButton";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: FolderKanban, label: "Portfolios", path: "/portfolios" },
-  { icon: Activity, label: "Live-Tracking", path: "/live-tracking" },
+  { icon: Receipt, label: "Transaktionen", path: "/transactions" },
   { icon: BarChart3, label: "Analyse", path: "/analysis" },
   { icon: Sparkles, label: "KI-Insights", path: "/ai-insights" },
   { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
