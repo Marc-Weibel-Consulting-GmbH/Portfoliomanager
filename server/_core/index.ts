@@ -16,6 +16,7 @@ import { initYTDUpdater } from "../cron/ytdUpdater";
 import { initDividendCaptureJob } from "../dividendCaptureJob";
 import { initFxRatesCron } from "../fxRatesFetchJob";
 import { initTransactionFxUpdateCron } from "../transactionFxUpdateJob";
+import { initHistoricalPricesCron } from "../cron/historicalPricesCron";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -241,6 +242,8 @@ async function startServer() {
     initFxRatesCron();
     // Start transaction FX rate update job (runs daily at 7:00 AM)
     initTransactionFxUpdateCron();
+    // Start historical prices updater (runs daily at 2:00 AM UTC)
+    initHistoricalPricesCron();
   });
 }
 

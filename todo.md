@@ -1547,3 +1547,9 @@
 - [ ] Import historical price data for all portfolio stocks (January - November 2025)
 - [ ] Verify hypothetical performance calculation works with real data
 - [ ] Add fallback UI when no historical data is available
+
+## Hypothetical Performance Implementation (Dec 30, 2025)
+- [x] Implement batch job for historical price data import from EODHD API
+- [x] Add fallback UI for missing historical data ("Historische Daten werden geladen...")
+- [x] Implement daily cron job for automatic price updates
+- [x] Test hypothetical performance feature live with real data

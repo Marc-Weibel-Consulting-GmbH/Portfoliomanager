@@ -1,0 +1,70 @@
+{
+  "query": "SELECT ticker, MIN(date) as earliest, MAX(date) as latest, COUNT(*) as count FROM historicalPrices GROUP BY ticker ORDER BY count DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, MIN(date) as earliest, MAX(date) as latest, COUNT(*) as count FROM historicalPrices GROUP BY ticker ORDER BY count DESC LIMIT 10;",
+  "rows": [
+    {
+      "ticker": "NESN.SW",
+      "earliest": "2020-01-03",
+      "latest": "2025-12-23",
+      "count": "5149"
+    },
+    {
+      "ticker": "VGK.US",
+      "earliest": "2020-01-02",
+      "latest": "2025-12-26",
+      "count": "4973"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "earliest": "2020-01-03",
+      "latest": "2025-12-23",
+      "count": "4805"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "earliest": "2020-01-03",
+      "latest": "2025-12-23",
+      "count": "4653"
+    },
+    {
+      "ticker": "AAPL.US",
+      "earliest": "2020-01-02",
+      "latest": "2025-12-26",
+      "count": "4643"
+    },
+    {
+      "ticker": "XLE.US",
+      "earliest": "2020-01-02",
+      "latest": "2025-12-26",
+      "count": "4540"
+    },
+    {
+      "ticker": "EOSE",
+      "earliest": "2020-06-03",
+      "latest": "2025-12-26",
+      "count": "4429"
+    },
+    {
+      "ticker": "TSM",
+      "earliest": "2020-01-02",
+      "latest": "2025-12-26",
+      "count": "3690"
+    },
+    {
+      "ticker": "VWO.US",
+      "earliest": "2020-01-02",
+      "latest": "2025-12-26",
+      "count": "3662"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "earliest": "2020-01-03",
+      "latest": "2025-12-23",
+      "count": "3484"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest\tlatest\tcount\nNESN.SW\t2020-01-03\t2025-12-23\t5149\nVGK.US\t2020-01-02\t2025-12-26\t4973\nNOVN.SW\t2020-01-03\t2025-12-23\t4805\nADEN.SW\t2020-01-03\t2025-12-23\t4653\nAAPL.US\t2020-01-02\t2025-12-26\t4643\nXLE.US\t2020-01-02\t2025-12-26\t4540\nEOSE\t2020-06-03\t2025-12-26\t4429\nTSM\t2020-01-02\t2025-12-26\t3690\nVWO.US\t2020-01-02\t2025-12-26\t3662\nSLHN.SW\t2020-01-03\t2025-12-23\t3484\n",
+  "stderr": "",
+  "execution_time_ms": 1657
+}

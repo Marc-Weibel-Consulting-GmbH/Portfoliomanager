@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS historicalPrices (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  ticker VARCHAR(50) NOT NULL,\n  date VARCHAR(10) NOT NULL,\n  close VARCHAR(50) NOT NULL,\n  source VARCHAR(50) NOT NULL DEFAULT 'yahoo',\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,\n  UNIQUE KEY unique_ticker_date (ticker, date),\n  INDEX ix_historical_prices_ticker_date (ticker, date)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute CREATE TABLE IF NOT EXISTS historicalPrices (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  ticker VARCHAR(50) NOT NULL,\n  date VARCHAR(10) NOT NULL,\n  close VARCHAR(50) NOT NULL,\n  source VARCHAR(50) NOT NULL DEFAULT 'yahoo',\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,\n  UNIQUE KEY unique_ticker_date (ticker, date),\n  INDEX ix_historical_prices_ticker_date (ticker, date)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1516
+}

@@ -1,5 +1,6 @@
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
+import { importHistoricalPrices, importHistoricalPricesForTicker } from "../jobs/importHistoricalPrices";
 
 export const adminRouter = router({
     exportData: protectedProcedure.query(async () => {
@@ -237,4 +238,46 @@ export const adminRouter = router({
       // News updates are disabled (memory optimization)
       return { success: true, message: "News updates are currently disabled for memory optimization" };
     }),
+    
+    /**
+     * Trigger historical price import for all tickers
+     */
+    importHistoricalPrices: protectedProcedure
+      .input(
+        z.object({
+          fromDate: z.string().optional(),
+          toDate: z.string().optional(),
+          forceRefresh: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Only admin can import historical prices
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+        
+        const result = await importHistoricalPrices(input.fromDate, input.toDate, input.forceRefresh);
+        return result;
+      }),
+
+    /**
+     * Import historical prices for a specific ticker
+     */
+    importHistoricalPricesForTicker: protectedProcedure
+      .input(
+        z.object({
+          ticker: z.string(),
+          fromDate: z.string().optional(),
+          toDate: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Only admin can import historical prices
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+        
+        const result = await importHistoricalPricesForTicker(input.ticker, input.fromDate, input.toDate);
+        return result;
+      }),
 });

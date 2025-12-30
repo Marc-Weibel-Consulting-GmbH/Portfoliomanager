@@ -55,7 +55,7 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
   });
   
   // Fetch hypothetical performance BEFORE creation date
-  const { data: hypotheticalData } = trpc.portfolios.getHypotheticalPerformance.useQuery(
+  const { data: hypotheticalData, isLoading: hypotheticalLoading, error: hypotheticalError } = trpc.portfolios.getHypotheticalPerformance.useQuery(
     { 
       portfolioId, 
       startDate: yearStart, 
@@ -248,11 +248,17 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
     }
   };
 
-  if (isLoading) {
+  if (isLoading || hypotheticalLoading) {
     return (
       <Card className="bg-slate-800 border-slate-700">
         <CardContent className="p-8 text-center text-slate-400">
-          Lade Performance-Daten...
+          <div className="flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
+            <p>Lade Performance-Daten...</p>
+            {hypotheticalLoading && (
+              <p className="text-xs text-slate-500">Historische Daten werden geladen...</p>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -281,6 +287,23 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
           <div className="h-80">
             <Line data={chartData} options={options} />
           </div>
+          
+          {/* Hypothetical Data Warning */}
+          {hypotheticalError && (
+            <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+              <p className="text-yellow-400 text-xs text-center">
+                ⚠️ Historische Daten nicht verfügbar. Die hypothetische Performance kann nicht berechnet werden.
+              </p>
+            </div>
+          )}
+          
+          {hypotheticalData && hypotheticalData.chartData.length === 0 && yearStart < creationDate && (
+            <div className="mt-4 p-3 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+              <p className="text-blue-400 text-xs text-center">
+                ℹ️ Historische Preisdaten werden noch importiert. Die hypothetische Performance wird nach dem Import angezeigt.
+              </p>
+            </div>
+          )}
           
           {/* Custom Legend */}
           <div className="mt-4 flex items-center justify-center gap-6 text-sm flex-wrap">
