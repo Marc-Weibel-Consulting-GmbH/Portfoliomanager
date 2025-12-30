@@ -552,6 +552,17 @@ export const portfoliosRouter = router({
         const shouldUseStitchedBranch = isLivePortfolio && (period === 'YTD' || period === 'All') && creationDate;
         const allowHypotheticalPerformance = shouldUseStitchedBranch; // Keep for backward compatibility
         
+        // ALWAYS log this decision for debugging
+        console.log('[getHistoricalPerformance] Branch decision:', {
+          portfolioId,
+          period,
+          isLivePortfolio,
+          hasCreationDate: !!creationDate,
+          creationDate: creationDate?.toISOString(),
+          shouldUseStitchedBranch,
+          earliestTransactionDate: earliestTransactionDate?.toISOString()
+        });
+        
         if (debug) {
           debug.creationDate = creationDate?.toISOString() || null;
           debug.ytdStartDate = startDate.toISOString().split('T')[0];
@@ -565,7 +576,7 @@ export const portfoliosRouter = router({
           if (debug) debug.branchSelected = "stitched";
           console.log(`[NewArchitecture] Using two-phase calculation for portfolio ${portfolioId}`);
           
-          const creationDateStr = earliestTransactionDate.toISOString().split('T')[0];
+          const creationDateStr = creationDate.toISOString().split('T')[0];
           const ytdStartStr = startDate.toISOString().split('T')[0];
           
           // Import new functions
@@ -667,9 +678,12 @@ export const portfoliosRouter = router({
             }
             
             // Phase 1: Hypothetical performance (ytdStart to creationDate - 1 day)
-            const dayBeforeCreation = new Date(earliestTransactionDate);
+            const dayBeforeCreation = new Date(creationDate);
             dayBeforeCreation.setDate(dayBeforeCreation.getDate() - 1);
             const hypotheticalEndDate = dayBeforeCreation.toISOString().split('T')[0];
+            
+            console.log(`[NewArchitecture] Hypothetical period: ${ytdStartStr} to ${hypotheticalEndDate} (day before creation: ${creationDateStr})`);
+            console.log(`[NewArchitecture] Real performance starts from: ${creationDateStr}`);
             
             let hypotheticalSeries: any[] = [];
             const hypoRes = await safeExec("hypo", async () => {

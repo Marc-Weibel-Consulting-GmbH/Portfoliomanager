@@ -2,6 +2,12 @@
 
 ## Bugs (29.12.2025)
 
+- [x] CRITICAL BUG: Portfolio performance chart zeigt keine historischen Daten VOR dem Erstellungsdatum - FIXES APPLIED (30.12.2025):
+  - Fixed portfoliosRouter.ts line 568: use creationDate instead of earliestTransactionDate
+  - Fixed portfoliosRouter.ts line 681: use creationDate for hypothetical end date calculation
+  - Fixed LivePerformanceChart.tsx: calculate dayBeforeCreation for hypothetical endDate
+  - Server restarted to apply changes
+
 - [x] Fix historical data range - data should go back further than October 2024
 - [ ] FEATURE: Portfolio Performance Charts sollen hypothetische historische Performance zeigen (30.12.2025)
   - VOR Erstellungsdatum: Hypothetische Performance (TWR ohne Transaktionen) basierend auf aktueller Gewichtung

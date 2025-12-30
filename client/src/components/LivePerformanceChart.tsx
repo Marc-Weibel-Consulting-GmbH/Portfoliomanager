@@ -45,24 +45,32 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
     return `${year}-01-01`;
   }, [creationDate]);
   
+  // Calculate the day before creation date for hypothetical performance end date
+  const dayBeforeCreation = useMemo(() => {
+    const date = new Date(creationDate);
+    date.setDate(date.getDate() - 1);
+    return date.toISOString().split('T')[0];
+  }, [creationDate]);
+  
   // Debug: Log the dates and enabled condition
   console.log('[LivePerformanceChart] Hypothetical query params:', {
     portfolioId,
     yearStart,
     creationDate,
+    dayBeforeCreation,
     enabled: !!portfolioId && yearStart < creationDate,
     comparison: `${yearStart} < ${creationDate}`
   });
   
-  // Fetch hypothetical performance BEFORE creation date
+  // Fetch hypothetical performance BEFORE creation date (up to day before)
   const { data: hypotheticalData, isLoading: hypotheticalLoading, error: hypotheticalError } = trpc.portfolios.getHypotheticalPerformance.useQuery(
     { 
       portfolioId, 
       startDate: yearStart, 
-      endDate: creationDate,
+      endDate: dayBeforeCreation,
       debug: true
     },
-    { enabled: !!portfolioId && yearStart < creationDate }
+    { enabled: !!portfolioId && yearStart < dayBeforeCreation }
   );
   
   // Fetch historical performance data from backend using getHistoricalPerformance
