@@ -29,6 +29,7 @@
 - [x] Feature: Cron-Job für automatische Alarm-Prüfung (täglich/stündlich) mit Email/WhatsApp Benachrichtigungen - COMPLETED: Runs every hour, sends Email/WhatsApp
 - [x] Feature: Performance-Chart im Dashboard mit echten historischen Daten - COMPLETED: Added dashboardPerformance.getHistoricalPerformance endpoint
 - [x] Feature: Ursprüngliche Investitionssumme anzeigen (Investiert vs. Aktueller Wert) - COMPLETED: Added totalInvested to dashboard metrics
+- [x] Portfolio Details Redesign - Replace old complex design (1137 lines) with new simplified version
 
 ## Registration Flow (New Requirement - Dec 26, 2025)
 - [x] Implement registration form after OAuth login
