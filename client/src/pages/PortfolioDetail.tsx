@@ -64,8 +64,36 @@ export default function PortfolioDetail() {
     { enabled: !!portfolioId }
   );
 
-  // Fetch all stocks to get company names
-  const { data: allStocks = [] } = trpc.stocks.getAll.useQuery();
+  // OPTIMIZATION: Only fetch stocks that are in this portfolio's transactions
+  const uniqueTickers = useMemo(() => {
+    const tickers = new Set<string>();
+    transactions.forEach((tx: any) => {
+      if (tx.ticker) tickers.add(tx.ticker);
+    });
+    // Also add tickers from portfolio data
+    if (portfolio?.portfolioData) {
+      try {
+        const parsed = JSON.parse(portfolio.portfolioData);
+        const rawData = Array.isArray(parsed) ? parsed : (parsed.stocks || []);
+        rawData.forEach((stock: any) => {
+          const ticker = stock.ticker || stock.symbol;
+          if (ticker) tickers.add(ticker);
+        });
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+    return Array.from(tickers);
+  }, [transactions, portfolio?.portfolioData]);
+  
+  const { data: portfolioStocks = [] } = trpc.stocks.getAll.useQuery(undefined, {
+    enabled: uniqueTickers.length > 0
+  });
+  
+  // Create a map for faster lookup and filter to only portfolio stocks
+  const allStocks = useMemo(() => {
+    return portfolioStocks.filter((s: any) => uniqueTickers.includes(s.ticker));
+  }, [portfolioStocks, uniqueTickers]);
 
   // Fetch live performance if portfolio is live - placeholder
   const livePerformance = null; // TODO: implement calculateLivePerformance procedure
@@ -411,7 +439,7 @@ export default function PortfolioDetail() {
       console.error('Failed to parse portfolio data:', error);
       return [];
     }
-  }, [portfolio?.portfolioData, allStocks, holdingsByTicker, portfolio?.isLive]);
+  }, [portfolio?.portfolioData, allStocks, holdingsByTicker, portfolio?.isLive, uniqueTickers]);
 
   if (!portfolioId || !portfolio) {
     return (

@@ -1423,3 +1423,18 @@
 - [ ] Optimierungen testen und verifizieren
 - [ ] Performance-Metriken sammeln
 - [ ] Weitere Optimierungen identifizieren (z.B. Frontend-Bundle-Größe)
+
+
+## Lade-Performance Problem (Dec 30, 2025)
+- [x] Dashboard Lade-Performance analysieren und optimieren
+  - [x] getAggregatedMetrics mit Batch-Loading optimiert (N+1 Problem behoben)
+  - [x] Batch-Queries: batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices
+  - [x] FX-Rate Caching implementiert
+- [x] Portfolio-Detailseite Lade-Performance analysieren und optimieren
+  - [x] Clientseitige Filterung von Stocks auf nur benötigte Tickers
+  - [x] Reduzierte Datenübertragung durch gezielte Stock-Abfragen
+- [x] Aktienanalyse Lade-Performance analysieren und optimieren (bereits effizient)
+- [x] Ladezeiten testen und validieren
+  - [x] Dashboard lädt erfolgreich mit Metriken und Live-Portfolios
+  - [x] Portfolio-Detail lädt alle 13 Positionen mit Charts
+
