@@ -1553,3 +1553,19 @@
 - [x] Add fallback UI for missing historical data ("Historische Daten werden geladen...")
 - [x] Implement daily cron job for automatic price updates
 - [x] Test hypothetical performance feature live with real data
+
+
+## New Bugs Found (30.12.2025 - Testing Session)
+
+- [x] CRITICAL: Live-Tracking page crashes with TypeError when selecting portfolio with positions
+  - Error: `TypeError: Cannot read properties of undefined (reading 'toFixed')`
+  - Location: `/src/pages/LiveTracking.tsx:498:38`
+  - Reproduction: Login → Live-Tracking → Select "Portfolio Test 1" → Page crashes
+  - Impact: Live-Tracking feature completely unusable for portfolios with positions
+  - Fix: Removed dependency on null livePerformance object, calculated metrics directly from chfHoldings data using useMemo
+
+- [x] BUG: Live-Tracking shows "CHF NaN" for Gewinn/Verlust when avgCostCHF is 0
+  - Location: `/src/pages/LiveTracking.tsx`
+  - Issue: When all holdings have avgCostCHF = 0, the performance calculation results in NaN
+  - Impact: Confusing display for users, should show CHF 0.00 or handle the case gracefully
+  - Fix: Added check to return 0 when totalInvestedCHF is 0

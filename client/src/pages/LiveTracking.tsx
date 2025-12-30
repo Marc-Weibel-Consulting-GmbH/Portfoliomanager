@@ -36,10 +36,6 @@ export default function LiveTracking() {
 
   const portfolio = portfolios.find((p: any) => p.id === selectedPortfolioId);
 
-  // Fetch live performance - placeholder
-  const livePerformance = null; // TODO: implement calculateLivePerformance procedure
-  const performanceLoading = false;
-
   // Fetch CHF-converted holdings with performance
   const { data: chfHoldings = [], isLoading: holdingsLoading } = trpc.portfolios.getHoldingsWithChfPerformance.useQuery(
     { id: selectedPortfolioId! },
@@ -88,11 +84,18 @@ export default function LiveTracking() {
     return null;
   }
 
-  // Calculate metrics
-  const totalInvestedCHF = livePerformance?.totalInvested || 0;
-  const totalValueCHF = livePerformance?.currentValue || 0;
-  const cashPosition = livePerformance?.cashPosition || 0;
-  const performanceCHF = totalValueCHF - totalInvestedCHF;
+  // Calculate metrics from holdings data
+  const totalInvestedCHF = useMemo(() => {
+    return chfHoldings.reduce((sum: number, h: any) => sum + (h.shares * h.avgCostCHF), 0);
+  }, [chfHoldings]);
+
+  const totalValueCHF = useMemo(() => {
+    return chfHoldings.reduce((sum: number, h: any) => sum + h.currentValueCHF, 0);
+  }, [chfHoldings]);
+
+  const cashPosition = 0; // TODO: Add cash position tracking
+  // Handle case where avgCostCHF is 0 (no transaction data)
+  const performanceCHF = totalInvestedCHF > 0 ? totalValueCHF - totalInvestedCHF : 0;
   const performancePercent = totalInvestedCHF > 0 ? ((totalValueCHF - totalInvestedCHF) / totalInvestedCHF) * 100 : 0;
 
   const isPositive = performancePercent >= 0;
@@ -162,7 +165,7 @@ export default function LiveTracking() {
           </div>
         )}
 
-        {performanceLoading || holdingsLoading ? (
+        {holdingsLoading ? (
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -242,8 +245,16 @@ export default function LiveTracking() {
                     </thead>
                     <tbody>
                       {composition.map((holding: any) => {
-                        const perfPercent = holding.avgCostCHF > 0
-                          ? ((holding.currentPriceCHF - holding.avgCostCHF) / holding.avgCostCHF) * 100
+                        // Safely handle undefined values
+                        const shares = holding.shares ?? 0;
+                        const avgCostCHF = holding.avgCostCHF ?? 0;
+                        const currentPriceCHF = holding.currentPriceCHF ?? 0;
+                        const currentValueCHF = holding.currentValueCHF ?? 0;
+                        const weight = holding.weight ?? 0;
+                        const dividendYield = holding.dividendYield;
+
+                        const perfPercent = avgCostCHF > 0
+                          ? ((currentPriceCHF - avgCostCHF) / avgCostCHF) * 100
                           : 0;
                         const isProfitable = perfPercent >= 0;
 
@@ -258,23 +269,23 @@ export default function LiveTracking() {
                                 </div>
                               </div>
                             </td>
-                            <td className="text-right py-3 px-2">{holding.shares.toFixed(2)}</td>
+                            <td className="text-right py-3 px-2">{shares.toFixed(2)}</td>
                             <td className="text-right py-3 px-2">
-                              CHF {holding.avgCostCHF.toFixed(2)}
+                              CHF {avgCostCHF.toFixed(2)}
                             </td>
                             <td className="text-right py-3 px-2">
-                              CHF {holding.currentPriceCHF.toFixed(2)}
+                              CHF {currentPriceCHF.toFixed(2)}
                             </td>
                             <td className="text-right py-3 px-2 font-medium">
-                              CHF {holding.currentValueCHF.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                              CHF {currentValueCHF.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="text-right py-3 px-2">{holding.weight.toFixed(1)}%</td>
+                            <td className="text-right py-3 px-2">{weight.toFixed(1)}%</td>
                             <td className={`text-right py-3 px-2 font-medium ${isProfitable ? "text-green-500" : "text-red-500"}`}>
                               {isProfitable ? "+" : ""}
                               {perfPercent.toFixed(2)}%
                             </td>
                             <td className="text-right py-3 px-2">
-                              {holding.dividendYield ? `${holding.dividendYield.toFixed(2)}%` : "-"}
+                              {dividendYield ? `${dividendYield.toFixed(2)}%` : "-"}
                             </td>
                           </tr>
                         );
