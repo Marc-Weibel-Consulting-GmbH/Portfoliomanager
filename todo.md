@@ -1641,3 +1641,10 @@
 
 ## Critical Bug (30.12.2025)
 - [x] Fix authentication logout loop - users are immediately logged out after login and redirected back to start
+
+## Mockup-Alignment Portfolio-Detailseite (30.12.2025)
+- [x] Portfolio-Detailseite: Anzahl Aktien in Positionstabelle anzeigen
+- [x] Portfolio-Detailseite: Firmenlogos vor Ticker-Symbolen anzeigen
+- [x] Portfolio-Detailseite: Donut-Chart farbig gestalten mit größten Aktienpositionen
+- [x] Portfolio-Detailseite: "Alarm einstellen"-Button aktivieren
+- [x] Portfolio-Bearbeitungsdialog: Anzahl Aktien und Einstandspreis in Fremdwährung für Live-Portfolios hinzufügen

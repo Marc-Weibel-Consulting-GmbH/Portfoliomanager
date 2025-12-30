@@ -22,7 +22,7 @@ import AnnualPerformanceSummary from "@/components/AnnualPerformanceSummary";
 import { CsvImportModal } from "@/components/CsvImportModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
 import { SectorAllocation } from "@/components/SectorAllocation";
-import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload, ChevronRight, ChevronDown, List, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, TrendingUp, Calendar, Trash2, Download, Upload, ChevronRight, ChevronDown, List, Pencil, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 
@@ -899,7 +899,7 @@ export default function PortfolioDetail() {
                         </div>
                       </div>
 
-                      {/* Edit Position Button */}
+                      {/* Edit Position and Alarm Buttons */}
                       {Boolean(portfolio.isLive) && (
                         <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
                           <div className="flex items-center gap-4">
@@ -909,25 +909,40 @@ export default function PortfolioDetail() {
                               </span>
                             )}
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingPosition({
-                                ticker: stock.ticker,
-                                name: stock.name,
-                                shares: stock.shares,
-                                avgBuyPrice: chfHolding?.avgBuyPrice || holding?.avgBuyPrice,
-                                currency: stock.currency,
-                                totalInvestedCHF: totalInvestedCHF
-                              });
-                            }}
-                            className="text-cyan-400 border-cyan-400/50 hover:bg-cyan-400/10"
-                          >
-                            <Pencil className="w-3 h-3 mr-1" />
-                            Position bearbeiten
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Link href={`/price-alerts?ticker=${stock.ticker}`}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                className="text-yellow-400 border-yellow-400/50 hover:bg-yellow-400/10"
+                              >
+                                <Bell className="w-3 h-3 mr-1" />
+                                Alarm einstellen
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingPosition({
+                                  ticker: stock.ticker,
+                                  name: stock.name,
+                                  shares: stock.shares,
+                                  avgBuyPrice: chfHolding?.avgBuyPrice || holding?.avgBuyPrice,
+                                  currency: stock.currency,
+                                  totalInvestedCHF: totalInvestedCHF
+                                });
+                              }}
+                              className="text-cyan-400 border-cyan-400/50 hover:bg-cyan-400/10"
+                            >
+                              <Pencil className="w-3 h-3 mr-1" />
+                              Position bearbeiten
+                            </Button>
+                          </div>
                         </div>
                       )}
 
