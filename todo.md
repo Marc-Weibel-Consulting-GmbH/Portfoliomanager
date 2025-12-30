@@ -9,13 +9,14 @@
   - Server restarted to apply changes
 
 - [x] Fix historical data range - data should go back further than October 2024
-- [ ] FEATURE: Portfolio Performance Charts sollen hypothetische historische Performance zeigen (30.12.2025)
+- [ ] FEATURE: Portfolio Performance Charts sollen hypothetische historische Performance zeigen (30.12.2025) **[PAUSIERT]**
   - VOR Erstellungsdatum: Hypothetische Performance (TWR ohne Transaktionen) basierend auf aktueller Gewichtung
   - AB Erstellungsdatum: Tatsächliche Performance (TWR mit Transaktionen)
   - Problem: Historische Kursdaten reichen nicht weit genug zurück
   - Benötigt: Tägliche Kurse für ALLE Aktien im Portfolio so weit wie möglich zurück (mehrere Jahre)
   - Status: Portfolio Test 1 zeigt nur Daten ab 06.11.2025, sollte aber bis YTD (01.01.2025) oder weiter zurück gehen
   - Prüfen: EODHD API historische Daten-Abfrage und Speicherung in historical_prices Tabelle
+  - **PAUSIERT** auf Benutzerwunsch - Thema wird später wieder aufgenommen
 
 - [x] "Neues Portfolio" Button überall soll direkt zum NEUEN Portfolio Builder (/portfolio-builder/new) führen (Zwischenschritt komplett entfernen)
 - [x] Navigation "Portfolios" → "Neues Portfolio" führt zum alten Builder (auf neuen Builder umstellen)
@@ -1613,3 +1614,7 @@
 - [x] Prüfen ob historicalPricesCron korrekt funktioniert und Daten abruft
 - [x] Sicherstellen dass historische Daten für ALLE Portfolio-Aktien verfügbar sind
 - [x] Validierung der historical_prices Tabelle nach Backfill (96'648 Preise für 131 Tickers, 3 Jahre Daten)
+
+
+## Critical Bug (30.12.2025)
+- [x] Fix authentication logout loop - users are immediately logged out after login and redirected back to start

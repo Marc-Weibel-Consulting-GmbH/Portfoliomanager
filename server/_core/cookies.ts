@@ -33,6 +33,7 @@ export function getSessionCookieOptions(
     hostname !== "::1";
 
   // Don't set domain for Manus proxy URLs (they have complex subdomain structure)
+  // Also don't set domain for localhost to ensure cookies work properly
   const domain = undefined; // Let browser handle domain automatically
 
   return {
