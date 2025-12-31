@@ -48,6 +48,7 @@ import Kontakt from "./pages/Kontakt";
 import Pricing from "./pages/Pricing";
 import Impressum from "./pages/Impressum";
 import Datenschutz from "./pages/Datenschutz";
+import DebugTest from "./pages/DebugTest";
 import AGB from "./pages/AGB";
 import OnboardingWizard from "./components/OnboardingWizard";
 import Registration from "./pages/Registration";
@@ -92,7 +93,8 @@ function Router() {
       <Route path="/portfolio-comparison" component={PortfolioComparison} />
       <Route path="/price-alerts" component={PriceAlerts} />
       <Route path="/admin/secrets" component={AdminSecrets} />
-      <Route path="/admin/test-secrets" component={TestSecrets} />
+            <Route path="/test-secrets" component={TestSecrets} />
+      <Route path="/debug-test" component={DebugTest} />
       <Route path="/admin/logs" component={AdminLogs} />
       <Route path="/settings/notifications" component={NotificationSettings} />
       <Route path="/chat" component={Chat} />

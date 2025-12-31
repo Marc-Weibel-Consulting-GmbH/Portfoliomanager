@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { TrendingUp, DollarSign, Scale } from "lucide-react";
+import { TrendingUp, DollarSign, Scale, TestTube, Zap } from "lucide-react";
 import { PortfolioBuilderState } from "../PortfolioBuilderNew";
 
 interface Step1BasicsProps {
@@ -82,7 +82,7 @@ export default function Step1Basics({ state, updateState }: Step1BasicsProps) {
           {/* Initial Capital */}
           <div className="space-y-2">
             <Label htmlFor="initialCapital" className="text-white">
-              Startkapital (CHF) *
+              Investitionssumme (CHF) *
             </Label>
             <Input
               id="initialCapital"
@@ -101,6 +101,37 @@ export default function Step1Basics({ state, updateState }: Step1BasicsProps) {
             {state.initialCapital >= 100000 && (
               <p className="text-xs text-green-400">✓ Ausreichend für diversifiziertes Einzeltitel-Portfolio</p>
             )}
+          </div>
+
+          {/* Portfolio Type */}
+          <div className="space-y-2">
+            <Label className="text-white">Portfolio-Typ *</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => updateState({ portfolioType: 'demo' })}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  state.portfolioType === 'demo'
+                    ? "border-[#00CFC1] bg-[#00CFC1]/10"
+                    : "border-white/10 bg-[#0a0f1a] hover:border-white/20"
+                }`}
+              >
+                <TestTube className={`h-6 w-6 mb-2 ${state.portfolioType === 'demo' ? 'text-[#00CFC1]' : 'text-blue-400'}`} />
+                <h3 className="text-base font-semibold text-white mb-1">Demo</h3>
+                <p className="text-sm text-gray-400">Zum Testen und Experimentieren</p>
+              </button>
+              <button
+                onClick={() => updateState({ portfolioType: 'live' })}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  state.portfolioType === 'live'
+                    ? "border-[#00CFC1] bg-[#00CFC1]/10"
+                    : "border-white/10 bg-[#0a0f1a] hover:border-white/20"
+                }`}
+              >
+                <Zap className={`h-6 w-6 mb-2 ${state.portfolioType === 'live' ? 'text-[#00CFC1]' : 'text-green-400'}`} />
+                <h3 className="text-base font-semibold text-white mb-1">Live</h3>
+                <p className="text-sm text-gray-400">Echtes Portfolio mit Live-Tracking</p>
+              </button>
+            </div>
           </div>
         </CardContent>
       </Card>

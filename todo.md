@@ -24,6 +24,7 @@
 - [x] Submenu in DashboardLayout einklappbar machen
 
 ## New Bugs & Features (30.12.2025)
+- [x] Bug: Portfolio saving fails due to missing TRPCError import in portfoliosRouter - FIXED (31.12.2025)
 - [x] Bug: YTD Performance-Berechnung überprüfen und korrigieren (seit 01.01.25) - FIXED: Added graceful fallback when historical data missing, logs warning
 - [x] Bug: Dividenden-Kalender zeigt 0 Aktien überall - FIXED: calendar endpoint now calculates holdings from transactions
 - [x] Feature: Cron-Job für automatische Alarm-Prüfung (täglich/stündlich) mit Email/WhatsApp Benachrichtigungen - COMPLETED: Runs every hour, sends Email/WhatsApp
@@ -1768,3 +1769,20 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
   - Added FX conversion fallback on error (1:1 rate)
   - Improved frontend error display
   - Unit tests: ✅ All passed (10/10)
+
+
+## Portfolio Detail Page Redesign (31.12.2025 - Neue Anforderungen)
+
+- [ ] Remove hypothetical performance data before portfolio creation date - show only real data since start
+- [ ] Remove Live-Toggle from portfolio detail page (not needed anymore)
+- [ ] Add mandatory `investmentAmount` field to portfolio creation
+- [ ] Add mandatory `portfolioType` (demo/live) selection to portfolio creation
+- [ ] Update "Portfolio bearbeiten" dialog to include: purchaseDate, quantity, entryPrice per position
+- [ ] Implement automatic weight calculation based on position value and total investment amount
+- [ ] Add automatic position quantity calculation during portfolio creation (based on current price and weight)
+- [ ] Move tabs (Übersicht / Realisierte Gewinne / Gebühren) to top below portfolio title
+- [ ] Create separate sub-page route for "Realisierte Gewinne" (/portfolios/:id/realized-gains)
+- [ ] Create separate sub-page route for "Gebühren" (/portfolios/:id/fees)
+- [ ] Update performance chart to show only available time periods based on portfolio age (no data before creation date)
+- [ ] Update database schema: portfolios table (investmentAmount, portfolioType)
+- [ ] Update database schema: portfolio_holdings table (purchaseDate, quantity, entryPrice)

@@ -210,10 +210,11 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   userId: int("userId").notNull(), // References users.id
   name: varchar("name", { length: 255 }).notNull(), // User-defined portfolio name
   description: text("description"), // Optional description
-  portfolioData: text("portfolioData").notNull(), // JSON string with stocks and weights
-  portfolioType: varchar("portfolioType", { length: 50 }), // Portfolio type: dividends, growth, balanced, etf
+  portfolioData: text("portfolioData"), // JSON string with stocks and weights (optional during creation)
+  portfolioType: mysqlEnum("portfolioType", ["demo", "live"]).notNull().default("demo"), // Portfolio type: demo or live
   status: mysqlEnum("status", ["planned", "live"]).notNull().default("planned"), // Portfolio status: planned or live
-  startCapital: varchar("startCapital", { length: 50 }), // Initial capital when portfolio is activated
+  investmentAmount: varchar("investmentAmount", { length: 50 }).notNull(), // Total investment amount in CHF (mandatory)
+  startCapital: varchar("startCapital", { length: 50 }), // Initial capital when portfolio is activated (deprecated, use investmentAmount)
   benchmark: mysqlEnum("benchmark", ["SMI", "SP500", "MSCI_WORLD"]), // Benchmark for comparison
   isLive: tinyint("isLive").notNull().default(0), // 1 = Live tracking enabled, 0 = Test mode
   liveStartDate: timestamp("liveStartDate"), // Date when live tracking started

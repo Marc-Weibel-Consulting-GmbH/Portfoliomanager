@@ -30,6 +30,7 @@ import { portfolioManagementRouter } from "./routers/portfolioManagementRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
 import { dashboardPerformanceRouter } from "./routers/dashboardPerformanceRouter";
 import { newsRouter } from "./routers/newsRouter";
+import { debugRouter } from "./routers/debugRouter";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -205,6 +206,9 @@ async function recalculateWeights(changedTicker?: string, isDelete: boolean = fa
 
 export const appRouter = router({
   system: systemRouter,
+
+  // DEBUG: Test endpoint for portfolio creation
+  debugTest: debugRouter,
 
   // DEBUG: Endpoint to inspect production environment variables
   debug: router({

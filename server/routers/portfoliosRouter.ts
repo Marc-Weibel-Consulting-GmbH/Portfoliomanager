@@ -1,4 +1,5 @@
 import { protectedProcedure, router } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 // Helper to get YTD start date (January 1st of current year)
@@ -267,21 +268,92 @@ export const portfoliosRouter = router({
           name: z.string().min(1),
           description: z.string().optional(),
           portfolioData: z.string(),
-          isLive: z.number().optional().default(0),
-          liveStartDate: z.string().optional(),
+          investmentAmount: z.coerce.number().positive(),
+          portfolioType: z.enum(["demo", "live"]).default("demo"),
         })
       )
       .mutation(async ({ input, ctx }) => {
-        const { createSavedPortfolio } = await import("../db");
-        const result = await createSavedPortfolio({
-          userId: ctx.user.id,
-          name: input.name,
-          description: input.description || null,
-          portfolioData: input.portfolioData,
-          isLive: input.isLive,
-          liveStartDate: input.liveStartDate ? new Date(input.liveStartDate) : null,
-        });
-        return result;
+        const debugId = crypto.randomUUID();
+        console.log(`[portfolios.create ${debugId}] Starting...`);
+        console.log(`[portfolios.create ${debugId}] Input:`, JSON.stringify(input, null, 2));
+        console.log(`[portfolios.create ${debugId}] User:`, ctx.user.id);
+        
+        try {
+          const { getDb } = await import("../db");
+          const { savedPortfolios } = await import("../../drizzle/schema");
+          const { sql, eq } = await import("drizzle-orm");
+          
+          const db = await getDb();
+          if (!db) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: `Database connection not available (debugId=${debugId})`,
+            });
+          }
+          
+          // 1) DB Ping Test
+          console.log(`[portfolios.create ${debugId}] DB Ping...`);
+          await db.execute(sql`SELECT 1`);
+          console.log(`[portfolios.create ${debugId}] DB Ping OK`);
+          
+          // 2) Insert portfolio
+          const portfolioData = {
+            userId: ctx.user.id,
+            name: input.name,
+            description: input.description || null,
+            portfolioData: input.portfolioData,
+            investmentAmount: String(input.investmentAmount),
+            portfolioType: input.portfolioType,
+            isLive: input.portfolioType === "live" ? 1 : 0,
+            liveStartDate: input.portfolioType === "live" ? new Date() : null,
+          };
+                 console.log(`[portfolios.create ${debugId}] Inserting portfolio...`);
+          await db.insert(savedPortfolios).values(portfolioData);
+          console.log(`[portfolios.create ${debugId}] Insert OK`);
+          // 3) Get the last inserted ID using MySQL's LAST_INSERT_ID()
+          console.log(`[portfolios.create ${debugId}] Getting LAST_INSERT_ID...`);
+          const lastIdResult = await db.execute(sql`SELECT LAST_INSERT_ID() as id`);
+          console.log(`[portfolios.create ${debugId}] LAST_INSERT_ID result:`, JSON.stringify(lastIdResult[0], null, 2));
+          const lastId = (lastIdResult as any)[0]?.[0]?.id;
+          console.log(`[portfolios.create ${debugId}] Extracted lastId:`, lastId);
+          
+          if (!lastId) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: `Failed to get LAST_INSERT_ID (debugId=${debugId})`,
+            });
+          }
+          
+          // 4) Fetch the inserted portfolio using the ID
+          const inserted = await db
+            .select()
+            .from(savedPortfolios)
+            .where(eq(savedPortfolios.id, Number(lastId)))
+            .limit(1);
+          
+          if (!inserted || inserted.length === 0) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: `Failed to fetch inserted portfolio (debugId=${debugId})`,
+            });
+          }
+          
+          console.log(`[portfolios.create ${debugId}] Returning portfolio:`, inserted[0].id);
+          return { ok: true, portfolio: inserted[0] };
+        } catch (err: any) {
+          // If it's already a TRPCError, rethrow it
+          if (err instanceof TRPCError) {
+            throw err;
+          }
+          
+          // Otherwise, wrap it in a TRPCError
+          console.error(`[portfolios.create ${debugId}] ERROR:`, err);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `portfolios.create failed (debugId=${debugId}): ${err?.message ?? String(err)}`,
+            cause: err,
+          });
+        }
       }),
 
     update: protectedProcedure

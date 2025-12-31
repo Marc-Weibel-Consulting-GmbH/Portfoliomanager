@@ -1,0 +1,50 @@
+{
+  "query": "SELECT id, name, investmentAmount, portfolioType, userId, createdAt FROM savedPortfolios ORDER BY createdAt DESC LIMIT 5",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, name, investmentAmount, portfolioType, userId, createdAt FROM savedPortfolios ORDER BY createdAt DESC LIMIT 5",
+  "rows": [
+    {
+      "id": "510001",
+      "name": "Test Manual",
+      "investmentAmount": "50000",
+      "portfolioType": "demo",
+      "userId": "1",
+      "createdAt": "2025-12-31 07:50:24"
+    },
+    {
+      "id": "450001",
+      "name": "Test Portfolio Live",
+      "investmentAmount": "0",
+      "portfolioType": "demo",
+      "userId": "19650007",
+      "createdAt": "2025-12-29 12:27:19"
+    },
+    {
+      "id": "420004",
+      "name": "Final Test",
+      "investmentAmount": "0",
+      "portfolioType": "demo",
+      "userId": "19410075",
+      "createdAt": "2025-12-29 08:24:47"
+    },
+    {
+      "id": "420003",
+      "name": "Test Portfolio Final",
+      "investmentAmount": "0",
+      "portfolioType": "demo",
+      "userId": "19410075",
+      "createdAt": "2025-12-29 08:20:01"
+    },
+    {
+      "id": "420002",
+      "name": "Test Portfolio 2",
+      "investmentAmount": "0",
+      "portfolioType": "demo",
+      "userId": "19410075",
+      "createdAt": "2025-12-29 08:08:52"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tinvestmentAmount\tportfolioType\tuserId\tcreatedAt\n510001\tTest Manual\t50000\tdemo\t1\t2025-12-31 07:50:24\n450001\tTest Portfolio Live\t0\tdemo\t19650007\t2025-12-29 12:27:19\n420004\tFinal Test\t0\tdemo\t19410075\t2025-12-29 08:24:47\n420003\tTest Portfolio Final\t0\tdemo\t19410075\t2025-12-29 08:20:01\n420002\tTest Portfolio 2\t0\tdemo\t19410075\t2025-12-29 08:08:52\n",
+  "stderr": "",
+  "execution_time_ms": 1581
+}

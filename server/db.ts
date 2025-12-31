@@ -423,31 +423,56 @@ export async function getSavedPortfolioById(id: number, userId: number) {
 
 export async function createSavedPortfolio(portfolio: InsertSavedPortfolio) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) {
+    throw new Error('Database connection not available');
+  }
   
   try {
-    // Calculate portfolio type based on composition
-    const { calculatePortfolioType } = await import("./portfolioTypeCalculator");
-    const portfolioType = calculatePortfolioType(portfolio.portfolioData);
+    console.log('[Database] createSavedPortfolio called with:', JSON.stringify(portfolio, null, 2));
     
-    const result = await db.insert(savedPortfolios).values({
-      ...portfolio,
-      portfolioType,
-    });
+    // Only insert valid columns that exist in the database
+    const validData: any = {
+      userId: portfolio.userId,
+      name: portfolio.name,
+      portfolioData: portfolio.portfolioData,
+      investmentAmount: portfolio.investmentAmount,
+      portfolioType: portfolio.portfolioType,
+      isLive: portfolio.isLive ?? 0,
+    };
     
-    // Get the inserted ID
+    // Add optional fields if they exist
+    if (portfolio.description !== undefined) validData.description = portfolio.description;
+    if (portfolio.liveStartDate !== undefined) validData.liveStartDate = portfolio.liveStartDate;
+    
+    console.log('[Database] Inserting with validData:', JSON.stringify(validData, null, 2));
+    
+    // Insert the portfolio
+    const result = await db.insert(savedPortfolios).values(validData);
+    
+    console.log('[Database] Insert result:', result);
+    
+    // Get the inserted ID from the result
     const insertId = (result as any)[0]?.insertId || (result as any).insertId;
-    console.log('[Database] Created portfolio with insertId:', insertId);
+    
+    console.log('[Database] Extracted insertId:', insertId);
     
     if (!insertId) {
-      console.error('[Database] No insertId returned from insert');
-      throw new Error('Failed to get portfolio ID');
+      throw new Error('Failed to get portfolio ID from insert result');
     }
     
-    return { id: Number(insertId), ...portfolio, portfolioType };
-  } catch (error) {
+    // Return the created portfolio with the ID
+    const returnValue = {
+      id: Number(insertId),
+      ...validData,
+    };
+    
+    console.log('[Database] Returning:', JSON.stringify(returnValue, null, 2));
+    
+    return returnValue;
+  } catch (error: any) {
     console.error("[Database] Failed to create saved portfolio:", error);
-    return null;
+    console.error("[Database] Error stack:", error.stack);
+    throw new Error(`Database error: ${error.message || 'Unknown error'}`);
   }
 }
 

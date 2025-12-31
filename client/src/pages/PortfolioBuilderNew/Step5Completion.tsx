@@ -15,23 +15,65 @@ interface Step5CompletionProps {
 
 export default function Step5Completion({ state }: Step5CompletionProps) {
   const [, setLocation] = useLocation();
-  const [activateAsLive, setActivateAsLive] = useState(false);
   const [enableRebalancing, setEnableRebalancing] = useState(false);
   const [enableDividendTracking, setEnableDividendTracking] = useState(state.strategy === 'dividends');
   const [isSaving, setIsSaving] = useState(false);
 
   const createMutation = trpc.portfolios.create.useMutation({
     onSuccess: (data) => {
+      if (!data?.ok || !data?.portfolio?.id) {
+        toast.error("Portfolio wurde gespeichert, aber die ID konnte nicht abgerufen werden. Bitte laden Sie die Portfolios-Seite neu.");
+        setLocation('/portfolios');
+        return;
+      }
       toast.success('Portfolio erfolgreich erstellt!');
-      setLocation(`/portfolios/${data.id}`);
+      setLocation(`/portfolios/${data.portfolio.id}`);
     },
     onError: (error) => {
-      toast.error('Fehler beim Speichern: ' + error.message);
+      toast.error('Fehler beim Speichern: ' + (error.message || 'Unbekannter Fehler'));
       setIsSaving(false);
     },
   });
 
   const handleSave = async () => {
+    console.log("[handleSave] Starting...");
+    console.log("[handleSave] state:", state);
+    setIsSaving(true);
+
+    // Prepare portfolio data
+    const portfolioData = {
+      stocks: state.positions.map(pos => ({
+        ticker: pos.ticker,
+        companyName: pos.companyName,
+        weight: pos.weight,
+        currentPrice: pos.currentPrice,
+        ytdPerformance: pos.ytdPerformance,
+        dividendYield: pos.dividendYield,
+        sector: pos.sector,
+      })),
+    };
+
+    const payload = {
+        name: state.portfolioName,
+        description: state.description || undefined,
+        portfolioData: JSON.stringify(portfolioData),
+        investmentAmount: state.initialCapital.toString(),
+        portfolioType: state.portfolioType as "demo" | "live",
+      };
+    
+    console.log("[handleSave] Payload:", payload);
+    
+    try {
+      console.log("[handleSave] Calling mutateAsync...");
+      const result = await createMutation.mutateAsync(payload);
+      console.log("[handleSave] Result:", result);
+    } catch (error) {
+      console.error("[handleSave] Error:", error);
+      // Error handled in onError
+    }
+  };
+
+  const handleSave_OLD = async () => {
     setIsSaving(true);
 
     // Prepare portfolio data
@@ -52,7 +94,8 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
         name: state.portfolioName,
         description: state.description || undefined,
         portfolioData: JSON.stringify(portfolioData),
-        isLive: activateAsLive ? 1 : 0,
+        investmentAmount: state.initialCapital.toString(),
+        portfolioType: state.portfolioType as "demo" | "live",
       });
     } catch (error) {
       // Error handled in onError
@@ -101,6 +144,14 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
               <p className="text-sm text-gray-400">Anzahl Positionen</p>
               <p className="text-white font-medium">{state.positions.length}</p>
             </div>
+            <div>
+              <p className="text-sm text-gray-400">Investitionssumme</p>
+              <p className="text-white font-medium">CHF {state.initialCapital.toLocaleString('de-CH')}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-400">Portfolio-Typ</p>
+              <p className="text-white font-medium">{state.portfolioType === 'live' ? 'Live' : 'Demo'}</p>
+            </div>
           </div>
 
           {state.description && (
@@ -133,22 +184,6 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
           <CardTitle className="text-white">Portfolio-Optionen</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start gap-3">
-            <Checkbox
-              id="activateLive"
-              checked={activateAsLive}
-              onCheckedChange={(checked) => setActivateAsLive(checked as boolean)}
-            />
-            <div className="flex-1">
-              <Label htmlFor="activateLive" className="text-white font-medium cursor-pointer">
-                Als Live-Portfolio aktivieren
-              </Label>
-              <p className="text-sm text-gray-400 mt-1">
-                Tracke dein Portfolio in Echtzeit mit Live-Performance-Metriken
-              </p>
-            </div>
-          </div>
-
           <div className="flex items-start gap-3 opacity-50">
             <Checkbox
               id="rebalancing"
@@ -228,7 +263,7 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
                 <li>• Dein Portfolio wird gespeichert und ist sofort verfügbar</li>
                 <li>• Du kannst jederzeit Positionen hinzufügen oder entfernen</li>
                 <li>• Gewichtungen können später angepasst werden</li>
-                {activateAsLive && <li>• Live-Tracking startet automatisch mit aktuellen Kursen</li>}
+                {state.portfolioType === 'live' && <li>• Live-Tracking startet automatisch mit aktuellen Kursen</li>}
               </ul>
             </div>
           </div>
