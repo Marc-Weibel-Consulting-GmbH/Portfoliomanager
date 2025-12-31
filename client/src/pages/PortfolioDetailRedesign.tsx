@@ -32,6 +32,9 @@ import {
 import { ArrowLeft, TrendingUp, TrendingDown, Play, Share2, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
+import { RealizedGainsTable } from "@/components/RealizedGainsTable";
+import { CostFeesReport } from "@/components/CostFeesReport";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const COLORS = ["#06b6d4", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#6366f1"];
@@ -97,9 +100,15 @@ export default function PortfolioDetailRedesign() {
   // Extract data safely for hooks (must be before any early returns)
   const portfolio = portfolioDetails?.portfolio;
   const holdings = portfolioDetails?.holdings;
-  const transactions = portfolioDetails?.transactions;
+  const transactions = portfolioDetails?.transactions || [];
   const metrics = portfolioDetails?.metrics;
   const isLive = portfolio?.status === "live";
+
+  // Fetch realized gains
+  const { data: realizedGains = [] } = trpc.realizedGainsHistory.getAll.useQuery(
+    { portfolioId: portfolioId! },
+    { enabled: !!portfolioId }
+  );
 
   // Prepare chart data for performance (must be before early returns)
   const performanceChartData = useMemo(() => {
@@ -495,6 +504,62 @@ export default function PortfolioDetailRedesign() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Additional Reports Tabs */}
+      <Tabs defaultValue="overview" className="w-full mt-8">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="overview">Übersicht</TabsTrigger>
+          <TabsTrigger value="realized-gains">Realisierte Gewinne</TabsTrigger>
+          <TabsTrigger value="costs-fees">Kosten & Gebühren</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Portfolio-Übersicht</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Wählen Sie einen der Tabs oben, um detaillierte Berichte zu Ihren realisierten Gewinnen oder Kosten & Gebühren anzuzeigen.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="realized-gains">
+          {realizedGains.length > 0 ? (
+            <RealizedGainsTable gains={realizedGains} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Keine realisierten Gewinne</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Es wurden noch keine Verkaufstransaktionen erfasst.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="costs-fees">
+          {transactions.length > 0 ? (
+            <CostFeesReport transactions={transactions} portfolioId={portfolioId!} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Keine Transaktionen</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Es wurden noch keine Transaktionen erfasst.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Activation Modal */}
       <Dialog open={isActivationModalOpen} onOpenChange={setIsActivationModalOpen}>

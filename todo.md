@@ -31,6 +31,13 @@
 - [x] Feature: Ursprüngliche Investitionssumme anzeigen (Investiert vs. Aktueller Wert) - COMPLETED: Added totalInvested to dashboard metrics
 - [x] Portfolio Details Redesign - Replace old complex design (1137 lines) with new simplified version
 
+## UI Integration Tasks (31.12.2025)
+- [x] Integrate RealizedGainsTable component into PortfolioDetail page as new tab
+- [x] Integrate CostFeesReport component into PortfolioDetail page as new tab
+- [x] Update tab navigation in PortfolioDetail for better overview
+- [x] Test realized gains display with real portfolio data
+- [x] Test cost/fees report with real portfolio data
+
 ## Registration Flow (New Requirement - Dec 26, 2025)
 - [x] Implement registration form after OAuth login
 - [x] Collect user information (name, email, investment goals, risk tolerance)

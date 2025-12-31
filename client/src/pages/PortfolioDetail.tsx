@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
@@ -421,15 +422,61 @@ export default function PortfolioDetail() {
         </Card>
       </div>
 
-      {/* Realized Gains/Losses Detailed Table */}
-      {realizedGainsDetailed.length > 0 && (
-        <RealizedGainsTable gains={realizedGainsDetailed} />
-      )}
-
-      {/* Cost & Fees Report for Tax */}
-      {transactions.length > 0 && (
-        <CostFeesReport transactions={transactions} portfolioId={portfolioId!} />
-      )}
+      {/* Additional Reports Tabs */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="overview">Übersicht</TabsTrigger>
+          <TabsTrigger value="realized-gains">Realisierte Gewinne</TabsTrigger>
+          <TabsTrigger value="costs-fees">Kosten & Gebühren</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle>Portfolio-Übersicht</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Wählen Sie einen der Tabs oben, um detaillierte Berichte zu Ihren realisierten Gewinnen oder Kosten & Gebühren anzuzeigen.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="realized-gains">
+          {realizedGainsDetailed.length > 0 ? (
+            <RealizedGainsTable gains={realizedGainsDetailed} />
+          ) : (
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle>Keine realisierten Gewinne</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Es wurden noch keine Verkaufstransaktionen erfasst.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="costs-fees">
+          {transactions.length > 0 ? (
+            <CostFeesReport transactions={transactions} portfolioId={portfolioId!} />
+          ) : (
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle>Keine Transaktionen</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Es wurden noch keine Transaktionen erfasst.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Edit Position Dialog */}
       <Dialog open={isEditPositionOpen} onOpenChange={setIsEditPositionOpen}>
