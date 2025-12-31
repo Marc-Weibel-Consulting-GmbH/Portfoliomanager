@@ -40,6 +40,9 @@ import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RealizedGainsTable } from "@/components/RealizedGainsTable";
+import { CostFeesReport } from "@/components/CostFeesReport";
 
 const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   dividends: { label: "Dividenden", icon: <DollarSign className="h-4 w-4" />, color: "bg-blue-500" },
@@ -74,6 +77,12 @@ export default function PortfolioDetailsPage() {
   
   // Fetch transactions for edit modal
   const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
+    { portfolioId },
+    { enabled: portfolioId > 0 }
+  );
+  
+  // Fetch realized gains
+  const { data: realizedGains = [] } = trpc.realizedGainsHistory.getAll.useQuery(
     { portfolioId },
     { enabled: portfolioId > 0 }
   );
@@ -675,6 +684,140 @@ export default function PortfolioDetailsPage() {
             </Card>
           </div>
         </div>
+        
+        {/* Tabs Section */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-[#1a1f2e] border border-[#00CFC1]/30">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]">Übersicht</TabsTrigger>
+            <TabsTrigger value="realized-gains" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]">Realisierte Gewinne</TabsTrigger>
+            <TabsTrigger value="costs-fees" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]">Kosten & Gebühren</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview" className="mt-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">Gesamtwert</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-white">{formatCurrency(totalValueCHF, portfolio.currency || 'CHF')}</div>
+                  <p className="text-xs text-gray-500 mt-1">Aktueller Portfoliowert</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">Performance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <div className={`text-2xl font-bold ${(historicalData?.performance || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {(historicalData?.performance || 0) >= 0 ? '+' : ''}{(historicalData?.performance || 0).toFixed(2)}%
+                    </div>
+                    {(historicalData?.performance || 0) >= 0 ? (
+                      <TrendingUp className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <TrendingDown className="h-5 w-5 text-red-500" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{selectedPeriod} Performance</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">Durchschn. Div. Rendite</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-[#00CFC1]">{avgDividendYield.toFixed(2)}%</div>
+                  <p className="text-xs text-gray-500 mt-1">Gewichteter Durchschnitt</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">Positionen</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-white">{holdings.length}</div>
+                  <p className="text-xs text-gray-500 mt-1">{Object.keys(sectorWeights).length} Sektoren</p>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Recent Activity Summary */}
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30 mt-4">
+              <CardHeader>
+                <CardTitle className="text-white">Portfolio-Zusammenfassung</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-400 mb-3">Top Positionen</h4>
+                    <div className="space-y-2">
+                      {holdings
+                        .sort((a: any, b: any) => parseFloat(b.weight || '0') - parseFloat(a.weight || '0'))
+                        .slice(0, 5)
+                        .map((h: any) => (
+                          <div key={h.ticker} className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#00CFC1] font-semibold">{h.ticker}</span>
+                              <span className="text-gray-400 text-sm">{h.companyName}</span>
+                            </div>
+                            <Badge variant="outline">{parseFloat(h.weight || '0').toFixed(2)}%</Badge>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-400 mb-3">Beste Performance (YTD)</h4>
+                    <div className="space-y-2">
+                      {holdings
+                        .sort((a: any, b: any) => parseFloat(b.ytdPerformance || '0') - parseFloat(a.ytdPerformance || '0'))
+                        .slice(0, 5)
+                        .map((h: any) => (
+                          <div key={h.ticker} className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#00CFC1] font-semibold">{h.ticker}</span>
+                              <span className="text-gray-400 text-sm">{h.companyName}</span>
+                            </div>
+                            <span className={parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-green-500' : 'text-red-500'}>
+                              {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(2)}%
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="realized-gains" className="mt-6">
+            {realizedGains.length > 0 ? (
+              <RealizedGainsTable gains={realizedGains} />
+            ) : (
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardContent className="pt-6">
+                  <p className="text-gray-400 text-center">Keine realisierten Gewinne vorhanden</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="costs-fees" className="mt-6">
+            {transactions.length > 0 ? (
+              <CostFeesReport transactions={transactions} portfolioId={portfolioId} />
+            ) : (
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardContent className="pt-6">
+                  <p className="text-gray-400 text-center">Keine Transaktionen vorhanden</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
         
         {/* Quick Actions */}
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">

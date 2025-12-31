@@ -37,6 +37,7 @@
 - [x] Update tab navigation in PortfolioDetail for better overview
 - [x] Test realized gains display with real portfolio data
 - [x] Test cost/fees report with real portfolio data
+- [x] Add RealizedGainsTable and CostFeesReport as tabs in PortfolioDetailsPage (current portfolio detail view)
 
 ## Registration Flow (New Requirement - Dec 26, 2025)
 - [x] Implement registration form after OAuth login
