@@ -1838,3 +1838,4 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
 - [ ] BUG: Portfolio creation doesn't calculate share quantities - investment amount and weight should automatically calculate number of shares based on current price (01.01.2026)
 
 - [x] Fix portfolio creation: automatically calculate share quantities based on investment amount, weight, and current price (01.01.2026)
+- [x] Round share quantities to whole numbers (no fractional shares) - 01.01.2026

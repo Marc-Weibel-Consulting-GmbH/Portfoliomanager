@@ -228,7 +228,7 @@ export const portfoliosRouter = router({
             if (shares === 0 && portfolio.investmentAmount) {
               const investmentAmount = parseFloat(portfolio.investmentAmount) || 0;
               const allocationAmount = investmentAmount * (weight / 100);
-              shares = currentPrice > 0 ? (allocationAmount / currentPrice) : 0;
+              shares = currentPrice > 0 ? Math.round((allocationAmount / currentPrice)) : 0;
             }
             
             // Calculate avgBuyPrice if missing
@@ -246,7 +246,7 @@ export const portfoliosRouter = router({
               priceCHF,
               currentPriceCHF: priceCHF,
               weight: parseFloat(weight.toFixed(2)),
-              shares: shares.toFixed(6),
+              shares: shares.toFixed(0),
               avgBuyPrice: avgBuyPrice.toFixed(2),
               totalValue: totalValue.toFixed(2),
               valueCHF: totalValue,
@@ -556,7 +556,7 @@ export const portfoliosRouter = router({
                 portfolioId: input.id,
                 transactionType: 'entry',
                 ticker: ticker,
-                shares: shares.toFixed(6),
+                shares: shares.toFixed(0),
                 pricePerShare: currentPrice.toFixed(2),
                 currency: currency,
                 totalAmount: positionValueCHF.toFixed(2),
