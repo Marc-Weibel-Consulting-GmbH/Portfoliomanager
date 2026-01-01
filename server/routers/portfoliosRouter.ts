@@ -276,7 +276,17 @@ export const portfoliosRouter = router({
         const debugId = crypto.randomUUID();
         console.log(`[portfolios.create ${debugId}] Starting...`);
         console.log(`[portfolios.create ${debugId}] Input:`, JSON.stringify(input, null, 2));
-        console.log(`[portfolios.create ${debugId}] User:`, ctx.user.id);
+        console.log(`[portfolios.create ${debugId}] ctx.user:`, JSON.stringify(ctx.user, null, 2));
+        console.log(`[portfolios.create ${debugId}] ctx.user.id:`, ctx.user.id);
+        console.log(`[portfolios.create ${debugId}] typeof ctx.user.id:`, typeof ctx.user.id);
+        
+        // Explicit validation to catch any edge cases
+        if (!ctx.user || !ctx.user.id) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: `User authentication failed in create mutation (debugId=${debugId})`,
+          });
+        }
         
         try {
           const { getDb } = await import("../db");
@@ -297,8 +307,11 @@ export const portfoliosRouter = router({
           console.log(`[portfolios.create ${debugId}] DB Ping OK`);
           
           // 2) Insert portfolio
+          const userId = ctx.user.id;
+          console.log(`[portfolios.create ${debugId}] Using userId for insert:`, userId, 'type:', typeof userId);
+          
           const portfolioData = {
-            userId: ctx.user.id,
+            userId: userId,
             name: input.name,
             description: input.description || null,
             portfolioData: input.portfolioData,

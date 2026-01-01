@@ -193,7 +193,8 @@ export default function PortfolioBuilderWizard() {
         name: portfolioName,
         description: portfolioDescription || undefined,
         portfolioData: JSON.stringify(portfolioData),
-        isLive: isLive ? 1 : 0,
+        investmentAmount: parseFloat(initialCapital) || 0,
+        portfolioType: isLive ? "live" : "demo",
       });
       
       toast.success("Portfolio erfolgreich erstellt!");

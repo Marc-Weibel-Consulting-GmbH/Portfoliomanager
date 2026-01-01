@@ -1,0 +1,45 @@
+{
+  "query": "SELECT id, userId, name, portfolioType, createdAt FROM savedPortfolios ORDER BY createdAt DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, userId, name, portfolioType, createdAt FROM savedPortfolios ORDER BY createdAt DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "570001",
+      "userId": "1",
+      "name": "Test Portfolio",
+      "portfolioType": "demo",
+      "createdAt": "2025-12-31 14:39:05"
+    },
+    {
+      "id": "540004",
+      "userId": "1",
+      "name": "LAST_INSERT_ID Test",
+      "portfolioType": "demo",
+      "createdAt": "2025-12-31 10:56:08"
+    },
+    {
+      "id": "540003",
+      "userId": "1",
+      "name": "LAST_INSERT_ID Test",
+      "portfolioType": "demo",
+      "createdAt": "2025-12-31 10:55:20"
+    },
+    {
+      "id": "540002",
+      "userId": "1",
+      "name": "LAST_INSERT_ID Test",
+      "portfolioType": "demo",
+      "createdAt": "2025-12-31 10:54:49"
+    },
+    {
+      "id": "540001",
+      "userId": "1",
+      "name": "Debug Insert",
+      "portfolioType": "demo",
+      "createdAt": "2025-12-31 10:26:14"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId\tname\tportfolioType\tcreatedAt\n570001\t1\tTest Portfolio\tdemo\t2025-12-31 14:39:05\n540004\t1\tLAST_INSERT_ID Test\tdemo\t2025-12-31 10:56:08\n540003\t1\tLAST_INSERT_ID Test\tdemo\t2025-12-31 10:55:20\n540002\t1\tLAST_INSERT_ID Test\tdemo\t2025-12-31 10:54:49\n540001\t1\tDebug Insert\tdemo\t2025-12-31 10:26:14\n",
+  "stderr": "",
+  "execution_time_ms": 1523
+}

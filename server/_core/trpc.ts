@@ -13,9 +13,12 @@ export const publicProcedure = t.procedure;
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
 
-  if (!ctx.user) {
+  if (!ctx.user || !ctx.user.id) {
+    console.error('[requireUser] Auth failed - user:', ctx.user, 'userId:', ctx.user?.id);
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
   }
+
+  console.log('[requireUser] Auth OK - userId:', ctx.user.id, 'openId:', ctx.user.openId);
 
   return next({
     ctx: {

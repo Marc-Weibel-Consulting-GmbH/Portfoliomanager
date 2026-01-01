@@ -212,6 +212,19 @@ export const appRouter = router({
 
   // DEBUG: Endpoint to inspect production environment variables
   debug: router({
+    // Check current auth context
+    authContext: protectedProcedure.query(({ ctx }) => {
+      console.log('[DEBUG] authContext called, ctx.user:', ctx.user);
+      return {
+        userId: ctx.user.id,
+        userIdType: typeof ctx.user.id,
+        openId: ctx.user.openId,
+        email: ctx.user.email,
+        name: ctx.user.name,
+        role: ctx.user.role,
+        fullUser: ctx.user,
+      };
+    }),
     envKeys: publicProcedure.query(() => {
       const keys = Object.keys(process.env).sort();
       const secretKeys = keys.filter(k => 
