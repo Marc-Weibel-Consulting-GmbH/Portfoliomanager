@@ -200,7 +200,23 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
         borderColor: "rgb(71, 85, 105)",
         borderWidth: 1,
         padding: 12,
-        displayColors: true
+        displayColors: true,
+        callbacks: {
+          title: function(context: any) {
+            // Get the full date from the data point
+            const dataIndex = context[0].dataIndex;
+            const hypotheticalPoints = hypotheticalData?.chartData || [];
+            const realDataPoints = historyData?.chartData || [];
+            const allDataPoints = [...hypotheticalPoints, ...realDataPoints];
+            
+            if (allDataPoints[dataIndex]) {
+              const date = new Date(allDataPoints[dataIndex].date);
+              // Format with full year: "05. Jun. 2024"
+              return date.toLocaleDateString('de-CH', { day: '2-digit', month: 'short', year: 'numeric' });
+            }
+            return context[0].label;
+          }
+        }
       }
     },
     scales: {

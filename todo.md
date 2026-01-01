@@ -1818,3 +1818,8 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
   - [x] portfolioTransactionsRouter: create, update, delete
   - [x] priceAlertsRouter: create, update, delete
   - [x] onboardingRouter: createDemoPortfolio
+
+## Bug Investigation (01.01.2026)
+- [x] Untersuche Performance-Drop zwischen 5. und 26. Juni im Portfolio-Chart
+- [x] Prüfe ob Aktiensplits korrekt berücksichtigt werden
+- [x] Füge Jahr zur Datumsanzeige im Chart-Tooltip hinzu

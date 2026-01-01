@@ -95,6 +95,7 @@ async function storeHistoricalPrices(
     ticker: normalizedTicker,
     date: price.date, // Keep as string (YYYY-MM-DD format)
     close: price.close.toString(), // Keep as string, Drizzle will convert to decimal
+    adjustedClose: price.adjusted_close.toString(), // Split-adjusted close price
     source: "eodhd" as const,
   }));
 
@@ -106,7 +107,8 @@ async function storeHistoricalPrices(
       .values(insertData)
       .onDuplicateKeyUpdate({
         set: { 
-          close: sql`VALUES(close)`, 
+          close: sql`VALUES(close)`,
+          adjustedClose: sql`VALUES(adjustedClose)`,
           updatedAt: sql`CURRENT_TIMESTAMP` 
         },
       });

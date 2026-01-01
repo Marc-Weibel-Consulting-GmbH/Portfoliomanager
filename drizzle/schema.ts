@@ -402,7 +402,8 @@ export const historicalPrices = mysqlTable("historical_prices", {
   id: int("id").autoincrement().primaryKey(),
   ticker: varchar("ticker", { length: 50 }).notNull(),
   date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD format
-  close: decimal("close", { precision: 20, scale: 6 }).notNull(), // Decimal for precision
+  close: decimal("close", { precision: 20, scale: 6 }).notNull(), // Decimal for precision (unadjusted)
+  adjustedClose: decimal("adjustedClose", { precision: 20, scale: 6 }), // Split-adjusted close price
   currency: varchar("currency", { length: 10 }), // Optional: USD, CHF, EUR, etc.
   source: varchar("source", { length: 50 }).notNull().default("eodhd"), // "eodhd", "yahoo", "manual"
   createdAt: timestamp("createdAt").defaultNow().notNull(),
