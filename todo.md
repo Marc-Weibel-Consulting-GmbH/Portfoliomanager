@@ -2,6 +2,8 @@
 
 ## Bugs (29.12.2025)
 
+- [ ] CRITICAL: New portfolios are not being saved/displayed in portfolio list (01.01.2026)
+
 - [x] CRITICAL BUG: Portfolio performance chart zeigt keine historischen Daten VOR dem Erstellungsdatum - FIXES APPLIED (30.12.2025):
   - Fixed portfoliosRouter.ts line 568: use creationDate instead of earliestTransactionDate
   - Fixed portfoliosRouter.ts line 681: use creationDate for hypothetical end date calculation
@@ -1786,3 +1788,26 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
 - [ ] Update performance chart to show only available time periods based on portfolio age (no data before creation date)
 - [ ] Update database schema: portfolios table (investmentAmount, portfolioType)
 - [ ] Update database schema: portfolio_holdings table (purchaseDate, quantity, entryPrice)
+
+
+## Bug Investigation Results (01.01.2026)
+
+### CRITICAL BUG: New portfolios not displayed in portfolio list
+**Root Cause Identified**: `ctx.user.id` returns incorrect user ID (1 instead of actual logged-in user ID like 4082029)
+
+**Evidence**:
+- Database query shows portfolios ARE being saved to `savedPortfolios` table
+- New test portfolios saved with `userId: 1` instead of actual user ID `4082029`
+- Logged-in user: Marc Weibel (openId: PQjAhc575izHFQy8WAUX2d, userId: 4082029)
+- Visible portfolios belong to userId 4082029: Portfolio Test 1, Regula, Demo Portfolio
+- New portfolios created during testing have userId: 1
+
+**Technical Details**:
+- portfoliosRouter.ts create procedure correctly uses `ctx.user.id` (line 301)
+- The bug is in the authentication context creation, NOT in the portfolio creation logic
+- Cache invalidation fix was correctly implemented but doesn't solve the root cause
+
+**Next Steps**:
+- Investigate `server/_core/context.ts` to find why ctx.user.id returns wrong value
+- Check session/JWT token parsing logic
+- Verify user authentication middleware

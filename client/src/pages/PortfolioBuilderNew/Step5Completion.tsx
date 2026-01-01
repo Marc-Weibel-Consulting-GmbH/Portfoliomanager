@@ -18,14 +18,17 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
   const [enableRebalancing, setEnableRebalancing] = useState(false);
   const [enableDividendTracking, setEnableDividendTracking] = useState(state.strategy === 'dividends');
   const [isSaving, setIsSaving] = useState(false);
+  const utils = trpc.useUtils();
 
   const createMutation = trpc.portfolios.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (!data?.ok || !data?.portfolio?.id) {
         toast.error("Portfolio wurde gespeichert, aber die ID konnte nicht abgerufen werden. Bitte laden Sie die Portfolios-Seite neu.");
         setLocation('/portfolios');
         return;
       }
+      // Invalidate portfolios list cache to show the new portfolio
+      await utils.portfolios.list.invalidate();
       toast.success('Portfolio erfolgreich erstellt!');
       setLocation(`/portfolios/${data.portfolio.id}`);
     },

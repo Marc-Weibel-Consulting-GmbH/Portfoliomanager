@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, openId, name, email FROM users LIMIT 5",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, openId, name, email FROM users LIMIT 5",
+  "rows": [
+    {
+      "id": "4082022",
+      "openId": "guest_1761640215921_tosalf",
+      "name": "Max Muster",
+      "email": "marc.weibel@rudolf-weibel.ch"
+    },
+    {
+      "id": "4082025",
+      "openId": "guest_1761640881696_nyszg",
+      "name": "Marc Weibel",
+      "email": "marc.weibel@gmail.com"
+    },
+    {
+      "id": "4082027",
+      "openId": "guest_1761641049106_dd2tz7",
+      "name": "Test User",
+      "email": "test@example.com"
+    },
+    {
+      "id": "4082029",
+      "openId": "PQjAhc575izHFQy8WAUX2d",
+      "name": "Marc Weibel",
+      "email": "marc.weibel@weibel-mueller.ch"
+    },
+    {
+      "id": "4530001",
+      "openId": "test-user-001",
+      "name": "Test User",
+      "email": "test@portfoliobig.ch"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\n4082022\tguest_1761640215921_tosalf\tMax Muster\tmarc.weibel@rudolf-weibel.ch\n4082025\tguest_1761640881696_nyszg\tMarc Weibel\tmarc.weibel@gmail.com\n4082027\tguest_1761641049106_dd2tz7\tTest User\ttest@example.com\n4082029\tPQjAhc575izHFQy8WAUX2d\tMarc Weibel\tmarc.weibel@weibel-mueller.ch\n4530001\ttest-user-001\tTest User\ttest@portfoliobig.ch\n",
+  "stderr": "",
+  "execution_time_ms": 1591
+}
