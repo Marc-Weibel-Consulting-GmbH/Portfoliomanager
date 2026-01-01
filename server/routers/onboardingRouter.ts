@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { router, publicProcedure, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
 import { userPreferences, users, savedPortfolios } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -101,6 +102,21 @@ export const onboardingRouter = router({
    * Create demo portfolio with realistic Swiss stocks
    */
   createDemoPortfolio: protectedProcedure.mutation(async ({ ctx }) => {
+    console.log('[onboarding.createDemoPortfolio] ctx.user:', ctx.user);
+    
+    // HARD AUTH GUARD: No fallback, fail-fast on missing user
+    if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+      console.error('[onboarding.createDemoPortfolio] AUTH GUARD FAILED:', {
+        hasUser: !!ctx.user,
+        userId: ctx.user?.id,
+        userIdType: typeof ctx.user?.id,
+      });
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Authentication required: ctx.user.id is missing or invalid",
+      });
+    }
+    
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 

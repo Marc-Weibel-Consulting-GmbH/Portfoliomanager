@@ -275,18 +275,23 @@ export const portfoliosRouter = router({
       .mutation(async ({ input, ctx }) => {
         const debugId = crypto.randomUUID();
         console.log(`[portfolios.create ${debugId}] Starting...`);
-        console.log(`[portfolios.create ${debugId}] Input:`, JSON.stringify(input, null, 2));
-        console.log(`[portfolios.create ${debugId}] ctx.user:`, JSON.stringify(ctx.user, null, 2));
-        console.log(`[portfolios.create ${debugId}] ctx.user.id:`, ctx.user.id);
-        console.log(`[portfolios.create ${debugId}] typeof ctx.user.id:`, typeof ctx.user.id);
+        console.log(`[portfolios.create ${debugId}] ctx.user:`, ctx.user);
         
-        // Explicit validation to catch any edge cases
-        if (!ctx.user || !ctx.user.id) {
+        // HARD AUTH GUARD: No fallback, fail-fast on missing user
+        if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+          console.error(`[portfolios.create ${debugId}] AUTH GUARD FAILED:`, {
+            hasUser: !!ctx.user,
+            userId: ctx.user?.id,
+            userIdType: typeof ctx.user?.id,
+          });
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: `User authentication failed in create mutation (debugId=${debugId})`,
+            message: `Authentication required: ctx.user.id is missing or invalid (debugId=${debugId})`,
           });
         }
+        
+        console.log(`[portfolios.create ${debugId}] Auth OK - userId:`, ctx.user.id, 'type:', typeof ctx.user.id);
+        console.log(`[portfolios.create ${debugId}] Input:`, JSON.stringify(input, null, 2));
         
         try {
           const { getDb } = await import("../db");
@@ -381,6 +386,21 @@ export const portfoliosRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
+        console.log('[portfolios.update] ctx.user:', ctx.user);
+        
+        // HARD AUTH GUARD: No fallback, fail-fast on missing user
+        if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+          console.error('[portfolios.update] AUTH GUARD FAILED:', {
+            hasUser: !!ctx.user,
+            userId: ctx.user?.id,
+            userIdType: typeof ctx.user?.id,
+          });
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required: ctx.user.id is missing or invalid",
+          });
+        }
+        
         const { updateSavedPortfolio } = await import("../db");
         const result = await updateSavedPortfolio(input.id, ctx.user.id, {
           name: input.name,
@@ -395,6 +415,21 @@ export const portfoliosRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
+        console.log('[portfolios.delete] ctx.user:', ctx.user);
+        
+        // HARD AUTH GUARD: No fallback, fail-fast on missing user
+        if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+          console.error('[portfolios.delete] AUTH GUARD FAILED:', {
+            hasUser: !!ctx.user,
+            userId: ctx.user?.id,
+            userIdType: typeof ctx.user?.id,
+          });
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required: ctx.user.id is missing or invalid",
+          });
+        }
+        
         const { deleteSavedPortfolio } = await import("../db");
         await deleteSavedPortfolio(input.id, ctx.user.id);
         return { success: true };
@@ -409,6 +444,21 @@ export const portfoliosRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
+        console.log('[portfolios.toggleLive] ctx.user:', ctx.user);
+        
+        // HARD AUTH GUARD: No fallback, fail-fast on missing user
+        if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+          console.error('[portfolios.toggleLive] AUTH GUARD FAILED:', {
+            hasUser: !!ctx.user,
+            userId: ctx.user?.id,
+            userIdType: typeof ctx.user?.id,
+          });
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Authentication required: ctx.user.id is missing or invalid",
+          });
+        }
+        
         const { getSavedPortfolioById, updateSavedPortfolio, createPortfolioTransaction, getStockByTicker } = await import("../db");
         const { convertToCHF } = await import("../fxHelper");
         

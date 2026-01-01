@@ -1,4 +1,5 @@
 import { router, protectedProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 export const priceAlertsRouter = router({
@@ -41,6 +42,21 @@ export const priceAlertsRouter = router({
       throw new Error("Invalid alert data");
     })
     .mutation(async ({ input, ctx }) => {
+      console.log('[priceAlerts.create] ctx.user:', ctx.user);
+      
+      // HARD AUTH GUARD: No fallback, fail-fast on missing user
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        console.error('[priceAlerts.create] AUTH GUARD FAILED:', {
+          hasUser: !!ctx.user,
+          userId: ctx.user?.id,
+          userIdType: typeof ctx.user?.id,
+        });
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required: ctx.user.id is missing or invalid",
+        });
+      }
+      
       const { getDb } = await import("../db");
       const { priceAlerts } = await import("../../drizzle/schema");
 
@@ -91,6 +107,21 @@ export const priceAlertsRouter = router({
       throw new Error("Invalid update data");
     })
     .mutation(async ({ input, ctx }) => {
+      console.log('[priceAlerts.update] ctx.user:', ctx.user);
+      
+      // HARD AUTH GUARD: No fallback, fail-fast on missing user
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        console.error('[priceAlerts.update] AUTH GUARD FAILED:', {
+          hasUser: !!ctx.user,
+          userId: ctx.user?.id,
+          userIdType: typeof ctx.user?.id,
+        });
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required: ctx.user.id is missing or invalid",
+        });
+      }
+      
       const { getDb } = await import("../db");
       const { priceAlerts } = await import("../../drizzle/schema");
       const { eq, and } = await import("drizzle-orm");
@@ -137,6 +168,21 @@ export const priceAlertsRouter = router({
       throw new Error("Invalid alert ID");
     })
     .mutation(async ({ input, ctx }) => {
+      console.log('[priceAlerts.delete] ctx.user:', ctx.user);
+      
+      // HARD AUTH GUARD: No fallback, fail-fast on missing user
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        console.error('[priceAlerts.delete] AUTH GUARD FAILED:', {
+          hasUser: !!ctx.user,
+          userId: ctx.user?.id,
+          userIdType: typeof ctx.user?.id,
+        });
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required: ctx.user.id is missing or invalid",
+        });
+      }
+      
       const { getDb } = await import("../db");
       const { priceAlerts } = await import("../../drizzle/schema");
       const { eq, and } = await import("drizzle-orm");

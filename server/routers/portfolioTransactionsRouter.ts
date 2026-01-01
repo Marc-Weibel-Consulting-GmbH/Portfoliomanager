@@ -1,4 +1,5 @@
 import { router, protectedProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 
 export const portfolioTransactionsRouter = router({
   create: protectedProcedure
@@ -19,6 +20,21 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid transaction data");
     })
     .mutation(async ({ input, ctx }) => {
+      console.log('[portfolioTransactions.create] ctx.user:', ctx.user);
+      
+      // HARD AUTH GUARD: No fallback, fail-fast on missing user
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        console.error('[portfolioTransactions.create] AUTH GUARD FAILED:', {
+          hasUser: !!ctx.user,
+          userId: ctx.user?.id,
+          userIdType: typeof ctx.user?.id,
+        });
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required: ctx.user.id is missing or invalid",
+        });
+      }
+      
       console.log("[Transaction] Creating transaction:", JSON.stringify(input, null, 2));
       const { createPortfolioTransaction } = await import("../db");
       
@@ -194,6 +210,21 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid transaction ID");
     })
     .mutation(async ({ input, ctx }) => {
+      console.log('[portfolioTransactions.delete] ctx.user:', ctx.user);
+      
+      // HARD AUTH GUARD: No fallback, fail-fast on missing user
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        console.error('[portfolioTransactions.delete] AUTH GUARD FAILED:', {
+          hasUser: !!ctx.user,
+          userId: ctx.user?.id,
+          userIdType: typeof ctx.user?.id,
+        });
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required: ctx.user.id is missing or invalid",
+        });
+      }
+      
       const { getDb } = await import("../db");
       const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
@@ -229,6 +260,21 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid update data");
     })
     .mutation(async ({ input, ctx }) => {
+      console.log('[portfolioTransactions.update] ctx.user:', ctx.user);
+      
+      // HARD AUTH GUARD: No fallback, fail-fast on missing user
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        console.error('[portfolioTransactions.update] AUTH GUARD FAILED:', {
+          hasUser: !!ctx.user,
+          userId: ctx.user?.id,
+          userIdType: typeof ctx.user?.id,
+        });
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required: ctx.user.id is missing or invalid",
+        });
+      }
+      
       const { getDb } = await import("../db");
       const { portfolioTransactions } = await import("../../drizzle/schema");
       const { eq, and } = await import("drizzle-orm");

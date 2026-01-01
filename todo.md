@@ -1811,3 +1811,10 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
 - Investigate `server/_core/context.ts` to find why ctx.user.id returns wrong value
 - Check session/JWT token parsing logic
 - Verify user authentication middleware
+
+## Auth Guard Implementation (01.01.2026)
+- [x] Add hard auth guards to all write procedures (no fallback to userId=1, fail-fast on missing ctx.user.id)
+  - [x] portfoliosRouter: create, update, delete, toggleLive
+  - [x] portfolioTransactionsRouter: create, update, delete
+  - [x] priceAlertsRouter: create, update, delete
+  - [x] onboardingRouter: createDemoPortfolio
