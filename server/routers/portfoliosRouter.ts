@@ -223,6 +223,20 @@ export const portfoliosRouter = router({
             // Ensure weight is a number before calling toFixed
             const weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight)) || defaultWeight;
             
+            // Calculate shares if missing (for backward compatibility with old portfolios)
+            let shares = parseFloat(stock.shares) || 0;
+            if (shares === 0 && portfolio.investmentAmount) {
+              const investmentAmount = parseFloat(portfolio.investmentAmount) || 0;
+              const allocationAmount = investmentAmount * (weight / 100);
+              shares = currentPrice > 0 ? (allocationAmount / currentPrice) : 0;
+            }
+            
+            // Calculate avgBuyPrice if missing
+            const avgBuyPrice = parseFloat(stock.avgBuyPrice) || currentPrice;
+            
+            // Calculate totalValue
+            const totalValue = shares * priceCHF;
+            
             return {
               ...stock,
               currency,
@@ -232,6 +246,10 @@ export const portfoliosRouter = router({
               priceCHF,
               currentPriceCHF: priceCHF,
               weight: parseFloat(weight.toFixed(2)),
+              shares: shares.toFixed(6),
+              avgBuyPrice: avgBuyPrice.toFixed(2),
+              totalValue: totalValue.toFixed(2),
+              valueCHF: totalValue,
               // Add missing fields from database
               sector: dbStock?.sector || stock.sector || 'Other',
               ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || '0',

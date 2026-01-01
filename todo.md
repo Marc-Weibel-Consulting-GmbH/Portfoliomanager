@@ -2,7 +2,7 @@
 
 ## Bugs (29.12.2025)
 
-- [ ] CRITICAL: New portfolios are not being saved/displayed in portfolio list (01.01.2026)
+- [x] CRITICAL: New portfolios are not being saved/displayed in portfolio list (01.01.2026) - RESOLVED
 
 - [x] CRITICAL BUG: Portfolio performance chart zeigt keine historischen Daten VOR dem Erstellungsdatum - FIXES APPLIED (30.12.2025):
   - Fixed portfoliosRouter.ts line 568: use creationDate instead of earliestTransactionDate
@@ -24,6 +24,12 @@
 - [x] Navigation "Portfolios" → "Neues Portfolio" führt zum alten Builder (auf neuen Builder umstellen)
 - [x] Portfolio-Detailseite erscheint unter Dashboard statt unter Portfolios in der Sidebar
 - [x] Submenu in DashboardLayout einklappbar machen
+
+## New Bugs & Features (01.01.2026)
+- [x] BUG: Portfolio Holdings Table - Spaltenstruktur inkorrekt implementiert - FIXED:
+  - Spalte "Wert (CHF)" hinzugefügt (Position 7: nach "Kurs CHF", berechnet als Anzahl × Kurs CHF)
+  - Spalte "Gewicht" verschoben (von Position 4 nach Position 10 zwischen "Div. Rendite" und "Aktionen")
+  - Spalte "Ø Kaufpreis" hinzugefügt (Position 4: nach "Anzahl", zeigt avgBuyPrice in lokaler Währung)
 
 ## New Bugs & Features (30.12.2025)
 - [x] Bug: Portfolio saving fails due to missing TRPCError import in portfoliosRouter - FIXED (31.12.2025)
@@ -1828,3 +1834,7 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
 - [x] Portfolio-Detailseite: Spalte "Gewicht" zwischen "Div. Rendite" und "Bearbeiten" verschieben
 - [x] Portfolio-Detailseite: Neue Spalte "Wert (CHF)" nach "Kurs (CHF)" hinzufügen
 - [x] Backend: Anzahl der Titel basierend auf Investitionsbetrag, Gewichtung, Aktienkurs und Wechselkurs berechnen (wird aus Transaktionen berechnet)
+
+- [ ] BUG: Portfolio creation doesn't calculate share quantities - investment amount and weight should automatically calculate number of shares based on current price (01.01.2026)
+
+- [x] Fix portfolio creation: automatically calculate share quantities based on investment amount, weight, and current price (01.01.2026)

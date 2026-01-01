@@ -182,11 +182,22 @@ export default function PortfolioBuilderWizard() {
     }
     
     try {
+      const allocation = calculateAllocation();
       const portfolioData = {
-        stocks: selectedStocks.map((s) => ({
-          ticker: s.ticker,
-          weight: calculateAllocation().find((a) => a.ticker === s.ticker)?.weight || 0,
-        })),
+        stocks: selectedStocks.map((s) => {
+          const alloc = allocation.find((a) => a.ticker === s.ticker);
+          return {
+            ticker: s.ticker,
+            companyName: s.companyName,
+            weight: alloc?.weight || 0,
+            shares: s.quantity.toFixed(6),
+            currentPrice: s.purchasePrice.toFixed(2),
+            avgBuyPrice: s.purchasePrice.toFixed(2),
+            totalValue: (s.quantity * s.purchasePrice).toFixed(2),
+            currency: currency || 'CHF',
+            assetType: s.assetType,
+          };
+        }),
       };
       
       const result = await createPortfolioMutation.mutateAsync({

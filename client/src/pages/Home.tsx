@@ -3739,14 +3739,30 @@ export default function Home() {
                   }
                   
                   try {
+                    // Calculate share quantities based on investment amount and weight
+                    const investmentAmount = parseFloat(investmentAmountInput) || 0;
+                    
                     const portfolioData = JSON.stringify({
-                      stocks: stocks.map(s => ({
-                        ticker: s.ticker,
-                        companyName: s.companyName,
-                        portfolioWeight: s.portfolioWeight,
-                        isManualWeight: s.isManualWeight,
-                        category: s.category,
-                      })),
+                      stocks: stocks.map(s => {
+                        const weight = parseFloat(s.portfolioWeight || '0') / 100;
+                        const allocationAmount = investmentAmount * weight;
+                        const currentPrice = parseFloat(s.currentPrice || '0');
+                        const shares = currentPrice > 0 ? (allocationAmount / currentPrice) : 0;
+                        const totalValue = shares * currentPrice;
+                        
+                        return {
+                          ticker: s.ticker,
+                          companyName: s.companyName,
+                          portfolioWeight: s.portfolioWeight,
+                          isManualWeight: s.isManualWeight,
+                          category: s.category,
+                          currentPrice: s.currentPrice,
+                          currency: s.currency || 'CHF',
+                          shares: shares.toFixed(6),
+                          totalValue: totalValue.toFixed(2),
+                          avgBuyPrice: s.currentPrice, // Initial buy price = current price
+                        };
+                      }),
                       savedAt: new Date().toISOString(),
                     });
                     
@@ -3754,6 +3770,7 @@ export default function Home() {
                       name: portfolioName,
                       description: portfolioDescription || undefined,
                       portfolioData,
+                      investmentAmount: investmentAmount,
                     });
                     
                     toast.success('Erfolg', { description: `Portfolio "${portfolioName}" wurde gespeichert` });

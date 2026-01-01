@@ -528,16 +528,22 @@ export default function PortfolioDetailsPage() {
                         <th className="text-left p-3">Ticker</th>
                         <th className="text-left p-3">Name</th>
                         <th className="text-right p-3">Anzahl</th>
-                        <th className="text-right p-3">Gewicht</th>
+                        <th className="text-right p-3">Ø Kaufpreis</th>
                         <th className="text-right p-3">Kurs (Lokal)</th>
                         <th className="text-right p-3">Kurs (CHF)</th>
+                        <th className="text-right p-3">Wert (CHF)</th>
                         <th className="text-right p-3">YTD</th>
                         <th className="text-right p-3">Div. Rendite</th>
+                        <th className="text-right p-3">Gewicht</th>
                         <th className="text-right p-3">Aktionen</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {holdings.map((holding: any) => (
+                      {holdings.map((holding: any) => {
+                        const avgBuyPrice = holding.avgBuyPrice || 0;
+                        const totalValueCHF = (holding.shares || 0) * (holding.currentPriceCHF || 0);
+                        
+                        return (
                         <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5">
                           <td className="p-3">
                             <Link href={`/stock/${holding.ticker}`}>
@@ -550,8 +556,8 @@ export default function PortfolioDetailsPage() {
                           <td className="text-right p-3 text-white">
                             {holding.shares ? parseFloat(holding.shares).toFixed(2) : '-'}
                           </td>
-                          <td className="text-right p-3">
-                            <Badge variant="outline">{parseFloat(holding.weight || '0').toFixed(2)}%</Badge>
+                          <td className="text-right p-3 text-gray-300">
+                            {avgBuyPrice > 0 ? formatCurrency(avgBuyPrice, holding.currency || 'USD') : '-'}
                           </td>
                           <td className="text-right p-3 text-white">
                             <div className="flex flex-col items-end">
@@ -566,6 +572,9 @@ export default function PortfolioDetailsPage() {
                           <td className="text-right p-3 text-white">
                             {formatCurrency(holding.currentPriceCHF || 0, 'CHF')}
                           </td>
+                          <td className="text-right p-3 text-white font-semibold">
+                            {formatCurrency(totalValueCHF, 'CHF')}
+                          </td>
                           <td className="text-right p-3">
                             <span className={parseFloat(holding.ytdPerformance || '0') >= 0 ? "text-green-500" : "text-red-500"}>
                               {parseFloat(holding.ytdPerformance || '0') >= 0 ? "+" : ""}{parseFloat(holding.ytdPerformance || '0').toFixed(2)}%
@@ -573,6 +582,9 @@ export default function PortfolioDetailsPage() {
                           </td>
                           <td className="text-right p-3 text-gray-300">
                             {parseFloat(holding.dividendYield || '0').toFixed(2)}%
+                          </td>
+                          <td className="text-right p-3">
+                            <Badge variant="outline">{parseFloat(holding.weight || '0').toFixed(2)}%</Badge>
                           </td>
                           <td className="text-right p-3">
                             <Button
@@ -585,7 +597,8 @@ export default function PortfolioDetailsPage() {
                             </Button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

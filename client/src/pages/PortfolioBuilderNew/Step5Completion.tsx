@@ -39,57 +39,58 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
   });
 
   const handleSave = async () => {
-    console.log("[handleSave] Starting...");
-    console.log("[handleSave] state:", state);
     setIsSaving(true);
 
-    // Prepare portfolio data
     const portfolioData = {
       stocks: state.positions.map(pos => ({
         ticker: pos.ticker,
         companyName: pos.companyName,
+        portfolioWeight: pos.weight,
         weight: pos.weight,
-        currentPrice: pos.currentPrice,
-        ytdPerformance: pos.ytdPerformance,
-        dividendYield: pos.dividendYield,
-        sector: pos.sector,
       })),
     };
 
-    const payload = {
+    try {
+      await createMutation.mutateAsync({
         name: state.portfolioName,
         description: state.description || undefined,
         portfolioData: JSON.stringify(portfolioData),
         investmentAmount: state.initialCapital.toString(),
         portfolioType: state.portfolioType as "demo" | "live",
-      };
-    
-    console.log("[handleSave] Payload:", payload);
-    
-    try {
-      console.log("[handleSave] Calling mutateAsync...");
-      const result = await createMutation.mutateAsync(payload);
-      console.log("[handleSave] Result:", result);
+      });
     } catch (error) {
       console.error("[handleSave] Error:", error);
-      // Error handled in onError
     }
   };
 
   const handleSave_OLD = async () => {
     setIsSaving(true);
 
-    // Prepare portfolio data
+    // Prepare portfolio data with calculated share quantities
     const portfolioData = {
-      stocks: state.positions.map(pos => ({
-        ticker: pos.ticker,
-        companyName: pos.companyName,
-        weight: pos.weight,
-        currentPrice: pos.currentPrice,
-        ytdPerformance: pos.ytdPerformance,
-        dividendYield: pos.dividendYield,
-        sector: pos.sector,
-      })),
+      stocks: state.positions.map(pos => {
+        const weight = pos.weight / 100; // Convert percentage to decimal
+        const allocationAmount = state.initialCapital * weight;
+        const currentPrice = pos.currentPrice || 0;
+        const shares = currentPrice > 0 ? (allocationAmount / currentPrice) : 0;
+        const totalValue = shares * currentPrice;
+        
+        return {
+          ticker: pos.ticker,
+          companyName: pos.companyName,
+          portfolioWeight: pos.weight, // Keep as percentage for display
+          weight: pos.weight, // Keep for compatibility
+          currentPrice: currentPrice.toFixed(2),
+          avgBuyPrice: currentPrice.toFixed(2), // Initial buy price = current price
+          shares: shares.toFixed(6),
+          totalValue: totalValue.toFixed(2),
+          currency: 'CHF',
+          ytdPerformance: pos.ytdPerformance,
+          dividendYield: pos.dividendYield,
+          sector: pos.sector,
+          type: pos.type,
+        };
+      }),
     };
 
     try {
