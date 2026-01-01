@@ -1823,3 +1823,8 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
 - [x] Untersuche Performance-Drop zwischen 5. und 26. Juni im Portfolio-Chart
 - [x] Prüfe ob Aktiensplits korrekt berücksichtigt werden
 - [x] Füge Jahr zur Datumsanzeige im Chart-Tooltip hinzu
+
+## Portfolio Detail Page Improvements (01.01.2026)
+- [x] Portfolio-Detailseite: Spalte "Gewicht" zwischen "Div. Rendite" und "Bearbeiten" verschieben
+- [x] Portfolio-Detailseite: Neue Spalte "Wert (CHF)" nach "Kurs (CHF)" hinzufügen
+- [x] Backend: Anzahl der Titel basierend auf Investitionsbetrag, Gewichtung, Aktienkurs und Wechselkurs berechnen (wird aus Transaktionen berechnet)

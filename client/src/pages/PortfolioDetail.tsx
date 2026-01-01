@@ -121,7 +121,8 @@ export default function PortfolioDetail() {
           performance,
           dividendYield: stock?.dividendYield || 0,
           ytdPerformance: stock?.ytdPerformance || 0,
-          sector: stock?.sector || 'Unknown'
+          sector: stock?.sector || 'Unknown',
+          weight: 0 // Will be calculated after totalValue is known
         };
       })
       .sort((a, b) => b.currentValue - a.currentValue);
@@ -135,6 +136,11 @@ export default function PortfolioDetail() {
   const avgDividendYield = portfolioData.length > 0
     ? portfolioData.reduce((sum, pos) => sum + (pos.dividendYield * pos.currentValue / totalValue), 0)
     : 0;
+  
+  // Calculate weight for each position
+  portfolioData.forEach(pos => {
+    pos.weight = totalValue > 0 ? (pos.currentValue / totalValue) * 100 : 0;
+  });
 
   // Calculate sector allocation
   const sectorAllocation = useMemo(() => {
@@ -333,9 +339,10 @@ export default function PortfolioDetail() {
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Stückzahl</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Ø Kaufpreis</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Aktueller Kurs</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Wert</th>
+                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Wert (CHF)</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Performance</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Dividende</th>
+                    <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Gewicht</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Aktionen</th>
                   </tr>
                 </thead>
@@ -371,6 +378,9 @@ export default function PortfolioDetail() {
                       </td>
                       <td className="text-right py-3 px-4 text-green-500">
                         {position.dividendYield.toFixed(2)}%
+                      </td>
+                      <td className="text-right py-3 px-4 text-foreground">
+                        {position.weight.toFixed(2)}%
                       </td>
                       <td className="text-right py-3 px-4">
                         <Button
