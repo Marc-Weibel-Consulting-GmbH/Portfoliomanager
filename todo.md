@@ -31,6 +31,10 @@
   - Spalte "Gewicht" verschoben (von Position 4 nach Position 10 zwischen "Div. Rendite" und "Aktionen")
   - Spalte "Ø Kaufpreis" hinzugefügt (Position 4: nach "Anzahl", zeigt avgBuyPrice in lokaler Währung)
 
+## New Bugs (02.01.2026)
+- [x] BUG: Kein Fortschrittsbalken beim Klick auf "Portfolio automatisch erstellen" - Pop-Up mit Fortschrittsanzeige fehlt - FIXED: Added progress dialog with animated progress bar and status messages
+- [x] BUG: 100% Gewichtung wird als orange angezeigt statt grün - "Weiter" Button bleibt deaktiviert trotz korrekter Gewichtung - FIXED: Increased weight validation tolerance from 0.01% to 0.1% to handle rounding errors
+
 ## New Bugs & Features (30.12.2025)
 - [x] Bug: Portfolio saving fails due to missing TRPCError import in portfoliosRouter - FIXED (31.12.2025)
 - [x] Bug: YTD Performance-Berechnung überprüfen und korrigieren (seit 01.01.25) - FIXED: Added graceful fallback when historical data missing, logs warning

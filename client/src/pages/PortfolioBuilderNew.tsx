@@ -64,7 +64,7 @@ export default function PortfolioBuilderNew() {
       case 1:
         return state.portfolioName.length >= 3 && state.strategy && state.investmentHorizon && state.initialCapital >= 10000 && state.portfolioType !== '';
       case 2:
-        return state.positions.filter(p => p.type === 'stock').length >= 3 && Math.abs(totalWeight - 100) < 0.01;
+        return state.positions.filter(p => p.type === 'stock').length >= 3 && Math.abs(totalWeight - 100) < 0.1;
       case 3:
         return true; // Optional step
       case 4:
@@ -220,7 +220,7 @@ export default function PortfolioBuilderNew() {
                   Schritt {currentStep} von {STEPS.length}
                 </p>
                 {currentStep === 2 && (
-                  <p className={`text-xs mt-1 ${Math.abs(totalWeight - 100) < 0.01 ? "text-green-400" : "text-amber-400"}`}>
+                  <p className={`text-xs mt-1 ${Math.abs(totalWeight - 100) < 0.1 ? "text-green-400" : "text-amber-400"}`}>
                     Gewichtung: {totalWeight.toFixed(1)}% / 100%
                   </p>
                 )}

@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StockLogo } from "@/components/StockLogo";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { Search, Sparkles, X, TrendingUp, DollarSign, Loader2 } from "lucide-react";
 import { PortfolioBuilderState, Position } from "../PortfolioBuilderNew";
 import { trpc } from "@/lib/trpc";
@@ -86,8 +88,14 @@ export default function Step2StockSelection({
     updatePosition(ticker, { weight: newWeight });
   };
 
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+
   const generateMutation = trpc.autoPortfolio.generatePortfolio.useMutation({
     onSuccess: (data) => {
+      setProgressMessage('Portfolio wird finalisiert...');
+      setProgress(90);
+      
       // Add all generated positions
       data.positions.forEach((position: any) => {
         addPosition({
@@ -101,18 +109,45 @@ export default function Step2StockSelection({
           sector: position.sector,
         });
       });
-      setIsGenerating(false);
+      
+      setProgress(100);
+      setProgressMessage('Portfolio erfolgreich erstellt!');
+      
+      // Close dialog after a short delay
+      setTimeout(() => {
+        setIsGenerating(false);
+        setProgress(0);
+        setProgressMessage('');
+      }, 1000);
     },
     onError: (error) => {
       console.error('Auto-generation failed:', error);
-      alert('Automatische Erstellung fehlgeschlagen: ' + error.message);
-      setIsGenerating(false);
+      setProgressMessage('Fehler bei der Erstellung');
+      setTimeout(() => {
+        alert('Automatische Erstellung fehlgeschlagen: ' + error.message);
+        setIsGenerating(false);
+        setProgress(0);
+        setProgressMessage('');
+      }, 1000);
     },
   });
 
   const handleAutoGenerate = async () => {
     setIsGenerating(true);
     setShowAutoPrompt(false);
+    setProgress(10);
+    setProgressMessage('Analysiere Anlagestrategie...');
+    
+    // Simulate progress updates
+    setTimeout(() => {
+      setProgress(30);
+      setProgressMessage('Suche passende Aktien...');
+    }, 500);
+    
+    setTimeout(() => {
+      setProgress(60);
+      setProgressMessage('Optimiere Portfolio-Gewichtung...');
+    }, 1500);
     
     // Call API to generate portfolio
     generateMutation.mutate({
@@ -384,6 +419,30 @@ export default function Step2StockSelection({
           )}
         </div>
       </div>
+
+      {/* Progress Dialog */}
+      <Dialog open={isGenerating} onOpenChange={() => {}}>
+        <DialogContent className="bg-[#0f1420] border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[#00CFC1]" />
+              Portfolio wird erstellt
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-300">{progressMessage}</span>
+                <span className="text-[#00CFC1] font-medium">{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+            <div className="text-xs text-gray-400 text-center">
+              Bitte warten, dies kann einen Moment dauern...
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
