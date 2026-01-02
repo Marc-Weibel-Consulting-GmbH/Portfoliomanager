@@ -32,6 +32,11 @@
   - Spalte "Ø Kaufpreis" hinzugefügt (Position 4: nach "Anzahl", zeigt avgBuyPrice in lokaler Währung)
 
 ## New Bugs (02.01.2026)
+- [x] Fix currency conversion issue - portfolio shows incorrect total value (missing deposit transactions)
+- [x] Fix dashboard display showing incorrect portfolio values
+- [x] Fix portfolio creation to automatically create deposit and buy transactions for live portfolios
+- [x] Fix FX conversion in transaction creation - totalAmountCHF now correctly calculated with FX rate
+- [x] Fix dashboard value calculation - now includes cash position in portfolio value
 - [x] BUG: Kein Fortschrittsbalken beim Klick auf "Portfolio automatisch erstellen" - Pop-Up mit Fortschrittsanzeige fehlt - FIXED: Added progress dialog with animated progress bar and status messages
 - [x] BUG: 100% Gewichtung wird als orange angezeigt statt grün - "Weiter" Button bleibt deaktiviert trotz korrekter Gewichtung - FIXED: Increased weight validation tolerance from 0.01% to 0.1% to handle rounding errors
 

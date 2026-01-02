@@ -375,6 +375,67 @@ export const portfoliosRouter = router({
           }
           
           console.log(`[portfolios.create ${debugId}] Returning portfolio:`, inserted[0].id);
+          
+          // 5) If it's a live portfolio, create initial deposit and buy transactions
+          if (input.portfolioType === "live" && input.portfolioData && input.investmentAmount) {
+            console.log(`[portfolios.create ${debugId}] Creating initial transactions for live portfolio...`);
+            try {
+              const { createPortfolioTransaction } = await import("../db");
+              const portfolioData = JSON.parse(input.portfolioData);
+              const holdings = portfolioData.stocks || [];
+              const capitalNum = parseFloat(String(input.investmentAmount));
+              
+              // 1) Create deposit transaction
+              await createPortfolioTransaction({
+                portfolioId: inserted[0].id,
+                transactionType: "deposit",
+                ticker: null,
+                shares: "0",
+                pricePerShare: "0",
+                currency: "CHF",
+                totalAmount: capitalNum.toFixed(2),
+                fxRate: "1.0",
+                totalAmountCHF: capitalNum.toFixed(2),
+                fees: "0",
+                notes: `Initial deposit`,
+                transactionDate: new Date(),
+              });
+              console.log(`[portfolios.create ${debugId}] Created deposit transaction: CHF ${capitalNum}`);
+              
+              // 2) Create buy transactions for each holding
+              for (const holding of holdings) {
+                const weight = parseFloat(holding.weight || "0") / 100;
+                const allocationAmount = capitalNum * weight;
+                const currentPrice = parseFloat(holding.currentPrice || "0");
+                const fxRate = parseFloat(holding.exchangeRateToChf || "1.0");
+                
+                if (currentPrice > 0) {
+                  const shares = (allocationAmount / currentPrice).toFixed(6);
+                  const totalAmountCHF = (allocationAmount * fxRate).toFixed(2);
+                  
+                  await createPortfolioTransaction({
+                    portfolioId: inserted[0].id,
+                    transactionType: "buy",
+                    ticker: holding.ticker,
+                    shares,
+                    pricePerShare: holding.currentPrice,
+                    currency: holding.currency || "CHF",
+                    totalAmount: allocationAmount.toFixed(2),
+                    fxRate: holding.exchangeRateToChf || "1.0",
+                    totalAmountCHF,
+                    fees: "0",
+                    notes: `Initial purchase`,
+                    transactionDate: new Date(),
+                  });
+                }
+              }
+              console.log(`[portfolios.create ${debugId}] Created ${holdings.length} buy transactions`);
+            } catch (txErr: any) {
+              console.error(`[portfolios.create ${debugId}] Failed to create transactions:`, txErr);
+              // Don't throw - portfolio is created, transactions can be added later
+            }
+          }
+          
           return { ok: true, portfolio: inserted[0] };
         } catch (err: any) {
           // If it's already a TRPCError, rethrow it
