@@ -1,0 +1,74 @@
+Marc Portfolio Analysis - Total Value Calculation
+==================================================
+
+Date: 03.01.2026
+
+Current Status:
+- Gesamtwert: CHF 147'776.48
+- 10 Positionen (Stock positions)
+- Asset-Allokation: Dividendenaktien 100.00%
+
+Expected Calculation:
+- Initial Investment: CHF 150'000
+- Stock positions value: ~CHF 147'776.48 (visible in Gesamtwert)
+- Expected cash position: CHF 150'000 - invested amount = ~CHF 2'223.52
+
+Issue:
+The Gesamtwert shows CHF 147'776.48, which appears to be ONLY the stock positions.
+The cash position should be added to this value.
+
+Backend Code (portfoliosRouter.ts lines 278-281):
+```typescript
+// Add cash to total value BEFORE calculating weights
+console.log(`[getWithCurrency] BEFORE adding cash: totalValueCHF=${totalValueCHF}, cashBalance=${cashBalance}`);
+totalValueCHF += cashBalance;
+console.log(`[getWithCurrency] AFTER adding cash: totalValueCHF=${totalValueCHF}`);
+```
+
+The backend correctly adds cashBalance to totalValueCHF.
+
+Next Step:
+Check if the cash position row is displayed in the holdings table (need to scroll down).
+
+
+CONFIRMED ISSUE:
+================
+
+The "Gesamtwert" card shows: CHF 147'776.48
+This is ONLY the stock positions value.
+
+The holdings table shows 10 stock positions (SLHN.SW, NOVN.SW, CMBN.SW, SCMN.SW, JNJ, etc.)
+but NO cash row is visible.
+
+Expected behavior:
+- Cash position row should appear in the holdings table
+- Gesamtwert should show: Stock Value + Cash Balance = Total Portfolio Value
+
+The backend code adds cash to totalValueCHF (line 280), but the frontend is not receiving or displaying the updated value correctly.
+
+Need to investigate:
+1. Is the backend actually returning the correct totalValueCHF with cash included?
+2. Is the frontend using a cached value?
+3. Why is the cash row not appearing in the holdings table?
+
+
+ROOT CAUSE IDENTIFIED:
+======================
+
+The cashBalance column EXISTS in the database (savedPortfolios table).
+The backend code CORRECTLY adds cashBalance to totalValueCHF (line 280).
+
+HOWEVER: The Marc portfolio was created BEFORE we implemented the cash balance calculation.
+Therefore, its cashBalance value in the database is probably 0 or NULL.
+
+Solution:
+---------
+We need to RECALCULATE the cash balance for existing portfolios:
+- Initial investment: CHF 150'000
+- Current stock positions value: CHF 147'776.48
+- Cash balance should be: CHF 150'000 - (sum of all BUY transactions) = remaining cash
+
+The issue is that old portfolios don't have their cashBalance calculated correctly.
+We need to either:
+1. Run a migration script to recalculate cashBalance for all existing portfolios
+2. Or manually update the Marc portfolio's cashBalance

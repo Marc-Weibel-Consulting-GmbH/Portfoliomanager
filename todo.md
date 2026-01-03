@@ -56,3 +56,6 @@
 - [x] Modify database schema to store cash positions per portfolio - COMPLETED: cashBalance column already exists
 - [x] Display cash position in portfolio details view (Holdings table) - COMPLETED: Cash row added to holdings table with correct weight
 - [x] Ensure total portfolio value = invested positions + cash position - COMPLETED: Backend totalValue calculation includes cashBalance (frontend caching issue remains)
+
+## New Bugs (03.01.2026)
+- [x] BUG: Gesamtwert (CHF 90'949.19) muss Cash-Position (CHF 10'000) addieren - Frontend zeigt nicht den korrekten Gesamtwert inklusive Cash - FIXED: Created migration script to recalculate cashBalance for all existing portfolios (03.01.2026)
