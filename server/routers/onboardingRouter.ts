@@ -161,6 +161,9 @@ export const onboardingRouter = router({
       name: "Demo Portfolio - Schweizer Blue Chips",
       description: "Beispiel-Portfolio mit Schweizer Unternehmen zum Kennenlernen!",
       portfolioData: JSON.stringify(portfolioData),
+      investmentAmount: "10000", // Default demo portfolio amount
+      portfolioType: "demo",
+      status: "planned",
       isLive: 0,
       liveStartDate: null,
     });

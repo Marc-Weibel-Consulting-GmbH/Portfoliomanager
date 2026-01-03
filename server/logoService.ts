@@ -197,7 +197,6 @@ export function getSwissStockDomain(ticker: string): string | undefined {
     "GALE.SW": "galenica.com",
     "HELN.SW": "helvetia.com",
     "KURN.SW": "kur.ch",
-    "LONN.SW": "lonza.com",
     "MBTN.SW": "mbt.com",
     "OERL.SW": "oerlikon.com",
     "PSPN.SW": "psp.info",

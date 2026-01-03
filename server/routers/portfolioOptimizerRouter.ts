@@ -241,6 +241,10 @@ async function generateSmartPortfolio(
     name: portfolioName,
     description: portfolioDescription,
     portfolioData: JSON.stringify(portfolioData),
+    investmentAmount: String(investmentAmount),
+    portfolioType: "demo",
+    status: "planned",
+    isLive: 0,
   });
 
   return {

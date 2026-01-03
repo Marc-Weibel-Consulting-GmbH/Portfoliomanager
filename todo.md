@@ -59,3 +59,10 @@
 
 ## New Bugs (03.01.2026)
 - [x] BUG: Gesamtwert (CHF 90'949.19) muss Cash-Position (CHF 10'000) addieren - Frontend zeigt nicht den korrekten Gesamtwert inklusive Cash - FIXED: Created migration script to recalculate cashBalance for all existing portfolios (03.01.2026)
+
+## Fixes (03.01.2026 - Afternoon)
+- [x] FIX: TypeScript error in onboardingRouter.ts - Missing investmentAmount field when creating demo portfolio - FIXED: Added investmentAmount, portfolioType, and status fields to demo portfolio creation
+- [x] FIX: TypeScript error in portfolioOptimizerRouter.ts - Missing investmentAmount field when creating portfolio - FIXED: Added investmentAmount, portfolioType, status, and isLive fields
+- [x] FIX: TypeScript error in logoService.ts - Duplicate property "LONN.SW" (Lonza) - FIXED: Removed duplicate entry
+- [x] FIX: TypeScript error in test files - Missing Context export - FIXED: Added Context type alias export in context.ts
+- [x] FIX: TypeScript error in liveTracking.test.ts - Missing investmentAmount in portfolio structure - FIXED: Added required fields to test mock

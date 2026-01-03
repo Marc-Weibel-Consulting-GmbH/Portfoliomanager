@@ -8,6 +8,9 @@ export type TrpcContext = {
   user: User | null;
 };
 
+// Backward compatibility alias
+export type Context = TrpcContext;
+
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
