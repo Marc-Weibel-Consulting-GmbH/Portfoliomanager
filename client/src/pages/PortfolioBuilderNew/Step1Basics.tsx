@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { TrendingUp, DollarSign, Scale, TestTube, Zap } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { TrendingUp, DollarSign, Scale, TestTube, Zap, Wallet } from "lucide-react";
 import { PortfolioBuilderState } from "../PortfolioBuilderNew";
 
 interface Step1BasicsProps {
@@ -100,6 +101,46 @@ export default function Step1Basics({ state, updateState }: Step1BasicsProps) {
             )}
             {state.initialCapital >= 100000 && (
               <p className="text-xs text-green-400">✓ Ausreichend für diversifiziertes Einzeltitel-Portfolio</p>
+            )}
+          </div>
+
+          {/* Cash Reserve Percentage */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-white flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Cash-Reserve
+              </Label>
+              <span className="text-lg font-semibold text-[#00CFC1]">
+                {state.cashPercentage}%
+              </span>
+            </div>
+            <Slider
+              value={[state.cashPercentage]}
+              onValueChange={(value) => updateState({ cashPercentage: value[0] })}
+              min={0}
+              max={20}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-400">
+              <span>0% (Voll investiert)</span>
+              <span>20% (Maximale Reserve)</span>
+            </div>
+            <p className="text-sm text-gray-400">
+              {state.cashPercentage === 0 && "100% des Kapitals wird investiert"}
+              {state.cashPercentage > 0 && state.cashPercentage <= 5 && `${100 - state.cashPercentage}% investiert, ${state.cashPercentage}% als Liquiditätsreserve`}
+              {state.cashPercentage > 5 && state.cashPercentage <= 10 && `${100 - state.cashPercentage}% investiert, ${state.cashPercentage}% als Sicherheitspuffer`}
+              {state.cashPercentage > 10 && `${100 - state.cashPercentage}% investiert, ${state.cashPercentage}% als große Reserve`}
+            </p>
+            {state.initialCapital > 0 && state.cashPercentage > 0 && (
+              <div className="bg-[#00CFC1]/10 border border-[#00CFC1]/30 rounded-lg p-3">
+                <p className="text-sm text-white">
+                  <span className="font-semibold">Investiert:</span> CHF {((state.initialCapital * (100 - state.cashPercentage)) / 100).toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  {" · "}
+                  <span className="font-semibold">Cash:</span> CHF {((state.initialCapital * state.cashPercentage) / 100).toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+              </div>
             )}
           </div>
 

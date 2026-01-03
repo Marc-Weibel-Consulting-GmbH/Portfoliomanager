@@ -29,6 +29,7 @@ export interface PortfolioBuilderState {
   investmentHorizon: 'short' | 'medium' | 'long' | '';
   initialCapital: number;
   portfolioType: 'demo' | 'live' | '';
+  cashPercentage: number; // 0-20% cash reserve
   positions: Position[];
 }
 
@@ -51,6 +52,7 @@ export default function PortfolioBuilderNew() {
     investmentHorizon: "",
     initialCapital: 0,
     portfolioType: "",
+    cashPercentage: 0, // Default: 0% cash (100% invested)
     positions: [],
   });
 
@@ -64,7 +66,9 @@ export default function PortfolioBuilderNew() {
       case 1:
         return state.portfolioName.length >= 3 && state.strategy && state.investmentHorizon && state.initialCapital >= 10000 && state.portfolioType !== '';
       case 2:
-        return state.positions.filter(p => p.type === 'stock').length >= 3 && Math.abs(totalWeight - 100) < 0.1;
+        // Target weight should be (100 - cashPercentage) for stocks
+        const targetWeight = 100 - state.cashPercentage;
+        return state.positions.filter(p => p.type === 'stock').length >= 3 && Math.abs(totalWeight - targetWeight) < 0.1;
       case 3:
         return true; // Optional step
       case 4:

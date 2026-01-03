@@ -65,7 +65,9 @@ export default function Step2StockSelection({
 
   const selectedStocks = state.positions.filter(p => p.type === 'stock');
   const totalWeight = selectedStocks.reduce((sum, p) => sum + p.weight, 0);
-  const remainingWeight = 100 - totalWeight;
+  // Target weight for stocks is (100 - cashPercentage)
+  const targetStockWeight = 100 - state.cashPercentage;
+  const remainingWeight = targetStockWeight - totalWeight;
 
   const handleAddStock = (stock: any) => {
     // Calculate suggested weight (equal distribution of remaining weight)
@@ -96,12 +98,17 @@ export default function Step2StockSelection({
       setProgressMessage('Portfolio wird finalisiert...');
       setProgress(90);
       
-      // Add all generated positions
+      // Calculate adjustment factor for cash reserve
+      // If user wants 5% cash, stocks should only use 95% of capital
+      const investmentPercentage = 100 - state.cashPercentage;
+      const adjustmentFactor = investmentPercentage / 100;
+      
+      // Add all generated positions with adjusted weights
       data.positions.forEach((position: any) => {
         addPosition({
           ticker: position.ticker,
           companyName: position.companyName,
-          weight: position.weight,
+          weight: parseFloat((position.weight * adjustmentFactor).toFixed(2)),
           type: 'stock',
           currentPrice: position.currentPrice,
           ytdPerformance: position.ytdPerformance,
@@ -238,22 +245,28 @@ export default function Step2StockSelection({
                 {/* Total Weight Indicator */}
                 <div className="pt-4 border-t border-white/10">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-white">Gesamt</span>
-                    <span className={`text-sm font-bold ${Math.abs(totalWeight - 100) < 0.01 ? "text-green-400" : "text-amber-400"}`}>
-                      {totalWeight.toFixed(1)}%
+                    <span className="text-sm font-medium text-white">Aktien</span>
+                    <span className={`text-sm font-bold ${Math.abs(totalWeight - targetStockWeight) < 0.01 ? "text-green-400" : "text-amber-400"}`}>
+                      {totalWeight.toFixed(1)}% / {targetStockWeight.toFixed(0)}%
                     </span>
                   </div>
                   <div className="relative h-3 bg-gray-700 rounded-full overflow-hidden">
                     <div
                       className={`absolute top-0 left-0 h-full transition-all ${
-                        Math.abs(totalWeight - 100) < 0.01 ? "bg-green-500" : totalWeight > 100 ? "bg-red-500" : "bg-amber-500"
+                        Math.abs(totalWeight - targetStockWeight) < 0.01 ? "bg-green-500" : totalWeight > targetStockWeight ? "bg-red-500" : "bg-amber-500"
                       }`}
-                      style={{ width: `${Math.min(totalWeight, 100)}%` }}
+                      style={{ width: `${Math.min((totalWeight / targetStockWeight) * 100, 100)}%` }}
                     />
                   </div>
-                  {Math.abs(totalWeight - 100) >= 0.01 && (
+                  {state.cashPercentage > 0 && (
+                    <div className="flex items-center justify-between mt-2 text-xs">
+                      <span className="text-gray-400">Cash-Reserve</span>
+                      <span className="text-[#00CFC1] font-semibold">{state.cashPercentage.toFixed(0)}%</span>
+                    </div>
+                  )}
+                  {Math.abs(totalWeight - targetStockWeight) >= 0.01 && (
                     <p className="text-xs text-amber-400 mt-2">
-                      {totalWeight < 100 ? `Noch ${remainingWeight.toFixed(1)}% zu verteilen` : `${(totalWeight - 100).toFixed(1)}% zu viel`}
+                      {totalWeight < targetStockWeight ? `Noch ${remainingWeight.toFixed(1)}% zu verteilen` : `${(totalWeight - targetStockWeight).toFixed(1)}% zu viel`}
                     </p>
                   )}
                 </div>

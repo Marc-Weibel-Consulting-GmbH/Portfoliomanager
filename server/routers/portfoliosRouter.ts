@@ -425,19 +425,26 @@ export const portfoliosRouter = router({
               const holdings = portfolioData.stocks || [];
               const capitalNum = parseFloat(String(input.investmentAmount));
               
-              // Calculate total invested amount based on holdings
-              // Use weight-based calculation since FX rates may not be available in portfolioData
-              let totalInvestedCHF = 0;
+              // Check if user specified a cash percentage
+              const cashPercentage = parseFloat(portfolioData.cashPercentage || "0");
               
-              for (const holding of holdings) {
-                const weight = parseFloat(holding.weight || "0") / 100;
-                const allocationAmount = capitalNum * weight;
-                totalInvestedCHF += allocationAmount;
+              // Calculate cash position based on user's preference
+              let cashPosition = 0;
+              if (cashPercentage > 0) {
+                // User explicitly set a cash reserve percentage
+                cashPosition = capitalNum * (cashPercentage / 100);
+                console.log(`[portfolios.create ${debugId}] User requested ${cashPercentage}% cash reserve: CHF ${cashPosition.toFixed(2)}`);
+              } else {
+                // Legacy behavior: calculate based on actual weights
+                let totalInvestedCHF = 0;
+                for (const holding of holdings) {
+                  const weight = parseFloat(holding.weight || "0") / 100;
+                  const allocationAmount = capitalNum * weight;
+                  totalInvestedCHF += allocationAmount;
+                }
+                cashPosition = capitalNum - totalInvestedCHF;
+                console.log(`[portfolios.create ${debugId}] Legacy calculation - Total invested: CHF ${totalInvestedCHF.toFixed(2)}, Cash position: CHF ${cashPosition.toFixed(2)}`);
               }
-              
-              // Calculate cash position (uninvested funds)
-              const cashPosition = capitalNum - totalInvestedCHF;
-              console.log(`[portfolios.create ${debugId}] Total invested: CHF ${totalInvestedCHF.toFixed(2)}, Cash position: CHF ${cashPosition.toFixed(2)}`);
               
               // Update portfolio with cash balance
               const { updateSavedPortfolio } = await import("../db");

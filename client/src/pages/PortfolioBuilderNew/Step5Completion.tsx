@@ -48,6 +48,7 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
         portfolioWeight: pos.weight,
         weight: pos.weight,
       })),
+      cashPercentage: state.cashPercentage, // Include cash percentage in portfolio data
     };
 
     try {

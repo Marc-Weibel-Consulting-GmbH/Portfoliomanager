@@ -205,11 +205,17 @@ export default function PortfolioDetailsPage() {
       categories[category] = (categories[category] || 0) + weight;
     });
     
+    // Add cash position if exists
+    if (portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && totalValueCHF > 0) {
+      const cashWeight = (parseFloat(portfolio.cashBalance) / totalValueCHF) * 100;
+      categories['Cash'] = parseFloat(cashWeight.toFixed(2));
+    }
+    
     return Object.entries(categories).map(([name, value]) => ({
       name,
       value: parseFloat(value.toFixed(2)),
     }));
-  }, [holdings]);
+  }, [holdings, portfolio?.cashBalance, totalValueCHF]);
   
   // Prepare pie chart data for sector allocation  
   const sectorAllocationData = useMemo(() => {
@@ -599,6 +605,30 @@ export default function PortfolioDetailsPage() {
                         </tr>
                         );
                       })}
+                      {/* Cash Position Row */}
+                      {portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && (
+                        <tr className="border-b border-white/5 bg-[#00CFC1]/5">
+                          <td className="p-3">
+                            <span className="font-semibold text-gray-400">-</span>
+                          </td>
+                          <td className="p-3 text-gray-300 font-semibold">Cash (CHF)</td>
+                          <td className="text-right p-3 text-white">-</td>
+                          <td className="text-right p-3 text-gray-300">-</td>
+                          <td className="text-right p-3 text-white">-</td>
+                          <td className="text-right p-3 text-white">-</td>
+                          <td className="text-right p-3 text-white font-semibold">
+                            {formatCurrency(parseFloat(portfolio.cashBalance), 'CHF')}
+                          </td>
+                          <td className="text-right p-3 text-gray-400">-</td>
+                          <td className="text-right p-3 text-gray-400">-</td>
+                          <td className="text-right p-3">
+                            <Badge variant="outline">
+                              {((parseFloat(portfolio.cashBalance) / totalValueCHF) * 100).toFixed(2)}%
+                            </Badge>
+                          </td>
+                          <td className="text-right p-3 text-gray-400">-</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
