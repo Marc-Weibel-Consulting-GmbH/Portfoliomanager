@@ -43,8 +43,8 @@
 - [x] FEATURE: Implement cash position tracking for uninvested funds - COMPLETED: cashBalance column already exists in schema
 - [x] Update portfolio creation logic to calculate cash position (initial amount - invested amount) - COMPLETED: portfoliosRouter.ts updated
 - [x] Modify database schema to store cash positions per portfolio - COMPLETED: cashBalance column already exists
-- [x] Display cash position in portfolio details view (Holdings table) - COMPLETED: Cash row added to holdings table
-- [x] Ensure total portfolio value = invested positions + cash position - COMPLETED: totalValue calculation includes cashBalance
+- [x] Display cash position in portfolio details view (Holdings table) - COMPLETED: Cash row added to holdings table with correct weight
+- [x] Ensure total portfolio value = invested positions + cash position - COMPLETED: Backend totalValue calculation includes cashBalance (frontend caching issue remains)
 
 ## New Bugs & Features (30.12.2025)
 - [x] Bug: Portfolio saving fails due to missing TRPCError import in portfoliosRouter - FIXED (31.12.2025)
@@ -1854,3 +1854,11 @@ Live-Toggle schaltet Portfolio von "Demo" auf "Live":
 
 - [x] Fix portfolio creation: automatically calculate share quantities based on investment amount, weight, and current price (01.01.2026)
 - [x] Round share quantities to whole numbers (no fractional shares) - 01.01.2026
+- [ ] Fix missing cash position display in portfolio (CHF 9'064 not shown in Test Cash Portfolio)
+- [ ] Ensure cash position is created when investment amount > sum of stock values
+- [ ] Display cash position in positions table
+- [ ] Include cash in asset allocation chart
+
+## New Bugs (03.01.2026)
+- [ ] BUG: Portfolio Builder enforces 100% allocation - cannot create portfolios with cash position (e.g., 90% stocks + 10% cash)
+- [ ] Fix missing cash position display in portfolio details
