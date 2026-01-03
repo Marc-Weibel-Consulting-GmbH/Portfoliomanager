@@ -128,9 +128,12 @@ export default function PortfolioDetail() {
       .sort((a, b) => b.currentValue - a.currentValue);
   }, [holdingsByTicker, allStocks]);
 
+  // Get cash balance from portfolio
+  const cashBalance = parseFloat(portfolio.cashBalance || '0');
+  
   // Calculate totals
   const totalInvested = portfolioData.reduce((sum, pos) => sum + pos.totalInvested, 0);
-  const totalValue = portfolioData.reduce((sum, pos) => sum + pos.currentValue, 0);
+  const totalValue = portfolioData.reduce((sum, pos) => sum + pos.currentValue, 0) + cashBalance;
   const totalPerformance = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
   const totalPerformanceAmount = totalValue - totalInvested;
   const avgDividendYield = portfolioData.length > 0
@@ -398,6 +401,35 @@ export default function PortfolioDetail() {
                       </td>
                     </tr>
                   ))}
+                  
+                  {/* Cash Position Row */}
+                  {cashBalance > 0 && (
+                    <tr className="border-b border-border/50 bg-muted/30">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-primary font-bold text-sm">CHF</span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">Cash</p>
+                            <p className="text-xs text-muted-foreground">Liquidität</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="text-right py-3 px-4 text-muted-foreground">-</td>
+                      <td className="text-right py-3 px-4 text-muted-foreground">-</td>
+                      <td className="text-right py-3 px-4 text-muted-foreground">-</td>
+                      <td className="text-right py-3 px-4 font-medium text-foreground">
+                        CHF {cashBalance.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="text-right py-3 px-4 text-muted-foreground">-</td>
+                      <td className="text-right py-3 px-4 text-muted-foreground">-</td>
+                      <td className="text-right py-3 px-4 text-foreground">
+                        {((cashBalance / totalValue) * 100).toFixed(2)}%
+                      </td>
+                      <td className="text-right py-3 px-4"></td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

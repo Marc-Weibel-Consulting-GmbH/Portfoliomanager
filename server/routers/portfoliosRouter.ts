@@ -402,7 +402,9 @@ export const portfoliosRouter = router({
               });
               console.log(`[portfolios.create ${debugId}] Created deposit transaction: CHF ${capitalNum}`);
               
-              // 2) Create buy transactions for each holding
+              // 2) Create buy transactions for each holding and track total invested
+              let totalInvestedCHF = 0;
+              
               for (const holding of holdings) {
                 const weight = parseFloat(holding.weight || "0") / 100;
                 const allocationAmount = capitalNum * weight;
@@ -411,7 +413,8 @@ export const portfoliosRouter = router({
                 
                 if (currentPrice > 0) {
                   const shares = (allocationAmount / currentPrice).toFixed(6);
-                  const totalAmountCHF = (allocationAmount * fxRate).toFixed(2);
+                  const actualInvestedInCurrency = parseFloat(shares) * currentPrice;
+                  const actualInvestedCHF = actualInvestedInCurrency * fxRate;
                   
                   await createPortfolioTransaction({
                     portfolioId: inserted[0].id,
@@ -420,16 +423,28 @@ export const portfoliosRouter = router({
                     shares,
                     pricePerShare: holding.currentPrice,
                     currency: holding.currency || "CHF",
-                    totalAmount: allocationAmount.toFixed(2),
+                    totalAmount: actualInvestedInCurrency.toFixed(2),
                     fxRate: holding.exchangeRateToChf || "1.0",
-                    totalAmountCHF,
+                    totalAmountCHF: actualInvestedCHF.toFixed(2),
                     fees: "0",
                     notes: `Initial purchase`,
                     transactionDate: new Date(),
                   });
+                  
+                  totalInvestedCHF += actualInvestedCHF;
                 }
               }
-              console.log(`[portfolios.create ${debugId}] Created ${holdings.length} buy transactions`);
+              
+              // 3) Calculate cash position (uninvested funds)
+              const cashPosition = capitalNum - totalInvestedCHF;
+              console.log(`[portfolios.create ${debugId}] Created ${holdings.length} buy transactions. Total invested: CHF ${totalInvestedCHF.toFixed(2)}, Cash position: CHF ${cashPosition.toFixed(2)}`);
+              
+              // 4) Update portfolio with cash balance
+              const { updateSavedPortfolio } = await import("../db");
+              await updateSavedPortfolio(inserted[0].id, userId, {
+                cashBalance: cashPosition.toFixed(2)
+              });
+              console.log(`[portfolios.create ${debugId}] Updated portfolio with cash balance: CHF ${cashPosition.toFixed(2)}`);
             } catch (txErr: any) {
               console.error(`[portfolios.create ${debugId}] Failed to create transactions:`, txErr);
               // Don't throw - portfolio is created, transactions can be added later

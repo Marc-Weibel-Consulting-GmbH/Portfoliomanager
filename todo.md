@@ -39,6 +39,12 @@
 - [x] Fix dashboard value calculation - now includes cash position in portfolio value
 - [x] BUG: Kein Fortschrittsbalken beim Klick auf "Portfolio automatisch erstellen" - Pop-Up mit Fortschrittsanzeige fehlt - FIXED: Added progress dialog with animated progress bar and status messages
 - [x] BUG: 100% Gewichtung wird als orange angezeigt statt grün - "Weiter" Button bleibt deaktiviert trotz korrekter Gewichtung - FIXED: Increased weight validation tolerance from 0.01% to 0.1% to handle rounding errors
+- [x] BUG: Portfolio creation invests only ~95-98% of initial amount (e.g., Marc portfolio CHF 150'000 → CHF 143'000 invested) - FIXED: Cash position now tracked
+- [x] FEATURE: Implement cash position tracking for uninvested funds - COMPLETED: cashBalance column already exists in schema
+- [x] Update portfolio creation logic to calculate cash position (initial amount - invested amount) - COMPLETED: portfoliosRouter.ts updated
+- [x] Modify database schema to store cash positions per portfolio - COMPLETED: cashBalance column already exists
+- [x] Display cash position in portfolio details view (Holdings table) - COMPLETED: Cash row added to holdings table
+- [x] Ensure total portfolio value = invested positions + cash position - COMPLETED: totalValue calculation includes cashBalance
 
 ## New Bugs & Features (30.12.2025)
 - [x] Bug: Portfolio saving fails due to missing TRPCError import in portfoliosRouter - FIXED (31.12.2025)
