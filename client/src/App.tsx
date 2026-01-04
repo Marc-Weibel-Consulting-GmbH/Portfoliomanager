@@ -37,6 +37,7 @@ import AdminCategories from "./pages/AdminCategories";
 import AdminSectors from "./pages/AdminSectors";
 import AdminSecretsManagement from "./pages/AdminSecretsManagement";
 import AdminKPIs from "./pages/AdminKPIs";
+import AdminDataImport from "./pages/AdminDataImport";
 import Dashboard from "./pages/Dashboard";
 import PortfolioBuilder from "./pages/PortfolioBuilder";
 import PortfolioBuilderNew from "./pages/PortfolioBuilderNew";
@@ -124,6 +125,7 @@ function Router() {
       <Route path="/admin/sectors" component={AdminSectors} />
       <Route path="/admin/secrets" component={AdminSecretsManagement} />
       <Route path="/admin/kpis" component={AdminKPIs} />
+      <Route path="/admin/data-import" component={AdminDataImport} />
       <Route path="/rechner" component={Rechner} />
       <Route path="/einstellungen" component={Einstellungen} />
       <Route path="/kontakt" component={Kontakt} />

@@ -136,9 +136,9 @@ export default function PortfolioDetailsPage() {
   }, [holdings]);
   
   // Calculate total portfolio value based on initial capital and weights
-  // FRONTEND HOTFIX: Include cash balance in total value for KPI display
+  // Backend already includes cash balance in totalValueCHF
   const cashBalance = parseFloat(portfolio?.cashBalance || "0");
-  const totalValueCHF = (Number(portfolio?.totalValueCHF) || 0) + cashBalance;
+  const totalValueCHF = Number(portfolio?.totalValueCHF) || 0;
   const avgDividendYield = portfolio?.avgDividendYield || 0;
   
   // Determine creation date for visual separation in chart

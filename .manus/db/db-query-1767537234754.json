@@ -1,0 +1,130 @@
+{
+  "query": "SELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count\nFROM historical_prices\nGROUP BY ticker\nORDER BY ticker\nLIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count\nFROM historical_prices\nGROUP BY ticker\nORDER BY ticker\nLIMIT 20;",
+  "rows": [
+    {
+      "ticker": "AAPL",
+      "earliest_date": "2025-12-24",
+      "latest_date": "2025-12-30",
+      "price_count": "4"
+    },
+    {
+      "ticker": "AAPL.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "ABBN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751"
+    },
+    {
+      "ticker": "ACWI",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "ACWI.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751"
+    },
+    {
+      "ticker": "ADI",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "AGG",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "AGG.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "ALAB",
+      "earliest_date": "2024-03-13",
+      "latest_date": "2026-01-02",
+      "price_count": "454"
+    },
+    {
+      "ticker": "AMD",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "AMGN",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "AMZN",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "ANET",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "APP",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "ARM",
+      "earliest_date": "2023-09-14",
+      "latest_date": "2026-01-02",
+      "price_count": "578"
+    },
+    {
+      "ticker": "AUTN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751"
+    },
+    {
+      "ticker": "AVGO",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "AXON",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754"
+    },
+    {
+      "ticker": "BAER.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest_date\tlatest_date\tprice_count\nAAPL\t2025-12-24\t2025-12-30\t4\nAAPL.US\t2022-12-30\t2026-01-02\t754\nABBN.SW\t2022-12-30\t2025-12-30\t751\nACWI\t2022-12-30\t2026-01-02\t754\nACWI.US\t2022-12-30\t2026-01-02\t754\nADEN.SW\t2022-12-30\t2025-12-30\t751\nADI\t2022-12-30\t2026-01-02\t754\nAGG\t2022-12-30\t2026-01-02\t754\nAGG.US\t2022-12-30\t2026-01-02\t754\nALAB\t2024-03-13\t2026-01-02\t454\nAMD\t2022-12-30\t2026-01-02\t754\nAMGN\t2022-12-30\t2026-01-02\t754\nAMZN\t2022-12-30\t2026-01-02\t754\nANET\t2022-12-30\t2026-01-02\t754\nAPP\t2022-12-30\t2026-01-02\t754\nARM\t2023-09-14\t2026-01-02\t578\nAUTN.SW\t2022-12-30\t2025-12-30\t751\nAVGO\t2022-12-30\t2026-01-02\t754\nAXON\t2022-12-30\t2026-01-02\t754\nBAER.SW\t2022-12-30\t2025-12-30\t751\n",
+  "stderr": "",
+  "execution_time_ms": 461
+}

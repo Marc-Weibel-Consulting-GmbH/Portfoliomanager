@@ -1,0 +1,45 @@
+{
+  "query": "SELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count,\n  DATEDIFF(MAX(date), MIN(date)) as days_covered\nFROM historical_prices\nWHERE ticker IN ('AAPL.US', 'NOVN.SW', 'NESN.SW', 'ROG.SW', 'ABBN.SW')\nGROUP BY ticker;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  ticker,\n  MIN(date) as earliest_date,\n  MAX(date) as latest_date,\n  COUNT(*) as price_count,\n  DATEDIFF(MAX(date), MIN(date)) as days_covered\nFROM historical_prices\nWHERE ticker IN ('AAPL.US', 'NOVN.SW', 'NESN.SW', 'ROG.SW', 'ABBN.SW')\nGROUP BY ticker;",
+  "rows": [
+    {
+      "ticker": "NESN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751",
+      "days_covered": "1096"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751",
+      "days_covered": "1096"
+    },
+    {
+      "ticker": "ROG.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751",
+      "days_covered": "1096"
+    },
+    {
+      "ticker": "ABBN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2025-12-30",
+      "price_count": "751",
+      "days_covered": "1096"
+    },
+    {
+      "ticker": "AAPL.US",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-02",
+      "price_count": "754",
+      "days_covered": "1099"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest_date\tlatest_date\tprice_count\tdays_covered\nNESN.SW\t2022-12-30\t2025-12-30\t751\t1096\nNOVN.SW\t2022-12-30\t2025-12-30\t751\t1096\nROG.SW\t2022-12-30\t2025-12-30\t751\t1096\nABBN.SW\t2022-12-30\t2025-12-30\t751\t1096\nAAPL.US\t2022-12-30\t2026-01-02\t754\t1099\n",
+  "stderr": "",
+  "execution_time_ms": 396
+}

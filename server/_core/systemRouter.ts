@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
+import { importHistoricalPrices } from "../jobs/importHistoricalPrices";
 
 export const systemRouter = router({
   health: publicProcedure
@@ -25,5 +26,22 @@ export const systemRouter = router({
       return {
         success: delivered,
       } as const;
+    }),
+
+  importHistoricalData: adminProcedure
+    .input(
+      z.object({
+        fromDate: z.string().optional(),
+        toDate: z.string().optional(),
+        forceRefresh: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const result = await importHistoricalPrices(
+        input.fromDate,
+        input.toDate,
+        input.forceRefresh ?? false
+      );
+      return result;
     }),
 });

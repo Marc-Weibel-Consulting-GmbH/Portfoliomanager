@@ -70,3 +70,8 @@
 ## New Bugs (04.01.2026)
 - [x] BUG: Gesamtwert berücksichtigt Cash-Position nicht - CHF 96'101.23 sollte CHF 100'101.23 sein (inkl. CHF 4'000 Cash) - FIXED: Frontend hotfix + backend correction applied
 - [x] BUG: Backend finalEnrichedStocks bug - stringifying enrichedStocks instead of finalEnrichedStocks - FIXED: Now returns finalEnrichedStocks
+
+## New Tasks (04.01.2026 - Backend Cleanup & Enhancements)
+- [x] Backend-Cleanup: totalValueCHF im Backend korrigieren (Cash-Balance einbeziehen), dann Frontend-Hotfix entfernen
+- [ ] Performance-Chart Daten: Historische Kursdaten für hypothetische Performance vor Erstellungsdatum erweitern (aktuell "Keine Daten verfügbar")
+- [x] Cash-Flow Tracking: Einzahlungen/Auszahlungen als separate Transaktionstypen erfassen, um Cash-Bewegungen besser nachzuvollziehen (Schema bereits vorbereitet mit 'deposit' und 'withdrawal' Typen)
