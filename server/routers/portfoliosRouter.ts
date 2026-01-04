@@ -493,12 +493,14 @@ export const portfoliosRouter = router({
                 // 2) Create buy transactions for each holding
                 for (const holding of holdings) {
                   const weight = parseFloat(holding.weight || "0") / 100;
-                  const allocationAmount = capitalNum * weight;
+                  const allocationAmountCHF = capitalNum * weight;
                   const currentPrice = parseFloat(holding.currentPrice || "0");
                   const fxRate = parseFloat(holding.exchangeRateToChf || "1.0");
                   
                   if (currentPrice > 0) {
-                    const shares = (allocationAmount / currentPrice).toFixed(6);
+                    // Convert CHF allocation to local currency, then calculate shares
+                    const allocationInLocalCurrency = allocationAmountCHF / fxRate;
+                    const shares = (allocationInLocalCurrency / currentPrice).toFixed(6);
                     const actualInvestedInCurrency = parseFloat(shares) * currentPrice;
                     const actualInvestedCHF = actualInvestedInCurrency * fxRate;
                     

@@ -523,9 +523,9 @@ export default function PortfolioDetailsPage() {
         </Card>
         
         {/* Holdings & Allocation */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-4 gap-6">
           {/* Holdings Table */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <CardHeader>
                 <CardTitle className="text-white">Positionen ({holdings.length})</CardTitle>
@@ -665,7 +665,7 @@ export default function PortfolioDetailsPage() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px' }}
+                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px', color: '#ffffff' }}
                         formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
                       />
                     </RechartsPieChart>
@@ -708,7 +708,7 @@ export default function PortfolioDetailsPage() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px' }}
+                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px', color: '#ffffff' }}
                         formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
                       />
                     </RechartsPieChart>

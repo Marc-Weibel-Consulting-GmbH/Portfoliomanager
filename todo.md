@@ -75,3 +75,9 @@
 - [x] Backend-Cleanup: totalValueCHF im Backend korrigieren (Cash-Balance einbeziehen), dann Frontend-Hotfix entfernen
 - [ ] Performance-Chart Daten: Historische Kursdaten für hypothetische Performance vor Erstellungsdatum erweitern (aktuell "Keine Daten verfügbar")
 - [x] Cash-Flow Tracking: Einzahlungen/Auszahlungen als separate Transaktionstypen erfassen, um Cash-Bewegungen besser nachzuvollziehen (Schema bereits vorbereitet mit 'deposit' und 'withdrawal' Typen)
+
+## New Issues (04.01.2026 - Afternoon)
+- [x] BUG: Portfoliodetails-Frames zu schmal - alle Spalten in der Portfolioliste sollen sichtbar sein - FIXED: Holdings table widened from lg:col-span-2 to lg:col-span-3 (grid changed from 3 to 4 columns)
+- [ ] BUG: Doppelte Cash-Spalte in Portfolioliste - NEEDS CLARIFICATION: Only one cash row found in code
+- [x] BUG: Wechselkurs beim Aktienkauf nicht berücksichtigt - Total Portfolio sollte ca. 100'000.- sein statt weniger - FIXED: Now converts CHF allocation to local currency before calculating shares (allocationInLocalCurrency = allocationAmountCHF / fxRate)
+- [x] BUG: Donut-Chart Tooltip-Textfarbe schwarz (nicht lesbar) - auf Weiß ändern - FIXED: Added color: '#ffffff' to both pie chart tooltips
