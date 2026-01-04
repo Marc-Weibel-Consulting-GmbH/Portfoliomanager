@@ -104,6 +104,8 @@ export default function PortfolioDetailsPage() {
     portfolioId,
     {
       enabled: portfolioId > 0,
+      staleTime: 0, // Always fetch fresh data
+      cacheTime: 0, // Don't cache
     }
   );
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
@@ -134,7 +136,9 @@ export default function PortfolioDetailsPage() {
   }, [holdings]);
   
   // Calculate total portfolio value based on initial capital and weights
-  const totalValueCHF = portfolio?.totalValueCHF || 0;
+  // FRONTEND HOTFIX: Include cash balance in total value for KPI display
+  const cashBalance = parseFloat(portfolio?.cashBalance || "0");
+  const totalValueCHF = (Number(portfolio?.totalValueCHF) || 0) + cashBalance;
   const avgDividendYield = portfolio?.avgDividendYield || 0;
   
   // Determine creation date for visual separation in chart

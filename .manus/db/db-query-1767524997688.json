@@ -1,0 +1,29 @@
+{
+  "query": "SELECT * FROM savedPortfolios WHERE id = 990001 LIMIT 1",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT * FROM savedPortfolios WHERE id = 990001 LIMIT 1",
+  "rows": [
+    {
+      "id": "990001",
+      "userId": "4082029",
+      "name": "Test Cash Portfolio",
+      "description": "NULL",
+      "portfolioData": "{\"stocks\":[{\"ticker\":\"ZURN.SW\",\"companyName\":\"Zurich Insurance G\",\"portfolioWeight\":12,\"weight\":12},{\"ticker\":\"KNIN.SW\",\"companyName\":\"Kuehne & Nagel\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"HOLN.SW\",\"companyName\":\"Holcim AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SLHN.SW\",\"companyName\":\"Swiss Life Holding\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SCMN.SW\",\"companyName\":\"Swisscom AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NOVN.SW\",\"companyName\":\"Novartis AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"JNJ\",\"companyName\":\"Johnson & Johnson\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NEE\",\"companyName\":\"NextEra Energy Inc\",\"portfolioWeight\":8,\"weight\":8},{\"ticker\":\"FHZN.SW\",\"companyName\":\"Flughafen Zurich A\",\"portfolioWeight\":6,\"weight\":6}],\"cashPercentage\":4}",
+      "portfolioType": "demo",
+      "status": "planned",
+      "startCapital": "NULL",
+      "benchmark": "NULL",
+      "createdAt": "2026-01-04 09:44:48",
+      "updatedAt": "2026-01-04 09:44:49",
+      "tags": "NULL",
+      "isLive": "0",
+      "liveStartDate": "NULL",
+      "livePerformance": "NULL",
+      "cashBalance": "4000.00",
+      "investmentAmount": "100000"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId\tname\tdescription\tportfolioData\tportfolioType\tstatus\tstartCapital\tbenchmark\tcreatedAt\tupdatedAt\ttags\tisLive\tliveStartDate\tlivePerformance\tcashBalance\tinvestmentAmount\n990001\t4082029\tTest Cash Portfolio\tNULL\t{\"stocks\":[{\"ticker\":\"ZURN.SW\",\"companyName\":\"Zurich Insurance G\",\"portfolioWeight\":12,\"weight\":12},{\"ticker\":\"KNIN.SW\",\"companyName\":\"Kuehne & Nagel\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"HOLN.SW\",\"companyName\":\"Holcim AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SLHN.SW\",\"companyName\":\"Swiss Life Holding\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SCMN.SW\",\"companyName\":\"Swisscom AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NOVN.SW\",\"companyName\":\"Novartis AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"JNJ\",\"companyName\":\"Johnson & Johnson\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NEE\",\"companyName\":\"NextEra Energy Inc\",\"portfolioWeight\":8,\"weight\":8},{\"ticker\":\"FHZN.SW\",\"companyName\":\"Flughafen Zurich A\",\"portfolioWeight\":6,\"weight\":6}],\"cashPercentage\":4}\tdemo\tplanned\tNULL\tNULL\t2026-01-04 09:44:48\t2026-01-04 09:44:49\tNULL\t0\tNULL\tNULL\t4000.00\t100000\n",
+  "stderr": "",
+  "execution_time_ms": 448
+}

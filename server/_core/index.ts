@@ -204,6 +204,13 @@ async function startServer() {
   
   // OAuth callback under /api/oauth/callback (DISABLED)
   // registerOAuthRoutes(app);
+  
+  // Debug endpoint (only in development)
+  if (process.env.NODE_ENV === "development") {
+    const { debugRouter } = await import("../debug-endpoint");
+    app.use("/api", debugRouter);
+  }
+  
   // tRPC API
   app.use(
     "/api/trpc",

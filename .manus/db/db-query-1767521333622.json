@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, name, cashBalance, JSON_EXTRACT(portfolioData, '$.stocks') as stocks_json FROM savedPortfolios WHERE id = 990001",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, name, cashBalance, JSON_EXTRACT(portfolioData, '$.stocks') as stocks_json FROM savedPortfolios WHERE id = 990001",
+  "rows": [
+    {
+      "id": "990001",
+      "name": "Test Cash Portfolio",
+      "cashBalance": "4000.00",
+      "stocks_json": "[{\"companyName\": \"Zurich Insurance G\", \"portfolioWeight\": 12, \"ticker\": \"ZURN.SW\", \"weight\": 12}, {\"companyName\": \"Kuehne & Nagel\", \"portfolioWeight\": 10, \"ticker\": \"KNIN.SW\", \"weight\": 10}, {\"companyName\": \"Holcim AG\", \"portfolioWeight\": 10, \"ticker\": \"HOLN.SW\", \"weight\": 10}, {\"companyName\": \"Swiss Life Holding\", \"portfolioWeight\": 10, \"ticker\": \"SLHN.SW\", \"weight\": 10}, {\"companyName\": \"Nestle SA\", \"portfolioWeight\": 10, \"ticker\": \"NESN.SW\", \"weight\": 10}, {\"companyName\": \"Swisscom AG\", \"portfolioWeight\": 10, \"ticker\": \"SCMN.SW\", \"weight\": 10}, {\"companyName\": \"Novartis AG\", \"portfolioWeight\": 10, \"ticker\": \"NOVN.SW\", \"weight\": 10}, {\"companyName\": \"Johnson & Johnson\", \"portfolioWeight\": 10, \"ticker\": \"JNJ\", \"weight\": 10}, {\"companyName\": \"NextEra Energy Inc\", \"portfolioWeight\": 8, \"ticker\": \"NEE\", \"weight\": 8}, {\"companyName\": \"Flughafen Zurich A\", \"portfolioWeight\": 6, \"ticker\": \"FHZN.SW\", \"weight\": 6}]"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tcashBalance\tstocks_json\n990001\tTest Cash Portfolio\t4000.00\t[{\"companyName\": \"Zurich Insurance G\", \"portfolioWeight\": 12, \"ticker\": \"ZURN.SW\", \"weight\": 12}, {\"companyName\": \"Kuehne & Nagel\", \"portfolioWeight\": 10, \"ticker\": \"KNIN.SW\", \"weight\": 10}, {\"companyName\": \"Holcim AG\", \"portfolioWeight\": 10, \"ticker\": \"HOLN.SW\", \"weight\": 10}, {\"companyName\": \"Swiss Life Holding\", \"portfolioWeight\": 10, \"ticker\": \"SLHN.SW\", \"weight\": 10}, {\"companyName\": \"Nestle SA\", \"portfolioWeight\": 10, \"ticker\": \"NESN.SW\", \"weight\": 10}, {\"companyName\": \"Swisscom AG\", \"portfolioWeight\": 10, \"ticker\": \"SCMN.SW\", \"weight\": 10}, {\"companyName\": \"Novartis AG\", \"portfolioWeight\": 10, \"ticker\": \"NOVN.SW\", \"weight\": 10}, {\"companyName\": \"Johnson & Johnson\", \"portfolioWeight\": 10, \"ticker\": \"JNJ\", \"weight\": 10}, {\"companyName\": \"NextEra Energy Inc\", \"portfolioWeight\": 8, \"ticker\": \"NEE\", \"weight\": 8}, {\"companyName\": \"Flughafen Zurich A\", \"portfolioWeight\": 6, \"ticker\": \"FHZN.SW\", \"weight\": 6}]\n",
+  "stderr": "",
+  "execution_time_ms": 584
+}

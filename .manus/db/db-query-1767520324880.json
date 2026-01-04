@@ -1,0 +1,13 @@
+{
+  "query": "SELECT portfolioData FROM savedPortfolios WHERE id = 990001",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT portfolioData FROM savedPortfolios WHERE id = 990001",
+  "rows": [
+    {
+      "portfolioData": "{\"stocks\":[{\"ticker\":\"ZURN.SW\",\"companyName\":\"Zurich Insurance G\",\"portfolioWeight\":12,\"weight\":12},{\"ticker\":\"KNIN.SW\",\"companyName\":\"Kuehne & Nagel\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"HOLN.SW\",\"companyName\":\"Holcim AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SLHN.SW\",\"companyName\":\"Swiss Life Holding\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SCMN.SW\",\"companyName\":\"Swisscom AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NOVN.SW\",\"companyName\":\"Novartis AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"JNJ\",\"companyName\":\"Johnson & Johnson\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NEE\",\"companyName\":\"NextEra Energy Inc\",\"portfolioWeight\":8,\"weight\":8},{\"ticker\":\"FHZN.SW\",\"companyName\":\"Flughafen Zurich A\",\"portfolioWeight\":6,\"weight\":6}],\"cashPercentage\":4}"
+    }
+  ],
+  "messages": [],
+  "stdout": "portfolioData\n{\"stocks\":[{\"ticker\":\"ZURN.SW\",\"companyName\":\"Zurich Insurance G\",\"portfolioWeight\":12,\"weight\":12},{\"ticker\":\"KNIN.SW\",\"companyName\":\"Kuehne & Nagel\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"HOLN.SW\",\"companyName\":\"Holcim AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SLHN.SW\",\"companyName\":\"Swiss Life Holding\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SCMN.SW\",\"companyName\":\"Swisscom AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NOVN.SW\",\"companyName\":\"Novartis AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"JNJ\",\"companyName\":\"Johnson & Johnson\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NEE\",\"companyName\":\"NextEra Energy Inc\",\"portfolioWeight\":8,\"weight\":8},{\"ticker\":\"FHZN.SW\",\"companyName\":\"Flughafen Zurich A\",\"portfolioWeight\":6,\"weight\":6}],\"cashPercentage\":4}\n",
+  "stderr": "",
+  "execution_time_ms": 420
+}

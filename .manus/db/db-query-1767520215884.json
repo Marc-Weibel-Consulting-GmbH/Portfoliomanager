@@ -1,0 +1,16 @@
+{
+  "query": "SELECT id, name, cashBalance, LEFT(portfolioData, 500) as portfolio_data_preview FROM savedPortfolios WHERE id = 990001",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, name, cashBalance, LEFT(portfolioData, 500) as portfolio_data_preview FROM savedPortfolios WHERE id = 990001",
+  "rows": [
+    {
+      "id": "990001",
+      "name": "Test Cash Portfolio",
+      "cashBalance": "4000.00",
+      "portfolio_data_preview": "{\"stocks\":[{\"ticker\":\"ZURN.SW\",\"companyName\":\"Zurich Insurance G\",\"portfolioWeight\":12,\"weight\":12},{\"ticker\":\"KNIN.SW\",\"companyName\":\"Kuehne & Nagel\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"HOLN.SW\",\"companyName\":\"Holcim AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SLHN.SW\",\"companyName\":\"Swiss Life Holding\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SCMN.SW\",\"companyName\":\"Swisscom AG\",\"portfolioWeight\":"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tcashBalance\tportfolio_data_preview\n990001\tTest Cash Portfolio\t4000.00\t{\"stocks\":[{\"ticker\":\"ZURN.SW\",\"companyName\":\"Zurich Insurance G\",\"portfolioWeight\":12,\"weight\":12},{\"ticker\":\"KNIN.SW\",\"companyName\":\"Kuehne & Nagel\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"HOLN.SW\",\"companyName\":\"Holcim AG\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SLHN.SW\",\"companyName\":\"Swiss Life Holding\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"portfolioWeight\":10,\"weight\":10},{\"ticker\":\"SCMN.SW\",\"companyName\":\"Swisscom AG\",\"portfolioWeight\":\n",
+  "stderr": "",
+  "execution_time_ms": 392
+}

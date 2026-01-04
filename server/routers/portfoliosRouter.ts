@@ -200,9 +200,12 @@ export const portfoliosRouter = router({
         
         const todayStr = new Date().toISOString().split('T')[0];
         
+        // Filter out CASH ticker from portfolioData (cash is tracked separately in cashBalance field)
+        const stocksWithoutCash = (portfolioData.stocks || []).filter((s: any) => s.ticker !== 'CASH');
+        
         // Enrich stocks with currency and FX data
         const enrichedStocks = await Promise.all(
-          (portfolioData.stocks || []).map(async (stock: any) => {
+          stocksWithoutCash.map(async (stock: any) => {
             const ticker = stock.ticker;
             const dbStock = await getStockByTicker(ticker);
             const currency = dbStock?.currency || await getStockCurrency(ticker);
@@ -273,12 +276,16 @@ export const portfoliosRouter = router({
         
         // Add cash position if cashBalance exists
         const finalEnrichedStocks = [...enrichedStocks];
-        const cashBalance = parseFloat(portfolio.cashBalance || '0');
+        
+        // Fix Decimal/Number type issue: explicitly convert cashBalance to number
+        const cashBalance = portfolio.cashBalance == null
+          ? 0
+          : typeof portfolio.cashBalance === 'number'
+            ? portfolio.cashBalance
+            : Number(portfolio.cashBalance); // Decimal/String -> number
         
         // Add cash to total value BEFORE calculating weights
-        console.log(`[getWithCurrency] BEFORE adding cash: totalValueCHF=${totalValueCHF}, cashBalance=${cashBalance}`);
         totalValueCHF += cashBalance;
-        console.log(`[getWithCurrency] AFTER adding cash: totalValueCHF=${totalValueCHF}`);
         
         // Calculate weight for each stock position
         enrichedStocks.forEach((stock: any) => {
@@ -310,15 +317,23 @@ export const portfoliosRouter = router({
           });
         }
         
-        console.log(`[getWithCurrency] Portfolio ${portfolio.id}: totalValueCHF=${totalValueCHF}, cashBalance=${cashBalance}`);
-        
-        return {
+        const result = {
           ...portfolio,
-          portfolioData: JSON.stringify({ ...portfolioData, stocks: enrichedStocks }),
+          portfolioData: JSON.stringify({ ...portfolioData, stocks: finalEnrichedStocks }),
           enrichedStocks: finalEnrichedStocks,
-          totalValueCHF,
-          avgDividendYield,
+          totalValueCHF: Number(totalValueCHF), // Ensure it's a primitive number, not Decimal
+          avgDividendYield: Number(avgDividendYield),
+          _debug: {
+            originalStockCount: portfolioData.stocks?.length || 0,
+            filteredStockCount: stocksWithoutCash.length,
+            enrichedStockCount: enrichedStocks.length,
+            finalEnrichedStockCount: finalEnrichedStocks.length,
+            cashBalance,
+            stocksValue: totalValueCHF - cashBalance,
+            totalWithCash: totalValueCHF,
+          },
         };
+        return result;
       }),
 
     create: protectedProcedure
