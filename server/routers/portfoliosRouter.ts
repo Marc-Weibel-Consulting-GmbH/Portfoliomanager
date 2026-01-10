@@ -317,12 +317,25 @@ export const portfoliosRouter = router({
           });
         }
         
+        // Calculate performance for demo portfolios (without transactions)
+        let performancePercent = 0;
+        let performanceAbsolute = 0;
+        if (portfolio.portfolioType === 'demo' && portfolio.investmentAmount) {
+          const investmentAmount = parseFloat(portfolio.investmentAmount);
+          if (investmentAmount > 0) {
+            performanceAbsolute = totalValueCHF - investmentAmount;
+            performancePercent = (performanceAbsolute / investmentAmount) * 100;
+          }
+        }
+        
         const result = {
           ...portfolio,
           portfolioData: JSON.stringify({ ...portfolioData, stocks: finalEnrichedStocks }),
           enrichedStocks: finalEnrichedStocks,
           totalValueCHF: Number(totalValueCHF), // Ensure it's a primitive number, not Decimal
           avgDividendYield: Number(avgDividendYield),
+          performancePercent: Number(performancePercent.toFixed(2)),
+          performanceAbsolute: Number(performanceAbsolute.toFixed(2)),
           _debug: {
             originalStockCount: portfolioData.stocks?.length || 0,
             filteredStockCount: stocksWithoutCash.length,
@@ -331,6 +344,8 @@ export const portfoliosRouter = router({
             cashBalance,
             stocksValue: totalValueCHF - cashBalance,
             totalWithCash: totalValueCHF,
+            performancePercent,
+            performanceAbsolute,
           },
         };
         return result;

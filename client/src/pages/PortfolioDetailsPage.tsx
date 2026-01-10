@@ -39,6 +39,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PortfolioEditModal } from "@/components/PortfolioEditModal";
+import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
@@ -72,6 +73,7 @@ export default function PortfolioDetailsPage() {
   
   // State for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<any>(null);
   const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
   
@@ -328,9 +330,13 @@ export default function PortfolioDetailsPage() {
           
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsSettingsModalOpen(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Einstellungen
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
-              Bearbeiten
+              Positionen
             </Button>
             <Button variant="outline" size="sm">
               <Share2 className="h-4 w-4 mr-2" />
@@ -758,16 +764,35 @@ export default function PortfolioDetailsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <div className={`text-2xl font-bold ${(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? '+' : ''}{(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0).toFixed(2)}%
-                    </div>
-                    {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? (
-                      <TrendingUp className="h-5 w-5 text-green-500" />
+                    {portfolio.portfolioType === 'demo' ? (
+                      // Demo portfolio: use simple performance calculation
+                      <>
+                        <div className={`text-2xl font-bold ${(portfolio.performancePercent || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {(portfolio.performancePercent || 0) >= 0 ? '+' : ''}{(portfolio.performancePercent || 0).toFixed(2)}%
+                        </div>
+                        {(portfolio.performancePercent || 0) >= 0 ? (
+                          <TrendingUp className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-5 w-5 text-red-500" />
+                        )}
+                      </>
                     ) : (
-                      <TrendingDown className="h-5 w-5 text-red-500" />
+                      // Live portfolio: use historical performance data
+                      <>
+                        <div className={`text-2xl font-bold ${(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? '+' : ''}{(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0).toFixed(2)}%
+                        </div>
+                        {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? (
+                          <TrendingUp className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-5 w-5 text-red-500" />
+                        )}
+                      </>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{selectedPeriod} Performance</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {portfolio.portfolioType === 'demo' ? 'Gesamt' : selectedPeriod} Performance
+                  </p>
                 </CardContent>
               </Card>
               
@@ -894,6 +919,18 @@ export default function PortfolioDetailsPage() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Settings Modal */}
+      <PortfolioSettingsModal
+        open={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        portfolioId={portfolioId}
+        initialName={portfolio.name}
+        initialDescription={portfolio.description || undefined}
+        initialInvestmentAmount={portfolio.investmentAmount}
+        portfolioType={portfolio.portfolioType as 'demo' | 'live'}
+        onSuccess={() => refetch()}
+      />
       
       {/* Edit Modal */}
       <PortfolioEditModal

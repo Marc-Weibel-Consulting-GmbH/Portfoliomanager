@@ -102,3 +102,44 @@
 - [x] FIX: Home.tsx - investmentAmountInput durch Fallback-Wert ersetzt, onBackClick prop entfernt
 - [x] FIX: PortfolioBuilderWizard.tsx - result.id mit optional chaining abgesichert
 - [x] RESULT: 0 TypeScript-Fehler - Projekt kompiliert erfolgreich
+
+
+## Phase 2: Demo-Portfolio-Erstellung verbessern (10.01.2026)
+
+### Fokus: Landingpage, Dashboard & Portfolio-Funktionen
+- [ ] Landingpage UI-Design verbessern (Grafik, On-Boarding)
+- [ ] Dashboard-Funktionalitäten erweitern
+- [ ] Portfolio-Übersicht optimieren
+- [ ] Portfolio-Detailseite mit Performanceberechnung verbessern
+- [ ] Portfolio Builder für Demo-Portfolios optimieren
+
+### Demo-Portfolio Erstellung - Kernfunktionalität
+- [ ] Parameter-Validierung beim Erstellen eines Demo-Portfolios
+- [ ] Demo-Portfolio in Portfolioliste korrekt anzeigen
+- [ ] Bearbeitungsfunktion für Demo-Portfolio-Parameter
+- [ ] Performanceberechnung für Demo-Portfolios implementieren
+- [ ] Demo-Portfolio löschen mit Bestätigung
+
+### Transaktionsverwaltung (späterer Schritt)
+- [ ] Wird in Phase 3 behandelt
+
+
+## Verbesserungen Demo-Portfolio-Erstellung (10.01.2026 - Nachmittag)
+
+### Neue Komponenten
+- [x] PortfolioSettingsModal erstellt für Bearbeitung von Portfolio-Parametern
+- [x] Settings-Button in PortfolioDetailsPage hinzugefügt
+- [x] Modal in PortfolioDetailsPage integriert
+
+### Funktionalität
+- [x] Portfolio-Name bearbeiten
+- [x] Portfolio-Beschreibung bearbeiten
+- [x] Investitionssumme anzeigen (read-only)
+- [x] Portfolio-Typ Badge anzeigen (Demo/Live)
+
+
+### Performance-Berechnung für Demo-Portfolios
+- [x] Backend: Performance-Berechnung in portfoliosRouter.getWithCurrency implementiert
+- [x] Frontend: Performance-Anzeige für Demo-Portfolios in PortfolioDetailsPage angepasst
+- [x] Berechnung: (Aktueller Wert - Investitionssumme) / Investitionssumme × 100%
+- [x] Anzeige: "Gesamt Performance" für Demo, "{Period} Performance" für Live
