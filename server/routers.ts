@@ -31,6 +31,7 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { dashboardPerformanceRouter } from "./routers/dashboardPerformanceRouter";
 import { newsRouter } from "./routers/newsRouter";
 import { debugRouter } from "./routers/debugRouter";
+import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
 import { fetchEODHDFundamentals } from "./_core/eodhdApi";
@@ -1145,6 +1146,45 @@ export const appRouter = router({
   notificationSettings: notificationSettingsRouter,
   
   onboarding: onboardingRouter,
+
+  // Logo service for stock logos
+  logos: router({
+    getLogoUrl: publicProcedure
+      .input(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+      }))
+      .query(async ({ input }) => {
+        const result = await fetchLogo(input.ticker);
+        return {
+          ticker: input.ticker,
+          url: result.url,
+          source: result.source,
+        };
+      }),
+    
+    getBatchLogos: publicProcedure
+      .input(z.array(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+      })))
+      .query(async ({ input }) => {
+        const results: Record<string, { url: string; source: string }> = {};
+        
+        // Process in parallel for better performance
+        await Promise.all(
+          input.map(async (item) => {
+            const result = await fetchLogo(item.ticker);
+            results[item.ticker] = {
+              url: result.url,
+              source: result.source,
+            };
+          })
+        );
+        
+        return results;
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

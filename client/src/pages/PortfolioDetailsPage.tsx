@@ -44,6 +44,7 @@ import { EditPositionModal } from "@/components/EditPositionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
+import { StockLogo } from "@/components/StockLogo";
 
 const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   dividends: { label: "Dividenden", icon: <DollarSign className="h-4 w-4" />, color: "bg-blue-500" },
@@ -563,9 +564,12 @@ export default function PortfolioDetailsPage() {
                         <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5">
                           <td className="p-3">
                             <Link href={`/stock/${holding.ticker}`}>
-                              <span className="font-semibold text-[#00CFC1] hover:underline cursor-pointer">
-                                {holding.ticker}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
+                                <span className="font-semibold text-[#00CFC1] hover:underline cursor-pointer">
+                                  {holding.ticker}
+                                </span>
+                              </div>
                             </Link>
                           </td>
                           <td className="p-3 text-gray-300">{holding.companyName}</td>

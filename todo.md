@@ -153,3 +153,9 @@
 
 ## Logo-Problem Schweizer Aktien (10.01.2026)
 - [x] Schweizer Aktien-Logos mit neuer API korrekt abrufen und anzeigen
+
+
+## Bug-Fix Schweizer Aktien-Logos (10.01.2026)
+- [x] BUG: StockLogo-Komponente fehlt in Holdings-Tabelle der PortfolioDetailsPage - Logos werden nicht angezeigt - FIXED
+
+- [x] INVESTIGATE: EODHD API Logo-Abruf für Schweizer Aktien funktioniert nicht korrekt - FIXED: Frontend nutzt jetzt Backend-API mit EODHD Fundamentals API
