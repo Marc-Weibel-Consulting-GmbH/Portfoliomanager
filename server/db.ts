@@ -1,6 +1,6 @@
 import { eq, sql, isNotNull, ne, desc, lt, and, asc, gte, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, stocks, users, news, transactions, savedPortfolios, categories } from "../drizzle/schema";
+import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, InsertLogoCache, LogoCache, stocks, users, news, transactions, savedPortfolios, categories, logoCache } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1582,5 +1582,147 @@ export async function calculatePortfolioMetrics(portfolioId: number, userId: num
   } catch (error) {
     console.error("[Database] Failed to calculate portfolio metrics:", error);
     return null;
+  }
+}
+
+
+// ==========================================
+// Logo Cache Functions
+// ==========================================
+
+/**
+ * Get a cached logo by ticker
+ * Returns null if not found or expired
+ */
+export async function getCachedLogo(ticker: string): Promise<LogoCache | null> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get cached logo: database not available");
+    return null;
+  }
+
+  try {
+    const result = await db
+      .select()
+      .from(logoCache)
+      .where(eq(logoCache.ticker, ticker))
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const cached = result[0];
+    
+    // Check if cache has expired
+    if (cached.expiresAt && new Date(cached.expiresAt) < new Date()) {
+      return null;
+    }
+
+    return cached;
+  } catch (error) {
+    console.error("[Database] Failed to get cached logo:", error);
+    return null;
+  }
+}
+
+/**
+ * Save or update a logo in the cache
+ * @param ticker Stock ticker
+ * @param logoUrl URL of the logo (null if no logo found)
+ * @param source Source of the logo (e.g., 'eodhd', 'fallback')
+ * @param expiresInDays Number of days until cache expires (default: 30)
+ */
+export async function saveCachedLogo(
+  ticker: string,
+  logoUrl: string | null,
+  source: string = "eodhd",
+  expiresInDays: number = 30
+): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot save cached logo: database not available");
+    return;
+  }
+
+  try {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+    const values: InsertLogoCache = {
+      ticker,
+      logoUrl,
+      source,
+      lastFetched: new Date(),
+      expiresAt,
+    };
+
+    await db
+      .insert(logoCache)
+      .values(values)
+      .onDuplicateKeyUpdate({
+        set: {
+          logoUrl,
+          source,
+          lastFetched: new Date(),
+          expiresAt,
+        },
+      });
+  } catch (error) {
+    console.error("[Database] Failed to save cached logo:", error);
+  }
+}
+
+/**
+ * Get multiple cached logos by tickers
+ * Returns a map of ticker -> logoUrl
+ */
+export async function getCachedLogos(tickers: string[]): Promise<Map<string, string | null>> {
+  const db = await getDb();
+  const result = new Map<string, string | null>();
+  
+  if (!db || tickers.length === 0) {
+    return result;
+  }
+
+  try {
+    const { inArray } = await import("drizzle-orm");
+    const cached = await db
+      .select()
+      .from(logoCache)
+      .where(inArray(logoCache.ticker, tickers));
+
+    const now = new Date();
+    for (const item of cached) {
+      // Skip expired entries
+      if (item.expiresAt && new Date(item.expiresAt) < now) {
+        continue;
+      }
+      result.set(item.ticker, item.logoUrl);
+    }
+  } catch (error) {
+    console.error("[Database] Failed to get cached logos:", error);
+  }
+
+  return result;
+}
+
+/**
+ * Delete expired logo cache entries
+ * @returns Number of deleted entries
+ */
+export async function cleanupExpiredLogos(): Promise<number> {
+  const db = await getDb();
+  if (!db) {
+    return 0;
+  }
+
+  try {
+    const now = new Date();
+    await db.delete(logoCache).where(lt(logoCache.expiresAt, now));
+    return 1;
+  } catch (error) {
+    console.error("[Database] Failed to cleanup expired logos:", error);
+    return 0;
   }
 }

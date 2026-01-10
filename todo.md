@@ -159,3 +159,10 @@
 - [x] BUG: StockLogo-Komponente fehlt in Holdings-Tabelle der PortfolioDetailsPage - Logos werden nicht angezeigt - FIXED
 
 - [x] INVESTIGATE: EODHD API Logo-Abruf für Schweizer Aktien funktioniert nicht korrekt - FIXED: Frontend nutzt jetzt Backend-API mit EODHD Fundamentals API
+
+
+## Logo Caching Feature (11.01.2026)
+- [x] Logo-Cache-Tabelle in drizzle/schema.ts erstellen
+- [x] Logo-Cache-Queries in server/db.ts hinzufügen
+- [x] Logo-Caching-Logik im Backend implementieren
+- [x] Logo-Abruf mit Cache-Prüfung integrieren

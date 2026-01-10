@@ -8,13 +8,28 @@ global.fetch = mockFetch as any;
 // Mock ENV
 vi.mock('../_core/env', () => ({
   ENV: {
-    fmpApiKey: 'test-fmp-key',
+    eodhdApiKey: 'test-eodhd-key',
+    finnhubApiKey: 'test-finnhub-key',
   },
+}));
+
+// Mock database functions
+const mockGetCachedLogo = vi.fn();
+const mockSaveCachedLogo = vi.fn();
+const mockGetCachedLogos = vi.fn();
+
+vi.mock('../db', () => ({
+  getCachedLogo: () => mockGetCachedLogo(),
+  saveCachedLogo: (...args: any[]) => mockSaveCachedLogo(...args),
+  getCachedLogos: (...args: any[]) => mockGetCachedLogos(...args),
 }));
 
 describe('Logo Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetCachedLogo.mockResolvedValue(null);
+    mockSaveCachedLogo.mockResolvedValue(undefined);
+    mockGetCachedLogos.mockResolvedValue(new Map());
   });
 
   afterEach(() => {
@@ -46,113 +61,162 @@ describe('Logo Service', () => {
     });
   });
 
-  describe('fetchLogo - Clearbit primary', () => {
-    it('should fetch logo from Clearbit when domain is provided and available', async () => {
-      // Mock successful Clearbit response (HEAD request)
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
+  describe('fetchLogo - Cache functionality', () => {
+    it('should return cached logo when available', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce({
+        ticker: 'NESN.SW',
+        logoUrl: 'https://cached-logo.com/nesn.png',
+        source: 'eodhd',
+        lastFetched: new Date(),
+        expiresAt: new Date(Date.now() + 86400000), // expires tomorrow
       });
 
-      const result = await fetchLogo('NESN.SW', 'nestle.com');
+      const result = await fetchLogo('NESN.SW');
 
-      expect(result.source).toBe('clearbit');
-      expect(result.url).toBe('https://logo.clearbit.com/nestle.com');
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://logo.clearbit.com/nestle.com',
-        expect.objectContaining({ method: 'HEAD' })
-      );
+      expect(result.source).toBe('eodhd');
+      expect(result.url).toBe('https://cached-logo.com/nesn.png');
+      expect(result.cached).toBe(true);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('should handle Clearbit timeout gracefully', async () => {
-      // Mock Clearbit timeout
-      mockFetch.mockRejectedValueOnce(new Error('Timeout'));
+    it('should return generic logo when cache has null logoUrl', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce({
+        ticker: 'UNKNOWN.SW',
+        logoUrl: null,
+        source: 'generic',
+        lastFetched: new Date(),
+        expiresAt: new Date(Date.now() + 86400000),
+      });
 
-      const result = await fetchLogo('NESN.SW', 'nestle.com');
+      const result = await fetchLogo('UNKNOWN.SW');
 
-      // Should fallback to generic (FMP will also fail without proper mock)
       expect(result.source).toBe('generic');
+      expect(result.url).toContain('data:image/svg+xml;base64');
+      expect(result.cached).toBe(true);
+    });
+
+    it('should fetch from API when cache is empty', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      
+      // Mock EODHD success
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => '/img/logos/US/AAPL.png',
+      });
+
+      const result = await fetchLogo('AAPL');
+
+      expect(result.source).toBe('eodhd');
+      expect(result.url).toBe('https://eodhd.com/img/logos/US/AAPL.png');
+      expect(mockSaveCachedLogo).toHaveBeenCalledWith('AAPL', 'https://eodhd.com/img/logos/US/AAPL.png', 'eodhd', 30);
+    });
+
+    it('should skip cache when skipCache is true', async () => {
+      // Mock EODHD success
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => '/img/logos/US/AAPL.png',
+      });
+
+      const result = await fetchLogo('AAPL', undefined, true);
+
+      expect(result.source).toBe('eodhd');
+      expect(result.url).toBe('https://eodhd.com/img/logos/US/AAPL.png');
+      expect(mockGetCachedLogo).not.toHaveBeenCalled();
     });
   });
 
-  describe('fetchLogo - FMP fallback', () => {
-    it('should fallback to FMP when Clearbit fails', async () => {
-      // Mock Clearbit failure (404)
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-      });
-
-      // Mock successful FMP response
+  describe('fetchLogo - EODHD primary', () => {
+    it('should fetch logo from EODHD when available', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce(null);
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => [{ image: 'https://financialmodelingprep.com/image-stock/NESN.png' }],
+        json: async () => '/img/logos/US/AAPL.png',
       });
 
-      const result = await fetchLogo('NESN.SW', 'nestle.com');
+      const result = await fetchLogo('AAPL');
 
-      expect(result.source).toBe('fmp');
-      expect(result.url).toBe('https://financialmodelingprep.com/image-stock/NESN.png');
-    });
-
-    it('should clean ticker for FMP (remove .SW suffix)', async () => {
-      // Mock Clearbit failure
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-      });
-
-      // Mock FMP success
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => [{ image: 'https://fmp.com/logo/NESN.png' }],
-      });
-
-      await fetchLogo('NESN.SW', 'nestle.com');
-
-      // Check that FMP was called with clean ticker (without .SW)
+      expect(result.source).toBe('eodhd');
+      expect(result.url).toBe('https://eodhd.com/img/logos/US/AAPL.png');
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/profile/NESN?'),
+        expect.stringContaining('eodhd.com/api/fundamentals/AAPL'),
         expect.anything()
       );
     });
 
-    it('should skip FMP when no API key is configured', async () => {
-      // Temporarily remove API key
-      vi.doMock('../_core/env', () => ({
-        ENV: {
-          fmpApiKey: '',
-        },
-      }));
+    it('should handle EODHD timeout gracefully', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      mockFetch.mockRejectedValueOnce(new Error('Timeout'));
+      // Finnhub also fails
+      mockFetch.mockRejectedValueOnce(new Error('Timeout'));
 
-      // Mock Clearbit failure
+      const result = await fetchLogo('AAPL');
+
+      expect(result.source).toBe('generic');
+    });
+  });
+
+  describe('fetchLogo - Finnhub fallback', () => {
+    it('should fallback to Finnhub when EODHD fails', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      // Mock EODHD failure
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
       });
 
-      const result = await fetchLogo('TEST.SW', 'test.com');
+      // Mock successful Finnhub response
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ logo: 'https://finnhub.io/logo/AAPL.png' }),
+      });
 
-      // Should skip FMP and go to generic
-      expect(result.source).toBe('generic');
+      const result = await fetchLogo('AAPL');
+
+      expect(result.source).toBe('finnhub');
+      expect(result.url).toBe('https://finnhub.io/logo/AAPL.png');
+    });
+
+    it('should clean ticker for Finnhub (remove .SW suffix)', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      // Mock EODHD failure
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+      });
+
+      // Mock Finnhub success
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ logo: 'https://finnhub.io/logo/NESN.png' }),
+      });
+
+      await fetchLogo('NESN.SW');
+
+      // Check that Finnhub was called with clean ticker (without .SW)
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('symbol=NESN&'),
+        expect.anything()
+      );
     });
   });
 
   describe('fetchLogo - Generic SVG fallback', () => {
     it('should generate generic SVG when all APIs fail', async () => {
-      // Mock Clearbit failure
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      // Mock EODHD failure
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
       });
 
-      // Mock FMP failure
+      // Mock Finnhub failure
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
       });
 
-      const result = await fetchLogo('TEST.SW', 'test.com');
+      const result = await fetchLogo('TEST.SW');
 
       expect(result.source).toBe('generic');
       expect(result.url).toContain('data:image/svg+xml;base64');
@@ -163,33 +227,34 @@ describe('Logo Service', () => {
       expect(decoded).toContain('TE'); // "TE" are the initials from "TEST"
     });
 
-    it('should skip Clearbit when no domain is provided', async () => {
-      // Mock FMP failure
+    it('should save null to cache when no logo found', async () => {
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      // Mock all failures
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+      });
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
       });
 
-      const result = await fetchLogo('AAPL');
+      await fetchLogo('UNKNOWN');
 
-      expect(result.source).toBe('generic');
-      // Only FMP should be called (1 call)
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockSaveCachedLogo).toHaveBeenCalledWith('UNKNOWN', null, 'generic', 30);
     });
 
     it('should generate deterministic colors for same ticker', async () => {
-      // Mock all failures
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-      });
-
+      // First call
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
       const result1 = await fetchLogo('AAPL');
-      vi.clearAllMocks();
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-      });
+      
+      // Second call
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
       const result2 = await fetchLogo('AAPL');
 
       // Same ticker should generate same logo
@@ -197,10 +262,9 @@ describe('Logo Service', () => {
     });
 
     it('should use first 2 characters as initials', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-      });
+      mockGetCachedLogo.mockResolvedValueOnce(null);
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
 
       const result = await fetchLogo('ABCD');
 
@@ -213,46 +277,62 @@ describe('Logo Service', () => {
   });
 
   describe('fetchLogoBatch', () => {
-    it('should fetch logos for multiple tickers in parallel', async () => {
-      // Mock responses for different tickers
-      mockFetch
-        .mockResolvedValueOnce({ ok: true, status: 200 }) // Clearbit for NESN
-        .mockResolvedValueOnce({ ok: true, status: 200 }); // Clearbit for NOVN
+    it('should use cached logos when available', async () => {
+      const cachedMap = new Map<string, string | null>();
+      cachedMap.set('NESN.SW', 'https://cached.com/nesn.png');
+      cachedMap.set('NOVN.SW', 'https://cached.com/novn.png');
+      mockGetCachedLogos.mockResolvedValueOnce(cachedMap);
 
       const results = await fetchLogoBatch([
-        { ticker: 'NESN.SW', domain: 'nestle.com' },
-        { ticker: 'NOVN.SW', domain: 'novartis.com' },
+        { ticker: 'NESN.SW' },
+        { ticker: 'NOVN.SW' },
       ]);
 
       expect(results.size).toBe(2);
-      expect(results.get('NESN.SW')?.source).toBe('clearbit');
-      expect(results.get('NOVN.SW')?.source).toBe('clearbit');
+      expect(results.get('NESN.SW')?.cached).toBe(true);
+      expect(results.get('NOVN.SW')?.cached).toBe(true);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('should handle mixed success and fallback', async () => {
-      // NESN: Clearbit success
-      mockFetch.mockResolvedValueOnce({ ok: true, status: 200 });
-      
-      // NOVN: Clearbit fail, FMP success
-      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    it('should fetch only uncached logos', async () => {
+      const cachedMap = new Map<string, string | null>();
+      cachedMap.set('NESN.SW', 'https://cached.com/nesn.png');
+      mockGetCachedLogos.mockResolvedValueOnce(cachedMap);
+
+      // Mock EODHD success for NOVN
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => [{ image: 'https://fmp.com/novn.png' }],
+        json: async () => '/img/logos/VX/NOVN.png',
       });
 
       const results = await fetchLogoBatch([
-        { ticker: 'NESN.SW', domain: 'nestle.com' },
-        { ticker: 'NOVN.SW', domain: 'novartis.com' },
+        { ticker: 'NESN.SW' },
+        { ticker: 'NOVN.SW' },
       ]);
 
       expect(results.size).toBe(2);
-      expect(results.get('NESN.SW')?.source).toBe('clearbit');
-      expect(results.get('NOVN.SW')?.source).toBe('fmp');
+      expect(results.get('NESN.SW')?.cached).toBe(true);
+      expect(results.get('NOVN.SW')?.source).toBe('eodhd');
+      expect(mockFetch).toHaveBeenCalledTimes(1); // Only one API call for NOVN
     });
 
     it('should handle empty batch', async () => {
       const results = await fetchLogoBatch([]);
       expect(results.size).toBe(0);
+    });
+
+    it('should handle null cached logos (no logo found)', async () => {
+      const cachedMap = new Map<string, string | null>();
+      cachedMap.set('UNKNOWN.SW', null);
+      mockGetCachedLogos.mockResolvedValueOnce(cachedMap);
+
+      const results = await fetchLogoBatch([
+        { ticker: 'UNKNOWN.SW' },
+      ]);
+
+      expect(results.size).toBe(1);
+      expect(results.get('UNKNOWN.SW')?.source).toBe('generic');
+      expect(results.get('UNKNOWN.SW')?.cached).toBe(true);
     });
   });
 

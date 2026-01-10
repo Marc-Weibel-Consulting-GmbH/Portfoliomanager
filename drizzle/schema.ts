@@ -542,3 +542,21 @@ export const portfolioSnapshots = mysqlTable("portfolioSnapshots", {
 
 export type PortfolioSnapshot = typeof portfolioSnapshots.$inferSelect;
 export type InsertPortfolioSnapshot = typeof portfolioSnapshots.$inferInsert;
+
+
+// Logo cache table - stores company logos to avoid repeated API calls
+export const logoCache = mysqlTable("logoCache", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull().unique(), // Stock ticker (e.g., AAPL, NESN.SW)
+  logoUrl: varchar("logoUrl", { length: 1000 }), // Cached logo URL (null if no logo found)
+  source: varchar("source", { length: 50 }).notNull().default("eodhd"), // Data source (eodhd, fallback, etc.)
+  lastFetched: timestamp("lastFetched").defaultNow().notNull(), // When the logo was last fetched
+  expiresAt: timestamp("expiresAt"), // Optional expiry date for cache refresh
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  tickerIdx: index("ix_logo_cache_ticker").on(t.ticker),
+}));
+
+export type LogoCache = typeof logoCache.$inferSelect;
+export type InsertLogoCache = typeof logoCache.$inferInsert;

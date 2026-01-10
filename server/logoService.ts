@@ -1,18 +1,24 @@
 /**
- * Logo Service with Multi-Provider Fallback Strategy
+ * Logo Service with Multi-Provider Fallback Strategy and Database Caching
  * 
  * Priority:
- * 1. EODHD Fundamentals API (all exchanges, requires API key)
- * 2. Finnhub (US stocks only, high quality)
- * 3. Generic SVG (ticker initials, always works)
+ * 1. Database Cache (fastest, no API calls)
+ * 2. EODHD Fundamentals API (all exchanges, requires API key)
+ * 3. Finnhub (US stocks only, high quality)
+ * 4. Generic SVG (ticker initials, always works)
  */
 
 import { ENV } from "./_core/env";
+import { getCachedLogo, saveCachedLogo, getCachedLogos } from "./db";
 
 interface LogoResult {
   url: string;
-  source: "eodhd" | "finnhub" | "generic";
+  source: "cache" | "eodhd" | "finnhub" | "generic";
+  cached?: boolean;
 }
+
+// Cache expiry in days (logos don't change often)
+const CACHE_EXPIRY_DAYS = 30;
 
 /**
  * Generate a generic SVG logo with ticker initials
@@ -115,55 +121,126 @@ async function fetchFinnhubLogo(ticker: string): Promise<string | null> {
 }
 
 /**
- * Fetch logo with automatic fallback chain
+ * Fetch logo with automatic fallback chain and database caching
  * 
  * @param ticker Stock ticker symbol (e.g., "NESN.SW", "AAPL")
  * @param domain Optional company domain (not used anymore, kept for backward compatibility)
+ * @param skipCache Skip cache lookup (force fresh fetch)
  * @returns Logo URL and source
  */
 export async function fetchLogo(
   ticker: string,
-  domain?: string
+  domain?: string,
+  skipCache: boolean = false
 ): Promise<LogoResult> {
   // Clean ticker (remove exchange suffix for some APIs)
   const cleanTicker = ticker.split(".")[0];
   
-  // Try EODHD first (works for all exchanges including Swiss stocks)
+  // 1. Check database cache first (unless skipCache is true)
+  if (!skipCache) {
+    try {
+      const cached = await getCachedLogo(ticker);
+      if (cached) {
+        console.log(`[LogoService] ✓ Cache hit for ${ticker}`);
+        // If logoUrl is null, it means we previously found no logo - return generic
+        if (cached.logoUrl === null) {
+          return { 
+            url: generateGenericLogo(cleanTicker), 
+            source: "generic",
+            cached: true 
+          };
+        }
+        return { 
+          url: cached.logoUrl, 
+          source: cached.source as "eodhd" | "finnhub" | "generic",
+          cached: true 
+        };
+      }
+    } catch (error) {
+      console.warn(`[LogoService] Cache lookup failed for ${ticker}:`, error);
+    }
+  }
+  
+  // 2. Try EODHD first (works for all exchanges including Swiss stocks)
   const eodhd = await fetchEODHDLogo(ticker);
   if (eodhd) {
     console.log(`[LogoService] ✓ EODHD logo found for ${ticker}`);
+    // Save to cache
+    await saveCachedLogo(ticker, eodhd, "eodhd", CACHE_EXPIRY_DAYS);
     return { url: eodhd, source: "eodhd" };
   }
   
-  // Try Finnhub as fallback (US stocks only)
+  // 3. Try Finnhub as fallback (US stocks only)
   const finnhubUrl = await fetchFinnhubLogo(cleanTicker);
   if (finnhubUrl) {
     console.log(`[LogoService] ✓ Finnhub logo found for ${ticker}`);
+    // Save to cache
+    await saveCachedLogo(ticker, finnhubUrl, "finnhub", CACHE_EXPIRY_DAYS);
     return { url: finnhubUrl, source: "finnhub" };
   }
   
-  // Generate generic SVG as last resort
+  // 4. Generate generic SVG as last resort
   console.log(`[LogoService] ⚠ Using generic logo for ${ticker}`);
+  // Save null to cache to avoid repeated API calls for stocks without logos
+  await saveCachedLogo(ticker, null, "generic", CACHE_EXPIRY_DAYS);
   const genericUrl = generateGenericLogo(cleanTicker);
   return { url: genericUrl, source: "generic" };
 }
 
 /**
- * Batch fetch logos for multiple tickers
- * Useful for portfolio views with many stocks
+ * Batch fetch logos for multiple tickers with optimized caching
+ * First checks cache for all tickers, then fetches missing ones
  */
 export async function fetchLogoBatch(
   items: Array<{ ticker: string; domain?: string }>
 ): Promise<Map<string, LogoResult>> {
   const results = new Map<string, LogoResult>();
+  const tickers = items.map(item => item.ticker);
   
-  // Process in parallel with Promise.all
-  await Promise.all(
-    items.map(async (item) => {
-      const result = await fetchLogo(item.ticker, item.domain);
-      results.set(item.ticker, result);
-    })
-  );
+  // 1. Get all cached logos in one query
+  let cachedLogos = new Map<string, string | null>();
+  try {
+    cachedLogos = await getCachedLogos(tickers);
+  } catch (error) {
+    console.warn("[LogoService] Batch cache lookup failed:", error);
+  }
+  
+  // 2. Separate cached and uncached tickers
+  const uncachedItems: Array<{ ticker: string; domain?: string }> = [];
+  
+  for (const item of items) {
+    if (cachedLogos.has(item.ticker)) {
+      const logoUrl = cachedLogos.get(item.ticker);
+      if (logoUrl === null) {
+        // Previously found no logo - return generic
+        results.set(item.ticker, {
+          url: generateGenericLogo(item.ticker.split(".")[0]),
+          source: "generic",
+          cached: true
+        });
+      } else {
+        results.set(item.ticker, {
+          url: logoUrl!,
+          source: "cache",
+          cached: true
+        });
+      }
+    } else {
+      uncachedItems.push(item);
+    }
+  }
+  
+  console.log(`[LogoService] Batch: ${cachedLogos.size} cached, ${uncachedItems.length} to fetch`);
+  
+  // 3. Fetch uncached logos in parallel
+  if (uncachedItems.length > 0) {
+    await Promise.all(
+      uncachedItems.map(async (item) => {
+        const result = await fetchLogo(item.ticker, item.domain, true); // skipCache=true since we already checked
+        results.set(item.ticker, result);
+      })
+    );
+  }
   
   return results;
 }
