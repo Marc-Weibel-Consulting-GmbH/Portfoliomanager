@@ -66,12 +66,13 @@ function extractDomain(companyName: string): string {
 
 /**
  * Centralized stock logo component with consistent fallback chain:
- * 1. FinancialModelingPrep API (free, high quality)
- * 2. Clearbit with known domain mapping (Swiss companies)
- * 3. Clearbit with extracted domain (.ch for Swiss, .com for others)
- * 4. Clearbit with alternate domain (.com for Swiss)
- * 5. Logo.dev API
- * 6. Letter avatar (final fallback)
+ * 1. EODHD (40k+ logos, no API key needed, direct URL)
+ * 2. FinancialModelingPrep API (free, high quality)
+ * 3. Clearbit with known domain mapping (Swiss companies)
+ * 4. Clearbit with extracted domain (.ch for Swiss, .com for others)
+ * 5. Clearbit with alternate domain (.com for Swiss)
+ * 6. Logo.dev API
+ * 7. Letter avatar (final fallback)
  */
 export function StockLogo({ ticker, companyName, size = 'md', className = '' }: StockLogoProps) {
   const [logoError, setLogoError] = useState(false);
@@ -103,8 +104,16 @@ export function StockLogo({ ticker, companyName, size = 'md', className = '' }: 
 
   // Get logo URL based on fallback level
   const getLogoUrl = () => {
-    // Level 0: FinancialModelingPrep (primary) - skip if blacklisted
+    // Level 0: EODHD (primary, fastest)
     if (fallbackLevel === 0) {
+      const parts = ticker.split('.');
+      const symbol = parts[0].toLowerCase();
+      const exchange = parts.length === 2 ? parts[1].toUpperCase() : 'US';
+      return `https://eodhd.com/img/logos/${exchange}/${symbol}.png`;
+    }
+    
+    // Level 1: FinancialModelingPrep - skip if blacklisted
+    if (fallbackLevel === 1) {
       if (FMP_LOGO_BLACKLIST.has(ticker)) {
         return null; // Skip to next level
       }
@@ -113,27 +122,27 @@ export function StockLogo({ ticker, companyName, size = 'md', className = '' }: 
       return `https://financialmodelingprep.com/image-stock/${fmpTicker}.png`;
     }
     
-    // Level 1: Clearbit with known domain
-    if (fallbackLevel === 1 && knownDomain) {
+    // Level 2: Clearbit with known domain
+    if (fallbackLevel === 2 && knownDomain) {
       return `https://logo.clearbit.com/${knownDomain}`;
     }
     
-    // Level 2: Clearbit with extracted domain
-    if (fallbackLevel === 2) {
+    // Level 3: Clearbit with extracted domain
+    if (fallbackLevel === 3) {
       return `https://logo.clearbit.com/${extractedDomain}.${domainExt}`;
     }
     
-    // Level 3: Clearbit with alternate domain (.com for Swiss)
-    if (fallbackLevel === 3 && isSwissStock) {
+    // Level 4: Clearbit with alternate domain (.com for Swiss)
+    if (fallbackLevel === 4 && isSwissStock) {
       return `https://logo.clearbit.com/${extractedDomain}.com`;
     }
     
-    // Level 4: Logo.dev
-    if (fallbackLevel === 4) {
+    // Level 5: Logo.dev
+    if (fallbackLevel === 5) {
       return `https://img.logo.dev/${extractedDomain}.${domainExt}?token=pk_X-WvJHQ4RfGZNwIeHI-52Q&size=120`;
     }
     
-    // Level 5+: Show letter avatar
+    // Level 6+: Show letter avatar
     return null;
   };
 
@@ -141,7 +150,7 @@ export function StockLogo({ ticker, companyName, size = 'md', className = '' }: 
 
   // If logoUrl is null (skipped fallback level), move to next level
   useEffect(() => {
-    if (!logoUrl && fallbackLevel < 5) {
+    if (!logoUrl && fallbackLevel < 6) {
       setFallbackLevel(prev => prev + 1);
     }
   }, [logoUrl, fallbackLevel]);
@@ -151,13 +160,13 @@ export function StockLogo({ ticker, companyName, size = 'md', className = '' }: 
     setFallbackLevel(prev => prev + 1);
     
     // If we've exhausted all fallbacks, show letter avatar
-    if (fallbackLevel >= 4) {
+    if (fallbackLevel >= 5) {
       setLogoError(true);
     }
   };
 
   // Show letter avatar ONLY if all fallbacks failed
-  if (logoError || fallbackLevel >= 5 || !logoUrl) {
+  if (logoError || fallbackLevel >= 6 || !logoUrl) {
     return (
       <div className={`${sizeClasses[size]} rounded-lg bg-white flex items-center justify-center ${className}`}>
         <div className={`w-full h-full flex items-center justify-center font-bold text-blue-600`}>

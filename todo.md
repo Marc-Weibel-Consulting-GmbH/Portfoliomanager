@@ -143,3 +143,10 @@
 - [x] Frontend: Performance-Anzeige für Demo-Portfolios in PortfolioDetailsPage angepasst
 - [x] Berechnung: (Aktueller Wert - Investitionssumme) / Investitionssumme × 100%
 - [x] Anzeige: "Gesamt Performance" für Demo, "{Period} Performance" für Live
+
+
+## Firmenlogos Integration (10.01.2026)
+- [x] EODHD API für Firmenlogos einbinden
+- [x] Backend-Funktion zum Abrufen von Firmenlogos implementieren (logoService.ts erweitert)
+- [x] Firmenlogos in Positionsliste integrieren (StockLogo-Komponente bereits verwendet)
+- [x] Firmenlogos in anderen relevanten UI-Bereichen anzeigen (Dashboard, Portfolio-Builder, Transaktionen)

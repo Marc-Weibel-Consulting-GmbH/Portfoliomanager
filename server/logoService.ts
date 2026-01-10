@@ -1,17 +1,18 @@
 /**
- * Logo Service with Clearbit + FMP Fallback Strategy
+ * Logo Service with Multi-Provider Fallback Strategy
  * 
  * Priority:
- * 1. Clearbit (domain-based, high quality)
- * 2. FMP (ticker-based, reliable for stocks)
- * 3. Generic SVG (ticker initials, always works)
+ * 1. EODHD (ticker-based, 40k+ logos, no API key needed)
+ * 2. Clearbit (domain-based, high quality)
+ * 3. FMP (ticker-based, reliable for stocks)
+ * 4. Generic SVG (ticker initials, always works)
  */
 
 import { ENV } from "./_core/env";
 
 interface LogoResult {
   url: string;
-  source: "clearbit" | "fmp" | "generic";
+  source: "eodhd" | "clearbit" | "fmp" | "generic";
 }
 
 /**
@@ -39,6 +40,47 @@ function generateGenericLogo(ticker: string): string {
   </svg>`;
   
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+/**
+ * Get logo URL from EODHD (no API call needed, just construct URL)
+ * Format: https://eodhd.com/img/logos/{EXCHANGE}/{SYMBOL}.png
+ */
+function getEODHDLogoUrl(ticker: string): string {
+  const parts = ticker.split('.');
+  let symbol: string;
+  let exchange: string;
+
+  if (parts.length === 2) {
+    symbol = parts[0].toLowerCase();
+    exchange = parts[1].toUpperCase();
+  } else {
+    symbol = parts[0].toLowerCase();
+    exchange = 'US';
+  }
+
+  return `https://eodhd.com/img/logos/${exchange}/${symbol}.png`;
+}
+
+/**
+ * Check if EODHD logo exists (HEAD request)
+ */
+async function checkEODHDLogo(ticker: string): Promise<string | null> {
+  try {
+    const url = getEODHDLogoUrl(ticker);
+    const response = await fetch(url, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(3000),
+    });
+    
+    if (response.ok) {
+      return url;
+    }
+    return null;
+  } catch (error) {
+    console.warn(`[LogoService] EODHD fetch failed for ${ticker}:`, error);
+    return null;
+  }
 }
 
 /**
@@ -110,7 +152,14 @@ export async function fetchLogo(
   // Clean ticker (remove exchange suffix for FMP)
   const cleanTicker = ticker.split(".")[0];
   
-  // Try Clearbit first if domain is provided
+  // Try EODHD first (fastest, no API key needed)
+  const eodhd = await checkEODHDLogo(ticker);
+  if (eodhd) {
+    console.log(`[LogoService] ✓ EODHD logo found for ${ticker}`);
+    return { url: eodhd, source: "eodhd" };
+  }
+  
+  // Try Clearbit if domain is provided
   if (domain) {
     const clearbitUrl = await fetchClearbitLogo(domain);
     if (clearbitUrl) {
