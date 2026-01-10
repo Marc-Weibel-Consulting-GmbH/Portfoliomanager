@@ -104,8 +104,8 @@ export default function PortfolioDetailsPage() {
     portfolioId,
     {
       enabled: portfolioId > 0,
-      staleTime: 0, // Always fetch fresh data
-      cacheTime: 0, // Don't cache
+      refetchOnMount: true, // Always fetch fresh data on mount
+      refetchOnWindowFocus: true, // Refetch when window regains focus
     }
   );
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
@@ -747,7 +747,7 @@ export default function PortfolioDetailsPage() {
                   <CardTitle className="text-sm text-gray-400">Gesamtwert</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-white">{formatCurrency(totalValueCHF, portfolio.currency || 'CHF')}</div>
+                  <div className="text-2xl font-bold text-white">{formatCurrency(totalValueCHF, String((portfolio && 'currency' in portfolio ? portfolio.currency : null) || 'CHF'))}</div>
                   <p className="text-xs text-gray-500 mt-1">Aktueller Portfoliowert</p>
                 </CardContent>
               </Card>
@@ -758,10 +758,10 @@ export default function PortfolioDetailsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <div className={`text-2xl font-bold ${(historicalData?.performance || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {(historicalData?.performance || 0) >= 0 ? '+' : ''}{(historicalData?.performance || 0).toFixed(2)}%
+                    <div className={`text-2xl font-bold ${(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? '+' : ''}{(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0).toFixed(2)}%
                     </div>
-                    {(historicalData?.performance || 0) >= 0 ? (
+                    {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? (
                       <TrendingUp className="h-5 w-5 text-green-500" />
                     ) : (
                       <TrendingDown className="h-5 w-5 text-red-500" />

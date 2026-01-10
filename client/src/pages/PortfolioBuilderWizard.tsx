@@ -209,7 +209,11 @@ export default function PortfolioBuilderWizard() {
       });
       
       toast.success("Portfolio erfolgreich erstellt!");
-      navigate(`/portfolios/${result.id}`);
+      if (result?.portfolio?.id) {
+        navigate(`/portfolios/${result.portfolio.id}`);
+      } else {
+        navigate('/portfolios');
+      }
     } catch (error: any) {
       toast.error(error.message || "Fehler beim Erstellen des Portfolios");
     }

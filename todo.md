@@ -81,3 +81,24 @@
 - [ ] BUG: Doppelte Cash-Spalte in Portfolioliste - NEEDS CLARIFICATION: Only one cash row found in code
 - [x] BUG: Wechselkurs beim Aktienkauf nicht berücksichtigt - Total Portfolio sollte ca. 100'000.- sein statt weniger - FIXED & VERIFIED: Now converts CHF allocation to local currency before calculating shares (allocationInLocalCurrency = allocationAmountCHF / fxRate)
 - [x] BUG: Donut-Chart Tooltip-Textfarbe schwarz (nicht lesbar) - auf Weiß ändern - FIXED & VERIFIED: Added color: '#ffffff' to both pie chart tooltips
+
+
+## TypeScript Fehler behoben (10.01.2026)
+- [x] FIX: auth-guards.test.ts - transformer Property korrekt in httpBatchLink konfiguriert
+- [x] FIX: liveTracking.test.ts - User-Mock mit allen erforderlichen Feldern erweitert
+- [x] FIX: portfolio-creation.test.ts - User-Mock mit allen erforderlichen Feldern erweitert
+- [x] FIX: Transactions.tsx - "entry" TransactionType hinzugefügt und getTransactionBadge erweitert
+- [x] FIX: portfolioTransactionsRouter.ts - "entry" zu TransactionType hinzugefügt
+- [x] FIX: CostFeesReport.tsx - Transaction interface um "entry" erweitert, alle Felder optional gemacht
+- [x] FIX: RealizedGainsTable.tsx - RealizedGain interface Felder optional gemacht, totals mit explizitem Typ
+- [x] FIX: UserDashboard.tsx - isLoading durch isPending ersetzt (tRPC v11)
+- [x] FIX: PortfolioDetailsPage.tsx - cacheTime durch refetchOnMount/refetchOnWindowFocus ersetzt
+- [x] FIX: PortfolioDetailsPage.tsx - performance und currency Properties mit Type-Guards abgesichert
+- [x] FIX: PortfolioDetailRedesign.tsx - volatility und dividendYield mit optional chaining abgesichert
+- [x] FIX: PortfolioDetail.tsx - stock.name durch stock.companyName ersetzt
+- [x] FIX: PortfolioDetail.tsx - Number()-Konvertierungen für shares, dividendYield, currentPrice
+- [x] FIX: PortfolioDetail.tsx - createTransactionMutation definiert und verwendet
+- [x] FIX: OptimizerResults.tsx - investmentAmount und portfolioType zu Portfolio-Erstellung hinzugefügt
+- [x] FIX: Home.tsx - investmentAmountInput durch Fallback-Wert ersetzt, onBackClick prop entfernt
+- [x] FIX: PortfolioBuilderWizard.tsx - result.id mit optional chaining abgesichert
+- [x] RESULT: 0 TypeScript-Fehler - Projekt kompiliert erfolgreich

@@ -1051,7 +1051,7 @@ export default function Home() {
         </div>
       );
     }
-    return <Transactions onBackClick={() => setActiveTab("portfolio")} />;
+    return <Transactions />;
   }
 
   if (activeTab === "performance") {
@@ -3740,7 +3740,7 @@ export default function Home() {
                   
                   try {
                     // Calculate share quantities based on investment amount and weight
-                    const investmentAmount = parseFloat(investmentAmountInput) || 0;
+                    const investmentAmount = parseFloat('10000') || 0; // Default investment amount
                     
                     const portfolioData = JSON.stringify({
                       stocks: stocks.map(s => {

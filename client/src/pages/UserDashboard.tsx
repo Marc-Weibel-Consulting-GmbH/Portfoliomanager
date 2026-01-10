@@ -269,7 +269,7 @@ export default function UserDashboard() {
                               <Switch 
                                 id={`live-toggle-${portfolio.id}`}
                                 checked={!!portfolio.isLive} 
-                                disabled={toggleLiveMutation.isLoading}
+                                disabled={toggleLiveMutation.isPending}
                                 className="scale-75"
                               />
                             </div>

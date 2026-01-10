@@ -5,24 +5,24 @@ import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
 
 interface RealizedGain {
-  id: number;
-  transactionDate: Date | string;
-  ticker: string;
-  stockName: string;
-  shares: number;
-  avgCostBasis: number;
-  sellPrice: number;
-  stockGainLocal: number;
-  fxGain: number;
-  totalGain: number;
-  currency: string;
-  buyFxRate: number;
-  sellFxRate: number;
-  buyFees: number;
-  sellFees: number;
-  totalFees: number;
-  netProfit: number;
-  realizedGainPercent: number;
+  id?: number;
+  transactionDate?: Date | string;
+  ticker?: string;
+  stockName?: string;
+  shares?: number;
+  avgCostBasis?: number;
+  sellPrice?: number;
+  stockGainLocal?: number;
+  fxGain?: number;
+  totalGain?: number;
+  currency?: string;
+  buyFxRate?: number;
+  sellFxRate?: number;
+  buyFees?: number;
+  sellFees?: number;
+  totalFees?: number;
+  netProfit?: number;
+  realizedGainPercent?: number;
 }
 
 interface RealizedGainsTableProps {
@@ -32,13 +32,13 @@ interface RealizedGainsTableProps {
 export function RealizedGainsTable({ gains }: RealizedGainsTableProps) {
   // Calculate totals
   const totals = useMemo(() => {
-    return gains.reduce(
+    return gains.reduce<{ totalGain: number; stockGain: number; fxGain: number; totalFees: number; netProfit: number }>(
       (acc, gain) => ({
-        totalGain: acc.totalGain + gain.totalGain,
-        stockGain: acc.stockGain + gain.stockGainLocal,
-        fxGain: acc.fxGain + gain.fxGain,
-        totalFees: acc.totalFees + gain.totalFees,
-        netProfit: acc.netProfit + gain.netProfit,
+        totalGain: acc.totalGain + (gain.totalGain || 0),
+        stockGain: acc.stockGain + (gain.stockGainLocal || 0),
+        fxGain: acc.fxGain + (gain.fxGain || 0),
+        totalFees: acc.totalFees + (gain.totalFees || 0),
+        netProfit: acc.netProfit + (gain.netProfit || 0),
       }),
       { totalGain: 0, stockGain: 0, fxGain: 0, totalFees: 0, netProfit: 0 }
     );
@@ -120,7 +120,7 @@ export function RealizedGainsTable({ gains }: RealizedGainsTableProps) {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
-                      <StockLogo ticker={gain.ticker} size="sm" />
+                      <StockLogo ticker={gain.ticker || ''} companyName={gain.stockName || ''} size="sm" />
                       <div>
                         <p className="font-medium text-foreground">{gain.ticker}</p>
                         <p className="text-xs text-muted-foreground">{gain.stockName}</p>

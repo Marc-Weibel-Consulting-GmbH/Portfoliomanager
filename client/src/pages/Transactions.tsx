@@ -32,10 +32,10 @@ import {
 import { Pencil, Trash2, Download, Plus, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import { toast } from "sonner";
 
-type TransactionType = "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
+type TransactionType = "buy" | "sell" | "dividend" | "deposit" | "withdrawal" | "entry";
 
 export default function Transactions() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const urlPortfolioId = parseInt(params.id || "0");
   
   // Portfolio selection state
@@ -72,7 +72,7 @@ export default function Transactions() {
 
   // Queries
   const { data: allPortfolios = [] } = trpc.portfolios.list.useQuery();
-  const { data: portfolio } = trpc.portfolios.getById.useQuery({ portfolioId }, { enabled: portfolioId > 0 });
+  const { data: portfolio } = trpc.portfolios.get.useQuery(portfolioId, { enabled: portfolioId > 0 });
   const { data: allTransactions = [], refetch } = trpc.portfolioTransactions.list.useQuery({ portfolioId }, { enabled: portfolioId > 0 });
   
   // Set default portfolio if none selected
@@ -316,6 +316,8 @@ export default function Transactions() {
         return <Badge className="bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30">Einzahlung</Badge>;
       case "withdrawal":
         return <Badge className="bg-orange-500/20 text-orange-400 hover:bg-orange-500/30">Auszahlung</Badge>;
+      case "entry":
+        return <Badge className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30">Eintrag</Badge>;
     }
   };
 

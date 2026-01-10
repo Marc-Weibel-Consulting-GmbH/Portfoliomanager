@@ -362,7 +362,7 @@ export default function PortfolioDetailRedesign() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.volatility ? `${metrics.volatility}%` : 'N/A'}</div>
+              <div className="text-2xl font-bold">{(metrics && 'volatility' in metrics && metrics.volatility) ? `${metrics.volatility}%` : 'N/A'}</div>
             </CardContent>
           </Card>
 
@@ -373,7 +373,7 @@ export default function PortfolioDetailRedesign() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.dividendYield ? `${metrics.dividendYield}%` : 'N/A'}</div>
+              <div className="text-2xl font-bold">{(metrics && 'dividendYield' in metrics && metrics.dividendYield) ? `${metrics.dividendYield}%` : 'N/A'}</div>
             </CardContent>
           </Card>
         </div>

@@ -7,7 +7,7 @@ export const portfolioTransactionsRouter = router({
       if (typeof val === "object" && val !== null && "portfolioId" in val && "transactionType" in val) {
         return val as {
           portfolioId: number;
-          transactionType: "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
+          transactionType: "buy" | "sell" | "dividend" | "deposit" | "withdrawal" | "entry";
           ticker: string | null;
           shares: string | null;
           pricePerShare: string | null;

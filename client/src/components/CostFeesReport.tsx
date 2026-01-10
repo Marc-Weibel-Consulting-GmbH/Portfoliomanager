@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Download, Receipt } from "lucide-react";
 
 interface Transaction {
-  id: number;
-  transactionDate: Date | string;
-  transactionType: "buy" | "sell" | "dividend" | "deposit" | "withdrawal";
-  ticker: string | null;
-  shares: string | null;
-  pricePerShare: string | null;
-  currency: string;
-  totalAmount: string;
-  totalAmountCHF: string | null;
-  fees: string;
-  notes: string | null;
+  id?: number;
+  transactionDate?: Date | string;
+  transactionType?: "buy" | "sell" | "dividend" | "deposit" | "withdrawal" | "entry";
+  ticker?: string | null;
+  shares?: string | null;
+  pricePerShare?: string | null;
+  currency?: string;
+  totalAmount?: string;
+  totalAmountCHF?: string | null;
+  fees?: string;
+  notes?: string | null;
 }
 
 interface CostFeesReportProps {

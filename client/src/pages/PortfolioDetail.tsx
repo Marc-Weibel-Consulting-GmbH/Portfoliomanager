@@ -47,6 +47,9 @@ export default function PortfolioDetail() {
     { portfolioId: portfolioId! },
     { enabled: !!portfolioId }
   );
+  
+  // Mutations
+  const createTransactionMutation = trpc.portfolioTransactions.create.useMutation();
 
   // Calculate simple total for the summary card
   const realizedGainsTotal = useMemo(() => {
@@ -105,14 +108,14 @@ export default function PortfolioDetail() {
       .map(([ticker, holding]) => {
         const stock = allStocks.find((s: any) => s.ticker === ticker);
         const currentPrice = stock?.currentPrice || 0;
-        const currentValue = holding.shares * currentPrice;
+        const currentValue = Number(holding.shares) * Number(currentPrice);
         const performance = holding.totalInvested > 0 
           ? ((currentValue - holding.totalInvested) / holding.totalInvested) * 100 
           : 0;
 
         return {
           ticker,
-          name: stock?.name || ticker,
+          name: stock?.companyName || ticker,
           shares: holding.shares,
           avgBuyPrice: holding.avgBuyPrice,
           currentPrice,
@@ -137,7 +140,7 @@ export default function PortfolioDetail() {
   const totalPerformance = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
   const totalPerformanceAmount = totalValue - totalInvested;
   const avgDividendYield = portfolioData.length > 0
-    ? portfolioData.reduce((sum, pos) => sum + (pos.dividendYield * pos.currentValue / totalValue), 0)
+    ? portfolioData.reduce((sum, pos) => sum + (Number(pos.dividendYield) * pos.currentValue / totalValue), 0)
     : 0;
   
   // Calculate weight for each position
@@ -217,7 +220,8 @@ export default function PortfolioDetail() {
                 checked={portfolio.isLive === 1}
                 onCheckedChange={async (checked) => {
                   try {
-                    await trpc.portfolios.toggleLive.mutate({ 
+                    const toggleMutation = trpc.portfolios.toggleLive.useMutation();
+                    await toggleMutation.mutateAsync({ 
                       id: portfolioId!, 
                       isLive: checked 
                     });
@@ -354,7 +358,7 @@ export default function PortfolioDetail() {
                     <tr key={position.ticker} className="border-b border-border/50 hover:bg-muted/50">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <StockLogo ticker={position.ticker} size="sm" />
+                          <StockLogo ticker={position.ticker} companyName={position.name} size="sm" />
                           <div>
                             <p className="font-medium text-foreground">{position.ticker}</p>
                             <p className="text-xs text-muted-foreground">{position.name}</p>
@@ -368,7 +372,7 @@ export default function PortfolioDetail() {
                         CHF {position.avgBuyPrice.toFixed(2)}
                       </td>
                       <td className="text-right py-3 px-4 text-foreground">
-                        CHF {position.currentPrice.toFixed(2)}
+                        CHF {Number(position.currentPrice).toFixed(2)}
                       </td>
                       <td className="text-right py-3 px-4 font-medium text-foreground">
                         CHF {position.currentValue.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -380,7 +384,7 @@ export default function PortfolioDetail() {
                         </div>
                       </td>
                       <td className="text-right py-3 px-4 text-green-500">
-                        {position.dividendYield.toFixed(2)}%
+                        {Number(position.dividendYield).toFixed(2)}%
                       </td>
                       <td className="text-right py-3 px-4 text-foreground">
                         {position.weight.toFixed(2)}%
@@ -574,15 +578,13 @@ export default function PortfolioDetail() {
                     const transactionType = sharesDiff > 0 ? 'buy' : 'sell';
                     const absShares = Math.abs(sharesDiff);
                     
-                    await trpc.portfolioTransactions.create.mutate({
+                    await createTransactionMutation.mutateAsync({
                       portfolioId: portfolioId,
                       transactionType: transactionType,
                       ticker: editingPosition.ticker,
                       shares: absShares.toString(),
                       pricePerShare: newEntryPrice.toString(),
-                      currency: 'CHF',
                       totalAmount: (absShares * newEntryPrice).toString(),
-                      totalAmountCHF: (absShares * newEntryPrice).toString(),
                       fees: '0',
                       transactionDate: new Date(),
                       notes: 'Manuelle Anpassung der Position',

@@ -2039,6 +2039,8 @@ export default function OptimizerResults({ inputs, onBack, onPortfolioSaved, ini
                     name: trimmedName,
                     description: portfolioDescription,
                     portfolioData: JSON.stringify(portfolioDataObj),
+                    investmentAmount: '10000', // Default investment amount
+                    portfolioType: 'demo',
                   });
                 }}
                 className={selectedPortfolioId ? "flex-1 bg-green-600 hover:bg-green-700" : "w-full bg-green-600 hover:bg-green-700"}

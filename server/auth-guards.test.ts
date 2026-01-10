@@ -20,7 +20,6 @@ describe('Auth Guards - Write Procedures', () => {
   beforeAll(() => {
     // Create client WITHOUT authentication cookie
     client = createTRPCProxyClient<AppRouter>({
-      transformer: superjson,
       links: [
         httpBatchLink({
           url: `${TEST_SERVER_URL}/api/trpc`,
