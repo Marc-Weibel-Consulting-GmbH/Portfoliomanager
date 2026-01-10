@@ -2,17 +2,16 @@
  * Logo Service with Multi-Provider Fallback Strategy
  * 
  * Priority:
- * 1. EODHD (ticker-based, 40k+ logos, no API key needed)
- * 2. Clearbit (domain-based, high quality)
- * 3. FMP (ticker-based, reliable for stocks)
- * 4. Generic SVG (ticker initials, always works)
+ * 1. EODHD Fundamentals API (all exchanges, requires API key)
+ * 2. Finnhub (US stocks only, high quality)
+ * 3. Generic SVG (ticker initials, always works)
  */
 
 import { ENV } from "./_core/env";
 
 interface LogoResult {
   url: string;
-  source: "eodhd" | "clearbit" | "fmp" | "generic";
+  source: "eodhd" | "finnhub" | "generic";
 }
 
 /**
@@ -43,81 +42,19 @@ function generateGenericLogo(ticker: string): string {
 }
 
 /**
- * Get logo URL from EODHD (no API call needed, just construct URL)
- * Format: https://eodhd.com/img/logos/{EXCHANGE}/{SYMBOL}.png
+ * Try to fetch logo from EODHD Fundamentals API
+ * This works for all exchanges including Swiss stocks
  */
-function getEODHDLogoUrl(ticker: string): string {
-  const parts = ticker.split('.');
-  let symbol: string;
-  let exchange: string;
-
-  if (parts.length === 2) {
-    symbol = parts[0].toLowerCase();
-    exchange = parts[1].toUpperCase();
-  } else {
-    symbol = parts[0].toLowerCase();
-    exchange = 'US';
-  }
-
-  return `https://eodhd.com/img/logos/${exchange}/${symbol}.png`;
-}
-
-/**
- * Check if EODHD logo exists (HEAD request)
- */
-async function checkEODHDLogo(ticker: string): Promise<string | null> {
+async function fetchEODHDLogo(ticker: string): Promise<string | null> {
   try {
-    const url = getEODHDLogoUrl(ticker);
-    const response = await fetch(url, {
-      method: "HEAD",
-      signal: AbortSignal.timeout(3000),
-    });
-    
-    if (response.ok) {
-      return url;
-    }
-    return null;
-  } catch (error) {
-    console.warn(`[LogoService] EODHD fetch failed for ${ticker}:`, error);
-    return null;
-  }
-}
-
-/**
- * Try to fetch logo from Clearbit
- * Requires company domain (e.g., "nestle.com")
- */
-async function fetchClearbitLogo(domain: string): Promise<string | null> {
-  try {
-    const url = `https://logo.clearbit.com/${domain}`;
-    const response = await fetch(url, {
-      method: "HEAD", // Just check if logo exists
-      signal: AbortSignal.timeout(3000), // 3 second timeout
-    });
-    
-    if (response.ok) {
-      return url;
-    }
-    return null;
-  } catch (error) {
-    console.warn(`[LogoService] Clearbit fetch failed for ${domain}:`, error);
-    return null;
-  }
-}
-
-/**
- * Try to fetch logo from FMP (Financial Modeling Prep)
- */
-async function fetchFMPLogo(ticker: string): Promise<string | null> {
-  try {
-    const apiKey = ENV.fmpApiKey;
+    const apiKey = ENV.eodhdApiKey;
     if (!apiKey) {
-      console.warn("[LogoService] FMP API key not configured");
+      console.warn("[LogoService] EODHD API key not configured");
       return null;
     }
     
-    // FMP profile endpoint includes logo
-    const url = `https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${apiKey}`;
+    // EODHD Fundamentals endpoint includes LogoURL
+    const url = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}&fmt=json&filter=General::LogoURL`;
     const response = await fetch(url, {
       signal: AbortSignal.timeout(5000), // 5 second timeout
     });
@@ -127,13 +64,52 @@ async function fetchFMPLogo(ticker: string): Promise<string | null> {
     }
     
     const data = await response.json();
-    if (Array.isArray(data) && data.length > 0 && data[0].image) {
-      return data[0].image;
+    // When using filter, EODHD returns the value directly as a string
+    if (typeof data === 'string' && data.startsWith('/img/logos/')) {
+      return `https://eodhd.com${data}`;
+    }
+    // Fallback for full response format
+    if (data && data.General && data.General.LogoURL) {
+      const logoPath = data.General.LogoURL;
+      return `https://eodhd.com${logoPath}`;
     }
     
     return null;
   } catch (error) {
-    console.warn(`[LogoService] FMP fetch failed for ${ticker}:`, error);
+    console.warn(`[LogoService] EODHD fetch failed for ${ticker}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Try to fetch logo from Finnhub (US stocks only)
+ */
+async function fetchFinnhubLogo(ticker: string): Promise<string | null> {
+  try {
+    const apiKey = ENV.finnhubApiKey;
+    if (!apiKey) {
+      console.warn("[LogoService] Finnhub API key not configured");
+      return null;
+    }
+    
+    // Finnhub profile endpoint includes logo
+    const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${ticker}&token=${apiKey}`;
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    });
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const data = await response.json();
+    if (data && data.logo) {
+      return data.logo;
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn(`[LogoService] Finnhub fetch failed for ${ticker}:`, error);
     return null;
   }
 }
@@ -142,37 +118,28 @@ async function fetchFMPLogo(ticker: string): Promise<string | null> {
  * Fetch logo with automatic fallback chain
  * 
  * @param ticker Stock ticker symbol (e.g., "NESN.SW", "AAPL")
- * @param domain Optional company domain for Clearbit (e.g., "nestle.com")
+ * @param domain Optional company domain (not used anymore, kept for backward compatibility)
  * @returns Logo URL and source
  */
 export async function fetchLogo(
   ticker: string,
   domain?: string
 ): Promise<LogoResult> {
-  // Clean ticker (remove exchange suffix for FMP)
+  // Clean ticker (remove exchange suffix for some APIs)
   const cleanTicker = ticker.split(".")[0];
   
-  // Try EODHD first (fastest, no API key needed)
-  const eodhd = await checkEODHDLogo(ticker);
+  // Try EODHD first (works for all exchanges including Swiss stocks)
+  const eodhd = await fetchEODHDLogo(ticker);
   if (eodhd) {
     console.log(`[LogoService] ✓ EODHD logo found for ${ticker}`);
     return { url: eodhd, source: "eodhd" };
   }
   
-  // Try Clearbit if domain is provided
-  if (domain) {
-    const clearbitUrl = await fetchClearbitLogo(domain);
-    if (clearbitUrl) {
-      console.log(`[LogoService] ✓ Clearbit logo found for ${ticker} (${domain})`);
-      return { url: clearbitUrl, source: "clearbit" };
-    }
-  }
-  
-  // Try FMP as fallback
-  const fmpUrl = await fetchFMPLogo(cleanTicker);
-  if (fmpUrl) {
-    console.log(`[LogoService] ✓ FMP logo found for ${ticker}`);
-    return { url: fmpUrl, source: "fmp" };
+  // Try Finnhub as fallback (US stocks only)
+  const finnhubUrl = await fetchFinnhubLogo(cleanTicker);
+  if (finnhubUrl) {
+    console.log(`[LogoService] ✓ Finnhub logo found for ${ticker}`);
+    return { url: finnhubUrl, source: "finnhub" };
   }
   
   // Generate generic SVG as last resort
@@ -203,7 +170,8 @@ export async function fetchLogoBatch(
 
 /**
  * Get company domain from ticker (Swiss stocks mapping)
- * This is a helper to map Swiss tickers to their company domains
+ * This is kept for backward compatibility but not used anymore
+ * @deprecated Use EODHD Fundamentals API instead
  */
 export function getSwissStockDomain(ticker: string): string | undefined {
   const domainMap: Record<string, string> = {

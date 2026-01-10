@@ -150,3 +150,6 @@
 - [x] Backend-Funktion zum Abrufen von Firmenlogos implementieren (logoService.ts erweitert)
 - [x] Firmenlogos in Positionsliste integrieren (StockLogo-Komponente bereits verwendet)
 - [x] Firmenlogos in anderen relevanten UI-Bereichen anzeigen (Dashboard, Portfolio-Builder, Transaktionen)
+
+## Logo-Problem Schweizer Aktien (10.01.2026)
+- [x] Schweizer Aktien-Logos mit neuer API korrekt abrufen und anzeigen
