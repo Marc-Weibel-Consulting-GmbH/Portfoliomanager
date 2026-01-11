@@ -189,3 +189,11 @@
 - [x] Volumen aus dem Aktien-Chart entfernen (Grafik wirkt überladen)
 - [x] Performance-Anzeige für ausgewählte Periode im Chart hinzufügen (z.B. +15.3% für 1Y)
 - [x] "Alle News anzeigen" Button funktionsfähig machen (Navigation zur News-Seite mit Ticker-Filter)
+
+
+## Routing & Seiten-Konsolidierung (11.01.2026)
+- [x] Routing korrigieren: "Zurück"-Button auf Aktiendetailseite soll zu /portfolios/{id} statt /portfolio/{id} navigieren
+- [x] "Portfolio aktivieren" Funktion von /portfolio auf /portfolios Seite übertragen (für Demo-Portfolios)
+- [x] Farbiges Donut-Chart von /portfolio auf /portfolios Seite übernehmen (bereits vorhanden als Asset-Allokation und Sektor-Allokation)
+- [x] Alte Portfolio-Seiten (/portfolio) in Archiv-Ordner verschieben (PortfolioDetailRedesign.tsx -> _archive/)
+- [x] Routen in App.tsx bereinigen (alte /portfolio/:id Route leitet jetzt zu /portfolios/:id um)

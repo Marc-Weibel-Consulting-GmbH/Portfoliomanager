@@ -14,7 +14,7 @@ import Reviews from "./pages/Reviews";
 import Categories from "./pages/Categories";
 import Sectors from "./pages/Sectors";
 import PortfolioDetail from "./pages/PortfolioDetail";
-import PortfolioDetailRedesign from "./pages/PortfolioDetailRedesign";
+// PortfolioDetailRedesign wurde archiviert - verwende stattdessen PortfolioDetailsPage unter /portfolios/:id
 import PortfolioPositions from "./pages/PortfolioPositions";
 import PortfolioTransactionsPage from "./pages/PortfolioTransactionsPage";
 import PortfolioTransactions from "./pages/PortfolioTransactions";
@@ -86,7 +86,11 @@ function Router() {
         {() => <Reviews />}
       </Route>
       <Route path="/stock/:ticker" component={StockDetail} />
-      <Route path="/portfolio/:id" component={PortfolioDetailRedesign} />
+      {/* Alte /portfolio/:id Route - Redirect zu /portfolios/:id */}
+      <Route path="/portfolio/:id">
+        {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}`} />}
+      </Route>
+      {/* Alte Seite archiviert - nur noch für Debugging */}
       <Route path="/portfolio/:id/old" component={PortfolioDetail} />
       <Route path="/portfolio/:id/positions" component={PortfolioPositions} />
       <Route path="/portfolio/:id/transactions" component={PortfolioTransactionsPage} />

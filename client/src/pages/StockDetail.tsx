@@ -298,8 +298,8 @@ export default function StockDetail() {
   // Handle back navigation
   const handleBackClick = () => {
     if (fromPortfolioId) {
-      // Navigate back to the specific portfolio
-      navigate(`/portfolio/${fromPortfolioId}`);
+      // Navigate back to the specific portfolio (use /portfolios/ route)
+      navigate(`/portfolios/${fromPortfolioId}`);
     } else {
       // Default: go to portfolios list
       navigate('/portfolios');

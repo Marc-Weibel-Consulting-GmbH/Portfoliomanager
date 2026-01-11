@@ -34,6 +34,7 @@ import {
   Scale,
   PieChart,
   Bell,
+  Play,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -45,6 +46,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
 import { StockLogo } from "@/components/StockLogo";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   dividends: { label: "Dividenden", icon: <DollarSign className="h-4 w-4" />, color: "bg-blue-500" },
@@ -77,6 +88,11 @@ export default function PortfolioDetailsPage() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<any>(null);
   const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
+  
+  // State for activation modal (Demo -> Live)
+  const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
+  const [startCapital, setStartCapital] = useState("");
+  const [selectedActivationBenchmark, setSelectedActivationBenchmark] = useState<"SMI" | "SP500" | "MSCI_WORLD">("SMI");
   
   // Fetch transactions for edit modal
   const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
@@ -114,6 +130,21 @@ export default function PortfolioDetailsPage() {
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
+  
+  // Activate portfolio mutation (Demo -> Live)
+  const activatePortfolio = trpc.portfolioManagement.activatePortfolio.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Portfolio aktiviert! ${data.transactionsCreated} Transaktionen erstellt.`);
+      setIsActivationModalOpen(false);
+      setStartCapital("");
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      utils.portfolios.list.invalidate();
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(`Fehler beim Aktivieren: ${error.message}`);
+    },
+  });
   
   const [selectedPeriod, setSelectedPeriod] = useState("YTD");
   const [selectedBenchmark, setSelectedBenchmark] = useState("SPY");
@@ -296,6 +327,23 @@ export default function PortfolioDetailsPage() {
     refetch();
   };
   
+  // Handle portfolio activation (Demo -> Live)
+  const handleActivatePortfolio = () => {
+    if (!portfolioId || !startCapital) {
+      toast.error("Bitte Startkapital eingeben");
+      return;
+    }
+
+    activatePortfolio.mutate({
+      portfolioId,
+      startCapital,
+      benchmark: selectedActivationBenchmark,
+    });
+  };
+  
+  // Check if portfolio is in demo mode (not live)
+  const isDemo = portfolio.isLive !== 1;
+  
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-6">
@@ -331,6 +379,17 @@ export default function PortfolioDetailsPage() {
           
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            {/* Aktivierungs-Button nur für Demo-Portfolios */}
+            {isDemo && (
+              <Button 
+                size="sm" 
+                onClick={() => setIsActivationModalOpen(true)}
+                className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Portfolio aktivieren
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setIsSettingsModalOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
               Einstellungen
@@ -958,6 +1017,57 @@ export default function PortfolioDetailsPage() {
           setIsEditPositionModalOpen(false);
         }}
       />
+      
+      {/* Activation Modal (Demo -> Live) */}
+      <Dialog open={isActivationModalOpen} onOpenChange={setIsActivationModalOpen}>
+        <DialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Portfolio aktivieren</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Geben Sie Ihr Startkapital ein, um das Portfolio zu aktivieren. Es werden automatisch
+              Kauf-Transaktionen basierend auf den Gewichtungen erstellt.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="startCapital" className="text-gray-300">Startkapital (CHF)</Label>
+              <Input
+                id="startCapital"
+                type="number"
+                placeholder="z.B. 10000"
+                value={startCapital}
+                onChange={(e) => setStartCapital(e.target.value)}
+                className="bg-[#0f1420] border-white/10 text-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="benchmark" className="text-gray-300">Benchmark (optional)</Label>
+              <Select value={selectedActivationBenchmark} onValueChange={(v: any) => setSelectedActivationBenchmark(v)}>
+                <SelectTrigger className="bg-[#0f1420] border-white/10 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1f2e] border-white/10">
+                  <SelectItem value="SMI" className="text-white hover:bg-white/10">SMI</SelectItem>
+                  <SelectItem value="SP500" className="text-white hover:bg-white/10">S&P 500</SelectItem>
+                  <SelectItem value="MSCI_WORLD" className="text-white hover:bg-white/10">MSCI World</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsActivationModalOpen(false)} className="border-white/10 text-gray-300 hover:bg-white/10">
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={handleActivatePortfolio} 
+              disabled={activatePortfolio.isPending}
+              className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+            >
+              {activatePortfolio.isPending ? "Aktiviere..." : "Aktivieren"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
