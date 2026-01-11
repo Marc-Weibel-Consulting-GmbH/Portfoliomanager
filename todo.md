@@ -183,3 +183,9 @@
 - [x] BUG: Zurück-Button führt nicht zur Portfolio-Detailseite mit Positionsliste - FIXED: Navigation mit from-Parameter zurück zum Portfolio
 - [x] BUG: "Zu Portfolio hinzufügen" Button erscheint obwohl Aktie bereits im Portfolio ist - FIXED: Button wird ausgeblendet wenn Aktie bereits im Portfolio
 - [x] BUG: News-Bereich zeigt nur Mockup-Daten statt echte News - FIXED: Verwendet jetzt Finnhub API für echte News
+
+
+## Chart-Verbesserungen (11.01.2026)
+- [x] Volumen aus dem Aktien-Chart entfernen (Grafik wirkt überladen)
+- [x] Performance-Anzeige für ausgewählte Periode im Chart hinzufügen (z.B. +15.3% für 1Y)
+- [x] "Alle News anzeigen" Button funktionsfähig machen (Navigation zur News-Seite mit Ticker-Filter)

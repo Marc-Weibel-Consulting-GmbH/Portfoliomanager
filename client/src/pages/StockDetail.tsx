@@ -430,30 +430,46 @@ export default function StockDetail() {
             {/* Chart Card */}
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
               <CardContent className="p-4">
-                {/* Period Selector */}
-                <div className="flex items-center justify-end gap-1 mb-4">
-                  {periods.map((period) => (
-                    <button
-                      key={period}
-                      onClick={() => setSelectedPeriod(period)}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        selectedPeriod === period
-                          ? 'bg-[#00CFC1] text-black font-semibold'
-                          : 'text-gray-400 hover:text-white hover:bg-white/10'
-                      }`}
-                    >
-                      {period}
-                    </button>
-                  ))}
+                {/* Period Selector with Performance */}
+                <div className="flex items-center justify-between mb-4">
+                  {/* Performance Badge */}
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${priceChange.percent >= 0 ? 'bg-[#00CFC1]/10' : 'bg-red-500/10'}`}>
+                    {priceChange.percent >= 0 ? (
+                      <TrendingUp className="w-4 h-4 text-[#00CFC1]" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 text-red-500" />
+                    )}
+                    <span className={`text-lg font-bold ${priceChange.percent >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                      {priceChange.percent >= 0 ? '+' : ''}{priceChange.percent.toFixed(2)}%
+                    </span>
+                    <span className="text-xs text-gray-400">({selectedPeriod})</span>
+                  </div>
+                  
+                  {/* Period Buttons */}
+                  <div className="flex items-center gap-1">
+                    {periods.map((period) => (
+                      <button
+                        key={period}
+                        onClick={() => setSelectedPeriod(period)}
+                        className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                          selectedPeriod === period
+                            ? 'bg-[#00CFC1] text-black font-semibold'
+                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {period}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Chart */}
+                {/* Chart - Price Only (without Volume) */}
                 <ResponsiveContainer width="100%" height={400}>
                   <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#00CFC1" stopOpacity={0.6} />
-                        <stop offset="100%" stopColor="#00CFC1" stopOpacity={0.1} />
+                      <linearGradient id="priceAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#00CFC1" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#00CFC1" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" vertical={false} />
@@ -473,17 +489,6 @@ export default function StockDetail() {
                       domain={['dataMin - 5', 'dataMax + 5']}
                       tickFormatter={(value) => `${currency} ${value.toFixed(0)}`}
                     />
-                    <YAxis
-                      yAxisId="volume"
-                      orientation="right"
-                      stroke="#718096"
-                      tick={{ fontSize: 11 }}
-                      tickFormatter={(value) => {
-                        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                        if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-                        return value.toString();
-                      }}
-                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#1a1f2e',
@@ -493,7 +498,6 @@ export default function StockDetail() {
                       }}
                       formatter={(value: any, name: string) => {
                         if (name === 'close') return [`${currency} ${value.toFixed(2)}`, 'Kurs'];
-                        if (name === 'volume') return [value.toLocaleString(), 'Volumen'];
                         return [value, name];
                       }}
                       labelFormatter={(label) => new Date(label).toLocaleDateString('de-CH', { 
@@ -502,12 +506,6 @@ export default function StockDetail() {
                         month: 'short', 
                         day: 'numeric' 
                       })}
-                    />
-                    <Bar
-                      yAxisId="volume"
-                      dataKey="volume"
-                      fill="url(#volumeGradient)"
-                      radius={[2, 2, 0, 0]}
                     />
                     <Line
                       yAxisId="price"
@@ -675,7 +673,11 @@ export default function StockDetail() {
                     </>
                   )}
                 </div>
-                <Button variant="ghost" className="w-full mt-3 text-[#00CFC1] hover:text-[#00b8ad] hover:bg-[#00CFC1]/10">
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-3 text-[#00CFC1] hover:text-[#00b8ad] hover:bg-[#00CFC1]/10"
+                  onClick={() => navigate(`/newsroom?ticker=${ticker}`)}
+                >
                   Alle News anzeigen
                   <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>

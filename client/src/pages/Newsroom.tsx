@@ -1,9 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ExternalLink } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 interface NewsroomProps {
   onBackClick?: () => void;
@@ -14,7 +14,20 @@ export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) 
   const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { data: allNews = [] } = trpc.news.getAll.useQuery();
-  const [selectedTicker, setSelectedTicker] = useState<string>("all");
+  
+  // Read ticker from URL query parameter
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+  const tickerFromUrl = searchParams.get('ticker');
+  
+  const [selectedTicker, setSelectedTicker] = useState<string>(tickerFromUrl || "all");
+  
+  // Update selected ticker when URL changes
+  useEffect(() => {
+    if (tickerFromUrl) {
+      setSelectedTicker(tickerFromUrl);
+    }
+  }, [tickerFromUrl]);
 
   // Get unique tickers
   const uniqueTickers = useMemo(() => {
@@ -101,17 +114,26 @@ export default function Newsroom({ onBackClick, ...props }: NewsroomProps = {}) 
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* Filter Dropdown */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           <select
             value={selectedTicker}
             onChange={(e) => setSelectedTicker(e.target.value)}
             className="px-4 py-2 bg-muted text-white border border-border rounded hover:border-purple-500 focus:outline-none focus:border-purple-500"
           >
             <option value="all">Alle Aktien</option>
+            {/* Show ticker from URL even if not in news list */}
+            {tickerFromUrl && !uniqueTickers.includes(tickerFromUrl) && (
+              <option key={tickerFromUrl} value={tickerFromUrl}>{tickerFromUrl}</option>
+            )}
             {uniqueTickers.map(ticker => (
               <option key={ticker} value={ticker}>{ticker}</option>
             ))}
           </select>
+          {tickerFromUrl && (
+            <span className="text-sm text-purple-300">
+              Filter: {tickerFromUrl}
+            </span>
+          )}
         </div>
 
         {/* News Items */}
