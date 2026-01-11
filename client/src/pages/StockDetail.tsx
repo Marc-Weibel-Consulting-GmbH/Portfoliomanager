@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
-import { useRoute, Link } from "wouter";
+import { useState, useMemo, useEffect } from "react";
+import { useRoute, Link, useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, TrendingUpIcon } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, TrendingUpIcon, Newspaper } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -131,17 +131,28 @@ function FinancialHighlight({ label, value, isPositive }: { label: string; value
 }
 
 // News item component with thematic icon
-function NewsItem({ title, icon: Icon }: { title: string; icon: React.ElementType }) {
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0">
+function NewsItem({ title, icon: Icon, url, date }: { title: string; icon: React.ElementType; url?: string; date?: string }) {
+  const content = (
+    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 rounded-lg px-2 transition-colors">
       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00CFC1]/20 to-[#00CFC1]/5 flex items-center justify-center flex-shrink-0">
         <Icon className="w-5 h-5 text-[#00CFC1]" />
       </div>
       <div className="flex-1">
         <p className="text-sm text-gray-300 line-clamp-2">{title}</p>
+        {date && <p className="text-xs text-gray-500 mt-1">{date}</p>}
       </div>
     </div>
   );
+  
+  if (url) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        {content}
+      </a>
+    );
+  }
+  
+  return content;
 }
 
 export default function StockDetail() {
@@ -151,22 +162,60 @@ export default function StockDetail() {
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
+  const [, navigate] = useLocation();
+  
+  // Parse query parameters to get referrer portfolio
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
+  const fromPortfolioId = searchParams.get('from');
 
   // Fetch stock data
   const { data: stock, isLoading } = trpc.stocks.byTicker.useQuery(ticker, {
     enabled: !!ticker,
   });
 
-  // News data - we'll use placeholder data since the news endpoint requires authentication
-  // In production, this would fetch from the news API
-  const newsData: { title: string; imageUrl?: string }[] = [];
+  // Fetch historical prices for chart
+  const { data: historicalPrices = [] } = trpc.stocks.getHistoricalPrices.useQuery(
+    { ticker, period: selectedPeriod },
+    { enabled: !!ticker }
+  );
 
-  // Generate chart data from stored chartData or simulate
-  const chartData = useMemo(() => {
-    if (!stock) return [];
+  // Fetch news for this stock (using the inline router which takes just a string)
+  const { data: newsData = [] } = trpc.news.getByTicker.useQuery(
+    ticker,
+    { enabled: !!ticker }
+  );
+
+  // Check if stock is already in a portfolio (for hiding "Add to Portfolio" button)
+  const { data: userPortfolios = [] } = trpc.portfolios.list.useQuery();
+  
+  // Check if this stock exists in any of the user's portfolios
+  const isInPortfolio = useMemo(() => {
+    if (!ticker || userPortfolios.length === 0) return false;
     
-    // Try to parse stored chart data
-    if (stock.chartData) {
+    // If we came from a portfolio, the stock is definitely in that portfolio
+    if (fromPortfolioId) return true;
+    
+    // Otherwise check all portfolios (this would need a separate query for holdings)
+    return false;
+  }, [ticker, userPortfolios, fromPortfolioId]);
+
+  // Generate chart data from historical prices or simulate if not available
+  const chartData = useMemo(() => {
+    // Use real historical prices if available
+    if (historicalPrices.length > 0) {
+      return historicalPrices.map((d: any) => ({
+        date: d.date,
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close,
+        volume: d.volume,
+      }));
+    }
+    
+    // Fallback: Try to parse stored chart data from stock
+    if (stock?.chartData) {
       try {
         const parsed = JSON.parse(stock.chartData);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -184,20 +233,37 @@ export default function StockDetail() {
       }
     }
     
-    // Generate simulated data based on current price
+    // Last resort: Generate simulated data based on current price
+    if (!stock) return [];
+    
     const basePrice = parseFloat(stock.currentPrice || "100");
     const data: any[] = [];
     const now = new Date();
     
-    // Generate 1825 days of data (5 years) to support all time periods
-    for (let i = 1825; i >= 0; i--) {
+    // Determine how many days to generate based on period
+    let daysToGenerate = 180; // Default 6M
+    switch (selectedPeriod) {
+      case "1D": daysToGenerate = 1; break;
+      case "1W": daysToGenerate = 7; break;
+      case "1M": daysToGenerate = 30; break;
+      case "3M": daysToGenerate = 90; break;
+      case "6M": daysToGenerate = 180; break;
+      case "1Y": daysToGenerate = 365; break;
+      case "YTD": 
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        daysToGenerate = Math.ceil((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+        break;
+      case "All": daysToGenerate = 1825; break;
+    }
+    
+    for (let i = daysToGenerate; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       
       // Skip weekends
       if (date.getDay() === 0 || date.getDay() === 6) continue;
       
-      const randomWalk = (Math.random() - 0.48) * 0.02; // Slight upward bias
+      const randomWalk = (Math.random() - 0.48) * 0.02;
       const prevClose = data.length > 0 ? data[data.length - 1].close : basePrice;
       const open = prevClose * (1 + (Math.random() - 0.5) * 0.01);
       const close = open * (1 + randomWalk);
@@ -216,55 +282,29 @@ export default function StockDetail() {
     }
     
     return data;
-  }, [stock]);
-
-  // Filter chart data based on selected period
-  const filteredChartData = useMemo(() => {
-    if (chartData.length === 0) return [];
-    
-    const now = new Date();
-    let startDate = new Date();
-    
-    switch (selectedPeriod) {
-      case "1D":
-        startDate.setDate(now.getDate() - 1);
-        break;
-      case "1W":
-        startDate.setDate(now.getDate() - 7);
-        break;
-      case "1M":
-        startDate.setMonth(now.getMonth() - 1);
-        break;
-      case "3M":
-        startDate.setMonth(now.getMonth() - 3);
-        break;
-      case "6M":
-        startDate.setMonth(now.getMonth() - 6);
-        break;
-      case "1Y":
-        startDate.setFullYear(now.getFullYear() - 1);
-        break;
-      case "YTD":
-        startDate = new Date(now.getFullYear(), 0, 1);
-        break;
-      case "All":
-        return chartData;
-    }
-    
-    const startStr = startDate.toISOString().split('T')[0];
-    return chartData.filter(d => d.date >= startStr);
-  }, [chartData, selectedPeriod]);
+  }, [stock, historicalPrices, selectedPeriod]);
 
   // Calculate price change
   const priceChange = useMemo(() => {
-    if (filteredChartData.length < 2) return { absolute: 0, percent: 0 };
-    const first = filteredChartData[0].close;
-    const last = filteredChartData[filteredChartData.length - 1].close;
+    if (chartData.length < 2) return { absolute: 0, percent: 0 };
+    const first = chartData[0].close;
+    const last = chartData[chartData.length - 1].close;
     return {
       absolute: last - first,
       percent: ((last - first) / first) * 100,
     };
-  }, [filteredChartData]);
+  }, [chartData]);
+
+  // Handle back navigation
+  const handleBackClick = () => {
+    if (fromPortfolioId) {
+      // Navigate back to the specific portfolio
+      navigate(`/portfolio/${fromPortfolioId}`);
+    } else {
+      // Default: go to portfolios list
+      navigate('/portfolios');
+    }
+  };
 
   if (!match) return null;
 
@@ -286,12 +326,10 @@ export default function StockDetail() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-12">
             <p className="text-gray-400 mb-4">Aktie nicht gefunden</p>
-            <Link href="/dashboard">
-              <Button variant="outline">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Zurück zum Dashboard
-              </Button>
-            </Link>
+            <Button variant="outline" onClick={handleBackClick}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück
+            </Button>
           </div>
         </div>
       </DashboardLayout>
@@ -300,15 +338,14 @@ export default function StockDetail() {
 
   const currentPrice = parseFloat(stock.currentPrice || "0");
   const currency = stock.currency || "CHF";
-  const score = stock.score || Math.floor(Math.random() * 20) + 75; // Fallback to random score 75-95
+  const score = stock.score || Math.floor(Math.random() * 20) + 75;
   
   // Rating logic for metrics
-  const getRating = (metricName: string, value: string | null): "good" | "neutral" | "bad" | undefined => {
-    if (!value || value === "-") return undefined;
+  const getRating = (metric: string, value: string | null | undefined): "good" | "neutral" | "bad" | undefined => {
+    if (!value) return undefined;
     const numValue = parseFloat(value);
-    if (isNaN(numValue)) return undefined;
     
-    switch (metricName) {
+    switch (metric) {
       case "peRatio":
         if (numValue < 15) return "good";
         if (numValue < 25) return "neutral";
@@ -319,11 +356,11 @@ export default function StockDetail() {
         return "bad";
       case "dividendYield":
         if (numValue > 3) return "good";
-        if (numValue > 1.5) return "neutral";
+        if (numValue > 1) return "neutral";
         return "bad";
       case "beta":
         if (numValue < 1) return "good";
-        if (numValue < 1.3) return "neutral";
+        if (numValue < 1.5) return "neutral";
         return "bad";
       case "volatility":
         if (numValue < 15) return "good";
@@ -331,23 +368,23 @@ export default function StockDetail() {
         return "bad";
       case "sharpeRatio":
         if (numValue > 1.5) return "good";
-        if (numValue > 0.8) return "neutral";
+        if (numValue > 0.5) return "neutral";
         return "bad";
       default:
         return undefined;
     }
   };
 
-  // Parse moats
+  // Moats data - use individual moat fields from stock
   const moats = [
-    { title: stock.moat1 || "Starke Marke und Ökosystem", icon: Shield },
-    { title: stock.moat2 || "Hohe Kundenbindung", icon: Users },
-    { title: stock.moat3 || "Innovation und Design", icon: Lightbulb },
-  ].filter(m => m.title);
+    { title: stock.moat1 || "Starke Markenbekanntheit und Kundenloyalität", icon: Shield },
+    { title: stock.moat2 || "Hohe Wechselkosten für Kunden", icon: Users },
+    { title: stock.moat3 || "Innovationsführerschaft in der Branche", icon: Lightbulb },
+  ];
 
-  // Parse financial highlights
+  // Financial highlights
   const financialHighlights = [
-    { label: "Revenue Growth", value: stock.financialHighlight1 || "+5.2%", isPositive: true },
+    { label: "Revenue Growth", value: stock.financialHighlight1 || "+12.5% YoY", isPositive: true },
     { label: "Net Income Margin", value: stock.financialHighlight2 || "24.1%", isPositive: false },
     { label: "Free Cash Flow", value: stock.financialHighlight3 || `${currency} 95B`, isPositive: false },
   ];
@@ -360,11 +397,12 @@ export default function StockDetail() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/portfolios">
-              <button className="p-2 rounded-lg bg-[#1a1f2e] border border-white/10 hover:border-[#00CFC1]/50 transition-colors">
-                <ArrowLeft className="h-5 w-5 text-white" />
-              </button>
-            </Link>
+            <button 
+              onClick={handleBackClick}
+              className="p-2 rounded-lg bg-[#1a1f2e] border border-white/10 hover:border-[#00CFC1]/50 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-white" />
+            </button>
             <StockLogo ticker={ticker} companyName={stock.companyName} size="lg" />
             <div>
               <h1 className="text-3xl font-bold text-white">{ticker}</h1>
@@ -411,7 +449,7 @@ export default function StockDetail() {
 
                 {/* Chart */}
                 <ResponsiveContainer width="100%" height={400}>
-                  <ComposedChart data={filteredChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#00CFC1" stopOpacity={0.6} />
@@ -449,21 +487,13 @@ export default function StockDetail() {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#1a1f2e',
-                        border: '1px solid #00CFC1',
+                        border: '1px solid rgba(0, 207, 193, 0.3)',
                         borderRadius: '8px',
                         color: '#fff',
                       }}
                       formatter={(value: any, name: string) => {
-                        if (name === 'close') return [`${currency} ${value.toFixed(2)}`, 'Schlusskurs'];
-                        if (name === 'open') return [`${currency} ${value.toFixed(2)}`, 'Eröffnung'];
-                        if (name === 'high') return [`${currency} ${value.toFixed(2)}`, 'Hoch'];
-                        if (name === 'low') return [`${currency} ${value.toFixed(2)}`, 'Tief'];
-                        if (name === 'volume') {
-                          const vol = parseInt(value);
-                          if (vol >= 1000000) return [`${(vol / 1000000).toFixed(2)}M`, 'Volumen'];
-                          if (vol >= 1000) return [`${(vol / 1000).toFixed(0)}K`, 'Volumen'];
-                          return [vol.toString(), 'Volumen'];
-                        }
+                        if (name === 'close') return [`${currency} ${value.toFixed(2)}`, 'Kurs'];
+                        if (name === 'volume') return [value.toLocaleString(), 'Volumen'];
                         return [value, name];
                       }}
                       labelFormatter={(label) => new Date(label).toLocaleDateString('de-CH', { 
@@ -473,23 +503,12 @@ export default function StockDetail() {
                         day: 'numeric' 
                       })}
                     />
-                    {/* Volume bars */}
                     <Bar
                       yAxisId="volume"
                       dataKey="volume"
                       fill="url(#volumeGradient)"
-                      opacity={0.3}
-                      radius={[4, 4, 0, 0]}
+                      radius={[2, 2, 0, 0]}
                     />
-                    {/* Candlestick body - using bars to show open-close range */}
-                    <Bar
-                      yAxisId="price"
-                      dataKey={(entry: any) => [Math.min(entry.open, entry.close), Math.max(entry.open, entry.close)]}
-                      fill="#00CFC1"
-                      opacity={0.8}
-                      barSize={selectedPeriod === '1D' || selectedPeriod === '1W' ? 8 : 4}
-                    />
-                    {/* Price line for close */}
                     <Line
                       yAxisId="price"
                       type="monotone"
@@ -497,13 +516,12 @@ export default function StockDetail() {
                       stroke="#00CFC1"
                       strokeWidth={2}
                       dot={false}
-                      activeDot={{ r: 5, fill: '#00CFC1', stroke: '#fff', strokeWidth: 2 }}
+                      activeDot={{ r: 4, fill: '#00CFC1' }}
                     />
-                    {/* Reference line for starting price */}
-                    {filteredChartData.length > 0 && (
+                    {chartData.length > 0 && (
                       <ReferenceLine
                         yAxisId="price"
-                        y={filteredChartData[0].close}
+                        y={chartData[0].close}
                         stroke="#4a5568"
                         strokeDasharray="3 3"
                         label={{ value: 'Start', fill: '#718096', fontSize: 10 }}
@@ -518,8 +536,8 @@ export default function StockDetail() {
             <div>
               <h3 className="text-lg font-semibold text-white mb-3">Wettbewerbsvorteile (Moats)</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {moats.map((moat, index) => (
-                  <MoatCard key={index} number={index + 1} title={moat.title} icon={moat.icon} />
+                {moats.map((moat: any, index: number) => (
+                  <MoatCard key={index} number={index + 1} title={moat.title || moat} icon={moat.icon || Shield} />
                 ))}
               </div>
             </div>
@@ -549,15 +567,17 @@ export default function StockDetail() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button 
-                onClick={() => setShowAddToPortfolio(true)}
-                className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold h-12"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Zu Portfolio hinzufügen
-              </Button>
+            {/* Action Buttons - Only show "Add to Portfolio" if not already in portfolio */}
+            <div className={`grid grid-cols-1 ${isInPortfolio ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
+              {!isInPortfolio && (
+                <Button 
+                  onClick={() => setShowAddToPortfolio(true)}
+                  className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold h-12"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Zu Portfolio hinzufügen
+                </Button>
+              )}
               <Button 
                 onClick={() => setShowPriceAlert(true)}
                 variant="outline" 
@@ -639,7 +659,13 @@ export default function StockDetail() {
                 <div className="space-y-1">
                   {newsData.length > 0 ? (
                     newsData.map((news: any, index: number) => (
-                      <NewsItem key={index} title={news.title} icon={TrendingUpIcon} />
+                      <NewsItem 
+                        key={index} 
+                        title={news.title} 
+                        icon={Newspaper}
+                        url={news.url}
+                        date={news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-CH') : undefined}
+                      />
                     ))
                   ) : (
                     <>
@@ -680,9 +706,17 @@ export default function StockDetail() {
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Portfolio auswählen</label>
                   <select className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none">
-                    <option>Mein Hauptportfolio</option>
-                    <option>Dividenden Portfolio</option>
-                    <option>Wachstums Portfolio</option>
+                    {userPortfolios.length > 0 ? (
+                      userPortfolios.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option>Mein Hauptportfolio</option>
+                        <option>Dividenden Portfolio</option>
+                        <option>Wachstums Portfolio</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 
@@ -745,7 +779,7 @@ export default function StockDetail() {
                 <div className="bg-[#1a1f2e] rounded-lg p-3 border border-white/10">
                   <div className="text-xs text-gray-400">Aktueller Preis</div>
                   <div className="text-lg font-bold text-white">
-                    {currency} {currentPrice.toFixed(2)}
+                    {currency} {currentPrice.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 

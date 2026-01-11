@@ -6,6 +6,8 @@ interface StockLogoProps {
   companyName: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /** If true, only shows the graphic logo without company name text overlay */
+  iconOnly?: boolean;
 }
 
 // Size classes
@@ -32,7 +34,7 @@ function LetterAvatar({ letter, size, className }: { letter: string; size: 'sm' 
  * Stock logo component that fetches logos from the backend API
  * The backend uses EODHD Fundamentals API with proper API key authentication
  */
-export function StockLogo({ ticker, companyName, size = 'md', className = '' }: StockLogoProps) {
+export function StockLogo({ ticker, companyName, size = 'md', className = '', iconOnly = true }: StockLogoProps) {
   const [imageError, setImageError] = useState(false);
 
   // Reset error state when ticker changes

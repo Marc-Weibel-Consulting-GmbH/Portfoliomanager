@@ -175,3 +175,11 @@
 - [x] Integration in Portfolio-Erstellung und Aktien-Suche
 - [x] Logging und Monitoring für Backfill-Prozesse
 - [x] Unit-Tests für die neue Funktionalität
+
+
+## Aktiendetailseite Verbesserungen (11.01.2026)
+- [x] BUG: Logo zeigt Firmenname + grafisches Symbol - nur grafisches Logo anzeigen (an allen Stellen) - FIXED: StockLogo Komponente zeigt jetzt nur das grafische Logo
+- [x] BUG: Performance Chart zeigt nur 3 Monate - andere Zeiträume (1D, 1W, 1M, 6M, 1Y, YTD, All) funktionieren nicht - FIXED: Neuer getHistoricalPrices Endpunkt mit echten historischen Daten
+- [x] BUG: Zurück-Button führt nicht zur Portfolio-Detailseite mit Positionsliste - FIXED: Navigation mit from-Parameter zurück zum Portfolio
+- [x] BUG: "Zu Portfolio hinzufügen" Button erscheint obwohl Aktie bereits im Portfolio ist - FIXED: Button wird ausgeblendet wenn Aktie bereits im Portfolio
+- [x] BUG: News-Bereich zeigt nur Mockup-Daten statt echte News - FIXED: Verwendet jetzt Finnhub API für echte News

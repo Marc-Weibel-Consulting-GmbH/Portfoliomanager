@@ -563,7 +563,7 @@ export default function PortfolioDetailsPage() {
                         return (
                         <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5">
                           <td className="p-3">
-                            <Link href={`/stock/${holding.ticker}`}>
+                            <Link href={`/stock/${holding.ticker}?from=${portfolioId}`}>
                               <div className="flex items-center gap-2">
                                 <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
                                 <span className="font-semibold text-[#00CFC1] hover:underline cursor-pointer">
