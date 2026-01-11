@@ -217,7 +217,7 @@ export default function PortfolioDetailsPage() {
     const formattedData = sampledData.map((d: any, index: number) => {
       const isHypothetical = creationDateIndex >= 0 && index < creationDateIndex;
       return {
-        date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short' }),
+        date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short', year: '2-digit' }),
         // Before creation date: show as hypothetical (dashed line)
         // After creation date: show as real portfolio (solid line)
         portfolio: isHypothetical ? null : d.portfolio,

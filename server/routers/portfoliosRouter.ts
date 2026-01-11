@@ -1741,6 +1741,8 @@ export const portfoliosRouter = router({
           
           // Calculate portfolio performance on this date
           let portfolioPerformance = 0;
+          let missingPriceCount = 0;
+          let totalHoldingsCount = 0;
           
           // Determine if we should use weight-based calculation
           // Use weight-based for:
@@ -1778,9 +1780,11 @@ export const portfoliosRouter = router({
             
             for (const [ticker, holding] of Object.entries(currentHoldings)) {
               if (holding.shares <= 0) continue;
+              totalHoldingsCount++;
               
               // Get price with forward-fill: use current date price, or last known price
               let price = pricesMap[ticker]?.[date] || 0;
+              const hadDirectPrice = price > 0;
               
               // Forward-fill: if no price for this date, use last known price
               if (price === 0) {
@@ -1797,10 +1801,16 @@ export const portfoliosRouter = router({
               // Store the forward-filled price for future reference
               if (price > 0) {
                 forwardFilledPrices[ticker] = price;
+                if (!hadDirectPrice) {
+                  missingPriceCount++;
+                }
               }
               
               // Skip if still no price available
-              if (price === 0) continue;
+              if (price === 0) {
+                missingPriceCount++;
+                continue;
+              }
               
               const currency = stockCurrencies[ticker] || 'CHF';
               const priceCHF = convertToCHFCached(price, currency, date);
@@ -1825,7 +1835,12 @@ export const portfoliosRouter = router({
             : 0;
           
           // Only add data point if we have valid performance data
-          if (portfolioPerformance !== 0 || benchmarkPerformance !== 0) {
+          // Skip dates where more than 30% of holdings have forward-filled prices
+          // This prevents large jumps due to market holidays (e.g., Swiss holidays)
+          const forwardFillRatio = totalHoldingsCount > 0 ? missingPriceCount / totalHoldingsCount : 0;
+          const hasEnoughData = forwardFillRatio < 0.3 || totalHoldingsCount === 0;
+          
+          if ((portfolioPerformance !== 0 || benchmarkPerformance !== 0) && hasEnoughData) {
             chartData.push({
               date,
               portfolio: parseFloat(portfolioPerformance.toFixed(2)),

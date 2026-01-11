@@ -56,7 +56,8 @@ export function HistoricalTrendChart({ ticker }: HistoricalTrendChartProps) {
     .map((record) => ({
       date: new Date(record.recordedAt).toLocaleDateString('de-DE', { 
         month: 'short', 
-        day: 'numeric' 
+        day: 'numeric',
+        year: '2-digit'
       }),
       sharpeRatio: record.sharpeRatio ? parseFloat(record.sharpeRatio) : null,
       peRatio: record.peRatio ? parseFloat(record.peRatio) : null,

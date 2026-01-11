@@ -479,7 +479,7 @@ export default function StockDetail() {
                       tick={{ fontSize: 11 }}
                       tickFormatter={(value) => {
                         const date = new Date(value);
-                        return date.toLocaleDateString('de-CH', { month: 'short', day: 'numeric' });
+                        return date.toLocaleDateString('de-CH', { month: 'short', day: 'numeric', year: '2-digit' });
                       }}
                     />
                     <YAxis

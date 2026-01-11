@@ -202,3 +202,8 @@
 ## Bug-Fix Historische Daten (11.01.2026)
 - [x] Bug: "Keine historischen Daten verfügbar" auf Portfolio-Detailseiten beheben - FIXED: Live-Portfolios ohne Transaktionen fallen jetzt auf portfolioData zurück
 - [x] Alle Portfolios mit allen Zeitfenstern (1M, 3M, 6M, YTD, 1Y, 3Y, 5Y, All) testen - VERIFIED: Alle Charts funktionieren
+
+
+## Chart-Verbesserungen (11.01.2026 - Abend)
+- [x] Jahr auf der Zeitachse in Charts anzeigen (Format: MMM YYYY statt nur MMM)
+- [x] Unplausible Sprünge in den Charts untersuchen und korrigieren (Forward-Fill-Ratio-Check hinzugefügt)

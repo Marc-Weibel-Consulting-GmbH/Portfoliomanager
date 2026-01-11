@@ -1,0 +1,160 @@
+{
+  "query": "SELECT date, ticker, close FROM historical_prices WHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW') AND date BETWEEN '2025-12-15' AND '2026-01-05' ORDER BY date, ticker LIMIT 100;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT date, ticker, close FROM historical_prices WHERE ticker IN ('NOVN.SW', 'NESN.SW', 'SLHN.SW') AND date BETWEEN '2025-12-15' AND '2026-01-05' ORDER BY date, ticker LIMIT 100;",
+  "rows": [
+    {
+      "date": "2025-12-15",
+      "ticker": "NESN.SW",
+      "close": "78.950000"
+    },
+    {
+      "date": "2025-12-15",
+      "ticker": "NOVN.SW",
+      "close": "107.240000"
+    },
+    {
+      "date": "2025-12-15",
+      "ticker": "SLHN.SW",
+      "close": "890.000000"
+    },
+    {
+      "date": "2025-12-16",
+      "ticker": "NESN.SW",
+      "close": "78.440000"
+    },
+    {
+      "date": "2025-12-16",
+      "ticker": "NOVN.SW",
+      "close": "107.480000"
+    },
+    {
+      "date": "2025-12-16",
+      "ticker": "SLHN.SW",
+      "close": "894.200000"
+    },
+    {
+      "date": "2025-12-17",
+      "ticker": "NESN.SW",
+      "close": "79.360000"
+    },
+    {
+      "date": "2025-12-17",
+      "ticker": "NOVN.SW",
+      "close": "107.960000"
+    },
+    {
+      "date": "2025-12-17",
+      "ticker": "SLHN.SW",
+      "close": "900.800000"
+    },
+    {
+      "date": "2025-12-18",
+      "ticker": "NESN.SW",
+      "close": "79.880000"
+    },
+    {
+      "date": "2025-12-18",
+      "ticker": "NOVN.SW",
+      "close": "107.740000"
+    },
+    {
+      "date": "2025-12-18",
+      "ticker": "SLHN.SW",
+      "close": "907.400000"
+    },
+    {
+      "date": "2025-12-19",
+      "ticker": "NESN.SW",
+      "close": "78.790000"
+    },
+    {
+      "date": "2025-12-19",
+      "ticker": "NOVN.SW",
+      "close": "108.520000"
+    },
+    {
+      "date": "2025-12-19",
+      "ticker": "SLHN.SW",
+      "close": "910.800000"
+    },
+    {
+      "date": "2025-12-22",
+      "ticker": "NESN.SW",
+      "close": "78.030000"
+    },
+    {
+      "date": "2025-12-22",
+      "ticker": "NOVN.SW",
+      "close": "108.720000"
+    },
+    {
+      "date": "2025-12-22",
+      "ticker": "SLHN.SW",
+      "close": "913.800000"
+    },
+    {
+      "date": "2025-12-23",
+      "ticker": "NESN.SW",
+      "close": "77.830000"
+    },
+    {
+      "date": "2025-12-23",
+      "ticker": "NOVN.SW",
+      "close": "110.100000"
+    },
+    {
+      "date": "2025-12-23",
+      "ticker": "SLHN.SW",
+      "close": "920.000000"
+    },
+    {
+      "date": "2025-12-29",
+      "ticker": "NESN.SW",
+      "close": "78.740000"
+    },
+    {
+      "date": "2025-12-29",
+      "ticker": "NOVN.SW",
+      "close": "109.900000"
+    },
+    {
+      "date": "2025-12-29",
+      "ticker": "SLHN.SW",
+      "close": "914.800000"
+    },
+    {
+      "date": "2025-12-30",
+      "ticker": "NESN.SW",
+      "close": "78.740000"
+    },
+    {
+      "date": "2025-12-30",
+      "ticker": "NOVN.SW",
+      "close": "109.600000"
+    },
+    {
+      "date": "2025-12-30",
+      "ticker": "SLHN.SW",
+      "close": "916.800000"
+    },
+    {
+      "date": "2026-01-05",
+      "ticker": "NESN.SW",
+      "close": "76.440000"
+    },
+    {
+      "date": "2026-01-05",
+      "ticker": "NOVN.SW",
+      "close": "108.500000"
+    },
+    {
+      "date": "2026-01-05",
+      "ticker": "SLHN.SW",
+      "close": "932.200000"
+    }
+  ],
+  "messages": [],
+  "stdout": "date\tticker\tclose\n2025-12-15\tNESN.SW\t78.950000\n2025-12-15\tNOVN.SW\t107.240000\n2025-12-15\tSLHN.SW\t890.000000\n2025-12-16\tNESN.SW\t78.440000\n2025-12-16\tNOVN.SW\t107.480000\n2025-12-16\tSLHN.SW\t894.200000\n2025-12-17\tNESN.SW\t79.360000\n2025-12-17\tNOVN.SW\t107.960000\n2025-12-17\tSLHN.SW\t900.800000\n2025-12-18\tNESN.SW\t79.880000\n2025-12-18\tNOVN.SW\t107.740000\n2025-12-18\tSLHN.SW\t907.400000\n2025-12-19\tNESN.SW\t78.790000\n2025-12-19\tNOVN.SW\t108.520000\n2025-12-19\tSLHN.SW\t910.800000\n2025-12-22\tNESN.SW\t78.030000\n2025-12-22\tNOVN.SW\t108.720000\n2025-12-22\tSLHN.SW\t913.800000\n2025-12-23\tNESN.SW\t77.830000\n2025-12-23\tNOVN.SW\t110.100000\n2025-12-23\tSLHN.SW\t920.000000\n2025-12-29\tNESN.SW\t78.740000\n2025-12-29\tNOVN.SW\t109.900000\n2025-12-29\tSLHN.SW\t914.800000\n2025-12-30\tNESN.SW\t78.740000\n2025-12-30\tNOVN.SW\t109.600000\n2025-12-30\tSLHN.SW\t916.800000\n2026-01-05\tNESN.SW\t76.440000\n2026-01-05\tNOVN.SW\t108.500000\n2026-01-05\tSLHN.SW\t932.200000\n",
+  "stderr": "",
+  "execution_time_ms": 114
+}

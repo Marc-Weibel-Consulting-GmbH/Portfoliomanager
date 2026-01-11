@@ -152,8 +152,9 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
     
     return commonDates.map((date, index) => ({
       date: new Date(date).toLocaleDateString('de-CH', { 
-        year: '2-digit', 
-        month: 'short' 
+        day: 'numeric',
+        month: 'short',
+        year: '2-digit'
       }),
       portfolio: portfolioValues[index] - portfolioStart,
       benchmark: benchmarkValues[index] - benchmarkStart,

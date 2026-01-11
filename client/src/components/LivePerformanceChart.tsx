@@ -93,7 +93,7 @@ export function LivePerformanceChart({ portfolioId, liveStartDate }: LivePerform
     // Format labels
     const labels = allDataPoints.map((dp: any) => {
       const date = new Date(dp.date);
-      return date.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' });
+      return date.toLocaleDateString('de-CH', { day: '2-digit', month: 'short', year: '2-digit' });
     });
     
     // Find the index where real data starts (creation date)
