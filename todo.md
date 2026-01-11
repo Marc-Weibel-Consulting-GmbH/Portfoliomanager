@@ -197,3 +197,8 @@
 - [x] Farbiges Donut-Chart von /portfolio auf /portfolios Seite übernehmen (bereits vorhanden als Asset-Allokation und Sektor-Allokation)
 - [x] Alte Portfolio-Seiten (/portfolio) in Archiv-Ordner verschieben (PortfolioDetailRedesign.tsx -> _archive/)
 - [x] Routen in App.tsx bereinigen (alte /portfolio/:id Route leitet jetzt zu /portfolios/:id um)
+
+
+## Bug-Fix Historische Daten (11.01.2026)
+- [x] Bug: "Keine historischen Daten verfügbar" auf Portfolio-Detailseiten beheben - FIXED: Live-Portfolios ohne Transaktionen fallen jetzt auf portfolioData zurück
+- [x] Alle Portfolios mit allen Zeitfenstern (1M, 3M, 6M, YTD, 1Y, 3Y, 5Y, All) testen - VERIFIED: Alle Charts funktionieren

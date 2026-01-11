@@ -1,0 +1,76 @@
+{
+  "query": "\nSELECT \n  ticker, \n  MIN(date) as earliest_date, \n  MAX(date) as latest_date, \n  COUNT(*) as data_points\nFROM historical_prices \nWHERE ticker IN ('ZURN.SW', 'JNJ', 'KNIN.SW', 'HOLN.SW', 'SLHN.SW', 'NESN.SW', 'NOVN.SW', 'SGKN.SW', 'NEE', 'SCMN.SW', 'SPY')\nGROUP BY ticker\nORDER BY ticker;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute \nSELECT \n  ticker, \n  MIN(date) as earliest_date, \n  MAX(date) as latest_date, \n  COUNT(*) as data_points\nFROM historical_prices \nWHERE ticker IN ('ZURN.SW', 'JNJ', 'KNIN.SW', 'HOLN.SW', 'SLHN.SW', 'NESN.SW', 'NOVN.SW', 'SGKN.SW', 'NEE', 'SCMN.SW', 'SPY')\nGROUP BY ticker\nORDER BY ticker;\n",
+  "rows": [
+    {
+      "ticker": "HOLN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    },
+    {
+      "ticker": "JNJ",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "758"
+    },
+    {
+      "ticker": "KNIN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    },
+    {
+      "ticker": "NEE",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "758"
+    },
+    {
+      "ticker": "NESN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    },
+    {
+      "ticker": "SGKN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    },
+    {
+      "ticker": "SPY",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "758"
+    },
+    {
+      "ticker": "ZURN.SW",
+      "earliest_date": "2022-12-30",
+      "latest_date": "2026-01-08",
+      "data_points": "755"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tearliest_date\tlatest_date\tdata_points\nHOLN.SW\t2022-12-30\t2026-01-08\t755\nJNJ\t2022-12-30\t2026-01-08\t758\nKNIN.SW\t2022-12-30\t2026-01-08\t755\nNEE\t2022-12-30\t2026-01-08\t758\nNESN.SW\t2022-12-30\t2026-01-08\t755\nNOVN.SW\t2022-12-30\t2026-01-08\t755\nSCMN.SW\t2022-12-30\t2026-01-08\t755\nSGKN.SW\t2022-12-30\t2026-01-08\t755\nSLHN.SW\t2022-12-30\t2026-01-08\t755\nSPY\t2022-12-30\t2026-01-08\t758\nZURN.SW\t2022-12-30\t2026-01-08\t755\n",
+  "stderr": "",
+  "execution_time_ms": 115
+}

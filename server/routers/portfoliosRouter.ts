@@ -993,8 +993,23 @@ export const portfoliosRouter = router({
         
         if (isLivePortfolio) {
           transactions = await getPortfolioTransactions(portfolioId);
+          // If live portfolio has no transactions, fall back to portfolioData (like test portfolios)
           if (transactions.length === 0) {
-            return { chartData: [], totalValueHistory: [] };
+            console.log(`[getHistoricalPerformance] Live portfolio ${portfolioId} has no transactions, falling back to portfolioData`);
+            try {
+              const portfolioData = typeof portfolio.portfolioData === 'string' 
+                ? JSON.parse(portfolio.portfolioData) 
+                : portfolio.portfolioData;
+              portfolioStocks = portfolioData?.stocks || [];
+              if (portfolioStocks.length === 0) {
+                console.log(`[getHistoricalPerformance] No stocks in portfolioData either, returning empty`);
+                return { chartData: [], totalValueHistory: [] };
+              }
+              console.log(`[getHistoricalPerformance] Found ${portfolioStocks.length} stocks in portfolioData`);
+            } catch (e) {
+              console.error(`[getHistoricalPerformance] Failed to parse portfolioData:`, e);
+              return { chartData: [], totalValueHistory: [] };
+            }
           }
         } else {
           // For test portfolios, get stocks from portfolioData
@@ -1169,6 +1184,28 @@ export const portfoliosRouter = router({
           
           console.log(`[NewArchitecture] Calculated ${portfolioStocks.length} positions from holdings`);
           console.log(`[NewArchitecture] Total portfolio value: ${totalValue} CHF`);
+          
+          if (portfolioStocks.length === 0) {
+            // Try to get stocks from portfolioData (for live portfolios without transactions)
+            console.log(`[NewArchitecture] No holdings from transactions, trying portfolioData`);
+            try {
+              const portfolioData = typeof portfolio.portfolioData === 'string' 
+                ? JSON.parse(portfolio.portfolioData) 
+                : portfolio.portfolioData;
+              const stocks = portfolioData?.stocks || [];
+              if (stocks.length > 0) {
+                // Calculate weights from portfolioData
+                const totalWeight = stocks.reduce((sum: number, s: any) => sum + (parseFloat(s.weight) || 0), 0);
+                portfolioStocks = stocks.map((s: any) => ({
+                  ticker: s.ticker,
+                  weight: totalWeight > 0 ? (parseFloat(s.weight) || 0) / totalWeight : 1 / stocks.length
+                })).filter((s: any) => s.ticker && s.weight > 0);
+                console.log(`[NewArchitecture] Found ${portfolioStocks.length} stocks from portfolioData`);
+              }
+            } catch (e) {
+              console.error(`[NewArchitecture] Failed to parse portfolioData:`, e);
+            }
+          }
           
           if (portfolioStocks.length === 0) {
             console.warn(`[NewArchitecture] No portfolio stocks found, falling back to old logic`);
