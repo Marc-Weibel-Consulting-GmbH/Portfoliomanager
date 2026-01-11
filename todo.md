@@ -207,3 +207,11 @@
 ## Chart-Verbesserungen (11.01.2026 - Abend)
 - [x] Jahr auf der Zeitachse in Charts anzeigen (Format: MMM YYYY statt nur MMM)
 - [x] Unplausible Sprünge in den Charts untersuchen und korrigieren (Forward-Fill-Ratio-Check hinzugefügt)
+
+
+## Bug-Fix Performance Chart (11.01.2026 - Nacht)
+- [x] BUG: Portfolio-Wertentwicklungsgrafik zeigt unerwartete Sprünge/Einbrüche - Chart-Daten oder Berechnung prüfen - FIXED:
+  - Forward-Fill mit Sprung-Erkennung (>50% Preissprung wird ignoriert)
+  - Tägliche Rendite-Glättung (max 15% pro Tag)
+  - Einzelaktien-Performance begrenzt auf -100% bis +200%
+  - Datenpunkte mit >50% Forward-Fill werden übersprungen

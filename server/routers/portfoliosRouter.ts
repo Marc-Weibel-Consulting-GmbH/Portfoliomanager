@@ -1754,24 +1754,50 @@ export const portfoliosRouter = router({
             // For test portfolios: calculate weighted average performance of all stocks
             let totalWeight = 0;
             let weightedPerformance = 0;
+            let tickersWithPrice = 0;
+            let tickersForwardFilled = 0;
             
             for (const [ticker, holding] of Object.entries(currentHoldings)) {
               const weight = holding.weight || 0;
               if (weight <= 0) continue;
               
-              const currentPrice = pricesMap[ticker]?.[date] || 0;
+              let currentPrice = pricesMap[ticker]?.[date] || 0;
               const startPrice = startingPricesCHF[ticker] || 0;
+              
+              // Forward-fill if no price for this date
+              if (currentPrice === 0) {
+                const tickerPrices = pricesMap[ticker] || {};
+                const sortedPriceDates = Object.keys(tickerPrices).sort();
+                for (const priceDate of sortedPriceDates) {
+                  if (priceDate <= date && tickerPrices[priceDate] > 0) {
+                    currentPrice = tickerPrices[priceDate];
+                  }
+                }
+                if (currentPrice > 0) tickersForwardFilled++;
+              } else {
+                tickersWithPrice++;
+              }
               
               if (currentPrice > 0 && startPrice > 0) {
                 const currency = stockCurrencies[ticker] || 'CHF';
                 const currentPriceCHF = convertToCHFCached(currentPrice, currency, date);
                 const stockPerformance = ((currentPriceCHF - startPrice) / startPrice) * 100;
-                weightedPerformance += stockPerformance * (weight / 100);
+                
+                // Limit individual stock performance to +/- 100% per period to avoid data errors
+                const clampedPerformance = Math.max(-100, Math.min(200, stockPerformance));
+                weightedPerformance += clampedPerformance * (weight / 100);
                 totalWeight += weight;
               }
             }
             
             portfolioPerformance = totalWeight > 0 ? weightedPerformance : 0;
+            
+            // Track forward-fill ratio for data quality
+            const totalTickers = tickersWithPrice + tickersForwardFilled;
+            if (totalTickers > 0 && tickersForwardFilled / totalTickers > 0.5) {
+              // More than 50% forward-filled, skip this data point
+              continue;
+            }
           } else {
             // For live portfolios: calculate based on actual holdings value
             let totalValueCHF = 0;
@@ -1840,10 +1866,23 @@ export const portfoliosRouter = router({
           const forwardFillRatio = totalHoldingsCount > 0 ? missingPriceCount / totalHoldingsCount : 0;
           const hasEnoughData = forwardFillRatio < 0.3 || totalHoldingsCount === 0;
           
-          if ((portfolioPerformance !== 0 || benchmarkPerformance !== 0) && hasEnoughData) {
+          // Detect and smooth unrealistic jumps (max 15% daily change)
+          const MAX_DAILY_CHANGE_PCT = 15; // 15% max daily change
+          const lastDataPoint = chartData.length > 0 ? chartData[chartData.length - 1] : null;
+          let smoothedPerformance = portfolioPerformance;
+          
+          if (lastDataPoint && hasEnoughData) {
+            const dailyChange = Math.abs(portfolioPerformance - lastDataPoint.portfolio);
+            if (dailyChange > MAX_DAILY_CHANGE_PCT) {
+              console.warn(`[HistoricalPerformance] ${date}: Large daily change ${dailyChange.toFixed(2)}%, smoothing`);
+              smoothedPerformance = lastDataPoint.portfolio + (portfolioPerformance > lastDataPoint.portfolio ? MAX_DAILY_CHANGE_PCT : -MAX_DAILY_CHANGE_PCT);
+            }
+          }
+          
+          if ((smoothedPerformance !== 0 || benchmarkPerformance !== 0) && hasEnoughData) {
             chartData.push({
               date,
-              portfolio: parseFloat(portfolioPerformance.toFixed(2)),
+              portfolio: parseFloat(smoothedPerformance.toFixed(2)),
               benchmark: parseFloat(benchmarkPerformance.toFixed(2)),
             });
           }

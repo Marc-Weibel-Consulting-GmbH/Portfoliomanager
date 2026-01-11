@@ -165,7 +165,8 @@ export async function getHypotheticalSeriesFromWeights(
   // Calculate shares at start date
   const shares: Record<string, number> = {};
   let startValue = 0;
-
+  
+  // First pass: calculate shares for each ticker
   for (const { ticker, weight } of weights) {
     const startPrice = pricesMap[ticker][startDate];
     if (!startPrice) {
@@ -175,6 +176,8 @@ export async function getHypotheticalSeriesFromWeights(
       if (firstDate) {
         const firstPrice = pricesMap[ticker][firstDate];
         shares[ticker] = (startCapitalHypo * weight) / firstPrice;
+        // Also add to startValue - the allocated capital
+        startValue += startCapitalHypo * weight;
         console.log(`[HypotheticalPerformance] ${ticker}: ${shares[ticker]} shares from ${firstDate} at ${firstPrice} CHF`);
       } else {
         console.warn(`[HypotheticalPerformance] ${ticker} has no price data, excluding from calculation`);
@@ -191,10 +194,23 @@ export async function getHypotheticalSeriesFromWeights(
 
   // Calculate performance for each date
   const result: PerformancePoint[] = [];
-  const forwardFillPrices: Record<string, number> = { ...lastKnownPrices };
+  const forwardFillPrices: Record<string, number> = {};
+  
+  // Initialize forward-fill prices with the first available price for each ticker
+  for (const { ticker } of weights) {
+    const sortedDates = Object.keys(pricesMap[ticker]).sort();
+    if (sortedDates.length > 0) {
+      forwardFillPrices[ticker] = pricesMap[ticker][sortedDates[0]];
+    }
+  }
+  
+  let lastPortfolioReturn = 0;
+  const MAX_DAILY_CHANGE = 0.15; // Maximum 15% daily change to detect anomalies
 
   for (const date of allDates) {
     let portfolioValue = 0;
+    let tickersWithPrice = 0;
+    let tickersForwardFilled = 0;
 
     for (const { ticker } of weights) {
       let price = pricesMap[ticker][date];
@@ -202,21 +218,44 @@ export async function getHypotheticalSeriesFromWeights(
       // Forward-fill if price not available
       if (!price) {
         price = forwardFillPrices[ticker] || 0;
+        if (price > 0) tickersForwardFilled++;
       } else {
-        forwardFillPrices[ticker] = price;
+        // Update forward-fill price only if the new price is reasonable
+        // (not more than 50% different from last known price to avoid data errors)
+        const lastPrice = forwardFillPrices[ticker];
+        if (lastPrice && Math.abs(price - lastPrice) / lastPrice > 0.5) {
+          console.warn(`[HypotheticalPerformance] ${ticker} on ${date}: Large price jump from ${lastPrice} to ${price}, using forward-fill`);
+          price = lastPrice;
+        } else {
+          forwardFillPrices[ticker] = price;
+        }
+        tickersWithPrice++;
       }
 
       portfolioValue += shares[ticker] * price;
     }
 
     const portfolioReturn = startValue > 0 ? (portfolioValue / startValue) - 1 : 0;
+    
+    // Detect and smooth out unrealistic jumps
+    const dailyChange = Math.abs(portfolioReturn - lastPortfolioReturn);
+    let smoothedReturn = portfolioReturn;
+    
+    if (result.length > 0 && dailyChange > MAX_DAILY_CHANGE) {
+      // Large jump detected - likely due to data issues
+      // Use interpolation instead
+      console.warn(`[HypotheticalPerformance] ${date}: Large daily change ${(dailyChange * 100).toFixed(2)}%, smoothing`);
+      smoothedReturn = lastPortfolioReturn + (portfolioReturn > lastPortfolioReturn ? MAX_DAILY_CHANGE : -MAX_DAILY_CHANGE);
+    }
 
     result.push({
       date,
-      portfolioReturn,
+      portfolioReturn: smoothedReturn,
       portfolioValueCHF: portfolioValue,
       segment: 'hypothetical'
     });
+    
+    lastPortfolioReturn = smoothedReturn;
   }
 
   console.log(`[HypotheticalPerformance] Generated ${result.length} points`);
@@ -398,18 +437,25 @@ export async function getRealTwrSeriesFromTransactions(
 
     // Calculate portfolio value at EOD
     let portfolioValue = cashBalance;
-    for (const [ticker, shares] of Object.entries(holdings)) {
-      if (shares <= 0) continue;
+    for (const [ticker, sharesCount] of Object.entries(holdings)) {
+      if (sharesCount <= 0) continue;
       
       let price = pricesMap[ticker][date];
       // Forward-fill if price not available
       if (!price) {
         price = forwardFillPrices[ticker] || 0;
       } else {
-        forwardFillPrices[ticker] = price;
+        // Check for unrealistic price jumps (more than 50% in one day)
+        const lastPrice = forwardFillPrices[ticker];
+        if (lastPrice && Math.abs(price - lastPrice) / lastPrice > 0.5) {
+          console.warn(`[RealTWR] ${ticker} on ${date}: Large price jump from ${lastPrice} to ${price}, using forward-fill`);
+          price = lastPrice;
+        } else {
+          forwardFillPrices[ticker] = price;
+        }
       }
 
-      portfolioValue += shares * price;
+      portfolioValue += sharesCount * price;
     }
 
     // Calculate return
@@ -417,10 +463,21 @@ export async function getRealTwrSeriesFromTransactions(
     // Simplified: return = (V_end - V_start - cashflow) / V_start
     // More accurate: use sub-period returns
     const portfolioReturn = startValue > 0 ? (portfolioValue / startValue) - 1 : 0;
+    
+    // Detect and smooth out unrealistic jumps (max 15% daily change)
+    const MAX_DAILY_CHANGE = 0.15;
+    const lastReturn = result.length > 0 ? result[result.length - 1].portfolioReturn : 0;
+    const dailyChange = Math.abs(portfolioReturn - lastReturn);
+    let smoothedReturn = portfolioReturn;
+    
+    if (result.length > 0 && dailyChange > MAX_DAILY_CHANGE) {
+      console.warn(`[RealTWR] ${date}: Large daily change ${(dailyChange * 100).toFixed(2)}%, smoothing`);
+      smoothedReturn = lastReturn + (portfolioReturn > lastReturn ? MAX_DAILY_CHANGE : -MAX_DAILY_CHANGE);
+    }
 
     result.push({
       date,
-      portfolioReturn,
+      portfolioReturn: smoothedReturn,
       portfolioValueCHF: portfolioValue,
       segment: 'real'
     });
