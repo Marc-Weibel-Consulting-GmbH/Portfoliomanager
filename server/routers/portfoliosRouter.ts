@@ -543,6 +543,32 @@ export const portfoliosRouter = router({
             }
           }
           
+          // 6) Trigger automatic MAX backfill for new symbols (async, non-blocking)
+          if (input.portfolioData) {
+            try {
+              const portfolioData = JSON.parse(input.portfolioData);
+              const holdings = portfolioData.stocks || [];
+              const tickers = holdings.map((h: any) => h.ticker).filter(Boolean);
+              
+              if (tickers.length > 0) {
+                console.log(`[portfolios.create ${debugId}] Triggering auto-backfill for ${tickers.length} symbols...`);
+                // Import and trigger backfill asynchronously (don't await to avoid blocking)
+                import("../autoBackfill").then(({ autoBackfillNewSymbols }) => {
+                  autoBackfillNewSymbols(tickers).then(result => {
+                    if (result.newSymbolsDetected > 0) {
+                      console.log(`[portfolios.create ${debugId}] Auto-backfill completed: ${result.newSymbolsDetected} new symbols processed`);
+                    }
+                  }).catch(err => {
+                    console.error(`[portfolios.create ${debugId}] Auto-backfill error:`, err);
+                  });
+                });
+              }
+            } catch (backfillErr) {
+              console.error(`[portfolios.create ${debugId}] Failed to trigger auto-backfill:`, backfillErr);
+              // Don't throw - portfolio is created, backfill can happen later
+            }
+          }
+          
           return { ok: true, portfolio: inserted[0] };
         } catch (err: any) {
           // If it's already a TRPCError, rethrow it

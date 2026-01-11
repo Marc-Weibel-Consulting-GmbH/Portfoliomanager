@@ -166,3 +166,12 @@
 - [x] Logo-Cache-Queries in server/db.ts hinzufügen
 - [x] Logo-Caching-Logik im Backend implementieren
 - [x] Logo-Abruf mit Cache-Prüfung integrieren
+
+
+## Automatische MAX-Backfill Policy (11.01.2026)
+- [x] Bestehende Backfill-Logik analysieren und verstehen
+- [x] Automatische Erkennung neuer Symbole implementieren
+- [x] MAX-Backfill für neue Symbole beim ersten Auftreten triggern
+- [x] Integration in Portfolio-Erstellung und Aktien-Suche
+- [x] Logging und Monitoring für Backfill-Prozesse
+- [x] Unit-Tests für die neue Funktionalität

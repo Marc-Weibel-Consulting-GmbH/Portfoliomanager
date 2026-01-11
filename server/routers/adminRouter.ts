@@ -3,6 +3,14 @@ import { z } from "zod";
 import { importHistoricalPrices, importHistoricalPricesForTicker } from "../jobs/importHistoricalPrices";
 import { checkPriceCoverage, getRelevantTickersForPortfolio, getAllPortfolioTickers } from "../priceCoverage";
 import { backfillHistoricalPrices } from "../backfillHistoricalPrices";
+import { 
+  checkSymbolDataStatus, 
+  triggerMaxBackfillForSymbol, 
+  ensureMaxBackfillForSymbols,
+  autoBackfillNewSymbols,
+  getBackfillQueueStatus,
+  clearBackfillCache 
+} from "../autoBackfill";
 
 export const adminRouter = router({
     exportData: protectedProcedure.query(async () => {
@@ -399,5 +407,127 @@ export const adminRouter = router({
           tickers,
           count: tickers.length
         };
+      }),
+
+    /**
+     * Get auto-backfill queue status
+     * Shows pending and recently completed backfills
+     */
+    getBackfillStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        return getBackfillQueueStatus();
+      }),
+
+    /**
+     * Check data status for specific symbols
+     * Returns information about available historical data
+     */
+    checkSymbolsDataStatus: protectedProcedure
+      .input(z.object({
+        tickers: z.array(z.string())
+      }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        const statuses = await Promise.all(
+          input.tickers.map(ticker => checkSymbolDataStatus(ticker))
+        );
+
+        return {
+          statuses,
+          summary: {
+            total: statuses.length,
+            withData: statuses.filter(s => s.hasData).length,
+            needingBackfill: statuses.filter(s => s.needsBackfill).length,
+            currentlyBackfilling: statuses.filter(s => s.isBackfilling).length
+          }
+        };
+      }),
+
+    /**
+     * Trigger MAX backfill for specific symbols
+     * Fetches 5 years of historical data for each symbol
+     */
+    triggerMaxBackfill: protectedProcedure
+      .input(z.object({
+        tickers: z.array(z.string()),
+        force: z.boolean().optional().default(false)
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        console.log(`[adminRouter.triggerMaxBackfill] Starting MAX backfill for ${input.tickers.length} tickers`);
+        
+        const results = await ensureMaxBackfillForSymbols(input.tickers, input.force);
+
+        return {
+          results,
+          summary: {
+            total: results.length,
+            successful: results.filter(r => r.success).length,
+            failed: results.filter(r => !r.success).length,
+            totalPricesInserted: results.reduce((sum, r) => sum + r.pricesInserted, 0),
+            totalDuration: results.reduce((sum, r) => sum + r.duration, 0)
+          }
+        };
+      }),
+
+    /**
+     * Auto-detect and backfill new symbols
+     * Checks all provided symbols and triggers backfill for those without sufficient data
+     */
+    autoBackfillSymbols: protectedProcedure
+      .input(z.object({
+        tickers: z.array(z.string()).optional()
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        // If no tickers provided, get all portfolio tickers
+        let tickers = input.tickers || [];
+        if (tickers.length === 0) {
+          tickers = await getAllPortfolioTickers();
+        }
+
+        console.log(`[adminRouter.autoBackfillSymbols] Checking ${tickers.length} symbols for auto-backfill`);
+        
+        const result = await autoBackfillNewSymbols(tickers);
+
+        return {
+          newSymbolsDetected: result.newSymbolsDetected,
+          statuses: result.statuses,
+          backfillResults: result.backfillResults,
+          summary: {
+            totalChecked: result.statuses.length,
+            newSymbols: result.newSymbolsDetected,
+            successfulBackfills: result.backfillResults.filter(r => r.success).length,
+            failedBackfills: result.backfillResults.filter(r => !r.success).length,
+            totalPricesInserted: result.backfillResults.reduce((sum, r) => sum + r.pricesInserted, 0)
+          }
+        };
+      }),
+
+    /**
+     * Clear backfill cache
+     * Forces re-check of all symbols on next backfill request
+     */
+    clearBackfillCache: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        clearBackfillCache();
+        return { success: true, message: 'Backfill cache cleared' };
       }),
 });
