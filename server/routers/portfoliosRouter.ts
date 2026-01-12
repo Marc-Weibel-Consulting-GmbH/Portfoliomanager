@@ -1089,11 +1089,13 @@ export const portfoliosRouter = router({
             break;
         }
         
-        // BRANCH DECISION: Live + (YTD || All) + creationDate => ALWAYS try stitched
+        // BRANCH DECISION: Live + (YTD || All) + creationDate + HAS TRANSACTIONS => ALWAYS try stitched
         // Hypo needs ONLY: Weights (current) + Price data from 01.01
         // earliestTransactionDate is IRRELEVANT for hypo!
+        // IMPORTANT: Only use stitched branch if portfolio has transactions
+        // Live portfolios without transactions should use the old weight-based logic (like test portfolios)
         const creationDate = portfolio.liveStartDate ? new Date(portfolio.liveStartDate) : null;
-        const shouldUseStitchedBranch = isLivePortfolio && (period === 'YTD' || period === 'All') && creationDate;
+        const shouldUseStitchedBranch = isLivePortfolio && (period === 'YTD' || period === 'All') && creationDate && transactions.length > 0;
         const allowHypotheticalPerformance = shouldUseStitchedBranch; // Keep for backward compatibility
         
         // ALWAYS log this decision for debugging

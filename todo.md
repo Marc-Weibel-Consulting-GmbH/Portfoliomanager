@@ -228,3 +228,19 @@
   - Ursache 4: initialHoldings und initialCash falsch berechnet (buy-Kosten nicht von Cash abgezogen)
   - Lösung 4: initialCash wird jetzt korrekt um buy-Kosten reduziert
   - Status: Test Cash Portfolio funktioniert perfekt, Demo Portfolio funktioniert, Regula Portfolio zeigt noch negative Performance (muss weiter untersucht werden)
+
+
+## Performance-Chart Debugging (12.01.2026)
+- [ ] Excel-Tabellen mit detaillierten Performance-Berechnungen für alle Portfolios und Zeiträume erstellen (zur Fehleranalyse der Charts)
+  - Für jedes Portfolio und jeden Zeitraum (1M, 3M, 6M, YTD, 1Y, 3Y, 5Y, All)
+  - Jeden Datenpunkt mit Datum, Rohwerten aus DB (mit Quellenangabe), Berechnungsschritten und finalen Performance-Werten
+
+
+## Neue Bugs (12.01.2026 - Nachmittag)
+- [x] BUG: Demo/Test-Portfolios zeigen ebenfalls Fehler in Performance-Charts - FIXED: Branch-Decision korrigiert
+- [x] BUG: Live-Portfolio ohne Transaktionen zeigt Fehler in Performance-Charts - FIXED: Branch-Decision korrigiert
+- [x] BUG: Live-Portfolio mit Transaktionen zeigt "Keine Transaktionen gefunden" Fehler - FIXED: Branch-Decision korrigiert
+- [x] SYSTEMATISCHE PRÜFUNG: Alle Portfolio-Typen (Demo, Test, Live mit/ohne Transaktionen) auf Fehler überprüfen und beheben - COMPLETED
+  - ✅ Demo Portfolio - Schweizer Blue Chips (Test): Chart funktioniert
+  - ✅ Test Cash Portfolio Live (Live mit Transaktionen): Chart funktioniert
+  - ✅ Regula Live (Live mit Transaktionen + hypothetische Performance): Chart funktioniert mit Stitching
