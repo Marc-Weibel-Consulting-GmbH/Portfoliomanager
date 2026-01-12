@@ -215,3 +215,11 @@
   - Tägliche Rendite-Glättung (max 15% pro Tag)
   - Einzelaktien-Performance begrenzt auf -100% bis +200%
   - Datenpunkte mit >50% Forward-Fill werden übersprungen
+
+
+## Bug-Fix Performance 0% (11.01.2026)
+- [x] BUG: Portfolio-Performance zeigt 0% bei fast allen Portfolios, nur Benchmark funktioniert korrekt - FIXED:
+  - Ursache 1: liveStartDate (28.12.2025) stimmte nicht mit tatsächlichem Transaktionsdatum (12.11.2025) überein
+  - Lösung 1: effectiveStartDate verwendet earliestTransactionDate wenn keine Transaktionen am liveStartDate vorhanden
+  - Ursache 2: Falscher Spaltenname amountCHF statt totalAmountCHF für Einzahlungen
+  - Lösung 2: totalAmountCHF in portfoliosRouter.ts und performanceHypothetical.ts korrigiert

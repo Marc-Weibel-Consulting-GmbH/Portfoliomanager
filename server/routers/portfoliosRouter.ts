@@ -1300,16 +1300,32 @@ export const portfoliosRouter = router({
             }
             
             // Phase 2: Real performance (creationDate to today)
-            console.log(`[NewArchitecture] Calculating real performance from ${creationDateStr} to ${todayStr}`);
+            // IMPORTANT: Use earliestTransactionDate if liveStartDate has no transactions
+            // This handles cases where liveStartDate was set after the actual portfolio creation
+            let effectiveStartDate = creationDateStr;
+            
+            // Check if there are transactions on the liveStartDate
+            const transactionsOnCreationDate = transactions.filter((tx: any) => {
+              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+              return txDate === creationDateStr;
+            });
+            
+            // If no transactions on liveStartDate, use earliestTransactionDate instead
+            if (transactionsOnCreationDate.length === 0 && earliestTransactionDate) {
+              effectiveStartDate = earliestTransactionDate.toISOString().split('T')[0];
+              console.log(`[NewArchitecture] No transactions on liveStartDate (${creationDateStr}), using earliestTransactionDate: ${effectiveStartDate}`);
+            }
+            
+            console.log(`[NewArchitecture] Calculating real performance from ${effectiveStartDate} to ${todayStr}`);
             
             // Build initial holdings from first transactions
             const initialHoldings: Record<string, number> = {};
             let initialCash = 0;
             
-            // Get transactions on creation date
+            // Get transactions on the effective start date
             const creationTransactions = transactions.filter((tx: any) => {
               const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-              return txDate === creationDateStr;
+              return txDate === effectiveStartDate;
             });
             
             // Process creation transactions to get initial state
@@ -1321,13 +1337,14 @@ export const portfoliosRouter = router({
               if (type === 'buy') {
                 initialHoldings[ticker] = (initialHoldings[ticker] || 0) + shares;
               } else if (type === 'deposit') {
-                initialCash += parseFloat(tx.amountCHF) || 0;
+                // Note: The column is named totalAmountCHF in the database
+                initialCash += parseFloat(tx.totalAmountCHF) || 0;
               }
             }
             
             const realRes = await safeExec("real", async () => {
               return await getRealTwrSeriesFromTransactions(
-                creationDateStr,
+                effectiveStartDate, // Use effective start date instead of creationDateStr
                 todayStr,
                 transactions,
                 initialHoldings,

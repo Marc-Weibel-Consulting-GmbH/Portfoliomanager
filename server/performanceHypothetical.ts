@@ -405,7 +405,8 @@ export async function getRealTwrSeriesFromTransactions(
       const shares = parseFloat(String(tx.shares || tx.quantity || 0));
       const pricePerShare = parseFloat(String(tx.pricePerShare || tx.price || 0));
       const fees = parseFloat(String(tx.fees || 0));
-      const amountCHF = parseFloat(String(tx.amountCHF || (shares * pricePerShare)));
+      // Note: The column is named totalAmountCHF in the database
+      const amountCHF = parseFloat(String(tx.totalAmountCHF || tx.amountCHF || (shares * pricePerShare)));
 
       switch (type) {
         case 'deposit':
