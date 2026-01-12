@@ -223,3 +223,8 @@
   - Lösung 1: effectiveStartDate verwendet earliestTransactionDate wenn keine Transaktionen am liveStartDate vorhanden
   - Ursache 2: Falscher Spaltenname amountCHF statt totalAmountCHF für Einzahlungen
   - Lösung 2: totalAmountCHF in portfoliosRouter.ts und performanceHypothetical.ts korrigiert
+  - Ursache 3: TWR-Berechnung verwendete startValue statt kumulative Returns
+  - Lösung 3: Kumulative TWR-Berechnung mit täglichen Returns implementiert
+  - Ursache 4: initialHoldings und initialCash falsch berechnet (buy-Kosten nicht von Cash abgezogen)
+  - Lösung 4: initialCash wird jetzt korrekt um buy-Kosten reduziert
+  - Status: Test Cash Portfolio funktioniert perfekt, Demo Portfolio funktioniert, Regula Portfolio zeigt noch negative Performance (muss weiter untersucht werden)

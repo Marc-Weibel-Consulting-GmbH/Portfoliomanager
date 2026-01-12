@@ -459,21 +459,34 @@ export async function getRealTwrSeriesFromTransactions(
       portfolioValue += sharesCount * price;
     }
 
-    // Calculate return
-    // For TWR with cashflows: adjust for external cashflows
-    // Simplified: return = (V_end - V_start - cashflow) / V_start
-    // More accurate: use sub-period returns
-    const portfolioReturn = startValue > 0 ? (portfolioValue / startValue) - 1 : 0;
+    // Calculate return using Modified Dietz method (approximation of TWR)
+    // For TWR with cashflows: R = (V_end - V_start - CF) / (V_start + CF * weight)
+    // Simplified: assume cashflows happen at midpoint (weight = 0.5)
+    // For daily calculation: R = (V_end - V_start - CF) / V_start (CF already applied to V_end)
+    
+    // Calculate daily return
+    let dailyReturn = 0;
+    if (lastValue > 0) {
+      // Adjust for external cashflows: (V_end - V_start - CF) / V_start
+      // Since we already applied cashflows to portfolioValue, we need to subtract them
+      const valueChange = portfolioValue - lastValue - externalCashflow;
+      dailyReturn = valueChange / lastValue;
+    }
+    
+    // Calculate cumulative return from start
+    // Compound the daily returns: (1 + R_total) = (1 + R_1) * (1 + R_2) * ... * (1 + R_n)
+    const previousReturn = result.length > 0 ? result[result.length - 1].portfolioReturn : 0;
+    const cumulativeReturn = (1 + previousReturn) * (1 + dailyReturn) - 1;
     
     // Detect and smooth out unrealistic jumps (max 15% daily change)
     const MAX_DAILY_CHANGE = 0.15;
-    const lastReturn = result.length > 0 ? result[result.length - 1].portfolioReturn : 0;
-    const dailyChange = Math.abs(portfolioReturn - lastReturn);
-    let smoothedReturn = portfolioReturn;
+    let smoothedReturn = cumulativeReturn;
     
-    if (result.length > 0 && dailyChange > MAX_DAILY_CHANGE) {
-      console.warn(`[RealTWR] ${date}: Large daily change ${(dailyChange * 100).toFixed(2)}%, smoothing`);
-      smoothedReturn = lastReturn + (portfolioReturn > lastReturn ? MAX_DAILY_CHANGE : -MAX_DAILY_CHANGE);
+    if (result.length > 0 && Math.abs(dailyReturn) > MAX_DAILY_CHANGE) {
+      console.warn(`[RealTWR] ${date}: Large daily return ${(dailyReturn * 100).toFixed(2)}%, smoothing`);
+      // Cap the daily return
+      const cappedDailyReturn = dailyReturn > 0 ? MAX_DAILY_CHANGE : -MAX_DAILY_CHANGE;
+      smoothedReturn = (1 + previousReturn) * (1 + cappedDailyReturn) - 1;
     }
 
     result.push({

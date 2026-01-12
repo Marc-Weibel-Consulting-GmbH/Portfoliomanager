@@ -1329,16 +1329,28 @@ export const portfoliosRouter = router({
             });
             
             // Process creation transactions to get initial state
+            // IMPORTANT: Process deposits first, then buys to get correct initial cash balance
+            for (const tx of creationTransactions) {
+              const type = tx.transactionType || tx.type;
+              
+              if (type === 'deposit') {
+                // Note: The column is named totalAmountCHF in the database
+                initialCash += parseFloat(tx.totalAmountCHF) || 0;
+              }
+            }
+            
+            // Now process buys and subtract from initial cash
             for (const tx of creationTransactions) {
               const ticker = tx.ticker;
               const shares = parseFloat(tx.shares) || 0;
               const type = tx.transactionType || tx.type;
+              const fees = parseFloat(tx.fees) || 0;
               
               if (type === 'buy') {
                 initialHoldings[ticker] = (initialHoldings[ticker] || 0) + shares;
-              } else if (type === 'deposit') {
-                // Note: The column is named totalAmountCHF in the database
-                initialCash += parseFloat(tx.totalAmountCHF) || 0;
+                // Subtract the cost from initial cash
+                const cost = parseFloat(tx.totalAmountCHF) || 0;
+                initialCash -= (cost + fees);
               }
             }
             
