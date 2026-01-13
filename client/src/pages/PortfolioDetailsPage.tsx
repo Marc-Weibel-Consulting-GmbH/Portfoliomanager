@@ -195,7 +195,7 @@ export default function PortfolioDetailsPage() {
     { enabled: portfolioId > 0 }
   );
   
-  // Process chart data - add visual separation at creation date for live portfolios
+  // Process chart data - SIMPLIFIED (12.01.2026): No hypothetical line, only Portfolio and Benchmark
   const chartData = useMemo(() => {
     if (!historicalData?.chartData || historicalData.chartData.length === 0) {
       return { data: [], creationDateIndex: -1, hasHypothetical: false };
@@ -207,31 +207,20 @@ export default function PortfolioDetailsPage() {
     const sampleInterval = Math.max(1, Math.floor(realData.length / 52));
     const sampledData = realData.filter((_: any, index: number) => index % sampleInterval === 0 || index === realData.length - 1);
     
-    // Find the index where portfolio was created (for visual separation)
-    const creationDateIndex = portfolio?.isLive && creationDate ? sampledData.findIndex((d: any) => {
-      const dataDate = new Date(d.date).toISOString().split('T')[0];
-      return dataDate >= creationDate;
-    }) : -1;
-    
-    // Format dates and separate hypothetical from real data
-    const formattedData = sampledData.map((d: any, index: number) => {
-      const isHypothetical = creationDateIndex >= 0 && index < creationDateIndex;
-      return {
-        date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short', year: '2-digit' }),
-        // Before creation date: show as hypothetical (dashed line)
-        // After creation date: show as real portfolio (solid line)
-        portfolio: isHypothetical ? null : d.portfolio,
-        hypothetical: isHypothetical ? d.portfolio : null,
-        benchmark: d.benchmark,
-      };
-    });
+    // Format dates - all data is now "real" (no hypothetical distinction)
+    const formattedData = sampledData.map((d: any) => ({
+      date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short', year: '2-digit' }),
+      portfolio: d.portfolio,
+      hypothetical: null, // No hypothetical data anymore
+      benchmark: d.benchmark,
+    }));
     
     return { 
       data: formattedData, 
-      creationDateIndex,
-      hasHypothetical: creationDateIndex > 0
+      creationDateIndex: -1,
+      hasHypothetical: false // No hypothetical data anymore
     };
-  }, [historicalData, creationDate, portfolio?.isLive]);
+  }, [historicalData]);
   
   // Prepare pie chart data for asset allocation
   const assetAllocationData = useMemo(() => {
@@ -557,7 +546,6 @@ export default function PortfolioDetailsPage() {
                           name="benchmark" 
                           stroke="#6366f1" 
                           strokeWidth={1.5}
-                          strokeDasharray="5 5"
                           fill="none"
                         />
                       </AreaChart>

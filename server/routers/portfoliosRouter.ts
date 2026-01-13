@@ -1089,14 +1089,22 @@ export const portfoliosRouter = router({
             break;
         }
         
-        // BRANCH DECISION: Live + (YTD || All) + creationDate + HAS TRANSACTIONS => ALWAYS try stitched
-        // Hypo needs ONLY: Weights (current) + Price data from 01.01
-        // earliestTransactionDate is IRRELEVANT for hypo!
-        // IMPORTANT: Only use stitched branch if portfolio has transactions
-        // Live portfolios without transactions should use the old weight-based logic (like test portfolios)
+        // SIMPLIFIED BRANCH DECISION (12.01.2026):
+        // - Live-Portfolios mit Transaktionen: Reale Performance ab Erstellungsdatum
+        // - Demo-Portfolios (und Live ohne Transaktionen): Historische Performance basierend auf Gewichtung
+        // - KEINE hypothetische Performance vor Erstellungsdatum
         const creationDate = portfolio.liveStartDate ? new Date(portfolio.liveStartDate) : null;
-        const shouldUseStitchedBranch = isLivePortfolio && (period === 'YTD' || period === 'All') && creationDate && transactions.length > 0;
-        const allowHypotheticalPerformance = shouldUseStitchedBranch; // Keep for backward compatibility
+        
+        // Live portfolios with transactions use real TWR calculation
+        const useLiveRealPerformance = isLivePortfolio && transactions.length > 0;
+        
+        // For live portfolios, start from creation date (not before)
+        if (useLiveRealPerformance && creationDate && startDate < creationDate) {
+          startDate = creationDate;
+        }
+        
+        // Legacy compatibility
+        const allowHypotheticalPerformance = false; // No more hypothetical performance
         
         // ALWAYS log this decision for debugging
         console.log('[getHistoricalPerformance] Branch decision:', {
@@ -1105,7 +1113,7 @@ export const portfoliosRouter = router({
           isLivePortfolio,
           hasCreationDate: !!creationDate,
           creationDate: creationDate?.toISOString(),
-          shouldUseStitchedBranch,
+          useLiveRealPerformance,
           earliestTransactionDate: earliestTransactionDate?.toISOString()
         });
         
@@ -1114,12 +1122,12 @@ export const portfoliosRouter = router({
           debug.ytdStartDate = startDate.toISOString().split('T')[0];
           debug.endDate = todayStr;
           debug.earliestTransactionDate = earliestTransactionDate?.toISOString() || null;
-          debug.allowHypotheticalPerformance = shouldUseStitchedBranch;
+          debug.allowHypotheticalPerformance = false;
         }
         
-        // NEW ARCHITECTURE: Use two-phase calculation for hypothetical + real performance
-        if (shouldUseStitchedBranch) {
-          if (debug) debug.branchSelected = "stitched";
+        // SIMPLIFIED: Live portfolios with transactions use real TWR calculation
+        if (useLiveRealPerformance) {
+          if (debug) debug.branchSelected = "liveReal";
           console.log(`[NewArchitecture] Using two-phase calculation for portfolio ${portfolioId}`);
           
           const creationDateStr = creationDate.toISOString().split('T')[0];
@@ -1245,60 +1253,16 @@ export const portfoliosRouter = router({
               debug.priceData.sampleTicker = weights[0]?.ticker || null;
             }
             
-            // Phase 1: Hypothetical performance (ytdStart to creationDate - 1 day)
-            const dayBeforeCreation = new Date(creationDate);
-            dayBeforeCreation.setDate(dayBeforeCreation.getDate() - 1);
-            const hypotheticalEndDate = dayBeforeCreation.toISOString().split('T')[0];
+            // SIMPLIFIED (12.01.2026): No hypothetical performance - only real performance from creation date
+            console.log(`[LiveRealPerformance] Calculating real performance from ${creationDateStr} to ${todayStr}`);
             
-            console.log(`[NewArchitecture] Hypothetical period: ${ytdStartStr} to ${hypotheticalEndDate} (day before creation: ${creationDateStr})`);
-            console.log(`[NewArchitecture] Real performance starts from: ${creationDateStr}`);
-            
-            let hypotheticalSeries: any[] = [];
-            const hypoRes = await safeExec("hypo", async () => {
-              if (ytdStartStr < creationDateStr) {
-                console.log(`[NewArchitecture] Calculating hypothetical performance from ${ytdStartStr} to ${hypotheticalEndDate}`);
-                return await getHypotheticalSeriesFromWeights(
-                  weights,
-                  ytdStartStr,
-                  hypotheticalEndDate,
-                  startCapitalHypo
-                );
-              }
-              return [];
-            });
-            
+            // Skip hypothetical phase entirely
             if (debug) {
-              debug.hypo.ok = hypoRes.ok;
-              debug.hypo.error = hypoRes.error || null;
-              if (hypoRes.ok && hypoRes.value) {
-                const r = mkRangeInfo(hypoRes.value);
-                debug.hypo.count = r.count;
-                debug.hypo.firstDate = r.firstDate;
-                debug.hypo.lastDate = r.lastDate;
-                
-                // Assertion A1: hypoMissingYtdStart
-                if (r.count > 0) {
-                  const firstDate = new Date(r.firstDate);
-                  const ytdDate = new Date(ytdStartStr);
-                  const diffDays = (firstDate.getTime() - ytdDate.getTime()) / (1000 * 60 * 60 * 24);
-                  assertOrDebug(debug, diffDays <= 3, "hypoMissingYtdStart", `hypo.firstDate=${r.firstDate}, ytd=${ytdStartStr}, diff=${diffDays}days`);
-                }
-                
-                // Assertion A2: hypoTooShort
-                if (period === 'YTD' || period === 'All') {
-                  assertOrDebug(debug, r.count >= 10, "hypoTooShort", `hypo.count=${r.count}`);
-                }
-              }
-            }
-            
-            if (!hypoRes.ok || !hypoRes.value || hypoRes.value.length === 0) {
-              if (debug) {
-                assertOrDebug(debug, false, "hypoEmptyOrFailed", "Hypothetical series failed or empty; falling back to realOnly");
-                debug.branchSelected = "realOnly";
-              }
-              // Fall back to realOnly - will be handled below
-            } else {
-              hypotheticalSeries = hypoRes.value;
+              debug.hypo.ok = false;
+              debug.hypo.error = "Hypothetical performance disabled";
+              debug.hypo.count = 0;
+              debug.hypo.firstDate = null;
+              debug.hypo.lastDate = null;
             }
             
             // Phase 2: Real performance (creationDate to today)
@@ -1392,11 +1356,9 @@ export const portfoliosRouter = router({
             
             const realSeries = realRes.value;
             
-            // Phase 3: Stitch series
-            console.log(`[NewArchitecture] Stitching series`);
-            const stitchedRes = await safeExec("stitched", async () => {
-              return stitchSeries(hypotheticalSeries, realSeries);
-            });
+            // SIMPLIFIED (12.01.2026): No stitching needed - use realSeries directly
+            console.log(`[LiveRealPerformance] Using real series directly (no stitching)`);
+            const stitchedRes = { ok: true, value: realSeries, error: null };
             
             if (debug) {
               debug.stitched.ok = stitchedRes.ok;
@@ -1419,31 +1381,193 @@ export const portfoliosRouter = router({
                 assertOrDebug(debug, false, "stitchedFailed", "Stitch failed, falling back to realOnly");
                 debug.branchSelected = "realOnly";
               }
-              // Fall back to realOnly
-              const chartData = realSeries.map((point: any) => ({
-                date: point.date,
-                portfolio: point.portfolioReturn * 100,
-                benchmark: 0,
-                segment: "real"
-              }));
+              // Fall back to realOnly - still need benchmark
+              // Fetch benchmark prices for the real series date range
+              const benchmarkPricesForReal = await db
+                .select()
+                .from(historicalPrices)
+                .where(
+                  and(
+                    eq(historicalPrices.ticker, benchmark),
+                    gte(historicalPrices.date, ytdStartStr),
+                    lte(historicalPrices.date, todayStr)
+                  )
+                )
+                .orderBy(asc(historicalPrices.date));
+              
+              const benchmarkMapForReal: Record<string, number> = {};
+              benchmarkPricesForReal.forEach((p: any) => {
+                // Convert Date object to string format YYYY-MM-DD
+                const dateStr = p.date instanceof Date 
+                  ? p.date.toISOString().split('T')[0] 
+                  : String(p.date).split('T')[0];
+                benchmarkMapForReal[dateStr] = parseFloat(p.close) || 0;
+              });
+              
+              let benchmarkStartPriceForReal = 0;
+              const sortedBenchmarkDatesForReal = Object.keys(benchmarkMapForReal).sort();
+              for (const date of sortedBenchmarkDatesForReal) {
+                if (date >= ytdStartStr) {
+                  benchmarkStartPriceForReal = benchmarkMapForReal[date];
+                  break;
+                }
+              }
+              
+              // Helper function to find the closest available benchmark price
+              const getClosestBenchmarkPriceForReal = (targetDate: string): number => {
+                if (benchmarkMapForReal[targetDate]) {
+                  return benchmarkMapForReal[targetDate];
+                }
+                const sortedDates = Object.keys(benchmarkMapForReal).sort();
+                let closestPrice = 0;
+                for (const date of sortedDates) {
+                  if (date <= targetDate) {
+                    closestPrice = benchmarkMapForReal[date];
+                  } else if (closestPrice === 0 && date > targetDate) {
+                    closestPrice = benchmarkMapForReal[date];
+                    break;
+                  }
+                }
+                return closestPrice;
+              };
+              
+              const chartData = realSeries.map((point: any) => {
+                const benchmarkCurrentPrice = getClosestBenchmarkPriceForReal(point.date);
+                const benchmarkPerformance = benchmarkStartPriceForReal > 0 && benchmarkCurrentPrice > 0
+                  ? ((benchmarkCurrentPrice - benchmarkStartPriceForReal) / benchmarkStartPriceForReal) * 100
+                  : 0;
+                
+                return {
+                  date: point.date,
+                  portfolio: point.portfolioReturn * 100,
+                  benchmark: parseFloat(benchmarkPerformance.toFixed(2)),
+                  segment: "real"
+                };
+              });
               return { chartData, ...(debugOn ? { debug } : {}) };
             }
             
             const stitchedSeries = stitchedRes.value;
             
-            // Convert to chartData format
-            const chartData = stitchedSeries.map(point => ({
-              date: point.date,
-              portfolio: point.portfolioReturn * 100, // Convert to percentage
-              benchmark: 0, // TODO: Add benchmark calculation
-              segment: point.segment // Include segment for frontend
-            }));
+            // Debug: Mark that we reached the benchmark calculation
+            if (debug) {
+              debug.reachedBenchmarkCalc = true;
+            }
             
-            console.log(`[NewArchitecture] Generated ${chartData.length} chart points`);
+            // Fetch benchmark prices for the real series date range
+            // IMPORTANT: Use earliest transaction date as start for Live-Portfolios
+            // This ensures benchmark starts from the same date as the portfolio performance
+            const benchmarkStartDateStr = earliestTransactionDate 
+              ? earliestTransactionDate.toISOString().split('T')[0]
+              : creationDateStr; // Fallback to creation date if no transactions
+            console.log(`[LiveRealPerformance] Fetching benchmark from ${benchmarkStartDateStr} to ${todayStr}`);
+            
+            const benchmarkPricesForStitched = await db
+              .select()
+              .from(historicalPrices)
+              .where(
+                and(
+                  eq(historicalPrices.ticker, benchmark),
+                  gte(historicalPrices.date, benchmarkStartDateStr),
+                  lte(historicalPrices.date, todayStr)
+                )
+              )
+              .orderBy(asc(historicalPrices.date));
+            
+            const benchmarkMapForStitched: Record<string, number> = {};
+            benchmarkPricesForStitched.forEach((p: any) => {
+              // Convert Date object to string format YYYY-MM-DD
+              const dateStr = p.date instanceof Date 
+                ? p.date.toISOString().split('T')[0] 
+                : String(p.date).split('T')[0];
+              benchmarkMapForStitched[dateStr] = parseFloat(p.close) || 0;
+            });
+            
+            // Get benchmark starting price (from creation date)
+            let benchmarkStartPriceForStitched = 0;
+            const sortedBenchmarkDatesForStitched = Object.keys(benchmarkMapForStitched).sort();
+            for (const date of sortedBenchmarkDatesForStitched) {
+              if (date >= benchmarkStartDateStr) {
+                benchmarkStartPriceForStitched = benchmarkMapForStitched[date];
+                break;
+              }
+            }
+            if (benchmarkStartPriceForStitched === 0 && benchmarkPricesForStitched.length > 0) {
+              benchmarkStartPriceForStitched = parseFloat(String(benchmarkPricesForStitched[0]?.close || 0));
+            }
+            
+            console.log(`[NewArchitecture] Benchmark ${benchmark} start price: ${benchmarkStartPriceForStitched}`);
+            console.log(`[NewArchitecture] Benchmark prices count: ${benchmarkPricesForStitched.length}`);
+            console.log(`[NewArchitecture] Benchmark map keys: ${Object.keys(benchmarkMapForStitched).slice(0, 5).join(', ')}...`);
+            console.log(`[NewArchitecture] ytdStartStr: ${ytdStartStr}, todayStr: ${todayStr}`);
+            console.log(`[NewArchitecture] First stitched point date: ${stitchedSeries[0]?.date}`);
+            console.log(`[NewArchitecture] Last stitched point date: ${stitchedSeries[stitchedSeries.length - 1]?.date}`);
+            if (benchmarkPricesForStitched.length > 0) {
+              console.log(`[NewArchitecture] First benchmark price:`, benchmarkPricesForStitched[0]);
+            }
+            
+            // Debug: Log benchmark data before processing
+            console.log(`[BenchmarkDebug] benchmarkPricesForStitched.length: ${benchmarkPricesForStitched.length}`);
+            console.log(`[BenchmarkDebug] benchmarkMapForStitched keys: ${Object.keys(benchmarkMapForStitched).join(', ')}`);
+            console.log(`[BenchmarkDebug] benchmarkStartPriceForStitched: ${benchmarkStartPriceForStitched}`);
+            console.log(`[BenchmarkDebug] First stitched point: ${JSON.stringify(stitchedSeries[0])}`);
+            
+            // Helper function to find the closest available benchmark price
+            const getClosestBenchmarkPrice = (targetDate: string): number => {
+              // First try exact match
+              if (benchmarkMapForStitched[targetDate]) {
+                return benchmarkMapForStitched[targetDate];
+              }
+              
+              // Find the closest date (prefer previous date, then next date)
+              const sortedDates = Object.keys(benchmarkMapForStitched).sort();
+              let closestDate = '';
+              let closestPrice = 0;
+              
+              for (const date of sortedDates) {
+                if (date <= targetDate) {
+                  closestDate = date;
+                  closestPrice = benchmarkMapForStitched[date];
+                } else if (!closestDate && date > targetDate) {
+                  // If no previous date found, use the next available date
+                  closestPrice = benchmarkMapForStitched[date];
+                  break;
+                }
+              }
+              
+              return closestPrice;
+            };
+            
+            // Convert to chartData format with benchmark
+            const chartData = stitchedSeries.map(point => {
+              const benchmarkCurrentPrice = getClosestBenchmarkPrice(point.date);
+              const benchmarkPerformance = benchmarkStartPriceForStitched > 0 && benchmarkCurrentPrice > 0
+                ? ((benchmarkCurrentPrice - benchmarkStartPriceForStitched) / benchmarkStartPriceForStitched) * 100
+                : 0;
+              
+              return {
+                date: point.date,
+                portfolio: point.portfolioReturn * 100, // Convert to percentage
+                benchmark: parseFloat(benchmarkPerformance.toFixed(2)),
+                segment: point.segment // Include segment for frontend
+              };
+            });
+            
+            console.log(`[NewArchitecture] Generated ${chartData.length} chart points with benchmark`);
             console.log(`[NewArchitecture] First point:`, chartData[0]);
             console.log(`[NewArchitecture] Last point:`, chartData[chartData.length - 1]);
             
-            return { chartData, ...(debugOn ? { debug } : {}) };
+            // Add benchmark debug info - ALWAYS add for debugging
+            debug.benchmarkPricesCount = benchmarkPricesForStitched.length;
+            debug.benchmarkMapKeys = Object.keys(benchmarkMapForStitched).slice(0, 10);
+            debug.benchmarkStartPrice = benchmarkStartPriceForStitched;
+            debug.firstChartBenchmark = chartData[0]?.benchmark;
+            debug.lastChartBenchmark = chartData[chartData.length - 1]?.benchmark;
+            debug.sampleBenchmarkMapValues = Object.entries(benchmarkMapForStitched).slice(0, 5);
+            debug.stitchedSeriesFirstDate = stitchedSeries[0]?.date;
+            debug.stitchedSeriesLastDate = stitchedSeries[stitchedSeries.length - 1]?.date;
+            
+            return { chartData, debug };
           }
         }
         

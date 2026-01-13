@@ -244,3 +244,34 @@
   - ✅ Demo Portfolio - Schweizer Blue Chips (Test): Chart funktioniert
   - ✅ Test Cash Portfolio Live (Live mit Transaktionen): Chart funktioniert
   - ✅ Regula Live (Live mit Transaktionen + hypothetische Performance): Chart funktioniert mit Stitching
+
+- [ ] BUG: Benchmark (S&P 500) zeigt 0% im Performance-Chart statt korrekten Verlauf (z.B. bei Regula Portfolio)
+
+
+## Vereinfachte Performance-Chart-Logik (12.01.2026 - Nachmittag)
+
+### Neue Anforderungen:
+- [ ] Live-Portfolios (z.B. Regula): Reale Performance ab Erstellungsdatum, keine hypothetische Performance
+- [ ] Demo-Portfolios (z.B. Demo Portfolio Marc): Historische Performance basierend auf Gewichtung für alle Zeitfenster
+- [ ] Beide Linien (Portfolio + Benchmark) sind durchgezogene Linien (keine gestrichelten Linien)
+- [ ] Benchmark-Berechnung für alle Portfolio-Typen korrekt implementieren
+
+### Portfolios zum Testen:
+- Regula: Live-Portfolio mit Transaktionen, Erstellungsdatum 12.01.2026
+- Test Portfolio Marc: Neues Live-Portfolio, erst heute erstellt (noch keine Performance)
+- Demo Portfolio Marc: Demo-Portfolio mit Gewichtung (historische Performance)
+
+
+## Vereinfachte Performance-Anforderungen - COMPLETED (12.01.2026)
+- [x] Hypothetische Performance entfernen - nur reale Performance ab Erstellungsdatum - DONE
+- [x] Benchmark korrekt für alle Portfolio-Typen berechnen - DONE (Startdatum auf earliestTransactionDate gesetzt)
+- [x] Beide Linien (Portfolio + Benchmark) als durchgezogene Linien anzeigen - DONE
+- [x] Live-Portfolios: Reale TWR-Performance ab Erstellungsdatum - DONE
+- [x] Demo-Portfolios: Historische Performance basierend auf Gewichtung - DONE
+- [x] Test Portfolio Marc (neues Live-Portfolio): Keine Performance da erst heute erstellt - VERIFIED
+- [x] Alle Zeitfenster (1M, 3M, 6M, YTD, 1Y, etc.) testen - VERIFIED (1M, 3M, YTD getestet)
+
+### Getestete Portfolios:
+- ✅ **Test Portfolio Regula** (Live mit Transaktionen): Zeigt reale Performance ab 12.11.2025, Benchmark funktioniert
+- ✅ **Test Portfolio Marc** (Live, erst heute erstellt): Zeigt 0% Performance (korrekt)
+- ✅ **Demo Portfolio Marc** (Test-Portfolio): Zeigt historische Performance basierend auf Gewichtung, alle Zeitfenster funktionieren
