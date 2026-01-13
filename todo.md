@@ -275,3 +275,14 @@
 - ✅ **Test Portfolio Regula** (Live mit Transaktionen): Zeigt reale Performance ab 12.11.2025, Benchmark funktioniert
 - ✅ **Test Portfolio Marc** (Live, erst heute erstellt): Zeigt 0% Performance (korrekt)
 - ✅ **Demo Portfolio Marc** (Test-Portfolio): Zeigt historische Performance basierend auf Gewichtung, alle Zeitfenster funktionieren
+
+## Bug-Fix Live Portfolio Wert = 0 (13.01.2026)
+- [x] BUG: Live Portfolio "Test Portfolio Marc" zeigt CHF 0 Wert auf Dashboard und Portfolio-Übersicht - FIXED
+- [x] BUG: Transaktionsverwaltung zeigt nur Einzahlung, keine Kauf-Transaktionen für initiale Positionen - FIXED
+- [x] FIX: Bei Live-Portfolio-Erstellung automatisch Kauf-Transaktionen für alle initialen Positionen erstellen - FIXED
+  - Frontend: Position interface erweitert um currency und exchangeRateToChf
+  - Frontend: Step2StockSelection.tsx - handleAddStock sendet jetzt alle Preisdaten
+  - Frontend: Step5Completion.tsx - handleSave sendet alle notwendigen Felder für Transaktionen
+- [x] FIX: Portfolio-Wert-Berechnung soll alle Positionen korrekt einbeziehen - FIXED
+  - Migration script erstellt für bestehende Portfolios (fix-portfolio-transactions.mjs)
+  - Test Portfolio Marc zeigt jetzt CHF 69'389 statt CHF 0

@@ -17,6 +17,8 @@ export interface Position {
   weight: number;
   type: 'stock' | 'bond' | 'etf';
   currentPrice?: number;
+  currency?: string;
+  exchangeRateToChf?: number;
   ytdPerformance?: number;
   dividendYield?: number;
   sector?: string;
