@@ -189,9 +189,9 @@ export default function Transactions() {
       const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || "0");
       const fees = parseFloat(tx.fees || "0");
 
-      if (tx.transactionType === "buy" || tx.transactionType === "deposit") {
+      if (tx.transactionType === "deposit") {
         totalInvested += amount;
-      } else if (tx.transactionType === "sell" || tx.transactionType === "withdrawal") {
+      } else if (tx.transactionType === "withdrawal") {
         totalWithdrawn += amount;
       } else if (tx.transactionType === "dividend") {
         totalDividends += amount;

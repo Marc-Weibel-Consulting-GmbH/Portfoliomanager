@@ -1,0 +1,9 @@
+{
+  "query": "SELECT p.id, p.name, t.transactionType, t.ticker, t.shares, t.pricePerShare, t.currency, t.totalAmount, t.fxRate, t.totalAmountCHF \nFROM portfolios p \nLEFT JOIN portfolioTransactions t ON p.id = t.portfolioId \nWHERE p.name LIKE '%FX Fix%' \nORDER BY t.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT p.id, p.name, t.transactionType, t.ticker, t.shares, t.pricePerShare, t.currency, t.totalAmount, t.fxRate, t.totalAmountCHF \nFROM portfolios p \nLEFT JOIN portfolioTransactions t ON p.id = t.portfolioId \nWHERE p.name LIKE '%FX Fix%' \nORDER BY t.id;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 123
+}

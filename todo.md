@@ -286,3 +286,23 @@
 - [x] FIX: Portfolio-Wert-Berechnung soll alle Positionen korrekt einbeziehen - FIXED
   - Migration script erstellt für bestehende Portfolios (fix-portfolio-transactions.mjs)
   - Test Portfolio Marc zeigt jetzt CHF 69'389 statt CHF 0
+
+
+## Portfolio Builder Verbesserung - Korrekte Anteilsberechnung (17.01.2026)
+
+- [ ] Portfolio-Gesamtwert muss bei Erstellung exakt dem investierten Betrag entsprechen (z.B. CHF 100'000)
+- [ ] Korrekte Berechnung der Aktienanzahl: Gewicht * Investitionsbetrag / Aktienkurs in CHF
+- [ ] Beispiel: 10% Gewicht bei CHF 100'000 = CHF 10'000 / (USD 184.86 * 0.798) = 68 Stück NVDA (statt 77)
+- [ ] Konsistente Anzeige des Portfolio-Werts auf Dashboard, Portfolioübersicht, Transaktionsverwaltung
+- [ ] Live-Test mit neuem Portfolio zur Verifizierung
+
+
+## Portfolio Builder Verbesserungen (17.01.2026)
+- [x] Korrekte Berechnung der Aktienanzahl bei Portfolio-Erstellung
+- [x] Wechselkurs-Konvertierung für USD-Aktien korrigieren
+- [x] Portfolio-Wert von CHF 100'000 bei Erstellung sicherstellen
+- [x] Konsistente Anzeige des Portfolio-Werts auf allen Seiten (Dashboard, Übersicht, Transaktionen)
+- [x] Transaktionsverwaltung zeigt korrekte Positionen am ersten Tag
+- [x] Gesamt investiert zeigt nur Einzahlungen (nicht Käufe)
+- [x] Aktienanzahl mit Dezimalstellen anzeigen (nicht gerundet)
+- [x] portfolioData.stocks wird mit korrekten shares-Werten aktualisiert nach Transaktionserstellung

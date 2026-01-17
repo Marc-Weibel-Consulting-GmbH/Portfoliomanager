@@ -249,7 +249,7 @@ export const portfoliosRouter = router({
               priceCHF,
               currentPriceCHF: priceCHF,
               weight: parseFloat(weight.toFixed(2)),
-              shares: shares.toFixed(0),
+              shares: shares.toFixed(2),
               avgBuyPrice: avgBuyPrice.toFixed(2),
               totalValue: totalValue.toFixed(2),
               valueCHF: totalValue,
@@ -505,19 +505,43 @@ export const portfoliosRouter = router({
                 });
                 console.log(`[portfolios.create ${debugId}] Created deposit transaction: CHF ${capitalNum}`);
                 
-                // 2) Create buy transactions for each holding
+                // 2) Create buy transactions for each holding and collect updated holdings with shares
+                const updatedHoldings: any[] = [];
                 for (const holding of holdings) {
                   const weight = parseFloat(holding.weight || "0") / 100;
                   const allocationAmountCHF = capitalNum * weight;
                   const currentPrice = parseFloat(holding.currentPrice || "0");
                   const fxRate = parseFloat(holding.exchangeRateToChf || "1.0");
+                  const currency = holding.currency || "CHF";
                   
                   if (currentPrice > 0) {
-                    // Convert CHF allocation to local currency, then calculate shares
-                    const allocationInLocalCurrency = allocationAmountCHF / fxRate;
+                    // exchangeRateToChf is stored as "1 CHF = X foreign currency"
+                    // e.g., for USD: fxRate = 1.26 means 1 CHF = 1.26 USD
+                    // To convert CHF to foreign currency: multiply by fxRate
+                    // To convert foreign currency to CHF: divide by fxRate
+                    
+                    let allocationInLocalCurrency: number;
+                    let actualInvestedCHF: number;
+                    
+                    if (currency === "CHF" || fxRate === 1) {
+                      // CHF stocks: no conversion needed
+                      allocationInLocalCurrency = allocationAmountCHF;
+                      actualInvestedCHF = allocationAmountCHF;
+                    } else {
+                      // Foreign currency stocks: convert CHF to local currency
+                      // CHF * fxRate = foreign currency amount
+                      allocationInLocalCurrency = allocationAmountCHF * fxRate;
+                    }
+                    
                     const shares = (allocationInLocalCurrency / currentPrice).toFixed(6);
                     const actualInvestedInCurrency = parseFloat(shares) * currentPrice;
-                    const actualInvestedCHF = actualInvestedInCurrency * fxRate;
+                    
+                    if (currency === "CHF" || fxRate === 1) {
+                      actualInvestedCHF = actualInvestedInCurrency;
+                    } else {
+                      // Convert back to CHF: foreign currency / fxRate = CHF
+                      actualInvestedCHF = actualInvestedInCurrency / fxRate;
+                    }
                     
                     await createPortfolioTransaction({
                       portfolioId: inserted[0].id,
@@ -533,9 +557,31 @@ export const portfoliosRouter = router({
                       notes: `Initial purchase`,
                       transactionDate: new Date(),
                     });
+                    
+                    // Store the updated holding with calculated shares
+                    updatedHoldings.push({
+                      ...holding,
+                      shares: shares,
+                      avgCost: holding.currentPrice,
+                    });
+                  } else {
+                    // Keep original holding if no price
+                    updatedHoldings.push(holding);
                   }
                 }
                 console.log(`[portfolios.create ${debugId}] Created ${holdings.length} buy transactions`);
+                
+                // 3) Update portfolioData with the calculated shares
+                if (updatedHoldings.length > 0) {
+                  const updatedPortfolioData = {
+                    ...portfolioData,
+                    stocks: updatedHoldings,
+                  };
+                  await updateSavedPortfolio(inserted[0].id, userId, {
+                    portfolioData: JSON.stringify(updatedPortfolioData)
+                  });
+                  console.log(`[portfolios.create ${debugId}] Updated portfolioData with calculated shares`);
+                }
               }
             } catch (txErr: any) {
               console.error(`[portfolios.create ${debugId}] Failed to calculate/store cash balance:`, txErr);
@@ -750,7 +796,7 @@ export const portfoliosRouter = router({
                 portfolioId: input.id,
                 transactionType: 'entry',
                 ticker: ticker,
-                shares: shares.toFixed(0),
+                shares: shares.toFixed(2),
                 pricePerShare: currentPrice.toFixed(2),
                 currency: currency,
                 totalAmount: positionValueCHF.toFixed(2),
