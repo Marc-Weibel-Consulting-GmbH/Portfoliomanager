@@ -10,7 +10,7 @@ function getYTDStartDate(): string {
 
 export const portfoliosRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      const { getSavedPortfolios } = await import("../db");
+      const { getSavedPortfolios, getStockByTicker } = await import("../db");
       const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
       const { convertToCHF } = await import("../fxHelper");
       
@@ -18,8 +18,75 @@ export const portfoliosRouter = router({
       const portfolios = await getSavedPortfolios(ctx.user.id);
       const livePortfolios = portfolios.filter(p => p.isLive && p.liveStartDate);
       
+      // Helper function to calculate portfolio value from portfolioData
+      const calculatePortfolioValueFromData = async (portfolio: any): Promise<{ currentValue: number; positionCount: number; livePerformance: number }> => {
+        try {
+          const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = portfolioData.stocks || portfolioData.positions || [];
+          
+          if (stocks.length === 0) {
+            return { currentValue: 0, positionCount: 0, livePerformance: 0 };
+          }
+          
+          let totalValueCHF = 0;
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          const todayStr = new Date().toISOString().split('T')[0];
+          
+          for (const stock of stocks) {
+            const ticker = stock.ticker;
+            if (!ticker) continue;
+            
+            // Get current stock data
+            const stockData = await getStockByTicker(ticker);
+            if (!stockData) continue;
+            
+            const currentPrice = parseFloat(stockData.currentPrice || '0');
+            const currency = stockData.currency || 'CHF';
+            const weight = parseFloat(stock.weight || '0') / 100;
+            
+            // Calculate shares from weight and investment amount
+            let shares = parseFloat(stock.shares || '0');
+            if (shares === 0 && investmentAmount > 0 && weight > 0) {
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            }
+            
+            // Calculate value in CHF
+            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            totalValueCHF += shares * priceCHF;
+          }
+          
+          // Add cash balance if exists
+          const cashBalance = parseFloat(portfolio.cashBalance || '0');
+          totalValueCHF += cashBalance;
+          
+          // Calculate performance
+          let performance = 0;
+          if (investmentAmount > 0) {
+            performance = ((totalValueCHF - investmentAmount) / investmentAmount) * 100;
+          }
+          
+          return {
+            currentValue: totalValueCHF,
+            positionCount: stocks.length,
+            livePerformance: performance
+          };
+        } catch (error) {
+          console.error(`[portfolios.list] Error calculating value from portfolioData for portfolio ${portfolio.id}:`, error);
+          return { currentValue: 0, positionCount: 0, livePerformance: 0 };
+        }
+      };
+      
+      // If no live portfolios, calculate values from portfolioData for all portfolios
       if (livePortfolios.length === 0) {
-        return portfolios;
+        const portfoliosWithValues = await Promise.all(
+          portfolios.map(async (portfolio) => {
+            const values = await calculatePortfolioValueFromData(portfolio);
+            return { ...portfolio, ...values };
+          })
+        );
+        return portfoliosWithValues;
       }
       
       // Step 2: Batch load ALL transactions for ALL portfolios in ONE query
@@ -79,95 +146,71 @@ export const portfoliosRouter = router({
       // Wait for all FX rates to be cached
       await Promise.all(fxPromises);
       
-      // Step 7: Calculate performance for each portfolio (now all data is in memory)
-      const portfoliosWithPerformance = await Promise.all(
+      // Step 7: Calculate current value for each portfolio using portfolioData
+      // This ensures consistency with the detail page (getWithCurrency)
+      const portfoliosWithValues = await Promise.all(
         portfolios.map(async (portfolio) => {
-          if (!portfolio.isLive || !portfolio.liveStartDate) {
-            return portfolio;
-          }
-          
           try {
-            const transactions = transactionsByPortfolio.get(portfolio.id) || [];
-            if (transactions.length === 0) {
-              return { ...portfolio, livePerformance: 0, currentValue: 0, positionCount: 0 };
-            }
+            // Calculate current value from portfolioData (same as detail page)
+            const values = await calculatePortfolioValueFromData(portfolio);
             
-            // Calculate current holdings from transactions
-            const holdings: Record<string, number> = {};
-            
-            transactions.forEach(tx => {
-              const shares = parseFloat(tx.shares || '0');
-              const ticker = tx.ticker;
+            // For live portfolios, also calculate YTD performance from historical prices
+            if (portfolio.isLive && portfolio.liveStartDate) {
+              const transactions = transactionsByPortfolio.get(portfolio.id) || [];
               
-              if (!ticker) return;
+              // Calculate holdings from transactions for YTD performance
+              const holdings: Record<string, number> = {};
+              transactions.forEach(tx => {
+                const shares = parseFloat(tx.shares || '0');
+                const ticker = tx.ticker;
+                if (!ticker) return;
+                if (tx.transactionType === 'buy') {
+                  holdings[ticker] = (holdings[ticker] || 0) + shares;
+                } else if (tx.transactionType === 'sell') {
+                  holdings[ticker] = (holdings[ticker] || 0) - shares;
+                }
+              });
               
-              if (tx.transactionType === 'buy') {
-                holdings[ticker] = (holdings[ticker] || 0) + shares;
-              } else if (tx.transactionType === 'sell') {
-                holdings[ticker] = (holdings[ticker] || 0) - shares;
-              }
-            });
-            
-            // Calculate current value and YTD start value
-            let currentValueCHF = 0;
-            let ytdStartValueCHF = 0;
-            let hasHistoricalData = false;
-            
-            for (const [ticker, shares] of Object.entries(holdings)) {
-              if (shares <= 0) continue;
+              // Calculate YTD performance
+              let ytdStartValueCHF = 0;
+              let currentValueForPerf = 0;
+              let hasHistoricalData = false;
               
-              const stock = stocksMap.get(ticker);
-              if (!stock) continue;
-              
-              const currency = stock.currency || 'CHF';
-              const currentPrice = parseFloat(stock.currentPrice || '0');
-              
-              // Get YTD start price from pre-loaded map
-              const ytdStartPrice = ytdPricesMap.get(ticker);
-              
-              // If we have historical data, use it; otherwise skip YTD calculation
-              if (ytdStartPrice) {
-                hasHistoricalData = true;
-                // Convert to CHF (using cached FX rates)
-                const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+              for (const [ticker, shares] of Object.entries(holdings)) {
+                if (shares <= 0) continue;
+                const stock = stocksMap.get(ticker);
+                if (!stock) continue;
                 
-                currentValueCHF += shares * currentPriceCHF;
-                ytdStartValueCHF += shares * ytdStartPriceCHF;
-              } else {
-                // No historical data - just calculate current value
-                const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                currentValueCHF += shares * currentPriceCHF;
+                const currency = stock.currency || 'CHF';
+                const currentPrice = parseFloat(stock.currentPrice || '0');
+                const ytdStartPrice = ytdPricesMap.get(ticker);
+                
+                if (ytdStartPrice) {
+                  hasHistoricalData = true;
+                  const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                  const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                  currentValueForPerf += shares * currentPriceCHF;
+                  ytdStartValueCHF += shares * ytdStartPriceCHF;
+                }
               }
+              
+              let performancePercent = 0;
+              if (hasHistoricalData && ytdStartValueCHF > 0) {
+                performancePercent = ((currentValueForPerf - ytdStartValueCHF) / ytdStartValueCHF) * 100;
+              }
+              
+              return { ...portfolio, ...values, livePerformance: performancePercent };
             }
             
-            // Calculate YTD performance only if we have historical data
-            let performancePercent = 0;
-            if (hasHistoricalData && ytdStartValueCHF > 0) {
-              const performanceCHF = currentValueCHF - ytdStartValueCHF;
-              performancePercent = (performanceCHF / ytdStartValueCHF) * 100;
-            } else {
-              // No historical data available - log warning and return 0%
-              console.warn(`[Portfolio ${portfolio.id}] No historical price data for YTD calculation. Run admin.importHistoricalPrices to load data.`);
-            }
-            
-            // Count unique positions with shares > 0
-            const positionCount = Object.values(holdings).filter(s => s > 0).length;
-            
-            return { 
-              ...portfolio, 
-              livePerformance: performancePercent,
-              currentValue: currentValueCHF,
-              positionCount: positionCount
-            };
+            return { ...portfolio, ...values };
           } catch (error) {
-            console.error(`Error calculating YTD performance for portfolio ${portfolio.id}:`, error);
+            console.error(`Error calculating values for portfolio ${portfolio.id}:`, error);
             return portfolio;
           }
         })
       );
       
-      return portfoliosWithPerformance;
+      return portfoliosWithValues;
     }),
 
     get: protectedProcedure

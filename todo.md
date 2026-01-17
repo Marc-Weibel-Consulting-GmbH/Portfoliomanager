@@ -357,3 +357,15 @@
 - ✅ Dividenden + Live + Automatisch (CHF 80'000) → CHF 80'002.41 (+0.003%)
 - ❌ Wachstum + Demo + Manuell (CHF 50'000) → CHF 89'995.21 (+79.99%) - VOR FIX
 - ✅ Ausgewogen + Live + Manuell (CHF 60'000) → CHF 60'401.96 (+0.67%)
+
+
+## Portfolio Builder Nacharbeiten (17.01.2026)
+- [ ] Test Wachstum Demo 50k Portfolio löschen und neu erstellen
+- [ ] Alle bestehenden Portfolios auf korrekte Werte überprüfen
+- [ ] Unit-Tests für FX-Konvertierung schreiben
+- [ ] Unit-Tests für Gewichtungsverteilung schreiben
+
+
+## KRITISCH: Portfolio-Liste Bug (17.01.2026)
+- [x] Portfolio-Liste zeigt falsche Werte für Live-Portfolios (z.B. CHF 75'099 statt CHF 80'002) - FIXED: Verwendet jetzt portfolioData für konsistente Werte
+- [x] Portfolio-Liste zeigt 0 Positionen und CHF 0 für Demo-Portfolios - FIXED: calculatePortfolioValueFromData Funktion für alle Portfolios

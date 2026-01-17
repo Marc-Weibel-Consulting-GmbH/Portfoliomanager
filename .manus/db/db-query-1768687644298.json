@@ -1,0 +1,70 @@
+{
+  "query": "SELECT ticker, transactionType, shares, totalAmountCHF \nFROM portfolioTransactions \nWHERE portfolioId = 1320001 \nORDER BY ticker;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, transactionType, shares, totalAmountCHF \nFROM portfolioTransactions \nWHERE portfolioId = 1320001 \nORDER BY ticker;",
+  "rows": [
+    {
+      "ticker": "NULL",
+      "transactionType": "deposit",
+      "shares": "0",
+      "totalAmountCHF": "80000.00"
+    },
+    {
+      "ticker": "CMBN.SW",
+      "transactionType": "buy",
+      "shares": "66.111111",
+      "totalAmountCHF": "6664.00"
+    },
+    {
+      "ticker": "HOLN.SW",
+      "transactionType": "buy",
+      "shares": "106.871795",
+      "totalAmountCHF": "8336.00"
+    },
+    {
+      "ticker": "KNIN.SW",
+      "transactionType": "buy",
+      "shares": "45.193819",
+      "totalAmountCHF": "8336.00"
+    },
+    {
+      "ticker": "NEE",
+      "transactionType": "buy",
+      "shares": "125.593208",
+      "totalAmountCHF": "8336.00"
+    },
+    {
+      "ticker": "NESN.SW",
+      "transactionType": "buy",
+      "shares": "110.792132",
+      "totalAmountCHF": "8336.00"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "transactionType": "buy",
+      "shares": "72.110727",
+      "totalAmountCHF": "8336.00"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "transactionType": "buy",
+      "shares": "14.010084",
+      "totalAmountCHF": "8336.00"
+    },
+    {
+      "ticker": "SREN.SW",
+      "transactionType": "buy",
+      "shares": "65.560362",
+      "totalAmountCHF": "8336.00"
+    },
+    {
+      "ticker": "ZURN.SW",
+      "transactionType": "buy",
+      "shares": "17.325017",
+      "totalAmountCHF": "10000.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\ttransactionType\tshares\ttotalAmountCHF\nNULL\tdeposit\t0\t80000.00\nCMBN.SW\tbuy\t66.111111\t6664.00\nHOLN.SW\tbuy\t106.871795\t8336.00\nKNIN.SW\tbuy\t45.193819\t8336.00\nNEE\tbuy\t125.593208\t8336.00\nNESN.SW\tbuy\t110.792132\t8336.00\nNOVN.SW\tbuy\t72.110727\t8336.00\nSCMN.SW\tbuy\t14.010084\t8336.00\nSREN.SW\tbuy\t65.560362\t8336.00\nZURN.SW\tbuy\t17.325017\t10000.00\n",
+  "stderr": "",
+  "execution_time_ms": 75
+}
