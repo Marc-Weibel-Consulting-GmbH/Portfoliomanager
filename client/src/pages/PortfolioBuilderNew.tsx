@@ -103,17 +103,74 @@ export default function PortfolioBuilderNew() {
   };
 
   const addPosition = (position: Position) => {
-    setState(prev => ({
-      ...prev,
-      positions: [...prev.positions, position],
-    }));
+    setState(prev => {
+      // Get existing stock positions
+      const existingStocks = prev.positions.filter(p => p.type === 'stock');
+      const otherPositions = prev.positions.filter(p => p.type !== 'stock');
+      
+      // If adding a stock, redistribute weights equally among all stocks
+      if (position.type === 'stock') {
+        const totalStocks = existingStocks.length + 1;
+        const targetStockWeight = 100 - prev.cashPercentage;
+        const equalWeight = parseFloat((targetStockWeight / totalStocks).toFixed(2));
+        
+        // Update all existing stock weights
+        const updatedStocks = existingStocks.map(p => ({
+          ...p,
+          weight: equalWeight,
+        }));
+        
+        // Add new position with equal weight
+        const newPosition = {
+          ...position,
+          weight: equalWeight,
+        };
+        
+        return {
+          ...prev,
+          positions: [...updatedStocks, ...otherPositions, newPosition],
+        };
+      }
+      
+      // For non-stock positions, just add normally
+      return {
+        ...prev,
+        positions: [...prev.positions, position],
+      };
+    });
   };
 
   const removePosition = (ticker: string) => {
-    setState(prev => ({
-      ...prev,
-      positions: prev.positions.filter(p => p.ticker !== ticker),
-    }));
+    setState(prev => {
+      const removedPosition = prev.positions.find(p => p.ticker === ticker);
+      const remainingPositions = prev.positions.filter(p => p.ticker !== ticker);
+      
+      // If removing a stock, redistribute weights among remaining stocks
+      if (removedPosition?.type === 'stock') {
+        const remainingStocks = remainingPositions.filter(p => p.type === 'stock');
+        const otherPositions = remainingPositions.filter(p => p.type !== 'stock');
+        
+        if (remainingStocks.length > 0) {
+          const targetStockWeight = 100 - prev.cashPercentage;
+          const equalWeight = parseFloat((targetStockWeight / remainingStocks.length).toFixed(2));
+          
+          const updatedStocks = remainingStocks.map(p => ({
+            ...p,
+            weight: equalWeight,
+          }));
+          
+          return {
+            ...prev,
+            positions: [...updatedStocks, ...otherPositions],
+          };
+        }
+      }
+      
+      return {
+        ...prev,
+        positions: remainingPositions,
+      };
+    });
   };
 
   const updatePosition = (ticker: string, updates: Partial<Position>) => {

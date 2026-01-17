@@ -327,3 +327,33 @@
 - [x] BUG: Aktienanzahl wurde auf ganze Zahlen gerundet - FIXED:
   - Ursache: shares.toFixed(0) in getWithCurrency Funktion
   - Lösung: shares.toFixed(2) für 2 Dezimalstellen
+
+
+## Portfolio Builder Bug (17.01.2026 - Dritte Runde)
+- [ ] BUG: CHF 150'000 Investition zeigt nur CHF 135'000 - Berechnung immer noch fehlerhaft
+
+
+## Portfolio Builder Fundamentale Fehler (17.01.2026 - Vierte Runde)
+- [ ] Alle Test-Portfolios analysieren und Fehler identifizieren
+- [ ] Test Portfolio 5 - Johnson & Johnson Position prüfen
+- [ ] Alle Kombinationen testen (Wachstum, Dividende, Demo, Live, auto/manual)
+- [ ] Fundamentale Berechnungsfehler beheben
+
+
+## Portfolio Builder Fixes (17.01.2026 - Fünfte Runde)
+- [x] BUG: FX-Konvertierung bei Fallback-Berechnung in getWithCurrency - FIXED:
+  - Ursache: Fallback-Code verwendete currentPrice (USD) statt priceCHF für Berechnung
+  - Lösung: shares = priceCHF > 0 ? (allocationAmount / priceCHF) : 0
+  - Datei: server/routers/portfoliosRouter.ts, Zeile 230-235
+  - Ergebnis: Test Dividenden Auto 80k zeigt jetzt CHF 80'002.41 statt CHF 77'227.36
+
+- [x] BUG: Gewichtungsverteilung bei manueller Aktienauswahl - FIXED:
+  - Ursache: Erste Aktie bekam 100% Gewichtung, alle weiteren 0%
+  - Lösung: addPosition() verteilt Gewichtungen gleichmäßig auf alle Aktien
+  - Datei: client/src/pages/PortfolioBuilderNew.tsx, Funktion addPosition()
+  - Ergebnis: Test Ausgewogen Live 60k zeigt CHF 60'401.96 (0.67% Abweichung)
+
+### Getestete Kombinationen:
+- ✅ Dividenden + Live + Automatisch (CHF 80'000) → CHF 80'002.41 (+0.003%)
+- ❌ Wachstum + Demo + Manuell (CHF 50'000) → CHF 89'995.21 (+79.99%) - VOR FIX
+- ✅ Ausgewogen + Live + Manuell (CHF 60'000) → CHF 60'401.96 (+0.67%)

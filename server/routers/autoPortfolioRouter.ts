@@ -150,6 +150,8 @@ The weights must sum to exactly 100.0. Include a brief reason for each selection
               weight: parseFloat(selection.weight.toFixed(2)),
               type: 'stock' as const,
               currentPrice: stock.currentPrice,
+              currency: stock.currency || 'CHF',
+              exchangeRateToChf: stock.exchangeRateToChf || '1',
               ytdPerformance: stock.ytdPerformance,
               dividendYield: stock.dividendYield,
               sector: stock.sector,

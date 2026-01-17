@@ -1,0 +1,110 @@
+{
+  "query": "SELECT pt.ticker, pt.shares, pt.pricePerShare, pt.currency, pt.fxRate, pt.totalAmount, pt.totalAmountCHF, pt.transactionType\nFROM portfolioTransactions pt \nJOIN savedPortfolios p ON pt.portfolioId = p.id \nWHERE p.name = 'Test Dividenden Auto 80k'\nORDER BY pt.ticker;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT pt.ticker, pt.shares, pt.pricePerShare, pt.currency, pt.fxRate, pt.totalAmount, pt.totalAmountCHF, pt.transactionType\nFROM portfolioTransactions pt \nJOIN savedPortfolios p ON pt.portfolioId = p.id \nWHERE p.name = 'Test Dividenden Auto 80k'\nORDER BY pt.ticker;",
+  "rows": [
+    {
+      "ticker": "NULL",
+      "shares": "0",
+      "pricePerShare": "0",
+      "currency": "CHF",
+      "fxRate": "1.0",
+      "totalAmount": "80000.00",
+      "totalAmountCHF": "80000.00",
+      "transactionType": "deposit"
+    },
+    {
+      "ticker": "CMBN.SW",
+      "shares": "66.111111",
+      "pricePerShare": "100.8",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "6664.00",
+      "totalAmountCHF": "6664.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "HOLN.SW",
+      "shares": "106.871795",
+      "pricePerShare": "78",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "8336.00",
+      "totalAmountCHF": "8336.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "KNIN.SW",
+      "shares": "45.193819",
+      "pricePerShare": "184.45",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "8336.00",
+      "totalAmountCHF": "8336.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "NEE",
+      "shares": "125.593208",
+      "pricePerShare": "83.63",
+      "currency": "USD",
+      "fxRate": "1.26",
+      "totalAmount": "10503.36",
+      "totalAmountCHF": "8336.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "NESN.SW",
+      "shares": "110.792132",
+      "pricePerShare": "75.24",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "8336.00",
+      "totalAmountCHF": "8336.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "shares": "72.110727",
+      "pricePerShare": "115.6",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "8336.00",
+      "totalAmountCHF": "8336.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "shares": "14.010084",
+      "pricePerShare": "595",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "8336.00",
+      "totalAmountCHF": "8336.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "SREN.SW",
+      "shares": "65.560362",
+      "pricePerShare": "127.15",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "8336.00",
+      "totalAmountCHF": "8336.00",
+      "transactionType": "buy"
+    },
+    {
+      "ticker": "ZURN.SW",
+      "shares": "17.325017",
+      "pricePerShare": "577.2",
+      "currency": "CHF",
+      "fxRate": "1",
+      "totalAmount": "10000.00",
+      "totalAmountCHF": "10000.00",
+      "transactionType": "buy"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tshares\tpricePerShare\tcurrency\tfxRate\ttotalAmount\ttotalAmountCHF\ttransactionType\nNULL\t0\t0\tCHF\t1.0\t80000.00\t80000.00\tdeposit\nCMBN.SW\t66.111111\t100.8\tCHF\t1\t6664.00\t6664.00\tbuy\nHOLN.SW\t106.871795\t78\tCHF\t1\t8336.00\t8336.00\tbuy\nKNIN.SW\t45.193819\t184.45\tCHF\t1\t8336.00\t8336.00\tbuy\nNEE\t125.593208\t83.63\tUSD\t1.26\t10503.36\t8336.00\tbuy\nNESN.SW\t110.792132\t75.24\tCHF\t1\t8336.00\t8336.00\tbuy\nNOVN.SW\t72.110727\t115.6\tCHF\t1\t8336.00\t8336.00\tbuy\nSCMN.SW\t14.010084\t595\tCHF\t1\t8336.00\t8336.00\tbuy\nSREN.SW\t65.560362\t127.15\tCHF\t1\t8336.00\t8336.00\tbuy\nZURN.SW\t17.325017\t577.2\tCHF\t1\t10000.00\t10000.00\tbuy\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

@@ -231,7 +231,11 @@ export const portfoliosRouter = router({
             if (shares === 0 && portfolio.investmentAmount) {
               const investmentAmount = parseFloat(portfolio.investmentAmount) || 0;
               const allocationAmount = investmentAmount * (weight / 100);
-              shares = currentPrice > 0 ? Math.round((allocationAmount / currentPrice)) : 0;
+              // For foreign currency stocks, convert CHF allocation to local currency first
+              // allocationAmount is in CHF, currentPrice is in local currency
+              // To get shares: allocationAmount / priceCHF (both in CHF)
+              shares = priceCHF > 0 ? (allocationAmount / priceCHF) : 0;
+              // Don't round - keep decimal precision for accurate value calculation
             }
             
             // Calculate avgBuyPrice if missing
@@ -497,8 +501,22 @@ export const portfoliosRouter = router({
                   const weight = parseFloat(holding.weight || "0") / 100;
                   const allocationAmountCHF = capitalNum * weight;
                   const currentPrice = parseFloat(holding.currentPrice || "0");
-                  const fxRate = parseFloat(holding.exchangeRateToChf || "1.0");
                   const currency = holding.currency || "CHF";
+                  
+                  // Get FX rate - use provided rate, or fetch from exchangeRates table if not available
+                  let fxRate = parseFloat(holding.exchangeRateToChf || "1.0");
+                  if (currency !== "CHF" && (fxRate === 1 || !holding.exchangeRateToChf)) {
+                    // Fetch current FX rate from exchangeRates table
+                    const { getCurrentFxRate } = await import('../fxHelper');
+                    const currencyPair = `${currency}CHF`;
+                    const currentFxRate = await getCurrentFxRate(currencyPair);
+                    // exchangeRates stores rate as "1 USD = X CHF", but we need "1 CHF = X USD"
+                    // So we need to invert: if USDCHF = 0.80, then 1 CHF = 1/0.80 = 1.25 USD
+                    if (currentFxRate > 0 && currentFxRate !== 1) {
+                      fxRate = 1 / currentFxRate;
+                      console.log(`[portfolios.create] Fetched FX rate for ${currency}: ${currencyPair}=${currentFxRate}, inverted=${fxRate}`);
+                    }
+                  }
                   
                   if (currentPrice > 0) {
                     // exchangeRateToChf is stored as "1 CHF = X foreign currency"
