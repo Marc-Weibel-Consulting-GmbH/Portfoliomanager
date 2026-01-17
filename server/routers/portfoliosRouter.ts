@@ -293,29 +293,8 @@ export const portfoliosRouter = router({
           stock.weight = totalValueCHF > 0 ? (stockValue / totalValueCHF) * 100 : 0;
         });
         
-        if (cashBalance > 0) {
-          const cashWeight = totalValueCHF > 0 ? (cashBalance / totalValueCHF) * 100 : 0;
-          finalEnrichedStocks.push({
-            ticker: 'CASH',
-            companyName: 'Liquidität',
-            currency: 'CHF',
-            fxRate: 1.0,
-            currentPrice: 1.0,
-            currentPriceLocal: 1.0,
-            priceCHF: 1.0,
-            currentPriceCHF: 1.0,
-            weight: cashWeight,
-            shares: cashBalance.toFixed(2),
-            avgBuyPrice: '1.00',
-            totalValue: cashBalance.toFixed(2),
-            valueCHF: cashBalance,
-            sector: 'Cash',
-            ytdPerformance: '0',
-            dividendYield: '0',
-            category: 'Cash',
-            isCash: true, // Flag to identify cash position
-          });
-        }
+        // Note: Cash position is displayed separately in the UI via portfolio.cashBalance
+        // Do NOT add CASH to finalEnrichedStocks to avoid duplicate display
         
         // Calculate performance for demo portfolios (without transactions)
         let performancePercent = 0;
@@ -508,6 +487,13 @@ export const portfoliosRouter = router({
                 // 2) Create buy transactions for each holding and collect updated holdings with shares
                 const updatedHoldings: any[] = [];
                 for (const holding of holdings) {
+                  console.log(`[portfolios.create ${debugId}] Processing holding:`, JSON.stringify({
+                    ticker: holding.ticker,
+                    currency: holding.currency,
+                    exchangeRateToChf: holding.exchangeRateToChf,
+                    currentPrice: holding.currentPrice,
+                    weight: holding.weight
+                  }));
                   const weight = parseFloat(holding.weight || "0") / 100;
                   const allocationAmountCHF = capitalNum * weight;
                   const currentPrice = parseFloat(holding.currentPrice || "0");

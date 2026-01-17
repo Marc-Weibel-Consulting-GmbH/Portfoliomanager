@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, name, investmentAmount, cashBalance FROM savedPortfolios ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, name, investmentAmount, cashBalance FROM savedPortfolios ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "1200002",
+      "name": "Test Portfolio Marc",
+      "investmentAmount": "120000",
+      "cashBalance": "6000.00"
+    },
+    {
+      "id": "1110002",
+      "name": "Test Portfolio Old Format",
+      "investmentAmount": "10000",
+      "cashBalance": "0.00"
+    },
+    {
+      "id": "1110001",
+      "name": "Test Portfolio With Transactions",
+      "investmentAmount": "100000",
+      "cashBalance": "5000.00"
+    },
+    {
+      "id": "1080001",
+      "name": "Demo Portfolio Marc",
+      "investmentAmount": "100000",
+      "cashBalance": "5000.00"
+    },
+    {
+      "id": "570001",
+      "name": "Test Portfolio",
+      "investmentAmount": "10000",
+      "cashBalance": "10000.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tinvestmentAmount\tcashBalance\n1200002\tTest Portfolio Marc\t120000\t6000.00\n1110002\tTest Portfolio Old Format\t10000\t0.00\n1110001\tTest Portfolio With Transactions\t100000\t5000.00\n1080001\tDemo Portfolio Marc\t100000\t5000.00\n570001\tTest Portfolio\t10000\t10000.00\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

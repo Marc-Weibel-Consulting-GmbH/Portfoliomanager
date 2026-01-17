@@ -306,3 +306,24 @@
 - [x] Gesamt investiert zeigt nur Einzahlungen (nicht Käufe)
 - [x] Aktienanzahl mit Dezimalstellen anzeigen (nicht gerundet)
 - [x] portfolioData.stocks wird mit korrekten shares-Werten aktualisiert nach Transaktionserstellung
+
+
+## Portfolio Builder Bugs (17.01.2026 - Nachmittag)
+- [ ] BUG: Portfolio-Gesamtwert CHF 108'468 statt CHF 120'000 - Berechnung der Aktienanzahl ist fehlerhaft
+- [ ] BUG: Doppelte Cash-Position in der Positionsliste (CASH Liquidität + Cash (CHF))
+
+
+## Portfolio Builder Fixes (17.01.2026)
+- [x] BUG: Portfolio-Wert zeigt falsche Beträge (z.B. CHF 108'468 statt CHF 120'000) - FIXED:
+  - Ursache: Währung und Wechselkurs wurden nicht korrekt vom Frontend an Backend übertragen
+  - Lösung: Frontend überträgt jetzt currency und exchangeRateToChf korrekt für alle Aktien
+  - Backend berechnet Aktienanzahl korrekt mit Wechselkurs-Konvertierung
+- [x] BUG: Doppelte Cash-Position in der Positionsliste - FIXED:
+  - Ursache: CASH wurde sowohl zu enrichedStocks hinzugefügt als auch separat in der Tabelle angezeigt
+  - Lösung: CASH wird nicht mehr zu finalEnrichedStocks hinzugefügt, nur die separate Cash-Zeile bleibt
+- [x] BUG: "Gesamt investiert" zeigte doppelten Betrag (Einzahlung + Käufe) - FIXED:
+  - Ursache: totalInvested addierte sowohl deposits als auch buys
+  - Lösung: totalInvested zählt nur deposits (nicht buys)
+- [x] BUG: Aktienanzahl wurde auf ganze Zahlen gerundet - FIXED:
+  - Ursache: shares.toFixed(0) in getWithCurrency Funktion
+  - Lösung: shares.toFixed(2) für 2 Dezimalstellen

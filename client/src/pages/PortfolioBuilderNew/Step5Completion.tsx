@@ -40,7 +40,7 @@ export default function Step5Completion({ state }: Step5CompletionProps) {
 
   const handleSave = async () => {
     setIsSaving(true);
-
+    
     const portfolioData = {
       stocks: state.positions.map(pos => ({
         ticker: pos.ticker,
