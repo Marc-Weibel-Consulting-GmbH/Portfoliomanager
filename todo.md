@@ -369,3 +369,18 @@
 ## KRITISCH: Portfolio-Liste Bug (17.01.2026)
 - [x] Portfolio-Liste zeigt falsche Werte für Live-Portfolios (z.B. CHF 75'099 statt CHF 80'002) - FIXED: Verwendet jetzt portfolioData für konsistente Werte
 - [x] Portfolio-Liste zeigt 0 Positionen und CHF 0 für Demo-Portfolios - FIXED: calculatePortfolioValueFromData Funktion für alle Portfolios
+
+
+## Abgeschlossene Aufgaben (17.01.2026 - Abend)
+- [x] Unit-Tests für FX-Konvertierung schreiben - DONE: portfolioValueFxConversion.test.ts (11 Tests)
+- [x] Unit-Tests für Gewichtungsverteilung schreiben - DONE: portfolioWeightDistribution.test.ts (13 Tests)
+- [x] Löschen-Button reparieren - DONE: AlertDialog statt confirm() für bessere UX
+- [x] Gesamtwert-Berechnung im Dashboard korrigieren - DONE: Dashboard verwendet jetzt portfolioData für konsistente Werte (CHF 495'114)
+- [x] Test Wachstum Demo 50k Portfolio neu erstellt - zeigt jetzt CHF 49'995.11 (korrekt)
+
+### Zusammenfassung der Fixes:
+1. **FX-Konvertierung:** Fallback-Berechnung verwendet jetzt priceCHF statt currentPrice
+2. **Gewichtungsverteilung:** addPosition() verteilt Gewichtungen gleichmäßig auf alle Aktien
+3. **Portfolio-Liste:** Verwendet jetzt portfolioData für alle Portfolios (konsistent mit Detailseiten)
+4. **Dashboard:** getAggregatedMetrics und getTopPortfolios verwenden portfolioData
+5. **Löschen-Button:** AlertDialog statt Browser-native confirm() für bessere UX

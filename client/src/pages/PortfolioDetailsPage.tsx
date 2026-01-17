@@ -47,6 +47,16 @@ import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
 import { StockLogo } from "@/components/StockLogo";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -86,6 +96,7 @@ export default function PortfolioDetailsPage() {
   // State for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<any>(null);
   const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
   
@@ -292,16 +303,19 @@ export default function PortfolioDetailsPage() {
   
   const typeConfig = portfolio.portfolioType ? portfolioTypeConfig[portfolio.portfolioType] : null;
   
-  const handleDelete = async () => {
-    if (confirm("Möchten Sie dieses Portfolio wirklich löschen?")) {
-      try {
-        await deletePortfolio.mutateAsync({ id: portfolioId });
-        toast.success("Portfolio gelöscht");
-        navigate("/dashboard");
-      } catch (error: any) {
-        toast.error(error.message || "Fehler beim Löschen");
-      }
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const handleDeleteConfirm = async () => {
+    try {
+      await deletePortfolio.mutateAsync({ id: portfolioId });
+      toast.success("Portfolio gelöscht");
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error.message || "Fehler beim Löschen");
     }
+    setIsDeleteDialogOpen(false);
   };
   
   const handlePortfolioSwitch = (newId: string) => {
@@ -391,7 +405,7 @@ export default function PortfolioDetailsPage() {
               <Share2 className="h-4 w-4 mr-2" />
               Teilen
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDelete}>
+            <Button variant="outline" size="sm" onClick={handleDeleteClick}>
               <Trash2 className="h-4 w-4 mr-2" />
               Löschen
             </Button>
@@ -962,7 +976,7 @@ export default function PortfolioDetailsPage() {
                 <Edit className="h-4 w-4 mr-2" />
                 Portfolio bearbeiten
               </Button>
-              <Button variant="outline" size="sm" onClick={handleDelete}>
+              <Button variant="outline" size="sm" onClick={handleDeleteClick}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Portfolio löschen
               </Button>
@@ -1056,6 +1070,30 @@ export default function PortfolioDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Portfolio löschen?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Möchten Sie das Portfolio "{portfolio.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+              Alle Transaktionen und Daten werden unwiderruflich gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/20 text-white hover:bg-white/10">
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Portfolio löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
