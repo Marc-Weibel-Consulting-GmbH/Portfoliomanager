@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { StockLogo } from "@/components/StockLogo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Search, Sparkles, X, TrendingUp, DollarSign, Loader2 } from "lucide-react";
+import { Search, Sparkles, X, TrendingUp, DollarSign, Loader2, ChevronDown, Info, Building2, BarChart3, Percent, Activity } from "lucide-react";
 import { PortfolioBuilderState, Position } from "../PortfolioBuilderNew";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -29,12 +29,15 @@ export default function Step2StockSelection({
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'dividends' | 'growth' | 'etf'>('all');
   const [showAutoPrompt, setShowAutoPrompt] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(20);
+  const [selectedStock, setSelectedStock] = useState<any>(null);
+  const [showStockDetails, setShowStockDetails] = useState(false);
 
   // Fetch all stocks
   const { data: allStocks = [], isLoading: stocksLoading } = trpc.stocks.list.useQuery();
 
   // Filter stocks based on search and filter
-  const filteredStocks = useMemo(() => {
+  const filteredStocksAll = useMemo(() => {
     let filtered = allStocks;
 
     // Apply search filter
@@ -49,9 +52,9 @@ export default function Step2StockSelection({
 
     // Apply category filter
     if (selectedFilter === 'dividends') {
-      filtered = filtered.filter((stock: any) => (stock.dividendYield || 0) > 2);
+      filtered = filtered.filter((stock: any) => (parseFloat(stock.dividendYield) || 0) > 2);
     } else if (selectedFilter === 'growth') {
-      filtered = filtered.filter((stock: any) => (stock.ytdPerformance || 0) > 10);
+      filtered = filtered.filter((stock: any) => (parseFloat(stock.ytdPerformance) || 0) > 10);
     } else if (selectedFilter === 'etf') {
       filtered = filtered.filter((stock: any) => stock.ticker.includes('ETF') || stock.companyName?.includes('ETF'));
     }
@@ -60,8 +63,16 @@ export default function Step2StockSelection({
     const selectedTickers = state.positions.map(p => p.ticker);
     filtered = filtered.filter((stock: any) => !selectedTickers.includes(stock.ticker));
 
-    return filtered.slice(0, 20); // Limit to 20 results
+    return filtered;
   }, [allStocks, searchQuery, selectedFilter, state.positions]);
+
+  // Apply pagination
+  const filteredStocks = useMemo(() => {
+    return filteredStocksAll.slice(0, displayLimit);
+  }, [filteredStocksAll, displayLimit]);
+
+  const hasMoreStocks = filteredStocksAll.length > displayLimit;
+  const remainingCount = filteredStocksAll.length - displayLimit;
 
   const selectedStocks = state.positions.filter(p => p.type === 'stock');
   const totalWeight = selectedStocks.reduce((sum, p) => sum + p.weight, 0);
@@ -82,14 +93,36 @@ export default function Step2StockSelection({
       currentPrice: parseFloat(stock.currentPrice || '0'),
       currency: stock.currency || 'CHF',
       exchangeRateToChf: parseFloat(stock.exchangeRateToChf || '1.0'),
-      ytdPerformance: stock.ytdPerformance,
-      dividendYield: stock.dividendYield,
+      ytdPerformance: parseFloat(stock.ytdPerformance || '0'),
+      dividendYield: parseFloat(stock.dividendYield || '0'),
       sector: stock.sector,
     });
   };
 
   const handleWeightChange = (ticker: string, newWeight: number) => {
     updatePosition(ticker, { weight: newWeight });
+  };
+
+  const handleLoadMore = () => {
+    setDisplayLimit(prev => prev + 20);
+  };
+
+  const handleStockClick = (stock: any) => {
+    setSelectedStock(stock);
+    setShowStockDetails(true);
+  };
+
+  const formatCurrency = (price: number | string, currency: string) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    if (isNaN(numPrice)) return '-';
+    return `${currency} ${numPrice.toFixed(2)}`;
+  };
+
+  const formatPerformance = (perf: number | string | null | undefined) => {
+    if (perf === null || perf === undefined) return null;
+    const numPerf = typeof perf === 'string' ? parseFloat(perf) : perf;
+    if (isNaN(numPerf)) return null;
+    return numPerf;
   };
 
   const [progress, setProgress] = useState(0);
@@ -232,11 +265,13 @@ export default function Step2StockSelection({
                     {/* Metrics */}
                     <div className="flex items-center gap-3 text-xs">
                       {position.currentPrice != null && (
-                        <span className="text-gray-400">CHF {Number(position.currentPrice).toFixed(2)}</span>
+                        <span className="text-gray-400">
+                          {formatCurrency(position.currentPrice, position.currency || 'CHF')}
+                        </span>
                       )}
-                      {position.ytdPerformance != null && (
-                        <span className={Number(position.ytdPerformance) >= 0 ? "text-green-400" : "text-red-400"}>
-                          {Number(position.ytdPerformance) >= 0 ? "+" : ""}{Number(position.ytdPerformance).toFixed(1)}%
+                      {formatPerformance(position.ytdPerformance) !== null && (
+                        <span className={formatPerformance(position.ytdPerformance)! >= 0 ? "text-green-400" : "text-red-400"}>
+                          {formatPerformance(position.ytdPerformance)! >= 0 ? "+" : ""}{formatPerformance(position.ytdPerformance)!.toFixed(1)}%
                         </span>
                       )}
                       {position.dividendYield != null && Number(position.dividendYield) > 0 && (
@@ -250,7 +285,7 @@ export default function Step2StockSelection({
                 <div className="pt-4 border-t border-white/10">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-white">Aktien</span>
-                    <span className={`text-sm font-bold ${Math.abs(totalWeight - targetStockWeight) < 0.01 ? "text-green-400" : "text-amber-400"}`}>
+                    <span className={`text-sm font-semibold ${Math.abs(totalWeight - targetStockWeight) < 0.1 ? "text-green-400" : "text-amber-400"}`}>
                       {totalWeight.toFixed(1)}% / {targetStockWeight.toFixed(0)}%
                     </span>
                   </div>
@@ -336,7 +371,10 @@ export default function Step2StockSelection({
               <Input
                 placeholder="Aktien suchen (Ticker oder Name)..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setDisplayLimit(20); // Reset pagination on search
+                }}
                 className="pl-10 bg-[#0a0f1a] border-white/10 text-white"
               />
             </div>
@@ -355,7 +393,10 @@ export default function Step2StockSelection({
                     key={filter.id}
                     variant={selectedFilter === filter.id ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedFilter(filter.id)}
+                    onClick={() => {
+                      setSelectedFilter(filter.id);
+                      setDisplayLimit(20); // Reset pagination on filter change
+                    }}
                     className={selectedFilter === filter.id ? "bg-[#00CFC1] hover:bg-[#00CFC1]/90" : ""}
                   >
                     {Icon && <Icon className="mr-1 h-3 w-3" />}
@@ -363,6 +404,11 @@ export default function Step2StockSelection({
                   </Button>
                 );
               })}
+            </div>
+
+            {/* Stock count info */}
+            <div className="text-xs text-gray-400">
+              {filteredStocksAll.length} Titel verfügbar • {filteredStocks.length} angezeigt
             </div>
           </CardContent>
         </Card>
@@ -380,61 +426,87 @@ export default function Step2StockSelection({
               <p className="text-gray-500 text-sm mt-1">Versuche einen anderen Suchbegriff</p>
             </div>
           ) : (
-            filteredStocks.map((stock: any) => (
-              <Card
-                key={stock.ticker}
-                className="bg-[#0a0f1a] border-white/10 hover:border-[#00CFC1]/50 transition-all cursor-pointer group"
-              >
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <StockLogo ticker={stock.ticker} companyName={stock.companyName} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-white">{stock.ticker}</p>
-                      <p className="text-xs text-gray-400 line-clamp-2">{stock.companyName}</p>
+            filteredStocks.map((stock: any) => {
+              const currency = stock.currency || 'CHF';
+              const ytdPerf = formatPerformance(stock.ytdPerformance);
+              const divYield = formatPerformance(stock.dividendYield);
+              
+              return (
+                <Card
+                  key={stock.ticker}
+                  className="bg-[#0a0f1a] border-white/10 hover:border-[#00CFC1]/50 transition-all cursor-pointer group"
+                  onClick={() => handleStockClick(stock)}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <StockLogo ticker={stock.ticker} companyName={stock.companyName} size="md" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white">{stock.ticker}</p>
+                        <p className="text-xs text-gray-400 line-clamp-2">{stock.companyName}</p>
+                      </div>
                     </div>
-                  </div>
 
                     <div className="space-y-1">
                       {stock.currentPrice != null && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-400">Preis</span>
-                          <span className="text-white font-medium">CHF {Number(stock.currentPrice).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {stock.ytdPerformance != null && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-400">YTD</span>
-                          <span className={Number(stock.ytdPerformance) >= 0 ? "text-green-400 font-medium" : "text-red-400 font-medium"}>
-                            {Number(stock.ytdPerformance) >= 0 ? "+" : ""}{Number(stock.ytdPerformance).toFixed(1)}%
+                          <span className="text-white font-medium">
+                            {formatCurrency(stock.currentPrice, currency)}
                           </span>
                         </div>
                       )}
-                      {stock.dividendYield != null && Number(stock.dividendYield) > 0 && (
+                      {ytdPerf !== null && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">YTD</span>
+                          <span className={ytdPerf >= 0 ? "text-green-400 font-medium" : "text-red-400 font-medium"}>
+                            {ytdPerf >= 0 ? "+" : ""}{ytdPerf.toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
+                      {divYield !== null && divYield > 0 && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-400">Div. Rendite</span>
-                          <span className="text-blue-400 font-medium">{Number(stock.dividendYield).toFixed(2)}%</span>
+                          <span className="text-blue-400 font-medium">{divYield.toFixed(2)}%</span>
                         </div>
                       )}
                     </div>
 
-                  {stock.sector && (
-                    <Badge variant="secondary" className="text-xs">
-                      {stock.sector}
-                    </Badge>
-                  )}
+                    {stock.sector && (
+                      <Badge variant="secondary" className="text-xs">
+                        {stock.sector}
+                      </Badge>
+                    )}
 
-                  <Button
-                    onClick={() => handleAddStock(stock)}
-                    className="w-full bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30"
-                    size="sm"
-                  >
-                    + Hinzufügen
-                  </Button>
-                </CardContent>
-              </Card>
-            ))
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddStock(stock);
+                      }}
+                      className="w-full bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30"
+                      size="sm"
+                    >
+                      + Hinzufügen
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
+
+        {/* Load More Button */}
+        {hasMoreStocks && (
+          <div className="text-center py-4">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              <ChevronDown className="mr-2 h-4 w-4" />
+              Weitere {Math.min(remainingCount, 20)} Titel laden ({remainingCount} verbleibend)
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Progress Dialog */}
@@ -458,6 +530,147 @@ export default function Step2StockSelection({
               Bitte warten, dies kann einen Moment dauern...
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stock Details Dialog */}
+      <Dialog open={showStockDetails} onOpenChange={setShowStockDetails}>
+        <DialogContent className="bg-[#0f1420] border-white/10 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-3">
+              {selectedStock && (
+                <>
+                  <StockLogo ticker={selectedStock.ticker} companyName={selectedStock.companyName} size="md" />
+                  <div>
+                    <p className="font-semibold">{selectedStock.ticker}</p>
+                    <p className="text-sm text-gray-400 font-normal">{selectedStock.companyName}</p>
+                  </div>
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedStock && (
+            <div className="space-y-4 py-4">
+              {/* Price and Performance */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-[#0a0f1a] rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                    <DollarSign className="h-4 w-4" />
+                    Aktueller Kurs
+                  </div>
+                  <p className="text-xl font-bold text-white">
+                    {formatCurrency(selectedStock.currentPrice, selectedStock.currency || 'CHF')}
+                  </p>
+                  {selectedStock.currency !== 'CHF' && selectedStock.exchangeRateToChf && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      ≈ CHF {(parseFloat(selectedStock.currentPrice) * parseFloat(selectedStock.exchangeRateToChf)).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+                
+                <div className="bg-[#0a0f1a] rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
+                    <TrendingUp className="h-4 w-4" />
+                    YTD Performance
+                  </div>
+                  {formatPerformance(selectedStock.ytdPerformance) !== null ? (
+                    <p className={`text-xl font-bold ${formatPerformance(selectedStock.ytdPerformance)! >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {formatPerformance(selectedStock.ytdPerformance)! >= 0 ? '+' : ''}{formatPerformance(selectedStock.ytdPerformance)!.toFixed(2)}%
+                    </p>
+                  ) : (
+                    <p className="text-xl font-bold text-gray-500">-</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Key Metrics */}
+              <div className="bg-[#0a0f1a] rounded-lg p-4 space-y-3">
+                <h4 className="text-sm font-medium text-white flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-[#00CFC1]" />
+                  Kennzahlen
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Dividendenrendite</span>
+                    <span className="text-white font-medium">
+                      {formatPerformance(selectedStock.dividendYield) !== null 
+                        ? `${formatPerformance(selectedStock.dividendYield)!.toFixed(2)}%` 
+                        : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">KGV (P/E)</span>
+                    <span className="text-white font-medium">
+                      {selectedStock.peRatio ? parseFloat(selectedStock.peRatio).toFixed(1) : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">PEG Ratio</span>
+                    <span className="text-white font-medium">
+                      {selectedStock.pegRatio ? parseFloat(selectedStock.pegRatio).toFixed(2) : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Beta</span>
+                    <span className="text-white font-medium">
+                      {selectedStock.beta ? parseFloat(selectedStock.beta).toFixed(2) : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Volatilität</span>
+                    <span className="text-white font-medium">
+                      {selectedStock.volatility ? `${parseFloat(selectedStock.volatility).toFixed(1)}%` : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Sharpe Ratio</span>
+                    <span className="text-white font-medium">
+                      {selectedStock.sharpeRatio ? parseFloat(selectedStock.sharpeRatio).toFixed(2) : '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 52 Week Range */}
+              {(selectedStock.week52High || selectedStock.week52Low) && (
+                <div className="bg-[#0a0f1a] rounded-lg p-4 space-y-2">
+                  <h4 className="text-sm font-medium text-white flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-[#00CFC1]" />
+                    52-Wochen Spanne
+                  </h4>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-red-400">
+                      {selectedStock.week52Low ? formatCurrency(selectedStock.week52Low, selectedStock.currency || 'CHF') : '-'}
+                    </span>
+                    <span className="text-gray-400">|</span>
+                    <span className="text-green-400">
+                      {selectedStock.week52High ? formatCurrency(selectedStock.week52High, selectedStock.currency || 'CHF') : '-'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Sector */}
+              {selectedStock.sector && (
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-gray-400" />
+                  <Badge variant="secondary">{selectedStock.sector}</Badge>
+                </div>
+              )}
+
+              {/* Add Button */}
+              <Button
+                onClick={() => {
+                  handleAddStock(selectedStock);
+                  setShowStockDetails(false);
+                }}
+                className="w-full bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white"
+              >
+                + Zum Portfolio hinzufügen
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -399,3 +399,23 @@
 - Bestätigungsdialog zeigt Liste aller zu löschenden Portfolios
 - Grüner Rahmen für ausgewählte Portfolios
 - Automatischer Browser-Refresh nach erfolgreichem Löschen
+
+
+## Portfolio Builder Aktienauswahl Verbesserungen (18.01.2026)
+- [ ] YTD Performance und Aktienkurse tagesaktuell anzeigen (aus DB/API statt statische Werte)
+- [ ] Bei ausländischen Titeln den Kurs in Fremdwährung anzeigen (z.B. USD 184.86 statt CHF 147.50)
+- [ ] Aktiendetails-Popup beim Klick auf Titel (gleiche Details wie in Positionsliste)
+- [ ] Pagination: "Weitere Titel laden" Button für alle 100+ Watchlist-Titel (20 pro Seite)
+
+
+## Portfolio Builder Aktienauswahl Verbesserungen (18.01.2026) - COMPLETED
+- [x] Tagesaktuelle YTD Performance und Kurse sicherstellen - DONE (Daten aus DB)
+- [x] Fremdwährungsanzeige für ausländische Titel (USD, EUR statt CHF) - DONE
+- [x] Aktiendetails-Popup beim Klick auf Titel (wie in Positionsliste) - DONE
+- [x] Pagination mit "Weitere Titel laden" Button (alle 100+ Watchlist-Titel) - DONE
+
+### Implementierte Features:
+- Preise werden in Originalwährung angezeigt (USD 218.66, EUR 235.15, CHF 587.00)
+- Aktiendetails-Modal mit Kennzahlen, 52-Wochen Spanne, Sektor
+- "Weitere 20 Titel laden (X verbleibend)" Button für Pagination
+- Alle 108 Watchlist-Titel verfügbar
