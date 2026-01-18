@@ -446,3 +446,25 @@
 - [ ] Filter-Logik für AND-Kombinationen (z.B. Dividenden + Healthcare)
 - [ ] Aktive Filter als Tags anzeigen mit X zum Entfernen
 - [ ] "Filter zurücksetzen" Button hinzufügen
+
+
+## Aktiensuche & YTD Performance (18.01.2026)
+- [x] Aktiensuche erweitern: Bei Ticker-Suche ALLE verfügbaren Titel aus APIs anzeigen (nicht nur Watchlist) - DONE
+- [x] YTD Performance der Einzeltitel überprüfen und korrigieren - DONE (ytdStartPrice auf 31.12.2025 aktualisiert)
+- [x] API-Integration für Echtzeit-Suche nach Aktien implementieren - DONE
+
+
+## API-Suche für Portfolio Builder (18.01.2026) - COMPLETED
+- [x] Aktiensuche erweitern: Bei Ticker-Suche ALLE verfügbaren Titel aus APIs anzeigen (nicht nur Watchlist) - DONE
+- [x] Separate Sektion "Weitere Titel aus globaler Suche" für API-Ergebnisse - DONE
+- [x] API-Aktien können zum Portfolio hinzugefügt werden - DONE
+- [x] Debounced API-Suche (500ms Verzögerung) für bessere Performance - DONE
+- [x] Mindestens 2 Zeichen für API-Suche erforderlich - DONE
+
+### Implementierte Features:
+- Watchlist-Ergebnisse werden oben angezeigt (mit allen Details: Preis, YTD, Dividende)
+- API-Ergebnisse werden in separater Sektion unten angezeigt
+- API-Aktien zeigen Ticker, Name und Börse (z.B. "PLTU - Direxion Daily PLTR Bull 2X Shares - US")
+- Hinzufügen-Button für API-Aktien funktioniert
+- Loading-Spinner während der API-Suche
+

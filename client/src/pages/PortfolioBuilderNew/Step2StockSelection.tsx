@@ -7,7 +7,7 @@ import { StockLogo } from "@/components/StockLogo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Sparkles, X, TrendingUp, DollarSign, Loader2, ChevronDown, Info, Building2, BarChart3, Percent, Activity, Star, ArrowUpDown, Filter, RotateCcw } from "lucide-react";
+import { Search, Sparkles, X, TrendingUp, DollarSign, Loader2, ChevronDown, Info, Building2, BarChart3, Percent, Activity, Star, ArrowUpDown, Filter, RotateCcw, Globe } from "lucide-react";
 import { PortfolioBuilderState, Position } from "../PortfolioBuilderNew";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -105,6 +105,23 @@ function saveFavorites(favorites: string[]): void {
 type SortOption = 'name' | 'ytd_desc' | 'ytd_asc' | 'dividend_desc' | 'sector' | 'favorites';
 type CategoryFilter = 'all' | 'dividends' | 'growth' | 'etf';
 
+// Debounce hook for API search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function Step2StockSelection({
   state,
   addPosition,
@@ -122,6 +139,10 @@ export default function Step2StockSelection({
   const [showStockDetails, setShowStockDetails] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>('name');
+  
+  // API search states
+  const [loadingApiStock, setLoadingApiStock] = useState<string | null>(null);
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Load favorites from localStorage on mount
   useEffect(() => {
@@ -142,8 +163,21 @@ export default function Step2StockSelection({
     });
   };
 
-  // Fetch all stocks
+  // Fetch all stocks from watchlist
   const { data: allStocks = [], isLoading: stocksLoading } = trpc.stocks.list.useQuery();
+  
+  // Fetch FX rates for currency conversion
+  const { data: fxRates } = trpc.stocks.getFxRates.useQuery();
+  
+  // API search query - only triggers when search has 2+ characters and no local results
+  const shouldSearchApi = debouncedSearchQuery.length >= 2;
+  const { data: apiSearchResults = [], isLoading: apiSearchLoading } = trpc.stocks.searchTicker.useQuery(
+    debouncedSearchQuery,
+    { enabled: shouldSearchApi }
+  );
+  
+  // Mutation to fetch full stock data from API
+  const fetchStockDataMutation = trpc.stocks.fetchStockData.useMutation();
 
   // Get unique sectors from all stocks
   const availableSectors = useMemo(() => {
@@ -167,7 +201,7 @@ export default function Step2StockSelection({
     setDisplayLimit(20);
   };
 
-  // Filter and sort stocks
+  // Filter and sort stocks from watchlist
   const filteredStocksAll = useMemo(() => {
     let filtered = allStocks;
 
@@ -242,6 +276,20 @@ export default function Step2StockSelection({
 
   const hasMoreStocks = filteredStocksAll.length > displayLimit;
   const remainingCount = filteredStocksAll.length - displayLimit;
+  
+  // Filter API results to exclude already selected stocks and watchlist stocks
+  const filteredApiResults = useMemo(() => {
+    if (!apiSearchResults || apiSearchResults.length === 0) return [];
+    
+    const selectedTickers = state.positions.map(p => p.ticker);
+    const watchlistTickers = allStocks.map((s: any) => s.ticker);
+    
+    return apiSearchResults.filter((result: any) => {
+      const ticker = result.symbol;
+      // Exclude if already selected or in watchlist
+      return !selectedTickers.includes(ticker) && !watchlistTickers.includes(ticker);
+    });
+  }, [apiSearchResults, state.positions, allStocks]);
 
   const selectedStocks = state.positions.filter(p => p.type === 'stock');
   const totalWeight = selectedStocks.reduce((sum, p) => sum + p.weight, 0);
@@ -266,6 +314,94 @@ export default function Step2StockSelection({
       dividendYield: parseFloat(stock.dividendYield || '0'),
       sector: stock.sector,
     });
+  };
+  
+  // Handle adding stock from API search results
+  const handleAddApiStock = async (apiResult: any) => {
+    const tickerWithExchange = `${apiResult.symbol}.${apiResult.exchange}`;
+    setLoadingApiStock(tickerWithExchange);
+    
+    try {
+      // Fetch full stock data from API
+      const stockData = await fetchStockDataMutation.mutateAsync(tickerWithExchange);
+      
+      // Calculate exchange rate to CHF
+      let exchangeRateToChf = 1.0;
+      if (stockData.currency && stockData.currency !== 'CHF' && fxRates) {
+        const pair = `${stockData.currency}CHF`;
+        if (pair === 'USDCHF') exchangeRateToChf = fxRates.USDCHF;
+        else if (pair === 'EURCHF') exchangeRateToChf = fxRates.EURCHF;
+        else if (pair === 'GBPCHF') exchangeRateToChf = fxRates.GBPCHF;
+      }
+      
+      // Calculate suggested weight
+      const numPositions = selectedStocks.length + 1;
+      const suggestedWeight = remainingWeight > 0 ? Math.min(remainingWeight, 100 / numPositions) : 0;
+      
+      addPosition({
+        ticker: stockData.ticker,
+        companyName: stockData.companyName || apiResult.shortname || stockData.ticker,
+        weight: parseFloat(suggestedWeight.toFixed(2)),
+        type: 'stock',
+        currentPrice: stockData.currentPrice || 0,
+        currency: stockData.currency || 'USD',
+        exchangeRateToChf: exchangeRateToChf,
+        ytdPerformance: stockData.ytdPerformance || 0,
+        dividendYield: stockData.dividendYield || 0,
+        sector: undefined, // API doesn't return sector
+      });
+      
+      // Clear search after adding
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Failed to fetch stock data:', error);
+      alert('Fehler beim Laden der Aktiendaten. Bitte versuchen Sie es erneut.');
+    } finally {
+      setLoadingApiStock(null);
+    }
+  };
+  
+  // Handle clicking on API result to show details
+  const handleApiStockClick = async (apiResult: any) => {
+    const tickerWithExchange = `${apiResult.symbol}.${apiResult.exchange}`;
+    setLoadingApiStock(tickerWithExchange);
+    
+    try {
+      // Fetch full stock data from API
+      const stockData = await fetchStockDataMutation.mutateAsync(tickerWithExchange);
+      
+      // Calculate exchange rate to CHF
+      let exchangeRateToChf = 1.0;
+      if (stockData.currency && stockData.currency !== 'CHF' && fxRates) {
+        const pair = `${stockData.currency}CHF`;
+        if (pair === 'USDCHF') exchangeRateToChf = fxRates.USDCHF;
+        else if (pair === 'EURCHF') exchangeRateToChf = fxRates.EURCHF;
+        else if (pair === 'GBPCHF') exchangeRateToChf = fxRates.GBPCHF;
+      }
+      
+      // Show stock details modal with API data
+      setSelectedStock({
+        ticker: stockData.ticker,
+        companyName: stockData.companyName || apiResult.shortname || stockData.ticker,
+        currentPrice: stockData.currentPrice,
+        currency: stockData.currency || 'USD',
+        exchangeRateToChf: exchangeRateToChf,
+        ytdPerformance: stockData.ytdPerformance,
+        dividendYield: stockData.dividendYield,
+        peRatio: stockData.peRatio,
+        pegRatio: stockData.pegRatio,
+        beta: stockData.beta,
+        volatility: stockData.volatility,
+        sharpeRatio: stockData.sharpeRatio,
+        isFromApi: true,
+      });
+      setShowStockDetails(true);
+    } catch (error) {
+      console.error('Failed to fetch stock data:', error);
+      alert('Fehler beim Laden der Aktiendaten. Bitte versuchen Sie es erneut.');
+    } finally {
+      setLoadingApiStock(null);
+    }
   };
 
   const handleWeightChange = (ticker: string, newWeight: number) => {
@@ -693,14 +829,14 @@ export default function Step2StockSelection({
           </CardContent>
         </Card>
 
-        {/* Stock Cards */}
+        {/* Stock Cards from Watchlist */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {stocksLoading ? (
             <div className="col-span-full text-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-[#00CFC1] mx-auto mb-2" />
               <p className="text-gray-400">Aktien werden geladen...</p>
             </div>
-          ) : filteredStocks.length === 0 ? (
+          ) : filteredStocks.length === 0 && !searchQuery ? (
             <div className="col-span-full text-center py-12">
               <p className="text-gray-400">Keine Aktien gefunden</p>
               <p className="text-gray-500 text-sm mt-1">Versuche einen anderen Suchbegriff oder Filter</p>
@@ -800,7 +936,7 @@ export default function Step2StockSelection({
           )}
         </div>
 
-        {/* Load More Button */}
+        {/* Load More Button for Watchlist */}
         {hasMoreStocks && (
           <div className="text-center py-4">
             <Button
@@ -812,6 +948,87 @@ export default function Step2StockSelection({
               Weitere {Math.min(remainingCount, 20)} Titel laden ({remainingCount} verbleibend)
             </Button>
           </div>
+        )}
+        
+        {/* API Search Results Section */}
+        {searchQuery.length >= 2 && (
+          <Card className="bg-[#0f1420]/50 border-white/10">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <Globe className="h-4 w-4 text-[#00CFC1]" />
+                Weitere Titel aus globaler Suche
+                {apiSearchLoading && <Loader2 className="h-4 w-4 animate-spin text-[#00CFC1]" />}
+              </CardTitle>
+              <p className="text-xs text-gray-400">
+                Aktien, die nicht in Ihrer Watchlist sind, können hier gesucht und hinzugefügt werden
+              </p>
+            </CardHeader>
+            <CardContent className="pt-2">
+              {apiSearchLoading ? (
+                <div className="text-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#00CFC1] mx-auto mb-2" />
+                  <p className="text-sm text-gray-400">Suche läuft...</p>
+                </div>
+              ) : filteredApiResults.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-gray-400">
+                    {apiSearchResults.length === 0 
+                      ? 'Keine weiteren Aktien gefunden' 
+                      : 'Alle gefundenen Aktien sind bereits in Ihrer Watchlist'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {filteredApiResults.map((result: any) => {
+                    const tickerWithExchange = `${result.symbol}.${result.exchange}`;
+                    const isLoading = loadingApiStock === tickerWithExchange;
+                    
+                    return (
+                      <Card
+                        key={tickerWithExchange}
+                        className="bg-[#0a0f1a] border-white/10 hover:border-[#00CFC1]/50 transition-all cursor-pointer"
+                        onClick={() => !isLoading && handleApiStockClick(result)}
+                      >
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 rounded-full bg-[#00CFC1]/10 flex items-center justify-center flex-shrink-0">
+                              <Globe className="h-4 w-4 text-[#00CFC1]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-white text-sm">{result.symbol}</p>
+                              <p className="text-xs text-gray-400 line-clamp-1">{result.shortname}</p>
+                              <Badge variant="outline" className="text-xs mt-1 border-gray-600 text-gray-400">
+                                {result.exchange}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddApiStock(result);
+                            }}
+                            disabled={isLoading}
+                            className="w-full bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30"
+                            size="sm"
+                          >
+                            {isLoading ? (
+                              <>
+                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                Laden...
+                              </>
+                            ) : (
+                              '+ Hinzufügen'
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -846,20 +1063,33 @@ export default function Step2StockSelection({
             <DialogTitle className="text-white flex items-center gap-3">
               {selectedStock && (
                 <>
-                  <StockLogo ticker={selectedStock.ticker} companyName={selectedStock.companyName} size="md" />
+                  {selectedStock.isFromApi ? (
+                    <div className="w-10 h-10 rounded-full bg-[#00CFC1]/10 flex items-center justify-center">
+                      <Globe className="h-5 w-5 text-[#00CFC1]" />
+                    </div>
+                  ) : (
+                    <StockLogo ticker={selectedStock.ticker} companyName={selectedStock.companyName} size="md" />
+                  )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold">{selectedStock.ticker}</p>
-                      <button
-                        onClick={() => toggleFavorite(selectedStock.ticker)}
-                        className={`transition-colors ${
-                          favorites.includes(selectedStock.ticker) 
-                            ? 'text-yellow-400 hover:text-yellow-300' 
-                            : 'text-gray-500 hover:text-yellow-400'
-                        }`}
-                      >
-                        <Star className={`h-4 w-4 ${favorites.includes(selectedStock.ticker) ? 'fill-current' : ''}`} />
-                      </button>
+                      {!selectedStock.isFromApi && (
+                        <button
+                          onClick={() => toggleFavorite(selectedStock.ticker)}
+                          className={`transition-colors ${
+                            favorites.includes(selectedStock.ticker) 
+                              ? 'text-yellow-400 hover:text-yellow-300' 
+                              : 'text-gray-500 hover:text-yellow-400'
+                          }`}
+                        >
+                          <Star className={`h-4 w-4 ${favorites.includes(selectedStock.ticker) ? 'fill-current' : ''}`} />
+                        </button>
+                      )}
+                      {selectedStock.isFromApi && (
+                        <Badge variant="outline" className="text-xs border-[#00CFC1]/30 text-[#00CFC1]">
+                          API
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-gray-400 font-normal">{selectedStock.companyName}</p>
                   </div>
