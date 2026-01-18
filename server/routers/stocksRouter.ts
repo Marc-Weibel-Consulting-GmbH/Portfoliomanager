@@ -1238,7 +1238,8 @@ export const stocksRouter = router({
             startDate.setFullYear(now.getFullYear() - 1);
             break;
           case 'YTD':
-            startDate = new Date(now.getFullYear(), 0, 1);
+            // For YTD, start from Dec 25 of previous year to ensure we get the last trading day
+            startDate = new Date(now.getFullYear() - 1, 11, 25);
             break;
           case 'All':
             startDate = new Date(2000, 0, 1); // Far back date

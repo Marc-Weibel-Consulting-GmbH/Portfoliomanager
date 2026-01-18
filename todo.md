@@ -468,3 +468,18 @@
 - Hinzufügen-Button für API-Aktien funktioniert
 - Loading-Spinner während der API-Suche
 
+
+
+## YTD Performance Bug Fix (18.01.2026)
+- [ ] Systematische Analyse: Warum zeigt ABB +42.9% statt +4%?
+- [ ] Alle YTD-Datenquellen identifizieren (DB, API, Chart)
+- [ ] ytdStartPrice für ALLE Schweizer Aktien (.SW) korrigieren
+- [ ] Auswirkungen auf Portfolio-Performance prüfen
+- [ ] Konsistenz zwischen allen Ansichten sicherstellen
+
+
+## Chart-Metrik Konsistenz Fix (18.01.2026)
+- [x] Historische Preise für alle Aktien aktualisieren (15.-17.01.2026 fehlen) - DONE (650 Preise importiert)
+- [x] Chart-Berechnung anpassen: Aktuellen Preis als letzten Datenpunkt verwenden - DONE
+- [x] YTD-Berechnung: Startdatum auf 25.12. des Vorjahres gesetzt für korrekten YTD-Start - DONE
+- [x] Konsistenz zwischen Chart-YTD und Metrik-YTD sicherstellen - DONE (ABBN.SW: Chart +4.41%, Metrik +4.0%)

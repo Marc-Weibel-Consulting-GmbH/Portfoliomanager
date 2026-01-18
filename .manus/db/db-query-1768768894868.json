@@ -1,0 +1,38 @@
+{
+  "query": "SELECT date, close FROM historical_prices WHERE ticker = 'ABBN.SW' AND date >= '2025-12-28' AND date <= '2026-01-10' ORDER BY date ASC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT date, close FROM historical_prices WHERE ticker = 'ABBN.SW' AND date >= '2025-12-28' AND date <= '2026-01-10' ORDER BY date ASC;",
+  "rows": [
+    {
+      "date": "2025-12-29",
+      "close": "59.000000"
+    },
+    {
+      "date": "2025-12-30",
+      "close": "59.220000"
+    },
+    {
+      "date": "2026-01-05",
+      "close": "61.240000"
+    },
+    {
+      "date": "2026-01-06",
+      "close": "60.660000"
+    },
+    {
+      "date": "2026-01-07",
+      "close": "61.140000"
+    },
+    {
+      "date": "2026-01-08",
+      "close": "59.240000"
+    },
+    {
+      "date": "2026-01-09",
+      "close": "60.160000"
+    }
+  ],
+  "messages": [],
+  "stdout": "date\tclose\n2025-12-29\t59.000000\n2025-12-30\t59.220000\n2026-01-05\t61.240000\n2026-01-06\t60.660000\n2026-01-07\t61.140000\n2026-01-08\t59.240000\n2026-01-09\t60.160000\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

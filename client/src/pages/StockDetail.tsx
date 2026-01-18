@@ -204,7 +204,7 @@ export default function StockDetail() {
   const chartData = useMemo(() => {
     // Use real historical prices if available
     if (historicalPrices.length > 0) {
-      return historicalPrices.map((d: any) => ({
+      const data = historicalPrices.map((d: any) => ({
         date: d.date,
         open: d.open,
         high: d.high,
@@ -212,6 +212,33 @@ export default function StockDetail() {
         close: d.close,
         volume: d.volume,
       }));
+      
+      // Add current price as the last data point if it's newer than the last historical price
+      // This ensures the chart shows the most up-to-date price
+      if (stock?.currentPrice) {
+        const currentPrice = parseFloat(stock.currentPrice);
+        const today = new Date().toISOString().split('T')[0];
+        const lastHistoricalDate = data[data.length - 1]?.date;
+        
+        // Only add if today is different from the last historical date
+        if (lastHistoricalDate && today > lastHistoricalDate) {
+          data.push({
+            date: today,
+            open: currentPrice,
+            high: currentPrice,
+            low: currentPrice,
+            close: currentPrice,
+            volume: 0,
+          });
+        } else if (lastHistoricalDate === today) {
+          // Update the last data point with the current price
+          data[data.length - 1].close = currentPrice;
+          data[data.length - 1].high = Math.max(data[data.length - 1].high || currentPrice, currentPrice);
+          data[data.length - 1].low = Math.min(data[data.length - 1].low || currentPrice, currentPrice);
+        }
+      }
+      
+      return data;
     }
     
     // Fallback: Try to parse stored chart data from stock
