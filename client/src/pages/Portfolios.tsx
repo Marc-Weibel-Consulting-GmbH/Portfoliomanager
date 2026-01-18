@@ -1,6 +1,17 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Plus, 
   TrendingUp, 
@@ -10,6 +21,8 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -46,13 +59,15 @@ export default function Portfolios() {
   const [, setLocation] = useLocation();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("performance");
+  const [selectedPortfolios, setSelectedPortfolios] = useState<Set<number>>(new Set());
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Fetch portfolios from database
   const { data: portfolios = [], refetch, isLoading } = trpc.portfolios.list.useQuery();
   const deleteMutation = trpc.portfolios.delete.useMutation({
     onSuccess: () => {
-      toast.success('Portfolio gelöscht');
-      refetch();
+      // Refresh will happen after all deletions
     },
     onError: (error) => {
       toast.error('Fehler beim Löschen', { description: error.message });
@@ -62,6 +77,60 @@ export default function Portfolios() {
   // Fetch aggregated metrics for live portfolios only
   const { data: metrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
 
+  // Toggle selection for a single portfolio
+  const toggleSelection = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSelected = new Set(selectedPortfolios);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedPortfolios(newSelected);
+  };
+
+  // Select all portfolios
+  const selectAll = () => {
+    const allIds = new Set(sortedPortfolios.map((p: any) => p.id));
+    setSelectedPortfolios(allIds);
+  };
+
+  // Deselect all portfolios
+  const deselectAll = () => {
+    setSelectedPortfolios(new Set());
+  };
+
+  // Handle batch delete
+  const handleBatchDelete = async () => {
+    if (selectedPortfolios.size === 0) return;
+    
+    setIsDeleting(true);
+    const idsToDelete = Array.from(selectedPortfolios);
+    let deletedCount = 0;
+    
+    for (const id of idsToDelete) {
+      try {
+        await deleteMutation.mutateAsync({ id });
+        deletedCount++;
+      } catch (error) {
+        console.error(`Failed to delete portfolio ${id}:`, error);
+      }
+    }
+    
+    setIsDeleting(false);
+    setIsDeleteDialogOpen(false);
+    setSelectedPortfolios(new Set());
+    
+    if (deletedCount > 0) {
+      toast.success(`${deletedCount} Portfolio${deletedCount > 1 ? 's' : ''} gelöscht`);
+      // Refresh the page to show updated list
+      await refetch();
+      // Force a full page refresh to ensure all data is updated
+      window.location.reload();
+    }
+  };
+
+  // Handle single delete (legacy, still used for individual delete button)
   const handleDelete = async (e: React.MouseEvent, id: number, name: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -69,6 +138,8 @@ export default function Portfolios() {
       return;
     }
     await deleteMutation.mutateAsync({ id });
+    await refetch();
+    window.location.reload();
   };
 
   const handleViewPortfolio = (portfolio: any) => {
@@ -86,7 +157,6 @@ export default function Portfolios() {
   // Sort portfolios
   const sortedPortfolios = [...filteredPortfolios].sort((a: any, b: any) => {
     if (sortBy === "performance") {
-      // livePerformance is now a number (or null/undefined)
       const perfA = typeof a.livePerformance === 'number' ? a.livePerformance : 0;
       const perfB = typeof b.livePerformance === 'number' ? b.livePerformance : 0;
       return perfB - perfA;
@@ -109,6 +179,13 @@ export default function Portfolios() {
       }
     }
     return 0;
+  };
+
+  // Get names of selected portfolios for the dialog
+  const getSelectedPortfolioNames = () => {
+    return sortedPortfolios
+      .filter((p: any) => selectedPortfolios.has(p.id))
+      .map((p: any) => p.name);
   };
 
   return (
@@ -179,34 +256,70 @@ export default function Portfolios() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-400">Status:</span>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] bg-[#1a1f2e] border-white/10 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1f2e] border-white/10">
-                <SelectItem value="all">Alle</SelectItem>
-                <SelectItem value="live">Live</SelectItem>
-                <SelectItem value="test">Test</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Filters and Selection Controls */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">Status:</span>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px] bg-[#1a1f2e] border-white/10 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1f2e] border-white/10">
+                  <SelectItem value="all">Alle</SelectItem>
+                  <SelectItem value="live">Live</SelectItem>
+                  <SelectItem value="test">Test</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">Sortieren:</span>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[160px] bg-[#1a1f2e] border-white/10 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1f2e] border-white/10">
+                  <SelectItem value="performance">Performance</SelectItem>
+                  <SelectItem value="date">Datum</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          
+
+          {/* Selection Controls */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-400">Sortieren:</span>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[160px] bg-[#1a1f2e] border-white/10 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1f2e] border-white/10">
-                <SelectItem value="performance">Performance</SelectItem>
-                <SelectItem value="date">Datum</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-              </SelectContent>
-            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={selectAll}
+              className="bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+            >
+              <CheckSquare className="h-4 w-4 mr-2" />
+              Alle auswählen
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={deselectAll}
+              className="bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+              disabled={selectedPortfolios.size === 0}
+            >
+              <Square className="h-4 w-4 mr-2" />
+              Auswahl aufheben
+            </Button>
+            {selectedPortfolios.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="bg-red-500 hover:bg-red-600 text-white"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {selectedPortfolios.size} löschen
+              </Button>
+            )}
           </div>
         </div>
 
@@ -239,33 +352,48 @@ export default function Portfolios() {
             {sortedPortfolios.map((portfolio: any) => {
               const positionCount = getPositionCount(portfolio);
               const isLive = portfolio.isLive === 1;
+              const isSelected = selectedPortfolios.has(portfolio.id);
               
               return (
                 <Card 
                   key={portfolio.id}
-                  className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-white/10 hover:border-[#00CFC1]/50 transition-all cursor-pointer group"
+                  className={`bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-white/10 hover:border-[#00CFC1]/50 transition-all cursor-pointer group ${
+                    isSelected ? 'ring-2 ring-[#00CFC1] border-[#00CFC1]' : ''
+                  }`}
                   onClick={() => handleViewPortfolio(portfolio)}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-xl font-semibold text-[#00CFC1]">
-                            {portfolio.name}
-                          </h3>
-                          <Badge 
-                            variant={isLive ? "default" : "secondary"}
-                            className={isLive ? "bg-green-500 text-white" : "bg-blue-500 text-white"}
-                          >
-                            {isLive ? "Live" : "Test"}
-                          </Badge>
+                      <div className="flex items-start gap-3 flex-1">
+                        {/* Checkbox for selection */}
+                        <div 
+                          className="pt-1"
+                          onClick={(e) => toggleSelection(portfolio.id, e)}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            className="border-white/30 data-[state=checked]:bg-[#00CFC1] data-[state=checked]:border-[#00CFC1]"
+                          />
                         </div>
-                        <p className="text-sm text-gray-400 line-clamp-2">
-                          {portfolio.description || "Testportfolio zur Strategieentwicklung."}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Erstellt: {formatDate(portfolio.createdAt)}
-                        </p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-xl font-semibold text-[#00CFC1]">
+                              {portfolio.name}
+                            </h3>
+                            <Badge 
+                              variant={isLive ? "default" : "secondary"}
+                              className={isLive ? "bg-green-500 text-white" : "bg-blue-500 text-white"}
+                            >
+                              {isLive ? "Live" : "Test"}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-400 line-clamp-2">
+                            {portfolio.description || "Testportfolio zur Strategieentwicklung."}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Erstellt: {formatDate(portfolio.createdAt)}
+                          </p>
+                        </div>
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, portfolio.id, portfolio.name)}
@@ -339,6 +467,42 @@ export default function Portfolios() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-[#1a1f2e] border-white/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">
+              {selectedPortfolios.size} Portfolio{selectedPortfolios.size > 1 ? 's' : ''} löschen?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              <p className="mb-4">
+                Möchten Sie die folgenden Portfolios wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+              </p>
+              <ul className="list-disc list-inside space-y-1 max-h-40 overflow-y-auto">
+                {getSelectedPortfolioNames().map((name, index) => (
+                  <li key={index} className="text-white">{name}</li>
+                ))}
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="bg-transparent border-white/10 text-white hover:bg-white/10"
+              disabled={isDeleting}
+            >
+              Abbrechen
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBatchDelete}
+              className="bg-red-500 hover:bg-red-600 text-white"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Wird gelöscht...' : `${selectedPortfolios.size} Portfolio${selectedPortfolios.size > 1 ? 's' : ''} löschen`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

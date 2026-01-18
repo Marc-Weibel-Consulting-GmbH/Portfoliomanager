@@ -384,3 +384,18 @@
 3. **Portfolio-Liste:** Verwendet jetzt portfolioData für alle Portfolios (konsistent mit Detailseiten)
 4. **Dashboard:** getAggregatedMetrics und getTopPortfolios verwenden portfolioData
 5. **Löschen-Button:** AlertDialog statt Browser-native confirm() für bessere UX
+
+
+## FEATURE: Mehrfach-Löschfunktion für Portfolios (18.01.2026) - COMPLETED
+- [x] Mehrfachauswahl-UI in der Portfolio-Liste implementieren (Checkboxen) - DONE
+- [x] Batch-Löschfunktion mit Bestätigungsdialog implementieren - DONE
+- [x] Automatischer Browser-Refresh nach jedem Löschvorgang - DONE (window.location.reload())
+- [x] "Alle auswählen" / "Auswahl aufheben" Buttons hinzufügen - DONE
+
+### Implementierte Features:
+- Checkboxen für jedes Portfolio-Card
+- "Alle auswählen" und "Auswahl aufheben" Buttons
+- Dynamischer "X löschen" Button mit Anzahl der ausgewählten Portfolios
+- Bestätigungsdialog zeigt Liste aller zu löschenden Portfolios
+- Grüner Rahmen für ausgewählte Portfolios
+- Automatischer Browser-Refresh nach erfolgreichem Löschen
