@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { StockLogo } from "@/components/StockLogo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Search, Sparkles, X, TrendingUp, DollarSign, Loader2, ChevronDown, Info, Building2, BarChart3, Percent, Activity } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Sparkles, X, TrendingUp, DollarSign, Loader2, ChevronDown, Info, Building2, BarChart3, Percent, Activity, Star, ArrowUpDown } from "lucide-react";
 import { PortfolioBuilderState, Position } from "../PortfolioBuilderNew";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -17,6 +18,91 @@ interface Step2StockSelectionProps {
   removePosition: (ticker: string) => void;
   updatePosition: (ticker: string, updates: Partial<Position>) => void;
 }
+
+// Fuzzy search helper - matches partial strings and similar spellings
+function fuzzyMatch(text: string, query: string): boolean {
+  if (!text || !query) return false;
+  
+  const textLower = text.toLowerCase();
+  const queryLower = query.toLowerCase();
+  
+  // Direct substring match
+  if (textLower.includes(queryLower)) return true;
+  
+  // Word-by-word match (for multi-word queries)
+  const queryWords = queryLower.split(/\s+/);
+  if (queryWords.every(word => textLower.includes(word))) return true;
+  
+  // Character sequence match (fuzzy)
+  let queryIndex = 0;
+  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
+    if (textLower[i] === queryLower[queryIndex]) {
+      queryIndex++;
+    }
+  }
+  if (queryIndex === queryLower.length) return true;
+  
+  // Levenshtein distance for short queries (typo tolerance)
+  if (queryLower.length <= 5 && textLower.length <= 20) {
+    const distance = levenshteinDistance(textLower.substring(0, 10), queryLower);
+    if (distance <= 2) return true;
+  }
+  
+  return false;
+}
+
+// Levenshtein distance for typo tolerance
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[b.length][a.length];
+}
+
+// Favorites storage key
+const FAVORITES_STORAGE_KEY = 'portfolio_builder_favorites';
+
+// Get favorites from localStorage
+function getFavorites(): string[] {
+  try {
+    const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Save favorites to localStorage
+function saveFavorites(favorites: string[]): void {
+  try {
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+  } catch {
+    console.error('Failed to save favorites');
+  }
+}
+
+type SortOption = 'name' | 'ytd_desc' | 'ytd_asc' | 'dividend_desc' | 'sector' | 'favorites';
 
 export default function Step2StockSelection({
   state,
@@ -32,21 +118,42 @@ export default function Step2StockSelection({
   const [displayLimit, setDisplayLimit] = useState(20);
   const [selectedStock, setSelectedStock] = useState<any>(null);
   const [showStockDetails, setShowStockDetails] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<SortOption>('name');
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    setFavorites(getFavorites());
+  }, []);
+
+  // Toggle favorite
+  const toggleFavorite = (ticker: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setFavorites(prev => {
+      const newFavorites = prev.includes(ticker)
+        ? prev.filter(t => t !== ticker)
+        : [...prev, ticker];
+      saveFavorites(newFavorites);
+      return newFavorites;
+    });
+  };
 
   // Fetch all stocks
   const { data: allStocks = [], isLoading: stocksLoading } = trpc.stocks.list.useQuery();
 
-  // Filter stocks based on search and filter
+  // Filter and sort stocks
   const filteredStocksAll = useMemo(() => {
     let filtered = allStocks;
 
-    // Apply search filter
+    // Apply search filter with fuzzy matching
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (stock: any) =>
-          stock.ticker.toLowerCase().includes(query) ||
-          stock.companyName?.toLowerCase().includes(query)
+          fuzzyMatch(stock.ticker, searchQuery) ||
+          fuzzyMatch(stock.companyName || '', searchQuery) ||
+          fuzzyMatch(stock.sector || '', searchQuery)
       );
     }
 
@@ -63,8 +170,41 @@ export default function Step2StockSelection({
     const selectedTickers = state.positions.map(p => p.ticker);
     filtered = filtered.filter((stock: any) => !selectedTickers.includes(stock.ticker));
 
+    // Sort stocks
+    filtered = [...filtered].sort((a: any, b: any) => {
+      // Favorites always first when sorting by favorites
+      if (sortBy === 'favorites') {
+        const aFav = favorites.includes(a.ticker);
+        const bFav = favorites.includes(b.ticker);
+        if (aFav && !bFav) return -1;
+        if (!aFav && bFav) return 1;
+        // Then by name
+        return (a.companyName || a.ticker).localeCompare(b.companyName || b.ticker);
+      }
+      
+      // For other sorts, favorites still come first
+      const aFav = favorites.includes(a.ticker);
+      const bFav = favorites.includes(b.ticker);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      
+      switch (sortBy) {
+        case 'ytd_desc':
+          return (parseFloat(b.ytdPerformance) || 0) - (parseFloat(a.ytdPerformance) || 0);
+        case 'ytd_asc':
+          return (parseFloat(a.ytdPerformance) || 0) - (parseFloat(b.ytdPerformance) || 0);
+        case 'dividend_desc':
+          return (parseFloat(b.dividendYield) || 0) - (parseFloat(a.dividendYield) || 0);
+        case 'sector':
+          return (a.sector || 'ZZZ').localeCompare(b.sector || 'ZZZ');
+        case 'name':
+        default:
+          return (a.companyName || a.ticker).localeCompare(b.companyName || b.ticker);
+      }
+    });
+
     return filtered;
-  }, [allStocks, searchQuery, selectedFilter, state.positions]);
+  }, [allStocks, searchQuery, selectedFilter, state.positions, sortBy, favorites]);
 
   // Apply pagination
   const filteredStocks = useMemo(() => {
@@ -362,14 +502,14 @@ export default function Step2StockSelection({
           </Card>
         )}
 
-        {/* Search and Filters */}
+        {/* Search, Filters and Sorting */}
         <Card className="bg-[#0f1420]/50 border-white/10">
           <CardContent className="p-4 space-y-4">
             {/* Search Bar */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Aktien suchen (Ticker oder Name)..."
+                placeholder="Aktien suchen (Ticker, Name oder Sektor)..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -377,38 +517,78 @@ export default function Step2StockSelection({
                 }}
                 className="pl-10 bg-[#0a0f1a] border-white/10 text-white"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
-            {/* Filter Buttons */}
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: 'all' as const, label: 'Alle', icon: null },
-                { id: 'dividends' as const, label: 'Dividenden', icon: DollarSign },
-                { id: 'growth' as const, label: 'Wachstum', icon: TrendingUp },
-                { id: 'etf' as const, label: 'ETF', icon: null },
-              ].map((filter) => {
-                const Icon = filter.icon;
-                return (
-                  <Button
-                    key={filter.id}
-                    variant={selectedFilter === filter.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setSelectedFilter(filter.id);
-                      setDisplayLimit(20); // Reset pagination on filter change
-                    }}
-                    className={selectedFilter === filter.id ? "bg-[#00CFC1] hover:bg-[#00CFC1]/90" : ""}
-                  >
-                    {Icon && <Icon className="mr-1 h-3 w-3" />}
-                    {filter.label}
-                  </Button>
-                );
-              })}
+            {/* Filter and Sort Row */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Filter Buttons */}
+              <div className="flex flex-wrap gap-2 flex-1">
+                {[
+                  { id: 'all' as const, label: 'Alle', icon: null },
+                  { id: 'dividends' as const, label: 'Dividenden', icon: DollarSign },
+                  { id: 'growth' as const, label: 'Wachstum', icon: TrendingUp },
+                  { id: 'etf' as const, label: 'ETF', icon: null },
+                ].map((filter) => {
+                  const Icon = filter.icon;
+                  return (
+                    <Button
+                      key={filter.id}
+                      variant={selectedFilter === filter.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setSelectedFilter(filter.id);
+                        setDisplayLimit(20); // Reset pagination on filter change
+                      }}
+                      className={selectedFilter === filter.id ? "bg-[#00CFC1] hover:bg-[#00CFC1]/90" : ""}
+                    >
+                      {Icon && <Icon className="mr-1 h-3 w-3" />}
+                      {filter.label}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-gray-400" />
+                <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                  <SelectTrigger className="w-[180px] bg-[#0a0f1a] border-white/10 text-white">
+                    <SelectValue placeholder="Sortieren nach..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0f1420] border-white/10">
+                    <SelectItem value="favorites" className="text-white hover:bg-white/10">
+                      <span className="flex items-center gap-2">
+                        <Star className="h-3 w-3 text-yellow-400" />
+                        Favoriten zuerst
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="name" className="text-white hover:bg-white/10">Name (A-Z)</SelectItem>
+                    <SelectItem value="ytd_desc" className="text-white hover:bg-white/10">YTD Performance ↓</SelectItem>
+                    <SelectItem value="ytd_asc" className="text-white hover:bg-white/10">YTD Performance ↑</SelectItem>
+                    <SelectItem value="dividend_desc" className="text-white hover:bg-white/10">Dividendenrendite ↓</SelectItem>
+                    <SelectItem value="sector" className="text-white hover:bg-white/10">Sektor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Stock count info */}
-            <div className="text-xs text-gray-400">
-              {filteredStocksAll.length} Titel verfügbar • {filteredStocks.length} angezeigt
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <span>{filteredStocksAll.length} Titel verfügbar • {filteredStocks.length} angezeigt</span>
+              {favorites.length > 0 && (
+                <span className="flex items-center gap-1">
+                  <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                  {favorites.length} Favoriten
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -430,18 +610,33 @@ export default function Step2StockSelection({
               const currency = stock.currency || 'CHF';
               const ytdPerf = formatPerformance(stock.ytdPerformance);
               const divYield = formatPerformance(stock.dividendYield);
+              const isFavorite = favorites.includes(stock.ticker);
               
               return (
                 <Card
                   key={stock.ticker}
-                  className="bg-[#0a0f1a] border-white/10 hover:border-[#00CFC1]/50 transition-all cursor-pointer group"
+                  className={`bg-[#0a0f1a] border-white/10 hover:border-[#00CFC1]/50 transition-all cursor-pointer group ${
+                    isFavorite ? 'ring-1 ring-yellow-400/30' : ''
+                  }`}
                   onClick={() => handleStockClick(stock)}
                 >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start gap-3">
                       <StockLogo ticker={stock.ticker} companyName={stock.companyName} size="md" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white">{stock.ticker}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-white">{stock.ticker}</p>
+                          <button
+                            onClick={(e) => toggleFavorite(stock.ticker, e)}
+                            className={`transition-colors ${
+                              isFavorite 
+                                ? 'text-yellow-400 hover:text-yellow-300' 
+                                : 'text-gray-500/50 hover:text-yellow-400'
+                            }`}
+                          >
+                            <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                          </button>
+                        </div>
                         <p className="text-xs text-gray-400 line-clamp-2">{stock.companyName}</p>
                       </div>
                     </div>
@@ -541,8 +736,20 @@ export default function Step2StockSelection({
               {selectedStock && (
                 <>
                   <StockLogo ticker={selectedStock.ticker} companyName={selectedStock.companyName} size="md" />
-                  <div>
-                    <p className="font-semibold">{selectedStock.ticker}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold">{selectedStock.ticker}</p>
+                      <button
+                        onClick={() => toggleFavorite(selectedStock.ticker)}
+                        className={`transition-colors ${
+                          favorites.includes(selectedStock.ticker) 
+                            ? 'text-yellow-400 hover:text-yellow-300' 
+                            : 'text-gray-500 hover:text-yellow-400'
+                        }`}
+                      >
+                        <Star className={`h-4 w-4 ${favorites.includes(selectedStock.ticker) ? 'fill-current' : ''}`} />
+                      </button>
+                    </div>
                     <p className="text-sm text-gray-400 font-normal">{selectedStock.companyName}</p>
                   </div>
                 </>

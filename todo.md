@@ -419,3 +419,22 @@
 - Aktiendetails-Modal mit Kennzahlen, 52-Wochen Spanne, Sektor
 - "Weitere 20 Titel laden (X verbleibend)" Button für Pagination
 - Alle 108 Watchlist-Titel verfügbar
+
+
+## Portfolio Builder Aktienauswahl Erweiterungen (18.01.2026)
+- [ ] Fuzzy-Search für Aktiennamen implementieren (Teilbegriffe und ähnliche Schreibweisen finden)
+- [ ] Favoriten-Funktion mit Persistenz implementieren (Aktien als Favoriten markieren)
+- [ ] Sortierung nach verschiedenen Kriterien hinzufügen (YTD Performance, Dividendenrendite, Sektor)
+
+
+## Portfolio Builder Erweiterungen Phase 2 (18.01.2026) - COMPLETED
+- [x] Fuzzy-Search für Aktiennamen implementieren - DONE (Teilbegriffe und ähnliche Schreibweisen)
+- [x] Favoriten-Funktion mit localStorage Persistenz - DONE (Stern-Icon, Favoriten zuerst)
+- [x] Sortierung nach verschiedenen Kriterien - DONE (6 Optionen: Favoriten, Name, YTD ↓/↑, Dividende, Sektor)
+
+### Implementierte Features:
+- Fuzzy-Search findet Teilbegriffe (z.B. "micro" findet AMD, Microsoft, Micron)
+- Favoriten werden mit gelbem Stern markiert und im localStorage gespeichert
+- Favoriten erscheinen immer zuerst, unabhängig von der gewählten Sortierung
+- Sortierungs-Dropdown mit 6 Optionen für flexible Ansichten
+- Anzeige "⭐ X Favoriten" zeigt Anzahl der markierten Favoriten
