@@ -272,6 +272,7 @@ export default function PortfolioDetail() {
               <p className={`text-xs mt-1 ${totalPerformanceAmount >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {totalPerformanceAmount >= 0 ? '+' : ''}CHF {Math.abs(totalPerformanceAmount).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
+              <p className="text-xs text-muted-foreground mt-1">seit Start</p>
             </CardContent>
           </Card>
 

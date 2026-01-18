@@ -448,7 +448,25 @@ export default function PortfolioDetailsPage() {
               <div className="lg:col-span-2">
                 <div className="flex flex-col gap-3 mb-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-white">Portfolio-Wertentwicklung</h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-semibold text-white">Portfolio-Wertentwicklung</h3>
+                      {/* Performance Badge */}
+                      {chartData.data.length > 0 && (() => {
+                        const lastPoint = chartData.data[chartData.data.length - 1];
+                        const performance = lastPoint?.portfolio || 0;
+                        return (
+                          <div className={`px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 ${
+                            performance >= 0 
+                              ? 'bg-emerald-500/20 text-emerald-400' 
+                              : 'bg-red-500/20 text-red-400'
+                          }`}>
+                            <span>{performance >= 0 ? '↗' : '↘'}</span>
+                            <span>{performance >= 0 ? '+' : ''}{performance.toFixed(2)}%</span>
+                            <span className="text-xs opacity-70">({selectedPeriod})</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-400">Benchmark:</span>
                       <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
@@ -856,7 +874,7 @@ export default function PortfolioDetailsPage() {
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {portfolio.portfolioType === 'demo' ? 'Gesamt' : selectedPeriod} Performance
+                    {portfolio.portfolioType === 'demo' ? 'Gesamt Performance (seit Start)' : `${selectedPeriod} Performance`}
                   </p>
                 </CardContent>
               </Card>

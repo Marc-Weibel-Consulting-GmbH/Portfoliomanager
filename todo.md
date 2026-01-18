@@ -471,11 +471,11 @@
 
 
 ## YTD Performance Bug Fix (18.01.2026)
-- [ ] Systematische Analyse: Warum zeigt ABB +42.9% statt +4%?
-- [ ] Alle YTD-Datenquellen identifizieren (DB, API, Chart)
-- [ ] ytdStartPrice für ALLE Schweizer Aktien (.SW) korrigieren
-- [ ] Auswirkungen auf Portfolio-Performance prüfen
-- [ ] Konsistenz zwischen allen Ansichten sicherstellen
+- [x] Systematische Analyse: Warum zeigt ABB +42.9% statt +4%? - DONE (ytdStartPrice war veraltet)
+- [x] Alle YTD-Datenquellen identifizieren (DB, API, Chart) - DONE
+- [x] ytdStartPrice für ALLE Schweizer Aktien (.SW) korrigieren - DONE (13 Aktien korrigiert)
+- [x] Auswirkungen auf Portfolio-Performance prüfen - DONE (keine Auswirkung, Performance wird dynamisch berechnet)
+- [x] Konsistenz zwischen allen Ansichten sicherstellen - DONE (Chart und Metrik zeigen jetzt ~4%)
 
 
 ## Chart-Metrik Konsistenz Fix (18.01.2026)
@@ -483,3 +483,8 @@
 - [x] Chart-Berechnung anpassen: Aktuellen Preis als letzten Datenpunkt verwenden - DONE
 - [x] YTD-Berechnung: Startdatum auf 25.12. des Vorjahres gesetzt für korrekten YTD-Start - DONE
 - [x] Konsistenz zwischen Chart-YTD und Metrik-YTD sicherstellen - DONE (ABBN.SW: Chart +4.41%, Metrik +4.0%)
+
+
+## Portfolio-Seite Verbesserungen (18.01.2026)
+- [x] Performance-Hinweis "seit Start" zur Übersicht hinzufügen - DONE ("Gesamt Performance (seit Start)")
+- [x] Performance-Badge im Chart implementieren - DONE (↗ +3.34% (YTD), aktualisiert sich mit Zeitraum)

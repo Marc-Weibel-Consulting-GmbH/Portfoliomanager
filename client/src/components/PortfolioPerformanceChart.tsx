@@ -274,9 +274,21 @@ export function PortfolioPerformanceChart({ stocks = [], portfolioName = 'Portfo
 
   return (
     <div className="bg-[#2c3e50] rounded-lg p-6 border border-slate-600">
-      {/* Header with Title and Controls */}
+      {/* Header with Title, Performance Badge and Controls */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white text-lg font-semibold">Portfolio Performance</h3>
+        <div className="flex items-center gap-4">
+          <h3 className="text-white text-lg font-semibold">Portfolio Performance</h3>
+          {/* Performance Badge - analog to StockDetail */}
+          <div className={`px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1 ${
+            finalPortfolioReturn >= 0 
+              ? 'bg-emerald-500/20 text-emerald-400' 
+              : 'bg-red-500/20 text-red-400'
+          }`}>
+            <span>{finalPortfolioReturn >= 0 ? '↗' : '↘'}</span>
+            <span>{finalPortfolioReturn >= 0 ? '+' : ''}{finalPortfolioReturn.toFixed(2)}%</span>
+            <span className="text-xs opacity-70">({selectedPeriod})</span>
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <label className="text-slate-300 text-sm">Zeitraum:</label>
