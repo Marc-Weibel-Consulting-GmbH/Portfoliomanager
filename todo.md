@@ -438,3 +438,11 @@
 - Favoriten erscheinen immer zuerst, unabhängig von der gewählten Sortierung
 - Sortierungs-Dropdown mit 6 Optionen für flexible Ansichten
 - Anzeige "⭐ X Favoriten" zeigt Anzahl der markierten Favoriten
+
+
+## Portfolio Builder Multi-Filter (18.01.2026)
+- [ ] Filter kombinieren: Mehrere Filter gleichzeitig anwenden
+- [ ] Sektor-Dropdown hinzufügen (Healthcare, Technology, Finance, etc.)
+- [ ] Filter-Logik für AND-Kombinationen (z.B. Dividenden + Healthcare)
+- [ ] Aktive Filter als Tags anzeigen mit X zum Entfernen
+- [ ] "Filter zurücksetzen" Button hinzufügen
