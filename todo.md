@@ -581,3 +581,16 @@
 - Problem: `getMultiPeriodPerformance` berechnete Shares mit aktuellen Preisen, was zu falschen historischen Werten führte
 - Lösung: `getMultiPeriodPerformanceV2` verwendet gewichtete Performance aus historischen Preisen (wie Detail-Seite)
 - Benchmark (SPY) wird korrekt aus historicalPrices-Tabelle gelesen
+
+
+## Summary Bar Bugs (19.01.2026)
+- [x] BUG: Durchschn. Dividendenrendite zeigt 0% obwohl Portfolios Dividenden-Aktien enthalten - FIXED (jetzt 2.98%)
+- [x] BUG: Performance YTD (+2.87%) = Outperformance YTD (+2.87%) - Outperformance sollte Portfolio - Benchmark sein - FIXED (jetzt +1.44%)
+- [x] BUG: Bestes Portfolio Name immer noch abgeschnitten ("Test Portfolio R...") - vollständiger Name mit Tooltip benötigt - FIXED
+- [x] BUG: Bestes Portfolio Performance-Angabe unklar - "(YTD)" Label fehlt - FIXED
+
+### Lösung implementiert:
+- [x] getAggregatedMetrics berechnet jetzt benchmarkPerformance (SPY YTD) aus historicalPrices
+- [x] getAggregatedMetrics berechnet jetzt avgDividendYield aus allen Aktien in Live-Portfolios
+- [x] Frontend zeigt Outperformance korrekt als Portfolio - Benchmark
+- [x] Bestes Portfolio verwendet min-w-0 flex-1 für vollständigen Namen mit Tooltip

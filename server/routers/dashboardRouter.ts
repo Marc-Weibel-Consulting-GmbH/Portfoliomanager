@@ -166,6 +166,84 @@ export const dashboardRouter = router({
       ? (totalPerformanceCHF / totalValueYTDStartCHF) * 100 
       : 0;
     
+    // Calculate benchmark performance (SPY YTD)
+    const benchmarkTicker = 'SPY';
+    const { getDb } = await import("../db");
+    const { historicalPrices } = await import("../../drizzle/schema");
+    const { eq, and, lte, desc } = await import("drizzle-orm");
+    
+    let benchmarkPerformance = 0;
+    try {
+      const db = await getDb();
+      if (db) {
+        // Get benchmark price at YTD start
+        const ytdBenchmarkPrices = await db
+          .select()
+          .from(historicalPrices)
+          .where(
+            and(
+              eq(historicalPrices.ticker, benchmarkTicker),
+              lte(historicalPrices.date, ytdStartDate)
+            )
+          )
+          .orderBy(desc(historicalPrices.date))
+          .limit(1);
+        
+        // Get current benchmark price
+        const currentBenchmarkPrices = await db
+          .select()
+          .from(historicalPrices)
+          .where(
+            and(
+              eq(historicalPrices.ticker, benchmarkTicker),
+              lte(historicalPrices.date, today)
+            )
+          )
+          .orderBy(desc(historicalPrices.date))
+          .limit(1);
+        
+        if (ytdBenchmarkPrices.length > 0 && currentBenchmarkPrices.length > 0) {
+          const ytdPrice = parseFloat(ytdBenchmarkPrices[0].close || '0');
+          const currentPrice = parseFloat(currentBenchmarkPrices[0].close || '0');
+          
+          if (ytdPrice > 0) {
+            benchmarkPerformance = ((currentPrice - ytdPrice) / ytdPrice) * 100;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[dashboard.getAggregatedMetrics] Error calculating benchmark performance:', error);
+    }
+    
+    // Calculate average dividend yield across all stocks in live portfolios
+    let totalDividendYield = 0;
+    let stockCount = 0;
+    
+    for (const portfolio of livePortfolios) {
+      try {
+        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+        const stocks = portfolioData.stocks || portfolioData.positions || [];
+        
+        for (const stock of stocks) {
+          const ticker = stock.ticker;
+          if (!ticker) continue;
+          
+          const stockData = stocksMap.get(ticker);
+          if (!stockData) continue;
+          
+          const dividendYield = parseFloat(stockData.dividendYield || '0');
+          if (dividendYield > 0) {
+            totalDividendYield += dividendYield;
+            stockCount++;
+          }
+        }
+      } catch (error) {
+        console.error(`[dashboard.getAggregatedMetrics] Error calculating dividend yield for portfolio ${portfolio.id}:`, error);
+      }
+    }
+    
+    const avgDividendYield = stockCount > 0 ? totalDividendYield / stockCount : 0;
+    
     return {
       totalValue: totalValueCHF,
       totalInvested: totalInvestedCHF,
@@ -174,6 +252,8 @@ export const dashboardRouter = router({
       totalDividends: totalDividendsCHF,
       portfolioCount: portfolios.length,
       livePortfolioCount: livePortfolios.length,
+      benchmarkPerformance: benchmarkPerformance,
+      avgDividendYield: avgDividendYield,
     };
   }),
   
