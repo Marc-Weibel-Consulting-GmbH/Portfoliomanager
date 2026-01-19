@@ -2654,5 +2654,222 @@ export const portfoliosRouter = router({
         return results;
       }),
 
+    // V2: Get multi-period performance using the same logic as getHistoricalPerformance
+    // This ensures consistency between overview and detail pages
+    getMultiPeriodPerformanceV2: protectedProcedure.query(async ({ ctx }) => {
+      const { getSavedPortfolios, getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
+      const { convertToCHF } = await import("../fxHelper");
+      const { historicalPrices } = await import("../../drizzle/schema");
+      const { eq, and, gte, lte, asc, desc } = await import("drizzle-orm");
+      
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      const db = await getDb();
+      if (!db) return [];
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      
+      // Calculate period start dates
+      const periods = ['1M', '3M', '6M', 'YTD', '1Y'] as const;
+      const periodStartDates: Record<string, string> = {
+        '1M': new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString().split('T')[0],
+        '3M': new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()).toISOString().split('T')[0],
+        '6M': new Date(now.getFullYear(), now.getMonth() - 6, now.getDate()).toISOString().split('T')[0],
+        'YTD': `${now.getFullYear()}-01-01`,
+        '1Y': new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().split('T')[0],
+      };
+      
+      // Get benchmark (SPY) prices for all periods
+      const benchmarkTicker = 'SPY';
+      const benchmarkPrices: Record<string, number> = {};
+      
+      // Get the latest available benchmark price
+      const [latestBenchmarkPrice] = await db
+        .select()
+        .from(historicalPrices)
+        .where(eq(historicalPrices.ticker, benchmarkTicker))
+        .orderBy(desc(historicalPrices.date))
+        .limit(1);
+      
+      const benchmarkCurrentPrice = latestBenchmarkPrice ? parseFloat(latestBenchmarkPrice.close || '0') : 0;
+      benchmarkPrices['current'] = benchmarkCurrentPrice;
+      
+      // Get historical benchmark prices for each period
+      for (const [period, startDate] of Object.entries(periodStartDates)) {
+        const [historicalPrice] = await db
+          .select()
+          .from(historicalPrices)
+          .where(
+            and(
+              eq(historicalPrices.ticker, benchmarkTicker),
+              gte(historicalPrices.date, startDate)
+            )
+          )
+          .orderBy(asc(historicalPrices.date))
+          .limit(1);
+        
+        if (historicalPrice && historicalPrice.close) {
+          benchmarkPrices[period] = parseFloat(historicalPrice.close);
+        } else {
+          const [fallbackPrice] = await db
+            .select()
+            .from(historicalPrices)
+            .where(
+              and(
+                eq(historicalPrices.ticker, benchmarkTicker),
+                lte(historicalPrices.date, startDate)
+              )
+            )
+            .orderBy(desc(historicalPrices.date))
+            .limit(1);
+          
+          benchmarkPrices[period] = fallbackPrice ? parseFloat(fallbackPrice.close || '0') : benchmarkCurrentPrice;
+        }
+      }
+      
+      // Calculate benchmark performance for each period
+      const benchmarkPerformance: Record<string, number> = {};
+      for (const period of periods) {
+        const startPrice = benchmarkPrices[period];
+        if (startPrice > 0 && benchmarkCurrentPrice > 0) {
+          benchmarkPerformance[period] = ((benchmarkCurrentPrice - startPrice) / startPrice) * 100;
+        } else {
+          benchmarkPerformance[period] = 0;
+        }
+      }
+      
+      // Calculate performance for each portfolio using weight-based approach
+      const results = await Promise.all(
+        portfolios.map(async (portfolio) => {
+          try {
+            const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = portfolioData.stocks || portfolioData.positions || [];
+            
+            if (stocks.length === 0) {
+              return {
+                portfolioId: portfolio.id,
+                performance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+                benchmarkPerformance,
+                outperformance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+              };
+            }
+            
+            // Get stock data and prices
+            const stockData: Record<string, { currency: string; weight: number }> = {};
+            const stockPrices: Record<string, Record<string, number>> = {};
+            
+            // Calculate total weight for normalization
+            let totalWeight = 0;
+            for (const stock of stocks) {
+              if (stock.ticker && stock.ticker !== 'CASH') {
+                totalWeight += parseFloat(stock.weight || '0');
+              }
+            }
+            
+            for (const stock of stocks) {
+              if (!stock.ticker || stock.ticker === 'CASH') continue;
+              
+              const ticker = stock.ticker;
+              const weight = totalWeight > 0 ? parseFloat(stock.weight || '0') / totalWeight : 0;
+              
+              const stockInfo = await getStockByTicker(ticker);
+              stockData[ticker] = {
+                currency: stockInfo?.currency || 'CHF',
+                weight: weight
+              };
+              
+              // Get all historical prices for this stock
+              const earliestStartDate = periodStartDates['1Y']; // Get prices from 1Y ago
+              const prices = await db
+                .select()
+                .from(historicalPrices)
+                .where(
+                  and(
+                    eq(historicalPrices.ticker, ticker),
+                    gte(historicalPrices.date, earliestStartDate)
+                  )
+                )
+                .orderBy(asc(historicalPrices.date));
+              
+              stockPrices[ticker] = {};
+              for (const p of prices) {
+                stockPrices[ticker][p.date] = parseFloat(p.close || '0');
+              }
+            }
+            
+            // Calculate performance for each period
+            const portfolioPerformance: Record<string, number> = {};
+            
+            for (const period of periods) {
+              const startDate = periodStartDates[period];
+              
+              // Calculate weighted performance
+              let weightedPerformance = 0;
+              let totalWeightUsed = 0;
+              
+              for (const [ticker, data] of Object.entries(stockData)) {
+                const prices = stockPrices[ticker] || {};
+                const priceDates = Object.keys(prices).sort();
+                
+                if (priceDates.length === 0) continue;
+                
+                // Find start price (first price at or after start date)
+                let startPrice = 0;
+                for (const date of priceDates) {
+                  if (date >= startDate) {
+                    startPrice = prices[date];
+                    break;
+                  }
+                }
+                
+                // If no price found at or after start date, use earliest available
+                if (startPrice === 0 && priceDates.length > 0) {
+                  startPrice = prices[priceDates[0]];
+                }
+                
+                // Find end price (latest available price)
+                const endPrice = prices[priceDates[priceDates.length - 1]] || 0;
+                
+                if (startPrice > 0 && endPrice > 0) {
+                  const stockPerformance = ((endPrice - startPrice) / startPrice) * 100;
+                  weightedPerformance += stockPerformance * data.weight;
+                  totalWeightUsed += data.weight;
+                }
+              }
+              
+              // Normalize if not all weights were used
+              if (totalWeightUsed > 0) {
+                portfolioPerformance[period] = weightedPerformance / totalWeightUsed;
+              } else {
+                portfolioPerformance[period] = 0;
+              }
+            }
+            
+            // Calculate outperformance
+            const outperformance: Record<string, number> = {};
+            for (const period of periods) {
+              outperformance[period] = portfolioPerformance[period] - benchmarkPerformance[period];
+            }
+            
+            return {
+              portfolioId: portfolio.id,
+              performance: portfolioPerformance,
+              benchmarkPerformance,
+              outperformance,
+            };
+          } catch (error) {
+            console.error(`Error calculating V2 multi-period performance for portfolio ${portfolio.id}:`, error);
+            return {
+              portfolioId: portfolio.id,
+              performance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+              benchmarkPerformance,
+              outperformance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+            };
+          }
+        })
+      );
+      
+      return results;
+    }),
 
 });

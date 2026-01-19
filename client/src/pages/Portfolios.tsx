@@ -106,8 +106,8 @@ export default function Portfolios() {
   // Fetch aggregated metrics for live portfolios only
   const { data: metrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
   
-  // Fetch multi-period performance data for all portfolios
-  const { data: multiPeriodData } = trpc.portfolios.getMultiPeriodPerformance.useQuery();
+  // Fetch multi-period performance data for all portfolios (V2 uses same logic as detail page)
+  const { data: multiPeriodData } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
 
   // Calculate best performer
   const bestPerformer = useMemo(() => {

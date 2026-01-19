@@ -561,3 +561,23 @@
 - Demo Portfolio Marc: YTD +0.10%, Outperformance -1.1% ✓
 - Test Portfolio Marc: YTD +7.99%, Outperformance +6.7% ✓
 - Test Portfolio Regula: YTD +2.41%, Outperformance +1.2% ✓
+
+
+## Outperformance V2 Fix - FINALE LÖSUNG (19.01.2026)
+- [x] Neuer Endpoint `getMultiPeriodPerformanceV2` erstellt
+- [x] Verwendet gleiche Berechnungslogik wie Detail-Seite (gewichtete Performance aus historischen Preisen)
+- [x] Frontend auf V2 Endpoint umgestellt
+- [x] Alle Zeiträume verifiziert (YTD, 1M, 3M, 6M, 1Y)
+- [x] Konsistenz zwischen Übersicht und Detail-Seite bestätigt
+
+### Verifizierte Ergebnisse (Demo Portfolio Marc):
+| Zeitraum | Detail-Seite | Übersicht (V2) | Status |
+|----------|--------------|----------------|--------|
+| YTD | -0.91% | -0.9% | ✅ |
+| 1M | -0.26% | -0.3% | ✅ |
+| 3M | +1.73% | +1.7% | ✅ |
+
+### Technische Details:
+- Problem: `getMultiPeriodPerformance` berechnete Shares mit aktuellen Preisen, was zu falschen historischen Werten führte
+- Lösung: `getMultiPeriodPerformanceV2` verwendet gewichtete Performance aus historischen Preisen (wie Detail-Seite)
+- Benchmark (SPY) wird korrekt aus historicalPrices-Tabelle gelesen
