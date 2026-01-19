@@ -73,8 +73,8 @@ const OutperformanceTable = ({ performanceData }: { performanceData: any }) => {
         
         return (
           <div key={period} className="text-center">
-            <div className="text-gray-500 text-[10px] mb-0.5">{period}</div>
-            <div className={`font-medium ${isPositive ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+            <div className="text-gray-500 text-xs mb-0.5">{period}</div>
+            <div className={`text-sm font-medium ${isPositive ? 'text-[#00CFC1]' : 'text-red-500'}`}>
               {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
             </div>
           </div>
@@ -442,7 +442,9 @@ export default function Portfolios() {
               const positionCount = portfolio.positionCount ?? getPositionCount(portfolio);
               const isLive = portfolio.isLive === 1;
               const isSelected = selectedPortfolios.has(portfolio.id);
-              const performance = typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0;
+              // Use YTD from multi-period data instead of livePerformance
+              const portfolioPerf = multiPeriodData?.find((p: any) => p.portfolioId === portfolio.id);
+              const performance = portfolioPerf?.performance?.['YTD'] ?? (typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0);
               
               return (
                 <Card 
@@ -467,17 +469,17 @@ export default function Portfolios() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-base font-semibold text-[#00CFC1] truncate">
+                            <h3 className="text-lg font-semibold text-[#00CFC1] truncate">
                               {portfolio.name}
                             </h3>
                             <Badge 
                               variant={isLive ? "default" : "secondary"}
-                              className={`shrink-0 text-[10px] px-1.5 py-0 ${isLive ? "bg-green-500 text-white" : "bg-blue-500 text-white"}`}
+                              className={`shrink-0 text-xs px-2 py-0.5 ${isLive ? "bg-green-500 text-white" : "bg-blue-500 text-white"}`}
                             >
                               {isLive ? "Live" : "Test"}
                             </Badge>
                           </div>
-                          <p className="text-[10px] text-gray-500">
+                          <p className="text-xs text-gray-500">
                             Erstellt: {formatDate(portfolio.createdAt)}
                           </p>
                         </div>
@@ -491,36 +493,36 @@ export default function Portfolios() {
                       </button>
                     </div>
 
-                    {/* Stats Row - Compact */}
+                    {/* Stats Row - Compact with larger fonts */}
                     <div className="grid grid-cols-3 gap-2 mb-3 py-2 border-y border-white/5">
                       <div className="text-center">
-                        <div className="text-[10px] text-gray-500">Positionen</div>
-                        <div className="text-sm font-semibold text-white">{positionCount}</div>
+                        <div className="text-xs text-gray-500">Positionen</div>
+                        <div className="text-base font-semibold text-white">{positionCount}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-[10px] text-gray-500">Wert</div>
-                        <div className="text-sm font-semibold text-white">
+                        <div className="text-xs text-gray-500">Wert</div>
+                        <div className="text-base font-semibold text-white">
                           {formatCurrency(portfolio.currentValue ?? 0)}
                         </div>
                       </div>
                       <div className="text-center">
-                        <div className="text-[10px] text-gray-500">YTD</div>
-                        <div className={`text-sm font-semibold flex items-center justify-center gap-0.5 ${
+                        <div className="text-xs text-gray-500">YTD</div>
+                        <div className={`text-base font-semibold flex items-center justify-center gap-0.5 ${
                           performance >= 0 ? "text-[#00CFC1]" : "text-red-500"
                         }`}>
                           {performance >= 0 ? (
-                            <TrendingUp className="h-3 w-3" />
+                            <TrendingUp className="h-4 w-4" />
                           ) : (
-                            <TrendingDown className="h-3 w-3" />
+                            <TrendingDown className="h-4 w-4" />
                           )}
                           {formatPercent(performance)}
                         </div>
                       </div>
                     </div>
 
-                    {/* Outperformance Table - Real multi-period data */}
+                    {/* Outperformance Table - Real multi-period data with larger font */}
                     <div className="mb-3">
-                      <div className="text-[10px] text-gray-500 mb-1.5 text-center">Outperformance vs. Benchmark</div>
+                      <div className="text-xs text-gray-500 mb-1.5 text-center">Outperformance vs. Benchmark</div>
                       {(() => {
                         const portfolioPerf = multiPeriodData?.find((p: any) => p.portfolioId === portfolio.id);
                         return (
@@ -550,7 +552,7 @@ export default function Portfolios() {
                       })()}
                     </div>
 
-                    {/* Sparkline */}
+                    {/* Sparkline - Simplified version */}
                     <div className="h-8 bg-gradient-to-t from-[#00CFC1]/10 to-transparent rounded relative mb-2">
                       <svg className="w-full h-full" viewBox="0 0 200 30" preserveAspectRatio="none">
                         <path

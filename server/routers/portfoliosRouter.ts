@@ -2338,7 +2338,113 @@ export const portfoliosRouter = router({
       }),
 
     // Get multi-period performance for all portfolios (1M, 3M, 6M, YTD, 1Y)
-    getMultiPeriodPerformance: protectedProcedure
+    getPortfolioSparklineData: protectedProcedure
+    .input(z.object({ portfolioId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const { getDb } = await import("../db");
+      const { savedPortfolios, historicalPrices } = await import("../../drizzle/schema");
+      const { eq, and, gte, lte, asc } = await import("drizzle-orm");
+      
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      
+      const portfolio = await db.select().from(savedPortfolios).where(eq(savedPortfolios.id, input.portfolioId)).limit(1);
+      if (!portfolio || portfolio.length === 0) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio not found' });
+      }
+      
+      const p = portfolio[0];
+      const portfolioData = JSON.parse(p.portfolioData || '{}');
+      const stocks = portfolioData.stocks || portfolioData.positions || [];
+      
+      if (stocks.length === 0) {
+        return [];
+      }
+      
+      // Get last 12 months of data
+      const today = new Date();
+      const oneYearAgo = new Date(today);
+      oneYearAgo.setFullYear(today.getFullYear() - 1);
+      const startDateStr = oneYearAgo.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+      
+      const tickers = stocks.map((stock: any) => stock.ticker);
+      
+      // Get historical prices for all tickers
+      const pricesMap: Record<string, Record<string, number>> = {};
+      for (const ticker of tickers) {
+        const prices = await db
+          .select()
+          .from(historicalPrices)
+          .where(
+            and(
+              eq(historicalPrices.ticker, ticker),
+              gte(historicalPrices.date, startDateStr),
+              lte(historicalPrices.date, todayStr)
+            )
+          )
+          .orderBy(asc(historicalPrices.date));
+        
+        pricesMap[ticker] = {};
+        prices.forEach((p: any) => {
+          const price = parseFloat(p.close) || 0;
+          if (price > 0) {
+            pricesMap[ticker][p.date] = price;
+          }
+        });
+      }
+      
+      // Get all unique dates
+      const allDates = new Set<string>();
+      Object.values(pricesMap).forEach(prices => {
+        Object.keys(prices).forEach(date => allDates.add(date));
+      });
+      const sortedDates = Array.from(allDates).sort();
+      
+      // Calculate portfolio value for each date
+      const sparklineData: { date: string; value: number }[] = [];
+      let lastKnownPrices: Record<string, number> = {};
+      
+      for (const date of sortedDates) {
+        let portfolioValue = 0;
+        let hasAllPrices = true;
+        
+        for (const stock of stocks) {
+          const ticker = stock.ticker;
+          const quantity = parseFloat(String(stock.quantity || stock.shares || 0));
+          
+          // Get price for this date or use last known price
+          let price = pricesMap[ticker]?.[date];
+          if (!price && lastKnownPrices[ticker]) {
+            price = lastKnownPrices[ticker];
+          }
+          
+          if (price) {
+            lastKnownPrices[ticker] = price;
+            portfolioValue += quantity * price;
+          } else {
+            hasAllPrices = false;
+          }
+        }
+        
+        if (hasAllPrices && portfolioValue > 0) {
+          sparklineData.push({ date, value: portfolioValue });
+        }
+      }
+      
+      // Sample to ~50 points for performance
+      const step = Math.max(1, Math.floor(sparklineData.length / 50));
+      const sampledData = sparklineData.filter((_, i) => i % step === 0);
+      
+      // Always include the last point
+      if (sparklineData.length > 0 && sampledData[sampledData.length - 1] !== sparklineData[sparklineData.length - 1]) {
+        sampledData.push(sparklineData[sparklineData.length - 1]);
+      }
+      
+      return sampledData;
+    }),
+
+  getMultiPeriodPerformance: protectedProcedure
       .query(async ({ ctx }) => {
         const { getSavedPortfolios, getStockByTicker, getDb } = await import("../db");
         const { convertToCHF, getHistoricalPrice } = await import("../fxHelper");

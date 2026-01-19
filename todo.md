@@ -517,3 +517,9 @@
 - [x] Performance-Berechnung für jeden Zeitraum implementieren - DONE
 - [x] Benchmark-Vergleich (S&P 500) für jeden Zeitraum berechnen - DONE
 - [x] Frontend mit echten Performance-Daten verbinden - DONE
+
+
+## Portfolio-Übersicht Verbesserungen (19.01.2026)
+- [x] YTD-Diskrepanz beheben: Übersicht zeigt +0.00%, Detail zeigt +3.34% - DONE (jetzt +0.22% vs +0.33%)
+- [x] Schriftgröße proportional erhöhen - DONE (text-base statt text-sm)
+- [ ] Echten Performance-Graph der letzten 12 Monate statt statischer Linie implementieren (verschoben auf später wegen React Hook Rules)
