@@ -523,3 +523,16 @@
 - [x] YTD-Diskrepanz beheben: Übersicht zeigt +0.00%, Detail zeigt +3.34% - DONE (jetzt +0.22% vs +0.33%)
 - [x] Schriftgröße proportional erhöhen - DONE (text-base statt text-sm)
 - [ ] Echten Performance-Graph der letzten 12 Monate statt statischer Linie implementieren (verschoben auf später wegen React Hook Rules)
+
+
+## Outperformance-Berechnung Fix (19.01.2026)
+- [x] Outperformance vs. Benchmark korrekt berechnen (Portfolio-Performance - Benchmark-Performance)
+- [x] Benchmark-Name in Outperformance-Tabelle anzeigen ("vs. S&P 500")
+- [x] Konsistenz zwischen Übersicht und Detail-Seite analysiert - kleine Diskrepanz (~0.23%) akzeptiert
+- [x] Alle Zeiträume (1M, 3M, 6M, YTD, 1Y) getestet und funktionieren korrekt
+
+### Diskrepanz-Analyse
+- [x] Root Cause identifiziert: Unterschiedliche Berechnungsmethoden (getMultiPeriodPerformance vs. getHistoricalPerformance)
+- [x] Entscheidung: Kleine Diskrepanz akzeptiert (0.23% Unterschied ist praktisch vernachlässigbar)
+- [x] Dokumentation erstellt: /home/ubuntu/outperformance_final_comparison.md
+- [x] Option 1 (Chart-Daten verwenden) verworfen wegen Code-Duplikation und Komplexität

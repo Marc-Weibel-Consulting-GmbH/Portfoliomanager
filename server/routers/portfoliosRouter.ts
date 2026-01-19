@@ -2509,47 +2509,76 @@ export const portfoliosRouter = router({
                 };
               }
               
-              // Get all tickers and their weights
-              const tickerWeights: Record<string, number> = {};
+              // Calculate portfolio value at different time points
+              const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+              const cashBalance = parseFloat(portfolio.cashBalance?.toString() || '0');
+              
+              // Calculate current total value (stocks + cash)
+              let currentTotalValue = cashBalance;
               for (const stock of stocks) {
                 if (stock.ticker && stock.ticker !== 'CASH') {
-                  tickerWeights[stock.ticker] = parseFloat(stock.weight || '0') / 100;
-                }
-              }
-              
-              // Calculate weighted performance for each period
-              const portfolioPerformance: Record<string, number> = {};
-              
-              for (const [period, startDate] of Object.entries(periodStartDates)) {
-                let weightedPerformance = 0;
-                let totalWeight = 0;
-                
-                for (const [ticker, weight] of Object.entries(tickerWeights)) {
-                  if (weight <= 0) continue;
-                  
-                  const stockData = await getStockByTicker(ticker);
+                  const stockData = await getStockByTicker(stock.ticker);
                   if (!stockData) continue;
                   
                   const currentPrice = parseFloat(stockData.currentPrice || '0');
                   const currency = stockData.currency || 'CHF';
+                  const weight = parseFloat(stock.weight || '0') / 100;
                   
-                  // Get historical price for this period
-                  const historicalPrice = await getHistoricalPrice(ticker, startDate);
-                  if (!historicalPrice || historicalPrice <= 0) continue;
+                  // Calculate shares from weight and investment amount
+                  let shares = parseFloat(stock.shares || '0');
+                  if (shares === 0 && investmentAmount > 0 && weight > 0) {
+                    const allocationCHF = investmentAmount * weight;
+                    const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                    shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+                  }
                   
-                  // Convert both prices to CHF
+                  // Calculate current value in CHF
                   const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                  const historicalPriceCHF = await convertToCHF(historicalPrice, currency, startDate);
-                  
-                  if (historicalPriceCHF > 0 && currentPriceCHF > 0) {
-                    const stockPerformance = ((currentPriceCHF - historicalPriceCHF) / historicalPriceCHF) * 100;
-                    weightedPerformance += stockPerformance * weight;
-                    totalWeight += weight;
+                  currentTotalValue += shares * currentPriceCHF;
+                }
+              }
+              
+              // Calculate performance for each period
+              const portfolioPerformance: Record<string, number> = {};
+              
+              for (const [period, startDate] of Object.entries(periodStartDates)) {
+                // Calculate historical total value (stocks + cash)
+                let historicalTotalValue = cashBalance;
+                
+                for (const stock of stocks) {
+                  if (stock.ticker && stock.ticker !== 'CASH') {
+                    const stockData = await getStockByTicker(stock.ticker);
+                    if (!stockData) continue;
+                    
+                    const currentPrice = parseFloat(stockData.currentPrice || '0');
+                    const currency = stockData.currency || 'CHF';
+                    const weight = parseFloat(stock.weight || '0') / 100;
+                    
+                    // Calculate shares (same as current)
+                    let shares = parseFloat(stock.shares || '0');
+                    if (shares === 0 && investmentAmount > 0 && weight > 0) {
+                      const allocationCHF = investmentAmount * weight;
+                      const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                      shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+                    }
+                    
+                    // Get historical price for this period
+                    const historicalPrice = await getHistoricalPrice(stock.ticker, startDate);
+                    // If historical price is missing, use current price (0% performance for this stock)
+                    const priceToUse = (historicalPrice && historicalPrice > 0) ? historicalPrice : currentPrice;
+                    
+                    // Calculate historical value in CHF
+                    const historicalPriceCHF = await convertToCHF(priceToUse, currency, startDate);
+                    historicalTotalValue += shares * historicalPriceCHF;
                   }
                 }
                 
-                // Normalize if we don't have full weight coverage
-                portfolioPerformance[period] = totalWeight > 0 ? weightedPerformance / totalWeight * (totalWeight < 1 ? 1 : 1) : 0;
+                // Calculate performance as total value change
+                if (historicalTotalValue > 0) {
+                  portfolioPerformance[period] = ((currentTotalValue - historicalTotalValue) / historicalTotalValue) * 100;
+                } else {
+                  portfolioPerformance[period] = 0;
+                }
               }
               
               // Calculate outperformance
@@ -2578,4 +2607,6 @@ export const portfoliosRouter = router({
         
         return results;
       }),
+
+
 });

@@ -66,16 +66,16 @@ const OutperformanceTable = ({ performanceData }: { performanceData: any }) => {
   return (
     <div className="grid grid-cols-5 gap-1 text-xs">
       {periods.map(period => {
-        const portfolio = performanceData?.[period]?.portfolio ?? 0;
-        const benchmark = performanceData?.[period]?.benchmark ?? 0;
-        const diff = portfolio - benchmark;
-        const isPositive = diff >= 0;
+        // Use outperformance directly from backend if available, otherwise calculate
+        const outperformance = performanceData?.[period]?.outperformance ?? 
+          (performanceData?.[period]?.portfolio ?? 0) - (performanceData?.[period]?.benchmark ?? 0);
+        const isPositive = outperformance >= 0;
         
         return (
           <div key={period} className="text-center">
             <div className="text-gray-500 text-xs mb-0.5">{period}</div>
             <div className={`text-sm font-medium ${isPositive ? 'text-[#00CFC1]' : 'text-red-500'}`}>
-              {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+              {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(1)}%
             </div>
           </div>
         );
@@ -442,7 +442,7 @@ export default function Portfolios() {
               const positionCount = portfolio.positionCount ?? getPositionCount(portfolio);
               const isLive = portfolio.isLive === 1;
               const isSelected = selectedPortfolios.has(portfolio.id);
-              // Use YTD from multi-period data instead of livePerformance
+              // Use YTD from chart-based multi-period data
               const portfolioPerf = multiPeriodData?.find((p: any) => p.portfolioId === portfolio.id);
               const performance = portfolioPerf?.performance?.['YTD'] ?? (typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0);
               
@@ -522,30 +522,35 @@ export default function Portfolios() {
 
                     {/* Outperformance Table - Real multi-period data with larger font */}
                     <div className="mb-3">
-                      <div className="text-xs text-gray-500 mb-1.5 text-center">Outperformance vs. Benchmark</div>
+                      <div className="text-xs text-gray-500 mb-1.5 text-center">Outperformance vs. S&P 500</div>
                       {(() => {
                         const portfolioPerf = multiPeriodData?.find((p: any) => p.portfolioId === portfolio.id);
                         return (
                           <OutperformanceTable performanceData={{
                             '1M': { 
-                              portfolio: portfolioPerf?.performance?.['1M'] ?? performance * 0.3, 
-                              benchmark: portfolioPerf?.benchmarkPerformance?.['1M'] ?? performance * 0.2 
+                              portfolio: portfolioPerf?.performance?.['1M'] ?? 0, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['1M'] ?? 0,
+                              outperformance: portfolioPerf?.outperformance?.['1M'] ?? 0
                             },
                             '3M': { 
-                              portfolio: portfolioPerf?.performance?.['3M'] ?? performance * 0.6, 
-                              benchmark: portfolioPerf?.benchmarkPerformance?.['3M'] ?? performance * 0.4 
+                              portfolio: portfolioPerf?.performance?.['3M'] ?? 0, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['3M'] ?? 0,
+                              outperformance: portfolioPerf?.outperformance?.['3M'] ?? 0
                             },
                             '6M': { 
-                              portfolio: portfolioPerf?.performance?.['6M'] ?? performance * 0.8, 
-                              benchmark: portfolioPerf?.benchmarkPerformance?.['6M'] ?? performance * 0.6 
+                              portfolio: portfolioPerf?.performance?.['6M'] ?? 0, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['6M'] ?? 0,
+                              outperformance: portfolioPerf?.outperformance?.['6M'] ?? 0
                             },
                             'YTD': { 
-                              portfolio: portfolioPerf?.performance?.['YTD'] ?? performance, 
-                              benchmark: portfolioPerf?.benchmarkPerformance?.['YTD'] ?? performance * 0.7 
+                              portfolio: portfolioPerf?.performance?.['YTD'] ?? 0, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['YTD'] ?? 0,
+                              outperformance: portfolioPerf?.outperformance?.['YTD'] ?? 0
                             },
                             '1Y': { 
-                              portfolio: portfolioPerf?.performance?.['1Y'] ?? performance * 1.2, 
-                              benchmark: portfolioPerf?.benchmarkPerformance?.['1Y'] ?? performance * 0.9 
+                              portfolio: portfolioPerf?.performance?.['1Y'] ?? 0, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['1Y'] ?? 0,
+                              outperformance: portfolioPerf?.outperformance?.['1Y'] ?? 0
                             },
                           }} />
                         );
