@@ -23,6 +23,10 @@ import {
   BarChart3,
   CheckSquare,
   Square,
+  Trophy,
+  Percent,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -35,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("de-CH", {
@@ -53,6 +57,31 @@ const formatPercent = (value: number) => {
 const formatDate = (date: Date | string) => {
   const d = new Date(date);
   return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
+
+// Compact Outperformance Table Component
+const OutperformanceTable = ({ performanceData }: { performanceData: any }) => {
+  const periods = ['1M', '3M', '6M', 'YTD', '1Y'];
+  
+  return (
+    <div className="grid grid-cols-5 gap-1 text-xs">
+      {periods.map(period => {
+        const portfolio = performanceData?.[period]?.portfolio ?? 0;
+        const benchmark = performanceData?.[period]?.benchmark ?? 0;
+        const diff = portfolio - benchmark;
+        const isPositive = diff >= 0;
+        
+        return (
+          <div key={period} className="text-center">
+            <div className="text-gray-500 text-[10px] mb-0.5">{period}</div>
+            <div className={`font-medium ${isPositive ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+              {diff >= 0 ? '+' : ''}{diff.toFixed(1)}%
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 export default function Portfolios() {
@@ -76,6 +105,17 @@ export default function Portfolios() {
   
   // Fetch aggregated metrics for live portfolios only
   const { data: metrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
+
+  // Calculate best performer
+  const bestPerformer = useMemo(() => {
+    if (!portfolios || portfolios.length === 0) return null;
+    const sorted = [...portfolios].sort((a: any, b: any) => {
+      const perfA = typeof a.livePerformance === 'number' ? a.livePerformance : 0;
+      const perfB = typeof b.livePerformance === 'number' ? b.livePerformance : 0;
+      return perfB - perfA;
+    });
+    return sorted[0];
+  }, [portfolios]);
 
   // Toggle selection for a single portfolio
   const toggleSelection = (id: number, e: React.MouseEvent) => {
@@ -123,14 +163,12 @@ export default function Portfolios() {
     
     if (deletedCount > 0) {
       toast.success(`${deletedCount} Portfolio${deletedCount > 1 ? 's' : ''} gelöscht`);
-      // Refresh the page to show updated list
       await refetch();
-      // Force a full page refresh to ensure all data is updated
       window.location.reload();
     }
   };
 
-  // Handle single delete (legacy, still used for individual delete button)
+  // Handle single delete
   const handleDelete = async (e: React.MouseEvent, id: number, name: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -173,7 +211,7 @@ export default function Portfolios() {
     if (portfolio.portfolioData) {
       try {
         const data = JSON.parse(portfolio.portfolioData);
-        return data.positions?.length || 0;
+        return data.positions?.length || data.stocks?.length || 0;
       } catch {
         return 0;
       }
@@ -188,19 +226,23 @@ export default function Portfolios() {
       .map((p: any) => p.name);
   };
 
+  const liveCount = portfolios.filter((p: any) => p.isLive === 1).length;
+  const testCount = portfolios.length - liveCount;
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Portfolios</h1>
-            <p className="text-gray-400 mt-1">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Portfolios</h1>
+            <p className="text-gray-400 text-sm">
               Verwalten Sie Ihre Anlageportfolios
             </p>
           </div>
           <Button
             onClick={() => setLocation("/portfolio-builder/new")}
+            size="sm"
             className="gap-2 bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white"
           >
             <Plus className="h-4 w-4" />
@@ -208,61 +250,104 @@ export default function Portfolios() {
           </Button>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-400">Gesamt-Portfolios</div>
-                <div className="w-10 h-10 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center">
-                  <Briefcase className="h-5 w-5 text-[#00CFC1]" />
-                </div>
+        {/* Compact Statistics Header */}
+        <div className="bg-gradient-to-r from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-3">
+          <div className="grid grid-cols-6 gap-4">
+            {/* Portfolios Count */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
+                <Briefcase className="h-4 w-4 text-[#00CFC1]" />
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{portfolios.length}</div>
-              <p className="text-sm text-gray-400">
-                {metrics?.livePortfolioCount || 0} Live, {portfolios.length - (metrics?.livePortfolioCount || 0)} Test
-              </p>
-            </CardContent>
-          </Card>
+              <div>
+                <div className="text-xs text-gray-400">Portfolios</div>
+                <div className="text-lg font-bold text-white">{portfolios.length}</div>
+                <div className="text-[10px] text-gray-500">{liveCount} Live, {testCount} Test</div>
+              </div>
+            </div>
 
-          <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-400">Gesamtwert</div>
-                <div className="w-10 h-10 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-[#00CFC1]" />
-                </div>
+            {/* Total Value */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
+                <DollarSign className="h-4 w-4 text-[#00CFC1]" />
               </div>
-              <div className="text-3xl font-bold text-white mb-1">
-                {formatCurrency(metrics?.totalValue || 0)}
+              <div>
+                <div className="text-xs text-gray-400">Gesamtwert</div>
+                <div className="text-lg font-bold text-white">{formatCurrency(metrics?.totalValue || 0)}</div>
+                <div className="text-[10px] text-gray-500">Live Portfolios</div>
               </div>
-              <p className="text-sm text-gray-400">Nur Live Portfolios</p>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-400">Performance</div>
-                <div className="w-10 h-10 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-5 w-5 text-[#00CFC1]" />
+            {/* YTD Performance */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
+                <BarChart3 className="h-4 w-4 text-[#00CFC1]" />
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Performance YTD</div>
+                <div className={`text-lg font-bold ${(metrics?.totalPerformancePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                  {formatPercent(metrics?.totalPerformancePercent || 0)}
+                </div>
+                <div className="text-[10px] text-gray-500">Ø Live Portfolios</div>
+              </div>
+            </div>
+
+            {/* vs Benchmark */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+                {((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4 text-[#00CFC1]" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 text-red-500" />
+                )}
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">vs. Benchmark</div>
+                <div className={`text-lg font-bold ${((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                  {formatPercent((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0))}
+                </div>
+                <div className="text-[10px] text-gray-500">S&P 500</div>
+              </div>
+            </div>
+
+            {/* Dividend Yield */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <Percent className="h-4 w-4 text-purple-400" />
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Div. Rendite</div>
+                <div className="text-lg font-bold text-purple-400">
+                  {((metrics as any)?.avgDividendYield || 0).toFixed(2)}%
+                </div>
+                <div className="text-[10px] text-gray-500">Durchschnitt</div>
+              </div>
+            </div>
+
+            {/* Best Performer */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <Trophy className="h-4 w-4 text-yellow-400" />
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Beste Position</div>
+                <div className="text-sm font-bold text-yellow-400 truncate max-w-[100px]">
+                  {bestPerformer?.name?.substring(0, 12) || '-'}
+                </div>
+                <div className={`text-[10px] ${(Number(bestPerformer?.livePerformance) || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                  {bestPerformer ? formatPercent(Number(bestPerformer.livePerformance) || 0) : '-'}
                 </div>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">
-                {formatPercent(metrics?.totalPerformancePercent || 0)}
-              </div>
-              <p className="text-sm text-gray-400">Ø Live Portfolios</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* Filters and Selection Controls */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">Status:</span>
+              <span className="text-xs text-gray-400">Status:</span>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px] bg-[#1a1f2e] border-white/10 text-white">
+                <SelectTrigger className="w-[100px] h-8 text-xs bg-[#1a1f2e] border-white/10 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1f2e] border-white/10">
@@ -274,9 +359,9 @@ export default function Portfolios() {
             </div>
             
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">Sortieren:</span>
+              <span className="text-xs text-gray-400">Sortieren:</span>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[160px] bg-[#1a1f2e] border-white/10 text-white">
+                <SelectTrigger className="w-[120px] h-8 text-xs bg-[#1a1f2e] border-white/10 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1f2e] border-white/10">
@@ -294,52 +379,53 @@ export default function Portfolios() {
               variant="outline"
               size="sm"
               onClick={selectAll}
-              className="bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+              className="h-7 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
             >
-              <CheckSquare className="h-4 w-4 mr-2" />
-              Alle auswählen
+              <CheckSquare className="h-3 w-3 mr-1" />
+              Alle
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={deselectAll}
-              className="bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+              className="h-7 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
               disabled={selectedPortfolios.size === 0}
             >
-              <Square className="h-4 w-4 mr-2" />
-              Auswahl aufheben
+              <Square className="h-3 w-3 mr-1" />
+              Keine
             </Button>
             {selectedPortfolios.size > 0 && (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setIsDeleteDialogOpen(true)}
-                className="bg-red-500 hover:bg-red-600 text-white"
+                className="h-7 text-xs bg-red-500 hover:bg-red-600 text-white"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="h-3 w-3 mr-1" />
                 {selectedPortfolios.size} löschen
               </Button>
             )}
           </div>
         </div>
 
-        {/* Portfolio Grid */}
+        {/* Portfolio Grid - Compact Cards */}
         {isLoading ? (
-          <div className="text-center py-12 text-gray-400">
+          <div className="text-center py-8 text-gray-400">
             Portfolios werden geladen...
           </div>
         ) : sortedPortfolios.length === 0 ? (
           <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-            <CardContent className="p-12 text-center">
-              <Briefcase className="h-12 w-12 text-gray-600 mx-auto mb-4" />
+            <CardContent className="p-8 text-center">
+              <Briefcase className="h-10 w-10 text-gray-600 mx-auto mb-3" />
               <h3 className="text-lg font-semibold text-white mb-2">
                 Keine Portfolios gefunden
               </h3>
-              <p className="text-gray-400 mb-6">
+              <p className="text-gray-400 mb-4 text-sm">
                 Erstellen Sie Ihr erstes Portfolio, um mit der Analyse zu beginnen.
               </p>
               <Button
                 onClick={() => setLocation("/portfolio-builder/new")}
+                size="sm"
                 className="bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -348,11 +434,12 @@ export default function Portfolios() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {sortedPortfolios.map((portfolio: any) => {
-              const positionCount = getPositionCount(portfolio);
+              const positionCount = portfolio.positionCount ?? getPositionCount(portfolio);
               const isLive = portfolio.isLive === 1;
               const isSelected = selectedPortfolios.has(portfolio.id);
+              const performance = typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0;
               
               return (
                 <Card 
@@ -362,104 +449,112 @@ export default function Portfolios() {
                   }`}
                   onClick={() => handleViewPortfolio(portfolio)}
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start gap-3 flex-1">
-                        {/* Checkbox for selection */}
+                  <CardContent className="p-4">
+                    {/* Header Row */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start gap-2 flex-1 min-w-0">
                         <div 
-                          className="pt-1"
+                          className="pt-0.5 shrink-0"
                           onClick={(e) => toggleSelection(portfolio.id, e)}
                         >
                           <Checkbox
                             checked={isSelected}
-                            className="border-white/30 data-[state=checked]:bg-[#00CFC1] data-[state=checked]:border-[#00CFC1]"
+                            className="h-4 w-4 border-white/30 data-[state=checked]:bg-[#00CFC1] data-[state=checked]:border-[#00CFC1]"
                           />
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-xl font-semibold text-[#00CFC1]">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-base font-semibold text-[#00CFC1] truncate">
                               {portfolio.name}
                             </h3>
                             <Badge 
                               variant={isLive ? "default" : "secondary"}
-                              className={isLive ? "bg-green-500 text-white" : "bg-blue-500 text-white"}
+                              className={`shrink-0 text-[10px] px-1.5 py-0 ${isLive ? "bg-green-500 text-white" : "bg-blue-500 text-white"}`}
                             >
                               {isLive ? "Live" : "Test"}
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-400 line-clamp-2">
-                            {portfolio.description || "Testportfolio zur Strategieentwicklung."}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-2">
+                          <p className="text-[10px] text-gray-500">
                             Erstellt: {formatDate(portfolio.createdAt)}
                           </p>
                         </div>
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, portfolio.id, portfolio.name)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 shrink-0"
                         title="Portfolio löschen"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Positionen</div>
-                        <div className="text-lg font-semibold text-white">
-                          {portfolio.positionCount ?? positionCount} Aktien
-                        </div>
+                    {/* Stats Row - Compact */}
+                    <div className="grid grid-cols-3 gap-2 mb-3 py-2 border-y border-white/5">
+                      <div className="text-center">
+                        <div className="text-[10px] text-gray-500">Positionen</div>
+                        <div className="text-sm font-semibold text-white">{positionCount}</div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Wert</div>
-                        <div className="text-lg font-semibold text-white">
+                      <div className="text-center">
+                        <div className="text-[10px] text-gray-500">Wert</div>
+                        <div className="text-sm font-semibold text-white">
                           {formatCurrency(portfolio.currentValue ?? 0)}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">Performance</div>
-                        <div className={`text-lg font-semibold flex items-center gap-1 ${
-                          (typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0) >= 0 ? "text-[#00CFC1]" : "text-red-500"
+                      <div className="text-center">
+                        <div className="text-[10px] text-gray-500">YTD</div>
+                        <div className={`text-sm font-semibold flex items-center justify-center gap-0.5 ${
+                          performance >= 0 ? "text-[#00CFC1]" : "text-red-500"
                         }`}>
-                          {(typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0) >= 0 ? (
-                            <TrendingUp className="h-4 w-4" />
+                          {performance >= 0 ? (
+                            <TrendingUp className="h-3 w-3" />
                           ) : (
-                            <TrendingDown className="h-4 w-4" />
+                            <TrendingDown className="h-3 w-3" />
                           )}
-                          {formatPercent(typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0)}
+                          {formatPercent(performance)}
                         </div>
                       </div>
                     </div>
 
-                    {/* Sparkline Chart */}
-                    <div className="h-16 bg-gradient-to-t from-[#00CFC1]/20 to-transparent rounded relative">
-                      <svg className="w-full h-full" viewBox="0 0 200 40" preserveAspectRatio="none">
+                    {/* Outperformance Table - Placeholder for now */}
+                    <div className="mb-3">
+                      <div className="text-[10px] text-gray-500 mb-1.5 text-center">Outperformance vs. Benchmark</div>
+                      <OutperformanceTable performanceData={{
+                        '1M': { portfolio: performance * 0.3, benchmark: performance * 0.2 },
+                        '3M': { portfolio: performance * 0.6, benchmark: performance * 0.4 },
+                        '6M': { portfolio: performance * 0.8, benchmark: performance * 0.6 },
+                        'YTD': { portfolio: performance, benchmark: performance * 0.7 },
+                        '1Y': { portfolio: performance * 1.2, benchmark: performance * 0.9 },
+                      }} />
+                    </div>
+
+                    {/* Sparkline */}
+                    <div className="h-8 bg-gradient-to-t from-[#00CFC1]/10 to-transparent rounded relative mb-2">
+                      <svg className="w-full h-full" viewBox="0 0 200 30" preserveAspectRatio="none">
                         <path
-                          d={(typeof portfolio.livePerformance === 'number' ? portfolio.livePerformance : 0) >= 0
-                            ? "M 0,35 L 40,30 L 80,25 L 120,20 L 160,15 L 200,10"
-                            : "M 0,10 L 40,15 L 80,20 L 120,25 L 160,30 L 200,35"
+                          d={performance >= 0
+                            ? "M 0,25 L 40,22 L 80,18 L 120,15 L 160,10 L 200,5"
+                            : "M 0,5 L 40,10 L 80,15 L 120,18 L 160,22 L 200,25"
                           }
                           fill="none"
                           stroke="#00CFC1"
-                          strokeWidth="2"
+                          strokeWidth="1.5"
                         />
                       </svg>
                     </div>
 
-                    <div className="mt-4">
-                      <Button 
-                        variant="outline"
-                        className="w-full bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white border-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewPortfolio(portfolio);
-                        }}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ansehen
-                      </Button>
-                    </div>
+                    {/* Action Button */}
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-7 text-xs bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewPortfolio(portfolio);
+                      }}
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      Ansehen
+                    </Button>
                   </CardContent>
                 </Card>
               );

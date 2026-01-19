@@ -500,3 +500,13 @@
 - [x] Benchmark-Performance in Performance-Karte anzeigen - DONE
 - [x] Format: "Portfolio: +3.34% | SPY: +1.24%" - DONE
 - [x] Visueller Vergleich zwischen Portfolio und Benchmark - DONE (Differenz: +2.10% ▲)
+
+
+## Portfolio-Übersicht UI-Redesign (19.01.2026)
+- [x] Nano Banana Slides-Vorschlag für UI-Redesign erstellen - DONE
+- [x] Feedback vom Benutzer einholen - DONE ("Gefällt mir alles sehr gut - loslegen!")
+- [x] Phase 1: Historische Outperformance-Tabelle in Portfolio-Karten integrieren - DONE (mit Platzhalter-Werten)
+- [ ] Phase 1: Performance-Anzeige für Demo-Portfolios korrigieren (YTD statt 0%)
+- [x] Phase 2: Kompakter Statistik-Header implementieren (6 Metriken in einer Zeile) - DONE
+- [x] Phase 2: Kartenhöhe reduzieren und Layout optimieren - DONE (3-Spalten-Layout)
+- [ ] Phase 3: Sortierung nach Outperformance ermöglichen
