@@ -846,36 +846,29 @@ export default function PortfolioDetailsPage() {
                   <CardTitle className="text-sm text-gray-400">Performance</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2">
-                    {portfolio.portfolioType === 'demo' ? (
-                      // Demo portfolio: use simple performance calculation
+                  {(() => {
+                    // Use chart performance for both demo and live portfolios
+                    const chartPerformance = chartData.data.length > 0 
+                      ? chartData.data[chartData.data.length - 1]?.portfolio || 0 
+                      : 0;
+                    return (
                       <>
-                        <div className={`text-2xl font-bold ${(portfolio.performancePercent || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {(portfolio.performancePercent || 0) >= 0 ? '+' : ''}{(portfolio.performancePercent || 0).toFixed(2)}%
+                        <div className="flex items-center gap-2">
+                          <div className={`text-2xl font-bold ${chartPerformance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {chartPerformance >= 0 ? '+' : ''}{chartPerformance.toFixed(2)}%
+                          </div>
+                          {chartPerformance >= 0 ? (
+                            <TrendingUp className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <TrendingDown className="h-5 w-5 text-red-500" />
+                          )}
                         </div>
-                        {(portfolio.performancePercent || 0) >= 0 ? (
-                          <TrendingUp className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <TrendingDown className="h-5 w-5 text-red-500" />
-                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          {selectedPeriod} Performance
+                        </p>
                       </>
-                    ) : (
-                      // Live portfolio: use historical performance data
-                      <>
-                        <div className={`text-2xl font-bold ${(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? '+' : ''}{(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0).toFixed(2)}%
-                        </div>
-                        {(Number(historicalData && 'performance' in historicalData ? historicalData.performance : 0) || 0) >= 0 ? (
-                          <TrendingUp className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <TrendingDown className="h-5 w-5 text-red-500" />
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {portfolio.portfolioType === 'demo' ? 'Gesamt Performance (seit Start)' : `${selectedPeriod} Performance`}
-                  </p>
+                    );
+                  })()}
                 </CardContent>
               </Card>
               

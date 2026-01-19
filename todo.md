@@ -488,3 +488,9 @@
 ## Portfolio-Seite Verbesserungen (18.01.2026)
 - [x] Performance-Hinweis "seit Start" zur Übersicht hinzufügen - DONE ("Gesamt Performance (seit Start)")
 - [x] Performance-Badge im Chart implementieren - DONE (↗ +3.34% (YTD), aktualisiert sich mit Zeitraum)
+
+
+## Performance-Karte Synchronisation (19.01.2026)
+- [x] Performance-Karte für Demo-Portfolios mit Chart-Performance synchronisieren - DONE
+- [x] Performance-Wert soll dem ausgewählten Zeitraum entsprechen - DONE (YTD: +3.34%, 1M: +6.48%)
+- [x] Label anpassen: "{Zeitraum} Performance" - DONE
