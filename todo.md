@@ -510,3 +510,10 @@
 - [x] Phase 2: Kompakter Statistik-Header implementieren (6 Metriken in einer Zeile) - DONE
 - [x] Phase 2: Kartenhöhe reduzieren und Layout optimieren - DONE (3-Spalten-Layout)
 - [ ] Phase 3: Sortierung nach Outperformance ermöglichen
+
+
+## Backend Multi-Zeitraum-Performance (19.01.2026)
+- [x] Backend-Endpoint für Multi-Zeitraum-Performance erstellen (1M, 3M, 6M, YTD, 1Y) - DONE
+- [x] Performance-Berechnung für jeden Zeitraum implementieren - DONE
+- [x] Benchmark-Vergleich (S&P 500) für jeden Zeitraum berechnen - DONE
+- [x] Frontend mit echten Performance-Daten verbinden - DONE

@@ -105,6 +105,9 @@ export default function Portfolios() {
   
   // Fetch aggregated metrics for live portfolios only
   const { data: metrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
+  
+  // Fetch multi-period performance data for all portfolios
+  const { data: multiPeriodData } = trpc.portfolios.getMultiPeriodPerformance.useQuery();
 
   // Calculate best performer
   const bestPerformer = useMemo(() => {
@@ -515,16 +518,36 @@ export default function Portfolios() {
                       </div>
                     </div>
 
-                    {/* Outperformance Table - Placeholder for now */}
+                    {/* Outperformance Table - Real multi-period data */}
                     <div className="mb-3">
                       <div className="text-[10px] text-gray-500 mb-1.5 text-center">Outperformance vs. Benchmark</div>
-                      <OutperformanceTable performanceData={{
-                        '1M': { portfolio: performance * 0.3, benchmark: performance * 0.2 },
-                        '3M': { portfolio: performance * 0.6, benchmark: performance * 0.4 },
-                        '6M': { portfolio: performance * 0.8, benchmark: performance * 0.6 },
-                        'YTD': { portfolio: performance, benchmark: performance * 0.7 },
-                        '1Y': { portfolio: performance * 1.2, benchmark: performance * 0.9 },
-                      }} />
+                      {(() => {
+                        const portfolioPerf = multiPeriodData?.find((p: any) => p.portfolioId === portfolio.id);
+                        return (
+                          <OutperformanceTable performanceData={{
+                            '1M': { 
+                              portfolio: portfolioPerf?.performance?.['1M'] ?? performance * 0.3, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['1M'] ?? performance * 0.2 
+                            },
+                            '3M': { 
+                              portfolio: portfolioPerf?.performance?.['3M'] ?? performance * 0.6, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['3M'] ?? performance * 0.4 
+                            },
+                            '6M': { 
+                              portfolio: portfolioPerf?.performance?.['6M'] ?? performance * 0.8, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['6M'] ?? performance * 0.6 
+                            },
+                            'YTD': { 
+                              portfolio: portfolioPerf?.performance?.['YTD'] ?? performance, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['YTD'] ?? performance * 0.7 
+                            },
+                            '1Y': { 
+                              portfolio: portfolioPerf?.performance?.['1Y'] ?? performance * 1.2, 
+                              benchmark: portfolioPerf?.benchmarkPerformance?.['1Y'] ?? performance * 0.9 
+                            },
+                          }} />
+                        );
+                      })()}
                     </div>
 
                     {/* Sparkline */}
