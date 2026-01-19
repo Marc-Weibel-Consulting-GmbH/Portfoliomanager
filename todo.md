@@ -494,3 +494,9 @@
 - [x] Performance-Karte für Demo-Portfolios mit Chart-Performance synchronisieren - DONE
 - [x] Performance-Wert soll dem ausgewählten Zeitraum entsprechen - DONE (YTD: +3.34%, 1M: +6.48%)
 - [x] Label anpassen: "{Zeitraum} Performance" - DONE
+
+
+## Benchmark-Vergleich in Performance-Karte (19.01.2026)
+- [x] Benchmark-Performance in Performance-Karte anzeigen - DONE
+- [x] Format: "Portfolio: +3.34% | SPY: +1.24%" - DONE
+- [x] Visueller Vergleich zwischen Portfolio und Benchmark - DONE (Differenz: +2.10% ▲)

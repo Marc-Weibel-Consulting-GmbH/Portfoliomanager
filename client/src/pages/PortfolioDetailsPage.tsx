@@ -843,7 +843,7 @@ export default function PortfolioDetailsPage() {
               
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Performance</CardTitle>
+                  <CardTitle className="text-sm text-gray-400">Performance ({selectedPeriod})</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {(() => {
@@ -851,21 +851,52 @@ export default function PortfolioDetailsPage() {
                     const chartPerformance = chartData.data.length > 0 
                       ? chartData.data[chartData.data.length - 1]?.portfolio || 0 
                       : 0;
+                    const benchmarkPerformance = chartData.data.length > 0 
+                      ? chartData.data[chartData.data.length - 1]?.benchmark || 0 
+                      : 0;
+                    const outperformance = chartPerformance - benchmarkPerformance;
                     return (
                       <>
-                        <div className="flex items-center gap-2">
-                          <div className={`text-2xl font-bold ${chartPerformance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {chartPerformance >= 0 ? '+' : ''}{chartPerformance.toFixed(2)}%
+                        {/* Portfolio Performance */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400">Portfolio:</span>
+                            <div className={`text-lg font-bold ${chartPerformance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {chartPerformance >= 0 ? '+' : ''}{chartPerformance.toFixed(2)}%
+                            </div>
                           </div>
                           {chartPerformance >= 0 ? (
-                            <TrendingUp className="h-5 w-5 text-green-500" />
+                            <TrendingUp className="h-4 w-4 text-green-500" />
                           ) : (
-                            <TrendingDown className="h-5 w-5 text-red-500" />
+                            <TrendingDown className="h-4 w-4 text-red-500" />
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {selectedPeriod} Performance
-                        </p>
+                        {/* Benchmark Performance */}
+                        <div className="flex items-center justify-between mt-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400">{selectedBenchmark}:</span>
+                            <div className={`text-lg font-bold ${benchmarkPerformance >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
+                              {benchmarkPerformance >= 0 ? '+' : ''}{benchmarkPerformance.toFixed(2)}%
+                            </div>
+                          </div>
+                          {benchmarkPerformance >= 0 ? (
+                            <TrendingUp className="h-4 w-4 text-cyan-400" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4 text-red-400" />
+                          )}
+                        </div>
+                        {/* Outperformance Indicator */}
+                        <div className="mt-2 pt-2 border-t border-gray-700">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400">Differenz:</span>
+                            <div className={`text-sm font-semibold ${outperformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(2)}%
+                              <span className="text-xs ml-1">
+                                {outperformance >= 0 ? '▲' : '▼'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </>
                     );
                   })()}
