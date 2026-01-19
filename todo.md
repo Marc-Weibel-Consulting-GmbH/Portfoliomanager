@@ -594,3 +594,15 @@
 - [x] getAggregatedMetrics berechnet jetzt avgDividendYield aus allen Aktien in Live-Portfolios
 - [x] Frontend zeigt Outperformance korrekt als Portfolio - Benchmark
 - [x] Bestes Portfolio verwendet min-w-0 flex-1 für vollständigen Namen mit Tooltip
+
+
+## Best Portfolio Bug (19.01.2026)
+- [x] BUG: "Bestes Portfolio" sortiert nach Portfolio-Performance (livePerformance) statt nach Outperformance YTD - FIXED
+- [x] Test Portfolio Marc hat +2.1% Outperformance YTD (sollte als Bestes angezeigt werden) - FIXED
+- [x] Test Portfolio Regula hat +0.8% Outperformance YTD (wird fälschlicherweise als Bestes angezeigt) - FIXED
+- [x] Lösung: bestPerformer sollte nach Outperformance YTD aus multiPeriodData sortieren - IMPLEMENTED
+
+### Lösung implementiert:
+- [x] bestPerformer sortiert jetzt nach Outperformance YTD aus multiPeriodData (Array mit .find())
+- [x] Zeigt korrekt "Test Portfolio Marc" mit "Outperf: +2.10%" an
+- [x] Fallback auf "Lädt..." wenn multiPeriodData noch nicht geladen ist

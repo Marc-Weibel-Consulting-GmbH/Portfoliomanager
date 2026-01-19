@@ -109,16 +109,18 @@ export default function Portfolios() {
   // Fetch multi-period performance data for all portfolios (V2 uses same logic as detail page)
   const { data: multiPeriodData } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
 
-  // Calculate best performer
+  // Calculate best performer based on YTD outperformance
   const bestPerformer = useMemo(() => {
-    if (!portfolios || portfolios.length === 0) return null;
+    if (!portfolios || portfolios.length === 0 || !multiPeriodData) return null;
     const sorted = [...portfolios].sort((a: any, b: any) => {
-      const perfA = typeof a.livePerformance === 'number' ? a.livePerformance : 0;
-      const perfB = typeof b.livePerformance === 'number' ? b.livePerformance : 0;
-      return perfB - perfA;
+      const portfolioPerfA = multiPeriodData.find((p: any) => p.portfolioId === a.id);
+      const portfolioPerfB = multiPeriodData.find((p: any) => p.portfolioId === b.id);
+      const outperfA = portfolioPerfA?.outperformance?.['YTD'] ?? -Infinity;
+      const outperfB = portfolioPerfB?.outperformance?.['YTD'] ?? -Infinity;
+      return outperfB - outperfA;
     });
     return sorted[0];
-  }, [portfolios]);
+  }, [portfolios, multiPeriodData]);
 
   // Toggle selection for a single portfolio
   const toggleSelection = (id: number, e: React.MouseEvent) => {
@@ -336,8 +338,16 @@ export default function Portfolios() {
                 <div className="text-sm font-bold text-yellow-400 truncate" title={bestPerformer?.name || ''}>
                   {bestPerformer?.name || '-'}
                 </div>
-                <div className={`text-[10px] ${(Number(bestPerformer?.livePerformance) || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
-                  {bestPerformer ? formatPercent(Number(bestPerformer.livePerformance) || 0) : '-'}
+                <div className={`text-[10px] ${(() => {
+                  const perf = multiPeriodData?.find((p: any) => p.portfolioId === bestPerformer?.id);
+                  return (perf?.outperformance?.['YTD'] || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500';
+                })()}`}>
+                  {(() => {
+                    const perf = multiPeriodData?.find((p: any) => p.portfolioId === bestPerformer?.id);
+                    return bestPerformer && perf?.outperformance?.['YTD'] !== undefined 
+                      ? `Outperf: ${formatPercent(perf.outperformance['YTD'])}` 
+                      : (bestPerformer ? 'Lädt...' : '-');
+                  })()}
                 </div>
               </div>
             </div>
