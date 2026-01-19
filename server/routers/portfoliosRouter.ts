@@ -2468,18 +2468,60 @@ export const portfoliosRouter = router({
         };
         
         // Get benchmark (SPY) prices for all periods
+        // Use direct database query to get benchmark prices from historicalPrices table
         const benchmarkTicker = 'SPY';
         const benchmarkPrices: Record<string, number> = {};
         
-        // Get current benchmark price
-        const benchmarkStock = await getStockByTicker(benchmarkTicker);
-        const benchmarkCurrentPrice = parseFloat(benchmarkStock?.currentPrice || '0');
+        // Get current benchmark price from historicalPrices (latest available)
+        // Note: historicalPrices, eq, and, gte, lte are already imported above
+        const { desc, asc } = await import("drizzle-orm");
+        
+        // Get the latest available benchmark price
+        const [latestBenchmarkPrice] = await db
+          .select()
+          .from(historicalPrices)
+          .where(eq(historicalPrices.ticker, benchmarkTicker))
+          .orderBy(desc(historicalPrices.date))
+          .limit(1);
+        
+        const benchmarkCurrentPrice = latestBenchmarkPrice ? parseFloat(latestBenchmarkPrice.close || '0') : 0;
         benchmarkPrices['current'] = benchmarkCurrentPrice;
+        console.log(`[getMultiPeriodPerformance] Latest benchmark price for ${benchmarkTicker}: ${benchmarkCurrentPrice} on ${latestBenchmarkPrice?.date}`);
         
         // Get historical benchmark prices for each period
         for (const [period, startDate] of Object.entries(periodStartDates)) {
-          const historicalPrice = await getHistoricalPrice(benchmarkTicker, startDate);
-          benchmarkPrices[period] = historicalPrice || benchmarkCurrentPrice;
+          // Find the closest price at or after the start date
+          const [historicalPrice] = await db
+            .select()
+            .from(historicalPrices)
+            .where(
+              and(
+                eq(historicalPrices.ticker, benchmarkTicker),
+                gte(historicalPrices.date, startDate)
+              )
+            )
+            .orderBy(asc(historicalPrices.date))
+            .limit(1);
+          
+          if (historicalPrice && historicalPrice.close) {
+            benchmarkPrices[period] = parseFloat(historicalPrice.close);
+          } else {
+            // Fallback: try to find the closest price before the start date
+            const [fallbackPrice] = await db
+              .select()
+              .from(historicalPrices)
+              .where(
+                and(
+                  eq(historicalPrices.ticker, benchmarkTicker),
+                  lte(historicalPrices.date, startDate)
+                )
+              )
+              .orderBy(desc(historicalPrices.date))
+              .limit(1);
+            
+            benchmarkPrices[period] = fallbackPrice ? parseFloat(fallbackPrice.close || '0') : benchmarkCurrentPrice;
+          }
+          console.log(`[getMultiPeriodPerformance] Benchmark price for ${period} (${startDate}): ${benchmarkPrices[period]}`);
         }
         
         // Calculate benchmark performance for each period
@@ -2492,6 +2534,10 @@ export const portfoliosRouter = router({
             benchmarkPerformance[period] = 0;
           }
         }
+        
+        // DEBUG: Log benchmark performance
+        console.log('[getMultiPeriodPerformance] Benchmark SPY prices:', benchmarkPrices);
+        console.log('[getMultiPeriodPerformance] Benchmark performance:', benchmarkPerformance);
         
         // Calculate performance for each portfolio
         const results = await Promise.all(

@@ -332,9 +332,9 @@ export default function Portfolios() {
                 <Trophy className="h-4 w-4 text-yellow-400" />
               </div>
               <div>
-                <div className="text-xs text-gray-400">Beste Position</div>
-                <div className="text-sm font-bold text-yellow-400 truncate max-w-[100px]">
-                  {bestPerformer?.name?.substring(0, 12) || '-'}
+                <div className="text-xs text-gray-400">Bestes Portfolio (YTD)</div>
+                <div className="text-sm font-bold text-yellow-400 truncate max-w-[120px]" title={bestPerformer?.name || ''}>
+                  {bestPerformer?.name || '-'}
                 </div>
                 <div className={`text-[10px] ${(Number(bestPerformer?.livePerformance) || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
                   {bestPerformer ? formatPercent(Number(bestPerformer.livePerformance) || 0) : '-'}

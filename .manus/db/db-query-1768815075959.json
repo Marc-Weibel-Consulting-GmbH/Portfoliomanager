@@ -1,0 +1,15 @@
+{
+  "query": "SELECT ticker, MAX(date) as latest_date, MIN(date) as earliest_date FROM historicalPrices WHERE ticker = 'SPY' GROUP BY ticker;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, MAX(date) as latest_date, MIN(date) as earliest_date FROM historicalPrices WHERE ticker = 'SPY' GROUP BY ticker;",
+  "rows": [
+    {
+      "ticker": "SPY",
+      "latest_date": "2025-12-26",
+      "earliest_date": "2020-01-02"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tlatest_date\tearliest_date\nSPY\t2025-12-26\t2020-01-02\n",
+  "stderr": "",
+  "execution_time_ms": 58
+}

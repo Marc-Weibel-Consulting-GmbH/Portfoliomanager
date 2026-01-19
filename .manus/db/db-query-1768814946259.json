@@ -1,0 +1,25 @@
+{
+  "query": "SELECT ticker, currentPrice, currency FROM stocks WHERE ticker LIKE '%SPY%' OR ticker LIKE '%SP%' LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, currentPrice, currency FROM stocks WHERE ticker LIKE '%SPY%' OR ticker LIKE '%SP%' LIMIT 10;",
+  "rows": [
+    {
+      "ticker": "SPY.US",
+      "currentPrice": "677.58",
+      "currency": "USD"
+    },
+    {
+      "ticker": "CHSPI.SW",
+      "currentPrice": "161.78",
+      "currency": "CHF"
+    },
+    {
+      "ticker": "SPICHA.SW",
+      "currentPrice": "85.78",
+      "currency": "CHF"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcurrentPrice\tcurrency\nSPY.US\t677.58\tUSD\nCHSPI.SW\t161.78\tCHF\nSPICHA.SW\t85.78\tCHF\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

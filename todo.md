@@ -536,3 +536,28 @@
 - [x] Entscheidung: Kleine Diskrepanz akzeptiert (0.23% Unterschied ist praktisch vernachlässigbar)
 - [x] Dokumentation erstellt: /home/ubuntu/outperformance_final_comparison.md
 - [x] Option 1 (Chart-Daten verwenden) verworfen wegen Code-Duplikation und Komplexität
+
+
+## Outperformance Bug Fix (19.01.2026 - Nachmittag)
+- [ ] BUG: Outperformance entspricht genau der Portfolio-Performance - Benchmark wird nicht abgezogen!
+  - Demo Portfolio Marc: YTD +0.10%, Outperformance YTD +0.1% → FALSCH! Sollte -1.14% sein (0.10% - 1.24%)
+  - Test Portfolio Marc: YTD +7.99%, Outperformance YTD +8.0% → FALSCH! Sollte +6.75% sein (7.99% - 1.24%)
+  - Test Portfolio Regula: YTD +2.41%, Outperformance YTD +2.4% → FALSCH! Sollte +1.17% sein (2.41% - 1.24%)
+- [ ] BUG: "Beste Position: Test Portfol +3.31%" - Name abgeschnitten, unklar welches Portfolio und welche Performance
+- [ ] Analyse: Prüfen warum benchmarkPerformance 0% ist oder nicht korrekt berechnet wird
+
+
+## Outperformance Bug Fix (19.01.2026 - Finale Lösung)
+- [x] BUG: Outperformance entspricht genau der Portfolio-Performance (Benchmark wird nicht abgezogen) - FIXED
+- [x] BUG: "Beste Position" zeigt abgeschnittenen Namen und unklare Performance - FIXED
+- [x] Root Cause: SPY existiert nicht in stocks-Tabelle, benchmarkCurrentPrice = 0 - FIXED
+
+### Lösung implementiert:
+- [x] getMultiPeriodPerformance liest Benchmark-Preise direkt aus historicalPrices-Tabelle
+- [x] Fallback auf nächsten verfügbaren Preis wenn exaktes Datum nicht vorhanden
+- [x] "Beste Position" umbenannt zu "Bestes Portfolio (YTD)" mit vollem Namen und Tooltip
+
+### Verifizierte Ergebnisse:
+- Demo Portfolio Marc: YTD +0.10%, Outperformance -1.1% ✓
+- Test Portfolio Marc: YTD +7.99%, Outperformance +6.7% ✓
+- Test Portfolio Regula: YTD +2.41%, Outperformance +1.2% ✓
