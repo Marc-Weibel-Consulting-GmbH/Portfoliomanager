@@ -8,6 +8,7 @@
  *  - Risk metrics: VaR, CVaR, Sharpe, Sortino, Calmar, Beta, Max Drawdown
  *  - DCF valuation using Yahoo Finance fundamentals
  *  - Portfolio optimization: Max Sharpe, Min Variance, Equal Weight (Efficient Frontier)
+ *  - Technical Analysis: RSI, MACD, Bollinger Bands
  */
 
 import YahooFinanceClass from "yahoo-finance2";
@@ -51,6 +52,44 @@ export interface OptimizeInput {
   lookbackDays?: number;
   riskFreeRate?: number;
   method?: "max_sharpe" | "min_variance" | "equal_weight";
+}
+
+export interface TechnicalAnalysisInput {
+  ticker: string;
+  lookbackDays?: number;
+}
+
+export interface TechnicalIndicators {
+  ticker: string;
+  companyName: string;
+  currentPrice: number;
+  rsi: {
+    value: number;
+    signal: "oversold" | "neutral" | "overbought";
+    description: string;
+  };
+  macd: {
+    macdLine: number;
+    signalLine: number;
+    histogram: number;
+    signal: "bullish" | "neutral" | "bearish";
+    description: string;
+    history: Array<{ date: string; macd: number; signal: number; histogram: number }>;
+  };
+  bollingerBands: {
+    upper: number;
+    middle: number;
+    lower: number;
+    bandwidth: number;
+    percentB: number;
+    signal: "oversold" | "neutral" | "overbought";
+    description: string;
+    history: Array<{ date: string; upper: number; middle: number; lower: number; close: number }>;
+  };
+  priceHistory: Array<{ date: string; close: number }>;
+  rsiHistory: Array<{ date: string; value: number }>;
+  overallSignal: "buy" | "hold" | "sell";
+  overallDescription: string;
 }
 
 // ─────────────────────────────────────────────
@@ -101,52 +140,51 @@ async function fetchReturns(
     })
   );
 
-  // Build returns map with original ticker names
-  const reverseMap: { [norm: string]: string } = {};
-  for (const [orig, norm] of Object.entries(normalizedMap)) {
-    reverseMap[norm] = orig;
-  }
-
-  const returns: { [ticker: string]: number[] } = {};
-  for (const [norm, prices] of Object.entries(pricesByNorm)) {
-    const orig = reverseMap[norm] ?? norm;
-    const tail = prices.slice(-lookbackDays - 1);
-    const rets: number[] = [];
-    for (let i = 1; i < tail.length; i++) {
-      rets.push((tail[i] - tail[i - 1]) / tail[i - 1]);
-    }
-    if (rets.length > 10) {
-      returns[orig] = rets;
+  // Map back to original tickers
+  const returnsMap: { [ticker: string]: number[] } = {};
+  for (const orig of tickers) {
+    const norm = normalizedMap[orig];
+    const prices = pricesByNorm[norm];
+    if (prices && prices.length > 1) {
+      const returns: number[] = [];
+      for (let i = 1; i < prices.length; i++) {
+        returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
+      }
+      returnsMap[orig] = returns;
     }
   }
 
-  return returns;
+  return returnsMap;
 }
 
 // ─────────────────────────────────────────────
 // Statistical Helpers
 // ─────────────────────────────────────────────
 function mean(arr: number[]): number {
+  if (arr.length === 0) return 0;
   return arr.reduce((s, v) => s + v, 0) / arr.length;
 }
 
-function std(arr: number[], ddof = 1): number {
+function std(arr: number[]): number {
+  if (arr.length < 2) return 0;
   const m = mean(arr);
-  const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - ddof);
+  const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);
   return Math.sqrt(variance);
 }
 
 function percentile(arr: number[], p: number): number {
   const sorted = [...arr].sort((a, b) => a - b);
   const idx = (p / 100) * (sorted.length - 1);
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  if (lo === hi) return sorted[lo];
-  return sorted[lo] + (idx - lo) * (sorted[hi] - sorted[lo]);
+  const lower = Math.floor(idx);
+  const upper = Math.ceil(idx);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (idx - lower);
 }
 
 function dotProduct(a: number[], b: number[]): number {
-  return a.reduce((s, v, i) => s + v * b[i], 0);
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+  return sum;
 }
 
 function matVecMul(mat: number[][], vec: number[]): number[] {
@@ -348,7 +386,6 @@ function optimizeWeights(
   if (method === "equal_weight") return x0;
 
   // Gradient-free optimization using simulated annealing + local search
-  // This is a simplified but effective approach for portfolio optimization
   const numTrials = 5000;
   let bestWeights = [...x0];
   let bestScore = method === "max_sharpe" ? -Infinity : Infinity;
@@ -510,14 +547,19 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
 
   if (benchmarkRets) {
     beta = calcBeta(portfolioRets, benchmarkRets);
-    const excessRf = annualReturn - riskFreeRate;
-    treynor = beta !== 0 ? excessRf / beta : null;
+    if (beta !== 0) {
+      treynor = (annualReturn - riskFreeRate) / beta;
+    }
+    // Information ratio
     const n = Math.min(portfolioRets.length, benchmarkRets.length);
-    const excessBench = portfolioRets.slice(0, n).map((r, i) => r - benchmarkRets[i]);
-    const te = std(excessBench) * SQRT_TRADING_DAYS;
-    informationRatio = te !== 0 ? (mean(excessBench) * TRADING_DAYS_YEAR) / te : 0;
+    const excess = portfolioRets.slice(0, n).map((r, i) => r - benchmarkRets[i]);
+    const trackingError = std(excess) * SQRT_TRADING_DAYS;
+    if (trackingError > 0) {
+      informationRatio = (mean(excess) * TRADING_DAYS_YEAR) / trackingError;
+    }
   }
 
+  // Per-asset metrics
   const assetMetrics = available.map((ticker, i) => {
     const ar = returnsMap[ticker];
     return {
@@ -526,7 +568,6 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
       annualReturn: Math.round(mean(ar) * TRADING_DAYS_YEAR * 10000) / 100,
       volatility: Math.round(calcVolatility(ar) * 10000) / 100,
       sharpe: Math.round(calcSharpe(ar, riskFreeRate) * 1000) / 1000,
-      beta: benchmarkRets ? Math.round(calcBeta(ar, benchmarkRets) * 1000) / 1000 : null,
       maxDrawdown: Math.round(calcMaxDrawdown(ar) * 10000) / 100,
     };
   });
@@ -732,5 +773,342 @@ export async function optimizePortfolio(input: OptimizeInput) {
     assets: assetStats,
     efficientFrontier,
     tickers: available,
+  };
+}
+
+// ─────────────────────────────────────────────
+// Public API: Technical Analysis
+// ─────────────────────────────────────────────
+
+/**
+ * Calculate RSI (Relative Strength Index)
+ */
+function calcRSI(prices: number[], period: number = 14): number[] {
+  const rsiValues: number[] = [];
+  if (prices.length < period + 1) return rsiValues;
+
+  const changes: number[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    changes.push(prices[i] - prices[i - 1]);
+  }
+
+  // Initial average gain/loss
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 0; i < period; i++) {
+    if (changes[i] > 0) avgGain += changes[i];
+    else avgLoss += Math.abs(changes[i]);
+  }
+  avgGain /= period;
+  avgLoss /= period;
+
+  // First RSI value
+  const firstRS = avgLoss === 0 ? 100 : avgGain / avgLoss;
+  rsiValues.push(100 - 100 / (1 + firstRS));
+
+  // Smoothed RSI using Wilder's method
+  for (let i = period; i < changes.length; i++) {
+    const change = changes[i];
+    if (change > 0) {
+      avgGain = (avgGain * (period - 1) + change) / period;
+      avgLoss = (avgLoss * (period - 1)) / period;
+    } else {
+      avgGain = (avgGain * (period - 1)) / period;
+      avgLoss = (avgLoss * (period - 1) + Math.abs(change)) / period;
+    }
+    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+    rsiValues.push(100 - 100 / (1 + rs));
+  }
+
+  return rsiValues;
+}
+
+/**
+ * Calculate EMA (Exponential Moving Average)
+ */
+function calcEMA(data: number[], period: number): number[] {
+  const ema: number[] = [];
+  if (data.length === 0) return ema;
+
+  const multiplier = 2 / (period + 1);
+  // Start with SMA for the first value
+  let sum = 0;
+  for (let i = 0; i < Math.min(period, data.length); i++) {
+    sum += data[i];
+  }
+  ema.push(sum / Math.min(period, data.length));
+
+  for (let i = 1; i < data.length; i++) {
+    ema.push((data[i] - ema[i - 1]) * multiplier + ema[i - 1]);
+  }
+
+  return ema;
+}
+
+/**
+ * Calculate MACD (Moving Average Convergence Divergence)
+ */
+function calcMACD(
+  prices: number[],
+  fastPeriod: number = 12,
+  slowPeriod: number = 26,
+  signalPeriod: number = 9
+): { macdLine: number[]; signalLine: number[]; histogram: number[] } {
+  const emaFast = calcEMA(prices, fastPeriod);
+  const emaSlow = calcEMA(prices, slowPeriod);
+
+  // MACD line = EMA(fast) - EMA(slow)
+  const macdLine: number[] = [];
+  for (let i = 0; i < prices.length; i++) {
+    macdLine.push(emaFast[i] - emaSlow[i]);
+  }
+
+  // Signal line = EMA of MACD line
+  const signalLine = calcEMA(macdLine, signalPeriod);
+
+  // Histogram = MACD - Signal
+  const histogram: number[] = [];
+  for (let i = 0; i < macdLine.length; i++) {
+    histogram.push(macdLine[i] - signalLine[i]);
+  }
+
+  return { macdLine, signalLine, histogram };
+}
+
+/**
+ * Calculate Bollinger Bands
+ */
+function calcBollingerBands(
+  prices: number[],
+  period: number = 20,
+  stdMultiplier: number = 2
+): { upper: number[]; middle: number[]; lower: number[] } {
+  const upper: number[] = [];
+  const middle: number[] = [];
+  const lower: number[] = [];
+
+  for (let i = 0; i < prices.length; i++) {
+    if (i < period - 1) {
+      // Not enough data yet
+      upper.push(prices[i]);
+      middle.push(prices[i]);
+      lower.push(prices[i]);
+    } else {
+      const slice = prices.slice(i - period + 1, i + 1);
+      const sma = slice.reduce((s, v) => s + v, 0) / period;
+      const stdDev = Math.sqrt(
+        slice.reduce((s, v) => s + (v - sma) ** 2, 0) / period
+      );
+      middle.push(sma);
+      upper.push(sma + stdMultiplier * stdDev);
+      lower.push(sma - stdMultiplier * stdDev);
+    }
+  }
+
+  return { upper, middle, lower };
+}
+
+/**
+ * Full Technical Analysis for a single ticker
+ */
+export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Promise<TechnicalIndicators> {
+  const { ticker, lookbackDays = 180 } = input;
+  const normalizedTicker = normalizeTicker(ticker);
+
+  const end = new Date();
+  const start = new Date(end.getTime() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000);
+
+  // Fetch price data
+  const chartResult = await yahooFinance.chart(normalizedTicker, {
+    period1: start.toISOString().split("T")[0],
+    period2: end.toISOString().split("T")[0],
+    interval: "1d",
+  }) as any;
+
+  const quotes = (chartResult.quotes ?? []) as any[];
+  if (quotes.length < 30) {
+    throw new Error(`Insufficient price data for ${ticker} (need at least 30 days, got ${quotes.length})`);
+  }
+
+  const prices = quotes.filter((q: any) => q.close != null).map((q: any) => q.close as number);
+  const dates = quotes.filter((q: any) => q.close != null).map((q: any) => {
+    const d = new Date(q.date);
+    return d.toISOString().split("T")[0];
+  });
+
+  const currentPrice = prices[prices.length - 1];
+
+  // Get company name
+  let companyName = ticker;
+  try {
+    const summary = await yahooFinance.quoteSummary(normalizedTicker, {
+      modules: ["price"],
+    }) as any;
+    companyName = summary.price?.longName ?? summary.price?.shortName ?? ticker;
+  } catch {
+    // Use ticker as fallback
+  }
+
+  // ── RSI ──
+  const rsiValues = calcRSI(prices, 14);
+  const currentRSI = rsiValues.length > 0 ? rsiValues[rsiValues.length - 1] : 50;
+  let rsiSignal: "oversold" | "neutral" | "overbought" = "neutral";
+  let rsiDescription = "";
+  if (currentRSI < 30) {
+    rsiSignal = "oversold";
+    rsiDescription = `RSI bei ${currentRSI.toFixed(1)} – stark überverkauft. Mögliche Kaufgelegenheit.`;
+  } else if (currentRSI < 40) {
+    rsiSignal = "oversold";
+    rsiDescription = `RSI bei ${currentRSI.toFixed(1)} – leicht überverkauft. Beobachten für Einstieg.`;
+  } else if (currentRSI > 70) {
+    rsiSignal = "overbought";
+    rsiDescription = `RSI bei ${currentRSI.toFixed(1)} – stark überkauft. Vorsicht vor Korrektur.`;
+  } else if (currentRSI > 60) {
+    rsiSignal = "overbought";
+    rsiDescription = `RSI bei ${currentRSI.toFixed(1)} – leicht überkauft. Aufwärtstrend intakt.`;
+  } else {
+    rsiDescription = `RSI bei ${currentRSI.toFixed(1)} – neutraler Bereich.`;
+  }
+
+  // RSI history (last 60 data points)
+  const rsiStartIdx = prices.length - rsiValues.length;
+  const rsiHistory = rsiValues.slice(-60).map((v, i) => ({
+    date: dates[rsiStartIdx + rsiValues.length - 60 + i] || "",
+    value: Math.round(v * 100) / 100,
+  }));
+
+  // ── MACD ──
+  const { macdLine, signalLine, histogram } = calcMACD(prices, 12, 26, 9);
+  const currentMACD = macdLine[macdLine.length - 1];
+  const currentSignalLine = signalLine[signalLine.length - 1];
+  const currentHistogram = histogram[histogram.length - 1];
+  const prevHistogram = histogram.length > 1 ? histogram[histogram.length - 2] : 0;
+
+  let macdSignal: "bullish" | "neutral" | "bearish" = "neutral";
+  let macdDescription = "";
+  if (currentMACD > currentSignalLine && currentHistogram > 0) {
+    if (prevHistogram <= 0) {
+      macdSignal = "bullish";
+      macdDescription = "MACD-Crossover nach oben – bullisches Signal. Aufwärtstrend beginnt.";
+    } else {
+      macdSignal = "bullish";
+      macdDescription = "MACD über Signallinie – Aufwärtstrend bestätigt.";
+    }
+  } else if (currentMACD < currentSignalLine && currentHistogram < 0) {
+    if (prevHistogram >= 0) {
+      macdSignal = "bearish";
+      macdDescription = "MACD-Crossover nach unten – bärisches Signal. Abwärtstrend beginnt.";
+    } else {
+      macdSignal = "bearish";
+      macdDescription = "MACD unter Signallinie – Abwärtstrend bestätigt.";
+    }
+  } else {
+    macdDescription = "MACD neutral – kein klares Trendsignal.";
+  }
+
+  // MACD history (last 60 data points)
+  const macdHistory = macdLine.slice(-60).map((m, i) => ({
+    date: dates[dates.length - 60 + i] || "",
+    macd: Math.round(m * 1000) / 1000,
+    signal: Math.round(signalLine[signalLine.length - 60 + i] * 1000) / 1000,
+    histogram: Math.round(histogram[histogram.length - 60 + i] * 1000) / 1000,
+  }));
+
+  // ── Bollinger Bands ──
+  const { upper, middle, lower } = calcBollingerBands(prices, 20, 2);
+  const currentUpper = upper[upper.length - 1];
+  const currentMiddle = middle[middle.length - 1];
+  const currentLower = lower[lower.length - 1];
+  const bandwidth = currentMiddle > 0 ? (currentUpper - currentLower) / currentMiddle : 0;
+  const percentB = (currentUpper - currentLower) > 0
+    ? (currentPrice - currentLower) / (currentUpper - currentLower)
+    : 0.5;
+
+  let bbSignal: "oversold" | "neutral" | "overbought" = "neutral";
+  let bbDescription = "";
+  if (currentPrice <= currentLower) {
+    bbSignal = "oversold";
+    bbDescription = `Kurs am unteren Bollinger Band – überverkauft. Mögliche Umkehr nach oben.`;
+  } else if (currentPrice >= currentUpper) {
+    bbSignal = "overbought";
+    bbDescription = `Kurs am oberen Bollinger Band – überkauft. Mögliche Korrektur.`;
+  } else if (percentB < 0.2) {
+    bbSignal = "oversold";
+    bbDescription = `Kurs nahe unterem Band (%B: ${(percentB * 100).toFixed(0)}%) – leicht überverkauft.`;
+  } else if (percentB > 0.8) {
+    bbSignal = "overbought";
+    bbDescription = `Kurs nahe oberem Band (%B: ${(percentB * 100).toFixed(0)}%) – leicht überkauft.`;
+  } else {
+    bbDescription = `Kurs im mittleren Bereich (%B: ${(percentB * 100).toFixed(0)}%) – neutral.`;
+  }
+
+  // Bollinger history (last 60 data points)
+  const bbHistory = upper.slice(-60).map((u, i) => ({
+    date: dates[dates.length - 60 + i] || "",
+    upper: Math.round(u * 100) / 100,
+    middle: Math.round(middle[middle.length - 60 + i] * 100) / 100,
+    lower: Math.round(lower[lower.length - 60 + i] * 100) / 100,
+    close: Math.round(prices[prices.length - 60 + i] * 100) / 100,
+  }));
+
+  // Price history (last 60 data points)
+  const priceHistory = prices.slice(-60).map((p, i) => ({
+    date: dates[dates.length - 60 + i] || "",
+    close: Math.round(p * 100) / 100,
+  }));
+
+  // ── Overall Signal ──
+  let buySignals = 0;
+  let sellSignals = 0;
+  if (rsiSignal === "oversold") buySignals++;
+  if (rsiSignal === "overbought") sellSignals++;
+  if (macdSignal === "bullish") buySignals++;
+  if (macdSignal === "bearish") sellSignals++;
+  if (bbSignal === "oversold") buySignals++;
+  if (bbSignal === "overbought") sellSignals++;
+
+  let overallSignal: "buy" | "hold" | "sell" = "hold";
+  let overallDescription = "";
+  if (buySignals >= 2) {
+    overallSignal = "buy";
+    overallDescription = `${buySignals} von 3 Indikatoren zeigen Kaufsignale. Technisch attraktiver Einstiegspunkt.`;
+  } else if (sellSignals >= 2) {
+    overallSignal = "sell";
+    overallDescription = `${sellSignals} von 3 Indikatoren zeigen Verkaufssignale. Vorsicht geboten.`;
+  } else {
+    overallDescription = "Gemischte technische Signale. Abwarten empfohlen.";
+  }
+
+  return {
+    ticker,
+    companyName,
+    currentPrice: Math.round(currentPrice * 100) / 100,
+    rsi: {
+      value: Math.round(currentRSI * 100) / 100,
+      signal: rsiSignal,
+      description: rsiDescription,
+    },
+    macd: {
+      macdLine: Math.round(currentMACD * 1000) / 1000,
+      signalLine: Math.round(currentSignalLine * 1000) / 1000,
+      histogram: Math.round(currentHistogram * 1000) / 1000,
+      signal: macdSignal,
+      description: macdDescription,
+      history: macdHistory,
+    },
+    bollingerBands: {
+      upper: Math.round(currentUpper * 100) / 100,
+      middle: Math.round(currentMiddle * 100) / 100,
+      lower: Math.round(currentLower * 100) / 100,
+      bandwidth: Math.round(bandwidth * 10000) / 100,
+      percentB: Math.round(percentB * 10000) / 100,
+      signal: bbSignal,
+      description: bbDescription,
+      history: bbHistory,
+    },
+    priceHistory,
+    rsiHistory,
+    overallSignal,
+    overallDescription,
   };
 }

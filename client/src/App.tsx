@@ -67,6 +67,7 @@ import PremiumWizard from "./pages/PremiumWizard";
 import RiskDashboard from "./pages/RiskDashboard";
 import DCFValuation from "./pages/DCFValuation";
 import PortfolioOptimizer from "./pages/PortfolioOptimizer";
+import TechnicalAnalysis from "./pages/TechnicalAnalysis";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -122,6 +123,7 @@ function Router() {
       <Route path="/risk-dashboard" component={RiskDashboard} />
       <Route path="/dcf-valuation" component={DCFValuation} />
       <Route path="/portfolio-optimizer" component={PortfolioOptimizer} />
+      <Route path="/technical-analysis" component={TechnicalAnalysis} />
       <Route path="/reports" component={Reports} />
       <Route path="/portfolio-builder" component={PortfolioBuilderLanding} />
       <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />

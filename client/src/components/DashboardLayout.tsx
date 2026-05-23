@@ -44,6 +44,7 @@ const menuItems = [
   { icon: Sparkles, label: "KI-Insights", path: "/ai-insights" },
   { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
   { icon: TrendingUp, label: "Dividenden", path: "/dividends" },
+  { icon: Activity, label: "Technische Analyse", path: "/technical-analysis" },
   { icon: Zap, label: "Signale", path: "/signals" },
   { icon: FileText, label: "Reports", path: "/reports" },
   { icon: Calculator, label: "Rechner", path: "/rechner" },

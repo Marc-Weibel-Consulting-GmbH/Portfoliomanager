@@ -8,7 +8,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { calcRiskMetrics, calcDCF, optimizePortfolio } from "../analytics/engine";
+import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis } from "../analytics/engine";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -108,6 +108,30 @@ export const analyticsRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: err.message ?? "Portfolio optimization failed",
+        });
+      }
+    }),
+
+  /**
+   * Technical Analysis: RSI, MACD, Bollinger Bands for a single ticker
+   */
+  technicalAnalysis: protectedProcedure
+    .input(
+      z.object({
+        ticker: z.string(),
+        lookbackDays: z.number().default(180),
+      })
+    )
+    .query(async ({ input }) => {
+      try {
+        return await calcTechnicalAnalysis({
+          ticker: input.ticker,
+          lookbackDays: input.lookbackDays,
+        });
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Technical analysis failed",
         });
       }
     }),

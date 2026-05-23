@@ -165,10 +165,14 @@ export default function Signals() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-3 text-sm">
                         <div>
                           <p className="text-muted-foreground">P/E Ratio</p>
                           <p className="font-semibold">{signal.peRatio?.toFixed(1) || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">PEG Ratio</p>
+                          <p className="font-semibold">{signal.pegRatio?.toFixed(2) || 'N/A'}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Div. Rendite</p>
@@ -178,6 +182,12 @@ export default function Signals() {
                           <p className="text-muted-foreground">YTD Performance</p>
                           <p className={`font-semibold ${signal.ytdPerformance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {signal.ytdPerformance >= 0 ? '+' : ''}{signal.ytdPerformance?.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">RSI (14)</p>
+                          <p className={`font-semibold ${signal.rsi14 && signal.rsi14 < 30 ? 'text-green-500' : signal.rsi14 && signal.rsi14 > 70 ? 'text-red-500' : ''}`}>
+                            {signal.rsi14?.toFixed(0) || 'N/A'}
                           </p>
                         </div>
                         <div>

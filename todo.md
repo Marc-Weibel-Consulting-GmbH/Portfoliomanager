@@ -616,3 +616,19 @@
 - [ ] Build DCF-Bewertung UI per Aktie (Intrinsic Value, Upside/Downside)
 - [ ] Build Portfolio-Optimierung UI (Efficient Frontier, optimale Gewichtung)
 - [ ] Test all Fincept-powered features end-to-end
+
+
+## Signale-Fix & Technische Analyse (23.05.2026)
+
+### Signale-Seite Fix
+- [x] signalsRouter: Live Yahoo Finance quoteSummary für P/E, PEG, Dividendenrendite, 52W-Hoch/Tief fetchen
+- [x] signalsRouter: YTD Performance aus Yahoo Finance Chart berechnen
+- [x] signalsRouter: RSI/MACD-basierte Signale zusätzlich zu Fundamentaldaten
+- [x] Signale zeigen jetzt differenzierte Kauf/Verkauf/Halten-Empfehlungen statt nur "Halten"
+
+### Technische Analyse (Option B - fehlender Teil)
+- [x] engine.ts: calcTechnicalAnalysis() Funktion (RSI 14, MACD 12/26/9, Bollinger Bands 20/2σ)
+- [x] analyticsRouter: analytics.technicalAnalysis Procedure
+- [x] TechnicalAnalysis.tsx: Neue Seite mit Charts pro Position
+- [x] App.tsx: Route /technical-analysis registrieren
+- [x] DashboardLayout: Sidebar-Link "Technische Analyse" hinzufügen
