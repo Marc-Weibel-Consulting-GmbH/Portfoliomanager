@@ -1,0 +1,76 @@
+{
+  "query": "SELECT ticker, companyName, source, signalType FROM watchlistStocks;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, source, signalType FROM watchlistStocks;",
+  "rows": [
+    {
+      "ticker": "AAPL",
+      "companyName": "Apple Inc.",
+      "source": "manual",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "MSFT",
+      "companyName": "Microsoft Corporation",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "GOOGL",
+      "companyName": "Alphabet Inc.",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "AMZN",
+      "companyName": "Amazon.com, Inc.",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "NVDA",
+      "companyName": "NVIDIA Corporation",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "META",
+      "companyName": "Meta Platforms, Inc.",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "JNJ",
+      "companyName": "Johnson & Johnson",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "UNH",
+      "companyName": "UnitedHealth Group Incorporated",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "V",
+      "companyName": "Visa Inc.",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "PG",
+      "companyName": "The Procter & Gamble Company",
+      "source": "ai_recommended",
+      "signalType": "hold"
+    },
+    {
+      "ticker": "HD",
+      "companyName": "The Home Depot, Inc.",
+      "source": "ai_recommended",
+      "signalType": "buy"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tsource\tsignalType\nAAPL\tApple Inc.\tmanual\thold\nMSFT\tMicrosoft Corporation\tai_recommended\thold\nGOOGL\tAlphabet Inc.\tai_recommended\thold\nAMZN\tAmazon.com, Inc.\tai_recommended\thold\nNVDA\tNVIDIA Corporation\tai_recommended\thold\nMETA\tMeta Platforms, Inc.\tai_recommended\thold\nJNJ\tJohnson & Johnson\tai_recommended\thold\nUNH\tUnitedHealth Group Incorporated\tai_recommended\thold\nV\tVisa Inc.\tai_recommended\thold\nPG\tThe Procter & Gamble Company\tai_recommended\thold\nHD\tThe Home Depot, Inc.\tai_recommended\tbuy\n",
+  "stderr": "",
+  "execution_time_ms": 584
+}

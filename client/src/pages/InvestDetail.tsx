@@ -338,15 +338,23 @@ export default function InvestDetail() {
                   <Card key={i} className="hover:bg-muted/50 transition-colors">
                     <CardContent className="py-3 px-4">
                       <a href={article.link} target="_blank" rel="noopener noreferrer" className="block">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <h3 className="font-medium text-sm leading-tight hover:text-primary transition-colors">{article.title}</h3>
+                        <div className="flex items-start gap-4">
+                          {article.thumbnail && (
+                            <img
+                              src={article.thumbnail}
+                              alt=""
+                              className="w-20 h-14 object-cover rounded flex-shrink-0"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm leading-tight hover:text-primary transition-colors line-clamp-2">{article.title}</h3>
                             <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                              <span>{article.publisher}</span>
+                              <span className="font-medium">{article.publisher}</span>
                               {article.publishedAt && (
                                 <>
                                   <span>•</span>
-                                  <span>{new Date(article.publishedAt).toLocaleDateString("de-CH")}</span>
+                                  <span>{new Date(article.publishedAt).toLocaleDateString("de-CH", { day: "2-digit", month: "short", year: "numeric" })}</span>
                                 </>
                               )}
                             </div>

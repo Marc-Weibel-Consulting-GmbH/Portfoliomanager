@@ -1,0 +1,130 @@
+{
+  "query": "SELECT ticker, companyName, sector, category FROM stocks LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT ticker, companyName, sector, category FROM stocks LIMIT 20;",
+  "rows": [
+    {
+      "ticker": "SGKN.SW",
+      "companyName": "St Galler Kantonalbank",
+      "sector": "Finance",
+      "category": "Dividendenaktien"
+    },
+    {
+      "ticker": "NVDA",
+      "companyName": "NVIDIA Corp",
+      "sector": "Technology",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "NEE",
+      "companyName": "NextEra Energy Inc",
+      "sector": "Utilities",
+      "category": "Dividendenaktien"
+    },
+    {
+      "ticker": "JNJ",
+      "companyName": "Johnson & Johnson",
+      "sector": "Healthcare",
+      "category": "Dividendenaktien"
+    },
+    {
+      "ticker": "TSLA",
+      "companyName": "Tesla Inc",
+      "sector": "Automotive",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "NESN.SW",
+      "companyName": "Nestle SA",
+      "sector": "Consumer",
+      "category": "Dividendenaktien"
+    },
+    {
+      "ticker": "GOOGL",
+      "companyName": "Alphabet Inc",
+      "sector": "Technology",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "SU.PA",
+      "companyName": "Schneider Electric",
+      "sector": "Industrials",
+      "category": "Dividendenaktien"
+    },
+    {
+      "ticker": "MELI",
+      "companyName": "MercadoLibre Inc",
+      "sector": "Technology",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "META",
+      "companyName": "Meta Platforms Inc",
+      "sector": "Technology",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "SQN.SW",
+      "companyName": "Swissquote Group",
+      "sector": "Finance",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "NET",
+      "companyName": "Cloudflare Inc",
+      "sector": "Technology",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "STMN.SW",
+      "companyName": "Straumann Holding",
+      "sector": "Healthcare",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "BRK-B",
+      "companyName": "Berkshire Hathaway",
+      "sector": "Finance",
+      "category": "Value"
+    },
+    {
+      "ticker": "LISN.SW",
+      "companyName": "Chocoladefabriken",
+      "sector": "Consumer",
+      "category": "Dividendenaktien"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "companyName": "Swisscom AG",
+      "sector": "Telecommunications",
+      "category": "Dividendenaktien"
+    },
+    {
+      "ticker": "GALD.SW",
+      "companyName": "Galderma Group A",
+      "sector": "Healthcare",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "TSM",
+      "companyName": "Taiwan Semiconduc",
+      "sector": "Technology",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "AVGO",
+      "companyName": "Broadcom Inc",
+      "sector": "Technology",
+      "category": "Wachstumsaktien"
+    },
+    {
+      "ticker": "MONC.MI",
+      "companyName": "Moncler SpA",
+      "sector": "Consumer",
+      "category": "Wachstumsaktien"
+    }
+  ],
+  "messages": [],
+  "stdout": "ticker\tcompanyName\tsector\tcategory\nSGKN.SW\tSt Galler Kantonalbank\tFinance\tDividendenaktien\nNVDA\tNVIDIA Corp\tTechnology\tWachstumsaktien\nNEE\tNextEra Energy Inc\tUtilities\tDividendenaktien\nJNJ\tJohnson & Johnson\tHealthcare\tDividendenaktien\nTSLA\tTesla Inc\tAutomotive\tWachstumsaktien\nNESN.SW\tNestle SA\tConsumer\tDividendenaktien\nGOOGL\tAlphabet Inc\tTechnology\tWachstumsaktien\nSU.PA\tSchneider Electric\tIndustrials\tDividendenaktien\nMELI\tMercadoLibre Inc\tTechnology\tWachstumsaktien\nMETA\tMeta Platforms Inc\tTechnology\tWachstumsaktien\nSQN.SW\tSwissquote Group\tFinance\tWachstumsaktien\nNET\tCloudflare Inc\tTechnology\tWachstumsaktien\nSTMN.SW\tStraumann Holding\tHealthcare\tWachstumsaktien\nBRK-B\tBerkshire Hathaway\tFinance\tValue\nLISN.SW\tChocoladefabriken\tConsumer\tDividendenaktien\nSCMN.SW\tSwisscom AG\tTelecommunications\tDividendenaktien\nGALD.SW\tGalderma Group A\tHealthcare\tWachstumsaktien\nTSM\tTaiwan Semiconduc\tTechnology\tWachstumsaktien\nAVGO\tBroadcom Inc\tTechnology\tWachstumsaktien\nMONC.MI\tMoncler SpA\tConsumer\tWachstumsaktien\n",
+  "stderr": "",
+  "execution_time_ms": 571
+}

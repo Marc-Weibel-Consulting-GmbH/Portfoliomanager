@@ -1,0 +1,18 @@
+{
+  "query": "SELECT source, COUNT(*) as cnt FROM watchlistStocks GROUP BY source;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT source, COUNT(*) as cnt FROM watchlistStocks GROUP BY source;",
+  "rows": [
+    {
+      "source": "manual",
+      "cnt": "103"
+    },
+    {
+      "source": "ai_recommended",
+      "cnt": "10"
+    }
+  ],
+  "messages": [],
+  "stdout": "source\tcnt\nmanual\t103\nai_recommended\t10\n",
+  "stderr": "",
+  "execution_time_ms": 557
+}

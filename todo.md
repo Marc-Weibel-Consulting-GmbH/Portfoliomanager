@@ -665,3 +665,19 @@
 - [x] Portfolio-Erstellung: Aktien aus Watchlist/Universum vorschlagen
 - [x] Portfolio-Erstellung: Gewichtung basierend auf Risikoprofil optimieren
 - [x] Portfolio-Erstellung: Korrelationsmatrix bei Auswahl anzeigen
+
+## Erweiterungen (23.05.2026 - Nachmittag)
+
+### News-Tab auf InvestDetail
+- [x] News-Tab mit echten Yahoo Finance Nachrichten befüllen (Backend invest.stockNews existiert)
+- [x] News-Karten mit Titel, Publisher, Datum und Thumbnail anzeigen
+
+### Watchlist-Alerts
+- [x] Automatische Benachrichtigung wenn Watchlist-Titel starkes Kaufsignal generiert
+- [x] notifyOwner() bei Score >= 70 auslösen
+- [x] Alert-Check in Watchlist-Aktualisierung integrieren
+
+### Portfolio Builder Watchlist-Integration
+- [x] "Aus Watchlist hinzufügen" Button im Portfolio Builder (Step 2: Stock Selection)
+- [x] Dialog mit Watchlist-Titeln und deren Signalen/Scores
+- [x] Ausgewählte Titel direkt in Portfolio-Auswahl übernehmen

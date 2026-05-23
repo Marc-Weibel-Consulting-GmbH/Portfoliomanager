@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO watchlistStocks (ticker, companyName, sector, category, source, signalType, isActive, addedAt, updatedAt) SELECT s.ticker, s.companyName, s.sector, s.category, 'manual', 'hold', 1, NOW(), NOW() FROM stocks s WHERE s.ticker NOT IN (SELECT w.ticker FROM watchlistStocks w) ON DUPLICATE KEY UPDATE companyName = VALUES(companyName), sector = VALUES(sector), category = VALUES(category), updatedAt = NOW();",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute INSERT INTO watchlistStocks (ticker, companyName, sector, category, source, signalType, isActive, addedAt, updatedAt) SELECT s.ticker, s.companyName, s.sector, s.category, 'manual', 'hold', 1, NOW(), NOW() FROM stocks s WHERE s.ticker NOT IN (SELECT w.ticker FROM watchlistStocks w) ON DUPLICATE KEY UPDATE companyName = VALUES(companyName), sector = VALUES(sector), category = VALUES(category), updatedAt = NOW();",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 613
+}

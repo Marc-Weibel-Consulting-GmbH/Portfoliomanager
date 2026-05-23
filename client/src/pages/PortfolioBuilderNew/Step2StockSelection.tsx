@@ -122,6 +122,191 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+// Watchlist Suggestions Component - "Aus Watchlist hinzufügen"
+function WatchlistSuggestions({
+  state,
+  addPosition,
+  selectedTickers,
+  fxRates,
+}: {
+  state: PortfolioBuilderState;
+  addPosition: (position: Position) => void;
+  selectedTickers: string[];
+  fxRates: any;
+}) {
+  const [showWatchlist, setShowWatchlist] = useState(false);
+  const [watchlistFilter, setWatchlistFilter] = useState<string>("all");
+
+  // Fetch watchlist stocks (buy signals first)
+  const { data: watchlistStocks = [], isLoading } = trpc.watchlist.getUniverse.useQuery(
+    { limit: 50 },
+    { enabled: showWatchlist }
+  );
+
+  const filteredWatchlist = useMemo(() => {
+    let filtered = watchlistStocks.filter((s: any) => !selectedTickers.includes(s.ticker));
+    if (watchlistFilter === "buy") {
+      filtered = filtered.filter((s: any) => s.signalType === "buy");
+    } else if (watchlistFilter === "dividend") {
+      filtered = filtered.filter((s: any) => parseFloat(s.dividendYield || "0") > 2);
+    } else if (watchlistFilter === "growth") {
+      filtered = filtered.filter((s: any) => s.category === "Wachstumsaktien");
+    }
+    return filtered;
+  }, [watchlistStocks, selectedTickers, watchlistFilter]);
+
+  const handleAddFromWatchlist = (stock: any) => {
+    const selectedStocks = state.positions.filter(p => p.type === 'stock');
+    const totalWeight = selectedStocks.reduce((sum, p) => sum + p.weight, 0);
+    const targetStockWeight = 100 - state.cashPercentage;
+    const remainingWeight = targetStockWeight - totalWeight;
+    const numPositions = selectedStocks.length + 1;
+    const suggestedWeight = remainingWeight > 0 ? Math.min(remainingWeight, 100 / numPositions) : 0;
+
+    let exchangeRateToChf = 1.0;
+    if (stock.currency && stock.currency !== 'CHF' && fxRates) {
+      const pair = `${stock.currency}CHF`;
+      if (pair === 'USDCHF') exchangeRateToChf = fxRates.USDCHF;
+      else if (pair === 'EURCHF') exchangeRateToChf = fxRates.EURCHF;
+      else if (pair === 'GBPCHF') exchangeRateToChf = fxRates.GBPCHF;
+    }
+
+    addPosition({
+      ticker: stock.ticker,
+      companyName: stock.companyName || stock.ticker,
+      weight: parseFloat(suggestedWeight.toFixed(2)),
+      type: 'stock',
+      currentPrice: parseFloat(stock.currentPrice || '0'),
+      currency: stock.currency || 'CHF',
+      exchangeRateToChf,
+      dividendYield: parseFloat(stock.dividendYield || '0'),
+      sector: stock.sector || undefined,
+    });
+  };
+
+  if (!showWatchlist) {
+    return (
+      <Card className="bg-gradient-to-br from-purple-500/10 to-[#0f1420]/50 border-purple-500/30">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                <Star className="h-5 w-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Aus Watchlist hinzufügen</h3>
+                <p className="text-xs text-gray-400">Titel mit starken Signalen aus deiner Admin-Watchlist</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowWatchlist(true)}
+              variant="outline"
+              size="sm"
+              className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            >
+              <Star className="mr-2 h-4 w-4" />
+              Watchlist anzeigen
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-[#0f1420]/50 border-purple-500/30">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <Star className="h-4 w-4 text-purple-400" />
+            Watchlist-Vorschläge
+            <Badge variant="outline" className="text-purple-400 border-purple-400/30 text-xs">
+              {filteredWatchlist.length} Titel
+            </Badge>
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowWatchlist(false)}
+            className="text-gray-400 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex gap-2 mt-2">
+          {[
+            { id: "all", label: "Alle" },
+            { id: "buy", label: "🟢 Kaufsignale" },
+            { id: "dividend", label: "Dividenden" },
+            { id: "growth", label: "Wachstum" },
+          ].map((f) => (
+            <Button
+              key={f.id}
+              variant={watchlistFilter === f.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => setWatchlistFilter(f.id)}
+              className={watchlistFilter === f.id ? "bg-purple-500 hover:bg-purple-600" : "border-white/10"}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-2">
+        {isLoading ? (
+          <div className="text-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-purple-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">Watchlist wird geladen...</p>
+          </div>
+        ) : filteredWatchlist.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-400">Keine passenden Titel in der Watchlist</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto">
+            {filteredWatchlist.map((stock: any) => (
+              <div
+                key={stock.ticker}
+                className="flex items-center gap-3 p-3 bg-[#0a0f1a] rounded-lg border border-white/5 hover:border-purple-500/30 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-white text-sm">{stock.ticker}</p>
+                    {stock.signalType === "buy" && (
+                      <Badge className="bg-green-500/20 text-green-400 text-[10px] px-1.5 py-0">Kauf</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 truncate">{stock.companyName}</p>
+                  <div className="flex items-center gap-2 mt-1 text-xs">
+                    {stock.signalScore && (
+                      <span className={`font-medium ${
+                        stock.signalScore >= 70 ? "text-green-400" :
+                        stock.signalScore <= 30 ? "text-red-400" : "text-gray-400"
+                      }`}>
+                        Score: {stock.signalScore}
+                      </span>
+                    )}
+                    {stock.dividendYield && parseFloat(stock.dividendYield) > 0 && (
+                      <span className="text-blue-400">{parseFloat(stock.dividendYield).toFixed(1)}% Div</span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  onClick={() => handleAddFromWatchlist(stock)}
+                  size="sm"
+                  className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 flex-shrink-0"
+                >
+                  +
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Step2StockSelection({
   state,
   addPosition,
@@ -658,6 +843,14 @@ export default function Step2StockSelection({
             </CardContent>
           </Card>
         )}
+
+        {/* Watchlist Suggestions - "Aus Watchlist hinzufügen" */}
+        <WatchlistSuggestions
+          state={state}
+          addPosition={addPosition}
+          selectedTickers={state.positions.map(p => p.ticker)}
+          fxRates={fxRates}
+        />
 
         {/* Search, Filters and Sorting */}
         <Card className="bg-[#0f1420]/50 border-white/10">

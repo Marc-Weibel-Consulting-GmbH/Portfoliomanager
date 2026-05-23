@@ -18,6 +18,7 @@ import { initFxRatesCron } from "../fxRatesFetchJob";
 import { initTransactionFxUpdateCron } from "../transactionFxUpdateJob";
 import { initHistoricalPricesCron } from "../cron/historicalPricesCron";
 import { initPriceAlertsCron } from "../cron/priceAlertsCron";
+import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -259,6 +260,8 @@ async function startServer() {
     initHistoricalPricesCron();
     // Start price alerts checker (runs every hour)
     initPriceAlertsCron();
+    // Start watchlist alerts checker (runs every 4h during market hours)
+    initWatchlistAlertsCron();
   });
 }
 
