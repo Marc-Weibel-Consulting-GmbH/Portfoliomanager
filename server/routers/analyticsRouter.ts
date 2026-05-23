@@ -1,42 +1,14 @@
 /**
  * Analytics Router
  * ================
- * Proxies requests to the Fincept Analytics Python microservice.
- * Provides tRPC procedures for risk metrics, DCF valuation, and portfolio optimization.
+ * Uses the built-in Node.js analytics engine (server/analytics/engine.ts).
+ * No external Python microservice required – works in Cloud deployment.
  */
 
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-
-const ANALYTICS_BASE_URL = process.env.ANALYTICS_SERVICE_URL || "http://localhost:8001";
-
-async function callAnalyticsService(path: string, body: unknown) {
-  try {
-    const response = await fetch(`${ANALYTICS_BASE_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60000), // 60s timeout for heavy computations
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Analytics service error (${response.status}): ${errorText}`,
-      });
-    }
-
-    return response.json();
-  } catch (err: any) {
-    if (err instanceof TRPCError) throw err;
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: `Analytics service unavailable: ${err.message}`,
-    });
-  }
-}
+import { calcRiskMetrics, calcDCF, optimizePortfolio } from "../analytics/engine";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -46,17 +18,10 @@ const HoldingSchema = z.object({
 
 export const analyticsRouter = router({
   /**
-   * Health check – is the Python microservice running?
+   * Health check – analytics engine is always available in Node.js
    */
   health: protectedProcedure.query(async () => {
-    try {
-      const res = await fetch(`${ANALYTICS_BASE_URL}/health`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      return res.ok ? { status: "online" } : { status: "offline" };
-    } catch {
-      return { status: "offline" };
-    }
+    return { status: "online" };
   }),
 
   /**
@@ -73,13 +38,20 @@ export const analyticsRouter = router({
       })
     )
     .query(async ({ input }) => {
-      return callAnalyticsService("/analytics/risk-metrics", {
-        holdings: input.holdings,
-        benchmark: input.benchmark,
-        risk_free_rate: input.riskFreeRate,
-        confidence_level: input.confidenceLevel,
-        lookback_days: input.lookbackDays,
-      });
+      try {
+        return await calcRiskMetrics({
+          holdings: input.holdings,
+          benchmark: input.benchmark,
+          riskFreeRate: input.riskFreeRate,
+          confidenceLevel: input.confidenceLevel,
+          lookbackDays: input.lookbackDays,
+        });
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Risk metrics calculation failed",
+        });
+      }
     }),
 
   /**
@@ -96,13 +68,20 @@ export const analyticsRouter = router({
       })
     )
     .query(async ({ input }) => {
-      return callAnalyticsService("/analytics/dcf", {
-        ticker: input.ticker,
-        risk_free_rate: input.riskFreeRate,
-        market_risk_premium: input.marketRiskPremium,
-        terminal_growth_rate: input.terminalGrowthRate,
-        projection_years: input.projectionYears,
-      });
+      try {
+        return await calcDCF({
+          ticker: input.ticker,
+          riskFreeRate: input.riskFreeRate,
+          marketRiskPremium: input.marketRiskPremium,
+          terminalGrowthRate: input.terminalGrowthRate,
+          projectionYears: input.projectionYears,
+        });
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "DCF valuation failed",
+        });
+      }
     }),
 
   /**
@@ -118,11 +97,18 @@ export const analyticsRouter = router({
       })
     )
     .query(async ({ input }) => {
-      return callAnalyticsService("/analytics/optimize", {
-        tickers: input.tickers,
-        lookback_days: input.lookbackDays,
-        risk_free_rate: input.riskFreeRate,
-        method: input.method,
-      });
+      try {
+        return await optimizePortfolio({
+          tickers: input.tickers,
+          lookbackDays: input.lookbackDays,
+          riskFreeRate: input.riskFreeRate,
+          method: input.method,
+        });
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Portfolio optimization failed",
+        });
+      }
     }),
 });
