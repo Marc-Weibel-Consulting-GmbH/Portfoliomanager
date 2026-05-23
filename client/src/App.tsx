@@ -64,6 +64,9 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import PortfolioDetailsPage from "./pages/PortfolioDetailsPage";
 import PremiumWizard from "./pages/PremiumWizard";
+import RiskDashboard from "./pages/RiskDashboard";
+import DCFValuation from "./pages/DCFValuation";
+import PortfolioOptimizer from "./pages/PortfolioOptimizer";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -116,6 +119,9 @@ function Router() {
       </Route>
       <Route path="/analysis" component={Analysis} />
       <Route path="/ai-insights" component={AIInsights} />
+      <Route path="/risk-dashboard" component={RiskDashboard} />
+      <Route path="/dcf-valuation" component={DCFValuation} />
+      <Route path="/portfolio-optimizer" component={PortfolioOptimizer} />
       <Route path="/reports" component={Reports} />
       <Route path="/portfolio-builder" component={PortfolioBuilderLanding} />
       <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />

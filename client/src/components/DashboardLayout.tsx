@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, Receipt } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, Receipt, ShieldAlert } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -38,6 +38,9 @@ const menuItems = [
   { icon: FolderKanban, label: "Portfolios", path: "/portfolios" },
   { icon: Receipt, label: "Transaktionen", path: "/transactions" },
   { icon: BarChart3, label: "Analyse", path: "/analysis" },
+  { icon: ShieldAlert, label: "Risiko-Analyse", path: "/risk-dashboard" },
+  { icon: Calculator, label: "DCF-Bewertung", path: "/dcf-valuation" },
+  { icon: PieChart, label: "Portfolio-Optimierung", path: "/portfolio-optimizer" },
   { icon: Sparkles, label: "KI-Insights", path: "/ai-insights" },
   { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
   { icon: TrendingUp, label: "Dividenden", path: "/dividends" },

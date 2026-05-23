@@ -234,11 +234,11 @@ export default function Landing() {
           <div className="flex items-center gap-4">
             <div className="flex -space-x-3">
               {[
-                "/avatars/investor-1.jpg",
-                "/avatars/investor-2.jpg",
-                "/avatars/investor-3.jpg",
-                "/avatars/investor-4.jpg",
-                "/avatars/investor-5.jpg"
+                "/manus-storage/investor-1_7966a08a.jpg",
+                "/manus-storage/investor-2_ff152502.jpg",
+                "/manus-storage/investor-3_84ffeac2.jpg",
+                "/manus-storage/investor-4_ecaa8659.jpg",
+                "/manus-storage/investor-5_b7c66885.jpg"
               ].map((src, i) => (
                 <img
                   key={i}

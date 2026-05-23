@@ -31,6 +31,7 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { dashboardPerformanceRouter } from "./routers/dashboardPerformanceRouter";
 import { newsRouter } from "./routers/newsRouter";
 import { debugRouter } from "./routers/debugRouter";
+import { analyticsRouter } from "./routers/analyticsRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -207,6 +208,9 @@ async function recalculateWeights(changedTicker?: string, isDelete: boolean = fa
 
 export const appRouter = router({
   system: systemRouter,
+
+  // Fincept Analytics (Python microservice proxy)
+  analytics: analyticsRouter,
 
   // DEBUG: Test endpoint for portfolio creation
   debugTest: debugRouter,

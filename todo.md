@@ -606,3 +606,13 @@
 - [x] bestPerformer sortiert jetzt nach Outperformance YTD aus multiPeriodData (Array mit .find())
 - [x] Zeigt korrekt "Test Portfolio Marc" mit "Outperf: +2.10%" an
 - [x] Fallback auf "Lädt..." wenn multiPeriodData noch nicht geladen ist
+
+
+## Fincept Integration (Phase 1-3)
+- [ ] Clone FinceptTerminal repo and extract key Python analytics scripts
+- [ ] Build FastAPI Python microservice with endpoints: VaR, Sharpe, Sortino, Max Drawdown, DCF, Portfolio Optimization
+- [ ] Integrate Python microservice into Node.js backend via tRPC procedures
+- [ ] Build Risiko-Dashboard UI (VaR, Sharpe Ratio, Sortino Ratio, Max Drawdown)
+- [ ] Build DCF-Bewertung UI per Aktie (Intrinsic Value, Upside/Downside)
+- [ ] Build Portfolio-Optimierung UI (Efficient Frontier, optimale Gewichtung)
+- [ ] Test all Fincept-powered features end-to-end

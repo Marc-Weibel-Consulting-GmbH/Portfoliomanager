@@ -21,7 +21,7 @@ const tourSteps: TourStep[] = [
   {
     title: "Portfolio Optimizer",
     description: "Wählen Sie Ihre gewünschten Aktien aus und lassen Sie den Optimizer die optimale Gewichtung berechnen. Die Efficient Frontier zeigt Ihnen das beste Risiko-Rendite-Verhältnis.",
-    image: "/tour-step-1-optimizer.png",
+    image: "/manus-storage/tour-step-1-optimizer_28655d80.png",
     highlights: [
       {
         x: 5,
@@ -60,7 +60,7 @@ const tourSteps: TourStep[] = [
   {
     title: "Live Performance Tracking",
     description: "Verfolgen Sie die Performance Ihres Portfolios in Echtzeit. Sehen Sie die Entwicklung einzelner Positionen und des Gesamtportfolios.",
-    image: "/tour-step-2-live-tracking.png",
+    image: "/manus-storage/tour-step-2-live-tracking_b6f06ff8.png",
     highlights: [
       {
         x: 5,
@@ -91,7 +91,7 @@ const tourSteps: TourStep[] = [
   {
     title: "Transaktionsverwaltung",
     description: "Erfassen Sie alle Käufe, Verkäufe und Dividenden. Das System berechnet automatisch Ihre Cash-Position und den Gesamtwert.",
-    image: "/tour-step-3-transactions.png",
+    image: "/manus-storage/tour-step-3-transactions_135e51fb.png",
     highlights: [
       {
         x: 5,
@@ -114,7 +114,7 @@ const tourSteps: TourStep[] = [
   {
     title: "Dividenden-Kalender",
     description: "Behalten Sie den Überblick über bevorstehende Dividendenzahlungen. Das System zeigt Ihnen Ex-Datum, Zahltag und erwarteten Ertrag.",
-    image: "/tour-step-4-dividends.png",
+    image: "/manus-storage/tour-step-4-dividends_b37a5c0c.png",
     highlights: [
       {
         x: 5,
@@ -137,7 +137,7 @@ const tourSteps: TourStep[] = [
   {
     title: "Jahresübersicht",
     description: "Umfassende Performance-Analyse mit Aufschlüsselung nach unrealisierten Gewinnen, realisierten Gewinnen, Dividenden und Gebühren.",
-    image: "/tour-step-5-annual-summary.png",
+    image: "/manus-storage/tour-step-5-annual-summary_c020a6d3.png",
     highlights: [
       {
         x: 15,
