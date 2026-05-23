@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, name, portfolioType, investmentAmount, LEFT(portfolioData, 500) as portfolioDataPreview FROM savedPortfolios WHERE name = 'Yvonne' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT id, name, portfolioType, investmentAmount, LEFT(portfolioData, 500) as portfolioDataPreview FROM savedPortfolios WHERE name = 'Yvonne' LIMIT 1;",
+  "rows": [
+    {
+      "id": "1500001",
+      "name": "Yvonne",
+      "portfolioType": "demo",
+      "investmentAmount": "750000",
+      "portfolioDataPreview": "{\"stocks\":[{\"ticker\":\"NVDA\",\"companyName\":\"NVIDIA Corp\",\"weight\":\"2\",\"currentPrice\":\"186.105\",\"currency\":\"USD\"},{\"ticker\":\"JNJ\",\"companyName\":\"Johnson & Johnson\",\"weight\":\"3.3332482300415878\",\"currentPrice\":\"218.66\",\"currency\":\"USD\"},{\"ticker\":\"GOOGL\",\"companyName\":\"Alphabet Inc\",\"weight\":\"1.5\",\"currentPrice\":\"330\",\"currency\":\"USD\"},{\"ticker\":\"MSFT\",\"companyName\":\"Microsoft Corp\",\"weight\":\"1.5\",\"currentPrice\":\"459.86\",\"currency\":\"USD\"},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"weight\":\"5.55"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tportfolioType\tinvestmentAmount\tportfolioDataPreview\n1500001\tYvonne\tdemo\t750000\t{\"stocks\":[{\"ticker\":\"NVDA\",\"companyName\":\"NVIDIA Corp\",\"weight\":\"2\",\"currentPrice\":\"186.105\",\"currency\":\"USD\"},{\"ticker\":\"JNJ\",\"companyName\":\"Johnson & Johnson\",\"weight\":\"3.3332482300415878\",\"currentPrice\":\"218.66\",\"currency\":\"USD\"},{\"ticker\":\"GOOGL\",\"companyName\":\"Alphabet Inc\",\"weight\":\"1.5\",\"currentPrice\":\"330\",\"currency\":\"USD\"},{\"ticker\":\"MSFT\",\"companyName\":\"Microsoft Corp\",\"weight\":\"1.5\",\"currentPrice\":\"459.86\",\"currency\":\"USD\"},{\"ticker\":\"NESN.SW\",\"companyName\":\"Nestle SA\",\"weight\":\"5.55\n",
+  "stderr": "",
+  "execution_time_ms": 591
+}

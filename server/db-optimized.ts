@@ -67,12 +67,32 @@ export async function batchGetStocks(tickers: string[]) {
   if (!db || tickers.length === 0) return new Map();
   
   try {
+    // Build a set of all ticker variants to query (with and without .US suffix)
+    const tickerVariants = new Set<string>();
+    for (const t of tickers) {
+      tickerVariants.add(t);
+      if (t.endsWith('.US')) tickerVariants.add(t.slice(0, -3)); // NVDA.US -> NVDA
+      else tickerVariants.add(t + '.US'); // NVDA -> NVDA.US
+    }
+    
     const allStocks = await db
       .select()
       .from(stocks)
-      .where(inArray(stocks.ticker, tickers));
+      .where(inArray(stocks.ticker, Array.from(tickerVariants)));
     
-    return new Map(allStocks.map(s => [s.ticker, s]));
+    // Build map: original ticker -> stock (with fallback to variant)
+    const stockByTicker = new Map(allStocks.map(s => [s.ticker, s]));
+    const resultMap = new Map<string, typeof allStocks[0]>();
+    for (const t of tickers) {
+      if (stockByTicker.has(t)) {
+        resultMap.set(t, stockByTicker.get(t)!);
+      } else if (t.endsWith('.US') && stockByTicker.has(t.slice(0, -3))) {
+        resultMap.set(t, stockByTicker.get(t.slice(0, -3))!);
+      } else if (!t.endsWith('.US') && stockByTicker.has(t + '.US')) {
+        resultMap.set(t, stockByTicker.get(t + '.US')!);
+      }
+    }
+    return resultMap;
   } catch (error) {
     console.error("[DB] Error batch loading stocks:", error);
     return new Map();
@@ -88,35 +108,63 @@ export async function batchGetHistoricalPrices(tickers: string[], targetDate: st
   if (!db || tickers.length === 0) return new Map();
   
   try {
+    // Build a set of all ticker variants to query (with and without .US suffix)
+    const tickerVariants = new Set<string>();
+    for (const t of tickers) {
+      tickerVariants.add(t);
+      if (t.endsWith('.US')) tickerVariants.add(t.slice(0, -3));
+      else tickerVariants.add(t + '.US');
+    }
+    const allVariants = Array.from(tickerVariants);
+    
     const pricesMap = new Map<string, number>();
     
-    // Try to get exact date prices for all tickers
+    // Try to get exact date prices for all tickers (including variants)
     const exactPrices = await db
       .select()
       .from(historicalPrices)
       .where(
         and(
-          inArray(historicalPrices.ticker, tickers),
+          inArray(historicalPrices.ticker, allVariants),
           eq(historicalPrices.date, targetDate)
         )
       );
     
+    // Build variant-to-price map
+    const variantPriceMap = new Map<string, number>();
     for (const price of exactPrices) {
       if (price.close) {
-        pricesMap.set(price.ticker, parseFloat(price.close));
+        variantPriceMap.set(price.ticker, parseFloat(price.close));
+      }
+    }
+    
+    // Map back to original tickers
+    for (const t of tickers) {
+      if (variantPriceMap.has(t)) {
+        pricesMap.set(t, variantPriceMap.get(t)!);
+      } else if (t.endsWith('.US') && variantPriceMap.has(t.slice(0, -3))) {
+        pricesMap.set(t, variantPriceMap.get(t.slice(0, -3))!);
+      } else if (!t.endsWith('.US') && variantPriceMap.has(t + '.US')) {
+        pricesMap.set(t, variantPriceMap.get(t + '.US')!);
       }
     }
     
     // For tickers without exact date, find nearest previous date
     const missingTickers = tickers.filter(t => !pricesMap.has(t));
+    const missingVariants = new Set<string>();
+    for (const t of missingTickers) {
+      missingVariants.add(t);
+      if (t.endsWith('.US')) missingVariants.add(t.slice(0, -3));
+      else missingVariants.add(t + '.US');
+    }
     
-    if (missingTickers.length > 0) {
+    if (missingVariants.size > 0) {
       const nearestPrices = await db
         .select()
         .from(historicalPrices)
         .where(
           and(
-            inArray(historicalPrices.ticker, missingTickers),
+            inArray(historicalPrices.ticker, Array.from(missingVariants)),
             lte(historicalPrices.date, targetDate)
           )
         )
@@ -130,10 +178,16 @@ export async function batchGetHistoricalPrices(tickers: string[], targetDate: st
         }
       }
       
-      // Merge with existing prices
-      Array.from(tickerLatestPrice.entries()).forEach(([ticker, price]) => {
-        pricesMap.set(ticker, price);
-      });
+      // Map back to original tickers
+      for (const t of missingTickers) {
+        if (tickerLatestPrice.has(t)) {
+          pricesMap.set(t, tickerLatestPrice.get(t)!);
+        } else if (t.endsWith('.US') && tickerLatestPrice.has(t.slice(0, -3))) {
+          pricesMap.set(t, tickerLatestPrice.get(t.slice(0, -3))!);
+        } else if (!t.endsWith('.US') && tickerLatestPrice.has(t + '.US')) {
+          pricesMap.set(t, tickerLatestPrice.get(t + '.US')!);
+        }
+      }
     }
     
     return pricesMap;

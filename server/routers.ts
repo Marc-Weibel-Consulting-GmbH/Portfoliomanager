@@ -32,6 +32,7 @@ import { dashboardPerformanceRouter } from "./routers/dashboardPerformanceRouter
 import { newsRouter } from "./routers/newsRouter";
 import { debugRouter } from "./routers/debugRouter";
 import { analyticsRouter } from "./routers/analyticsRouter";
+import { aiInsightsRouter } from "./routers/aiInsightsRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -211,6 +212,7 @@ export const appRouter = router({
 
   // Fincept Analytics (Python microservice proxy)
   analytics: analyticsRouter,
+  aiInsights: aiInsightsRouter,
 
   // DEBUG: Test endpoint for portfolio creation
   debugTest: debugRouter,

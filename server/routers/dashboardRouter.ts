@@ -259,86 +259,136 @@ export const dashboardRouter = router({
   
   // Get all portfolios with YTD performance
   getTopPortfolios: protectedProcedure.query(async ({ ctx }) => {
-    const { getSavedPortfolios, getStockByTicker } = await import("../db");
+    const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
+    const { batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
     const { convertToCHF } = await import("../fxHelper");
     
     const portfolios = await getSavedPortfolios(ctx.user.id);
-    const livePortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+    if (portfolios.length === 0) return [];
+
+    const ytdStartDate = getYTDStartDate();
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Collect all tickers from all portfolios
+    const allTickers = new Set<string>();
+    const transactionsByPortfolio = new Map<number, any[]>();
     
-    if (livePortfolios.length === 0) {
-      return [];
-    }
-    
-    // Helper function to calculate portfolio value from portfolioData
-    const calculatePortfolioValueFromData = async (portfolio: any): Promise<number> => {
-      try {
-        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
-        const stocks = portfolioData.stocks || portfolioData.positions || [];
-        
-        if (stocks.length === 0) return 0;
-        
-        let totalValueCHF = 0;
-        const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        for (const stock of stocks) {
-          const ticker = stock.ticker;
-          if (!ticker) continue;
-          
-          const stockData = await getStockByTicker(ticker);
-          if (!stockData) continue;
-          
-          const currentPrice = parseFloat(stockData.currentPrice || '0');
-          const currency = stockData.currency || 'CHF';
-          const weight = parseFloat(stock.weight || '0') / 100;
-          
-          let shares = parseFloat(stock.shares || '0');
-          if (shares === 0 && investmentAmount > 0 && weight > 0) {
-            const allocationCHF = investmentAmount * weight;
-            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-            shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
-          }
-          
-          const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-          totalValueCHF += shares * priceCHF;
-        }
-        
-        const cashBalance = parseFloat(portfolio.cashBalance || '0');
-        totalValueCHF += cashBalance;
-        
-        return totalValueCHF;
-      } catch (error) {
-        console.error(`[dashboard.getTopPortfolios] Error calculating value from portfolioData:`, error);
-        return 0;
+    for (const portfolio of portfolios) {
+      if (portfolio.isLive && portfolio.liveStartDate) {
+        const txs = await getPortfolioTransactions(portfolio.id);
+        transactionsByPortfolio.set(portfolio.id, txs);
+        txs.forEach((tx: any) => { if (tx.ticker) allTickers.add(tx.ticker); });
+      } else {
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          stocks.forEach((s: any) => { if (s.ticker) allTickers.add(s.ticker); });
+        } catch {}
       }
-    };
-    
-    // Calculate metrics for each portfolio - ALWAYS use portfolioData for consistent values
-    const portfolioMetrics = [];
-    
-    for (const portfolio of livePortfolios) {
-      // ALWAYS calculate value from portfolioData for consistency with portfolio list and detail pages
-      const portfolioValueCHF = await calculatePortfolioValueFromData(portfolio);
-      const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
-      const portfolioValueYTDStartCHF = investmentAmount || portfolioValueCHF;
-      
-      // Calculate YTD performance
-      const performanceCHF = portfolioValueCHF - portfolioValueYTDStartCHF;
-      const performancePercent = portfolioValueYTDStartCHF > 0 
-        ? (performanceCHF / portfolioValueYTDStartCHF) * 100 
-        : 0;
-      
-      portfolioMetrics.push({
-        id: portfolio.id,
-        name: portfolio.name,
-        description: portfolio.description,
-        value: portfolioValueCHF,
-        performance: performancePercent,
-        performanceCHF: performanceCHF,
-      });
     }
-    
-    // Sort by performance and return all portfolios
+
+    const stocksMap = allTickers.size > 0 ? await batchGetStocks(Array.from(allTickers)) : new Map<string, any>();
+    const ytdPricesMap = allTickers.size > 0 ? await batchGetHistoricalPrices(Array.from(allTickers), ytdStartDate) : new Map<string, number>();
+
+    // Pre-warm FX cache
+    const uniqueCurrencies = new Set<string>();
+    for (const stock of Array.from(stocksMap.values())) {
+      if ((stock as any).currency) uniqueCurrencies.add((stock as any).currency);
+    }
+    await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').flatMap(c => [
+      !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve(),
+      !getCachedFxRate(c, ytdStartDate) ? convertToCHF(1, c, ytdStartDate).then(r => setCachedFxRate(c, ytdStartDate, r)) : Promise.resolve(),
+    ]));
+
+    const portfolioMetrics = [];
+
+    for (const portfolio of portfolios) {
+      try {
+        let portfolioValueCHF = 0;
+        let performancePercent = 0;
+        const isLive = !!(portfolio.isLive && portfolio.liveStartDate);
+
+        if (isLive) {
+          // Live portfolio: calculate from transactions with YTD historical prices
+          const transactions = transactionsByPortfolio.get(portfolio.id) || [];
+          const holdings: Record<string, number> = {};
+          transactions.forEach((tx: any) => {
+            const shares = parseFloat(tx.shares || '0');
+            const ticker = tx.ticker;
+            if (!ticker) return;
+            if (tx.transactionType === 'buy') holdings[ticker] = (holdings[ticker] || 0) + shares;
+            else if (tx.transactionType === 'sell') holdings[ticker] = (holdings[ticker] || 0) - shares;
+          });
+
+          let currentValueForPerf = 0;
+          let ytdStartValueCHF = 0;
+          let hasHistoricalData = false;
+
+          for (const [ticker, shares] of Object.entries(holdings)) {
+            if (shares <= 0) continue;
+            const stock = stocksMap.get(ticker) as any;
+            if (!stock) continue;
+            const currency = stock.currency || 'CHF';
+            const currentPrice = parseFloat(stock.currentPrice || '0');
+            const ytdStartPrice = ytdPricesMap.get(ticker);
+            const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            portfolioValueCHF += shares * currentPriceCHF;
+            if (ytdStartPrice) {
+              hasHistoricalData = true;
+              const ytdStartPriceCHF = await convertToCHF(ytdStartPrice as number, currency, ytdStartDate);
+              currentValueForPerf += shares * currentPriceCHF;
+              ytdStartValueCHF += shares * ytdStartPriceCHF;
+            }
+          }
+          const cashBalance = parseFloat(portfolio.cashBalance || '0');
+          portfolioValueCHF += cashBalance;
+
+          if (hasHistoricalData && ytdStartValueCHF > 0) {
+            performancePercent = ((currentValueForPerf - ytdStartValueCHF) / ytdStartValueCHF) * 100;
+          }
+        } else {
+          // Demo portfolio: calculate from portfolioData
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          for (const stock of stocks) {
+            const ticker = stock.ticker;
+            if (!ticker) continue;
+            const stockData = stocksMap.get(ticker) as any;
+            if (!stockData) continue;
+            const currentPrice = parseFloat(stockData.currentPrice || '0');
+            const currency = stockData.currency || 'CHF';
+            const weight = parseFloat(stock.weight || '0') / 100;
+            let shares = parseFloat(stock.shares || '0');
+            if (shares === 0 && investmentAmount > 0 && weight > 0) {
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            }
+            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            portfolioValueCHF += shares * priceCHF;
+          }
+          const cashBalance = parseFloat(portfolio.cashBalance || '0');
+          portfolioValueCHF += cashBalance;
+          if (investmentAmount > 0) {
+            performancePercent = ((portfolioValueCHF - investmentAmount) / investmentAmount) * 100;
+          }
+        }
+
+        portfolioMetrics.push({
+          id: portfolio.id,
+          name: portfolio.name,
+          description: portfolio.description,
+          isLive,
+          value: portfolioValueCHF,
+          performance: Number(performancePercent.toFixed(2)),
+          performanceCHF: Number((portfolioValueCHF - parseFloat(portfolio.investmentAmount || '0')).toFixed(2)),
+        });
+      } catch (error) {
+        console.error(`[dashboard.getTopPortfolios] Error for portfolio ${portfolio.id}:`, error);
+      }
+    }
+
     portfolioMetrics.sort((a, b) => b.performance - a.performance);
     return portfolioMetrics;
   }),
