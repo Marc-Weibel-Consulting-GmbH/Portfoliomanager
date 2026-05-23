@@ -68,6 +68,9 @@ import RiskDashboard from "./pages/RiskDashboard";
 import DCFValuation from "./pages/DCFValuation";
 import PortfolioOptimizer from "./pages/PortfolioOptimizer";
 import TechnicalAnalysis from "./pages/TechnicalAnalysis";
+import Invest from "./pages/Invest";
+import InvestDetail from "./pages/InvestDetail";
+import AdminWatchlist from "./pages/AdminWatchlist";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -124,6 +127,8 @@ function Router() {
       <Route path="/dcf-valuation" component={DCFValuation} />
       <Route path="/portfolio-optimizer" component={PortfolioOptimizer} />
       <Route path="/technical-analysis" component={TechnicalAnalysis} />
+      <Route path="/invest" component={Invest} />
+      <Route path="/invest/:ticker" component={InvestDetail} />
       <Route path="/reports" component={Reports} />
       <Route path="/portfolio-builder" component={PortfolioBuilderLanding} />
       <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />
@@ -138,6 +143,7 @@ function Router() {
       <Route path="/admin/secrets" component={AdminSecretsManagement} />
       <Route path="/admin/kpis" component={AdminKPIs} />
       <Route path="/admin/data-import" component={AdminDataImport} />
+      <Route path="/admin/watchlist" component={AdminWatchlist} />
       <Route path="/rechner" component={Rechner} />
       <Route path="/einstellungen" component={Einstellungen} />
       <Route path="/kontakt" component={Kontakt} />

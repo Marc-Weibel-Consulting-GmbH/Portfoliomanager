@@ -632,3 +632,36 @@
 - [x] TechnicalAnalysis.tsx: Neue Seite mit Charts pro Position
 - [x] App.tsx: Route /technical-analysis registrieren
 - [x] DashboardLayout: Sidebar-Link "Technische Analyse" hinzufügen
+
+
+## Admin Watchlist, Investieren-Seite & Fincept-Verbesserungen (23.05.2026)
+
+### Admin Watchlist (max. 200 Titel)
+- [x] Schema: watchlistStocks Tabelle (ticker, companyName, sector, category, source: 'manual'|'ai_recommended', addedAt, metrics JSON)
+- [x] Backend: watchlistRouter mit CRUD + AI-Empfehlungen basierend auf Signalen/Kennzahlen
+- [x] Frontend: AdminWatchlist.tsx Seite unter /admin/watchlist
+- [x] Admin-Navigation: Watchlist als Unterpunkt im Admin-Bereich
+- [x] AI-Empfehlungsfunktion: Aktien mit guten Signalen automatisch vorschlagen (max. 200 total)
+- [x] Kennzeichnung ob manuell oder KI-empfohlen
+
+### Investieren-Seite (unter Dashboard)
+- [x] Frontend: Invest.tsx mit zentralem Suchfeld (Google-Style)
+- [x] Suchfunktion: Einzeltitel-Suche nach Name/Ticker via Yahoo Finance
+- [x] Filtermöglichkeiten: Sektor, Kategorie, P/E Range, Dividendenrendite, Marktkapitalisierung
+- [x] Ergebnisliste: max. 50 Titel pro Kategorie/Filter
+- [x] Sidebar-Navigation: "Investieren" unter Dashboard hinzufügen
+- [x] Route /invest registrieren
+
+### Einzeltitel-Analyse (Detail-Seite)
+- [x] Detaillierte Analyse-Seite pro Aktie (ganzseitig)
+- [x] Chart: Kursverlauf (1M, 3M, 6M, 1Y, 5Y, MAX)
+- [x] Kursdaten: Aktuell, Eröffnung, Hoch, Tief, Volumen
+- [x] Kennzahlen: P/E, PEG, EPS, Dividende, Beta, Market Cap, 52W Range
+- [x] News: Aktuelle Nachrichten zum Titel
+- [x] Empfehlung: KI-basierte Kauf/Verkauf/Halten-Empfehlung mit Begründung
+- [x] Technische Indikatoren: RSI, MACD, Bollinger Bands
+
+### Fincept-inspirierte Portfolio-Verbesserungen
+- [x] Portfolio-Erstellung: Aktien aus Watchlist/Universum vorschlagen
+- [x] Portfolio-Erstellung: Gewichtung basierend auf Risikoprofil optimieren
+- [x] Portfolio-Erstellung: Korrelationsmatrix bei Auswahl anzeigen

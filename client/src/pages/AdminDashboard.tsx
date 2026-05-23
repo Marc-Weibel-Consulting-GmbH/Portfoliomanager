@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Grid3x3, PieChart, Key, BarChart3 } from "lucide-react";
+import { Database, Grid3x3, PieChart, Key, BarChart3, Eye } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -42,6 +42,13 @@ export default function AdminDashboard() {
       description: "Benutzer-Statistiken und Metriken",
       path: "/admin/kpis",
       color: "text-cyan-500",
+    },
+    {
+      icon: Eye,
+      title: "Watchlist",
+      description: "Aktien-Universum verwalten (max. 200 Titel)",
+      path: "/admin/watchlist",
+      color: "text-emerald-500",
     },
   ];
 

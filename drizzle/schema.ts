@@ -560,3 +560,45 @@ export const logoCache = mysqlTable("logoCache", {
 
 export type LogoCache = typeof logoCache.$inferSelect;
 export type InsertLogoCache = typeof logoCache.$inferInsert;
+
+// ============================================
+// Admin Watchlist / Stock Universe (May 2026)
+// ============================================
+
+// Watchlist stocks table - admin-curated stock universe (max 200 titles)
+export const watchlistStocks = mysqlTable("watchlistStocks", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull().unique(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  sector: varchar("sector", { length: 100 }),
+  industry: varchar("industry", { length: 150 }),
+  category: varchar("category", { length: 100 }), // Dividendenaktien, Wachstumsaktien, ETF, Value, etc.
+  country: varchar("country", { length: 50 }),
+  currency: varchar("currency", { length: 10 }),
+  marketCap: varchar("marketCap", { length: 50 }),
+  source: mysqlEnum("source", ["manual", "ai_recommended"]).notNull().default("manual"),
+  aiReason: text("aiReason"), // Reason for AI recommendation
+  peRatio: varchar("peRatio", { length: 50 }),
+  pegRatio: varchar("pegRatio", { length: 50 }),
+  dividendYield: varchar("dividendYield", { length: 50 }),
+  beta: varchar("beta", { length: 50 }),
+  currentPrice: varchar("currentPrice", { length: 50 }),
+  week52High: varchar("week52High", { length: 50 }),
+  week52Low: varchar("week52Low", { length: 50 }),
+  rsi14: varchar("rsi14", { length: 50 }),
+  signalScore: int("signalScore").default(0), // Overall signal score 0-100
+  signalType: mysqlEnum("signalType", ["buy", "sell", "hold"]).default("hold"),
+  lastMetricsUpdate: timestamp("lastMetricsUpdate"),
+  isActive: tinyint("isActive").notNull().default(1),
+  notes: text("notes"), // Admin notes
+  addedAt: timestamp("addedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  tickerIdx: index("ix_watchlist_ticker").on(t.ticker),
+  sourceIdx: index("ix_watchlist_source").on(t.source),
+  categoryIdx: index("ix_watchlist_category").on(t.category),
+  sectorIdx: index("ix_watchlist_sector").on(t.sector),
+}));
+
+export type WatchlistStock = typeof watchlistStocks.$inferSelect;
+export type InsertWatchlistStock = typeof watchlistStocks.$inferInsert;
