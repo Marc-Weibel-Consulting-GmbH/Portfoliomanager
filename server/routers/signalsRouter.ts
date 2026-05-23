@@ -12,9 +12,10 @@ import { getDb } from "../db";
 import { eq } from "drizzle-orm";
 import { savedPortfolios } from "../../drizzle/schema";
 import YahooFinanceClass from "yahoo-finance2";
-import { randomForestSignal } from "../analytics/mlEngine";
-import { analyzeSentiment, sentimentToSignalScore } from "../analytics/sentimentEngine";
-import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
+import { randomForestSignal } from '../analytics/mlEngine';
+import { analyzeSentiment, sentimentToSignalScore } from '../analytics/sentimentEngine';
+import { getActiveWeights, type WeightConfig } from '../analytics/optimizerWorker';
+import { detectBubble } from '../analytics/lpplsEngine';
 
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
@@ -42,6 +43,8 @@ interface Signal {
   rfScore?: number;
   sentimentScore?: number;
   sentimentLabel?: string;
+  bubbleScore?: number;
+  bubbleRegime?: string;
 }
 
 /**
@@ -412,6 +415,27 @@ async function enhanceSignalWithML(
     // RF failed silently
   }
   
+  // LPPLS Bubble analysis
+  try {
+    if (prices.length >= 60) {
+      const bubbleResult = detectBubble({
+        prices,
+        sentimentScore: signal.sentimentScore,
+        sentimentConfidence: signal.sentimentScore !== undefined ? 0.6 : 0,
+      });
+      signal.bubbleScore = bubbleResult.bubbleScore;
+      signal.bubbleRegime = bubbleResult.regime;
+
+      if (bubbleResult.regime === 'bubble' && bubbleResult.bubbleConfidence > 0.3) {
+        signal.criteria.push(`Bubble-Risiko: ${(bubbleResult.bubbleConfidence * 100).toFixed(0)}% Confidence`);
+      } else if (bubbleResult.regime === 'negative_bubble' && bubbleResult.negBubbleConfidence > 0.3) {
+        signal.criteria.push(`Negative Bubble: Rebound-Chance (${(bubbleResult.negBubbleConfidence * 100).toFixed(0)}%)`);
+      }
+    }
+  } catch (e) {
+    // Bubble analysis failed silently
+  }
+
   // Sentiment analysis (only for first 5 stocks to avoid rate limiting)
   try {
     const sentiment = await analyzeSentiment(signal.ticker, signal.companyName);

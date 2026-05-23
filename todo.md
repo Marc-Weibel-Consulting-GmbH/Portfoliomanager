@@ -811,3 +811,14 @@
   - Optimale Lookforward-Periode: 5 Tage
   - Optimaler Signal-Threshold: 25
 - [x] Frontend: hitRate-Parsing-Bug behoben (DB liefert String statt Number)
+
+### LPPLS v2 + Optimizer Erweiterung (24.05.2026)
+- [x] lpplsEngine.ts komplett neu mit Sornette/Fantazzini-Filtern (shrinking windows, fraction-based confidence)
+- [x] BubbleScore nach Cao et al. (normalized residual + sentiment amplification)
+- [x] Separate positive/negative Bubble Confidence
+- [x] BubbleScore als 10. Indikator in generateSignal() integrieren
+- [x] WeightConfig um 'bubble' Gewicht erweitern
+- [x] Optimizer: Alle 113 Watchlist-Titel verarbeiten (Batch-Processing über mehrere Durchläufe)
+- [x] Optimizer: Walk-Forward-Validierung (80% Train / 20% Test, Out-of-Sample Trefferquote)
+- [x] Frontend: BubbleScore in Signal-Karten und InvestDetail anzeigen
+- [x] Frontend: Walk-Forward-Metriken im Optimizer-Dashboard anzeigen

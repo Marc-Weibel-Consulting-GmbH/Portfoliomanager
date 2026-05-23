@@ -20,6 +20,7 @@ export interface WeightConfig {
   ytd: number;
   rf: number;
   sentiment: number;
+  bubble: number;
 }
 
 export interface OptimizerResult {
@@ -30,18 +31,29 @@ export interface OptimizerResult {
   topCombinations: Array<{ weights: WeightConfig; hitRate: number }>;
   log: string[];
   durationMs: number;
+  // Walk-Forward Validation
+  walkForward?: {
+    inSampleHitRate: number;
+    outOfSampleHitRate: number;
+    inSampleCount: number;
+    outOfSampleCount: number;
+    overfitRatio: number; // inSample/outOfSample - closer to 1.0 = less overfit
+  };
+  totalStocksProcessed?: number;
+  batchInfo?: string;
 }
 
 export const DEFAULT_WEIGHTS: WeightConfig = {
-  pe: 0.15,
-  peg: 0.10,
-  rsi: 0.20,
-  macd: 0.10,
-  dividend: 0.10,
-  week52: 0.10,
-  ytd: 0.10,
-  rf: 0.10,
-  sentiment: 0.05,
+  pe: 0.14,
+  peg: 0.09,
+  rsi: 0.18,
+  macd: 0.09,
+  dividend: 0.09,
+  week52: 0.09,
+  ytd: 0.09,
+  rf: 0.09,
+  sentiment: 0.06,
+  bubble: 0.08,
 };
 
 /**
@@ -297,6 +309,7 @@ function generateWeightGrid(): WeightConfig[] {
   const ytdOptions = [0.05, 0.10, 0.15];
   const rfOptions = [0.08, 0.15, 0.22];
   const sentimentOptions = [0.03, 0.06, 0.10];
+  const bubbleOptions = [0.0, 0.05, 0.08, 0.12, 0.18];
 
   const SAMPLE_SIZE = 200;
   for (let i = 0; i < SAMPLE_SIZE; i++) {
@@ -310,6 +323,7 @@ function generateWeightGrid(): WeightConfig[] {
       ytd: ytdOptions[Math.floor(Math.random() * ytdOptions.length)],
       rf: rfOptions[Math.floor(Math.random() * rfOptions.length)],
       sentiment: sentimentOptions[Math.floor(Math.random() * sentimentOptions.length)],
+      bubble: bubbleOptions[Math.floor(Math.random() * bubbleOptions.length)],
     });
   }
   combinations.push(DEFAULT_WEIGHTS);
@@ -330,7 +344,7 @@ export async function runOptimizerNonBlocking(
     progressCallback?.(msg);
   };
 
-  logMsg("Signal Auto-Optimizer gestartet (EODHD-basiert)...");
+  logMsg("Signal Auto-Optimizer gestartet (EODHD-basiert, Walk-Forward)...");
 
   // 1. Fetch all active watchlist stocks
   const db = await getDb();
@@ -343,8 +357,9 @@ export async function runOptimizerNonBlocking(
 
   logMsg(`${allStocks.length} aktive Watchlist-Titel gefunden`);
 
-  // 2. Fetch historical prices (limit to 40 stocks, sequential with yields)
-  const MAX_STOCKS = 40;
+  // 2. Fetch historical prices for ALL stocks (batch processing with rate limiting)
+  const MAX_STOCKS = allStocks.length; // Process ALL stocks now
+  const BATCH_SIZE = 20; // EODHD rate limit: 20 requests per batch, then pause
   const stocksToProcess = allStocks.slice(0, MAX_STOCKS);
 
   const stockData: Array<{
@@ -358,7 +373,7 @@ export async function runOptimizerNonBlocking(
     const stock = stocksToProcess[i];
     
     // Yield to event loop between each stock fetch
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 100));
 
     try {
       const data = await fetchPricesEODHD(stock.ticker);
@@ -378,8 +393,14 @@ export async function runOptimizerNonBlocking(
       // Skip failed stocks
     }
 
-    if ((i + 1) % 5 === 0) {
+    if ((i + 1) % 10 === 0) {
       logMsg(`Preisdaten geladen: ${stockData.length}/${stocksToProcess.length} (${i + 1} verarbeitet)`);
+    }
+
+    // Batch pause: after every BATCH_SIZE requests, wait 2s for rate limiting
+    if ((i + 1) % BATCH_SIZE === 0 && i < stocksToProcess.length - 1) {
+      logMsg(`Batch-Pause (Rate-Limit)... nächster Batch startet in 2s`);
+      await new Promise(r => setTimeout(r, 2000));
     }
   }
 
@@ -480,9 +501,59 @@ export async function runOptimizerNonBlocking(
   refinedResults.sort((a, b) => b.hitRate - a.hitRate);
   const best = refinedResults[0];
 
-  logMsg(`✅ Beste Trefferquote: ${best.hitRate.toFixed(1)}% (${best.correct}/${best.total} Signale korrekt)`);
+  logMsg(`✅ Beste In-Sample Trefferquote: ${best.hitRate.toFixed(1)}% (${best.correct}/${best.total} Signale korrekt)`);
   logMsg(`   Lookforward: ${bestLookforward} Tage, Threshold: ${bestThreshold}`);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 5. WALK-FORWARD VALIDATION (80/20 Split)
+  // Use the first 80% of each stock's price history as in-sample (training)
+  // and the last 20% as out-of-sample (validation) to detect overfitting
+  // ═══════════════════════════════════════════════════════════════════
+  logMsg("Walk-Forward Validierung: 80/20 Split...");
+
+  let inSampleCorrect = 0, inSampleTotal = 0;
+  let outOfSampleCorrect = 0, outOfSampleTotal = 0;
+
+  for (const stock of stockData) {
+    const splitIdx = Math.floor(stock.prices.length * 0.8);
+    if (splitIdx < 80) continue; // Need enough in-sample data
+
+    const inSamplePrices = stock.prices.slice(0, splitIdx);
+    const outOfSamplePrices = stock.prices.slice(splitIdx - 60); // Overlap for indicator calculation
+
+    // In-sample backtest
+    const inBt = backtestStock(inSamplePrices, stock.volumes.slice(0, splitIdx), best.weights, stock.fundamentals, bestLookforward, bestThreshold);
+    inSampleCorrect += inBt.correct;
+    inSampleTotal += inBt.total;
+
+    // Out-of-sample backtest (validation)
+    const outBt = backtestStock(outOfSamplePrices, stock.volumes.slice(splitIdx - 60), best.weights, stock.fundamentals, bestLookforward, bestThreshold);
+    outOfSampleCorrect += outBt.correct;
+    outOfSampleTotal += outBt.total;
+  }
+
+  const inSampleHitRate = inSampleTotal > 0 ? (inSampleCorrect / inSampleTotal) * 100 : 0;
+  const outOfSampleHitRate = outOfSampleTotal > 0 ? (outOfSampleCorrect / outOfSampleTotal) * 100 : 0;
+  const overfitRatio = outOfSampleHitRate > 0 ? inSampleHitRate / outOfSampleHitRate : 999;
+
+  logMsg(`📊 Walk-Forward Ergebnis:`);
+  logMsg(`   In-Sample:  ${inSampleHitRate.toFixed(1)}% (${inSampleCorrect}/${inSampleTotal})`);
+  logMsg(`   Out-of-Sample: ${outOfSampleHitRate.toFixed(1)}% (${outOfSampleCorrect}/${outOfSampleTotal})`);
+  logMsg(`   Overfit-Ratio: ${overfitRatio.toFixed(2)} (ideal: ~1.0, >1.3 = Overfitting)`);
+
+  if (overfitRatio > 1.3) {
+    logMsg(`⚠️ Mögliches Overfitting erkannt (Ratio ${overfitRatio.toFixed(2)}). Verwende konservativere Gewichte.`);
+    // Use a blend of best weights and default weights to reduce overfitting
+    const blendFactor = 0.6; // 60% optimized, 40% default
+    const keys = Object.keys(best.weights) as (keyof WeightConfig)[];
+    for (const key of keys) {
+      best.weights[key] = best.weights[key] * blendFactor + DEFAULT_WEIGHTS[key] * (1 - blendFactor);
+    }
+    logMsg(`   → Gewichte mit Default geblendet (60/40) zur Regularisierung`);
+  }
+
   logMsg(`Optimale Gewichtung gefunden in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+  logMsg(`Verarbeitete Titel: ${stockData.length}/${allStocks.length}`);
 
   return {
     bestWeights: best.weights,
@@ -492,6 +563,15 @@ export async function runOptimizerNonBlocking(
     topCombinations: refinedResults.slice(0, 10).map(r => ({ weights: r.weights, hitRate: r.hitRate })),
     log,
     durationMs: Date.now() - startTime,
+    walkForward: {
+      inSampleHitRate,
+      outOfSampleHitRate,
+      inSampleCount: inSampleTotal,
+      outOfSampleCount: outOfSampleTotal,
+      overfitRatio,
+    },
+    totalStocksProcessed: stockData.length,
+    batchInfo: `${stockData.length}/${allStocks.length} Titel verarbeitet`,
   };
 }
 
@@ -518,6 +598,9 @@ export async function saveOptimizerResult(result: OptimizerResult): Promise<void
       durationMs: result.durationMs,
       topCombinations: result.topCombinations.slice(0, 5),
       log: result.log.slice(-20),
+      walkForward: result.walkForward,
+      totalStocksProcessed: result.totalStocksProcessed,
+      batchInfo: result.batchInfo,
     }),
   });
 }
@@ -538,7 +621,12 @@ export async function getActiveWeights(): Promise<WeightConfig> {
   if (active.length === 0) return DEFAULT_WEIGHTS;
 
   try {
-    return JSON.parse(active[0].weights as string) as WeightConfig;
+    const parsed = JSON.parse(active[0].weights as string);
+    // Ensure backward compatibility: add bubble weight if missing from older optimizations
+    if (parsed.bubble === undefined) {
+      parsed.bubble = DEFAULT_WEIGHTS.bubble;
+    }
+    return parsed as WeightConfig;
   } catch {
     return DEFAULT_WEIGHTS;
   }

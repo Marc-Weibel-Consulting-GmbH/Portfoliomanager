@@ -209,7 +209,7 @@ export const predictionRouter = router({
           .filter((q: any) => q.close != null)
           .map((q: any) => new Date(q.date));
         
-        const result = detectBubble(prices, dates);
+        const result = detectBubble({ prices, dates });
         
         return {
           error: null,
@@ -268,7 +268,7 @@ export const predictionRouter = router({
               .filter((q: any) => q.close != null)
               .map((q: any) => q.close as number);
             
-            const result = detectBubble(prices);
+            const result = detectBubble({ prices });
             bubbleConfidence = result.bubbleConfidence;
           }
         } catch {

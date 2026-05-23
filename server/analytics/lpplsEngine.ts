@@ -1,172 +1,232 @@
 /**
- * LPPLS Bubble Detector Engine
- * =============================
- * Simplified JavaScript implementation of the Log-Periodic Power Law Singularity model
- * (Sornette/Johansen) for detecting financial bubbles.
- * 
+ * LPPLS Bubble Detector Engine v2
+ * ================================
+ * Enhanced implementation based on:
+ * - Sornette et al. (2015): Filter conditions (Table 1)
+ * - Fantazzini (2016): Shrinking window approach, fraction-based confidence
+ * - Cao et al. (2025): BubbleScore with sentiment amplification
+ *
  * The LPPLS model fits price data to:
  *   ln(p(t)) = A + B * (tc - t)^m + C * (tc - t)^m * cos(ω * ln(tc - t) + φ)
- * 
- * Where:
- *   tc = critical time (predicted crash/correction time)
- *   m = power law exponent (0.1 < m < 0.9)
- *   ω = angular log-frequency (4 < ω < 25)
- *   A, B, C, φ = fitting parameters
- * 
- * Output: Bubble Confidence Score [0, 1] indicating probability of bubble regime
+ *
+ * Key improvements over v1:
+ * 1. Shrinking window approach (multiple fits per endpoint)
+ * 2. Fraction-based confidence (count valid fits / total fits)
+ * 3. Sornette filter conditions (m, ω, tc, oscillations, damping, relative error)
+ * 4. Separate positive/negative bubble confidence
+ * 5. BubbleScore = normalized LPPLS confidence * (1 + sentiment amplification)
  */
 
 export interface LPPLSResult {
-  bubbleConfidence: number;       // [0, 1] - overall bubble confidence
-  criticalTime: Date | null;      // Estimated tc (crash/correction date)
-  daysUntilCritical: number | null; // Days until tc
+  bubbleConfidence: number;          // [0, 1] - overall bubble confidence (fraction of valid fits)
+  posBubbleConfidence: number;       // [0, 1] - positive bubble confidence
+  negBubbleConfidence: number;       // [0, 1] - negative bubble confidence
+  bubbleScore: number;               // [-1, 1] - continuous BubbleScore (Cao et al.)
+  criticalTime: Date | null;         // Estimated tc (crash/correction date)
+  daysUntilCritical: number | null;  // Days until tc
   regime: 'bubble' | 'normal' | 'negative_bubble';
-  windows: WindowResult[];        // Multi-window analysis results
-  superExponentialGrowth: boolean; // Whether price shows faster-than-exponential growth
-  logPeriodicOscillation: boolean; // Whether log-periodic oscillations detected
+  avgM: number | null;               // Average power law exponent across valid fits
+  avgOmega: number | null;           // Average log-periodic frequency across valid fits
+  numValidFits: number;              // Number of fits passing Sornette conditions
+  totalFits: number;                 // Total number of fits attempted
+  superExponentialGrowth: boolean;
+  logPeriodicOscillation: boolean;
 }
 
-interface WindowResult {
-  windowDays: number;
-  confidence: number;
-  tc: number | null;
-  m: number | null;
-  omega: number | null;
-  oscillationStrength: number;
+export interface BubbleScoreInput {
+  prices: number[];
+  dates?: Date[];
+  sentimentScore?: number;  // [-1, 1] from sentiment engine
+  sentimentConfidence?: number; // [0, 1]
 }
 
-interface FitParams {
+interface FitResult {
+  valid: boolean;
+  isPosBubble: boolean;
+  isNegBubble: boolean;
   tc: number;
   m: number;
   omega: number;
   A: number;
   B: number;
-  C1: number;
-  C2: number;
-  residual: number;
+  C: number;  // amplitude sqrt(C1² + C2²)
+  numOscillations: number;
+  damping: number;
+  relativeError: number;
+  rSquared: number;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Sornette et al. (2015) Filter Conditions (Table 1, Condition 1)
+// ═══════════════════════════════════════════════════════════════
+const FILTER = {
+  m_min: 0.01,         // Power law exponent lower bound
+  m_max: 1.2,          // Power law exponent upper bound
+  omega_min: 2,        // Log-periodic frequency lower bound
+  omega_max: 25,       // Log-periodic frequency upper bound
+  tc_min_ratio: 0.95,  // tc must be > 95% of window length
+  tc_max_ratio: 1.11,  // tc must be < 111% of window length
+  num_osc_min: 2.5,    // Minimum number of oscillations
+  damping_min: 0.8,    // Minimum damping ratio
+  rel_error_max: 0.05, // Maximum relative error
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Main API
+// ═══════════════════════════════════════════════════════════════
+
 /**
- * Main LPPLS analysis function
- * Performs multi-window analysis on price data
+ * Main LPPLS analysis with BubbleScore
+ * Uses shrinking window approach (Fantazzini) with Sornette filter conditions
  */
-export function detectBubble(
-  prices: number[],
-  dates?: Date[]
-): LPPLSResult {
-  if (prices.length < 30) {
-    return {
-      bubbleConfidence: 0,
-      criticalTime: null,
-      daysUntilCritical: null,
-      regime: 'normal',
-      windows: [],
-      superExponentialGrowth: false,
-      logPeriodicOscillation: false,
-    };
+export function detectBubble(input: BubbleScoreInput): LPPLSResult {
+  const { prices, dates, sentimentScore, sentimentConfidence } = input;
+
+  if (prices.length < 60) {
+    return emptyResult();
   }
 
-  // Multi-window analysis (different lookback periods)
-  const windowSizes = [30, 60, 90, 180, 365, 500].filter(w => w <= prices.length);
-  const windowResults: WindowResult[] = [];
+  // ─── Shrinking Window Analysis ───
+  // For each endpoint (t2 = last observation), we create multiple windows
+  // by shrinking from the maximum window size down to a minimum
+  const maxWindow = Math.min(prices.length, 500);
+  const minWindow = 60;
+  const stepSize = Math.max(20, Math.floor((maxWindow - minWindow) / 8)); // ~8 windows
 
-  for (const windowDays of windowSizes) {
-    const windowPrices = prices.slice(-windowDays);
-    const result = analyzeWindow(windowPrices, windowDays);
-    windowResults.push(result);
+  const fitResults: FitResult[] = [];
+
+  for (let windowSize = maxWindow; windowSize >= minWindow; windowSize -= stepSize) {
+    const windowPrices = prices.slice(-windowSize);
+    const result = fitAndFilter(windowPrices);
+    fitResults.push(result);
   }
 
-  // Aggregate confidence across windows
-  const validWindows = windowResults.filter(w => w.confidence > 0);
-  let aggregateConfidence = 0;
+  const totalFits = fitResults.length;
+  const validFits = fitResults.filter(f => f.valid);
+  const posBubbleFits = fitResults.filter(f => f.isPosBubble);
+  const negBubbleFits = fitResults.filter(f => f.isNegBubble);
 
-  if (validWindows.length > 0) {
-    // Weighted average: longer windows get more weight
-    let totalWeight = 0;
-    let weightedSum = 0;
-    for (const w of validWindows) {
-      const weight = Math.sqrt(w.windowDays); // Longer windows more reliable
-      weightedSum += w.confidence * weight;
-      totalWeight += weight;
-    }
-    aggregateConfidence = weightedSum / totalWeight;
+  // ─── Fraction-based Confidence (Fantazzini) ───
+  const bubbleConfidence = totalFits > 0 ? validFits.length / totalFits : 0;
+  const posBubbleConfidence = totalFits > 0 ? posBubbleFits.length / totalFits : 0;
+  const negBubbleConfidence = totalFits > 0 ? negBubbleFits.length / totalFits : 0;
+
+  // ─── Average parameters from valid fits ───
+  let avgM: number | null = null;
+  let avgOmega: number | null = null;
+  let avgTc: number | null = null;
+
+  if (validFits.length > 0) {
+    avgM = validFits.reduce((s, f) => s + f.m, 0) / validFits.length;
+    avgOmega = validFits.reduce((s, f) => s + f.omega, 0) / validFits.length;
+    avgTc = validFits.reduce((s, f) => s + f.tc, 0) / validFits.length;
   }
 
-  // Check for super-exponential growth
-  const superExponentialGrowth = checkSuperExponentialGrowth(prices);
-
-  // Check for log-periodic oscillations
-  const logPeriodicOscillation = checkLogPeriodicOscillation(prices);
-
-  // Boost confidence if both conditions are met
-  if (superExponentialGrowth && logPeriodicOscillation) {
-    aggregateConfidence = Math.min(1, aggregateConfidence * 1.3);
-  } else if (superExponentialGrowth) {
-    aggregateConfidence = Math.min(1, aggregateConfidence * 1.1);
-  }
-
-  // Determine critical time from best-fitting window
+  // ─── Critical Time estimation ───
   let criticalTime: Date | null = null;
   let daysUntilCritical: number | null = null;
-  const bestWindow = validWindows.sort((a, b) => b.confidence - a.confidence)[0];
-  
-  if (bestWindow?.tc && dates && dates.length > 0) {
+
+  if (avgTc !== null && dates && dates.length > 0) {
     const lastDate = dates[dates.length - 1] || new Date();
-    const tcDate = new Date(lastDate.getTime() + bestWindow.tc * 24 * 60 * 60 * 1000);
-    if (tcDate > new Date()) {
-      criticalTime = tcDate;
-      daysUntilCritical = Math.round((tcDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    const daysAhead = avgTc - prices.length; // tc relative to window start
+    if (daysAhead > 0 && daysAhead < 365) {
+      const tcDate = new Date(lastDate.getTime() + daysAhead * 24 * 60 * 60 * 1000);
+      if (tcDate > new Date()) {
+        criticalTime = tcDate;
+        daysUntilCritical = Math.round((tcDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      }
     }
   }
 
-  // Determine regime
+  // ─── Super-exponential growth check ───
+  const superExponentialGrowth = checkSuperExponentialGrowth(prices);
+
+  // ─── Log-periodic oscillation check ───
+  const logPeriodicOscillation = checkLogPeriodicOscillation(prices);
+
+  // ─── Determine regime ───
   let regime: 'bubble' | 'normal' | 'negative_bubble' = 'normal';
-  if (aggregateConfidence > 0.5) {
-    // Check if it's a positive or negative bubble
-    const recentReturn = prices.length > 30
-      ? (prices[prices.length - 1] - prices[prices.length - 30]) / prices[prices.length - 30]
-      : 0;
-    regime = recentReturn > 0 ? 'bubble' : 'negative_bubble';
+  if (posBubbleConfidence > 0.3) {
+    regime = 'bubble';
+  } else if (negBubbleConfidence > 0.3) {
+    regime = 'negative_bubble';
   }
 
+  // ─── BubbleScore (Cao et al. inspired) ───
+  // BubbleScore = ε_norm * (1 + sentimentAmplifier)
+  // ε_norm is the signed confidence: positive for bubble, negative for neg-bubble
+  let epsilonNorm = 0;
+  if (regime === 'bubble') {
+    epsilonNorm = posBubbleConfidence;
+  } else if (regime === 'negative_bubble') {
+    epsilonNorm = -negBubbleConfidence;
+  }
+
+  // Sentiment amplification (regime-dependent, Cao et al. Eq. 14)
+  let sentimentAmplifier = 0;
+  if (sentimentScore !== undefined && sentimentConfidence !== undefined && sentimentConfidence > 0.3) {
+    const alpha1 = 0.3; // Hype/sentiment fusion weight
+    if (epsilonNorm > 0) {
+      // Positive bubble: bullish sentiment amplifies bubble signal
+      sentimentAmplifier = alpha1 * Math.max(0, sentimentScore);
+    } else if (epsilonNorm < 0) {
+      // Negative bubble: bearish sentiment amplifies negative bubble
+      sentimentAmplifier = alpha1 * Math.max(0, -sentimentScore);
+    }
+  }
+
+  const bubbleScore = Math.max(-1, Math.min(1, epsilonNorm * (1 + sentimentAmplifier)));
+
   return {
-    bubbleConfidence: Math.round(aggregateConfidence * 100) / 100,
+    bubbleConfidence: Math.round(bubbleConfidence * 100) / 100,
+    posBubbleConfidence: Math.round(posBubbleConfidence * 100) / 100,
+    negBubbleConfidence: Math.round(negBubbleConfidence * 100) / 100,
+    bubbleScore: Math.round(bubbleScore * 100) / 100,
     criticalTime,
     daysUntilCritical,
     regime,
-    windows: windowResults,
+    avgM: avgM !== null ? Math.round(avgM * 1000) / 1000 : null,
+    avgOmega: avgOmega !== null ? Math.round(avgOmega * 100) / 100 : null,
+    numValidFits: validFits.length,
+    totalFits,
     superExponentialGrowth,
     logPeriodicOscillation,
   };
 }
 
 /**
- * Analyze a single time window for LPPLS characteristics
+ * Legacy-compatible wrapper (for existing code that calls detectBubble(prices, dates))
  */
-function analyzeWindow(prices: number[], windowDays: number): WindowResult {
-  if (prices.length < 20) {
-    return { windowDays, confidence: 0, tc: null, m: null, omega: null, oscillationStrength: 0 };
-  }
+export function detectBubbleLegacy(
+  prices: number[],
+  dates?: Date[]
+): LPPLSResult {
+  return detectBubble({ prices, dates });
+}
 
-  // Convert to log prices
+// ═══════════════════════════════════════════════════════════════
+// Core Fitting & Filtering
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Fit LPPLS model to a window and apply Sornette filter conditions
+ */
+function fitAndFilter(prices: number[]): FitResult {
+  const n = prices.length;
   const logPrices = prices.map(p => Math.log(Math.max(p, 0.01)));
-  const n = logPrices.length;
 
   // Grid search over tc, m, omega
-  let bestFit: FitParams | null = null;
+  const tcValues = generateTcRange(n);
+  const mValues = [0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1];
+  const omegaValues = [3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 18, 20, 22, 24];
+
+  let bestFit: { tc: number; m: number; omega: number; A: number; B: number; C1: number; C2: number; residual: number } | null = null;
   let bestResidual = Infinity;
 
-  // tc search range: 1 to 120 days ahead
-  const tcRange = [5, 10, 20, 30, 50, 80, 120];
-  // m search range: 0.1 to 0.9 (power law exponent)
-  const mRange = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
-  // omega search range: 4 to 25 (log-periodic frequency)
-  const omegaRange = [4, 6, 8, 10, 12, 15, 18, 21, 25];
-
-  for (const tc of tcRange) {
-    for (const m of mRange) {
-      for (const omega of omegaRange) {
-        const fit = fitLPPLS(logPrices, n + tc, m, omega);
+  for (const tc of tcValues) {
+    for (const m of mValues) {
+      for (const omega of omegaValues) {
+        const fit = fitLPPLS(logPrices, tc, m, omega);
         if (fit && fit.residual < bestResidual) {
           bestResidual = fit.residual;
           bestFit = fit;
@@ -176,81 +236,115 @@ function analyzeWindow(prices: number[], windowDays: number): WindowResult {
   }
 
   if (!bestFit) {
-    return { windowDays, confidence: 0, tc: null, m: null, omega: null, oscillationStrength: 0 };
+    return invalidFitResult();
   }
 
-  // Calculate confidence based on fit quality and parameter validity
-  let confidence = 0;
+  // ─── Calculate derived metrics ───
+  const { tc, m, omega, A, B, C1, C2, residual } = bestFit;
+  const C = Math.sqrt(C1 * C1 + C2 * C2);
 
-  // 1. Fit quality (R² equivalent)
+  // Number of oscillations: ω/(2π) * ln(|tc - t1| / |tc - t2|)
+  // t1 = 0 (start of window), t2 = n-1 (end of window)
+  const numOscillations = (tc > 0 && tc > n - 1)
+    ? (omega / (2 * Math.PI)) * Math.log(Math.abs(tc / (tc - (n - 1))))
+    : 0;
+
+  // Damping: (m * |B|) / (ω * |C|)
+  const damping = (omega * C > 0.0001)
+    ? (m * Math.abs(B)) / (omega * C)
+    : 0;
+
+  // Relative error: mean(|Y - Yfit| / |Yfit|)
+  let relativeError = 0;
   const meanLogPrice = logPrices.reduce((a, b) => a + b, 0) / n;
   const totalVariance = logPrices.reduce((sum, p) => sum + (p - meanLogPrice) ** 2, 0);
-  const rSquared = totalVariance > 0 ? 1 - (bestFit.residual / totalVariance) : 0;
-  
-  if (rSquared > 0.8) confidence += 0.3;
-  else if (rSquared > 0.6) confidence += 0.2;
-  else if (rSquared > 0.4) confidence += 0.1;
+  const rSquared = totalVariance > 0 ? Math.max(0, 1 - (residual / totalVariance)) : 0;
 
-  // 2. Parameter validity (Sornette conditions)
-  const validM = bestFit.m >= 0.1 && bestFit.m <= 0.9;
-  const validOmega = bestFit.omega >= 4 && bestFit.omega <= 25;
-  const validB = bestFit.B < 0; // B should be negative for positive bubble
-  
-  if (validM) confidence += 0.15;
-  if (validOmega) confidence += 0.15;
-  if (validB) confidence += 0.1;
-
-  // 3. Oscillation strength (C/B ratio)
-  const oscillationStrength = Math.abs(bestFit.B) > 0.001
-    ? Math.sqrt(bestFit.C1 ** 2 + bestFit.C2 ** 2) / Math.abs(bestFit.B)
-    : 0;
-  
-  if (oscillationStrength > 0.1 && oscillationStrength < 5) {
-    confidence += 0.15;
+  // Compute relative error from fitted values
+  let relErrSum = 0;
+  let relErrCount = 0;
+  for (let t = 0; t < n; t++) {
+    const dt = tc - t;
+    if (dt <= 0) continue;
+    const dtm = Math.pow(dt, m);
+    const logDt = Math.log(dt);
+    const predicted = A + B * dtm + C1 * dtm * Math.cos(omega * logDt) + C2 * dtm * Math.sin(omega * logDt);
+    if (Math.abs(predicted) > 0.001) {
+      relErrSum += Math.abs((logPrices[t] - predicted) / predicted);
+      relErrCount++;
+    }
   }
+  relativeError = relErrCount > 0 ? relErrSum / relErrCount : 1;
 
-  // 4. Damping condition: |m * B| > |C| * sqrt(m² + ω²)
-  const dampingLHS = Math.abs(bestFit.m * bestFit.B);
-  const dampingRHS = Math.sqrt(bestFit.C1 ** 2 + bestFit.C2 ** 2) * Math.sqrt(bestFit.m ** 2 + bestFit.omega ** 2);
-  if (dampingLHS > dampingRHS) {
-    confidence += 0.15;
-  }
+  // ─── Apply Sornette Filter Conditions ───
+  const tcRatio = tc / n;
+  const validM = m >= FILTER.m_min && m <= FILTER.m_max;
+  const validOmega = omega >= FILTER.omega_min && omega <= FILTER.omega_max;
+  const validTc = tcRatio >= FILTER.tc_min_ratio && tcRatio <= FILTER.tc_max_ratio;
+  const validOsc = numOscillations >= FILTER.num_osc_min;
+  const validDamping = damping >= FILTER.damping_min;
+  const validRelErr = relativeError <= FILTER.rel_error_max;
 
-  // Cap at 1.0
-  confidence = Math.min(1, Math.max(0, confidence));
+  const allConditionsMet = validM && validOmega && validTc && validOsc && validDamping && validRelErr;
+
+  // ─── Fantazzini (2016) pos/neg bubble conditions ───
+  // Positive bubble: m ∈ (0,1), B < 0
+  const isPosBubble = allConditionsMet && m > 0 && m < 1 && B < 0;
+  // Negative bubble: m ∈ (0,1), B > 0
+  const isNegBubble = allConditionsMet && m > 0 && m < 1 && B > 0;
 
   return {
-    windowDays,
-    confidence,
-    tc: bestFit.tc - n, // Days ahead from last observation
-    m: bestFit.m,
-    omega: bestFit.omega,
-    oscillationStrength,
+    valid: allConditionsMet,
+    isPosBubble,
+    isNegBubble,
+    tc,
+    m,
+    omega,
+    A,
+    B,
+    C,
+    numOscillations,
+    damping,
+    relativeError,
+    rSquared,
   };
 }
 
 /**
- * Fit LPPLS model using linear regression for A, B, C1, C2
- * given fixed tc, m, omega (Slave equation approach)
+ * Generate tc search range based on window length
+ * tc should be between 0.95*n and 1.11*n (Sornette condition)
+ */
+function generateTcRange(n: number): number[] {
+  const tcMin = Math.floor(n * 0.95);
+  const tcMax = Math.ceil(n * 1.11);
+  const step = Math.max(1, Math.floor((tcMax - tcMin) / 8));
+  const values: number[] = [];
+  for (let tc = tcMin; tc <= tcMax; tc += step) {
+    values.push(tc);
+  }
+  return values;
+}
+
+/**
+ * Fit LPPLS model using Slave Equation (linear regression for A, B, C1, C2)
+ * given fixed tc, m, omega
  */
 function fitLPPLS(
   logPrices: number[],
-  tc: number,  // critical time index (from start of series)
+  tc: number,
   m: number,
   omega: number
-): FitParams | null {
+): { tc: number; m: number; omega: number; A: number; B: number; C1: number; C2: number; residual: number } | null {
   const n = logPrices.length;
-  
-  // Build design matrix for linear regression
-  // ln(p(t)) = A + B*f(t) + C1*g(t) + C2*h(t)
-  // where f(t) = (tc-t)^m, g(t) = (tc-t)^m * cos(ω*ln(tc-t)), h(t) = (tc-t)^m * sin(ω*ln(tc-t))
-  
+
+  // Build design matrix
+  // ln(p(t)) = A + B*(tc-t)^m + C1*(tc-t)^m*cos(ω*ln(tc-t)) + C2*(tc-t)^m*sin(ω*ln(tc-t))
   const X: number[][] = [];
   const y: number[] = [];
 
   for (let t = 0; t < n; t++) {
     const dt = tc - t;
-    if (dt <= 0) return null; // tc must be in the future
+    if (dt <= 0) return null;
 
     const dtm = Math.pow(dt, m);
     const logDt = Math.log(dt);
@@ -261,7 +355,7 @@ function fitLPPLS(
     y.push(logPrices[t]);
   }
 
-  // Solve using normal equations: (X'X)^-1 * X'y
+  // Solve normal equations: (X'X)^-1 * X'y
   const result = solveLinearRegression(X, y);
   if (!result) return null;
 
@@ -277,9 +371,10 @@ function fitLPPLS(
   return { tc, m, omega, A, B, C1, C2, residual };
 }
 
-/**
- * Solve linear regression using normal equations
- */
+// ═══════════════════════════════════════════════════════════════
+// Helper Functions
+// ═══════════════════════════════════════════════════════════════
+
 function solveLinearRegression(X: number[][], y: number[]): { coefficients: number[] } | null {
   const n = X.length;
   const p = X[0].length;
@@ -306,11 +401,10 @@ function solveLinearRegression(X: number[][], y: number[]): { coefficients: numb
     Xty[i] = sum;
   }
 
-  // Solve using Gaussian elimination with partial pivoting
+  // Gaussian elimination with partial pivoting
   const augmented: number[][] = XtX.map((row, i) => [...row, Xty[i]]);
-  
+
   for (let col = 0; col < p; col++) {
-    // Find pivot
     let maxRow = col;
     let maxVal = Math.abs(augmented[col][col]);
     for (let row = col + 1; row < p; row++) {
@@ -319,15 +413,13 @@ function solveLinearRegression(X: number[][], y: number[]): { coefficients: numb
         maxRow = row;
       }
     }
-    
-    if (maxVal < 1e-12) return null; // Singular matrix
 
-    // Swap rows
+    if (maxVal < 1e-12) return null; // Singular
+
     if (maxRow !== col) {
       [augmented[col], augmented[maxRow]] = [augmented[maxRow], augmented[col]];
     }
 
-    // Eliminate
     for (let row = col + 1; row < p; row++) {
       const factor = augmented[row][col] / augmented[col][col];
       for (let j = col; j <= p; j++) {
@@ -352,29 +444,13 @@ function solveLinearRegression(X: number[][], y: number[]): { coefficients: numb
 
 /**
  * Check for super-exponential (faster-than-exponential) growth
- * Uses the second derivative of log prices
  */
 function checkSuperExponentialGrowth(prices: number[]): boolean {
   if (prices.length < 60) return false;
 
   const logPrices = prices.map(p => Math.log(Math.max(p, 0.01)));
-  
-  // Calculate growth rates in different halves
-  const halfLen = Math.floor(logPrices.length / 2);
-  const firstHalf = logPrices.slice(0, halfLen);
-  const secondHalf = logPrices.slice(halfLen);
 
-  // Linear growth rate in each half
-  const growthRate1 = (firstHalf[firstHalf.length - 1] - firstHalf[0]) / firstHalf.length;
-  const growthRate2 = (secondHalf[secondHalf.length - 1] - secondHalf[0]) / secondHalf.length;
-
-  // Super-exponential: second half grows faster than first half
-  // AND both are positive (upward trend)
-  if (growthRate1 > 0 && growthRate2 > 0 && growthRate2 > growthRate1 * 1.3) {
-    return true;
-  }
-
-  // Also check acceleration of growth (third derivative positive)
+  // Compare growth rates in quarters
   const quarterLen = Math.floor(logPrices.length / 4);
   const rates: number[] = [];
   for (let i = 0; i < 4; i++) {
@@ -384,18 +460,23 @@ function checkSuperExponentialGrowth(prices: number[]): boolean {
     }
   }
 
-  // Check if growth is accelerating (each quarter faster than previous)
+  // Super-exponential: growth accelerating AND all positive
   if (rates.length >= 3) {
-    const accelerating = rates.every((r, i) => i === 0 || r > rates[i - 1]);
-    if (accelerating && rates[rates.length - 1] > 0) return true;
+    const allPositive = rates.every(r => r > 0);
+    const accelerating = rates.slice(1).every((r, i) => r > rates[i] * 1.2);
+    if (allPositive && accelerating) return true;
   }
 
-  return false;
+  // Also check half-split
+  const halfLen = Math.floor(logPrices.length / 2);
+  const rate1 = (logPrices[halfLen - 1] - logPrices[0]) / halfLen;
+  const rate2 = (logPrices[logPrices.length - 1] - logPrices[halfLen]) / (logPrices.length - halfLen);
+
+  return rate1 > 0 && rate2 > 0 && rate2 > rate1 * 1.3;
 }
 
 /**
- * Check for log-periodic oscillations using Lomb-Scargle-like approach
- * Looks for periodic patterns in the residuals after removing the trend
+ * Check for log-periodic oscillations in detrended residuals
  */
 function checkLogPeriodicOscillation(prices: number[]): boolean {
   if (prices.length < 60) return false;
@@ -406,7 +487,7 @@ function checkLogPeriodicOscillation(prices: number[]): boolean {
   // Remove linear trend
   const xMean = (n - 1) / 2;
   const yMean = logPrices.reduce((a, b) => a + b, 0) / n;
-  
+
   let sxy = 0, sxx = 0;
   for (let i = 0; i < n; i++) {
     sxy += (i - xMean) * (logPrices[i] - yMean);
@@ -418,32 +499,23 @@ function checkLogPeriodicOscillation(prices: number[]): boolean {
   // Detrended residuals
   const residuals = logPrices.map((p, i) => p - (slope * i + intercept));
 
-  // Check for periodicity in log-time using spectral analysis
-  // Transform to log-time and look for peaks
-  const logTimeResiduals: number[] = [];
-  for (let i = 1; i < n; i++) {
-    const logT = Math.log(n - i); // log(tc - t) approximation
-    logTimeResiduals.push(residuals[i]);
-  }
-
-  // Simple periodicity check: count zero crossings
+  // Count zero crossings
   let zeroCrossings = 0;
-  for (let i = 1; i < logTimeResiduals.length; i++) {
-    if (logTimeResiduals[i] * logTimeResiduals[i - 1] < 0) {
+  for (let i = 1; i < residuals.length; i++) {
+    if (residuals[i] * residuals[i - 1] < 0) {
       zeroCrossings++;
     }
   }
 
-  // Expected zero crossings for log-periodic: between 3 and 15 for typical ω range
-  const expectedMinCrossings = Math.max(3, Math.floor(logTimeResiduals.length / 30));
-  const expectedMaxCrossings = Math.min(20, Math.floor(logTimeResiduals.length / 5));
+  // Expected for log-periodic: between 4 and 15
+  const minCrossings = 4;
+  const maxCrossings = Math.min(18, Math.floor(n / 5));
 
-  if (zeroCrossings >= expectedMinCrossings && zeroCrossings <= expectedMaxCrossings) {
-    // Additional check: oscillation amplitude should be significant
+  if (zeroCrossings >= minCrossings && zeroCrossings <= maxCrossings) {
+    // Amplitude check: oscillations must be significant
     const maxResidual = Math.max(...residuals.map(Math.abs));
     const priceRange = Math.max(...logPrices) - Math.min(...logPrices);
-    
-    if (maxResidual > priceRange * 0.02) { // At least 2% of total range
+    if (priceRange > 0 && maxResidual > priceRange * 0.02) {
       return true;
     }
   }
@@ -451,33 +523,79 @@ function checkLogPeriodicOscillation(prices: number[]): boolean {
   return false;
 }
 
+function emptyResult(): LPPLSResult {
+  return {
+    bubbleConfidence: 0,
+    posBubbleConfidence: 0,
+    negBubbleConfidence: 0,
+    bubbleScore: 0,
+    criticalTime: null,
+    daysUntilCritical: null,
+    regime: 'normal',
+    avgM: null,
+    avgOmega: null,
+    numValidFits: 0,
+    totalFits: 0,
+    superExponentialGrowth: false,
+    logPeriodicOscillation: false,
+  };
+}
+
+function invalidFitResult(): FitResult {
+  return {
+    valid: false,
+    isPosBubble: false,
+    isNegBubble: false,
+    tc: 0,
+    m: 0,
+    omega: 0,
+    A: 0,
+    B: 0,
+    C: 0,
+    numOscillations: 0,
+    damping: 0,
+    relativeError: 1,
+    rSquared: 0,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Portfolio-Level Analysis
+// ═══════════════════════════════════════════════════════════════
+
 /**
  * Calculate portfolio-level bubble exposure
  */
 export function calculatePortfolioBubbleExposure(
-  holdings: Array<{ ticker: string; weight: number; bubbleConfidence: number }>
+  holdings: Array<{ ticker: string; weight: number; bubbleConfidence: number; bubbleScore?: number }>
 ): {
-  exposureScore: number;        // Weighted bubble exposure [0, 1]
-  highRiskPercentage: number;   // % of NAV in high-confidence bubble assets
+  exposureScore: number;
+  avgBubbleScore: number;
+  highRiskPercentage: number;
   riskLevel: 'low' | 'moderate' | 'elevated' | 'high' | 'extreme';
-  topRisks: Array<{ ticker: string; confidence: number; weight: number }>;
+  topRisks: Array<{ ticker: string; confidence: number; bubbleScore: number; weight: number }>;
 } {
   let weightedExposure = 0;
+  let weightedBubbleScore = 0;
   let highRiskNAV = 0;
-  const topRisks: Array<{ ticker: string; confidence: number; weight: number }> = [];
+  const topRisks: Array<{ ticker: string; confidence: number; bubbleScore: number; weight: number }> = [];
 
   for (const h of holdings) {
     weightedExposure += h.weight * h.bubbleConfidence;
-    if (h.bubbleConfidence > 0.6) {
+    weightedBubbleScore += h.weight * (h.bubbleScore ?? 0);
+    if (h.bubbleConfidence > 0.5) {
       highRiskNAV += h.weight;
-      topRisks.push({ ticker: h.ticker, confidence: h.bubbleConfidence, weight: h.weight });
+      topRisks.push({
+        ticker: h.ticker,
+        confidence: h.bubbleConfidence,
+        bubbleScore: h.bubbleScore ?? 0,
+        weight: h.weight,
+      });
     }
   }
 
-  // Sort top risks by confidence * weight
   topRisks.sort((a, b) => (b.confidence * b.weight) - (a.confidence * a.weight));
 
-  // Determine risk level
   let riskLevel: 'low' | 'moderate' | 'elevated' | 'high' | 'extreme';
   if (weightedExposure < 0.15) riskLevel = 'low';
   else if (weightedExposure < 0.3) riskLevel = 'moderate';
@@ -487,6 +605,7 @@ export function calculatePortfolioBubbleExposure(
 
   return {
     exposureScore: Math.round(weightedExposure * 100) / 100,
+    avgBubbleScore: Math.round(weightedBubbleScore * 100) / 100,
     highRiskPercentage: Math.round(highRiskNAV * 100),
     riskLevel,
     topRisks: topRisks.slice(0, 5),

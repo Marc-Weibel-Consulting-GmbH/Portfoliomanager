@@ -62,6 +62,9 @@ export const optimizerRouter = router({
         correctSignals: lastOptimizerResult.correctSignals,
         durationMs: lastOptimizerResult.durationMs,
         topCombinations: lastOptimizerResult.topCombinations.slice(0, 5),
+        walkForward: lastOptimizerResult.walkForward || null,
+        totalStocksProcessed: lastOptimizerResult.totalStocksProcessed || null,
+        batchInfo: lastOptimizerResult.batchInfo || null,
       } : null,
     };
   }),

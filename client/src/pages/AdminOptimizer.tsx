@@ -58,6 +58,7 @@ export default function AdminOptimizer() {
     ytd: "YTD Perf.",
     rf: "Random Forest",
     sentiment: "Sentiment",
+    bubble: "Bubble (LPPLS)",
   };
 
   return (
@@ -116,19 +117,52 @@ export default function AdminOptimizer() {
                 ))}
               </div>
               {status.lastResult && !status.isRunning && (
-                <div className="mt-3 grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Trefferquote:</span>{" "}
-                    <span className="font-bold text-green-500">{status.lastResult.hitRate.toFixed(1)}%</span>
+                <div className="mt-3 space-y-3">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Trefferquote:</span>{" "}
+                      <span className="font-bold text-green-500">{status.lastResult.hitRate.toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Signale getestet:</span>{" "}
+                      <span className="font-bold">{status.lastResult.totalBacktested}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Korrekte Signale:</span>{" "}
+                      <span className="font-bold">{status.lastResult.correctSignals}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Signale getestet:</span>{" "}
-                    <span className="font-bold">{status.lastResult.totalBacktested}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Korrekte Signale:</span>{" "}
-                    <span className="font-bold">{status.lastResult.correctSignals}</span>
-                  </div>
+                  {status.lastResult.walkForward && (
+                    <div className="border-t pt-3">
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">Walk-Forward Validierung (80/20)</div>
+                      <div className="grid grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">In-Sample:</span>{" "}
+                          <span className="font-bold">{status.lastResult.walkForward.inSampleHitRate.toFixed(1)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Out-of-Sample:</span>{" "}
+                          <span className="font-bold text-blue-500">{status.lastResult.walkForward.outOfSampleHitRate.toFixed(1)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Overfit-Ratio:</span>{" "}
+                          <span className={`font-bold ${status.lastResult.walkForward.overfitRatio > 1.3 ? 'text-yellow-500' : 'text-green-500'}`}>
+                            {status.lastResult.walkForward.overfitRatio.toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Titel:</span>{" "}
+                          <span className="font-bold">{status.lastResult.totalStocksProcessed || '?'}</span>
+                        </div>
+                      </div>
+                      {status.lastResult.walkForward.overfitRatio > 1.3 && (
+                        <div className="mt-2 text-xs text-yellow-500 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Overfitting erkannt — Gewichte wurden automatisch regularisiert (60/40 Blend)
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -196,6 +230,7 @@ export default function AdminOptimizer() {
                       <th className="text-left py-2 px-2">YTD</th>
                       <th className="text-left py-2 px-2">RF</th>
                       <th className="text-left py-2 px-2">Sent.</th>
+                      <th className="text-left py-2 px-2">Bubble</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -212,6 +247,7 @@ export default function AdminOptimizer() {
                         <td className="py-2 px-2">{(combo.weights.ytd * 100).toFixed(0)}%</td>
                         <td className="py-2 px-2">{(combo.weights.rf * 100).toFixed(0)}%</td>
                         <td className="py-2 px-2">{(combo.weights.sentiment * 100).toFixed(0)}%</td>
+                        <td className="py-2 px-2">{combo.weights.bubble ? (combo.weights.bubble * 100).toFixed(0) + '%' : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -286,13 +322,13 @@ export default function AdminOptimizer() {
               Indikator-Gewichtungen und findet die Kombination mit der höchsten Trefferquote.
             </p>
             <p>
-              <strong>Methode:</strong> Grid Search über 200 zufällige Gewichtungskombinationen.
-              Für jeden Titel werden Signale alle 30 Tage generiert und nach 20 Handelstagen überprüft,
-              ob der Kurs in die vorhergesagte Richtung gelaufen ist.
+              <strong>Methode:</strong> Multi-Pass Optimierung: (1) Lookforward & Threshold optimieren,
+              (2) Grid Search über 200 Gewichtungskombinationen, (3) Feinabstimmung der Top-5.
+              Anschliessend Walk-Forward Validierung (80/20 Split) zur Overfitting-Erkennung.
             </p>
             <p>
               <strong>Indikatoren:</strong> P/E, PEG, RSI, MACD, Dividendenrendite, 52-Wochen-Range,
-              YTD-Performance, Random Forest ML-Signal, News-Sentiment.
+              YTD-Performance, Random Forest ML-Signal, News-Sentiment, LPPLS Bubble-Score.
             </p>
             <p>
               <strong>Empfehlung:</strong> Optimierung monatlich durchführen, um die Gewichte an aktuelle
