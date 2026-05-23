@@ -708,3 +708,17 @@
 - [x] Backend: EODHD API für Dividenden-Daten (zuverlässiger als Yahoo Finance)
 - [x] Frontend: Bevorstehende Dividenden mit Ex-Date, Payment-Date, Betrag anzeigen
 - [x] Historische Dividenden der letzten 12 Monate ebenfalls anzeigen
+
+## Erweiterungen (23.05.2026 - Nacht)
+
+### Watchlist Refresh
+- [x] Watchlist-Refresh für alle 113 Titel triggern (Live-Kurse, P/E, Signal-Scores) — 110/113 aktualisiert
+
+### Backtesting erweitern
+- [x] Zeiträume erweitern: 3M, 6M, 12M, 24M, 36M, 60M bereits implementiert
+- [x] Benchmark-Vergleich: S&P 500 (^GSPC) und SPI (^SSMI) als Referenz
+- [x] Relative Performance vs. Benchmark anzeigen
+
+### Heatmap → InvestDetail
+- [x] Klick auf Titel in Heatmap navigiert zu /invest/:ticker
+- [x] Hover-Preview mit Kurz-Info (Kurs, P/E, Signal) beim Überfahren

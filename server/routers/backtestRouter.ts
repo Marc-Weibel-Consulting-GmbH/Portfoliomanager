@@ -252,6 +252,35 @@ export const backtestRouter = router({
         // Buy & Hold comparison
         const buyHoldReturn = prices.length > 1 ? ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100 : 0;
 
+        // Fetch benchmark data (S&P 500 and SPI/SMI)
+        let sp500Return = 0;
+        let spiReturn = 0;
+        try {
+          const sp500Chart = await yahooFinance.chart("^GSPC", {
+            period1: start.toISOString().split("T")[0],
+            period2: end.toISOString().split("T")[0],
+            interval: "1d",
+          }) as any;
+          const sp500Quotes = sp500Chart.quotes || [];
+          if (sp500Quotes.length > 1) {
+            const sp500Prices = sp500Quotes.map((q: any) => q.close).filter((p: any) => p != null);
+            sp500Return = ((sp500Prices[sp500Prices.length - 1] - sp500Prices[0]) / sp500Prices[0]) * 100;
+          }
+        } catch { /* ignore */ }
+
+        try {
+          const spiChart = await yahooFinance.chart("^SSMI", {
+            period1: start.toISOString().split("T")[0],
+            period2: end.toISOString().split("T")[0],
+            interval: "1d",
+          }) as any;
+          const spiQuotes = spiChart.quotes || [];
+          if (spiQuotes.length > 1) {
+            const spiPrices = spiQuotes.map((q: any) => q.close).filter((p: any) => p != null);
+            spiReturn = ((spiPrices[spiPrices.length - 1] - spiPrices[0]) / spiPrices[0]) * 100;
+          }
+        } catch { /* ignore */ }
+
         // Equity curve (cumulative returns)
         const equityCurve: { date: string; value: number }[] = [{ date: validDates[0], value: 100 }];
         let equity = 100;
@@ -281,6 +310,10 @@ export const backtestRouter = router({
             maxDrawdown,
             buyHoldReturn,
             outperformance: totalReturn - buyHoldReturn,
+            sp500Return,
+            spiReturn,
+            vsSpx: totalReturn - sp500Return,
+            vsSpi: totalReturn - spiReturn,
           },
           equityCurve,
           priceData: validDates.map((d: string, i: number) => ({ date: d, price: prices[i] })),
@@ -356,6 +389,35 @@ export const backtestRouter = router({
         await new Promise(r => setTimeout(r, 200));
       }
 
+      // Fetch benchmark data
+      let sp500Return = 0;
+      let spiReturn = 0;
+      try {
+        const sp500Chart = await yahooFinance.chart("^GSPC", {
+          period1: start.toISOString().split("T")[0],
+          period2: end.toISOString().split("T")[0],
+          interval: "1d",
+        }) as any;
+        const sp500Quotes = sp500Chart.quotes || [];
+        if (sp500Quotes.length > 1) {
+          const sp500Prices = sp500Quotes.map((q: any) => q.close).filter((p: any) => p != null);
+          sp500Return = ((sp500Prices[sp500Prices.length - 1] - sp500Prices[0]) / sp500Prices[0]) * 100;
+        }
+      } catch { /* ignore */ }
+
+      try {
+        const spiChart = await yahooFinance.chart("^SSMI", {
+          period1: start.toISOString().split("T")[0],
+          period2: end.toISOString().split("T")[0],
+          interval: "1d",
+        }) as any;
+        const spiQuotes = spiChart.quotes || [];
+        if (spiQuotes.length > 1) {
+          const spiPrices = spiQuotes.map((q: any) => q.close).filter((p: any) => p != null);
+          spiReturn = ((spiPrices[spiPrices.length - 1] - spiPrices[0]) / spiPrices[0]) * 100;
+        }
+      } catch { /* ignore */ }
+
       // Portfolio-level metrics
       const totalWeightedSignalReturn = results.reduce((sum, r) => sum + (r.signalReturn * r.weight / 100), 0);
       const totalWeightedBuyHold = results.reduce((sum, r) => sum + (r.buyHoldReturn * r.weight / 100), 0);
@@ -373,6 +435,10 @@ export const backtestRouter = router({
           totalStocksAnalyzed: results.length,
           totalSignalsGenerated: results.reduce((sum, r) => sum + r.totalSignals, 0),
           totalTradesExecuted: results.reduce((sum, r) => sum + r.totalTrades, 0),
+          sp500Return,
+          spiReturn,
+          vsSpx: totalWeightedSignalReturn - sp500Return,
+          vsSpi: totalWeightedSignalReturn - spiReturn,
         },
       };
     }),

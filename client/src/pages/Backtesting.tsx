@@ -186,6 +186,41 @@ export default function Backtesting() {
                   </Card>
                 </div>
 
+                {/* Benchmark Comparison */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Benchmark-Vergleich</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">S&P 500</p>
+                        <p className={`text-lg font-bold ${(portfolioBacktest.data.portfolioMetrics as any).sp500Return >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {getWithCurrency((portfolioBacktest.data.portfolioMetrics as any).sp500Return)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">SMI (Schweiz)</p>
+                        <p className={`text-lg font-bold ${(portfolioBacktest.data.portfolioMetrics as any).spiReturn >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {getWithCurrency((portfolioBacktest.data.portfolioMetrics as any).spiReturn)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">vs. S&P 500</p>
+                        <p className={`text-lg font-bold ${(portfolioBacktest.data.portfolioMetrics as any).vsSpx >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {(portfolioBacktest.data.portfolioMetrics as any).vsSpx >= 0 ? "+" : ""}{getWithCurrency((portfolioBacktest.data.portfolioMetrics as any).vsSpx)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">vs. SMI</p>
+                        <p className={`text-lg font-bold ${(portfolioBacktest.data.portfolioMetrics as any).vsSpi >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {(portfolioBacktest.data.portfolioMetrics as any).vsSpi >= 0 ? "+" : ""}{getWithCurrency((portfolioBacktest.data.portfolioMetrics as any).vsSpi)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Stats Row */}
                 <div className="flex gap-4 flex-wrap">
                   <Badge variant="outline" className="text-sm py-1 px-3">
@@ -313,6 +348,41 @@ export default function Backtesting() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Benchmark Comparison */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Benchmark-Vergleich</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">S&P 500</p>
+                        <p className={`text-lg font-bold ${(singleBacktest.data.metrics as any).sp500Return >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {getWithCurrency((singleBacktest.data.metrics as any).sp500Return)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">SMI (Schweiz)</p>
+                        <p className={`text-lg font-bold ${(singleBacktest.data.metrics as any).spiReturn >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {getWithCurrency((singleBacktest.data.metrics as any).spiReturn)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">vs. S&P 500</p>
+                        <p className={`text-lg font-bold ${(singleBacktest.data.metrics as any).vsSpx >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {(singleBacktest.data.metrics as any).vsSpx >= 0 ? "+" : ""}{getWithCurrency((singleBacktest.data.metrics as any).vsSpx)}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-1">vs. SMI</p>
+                        <p className={`text-lg font-bold ${(singleBacktest.data.metrics as any).vsSpi >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {(singleBacktest.data.metrics as any).vsSpi >= 0 ? "+" : ""}{getWithCurrency((singleBacktest.data.metrics as any).vsSpi)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Stats */}
                 <div className="flex gap-4 flex-wrap">

@@ -7,6 +7,23 @@ import YahooFinanceClass from "yahoo-finance2";
 
 const yahooFinance: any = new (YahooFinanceClass as any)();
 
+// Known Swiss tickers that need .SW suffix on Yahoo Finance
+const SWISS_TICKERS = new Set([
+  "ADEN", "ABBN", "NOVN", "NESN", "ROG", "UBSG", "ZURN", "SREN", "SLHN",
+  "GEBN", "GIVN", "HOLN", "SIKA", "LOGN", "KNIN", "BAER", "SCMN", "HELN",
+  "LISN", "STMN", "VONN", "CMBN", "SGKN", "SQN", "AUTN", "FHZN", "GF",
+  "CSL", "BKW", "GALE", "GALD", "MESA", "MONC", "SOFI"
+]);
+
+function resolveYahooTicker(ticker: string): string {
+  // If already has exchange suffix, normalize for Yahoo
+  if (ticker.endsWith(".US")) return ticker.slice(0, -3);
+  if (ticker.endsWith(".SW") || ticker.endsWith(".PA") || ticker.endsWith(".DE") || ticker.endsWith(".MI") || ticker.endsWith(".L")) return ticker;
+  // Check if it's a known Swiss ticker
+  if (SWISS_TICKERS.has(ticker.toUpperCase())) return `${ticker}.SW`;
+  return ticker;
+}
+
 export const investRouter = router({
   // Search for stocks by name or ticker (Yahoo Finance live search)
   search: protectedProcedure
@@ -43,12 +60,13 @@ export const investRouter = router({
     }))
     .query(async ({ input }) => {
       try {
+        const resolvedTicker = resolveYahooTicker(input.ticker);
         // Fetch comprehensive data
         const [quoteSummary, chartData] = await Promise.all([
-          (yahooFinance.quoteSummary(input.ticker, {
+          (yahooFinance.quoteSummary(resolvedTicker, {
             modules: ["price", "summaryDetail", "summaryProfile", "defaultKeyStatistics", "financialData", "earningsHistory", "recommendationTrend"] as any,
           }) as any).catch(() => null),
-          (yahooFinance.chart(input.ticker, {
+          (yahooFinance.chart(resolvedTicker, {
             period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             period2: new Date().toISOString().split("T")[0],
             interval: "1d" as any,
@@ -275,7 +293,8 @@ export const investRouter = router({
     .input(z.object({ ticker: z.string().min(1) }))
     .query(async ({ input }) => {
       try {
-        const searchResult: any = await yahooFinance.search(input.ticker, { quotesCount: 0, newsCount: 10 });
+        const resolvedTicker = resolveYahooTicker(input.ticker);
+        const searchResult: any = await yahooFinance.search(resolvedTicker, { quotesCount: 0, newsCount: 10 });
         const news = (searchResult.news || []).slice(0, 8).map((n: any) => ({
           title: n.title,
           link: n.link,
