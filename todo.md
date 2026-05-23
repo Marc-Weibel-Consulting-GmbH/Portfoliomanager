@@ -822,3 +822,15 @@
 - [x] Optimizer: Walk-Forward-Validierung (80% Train / 20% Test, Out-of-Sample Trefferquote)
 - [x] Frontend: BubbleScore in Signal-Karten und InvestDetail anzeigen
 - [x] Frontend: Walk-Forward-Metriken im Optimizer-Dashboard anzeigen
+
+## Navigation Restructuring & Signal Model v2 (24.05.2026)
+
+### Navigation (3 Hauptkategorien + Tools)
+- [x] Neue Sidebar-Navigation: 3 Hauptgruppen (Markt-Regime, Portfolio, Einzeltitel-Analyse) + Tools
+- [x] Markt-Regime Dashboard mit 7 Engines (Trend, Breadth, Volatilität, Liquidität, Credit, Sentiment, Bubble)
+- [x] Ampel-System (Bullish/Neutral/Bearish) pro Engine
+- [x] Gesamt-Regime-Score mit Aktienquote-Empfehlung und Signal-Multiplikator
+- [x] marketRegimeRouter.ts mit EODHD-basierter Echtzeit-Analyse
+- [ ] Signal-Modell Layer 2 (Einzeltitel): Trend, Fundamental, Momentum, Quality, ML, Bubble
+- [ ] Regime-Multiplikator in Einzeltitel-Signale integrieren
+- [ ] Sektor-Heatmap Seite erstellen

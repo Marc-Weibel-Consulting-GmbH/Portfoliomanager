@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, Receipt, ShieldAlert, Search, Eye, Brain } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, ChevronRight, Receipt, ShieldAlert, Search, Eye, Brain, Globe, Wallet, Target, Gauge, Wrench, Droplets } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -33,26 +33,63 @@ import { Button } from "./ui/button";
 import TrustpilotMini from "./trustpilot/TrustpilotMini";
 import { FloatingChatButton } from "./FloatingChatButton";
 
-const menuItems = [
+// Grouped navigation: 3 main categories + Tools
+type NavItem = { icon: any; label: string; path: string };
+type NavGroup = { icon: any; label: string; items: NavItem[] };
+
+const topLevelItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Search, label: "Investieren", path: "/invest" },
-  { icon: FolderKanban, label: "Portfolios", path: "/portfolios" },
-  { icon: Receipt, label: "Transaktionen", path: "/transactions" },
-  { icon: BarChart3, label: "Analyse", path: "/analysis" },
-  { icon: ShieldAlert, label: "Risiko-Analyse", path: "/risk-dashboard" },
-  { icon: Calculator, label: "DCF-Bewertung", path: "/dcf-valuation" },
-  { icon: PieChart, label: "Portfolio-Optimierung", path: "/portfolio-optimizer" },
-  { icon: Sparkles, label: "KI-Insights", path: "/ai-insights" },
-  { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
-  { icon: TrendingUp, label: "Dividenden", path: "/dividends" },
-  { icon: Activity, label: "Technische Analyse", path: "/technical-analysis" },
-  { icon: Zap, label: "Signale", path: "/signals" },
-  { icon: LineChart, label: "Backtesting", path: "/backtesting" },
-  { icon: Grid3x3, label: "Sektor-Heatmap", path: "/sector-heatmap" },
-  { icon: Brain, label: "KI-Prognose", path: "/prediction" },
-  { icon: FileText, label: "Reports", path: "/reports" },
-  { icon: Calculator, label: "Rechner", path: "/rechner" },
-  { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
+];
+
+const menuGroups: NavGroup[] = [
+  {
+    icon: Globe,
+    label: "Markt-Regime",
+    items: [
+      { icon: Gauge, label: "Regime-Dashboard", path: "/market-regime" },
+      { icon: BarChart3, label: "Makro-Indikatoren", path: "/analysis" },
+      { icon: Grid3x3, label: "Sektor-Heatmap", path: "/sector-heatmap" },
+    ],
+  },
+  {
+    icon: Wallet,
+    label: "Portfolio",
+    items: [
+      { icon: FolderKanban, label: "Übersicht", path: "/portfolios" },
+      { icon: PieChart, label: "Optimierung", path: "/portfolio-optimizer" },
+      { icon: Receipt, label: "Transaktionen", path: "/transactions" },
+      { icon: FileText, label: "Performance & Reports", path: "/reports" },
+      { icon: TrendingUp, label: "Dividenden-Kalender", path: "/dividends" },
+    ],
+  },
+  {
+    icon: Target,
+    label: "Einzeltitel-Analyse",
+    items: [
+      { icon: Search, label: "Aktien suchen", path: "/invest" },
+      { icon: Zap, label: "Signale & Scores", path: "/signals" },
+      { icon: Activity, label: "Technische Analyse", path: "/technical-analysis" },
+      { icon: Calculator, label: "DCF-Bewertung", path: "/dcf-valuation" },
+      { icon: Brain, label: "KI-Prognose", path: "/prediction" },
+      { icon: LineChart, label: "Backtesting", path: "/backtesting" },
+    ],
+  },
+  {
+    icon: Wrench,
+    label: "Tools",
+    items: [
+      { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
+      { icon: ShieldAlert, label: "Risiko-Analyse", path: "/risk-dashboard" },
+      { icon: Calculator, label: "Rechner", path: "/rechner" },
+      { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
+    ],
+  },
+];
+
+// Flat list for backwards compat (mobile header, active detection)
+const menuItems: NavItem[] = [
+  ...topLevelItems,
+  ...menuGroups.flatMap(g => g.items),
 ];
 
 const adminMenuItems = [
@@ -172,7 +209,17 @@ function DashboardLayoutContent({
   // Fetch portfolios for sidebar submenu
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   
-  // State for collapsible submenu
+  // State for collapsible group menus
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    menuGroups.forEach(g => {
+      initial[g.label] = g.items.some(i => location.startsWith(i.path));
+    });
+    return initial;
+  });
+  const toggleGroup = (label: string) => setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
+  
+  // State for portfolio submenu
   const [isSubmenuOpen, setIsSubmenuOpen] = useState(true);
 
   useEffect(() => {
@@ -260,64 +307,8 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {menuItems.map(item => {
-                const isActive = location === item.path;
-                const isPortfolioDetailPage = location.startsWith('/portfolios/') && item.path === '/portfolios';
-                const shouldShowSubmenu = item.path === '/portfolios' && portfolios.length > 0;
-                
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <div className="flex items-center">
-                      <SidebarMenuButton
-                        isActive={isActive || isPortfolioDetailPage}
-                        onClick={() => setLocation(item.path)}
-                        tooltip={item.label}
-                        className={`h-10 transition-all font-normal flex-1`}
-                      >
-                        <item.icon
-                          className={`h-4 w-4 ${isActive || isPortfolioDetailPage ? "text-primary" : ""}`}
-                        />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                      {shouldShowSubmenu && !isCollapsed && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsSubmenuOpen(!isSubmenuOpen);
-                          }}
-                          className="h-10 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0 mr-2"
-                        >
-                          <ChevronDown
-                            className={`h-4 w-4 text-muted-foreground transition-transform ${isSubmenuOpen ? "" : "-rotate-90"}`}
-                          />
-                        </button>
-                      )}
-                    </div>
-                    
-                    {shouldShowSubmenu && !isCollapsed && isSubmenuOpen && (
-                      <SidebarMenuSub>
-                        {portfolios.slice(0, 8).map((portfolio: any) => (
-                          <SidebarMenuSubItem key={portfolio.id}>
-                            <SidebarMenuSubButton
-                              isActive={location === `/portfolios/${portfolio.id}`}
-                              onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
-                              className="text-sm"
-                            >
-                              <span className="truncate flex items-center gap-2">
-                                {portfolio.name}
-                                {portfolio.isLive ? (
-                                  <span className="text-[10px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1.5 py-0.5 rounded">Live</span>
-                                ) : null}
-                              </span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    )}
-                  </SidebarMenuItem>
-                );
-              })}
-              {user?.role === 'admin' && adminMenuItems.map(item => {
+              {/* Top-level: Dashboard */}
+              {topLevelItems.map(item => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>
@@ -325,16 +316,123 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
+                      className="h-10 transition-all font-normal"
                     >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                      />
+                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
+
+              {/* Grouped navigation sections */}
+              {menuGroups.map(group => {
+                const isGroupOpen = openGroups[group.label] ?? false;
+                const hasActiveChild = group.items.some(i => location === i.path || location.startsWith(i.path + '/'));
+                const GroupIcon = group.icon;
+                return (
+                  <SidebarMenuItem key={group.label}>
+                    <SidebarMenuButton
+                      onClick={() => toggleGroup(group.label)}
+                      tooltip={group.label}
+                      className={`h-10 transition-all font-medium ${hasActiveChild ? 'text-primary' : ''}`}
+                    >
+                      <GroupIcon className={`h-4 w-4 ${hasActiveChild ? "text-primary" : "text-muted-foreground"}`} />
+                      <span>{group.label}</span>
+                      {!isCollapsed && (
+                        <ChevronRight className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isGroupOpen ? 'rotate-90' : ''}`} />
+                      )}
+                    </SidebarMenuButton>
+                    {isGroupOpen && !isCollapsed && (
+                      <SidebarMenuSub>
+                        {group.items.map(item => {
+                          const isActive = location === item.path;
+                          const isPortfolioPage = location.startsWith('/portfolios/') && item.path === '/portfolios';
+                          const showPortfolios = item.path === '/portfolios' && portfolios.length > 0;
+                          const ItemIcon = item.icon;
+                          return (
+                            <SidebarMenuSubItem key={item.path}>
+                              <div className="flex items-center">
+                                <SidebarMenuSubButton
+                                  isActive={isActive || isPortfolioPage}
+                                  onClick={() => setLocation(item.path)}
+                                  className="text-sm flex-1"
+                                >
+                                  <ItemIcon className={`h-3.5 w-3.5 ${isActive || isPortfolioPage ? "text-primary" : ""}`} />
+                                  <span>{item.label}</span>
+                                </SidebarMenuSubButton>
+                                {showPortfolios && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setIsSubmenuOpen(!isSubmenuOpen); }}
+                                    className="h-8 w-6 flex items-center justify-center hover:bg-accent rounded transition-colors"
+                                  >
+                                    <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${isSubmenuOpen ? '' : '-rotate-90'}`} />
+                                  </button>
+                                )}
+                              </div>
+                              {showPortfolios && isSubmenuOpen && (
+                                <SidebarMenuSub>
+                                  {portfolios.slice(0, 6).map((portfolio: any) => (
+                                    <SidebarMenuSubItem key={portfolio.id}>
+                                      <SidebarMenuSubButton
+                                        isActive={location === `/portfolios/${portfolio.id}`}
+                                        onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
+                                        className="text-xs"
+                                      >
+                                        <span className="truncate flex items-center gap-1.5">
+                                          {portfolio.name}
+                                          {portfolio.isLive && <span className="text-[9px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1 py-0.5 rounded">Live</span>}
+                                        </span>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  ))}
+                                </SidebarMenuSub>
+                              )}
+                            </SidebarMenuSubItem>
+                          );
+                        })}
+                      </SidebarMenuSub>
+                    )}
+                  </SidebarMenuItem>
+                );
+              })}
+
+              {/* Admin section */}
+              {user?.role === 'admin' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => toggleGroup('Admin')}
+                    tooltip="Admin"
+                    className={`h-10 transition-all font-medium ${location.startsWith('/admin') ? 'text-primary' : ''}`}
+                  >
+                    <Shield className={`h-4 w-4 ${location.startsWith('/admin') ? "text-primary" : "text-muted-foreground"}`} />
+                    <span>Admin</span>
+                    {!isCollapsed && (
+                      <ChevronRight className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${openGroups['Admin'] ? 'rotate-90' : ''}`} />
+                    )}
+                  </SidebarMenuButton>
+                  {openGroups['Admin'] && !isCollapsed && (
+                    <SidebarMenuSub>
+                      {adminMenuItems.map(item => {
+                        const isActive = location === item.path;
+                        const ItemIcon = item.icon;
+                        return (
+                          <SidebarMenuSubItem key={item.path}>
+                            <SidebarMenuSubButton
+                              isActive={isActive}
+                              onClick={() => setLocation(item.path)}
+                              className="text-sm"
+                            >
+                              <ItemIcon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : ""}`} />
+                              <span>{item.label}</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
+                    </SidebarMenuSub>
+                  )}
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarContent>
 

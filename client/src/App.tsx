@@ -75,6 +75,7 @@ import Backtesting from "./pages/Backtesting";
 import SectorHeatmap from "./pages/SectorHeatmap";
 import Prediction from "./pages/Prediction";
 import AdminOptimizer from "./pages/AdminOptimizer";
+import MarketRegime from "./pages/MarketRegime";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -133,6 +134,7 @@ function Router() {
       <Route path="/technical-analysis" component={TechnicalAnalysis} />
       <Route path="/backtesting" component={Backtesting} />
       <Route path="/sector-heatmap" component={SectorHeatmap} />
+      <Route path="/market-regime" component={MarketRegime} />
       <Route path="/prediction" component={Prediction} />
       <Route path="/invest" component={Invest} />
       <Route path="/invest/:ticker" component={InvestDetail} />
