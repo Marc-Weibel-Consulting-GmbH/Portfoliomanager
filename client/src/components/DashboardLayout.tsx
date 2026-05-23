@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, Receipt, ShieldAlert, Search, Eye } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, Receipt, ShieldAlert, Search, Eye, Brain } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -49,6 +49,7 @@ const menuItems = [
   { icon: Zap, label: "Signale", path: "/signals" },
   { icon: LineChart, label: "Backtesting", path: "/backtesting" },
   { icon: Grid3x3, label: "Sektor-Heatmap", path: "/sector-heatmap" },
+  { icon: Brain, label: "KI-Prognose", path: "/prediction" },
   { icon: FileText, label: "Reports", path: "/reports" },
   { icon: Calculator, label: "Rechner", path: "/rechner" },
   { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
@@ -57,6 +58,7 @@ const menuItems = [
 const adminMenuItems = [
   { icon: Shield, label: "Admin", path: "/admin" },
   { icon: Eye, label: "Watchlist", path: "/admin/watchlist" },
+  { icon: Zap, label: "Signal-Optimizer", path: "/admin/optimizer" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

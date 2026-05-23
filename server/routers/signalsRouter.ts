@@ -12,6 +12,9 @@ import { getDb } from "../db";
 import { eq } from "drizzle-orm";
 import { savedPortfolios } from "../../drizzle/schema";
 import YahooFinanceClass from "yahoo-finance2";
+import { randomForestSignal } from "../analytics/mlEngine";
+import { analyzeSentiment, sentimentToSignalScore } from "../analytics/sentimentEngine";
+import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
 
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
@@ -35,6 +38,10 @@ interface Signal {
   rsi14: number | null;
   reason: string;
   criteria: string[];
+  rfSignal?: string;
+  rfScore?: number;
+  sentimentScore?: number;
+  sentimentLabel?: string;
 }
 
 /**
@@ -185,6 +192,7 @@ function calcRSI(prices: number[], period: number = 14): number | null {
 
 /**
  * Generate trading signal based on live fundamental + technical data
+ * Uses optimized weights from the Signal Auto-Optimizer (if available)
  */
 function generateSignal(data: {
   ticker: string;
@@ -197,9 +205,13 @@ function generateSignal(data: {
   fiftyTwoWeekLow: number | null;
   ytdPerformance: number;
   rsi14: number | null;
-}): Signal {
+}, weights?: WeightConfig): Signal {
   const criteria: string[] = [];
   let score = 0; // Positive = buy, Negative = sell
+  
+  // Use optimized weights if available (scale factor to convert 0-0.25 weights to integer scores)
+  const WEIGHT_SCALE = 12; // Converts weight (0.05-0.25) to score contribution comparable to old system
+  const useWeights = !!weights;
 
   const {
     ticker, companyName, peRatio, pegRatio, dividendYield,
@@ -208,77 +220,84 @@ function generateSignal(data: {
 
   // ── P/E Ratio analysis ──
   if (peRatio !== null && !isNaN(peRatio) && peRatio > 0) {
+    const w = useWeights ? weights!.pe * WEIGHT_SCALE : 1;
     if (peRatio < 12) {
-      score += 3;
+      score += 3 * w;
       criteria.push(`Sehr niedriges P/E (${peRatio.toFixed(1)})`);
     } else if (peRatio < 18) {
-      score += 1;
+      score += 1 * w;
       criteria.push(`Moderates P/E (${peRatio.toFixed(1)})`);
     } else if (peRatio > 35) {
-      score -= 2;
+      score -= 2 * w;
       criteria.push(`Hohes P/E (${peRatio.toFixed(1)})`);
     } else if (peRatio > 25) {
-      score -= 1;
+      score -= 1 * w;
       criteria.push(`Erhöhtes P/E (${peRatio.toFixed(1)})`);
     }
   }
 
   // ── PEG Ratio analysis ──
   if (pegRatio !== null && !isNaN(pegRatio) && pegRatio > 0) {
+    const w = useWeights ? weights!.peg * WEIGHT_SCALE : 1;
     if (pegRatio < 0.8) {
-      score += 2;
+      score += 2 * w;
       criteria.push(`Sehr attraktives PEG (${pegRatio.toFixed(2)})`);
     } else if (pegRatio < 1.2) {
-      score += 1;
+      score += 1 * w;
       criteria.push(`Faires PEG (${pegRatio.toFixed(2)})`);
     } else if (pegRatio > 2.5) {
-      score -= 2;
+      score -= 2 * w;
       criteria.push(`Teures PEG (${pegRatio.toFixed(2)})`);
     } else if (pegRatio > 1.8) {
-      score -= 1;
+      score -= 1 * w;
       criteria.push(`Erhöhtes PEG (${pegRatio.toFixed(2)})`);
     }
   }
 
   // ── Dividend Yield analysis ──
-  if (dividendYield > 5) {
-    score += 2;
-    criteria.push(`Hohe Dividende (${dividendYield.toFixed(1)}%)`);
-  } else if (dividendYield > 3) {
-    score += 1;
-    criteria.push(`Gute Dividende (${dividendYield.toFixed(1)}%)`);
+  {
+    const w = useWeights ? weights!.dividend * WEIGHT_SCALE : 1;
+    if (dividendYield > 5) {
+      score += 2 * w;
+      criteria.push(`Hohe Dividende (${dividendYield.toFixed(1)}%)`);
+    } else if (dividendYield > 3) {
+      score += 1 * w;
+      criteria.push(`Gute Dividende (${dividendYield.toFixed(1)}%)`);
+    }
   }
 
   // ── YTD Performance analysis (contrarian signals) ──
   if (ytdPerformance !== 0 && !isNaN(ytdPerformance)) {
+    const w = useWeights ? weights!.ytd * WEIGHT_SCALE : 1;
     if (ytdPerformance < -25) {
-      score += 2;
+      score += 2 * w;
       criteria.push(`Stark überverkauft YTD (${ytdPerformance.toFixed(1)}%)`);
     } else if (ytdPerformance < -15) {
-      score += 1;
+      score += 1 * w;
       criteria.push(`Deutlich gefallen YTD (${ytdPerformance.toFixed(1)}%)`);
     } else if (ytdPerformance > 50) {
-      score -= 2;
+      score -= 2 * w;
       criteria.push(`Stark überkauft YTD (${ytdPerformance.toFixed(1)}%)`);
     } else if (ytdPerformance > 35) {
-      score -= 1;
+      score -= 1 * w;
       criteria.push(`Stark gestiegen YTD (${ytdPerformance.toFixed(1)}%)`);
     }
   }
 
   // ── 52-Week Range analysis ──
   if (fiftyTwoWeekHigh && fiftyTwoWeekLow && currentPrice > 0) {
+    const w = useWeights ? weights!.week52 * WEIGHT_SCALE : 1;
     const range = fiftyTwoWeekHigh - fiftyTwoWeekLow;
     if (range > 0) {
       const positionInRange = (currentPrice - fiftyTwoWeekLow) / range;
       if (positionInRange < 0.2) {
-        score += 2;
+        score += 2 * w;
         criteria.push(`Nahe 52W-Tief (${(positionInRange * 100).toFixed(0)}% vom Tief)`);
       } else if (positionInRange < 0.35) {
-        score += 1;
+        score += 1 * w;
         criteria.push(`Untere 52W-Range (${(positionInRange * 100).toFixed(0)}%)`);
       } else if (positionInRange > 0.95) {
-        score -= 1;
+        score -= 1 * w;
         criteria.push(`Nahe 52W-Hoch (${(positionInRange * 100).toFixed(0)}%)`);
       }
     }
@@ -286,17 +305,18 @@ function generateSignal(data: {
 
   // ── RSI analysis ──
   if (rsi14 !== null && !isNaN(rsi14)) {
+    const w = useWeights ? weights!.rsi * WEIGHT_SCALE : 1;
     if (rsi14 < 30) {
-      score += 2;
+      score += 2 * w;
       criteria.push(`RSI überverkauft (${rsi14.toFixed(0)})`);
     } else if (rsi14 < 40) {
-      score += 1;
+      score += 1 * w;
       criteria.push(`RSI niedrig (${rsi14.toFixed(0)})`);
     } else if (rsi14 > 75) {
-      score -= 2;
+      score -= 2 * w;
       criteria.push(`RSI überkauft (${rsi14.toFixed(0)})`);
     } else if (rsi14 > 65) {
-      score -= 1;
+      score -= 1 * w;
       criteria.push(`RSI hoch (${rsi14.toFixed(0)})`);
     }
   }
@@ -363,6 +383,55 @@ function generateSignal(data: {
   };
 }
 
+/**
+ * Enhanced signal generation with ML (Random Forest + Sentiment)
+ */
+async function enhanceSignalWithML(
+  signal: Signal,
+  prices: number[],
+  volumes: number[],
+  fundamentals: any
+): Promise<Signal> {
+  // Random Forest signal
+  try {
+    if (prices.length >= 60) {
+      const rf = randomForestSignal(prices, volumes, fundamentals);
+      signal.rfSignal = rf.signal;
+      signal.rfScore = rf.score;
+      
+      // Adjust signal based on RF
+      if (rf.signal === 'strong_buy' && signal.type !== 'buy') {
+        signal.criteria.push(`RF: Starkes Kaufsignal (Score ${rf.score})`);
+      } else if (rf.signal === 'strong_sell' && signal.type !== 'sell') {
+        signal.criteria.push(`RF: Starkes Verkaufssignal (Score ${rf.score})`);
+      } else if (rf.signal !== 'hold') {
+        signal.criteria.push(`RF: ${rf.signal === 'buy' ? 'Kauf' : 'Verkauf'} (Score ${rf.score})`);
+      }
+    }
+  } catch (e) {
+    // RF failed silently
+  }
+  
+  // Sentiment analysis (only for first 5 stocks to avoid rate limiting)
+  try {
+    const sentiment = await analyzeSentiment(signal.ticker, signal.companyName);
+    if (sentiment.newsCount > 0 && sentiment.confidence > 0.3) {
+      signal.sentimentScore = sentiment.score;
+      signal.sentimentLabel = sentiment.sentiment;
+      const sentContrib = sentimentToSignalScore(sentiment);
+      if (Math.abs(sentContrib) >= 1) {
+        signal.criteria.push(
+          `Sentiment: ${sentiment.sentiment === 'bullish' ? 'Positiv' : sentiment.sentiment === 'bearish' ? 'Negativ' : 'Neutral'} (${sentiment.score > 0 ? '+' : ''}${sentiment.score})`
+        );
+      }
+    }
+  } catch (e) {
+    // Sentiment failed silently
+  }
+  
+  return signal;
+}
+
 export const signalsRouter = router({
   /**
    * Generate trading signals for a portfolio using LIVE Yahoo Finance data
@@ -388,6 +457,9 @@ export const signalsRouter = router({
         throw new Error("Portfolio not found");
       }
 
+      // Load optimized weights (from Signal Auto-Optimizer)
+      const optimizedWeights = await getActiveWeights();
+
       // Parse portfolio data to get ticker list
       const portfolioData = JSON.parse(portfolio.portfolioData);
       const stocks = portfolioData.stocks || [];
@@ -412,12 +484,16 @@ export const signalsRouter = router({
         }
       }
 
-      // Generate signals using live data
+      // Generate signals using live data + ML enhancement
       const signals: Signal[] = [];
+      let sentimentCount = 0; // Limit sentiment calls to avoid rate limiting
+      const MAX_SENTIMENT = 5;
+
       for (const stock of stocks) {
         const liveData = liveDataMap.get(stock.ticker);
+        let signal: Signal;
         if (liveData && liveData.currentPrice > 0) {
-          signals.push(generateSignal({
+          signal = generateSignal({
             ticker: stock.ticker,
             companyName: liveData.companyName || stock.companyName || stock.ticker,
             peRatio: liveData.peRatio,
@@ -428,13 +504,13 @@ export const signalsRouter = router({
             fiftyTwoWeekLow: liveData.fiftyTwoWeekLow,
             ytdPerformance: liveData.ytdPerformance,
             rsi14: liveData.rsi14,
-          }));
+          }, optimizedWeights);
         } else {
           // Fallback: use stored data if live fetch fails
           const currentPrice = typeof stock.currentPrice === 'number'
             ? stock.currentPrice
             : parseFloat(stock.currentPrice) || 0;
-          signals.push(generateSignal({
+          signal = generateSignal({
             ticker: stock.ticker,
             companyName: stock.companyName || stock.ticker,
             peRatio: null,
@@ -445,8 +521,46 @@ export const signalsRouter = router({
             fiftyTwoWeekLow: null,
             ytdPerformance: 0,
             rsi14: null,
-          }));
+          }, optimizedWeights);
         }
+
+        // Enhance with ML (RF + Sentiment) - fetch chart data for RF
+        try {
+          const normalizedTicker = normalizeTicker(stock.ticker);
+          const chartResult = await yahooFinance.chart(normalizedTicker, {
+            period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            period2: new Date().toISOString().split('T')[0],
+            interval: '1d',
+          }) as any;
+          const quotes = chartResult.quotes ?? [];
+          const prices = quotes.map((q: any) => q.close).filter((c: any) => c != null);
+          const volumes = quotes.map((q: any) => q.volume).filter((v: any) => v != null);
+          const fundamentals = liveData ? {
+            peRatio: liveData.peRatio,
+            pegRatio: liveData.pegRatio,
+            dividendYield: liveData.dividendYield,
+          } : {};
+
+          // Only run sentiment for top stocks (to avoid rate limiting)
+          if (sentimentCount < MAX_SENTIMENT) {
+            signal = await enhanceSignalWithML(signal, prices, volumes, fundamentals);
+            sentimentCount++;
+          } else {
+            // RF only, no sentiment
+            if (prices.length >= 60) {
+              const rf = randomForestSignal(prices, volumes, fundamentals);
+              signal.rfSignal = rf.signal;
+              signal.rfScore = rf.score;
+              if (rf.signal === 'strong_buy' || rf.signal === 'strong_sell') {
+                signal.criteria.push(`RF: ${rf.signal === 'strong_buy' ? 'Starkes Kaufsignal' : 'Starkes Verkaufssignal'} (Score ${rf.score})`);
+              }
+            }
+          }
+        } catch (e) {
+          // ML enhancement failed silently
+        }
+
+        signals.push(signal);
       }
 
       // Sort by signal strength and type (strong buy first, then moderate buy, etc.)

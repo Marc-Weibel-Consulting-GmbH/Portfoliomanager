@@ -722,3 +722,92 @@
 ### Heatmap → InvestDetail
 - [x] Klick auf Titel in Heatmap navigiert zu /invest/:ticker
 - [x] Hover-Preview mit Kurz-Info (Kurs, P/E, Signal) beim Überfahren
+
+## ML-Features (23.05.2026)
+
+### Kursprognose (Linear Regression + ARIMA-Style)
+- [ ] ML-Engine: Linear Regression für Trendprognose implementieren (JS/Node)
+- [ ] ML-Engine: ARIMA-ähnliche Zeitreihenanalyse für kurzfristige Vorhersage
+- [ ] Backend: predictionRouter mit 30/60/90-Tage-Prognose pro Aktie
+- [ ] Frontend: Prognose-Seite mit Chart (historisch + Vorhersage + Konfidenzintervall)
+- [ ] Sidebar-Navigation: "Prognose" Link hinzufügen
+
+### Sentiment-Analyse (via LLM)
+- [ ] Backend: sentimentRouter mit invokeLLM() für News-Stimmungsanalyse
+- [ ] Sentiment-Score pro Aktie berechnen (bullish/neutral/bearish + Konfidenz)
+- [ ] Sentiment in InvestDetail-Seite integrieren (neuer Tab oder Badge)
+- [ ] Sentiment als Faktor in Signal-Score einbauen
+
+### Random Forest (Kauf/Verkauf-Signale verbessern)
+- [ ] ML-Engine: Random Forest Classifier in JS implementieren
+- [ ] 10+ Features: RSI, MACD, P/E, PEG, Dividende, Beta, 52W-Position, Volumen-Trend, SMA-Cross, Sentiment
+- [ ] Training auf historischen Daten (letzte 2 Jahre)
+- [ ] Signal-Score durch Random Forest ersetzen/ergänzen (höhere Trefferquote)
+- [ ] Konfidenz-Level pro Signal anzeigen (Low/Medium/High)
+
+### LPPLS Bubble-Detektor (Sornette-Modell)
+- [ ] lppls Engine: Vereinfachter LPPLS-Fit in JavaScript (Power Law + Log-Periodic Oscillation)
+- [ ] lppls Engine: Multi-Window-Analyse (30, 90, 180, 365, 750 Tage)
+- [ ] lppls Engine: Bubble Confidence Score [0,1] berechnen
+- [ ] lppls Engine: Geschätzte kritische Zeit t_c berechnen
+- [ ] Backend: LPPLS-Endpoint in predictionRouter
+- [ ] Portfolio Bubble-Exposure: Gewichteter Score über alle Holdings
+- [ ] Alert: Warnung wenn Portfolio-Bubble-Exposure > 40%
+- [ ] Frontend: Bubble-Confidence Indikator in InvestDetail + Signale
+- [ ] Frontend: Portfolio Bubble-Exposure Widget im Dashboard
+
+### Signal Auto-Optimizer (Backtest + Iterative Gewichtungs-Optimierung)
+- [x] Backend: signalOptimizer.ts — Backtestet alle 113 Watchlist-Titel mit aktuellen Gewichtungen
+- [x] Backend: Grid Search über Indikator-Gewichte (P/E, RSI, MACD, PEG, Dividende, 52W, YTD, RF, Sentiment)
+- [x] Backend: Trefferquote messen (Signal korrekt = Kurs steigt nach Kaufsignal / fällt nach Verkaufssignal)
+- [x] Backend: Iterativ beste Gewichtungskombination finden (max. Trefferquote)
+- [x] Backend: Optimierte Gewichte in DB speichern und in Live-Signalen verwenden
+- [x] Admin-Endpoint: Optimizer manuell triggern + Ergebnisse anzeigen
+- [x] Frontend: Admin-Seite mit Optimizer-Status, aktuelle Gewichte, Trefferquote
+
+
+## Signal Auto-Optimizer & LPPLS Bubble Detection (23.05.2026)
+- [x] LPPLS Bubble Detector Engine implementieren (server/analytics/lpplsEngine.ts)
+  - Multi-Window-Analyse (30, 60, 90, 180, 365, 500 Tage)
+  - Super-exponentielles Wachstum erkennen
+  - Log-periodische Oszillationen detektieren
+  - Portfolio-Level Bubble Exposure berechnen
+- [x] Signal Auto-Optimizer Engine implementieren (server/analytics/signalOptimizer.ts)
+  - Grid Search über 200 Gewichtungskombinationen
+  - Backtest alle Watchlist-Titel (113 Aktien)
+  - Iterative Gewichtungsanpassung für maximale Trefferquote
+  - Speicherung optimierter Gewichte in DB (signalWeights Tabelle)
+- [x] Optimizer Router erstellen (server/routers/optimizerRouter.ts)
+  - Admin-only Endpoints: startOptimizer, getStatus, getWeights, getHistory
+  - Aktivierung/Deaktivierung von Gewichtungskonfigurationen
+- [x] LPPLS Bubble Analysis in predictionRouter integrieren
+  - bubbleAnalysis Endpoint für Einzelaktien
+  - portfolioBubbleExposure Endpoint für Portfolio-Level Analyse
+- [x] Optimierte Gewichte in Signal-Generierung integrieren (signalsRouter.ts)
+  - getActiveWeights() lädt optimierte Gewichte aus DB
+  - generateSignal() verwendet gewichtete Scores statt feste Punkte
+- [x] Frontend: Admin Optimizer Page erstellen (AdminOptimizer.tsx)
+  - Status-Anzeige (laufend/abgeschlossen)
+  - Aktuelle Gewichtungen visualisieren
+  - Top 5 Kombinationen aus letztem Durchlauf
+  - Optimierungs-Verlauf mit Aktivierung
+- [x] Frontend: Bubble Risk Card in InvestDetail.tsx
+  - LPPLS-Warnung wenn Bubble-Konfidenz > 20%
+  - Anzeige: Konfidenz, Regime, Tage bis tc, Indikatoren
+- [x] Frontend: ML-Badges in Signals.tsx
+  - Random Forest Signal Badge
+  - Sentiment Badge
+- [x] Navigation: Signal-Optimizer in Admin-Menü hinzugefügt
+- [x] Route /admin/optimizer in App.tsx registriert
+
+### Signal Optimizer Verbesserungen (23.05.2026)
+- [x] EODHD als primäre Datenquelle für Optimizer (statt Yahoo Finance)
+- [x] Non-blocking Worker-Architektur (Server bleibt responsiv während Optimierung)
+- [x] Multi-Pass Iterative Optimierung implementiert:
+  - Pass 1: Optimale Lookforward-Periode (5, 10, 15, 20, 30 Tage) und Signal-Threshold (5-25) finden
+  - Pass 2: Grid Search über 201 Gewichtungskombinationen mit optimierten Parametern
+  - Pass 3: Feinabstimmung der Top-5 Ergebnisse (±3% Variationen)
+- [x] Ergebnis: Trefferquote von 49.5% auf 59.2% gesteigert
+  - Optimale Lookforward-Periode: 5 Tage
+  - Optimaler Signal-Threshold: 25
+- [x] Frontend: hitRate-Parsing-Bug behoben (DB liefert String statt Number)

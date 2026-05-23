@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import {
   ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Globe, Users,
-  BarChart3, Activity, DollarSign, Target, Loader2
+  BarChart3, Activity, DollarSign, Target, Loader2, AlertTriangle
 } from "lucide-react";
 import Chart from "chart.js/auto";
 
@@ -211,6 +211,9 @@ export default function InvestDetail() {
           </CardContent>
         </Card>
 
+        {/* LPPLS Bubble Risk */}
+        <BubbleRiskCard ticker={ticker} />
+
         {/* Chart */}
         <Card>
           <CardHeader className="pb-2">
@@ -377,6 +380,63 @@ export default function InvestDetail() {
         </Tabs>
       </div>
     </DashboardLayout>
+  );
+}
+
+function BubbleRiskCard({ ticker }: { ticker: string }) {
+  const { data, isLoading } = trpc.prediction.bubbleAnalysis.useQuery(
+    { ticker },
+    { enabled: !!ticker }
+  );
+
+  if (isLoading || !data?.result) return null;
+
+  const { bubbleConfidence, regime, daysUntilCritical, superExponentialGrowth, logPeriodicOscillation } = data.result;
+  
+  // Only show if there's meaningful bubble risk
+  if (bubbleConfidence < 0.2) return null;
+
+  const getRiskColor = (conf: number) => {
+    if (conf >= 0.7) return 'text-red-500 bg-red-500/10 border-red-500/30';
+    if (conf >= 0.5) return 'text-orange-500 bg-orange-500/10 border-orange-500/30';
+    return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30';
+  };
+
+  const getRiskLabel = (conf: number) => {
+    if (conf >= 0.7) return 'Hohes Bubble-Risiko';
+    if (conf >= 0.5) return 'Erh\u00f6htes Bubble-Risiko';
+    return 'Leichtes Bubble-Risiko';
+  };
+
+  return (
+    <Card className={`border ${getRiskColor(bubbleConfidence)}`}>
+      <CardContent className="py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5" />
+            <div>
+              <div className="font-semibold text-sm">{getRiskLabel(bubbleConfidence)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                LPPLS-Modell (Sornette) · Konfidenz: {(bubbleConfidence * 100).toFixed(0)}%
+                {regime === 'negative_bubble' && ' · Negativblase'}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            {daysUntilCritical && daysUntilCritical > 0 && (
+              <div className="text-center">
+                <div className="font-bold text-lg">{daysUntilCritical}</div>
+                <div className="text-muted-foreground">Tage bis tc</div>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              {superExponentialGrowth && <Badge variant="outline" className="text-xs">Super-exp. Wachstum</Badge>}
+              {logPeriodicOscillation && <Badge variant="outline" className="text-xs">Log-period. Oszillation</Badge>}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

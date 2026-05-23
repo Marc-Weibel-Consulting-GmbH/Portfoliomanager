@@ -1,4 +1,4 @@
-import { date, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
+import { date, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -602,3 +602,21 @@ export const watchlistStocks = mysqlTable("watchlistStocks", {
 
 export type WatchlistStock = typeof watchlistStocks.$inferSelect;
 export type InsertWatchlistStock = typeof watchlistStocks.$inferInsert;
+
+// Signal optimizer weights table
+export const signalWeights = mysqlTable("signalWeights", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().default("default"),
+  weights: json("weights").notNull(), // JSON: { pe: 0.15, rsi: 0.2, macd: 0.1, peg: 0.1, dividend: 0.1, week52: 0.1, ytd: 0.1, rf: 0.1, sentiment: 0.05 }
+  hitRate: decimal("hitRate", { precision: 5, scale: 2 }), // e.g. 67.50 = 67.5%
+  totalBacktested: int("totalBacktested").default(0),
+  correctSignals: int("correctSignals").default(0),
+  isActive: tinyint("isActive").notNull().default(0), // Only one active config at a time
+  optimizerLog: text("optimizerLog"), // JSON log of optimization run
+  lastRunAt: timestamp("lastRunAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SignalWeight = typeof signalWeights.$inferSelect;
+export type InsertSignalWeight = typeof signalWeights.$inferInsert;

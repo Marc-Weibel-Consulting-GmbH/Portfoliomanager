@@ -201,15 +201,24 @@ export default function Signals() {
                         <p className="text-sm text-muted-foreground">{signal.reason}</p>
                       </div>
 
-                      {signal.criteria && signal.criteria.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {signal.criteria.map((criterion: string, i: number) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {criterion}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+                      {/* ML Badges */}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {signal.rfSignal && signal.rfSignal !== 'hold' && (
+                          <Badge className={`text-xs ${signal.rfSignal.includes('buy') ? 'bg-green-500/20 text-green-500 border-green-500/30' : 'bg-red-500/20 text-red-500 border-red-500/30'}`}>
+                            RF: {signal.rfSignal === 'strong_buy' ? 'Starker Kauf' : signal.rfSignal === 'buy' ? 'Kauf' : signal.rfSignal === 'strong_sell' ? 'Starker Verkauf' : 'Verkauf'} ({signal.rfScore})
+                          </Badge>
+                        )}
+                        {signal.sentimentLabel && signal.sentimentLabel !== 'neutral' && (
+                          <Badge className={`text-xs ${signal.sentimentLabel === 'bullish' ? 'bg-green-500/20 text-green-500 border-green-500/30' : 'bg-red-500/20 text-red-500 border-red-500/30'}`}>
+                            Sentiment: {signal.sentimentLabel === 'bullish' ? 'Positiv' : 'Negativ'}
+                          </Badge>
+                        )}
+                        {signal.criteria && signal.criteria.map((criterion: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {criterion}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>

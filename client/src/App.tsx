@@ -73,6 +73,8 @@ import InvestDetail from "./pages/InvestDetail";
 import AdminWatchlist from "./pages/AdminWatchlist";
 import Backtesting from "./pages/Backtesting";
 import SectorHeatmap from "./pages/SectorHeatmap";
+import Prediction from "./pages/Prediction";
+import AdminOptimizer from "./pages/AdminOptimizer";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -131,6 +133,7 @@ function Router() {
       <Route path="/technical-analysis" component={TechnicalAnalysis} />
       <Route path="/backtesting" component={Backtesting} />
       <Route path="/sector-heatmap" component={SectorHeatmap} />
+      <Route path="/prediction" component={Prediction} />
       <Route path="/invest" component={Invest} />
       <Route path="/invest/:ticker" component={InvestDetail} />
       <Route path="/reports" component={Reports} />
@@ -148,6 +151,7 @@ function Router() {
       <Route path="/admin/kpis" component={AdminKPIs} />
       <Route path="/admin/data-import" component={AdminDataImport} />
       <Route path="/admin/watchlist" component={AdminWatchlist} />
+      <Route path="/admin/optimizer" component={AdminOptimizer} />
       <Route path="/rechner" component={Rechner} />
       <Route path="/einstellungen" component={Einstellungen} />
       <Route path="/kontakt" component={Kontakt} />
