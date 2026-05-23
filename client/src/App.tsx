@@ -71,6 +71,8 @@ import TechnicalAnalysis from "./pages/TechnicalAnalysis";
 import Invest from "./pages/Invest";
 import InvestDetail from "./pages/InvestDetail";
 import AdminWatchlist from "./pages/AdminWatchlist";
+import Backtesting from "./pages/Backtesting";
+import SectorHeatmap from "./pages/SectorHeatmap";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -127,6 +129,8 @@ function Router() {
       <Route path="/dcf-valuation" component={DCFValuation} />
       <Route path="/portfolio-optimizer" component={PortfolioOptimizer} />
       <Route path="/technical-analysis" component={TechnicalAnalysis} />
+      <Route path="/backtesting" component={Backtesting} />
+      <Route path="/sector-heatmap" component={SectorHeatmap} />
       <Route path="/invest" component={Invest} />
       <Route path="/invest/:ticker" component={InvestDetail} />
       <Route path="/reports" component={Reports} />

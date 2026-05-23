@@ -35,6 +35,7 @@ import { analyticsRouter } from "./routers/analyticsRouter";
 import { aiInsightsRouter } from "./routers/aiInsightsRouter";
 import { watchlistRouter } from "./routers/watchlistRouter";
 import { investRouter } from "./routers/investRouter";
+import { backtestRouter } from "./routers/backtestRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -219,6 +220,7 @@ export const appRouter = router({
   // Watchlist & Invest
   watchlist: watchlistRouter,
   invest: investRouter,
+  backtest: backtestRouter,
 
   // DEBUG: Test endpoint for portfolio creation
   debugTest: debugRouter,

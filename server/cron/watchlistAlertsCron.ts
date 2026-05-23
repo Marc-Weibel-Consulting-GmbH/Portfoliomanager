@@ -29,6 +29,12 @@ export async function checkWatchlistAlerts() {
     const { eq, and } = await import("drizzle-orm");
     const YahooFinanceClass = (await import("yahoo-finance2")).default;
     const yahooFinance: any = new (YahooFinanceClass as any)();
+    // Normalize ticker for Yahoo Finance (remove .US suffix, keep .SW etc.)
+    function normalizeTicker(ticker: string): string {
+      if (ticker.endsWith('.US')) return ticker.slice(0, -3);
+      if (ticker.endsWith('.SW')) return ticker.slice(0, -3) + '.SW';
+      return ticker;
+    }
 
     const db = await getDb();
     if (!db) {
@@ -69,7 +75,8 @@ export async function checkWatchlistAlerts() {
 
     for (const stock of stocks) {
       try {
-        const quote: any = await yahooFinance.quoteSummary(stock.ticker, {
+        const yahooTicker = normalizeTicker(stock.ticker);
+        const quote: any = await yahooFinance.quoteSummary(yahooTicker, {
           modules: ["price", "summaryDetail", "defaultKeyStatistics"] as any,
         });
 

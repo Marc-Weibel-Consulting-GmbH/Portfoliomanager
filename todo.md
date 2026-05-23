@@ -681,3 +681,30 @@
 - [x] "Aus Watchlist hinzufügen" Button im Portfolio Builder (Step 2: Stock Selection)
 - [x] Dialog mit Watchlist-Titeln und deren Signalen/Scores
 - [x] Ausgewählte Titel direkt in Portfolio-Auswahl übernehmen
+
+## Erweiterungen (23.05.2026 - Abend)
+
+### Watchlist-Daten aktualisieren
+- [x] Watchlist-Refresh für alle 113 Titel triggern (Live-Kurse, P/E, Signal-Scores)
+- [x] Verify live data appears in admin watchlist table
+
+### Backtesting-Modul
+- [x] Backend: backtestingRouter mit historischer Signal-Analyse (12 Monate)
+- [x] Backend: Für jeden Titel berechnen wann Kauf/Verkauf-Signale auftraten
+- [x] Backend: Hypothetische Rendite berechnen (Buy bei Kaufsignal, Sell bei Verkaufssignal)
+- [x] Frontend: Backtesting.tsx Seite mit Ergebnistabelle und Charts
+- [x] Frontend: Zusammenfassung (Trefferquote, Durchschnittsrendite, beste/schlechteste Signale)
+- [x] Sidebar-Navigation: Backtesting Link hinzufügen
+
+### Sektor-Heatmap
+- [x] Backend: heatmapRouter mit Sektor-Performance-Daten (via watchlist.list)
+- [x] Frontend: SectorHeatmap.tsx Seite mit Finviz-Style Visualisierung
+- [x] Farbkodierung: Grün (positiv) bis Rot (negativ) nach Signal-Score
+- [x] Gruppierung nach Sektor mit Ø Score-Badge
+- [x] Sidebar-Navigation: Sektor-Heatmap Link hinzugefügt
+
+### Dividendenkalender Fix
+- [x] Dividendenkalender zeigt "Keine bevorstehenden Dividenden" obwohl Portfolio Dividendenaktien enthält
+- [x] Backend: EODHD API für Dividenden-Daten (zuverlässiger als Yahoo Finance)
+- [x] Frontend: Bevorstehende Dividenden mit Ex-Date, Payment-Date, Betrag anzeigen
+- [x] Historische Dividenden der letzten 12 Monate ebenfalls anzeigen

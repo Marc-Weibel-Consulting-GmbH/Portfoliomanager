@@ -47,6 +47,8 @@ const menuItems = [
   { icon: TrendingUp, label: "Dividenden", path: "/dividends" },
   { icon: Activity, label: "Technische Analyse", path: "/technical-analysis" },
   { icon: Zap, label: "Signale", path: "/signals" },
+  { icon: LineChart, label: "Backtesting", path: "/backtesting" },
+  { icon: Grid3x3, label: "Sektor-Heatmap", path: "/sector-heatmap" },
   { icon: FileText, label: "Reports", path: "/reports" },
   { icon: Calculator, label: "Rechner", path: "/rechner" },
   { icon: Settings, label: "Einstellungen", path: "/einstellungen" },

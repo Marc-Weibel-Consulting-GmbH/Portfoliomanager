@@ -1,141 +1,134 @@
 /**
- * Dividend Calendar Integration using Yahoo Finance via Manus Data API
- * Fetches historical dividends and estimates upcoming payments
+ * Dividend Calendar Integration using EODHD API
+ * Fetches historical and upcoming dividends with exact dates and amounts
+ * Fallback to yahoo-finance2 if EODHD unavailable
  */
 
-import { callDataApi } from "./_core/dataApi";
+import { apiCache, CACHE_TTL } from "./_core/apiCache";
+import { retryFetch } from "./_core/retryUtil";
 
-interface DividendEvent {
+export interface DividendEvent {
   ticker: string;
   exDividendDate: string;
   paymentDate: string;
+  declarationDate: string | null;
   amount: number;
   currency: string;
+  period: string; // "Quarterly", "Annual", "Semi-Annual", "Interim", "Final"
+  type: "upcoming" | "past" | "estimated";
 }
 
 /**
- * Fetch dividend history from Yahoo Finance and estimate next payments
- * @param ticker Stock ticker symbol
- * @returns Array of estimated upcoming dividend events
+ * Convert internal ticker format to EODHD format
+ * EODHD uses: AAPL.US, NESN.SW, ROG.SW etc.
  */
-async function fetchTickerDividends(ticker: string): Promise<DividendEvent[]> {
+function toEODHDTicker(ticker: string): string {
+  // If already has exchange suffix like .SW, .PA, .DE, keep it
+  if (ticker.includes(".")) {
+    return ticker;
+  }
+  // Default to US exchange
+  return `${ticker}.US`;
+}
+
+/**
+ * Fetch dividend data from EODHD API for a single ticker
+ * Returns both historical and upcoming dividends
+ */
+async function fetchTickerDividendsEODHD(ticker: string): Promise<DividendEvent[]> {
+  const apiKey = process.env.EODHD_API_KEY;
+  if (!apiKey) {
+    console.warn("[DividendCalendar] EODHD_API_KEY not configured");
+    return [];
+  }
+
+  const cacheKey = `dividends:eodhd:${ticker}`;
+  const cached = apiCache.get<DividendEvent[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const eodhdTicker = toEODHDTicker(ticker);
+  const today = new Date();
+  
+  // Fetch 2 years of data: 1 year back + 1 year forward
+  const fromDate = new Date(today);
+  fromDate.setFullYear(fromDate.getFullYear() - 1);
+  const toDate = new Date(today);
+  toDate.setFullYear(toDate.getFullYear() + 1);
+
+  const url = `https://eodhd.com/api/div/${eodhdTicker}?api_token=${apiKey}&fmt=json&from=${fromDate.toISOString().split("T")[0]}&to=${toDate.toISOString().split("T")[0]}`;
+
   try {
-    // Determine region based on ticker suffix
-    let region = 'US';
-    let yahooSymbol = ticker;
-    
-    if (ticker.endsWith('.SW')) {
-      region = 'CH';
-      // Yahoo uses different format for Swiss stocks
-      yahooSymbol = ticker.replace('.SW', '.SW');
-    } else if (!ticker.includes('.')) {
-      // No suffix - assume US stock
-      yahooSymbol = ticker;
-      region = 'US';
-    }
+    const response = await retryFetch(url, {}, { maxRetries: 2, baseDelay: 500 });
 
-    // Fetch 1 year of data with dividend events
-    const response = await callDataApi("YahooFinance/get_stock_chart", {
-      query: {
-        symbol: yahooSymbol,
-        region: region,
-        interval: '1d',
-        range: '1y',
-        includeAdjustedClose: true,
-        events: 'div'
-      },
-    }) as any;
-
-    if (!response?.chart?.result || response.chart.result.length === 0) {
-      console.log(`[DividendCalendar] No data for ${ticker}`);
+    if (!response.ok) {
+      console.warn(`[DividendCalendar] EODHD API failed for ${eodhdTicker}: ${response.status}`);
       return [];
     }
 
-    const result = response.chart.result[0];
-    
-    // Check if dividend events exist
-    if (!result.events || !result.events.dividends) {
-      console.log(`[DividendCalendar] No dividend history for ${ticker}`);
+    const data: any[] = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      console.log(`[DividendCalendar] No dividend data from EODHD for ${eodhdTicker}`);
       return [];
     }
 
-    const dividends = result.events.dividends;
-    const meta = result.meta;
-    const currency = meta.currency || 'USD';
+    const events: DividendEvent[] = data.map(div => {
+      const exDate = new Date(div.date);
+      const isUpcoming = exDate >= today;
 
-    // Convert dividends object to sorted array
-    const dividendArray = Object.entries(dividends)
-      .map(([timestamp, data]: [string, any]) => ({
-        date: new Date(parseInt(timestamp) * 1000),
-        amount: data.amount
-      }))
-      .sort((a, b) => b.date.getTime() - a.date.getTime()); // Most recent first
+      return {
+        ticker: ticker, // Keep original ticker format
+        exDividendDate: div.date,
+        paymentDate: div.paymentDate || div.date,
+        declarationDate: div.declarationDate || null,
+        amount: div.value || div.unadjustedValue || 0,
+        currency: div.currency || "USD",
+        period: div.period || "Unknown",
+        type: isUpcoming ? "upcoming" : "past",
+      };
+    });
 
-    if (dividendArray.length < 2) {
-      console.log(`[DividendCalendar] Not enough dividend history for ${ticker}`);
-      return [];
-    }
+    // Estimate future dividends if we only have past data
+    const upcomingEvents = events.filter(e => e.type === "upcoming");
+    if (upcomingEvents.length === 0 && events.length >= 2) {
+      // Calculate interval from historical data
+      const pastEvents = events.filter(e => e.type === "past").sort(
+        (a, b) => new Date(b.exDividendDate).getTime() - new Date(a.exDividendDate).getTime()
+      );
 
-    // Get last 4 dividends to determine frequency
-    const recentDividends = dividendArray.slice(0, Math.min(4, dividendArray.length));
-    
-    // Calculate average interval between dividends (in days)
-    let totalInterval = 0;
-    for (let i = 0; i < recentDividends.length - 1; i++) {
-      const interval = Math.abs(
-        recentDividends[i].date.getTime() - recentDividends[i + 1].date.getTime()
-      ) / (1000 * 60 * 60 * 24);
-      totalInterval += interval;
-    }
-    const avgInterval = Math.round(totalInterval / (recentDividends.length - 1));
+      if (pastEvents.length >= 2) {
+        const lastDate = new Date(pastEvents[0].exDividendDate);
+        const secondLastDate = new Date(pastEvents[1].exDividendDate);
+        const intervalDays = Math.round(
+          (lastDate.getTime() - secondLastDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
 
-    // Determine payment frequency
-    let frequency: 'quarterly' | 'annual' | 'semi-annual' | 'monthly';
-    if (avgInterval >= 300) {
-      frequency = 'annual';
-    } else if (avgInterval >= 150) {
-      frequency = 'semi-annual';
-    } else if (avgInterval >= 60) {
-      frequency = 'quarterly';
-    } else {
-      frequency = 'monthly';
-    }
-
-    // Estimate next dividend payment(s)
-    const lastDividend = recentDividends[0];
-    const lastDate = lastDividend.date;
-    const lastAmount = lastDividend.amount;
-    const today = new Date();
-    const oneYearFromNow = new Date();
-    oneYearFromNow.setFullYear(today.getFullYear() + 1);
-
-    const upcomingDividends: DividendEvent[] = [];
-    let nextDate = new Date(lastDate);
-    
-    // Generate next dividend dates based on frequency
-    const paymentsPerYear = frequency === 'quarterly' ? 4 : frequency === 'annual' ? 1 : frequency === 'semi-annual' ? 2 : 12;
-    
-    for (let i = 0; i < paymentsPerYear * 2; i++) {
-      nextDate = new Date(nextDate);
-      nextDate.setDate(nextDate.getDate() + avgInterval);
-      
-      if (nextDate > today && nextDate <= oneYearFromNow) {
-        upcomingDividends.push({
-          ticker: ticker,
-          exDividendDate: nextDate.toISOString().split('T')[0],
-          paymentDate: new Date(nextDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // ~2 weeks after ex-date
-          amount: lastAmount,
-          currency: currency
-        });
+        // Estimate next dividend
+        const nextEstDate = new Date(lastDate.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+        if (nextEstDate <= toDate) {
+          events.push({
+            ticker,
+            exDividendDate: nextEstDate.toISOString().split("T")[0],
+            paymentDate: new Date(nextEstDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            declarationDate: null,
+            amount: pastEvents[0].amount,
+            currency: pastEvents[0].currency,
+            period: pastEvents[0].period,
+            type: "estimated",
+          });
+        }
       }
-      
-      if (nextDate > oneYearFromNow) break;
     }
 
-    console.log(`[DividendCalendar] ${ticker}: Found ${upcomingDividends.length} estimated dividends (${frequency}, ${currency})`);
-    return upcomingDividends;
-  } catch (error) {
-    console.error(`[DividendCalendar] Failed to fetch dividends for ${ticker}:`, error);
+    console.log(`[DividendCalendar] ${ticker}: ${events.filter(e => e.type === "upcoming").length} upcoming, ${events.filter(e => e.type === "estimated").length} estimated, ${events.filter(e => e.type === "past").length} past`);
+
+    // Cache for 4 hours
+    apiCache.set(cacheKey, events, 4 * 60 * 60 * 1000);
+    return events;
+  } catch (error: any) {
+    console.error(`[DividendCalendar] Error fetching EODHD dividends for ${eodhdTicker}: ${error.message}`);
     return [];
   }
 }
@@ -144,31 +137,69 @@ async function fetchTickerDividends(ticker: string): Promise<DividendEvent[]> {
  * Fetch upcoming dividends for all tickers (kept for backward compatibility)
  */
 export async function fetchUpcomingDividends(from: string, to: string): Promise<DividendEvent[]> {
-  // This function is kept for backward compatibility but not used
   return [];
 }
 
 /**
  * Get upcoming dividends for specific tickers in a portfolio
  * @param tickers Array of stock tickers
- * @param daysAhead Number of days to look ahead (default: 365 for next 12 months)
- * @returns Array of dividend events for the specified tickers
+ * @param daysAhead Number of days to look ahead (default: 365)
+ * @returns Array of upcoming/estimated dividend events
  */
 export async function getPortfolioDividends(tickers: string[], daysAhead: number = 365): Promise<DividendEvent[]> {
-  console.log(`[DividendCalendar] Fetching dividends for ${tickers.length} tickers using Yahoo Finance API`);
-  
-  // Fetch dividends for each ticker in parallel
-  const dividendPromises = tickers.map(ticker => fetchTickerDividends(ticker));
-  const dividendArrays = await Promise.all(dividendPromises);
-  
-  // Flatten and sort by ex-dividend date
-  const allDividends = dividendArrays.flat();
-  allDividends.sort((a, b) => 
-    new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime()
-  );
+  console.log(`[DividendCalendar] Fetching dividends for ${tickers.length} tickers using EODHD API`);
 
-  console.log(`[DividendCalendar] Portfolio has ${allDividends.length} estimated upcoming dividends`);
-  return allDividends;
+  const allDividends: DividendEvent[] = [];
+
+  // Process in batches of 5 to respect rate limits
+  const batchSize = 5;
+  for (let i = 0; i < tickers.length; i += batchSize) {
+    const batch = tickers.slice(i, i + batchSize);
+    const results = await Promise.all(batch.map(ticker => fetchTickerDividendsEODHD(ticker)));
+    allDividends.push(...results.flat());
+
+    if (i + batchSize < tickers.length) {
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+
+  // Filter to upcoming and estimated dividends within daysAhead
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() + daysAhead);
+  const today = new Date();
+
+  const upcomingDividends = allDividends
+    .filter(d => {
+      if (d.type === "past") return false;
+      const exDate = new Date(d.exDividendDate);
+      return exDate >= today && exDate <= cutoffDate;
+    })
+    .sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
+
+  console.log(`[DividendCalendar] Portfolio has ${upcomingDividends.length} upcoming/estimated dividends in next ${daysAhead} days`);
+  return upcomingDividends;
+}
+
+/**
+ * Get all dividends (past + upcoming) for a portfolio - used for the full calendar view
+ */
+export async function getAllPortfolioDividends(tickers: string[]): Promise<DividendEvent[]> {
+  console.log(`[DividendCalendar] Fetching all dividends (past + upcoming) for ${tickers.length} tickers`);
+
+  const allDividends: DividendEvent[] = [];
+
+  const batchSize = 5;
+  for (let i = 0; i < tickers.length; i += batchSize) {
+    const batch = tickers.slice(i, i + batchSize);
+    const results = await Promise.all(batch.map(ticker => fetchTickerDividendsEODHD(ticker)));
+    allDividends.push(...results.flat());
+
+    if (i + batchSize < tickers.length) {
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+
+  return allDividends.sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
 }
 
 /**
@@ -181,9 +212,6 @@ export async function checkDividendNotifications(portfolioId: number, notificati
 
 /**
  * Calculate expected dividend income for a portfolio
- * @param holdings Record of ticker -> shares
- * @param dividends Array of dividend events
- * @returns Total expected dividend income in CHF
  */
 export function calculateExpectedDividendIncome(
   holdings: Record<string, number>,
@@ -194,8 +222,9 @@ export function calculateExpectedDividendIncome(
   dividends.forEach(div => {
     const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
     if (shares > 0) {
-      // Convert to CHF if needed (simplified - would need exchange rates in production)
-      const amountInCHF = div.currency === "USD" ? div.amount * 0.88 : div.amount;
+      const amountInCHF = div.currency === "USD" ? div.amount * 0.88
+        : div.currency === "EUR" ? div.amount * 0.95
+        : div.amount; // CHF stays as is
       totalIncome += shares * amountInCHF;
     }
   });

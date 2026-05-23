@@ -7,6 +7,12 @@ import YahooFinanceClass from "yahoo-finance2";
 
 const yahooFinance: any = new (YahooFinanceClass as any)();
 
+// Normalize ticker for Yahoo Finance (remove .US suffix)
+function normalizeTicker(ticker: string): string {
+  if (ticker.endsWith(".US")) return ticker.slice(0, -3);
+  return ticker;
+}
+
 export const watchlistRouter = router({
   // Get all watchlist stocks with optional filters
   list: protectedProcedure
@@ -247,7 +253,8 @@ export const watchlistRouter = router({
 
       for (const stock of stocksToRefresh) {
         try {
-          const quote: any = await yahooFinance.quoteSummary(stock.ticker, { modules: ["price", "summaryDetail", "defaultKeyStatistics"] });
+          const normalizedTicker = normalizeTicker(stock.ticker);
+          const quote: any = await yahooFinance.quoteSummary(normalizedTicker, { modules: ["price", "summaryDetail", "defaultKeyStatistics"] });
           const price = quote.price;
           const summary = quote.summaryDetail;
           const keyStats = quote.defaultKeyStatistics;
