@@ -7,7 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertTriangle, TrendingDown, TrendingUp, Activity, BarChart3, Shield, Info, RefreshCw, Wifi, WifiOff, Table } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertTriangle, TrendingDown, TrendingUp, Activity, BarChart3, Shield, Info, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import RiskRadarChart from "@/components/RiskRadarChart";
+import RiskBulletChart from "@/components/RiskBulletChart";
+import RiskScoreOverview from "@/components/RiskScoreOverview";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -137,8 +141,10 @@ export default function RiskDashboard() {
     }
   );
 
-  // The Python service returns { portfolio: {...}, assets: [...] }
+  // The service returns { portfolio: {...}, benchmarkMetrics: {...}, benchmarkNormalizedScores: {...}, assets: [...] }
   const portfolio = (riskData as any)?.portfolio;
+  const benchmarkMetrics = (riskData as any)?.benchmarkMetrics;
+  const benchmarkNormalizedScores = (riskData as any)?.benchmarkNormalizedScores;
   const assets = (riskData as any)?.assets ?? [];
   const serviceOnline = healthData?.status === "online";
 
@@ -151,6 +157,8 @@ export default function RiskDashboard() {
     return { label: "Schlecht", variant: "destructive" as const };
   }
 
+  const benchmarkLabel = benchmark === "SPY" ? "S&P 500" : benchmark === "QQQ" ? "NASDAQ" : benchmark === "EWL" ? "SMI" : "MSCI World";
+
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
@@ -159,10 +167,10 @@ export default function RiskDashboard() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Shield className="h-6 w-6 text-primary" />
-              Risiko-Dashboard
+              Risiko-Analyse
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Institutionelle Risikoanalyse powered by Fincept Analytics
+              Institutionelle Risikoanalyse mit Benchmark-Vergleich
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -237,8 +245,7 @@ export default function RiskDashboard() {
               <div className="flex items-center gap-2 text-yellow-400 text-sm">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>
-                  Der Analytics-Service ist nicht erreichbar. Bitte stellen Sie sicher, dass der Python-Microservice läuft:{" "}
-                  <code className="text-xs bg-muted px-1 rounded">cd analytics_service && ./start.sh</code>
+                  Der Analytics-Service ist nicht erreichbar. Bitte stellen Sie sicher, dass der Python-Microservice läuft.
                 </span>
               </div>
             </CardContent>
@@ -273,150 +280,252 @@ export default function RiskDashboard() {
           </div>
         )}
 
-        {/* Metrics Grid */}
+        {/* Main Content with Tabs */}
         {portfolio && !riskLoading && (
-          <>
-            {/* Section: Rendite-Risiko */}
-            <div>
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Rendite-Risiko-Kennzahlen
-              </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard
-                  title="Sharpe Ratio"
-                  value={fmtRatio(portfolio.sharpeRatio)}
-                  description="Risikobereinigt vs. 2% risikofreier Zins"
-                  tooltip="Misst die Überrendite pro Einheit Gesamtrisiko (Standardabweichung). Werte > 1 gelten als gut, > 2 als ausgezeichnet."
-                  icon={<TrendingUp className="h-4 w-4" />}
-                  colorClass={riskColor(portfolio.sharpeRatio, [0, 1])}
-                  badge={sharpeRating(portfolio.sharpeRatio) ?? undefined}
-                />
-                <MetricCard
-                  title="Sortino Ratio"
-                  value={fmtRatio(portfolio.sortinoRatio)}
-                  description="Nur Abwärtsrisiko berücksichtigt"
-                  tooltip="Wie Sharpe, aber bestraft nur negative Volatilität (Abwärtsrisiko). Besser geeignet für asymmetrische Renditeverteilungen."
-                  icon={<Activity className="h-4 w-4" />}
-                  colorClass={riskColor(portfolio.sortinoRatio, [0, 1])}
-                />
-                <MetricCard
-                  title="Treynor Ratio"
-                  value={fmtRatio(portfolio.treynorRatio)}
-                  description="Überrendite pro Marktrisiko-Einheit"
-                  tooltip="Misst die Überrendite pro Einheit systematisches Risiko (Beta). Höher ist besser."
-                  icon={<BarChart3 className="h-4 w-4" />}
-                  colorClass={riskColor(portfolio.treynorRatio, [0, 0.05])}
-                />
-                <MetricCard
-                  title="Calmar Ratio"
-                  value={fmtRatio(portfolio.calmarRatio)}
-                  description="Rendite / Max. Drawdown"
-                  tooltip="Verhältnis von annualisierter Rendite zu maximalem Drawdown. Höher ist besser."
-                  icon={<TrendingDown className="h-4 w-4" />}
-                  colorClass={riskColor(portfolio.calmarRatio, [0, 1])}
+          <Tabs defaultValue="overview" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="overview">Risikometriken</TabsTrigger>
+              <TabsTrigger value="einzeltitel">Einzeltitel</TabsTrigger>
+              <TabsTrigger value="weitere">Weitere Tools</TabsTrigger>
+            </TabsList>
+
+            {/* ─── Tab: Risikometriken ─── */}
+            <TabsContent value="overview" className="space-y-6">
+              {/* Top Section: Radar + KPI Side by Side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Radar Chart */}
+                <Card className="border-border">
+                  <CardHeader>
+                    <CardTitle className="text-base">Radar Chart</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Alle Achsen sind auf einen Score von 0 bis 100 normiert. Aussen bedeutet hier immer „besser" im Verhältnis zur gewünschten Risikoeigenschaft.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {portfolio.normalizedScores && (
+                      <RiskRadarChart
+                        portfolioScores={portfolio.normalizedScores}
+                        benchmarkScores={benchmarkNormalizedScores ?? null}
+                        benchmarkName={benchmarkLabel}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* KPI Overview + Interpretation */}
+                <RiskScoreOverview
+                  riskScore={portfolio.riskScore ?? 50}
+                  portfolioMetrics={{
+                    volatility: portfolio.volatility,
+                    maxDrawdown: portfolio.maxDrawdown,
+                    varHistorical95: portfolio.varHistorical95,
+                    informationRatio: portfolio.informationRatio,
+                    trackingError: portfolio.trackingError,
+                    sharpeRatio: portfolio.sharpeRatio,
+                    beta: portfolio.beta,
+                  }}
+                  benchmarkMetrics={benchmarkMetrics}
+                  benchmarkName={benchmarkLabel}
                 />
               </div>
-            </div>
 
-            {/* Section: Risikokennzahlen */}
-            <div>
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Risikokennzahlen
-              </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard
-                  title={`VaR hist. (${(confidenceLevel * 100).toFixed(0)}%)`}
-                  value={fmt(portfolio.varHistorical95 !== null ? -Math.abs(portfolio.varHistorical95) : null)}
-                  description="Historisch, täglicher Verlust"
-                  tooltip={`Value at Risk: Mit ${(confidenceLevel * 100).toFixed(0)}% Wahrscheinlichkeit wird der tägliche Verlust diesen Wert nicht überschreiten.`}
-                  icon={<AlertTriangle className="h-4 w-4" />}
-                  colorClass={varColor(portfolio.varHistorical95)}
-                />
-                <MetricCard
-                  title={`VaR param. (${(confidenceLevel * 100).toFixed(0)}%)`}
-                  value={fmt(portfolio.varParametric95 !== null ? -Math.abs(portfolio.varParametric95) : null)}
-                  description="Parametrisch (Normalverteilung)"
-                  tooltip="Parametrischer VaR basierend auf Normalverteilungsannahme."
-                  icon={<AlertTriangle className="h-4 w-4" />}
-                  colorClass={varColor(portfolio.varParametric95)}
-                />
-                <MetricCard
-                  title={`CVaR (${(confidenceLevel * 100).toFixed(0)}%)`}
-                  value={fmt(portfolio.cvar95 !== null ? -Math.abs(portfolio.cvar95) : null)}
-                  description="Expected Shortfall"
-                  tooltip="Conditional VaR / Expected Shortfall: Durchschnittlicher Verlust in den schlechtesten Szenarien (jenseits des VaR)."
-                  icon={<AlertTriangle className="h-4 w-4" />}
-                  colorClass={varColor(portfolio.cvar95)}
-                />
-                <MetricCard
-                  title="Max. Drawdown"
-                  value={fmt(portfolio.maxDrawdown)}
-                  description="Maximaler Wertverlust vom Höchststand"
-                  tooltip="Der grösste Wertverlust vom Höchststand bis zum Tiefpunkt im Betrachtungszeitraum."
-                  icon={<TrendingDown className="h-4 w-4" />}
-                  colorClass={varColor(portfolio.maxDrawdown)}
-                />
-              </div>
-            </div>
-
-            {/* Section: Marktrisiko */}
-            <div>
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Marktrisiko & Performance
-              </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard
-                  title="Beta"
-                  value={fmtRatio(portfolio.beta)}
-                  description={`Sensitivität vs. ${benchmark}`}
-                  tooltip="Beta misst die Sensitivität des Portfolios gegenüber dem Markt. Beta > 1 = aggressiver als Markt, < 1 = defensiver."
-                  icon={<BarChart3 className="h-4 w-4" />}
-                  colorClass={
-                    portfolio.beta > 1.2 ? "text-red-400" : portfolio.beta < 0.8 ? "text-yellow-400" : "text-green-400"
-                  }
-                  badge={
-                    portfolio.beta > 1.2
-                      ? { label: "Aggressiv", variant: "destructive" }
-                      : portfolio.beta < 0.8
-                      ? { label: "Defensiv", variant: "secondary" }
-                      : { label: "Neutral", variant: "outline" }
-                  }
-                />
-                <MetricCard
-                  title="Volatilität (ann.)"
-                  value={fmt(portfolio.volatility)}
-                  description="Annualisierte Standardabweichung"
-                  tooltip="Annualisierte Standardabweichung der täglichen Renditen. Misst die Gesamtschwankungsbreite des Portfolios."
-                  icon={<Activity className="h-4 w-4" />}
-                  colorClass={varColor(portfolio.volatility)}
-                />
-                <MetricCard
-                  title="Annualisierte Rendite"
-                  value={fmt(portfolio.annualReturn)}
-                  description={`Über ${lookbackDays} Handelstage`}
-                  tooltip="Annualisierte Portfoliorendite im Betrachtungszeitraum."
-                  icon={<TrendingUp className="h-4 w-4" />}
-                  colorClass={portfolio.annualReturn > 0 ? "text-green-400" : "text-red-400"}
-                />
-                <MetricCard
-                  title="Information Ratio"
-                  value={fmtRatio(portfolio.informationRatio)}
-                  description={`Aktive Rendite vs. ${benchmark}`}
-                  tooltip="Misst die Überrendite gegenüber dem Benchmark pro Einheit Tracking Error. Höher ist besser."
-                  icon={<BarChart3 className="h-4 w-4" />}
-                  colorClass={riskColor(portfolio.informationRatio, [0, 0.5])}
-                />
-              </div>
-            </div>
-
-            {/* Per-Asset Table */}
-            {assets.length > 0 && (
+              {/* Bullet Charts Section */}
               <div>
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Einzeltitel-Analyse
+                  Bullet Charts je Kennzahl
                 </h2>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Balken = Portfolio, Marker = Benchmark oder Zielwert, Hintergrund = Einordnung entlang der Skala.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <RiskBulletChart
+                    title="Volatilität"
+                    subtitle="Niedriger ist besser"
+                    value={portfolio.volatility}
+                    benchmarkValue={benchmarkMetrics?.volatility ?? null}
+                    min={0}
+                    max={25}
+                    zones={[8, 15]}
+                    invertColors={true}
+                  />
+                  <RiskBulletChart
+                    title="Max Drawdown"
+                    subtitle="Niedriger ist besser"
+                    value={Math.abs(portfolio.maxDrawdown)}
+                    benchmarkValue={benchmarkMetrics ? Math.abs(benchmarkMetrics.maxDrawdown) : null}
+                    min={0}
+                    max={35}
+                    zones={[10, 20]}
+                    invertColors={true}
+                  />
+                  <RiskBulletChart
+                    title={`VaR ${(confidenceLevel * 100).toFixed(0)}%`}
+                    subtitle="Niedriger ist besser"
+                    value={Math.abs(portfolio.varHistorical95)}
+                    benchmarkValue={benchmarkMetrics ? Math.abs(benchmarkMetrics.varHistorical95) : null}
+                    min={0}
+                    max={15}
+                    zones={[4, 8]}
+                    invertColors={true}
+                  />
+                  <RiskBulletChart
+                    title="Tracking Error"
+                    subtitle="Niedriger = näher am Benchmark"
+                    value={portfolio.trackingError ?? 0}
+                    benchmarkValue={0}
+                    min={0}
+                    max={20}
+                    zones={[5, 12]}
+                    invertColors={true}
+                  />
+                </div>
+              </div>
+
+              {/* Rendite-Risiko Kennzahlen */}
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Rendite-Risiko-Kennzahlen
+                </h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <MetricCard
+                    title="Sharpe Ratio"
+                    value={fmtRatio(portfolio.sharpeRatio)}
+                    description={`Risikobereinigt vs. 2% risikofreier Zins`}
+                    tooltip="Misst die Überrendite pro Einheit Gesamtrisiko (Standardabweichung). Werte > 1 gelten als gut, > 2 als ausgezeichnet."
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    colorClass={riskColor(portfolio.sharpeRatio, [0, 1])}
+                    badge={sharpeRating(portfolio.sharpeRatio) ?? undefined}
+                  />
+                  <MetricCard
+                    title="Sortino Ratio"
+                    value={fmtRatio(portfolio.sortinoRatio)}
+                    description="Nur Abwärtsrisiko berücksichtigt"
+                    tooltip="Wie Sharpe, aber bestraft nur negative Volatilität (Abwärtsrisiko). Besser geeignet für asymmetrische Renditeverteilungen."
+                    icon={<Activity className="h-4 w-4" />}
+                    colorClass={riskColor(portfolio.sortinoRatio, [0, 1])}
+                  />
+                  <MetricCard
+                    title="Treynor Ratio"
+                    value={fmtRatio(portfolio.treynorRatio)}
+                    description="Überrendite pro Marktrisiko-Einheit"
+                    tooltip="Misst die Überrendite pro Einheit systematisches Risiko (Beta). Höher ist besser."
+                    icon={<BarChart3 className="h-4 w-4" />}
+                    colorClass={riskColor(portfolio.treynorRatio, [0, 0.05])}
+                  />
+                  <MetricCard
+                    title="Calmar Ratio"
+                    value={fmtRatio(portfolio.calmarRatio)}
+                    description="Rendite / Max. Drawdown"
+                    tooltip="Verhältnis von annualisierter Rendite zu maximalem Drawdown. Höher ist besser."
+                    icon={<TrendingDown className="h-4 w-4" />}
+                    colorClass={riskColor(portfolio.calmarRatio, [0, 1])}
+                  />
+                </div>
+              </div>
+
+              {/* Risikokennzahlen */}
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Risikokennzahlen
+                </h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <MetricCard
+                    title={`VaR hist. (${(confidenceLevel * 100).toFixed(0)}%)`}
+                    value={fmt(portfolio.varHistorical95 !== null ? -Math.abs(portfolio.varHistorical95) : null)}
+                    description="Historisch, täglicher Verlust"
+                    tooltip={`Value at Risk: Mit ${(confidenceLevel * 100).toFixed(0)}% Wahrscheinlichkeit wird der tägliche Verlust diesen Wert nicht überschreiten.`}
+                    icon={<AlertTriangle className="h-4 w-4" />}
+                    colorClass={varColor(portfolio.varHistorical95)}
+                  />
+                  <MetricCard
+                    title={`VaR param. (${(confidenceLevel * 100).toFixed(0)}%)`}
+                    value={fmt(portfolio.varParametric95 !== null ? -Math.abs(portfolio.varParametric95) : null)}
+                    description="Parametrisch (Normalverteilung)"
+                    tooltip="Parametrischer VaR basierend auf Normalverteilungsannahme."
+                    icon={<AlertTriangle className="h-4 w-4" />}
+                    colorClass={varColor(portfolio.varParametric95)}
+                  />
+                  <MetricCard
+                    title={`CVaR (${(confidenceLevel * 100).toFixed(0)}%)`}
+                    value={fmt(portfolio.cvar95 !== null ? -Math.abs(portfolio.cvar95) : null)}
+                    description="Expected Shortfall"
+                    tooltip="Conditional VaR / Expected Shortfall: Durchschnittlicher Verlust in den schlechtesten Szenarien (jenseits des VaR)."
+                    icon={<AlertTriangle className="h-4 w-4" />}
+                    colorClass={varColor(portfolio.cvar95)}
+                  />
+                  <MetricCard
+                    title="Max. Drawdown"
+                    value={fmt(portfolio.maxDrawdown)}
+                    description="Maximaler Wertverlust vom Höchststand"
+                    tooltip="Der grösste Wertverlust vom Höchststand bis zum Tiefpunkt im Betrachtungszeitraum."
+                    icon={<TrendingDown className="h-4 w-4" />}
+                    colorClass={varColor(portfolio.maxDrawdown)}
+                  />
+                </div>
+              </div>
+
+              {/* Marktrisiko & Performance */}
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Marktrisiko & Performance
+                </h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <MetricCard
+                    title="Beta"
+                    value={fmtRatio(portfolio.beta)}
+                    description={`Sensitivität vs. ${benchmarkLabel}`}
+                    tooltip="Beta misst die Sensitivität des Portfolios gegenüber dem Markt. Beta > 1 = aggressiver als Markt, < 1 = defensiver."
+                    icon={<BarChart3 className="h-4 w-4" />}
+                    colorClass={
+                      portfolio.beta > 1.2 ? "text-red-400" : portfolio.beta < 0.8 ? "text-yellow-400" : "text-green-400"
+                    }
+                    badge={
+                      portfolio.beta > 1.2
+                        ? { label: "Aggressiv", variant: "destructive" }
+                        : portfolio.beta < 0.8
+                        ? { label: "Defensiv", variant: "secondary" }
+                        : { label: "Neutral", variant: "outline" }
+                    }
+                  />
+                  <MetricCard
+                    title="Volatilität (ann.)"
+                    value={fmt(portfolio.volatility)}
+                    description="Annualisierte Standardabweichung"
+                    tooltip="Annualisierte Standardabweichung der täglichen Renditen. Misst die Gesamtschwankungsbreite des Portfolios."
+                    icon={<Activity className="h-4 w-4" />}
+                    colorClass={varColor(portfolio.volatility)}
+                  />
+                  <MetricCard
+                    title="Annualisierte Rendite"
+                    value={fmt(portfolio.annualReturn)}
+                    description={`Über ${lookbackDays} Handelstage`}
+                    tooltip="Annualisierte Portfoliorendite im Betrachtungszeitraum."
+                    icon={<TrendingUp className="h-4 w-4" />}
+                    colorClass={portfolio.annualReturn > 0 ? "text-green-400" : "text-red-400"}
+                  />
+                  <MetricCard
+                    title="Information Ratio"
+                    value={fmtRatio(portfolio.informationRatio)}
+                    description={`Aktive Rendite vs. ${benchmarkLabel}`}
+                    tooltip="Misst die Überrendite gegenüber dem Benchmark pro Einheit Tracking Error. Höher ist besser."
+                    icon={<BarChart3 className="h-4 w-4" />}
+                    colorClass={riskColor(portfolio.informationRatio, [0, 0.5])}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* ─── Tab: Einzeltitel ─── */}
+            <TabsContent value="einzeltitel" className="space-y-4">
+              {assets.length > 0 && (
                 <Card className="border-border">
-                  <CardContent className="pt-4">
+                  <CardHeader>
+                    <CardTitle className="text-base">Einzeltitel-Analyse</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Risikokennzahlen pro Position im Portfolio
+                    </p>
+                  </CardHeader>
+                  <CardContent>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -459,21 +568,35 @@ export default function RiskDashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            )}
+              )}
+            </TabsContent>
 
-            {/* Methodology Note */}
-            <Card className="border-border bg-muted/20">
-              <CardContent className="pt-4 pb-4">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Methodik:</strong> Berechnungen basieren auf historischen Tagesrenditen der letzten {lookbackDays} Handelstage via Yahoo Finance.
-                  VaR und CVaR werden historisch und parametrisch (Normalverteilung) berechnet. Sharpe/Sortino verwenden einen risikofreien Zinssatz von 2%.
-                  Datenpunkte: {portfolio.dataPoints}. Benchmark: {portfolio.benchmark}.
-                  Powered by <strong>Fincept Analytics Engine</strong>.
-                </p>
-              </CardContent>
-            </Card>
-          </>
+            {/* ─── Tab: Weitere Tools ─── */}
+            <TabsContent value="weitere" className="space-y-4">
+              <Card className="border-border">
+                <CardContent className="pt-6 text-center">
+                  <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Weitere Analyse-Tools</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                    Stress-Tests, Monte-Carlo-Simulationen und Korrelationsmatrizen werden in einer zukünftigen Version verfügbar sein.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {/* Methodology Note */}
+        {portfolio && !riskLoading && (
+          <Card className="border-border bg-muted/20">
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground">
+                <strong>Methodik:</strong> Berechnungen basieren auf historischen Tagesrenditen der letzten {lookbackDays} Handelstage via Yahoo Finance.
+                VaR und CVaR werden historisch und parametrisch (Normalverteilung) berechnet. Sharpe/Sortino verwenden einen risikofreien Zinssatz von 2%.
+                Datenpunkte: {portfolio.dataPoints}. Benchmark: {portfolio.benchmark}.
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Empty State */}

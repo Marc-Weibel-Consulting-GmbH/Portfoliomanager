@@ -865,3 +865,10 @@
 - [x] RSI/MACD-Kalibrierung: adjclose (split-adjustiert) + korrekte EMA-Berechnung (SMA-Seed)
 - [x] Portfolio Optimizer: max_dividend Methode hinzugefügt (L1-Differenz zu Sharpe: 1.65)
 - [x] Dividend Calendar: Fallback auf Portfolio-Shares wenn keine Transaktionen + EODHD API Key Fix
+
+### Risikokennzahlen-Darstellung Verbesserung (24.05.2026)
+- [x] Radar Chart: Alle Kennzahlen auf 0-100 normiert, Portfolio vs. Benchmark als überlagerte Flächen
+- [x] Bullet Charts: Pro Kennzahl horizontaler Balken mit Farbzonen (gut/mittel/schlecht), Marker für Benchmark, Differenz in pp
+- [x] KPI-Überblick: Gesamt-Risikoscore (0-100) mit Bewertung + kompakte Kennzahlen-Karten mit Benchmark-Vergleich
+- [x] Interpretation: Textuelle Zusammenfassung des Risikoprofils (regelbasiert)
+- [x] Backend: Benchmark-Metriken, Normalisierung und Score-Berechnung hinzugefügt

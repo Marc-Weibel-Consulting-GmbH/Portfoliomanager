@@ -570,9 +570,96 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
       annualReturn: Math.round(mean(ar) * TRADING_DAYS_YEAR * 10000) / 100,
       volatility: Math.round(calcVolatility(ar) * 10000) / 100,
       sharpe: Math.round(calcSharpe(ar, riskFreeRate) * 1000) / 1000,
+      beta: benchmarkRets ? Math.round(calcBeta(ar, benchmarkRets) * 1000) / 1000 : null,
+      var95: Math.round(calcVarHistorical(ar, confidenceLevel) * 10000) / 100,
       maxDrawdown: Math.round(calcMaxDrawdown(ar) * 10000) / 100,
     };
   });
+
+  // ── Benchmark metrics for comparison ──
+  let benchmarkMetrics: {
+    annualReturn: number;
+    volatility: number;
+    sharpeRatio: number;
+    sortinoRatio: number;
+    maxDrawdown: number;
+    varHistorical95: number;
+    beta: number;
+  } | null = null;
+
+  if (benchmarkRets) {
+    const bmVol = calcVolatility(benchmarkRets);
+    const bmSharpe = calcSharpe(benchmarkRets, riskFreeRate);
+    const bmSortino = calcSortino(benchmarkRets, riskFreeRate);
+    const bmMaxDD = calcMaxDrawdown(benchmarkRets);
+    const bmVarHist = calcVarHistorical(benchmarkRets, confidenceLevel);
+    const bmAnnualReturn = mean(benchmarkRets) * TRADING_DAYS_YEAR;
+    benchmarkMetrics = {
+      annualReturn: Math.round(bmAnnualReturn * 10000) / 100,
+      volatility: Math.round(bmVol * 10000) / 100,
+      sharpeRatio: Math.round(bmSharpe * 1000) / 1000,
+      sortinoRatio: Math.round(bmSortino * 1000) / 1000,
+      maxDrawdown: Math.round(bmMaxDD * 10000) / 100,
+      varHistorical95: Math.round(bmVarHist * 10000) / 100,
+      beta: 1.0,
+    };
+  }
+
+  // ── Tracking Error ──
+  let trackingError: number | null = null;
+  if (benchmarkRets) {
+    const n = Math.min(portfolioRets.length, benchmarkRets.length);
+    const excess = portfolioRets.slice(0, n).map((r, i) => r - benchmarkRets[i]);
+    trackingError = Math.round(std(excess) * SQRT_TRADING_DAYS * 10000) / 100;
+  }
+
+  // ── Gesamt-Risikoscore (0-100, higher = better) ──
+  // Normalization: each metric mapped to 0-100 score, then weighted average
+  function normalizeMetric(value: number, min: number, max: number, invert: boolean): number {
+    const clamped = Math.max(min, Math.min(max, value));
+    const normalized = (clamped - min) / (max - min);
+    const score = invert ? (1 - normalized) * 100 : normalized * 100;
+    return Math.round(score);
+  }
+
+  const volScore = normalizeMetric(volatility * 100, 0, 40, true); // lower vol = better
+  const maxDDScore = normalizeMetric(Math.abs(maxDD) * 100, 0, 50, true); // lower DD = better
+  const varScore = normalizeMetric(Math.abs(varHist) * 100, 0, 10, true); // lower VaR = better
+  const sharpeScore = normalizeMetric(sharpe, -1, 3, false); // higher sharpe = better
+  const sortinoScore = normalizeMetric(sortino, -1, 4, false); // higher sortino = better
+  const betaScore = beta !== null ? normalizeMetric(Math.abs(beta - 1), 0, 1.5, true) : 50; // closer to 1 = better
+
+  const riskScore = Math.round(
+    volScore * 0.2 + maxDDScore * 0.2 + varScore * 0.15 +
+    sharpeScore * 0.2 + sortinoScore * 0.15 + betaScore * 0.1
+  );
+
+  // Normalized scores for radar chart (0-100, higher = better)
+  const normalizedScores = {
+    volatility: volScore,
+    maxDrawdown: maxDDScore,
+    var95: varScore,
+    sharpeRatio: sharpeScore,
+    sortinoRatio: sortinoScore,
+    beta: betaScore,
+    informationRatio: informationRatio !== null ? normalizeMetric(informationRatio, -1, 2, false) : 50,
+    trackingError: trackingError !== null ? normalizeMetric(trackingError, 0, 20, true) : 50,
+  };
+
+  // Benchmark normalized scores
+  let benchmarkNormalizedScores: typeof normalizedScores | null = null;
+  if (benchmarkMetrics) {
+    benchmarkNormalizedScores = {
+      volatility: normalizeMetric(benchmarkMetrics.volatility, 0, 40, true),
+      maxDrawdown: normalizeMetric(Math.abs(benchmarkMetrics.maxDrawdown), 0, 50, true),
+      var95: normalizeMetric(Math.abs(benchmarkMetrics.varHistorical95), 0, 10, true),
+      sharpeRatio: normalizeMetric(benchmarkMetrics.sharpeRatio, -1, 3, false),
+      sortinoRatio: normalizeMetric(benchmarkMetrics.sortinoRatio, -1, 4, false),
+      beta: normalizeMetric(0, 0, 1.5, true), // benchmark beta vs itself = 0 deviation
+      informationRatio: 50, // benchmark vs itself = 0
+      trackingError: 100, // benchmark vs itself = 0 tracking error = perfect
+    };
+  }
 
   return {
     portfolio: {
@@ -588,9 +675,14 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
       varParametric95: Math.round(varParam * 10000) / 100,
       cvar95: Math.round(cvar * 10000) / 100,
       maxDrawdown: Math.round(maxDD * 10000) / 100,
+      trackingError,
+      riskScore,
+      normalizedScores,
       dataPoints: portfolioRets.length,
       benchmark,
     },
+    benchmarkMetrics,
+    benchmarkNormalizedScores,
     assets: assetMetrics,
   };
 }
