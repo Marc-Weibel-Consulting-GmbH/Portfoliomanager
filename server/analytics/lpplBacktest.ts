@@ -318,7 +318,7 @@ function fitLPPLLinear(
  * Multi-scale LPPL fitting with grid search over nonlinear parameters
  * Uses multiple window sizes to capture different bubble timescales
  */
-function fitLPPLMultiScale(
+export function fitLPPLMultiScale(
   prices: HistoricalPrice[],
   windowSizes: number[] = [60, 90, 120, 180]
 ): { bestFit: FitResult | null; validFitCount: number; totalAttempts: number } {
@@ -370,7 +370,7 @@ function fitLPPLMultiScale(
  * 4. Proximity to critical time
  * 5. Oscillation quality (log-periodic signature)
  */
-function calculateBubbleConfidence(
+export function calculateBubbleConfidence(
   fitResult: { bestFit: FitResult | null; validFitCount: number; totalAttempts: number },
   prices: HistoricalPrice[]
 ): number {

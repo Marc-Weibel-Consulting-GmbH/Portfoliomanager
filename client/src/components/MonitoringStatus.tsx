@@ -27,6 +27,7 @@ import {
   Save,
   Loader2,
 } from 'lucide-react';
+import LiveLpplCheck from './LiveLpplCheck';
 
 interface ScheduledJob {
   name: string;
@@ -246,6 +247,9 @@ export default function MonitoringStatus() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Live LPPL Check */}
+      <LiveLpplCheck />
 
       {/* Server-Persistence Info */}
       <Card className="bg-emerald-900/20 border-emerald-700/30">

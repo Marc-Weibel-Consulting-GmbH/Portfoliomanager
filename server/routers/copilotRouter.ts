@@ -19,7 +19,7 @@ import {
 import { runCopilotBacktest } from '../analytics/copilotBacktest';
 import { runWalkForwardValidation, getWalkForwardHistory, screenStocksFromEODHD, getWatchlistTickers } from '../analytics/walkForwardEngine';
 import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHistoryStats, evaluateRecommendations, markRecommendationAsApplied } from '../analytics/copilotHistory';
-import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES } from '../analytics/lpplBacktest';
+import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES, fitLPPLMultiScale, calculateBubbleConfidence } from '../analytics/lpplBacktest';
 import { calcRiskMetrics } from '../analytics/engine';
 import { userSettings } from '../../drizzle/schema';
 import { eq } from 'drizzle-orm';
@@ -674,6 +674,151 @@ export const copilotRouter = router({
   getLpplBubblePeriods: protectedProcedure
     .query(() => {
       return KNOWN_BUBBLES;
+    }),
+
+  // ============================================================
+  // LIVE LPPL CHECK (Echtzeit Bubble-Score für S&P 500 + NASDAQ)
+  // ============================================================
+  liveLpplCheck: protectedProcedure
+    .mutation(async () => {
+      const indices = [
+        { ticker: '^GSPC', name: 'S&P 500' },
+        { ticker: '^IXIC', name: 'NASDAQ Composite' },
+      ];
+
+      const results: Array<{
+        ticker: string;
+        name: string;
+        currentPrice: number;
+        bubbleConfidence: number;
+        regime: 'bubble' | 'normal' | 'crash';
+        predictedCrashDate: string | null;
+        daysToPredict: number | null;
+        fitQuality: number | null;
+        priceChange30d: number;
+        priceChange90d: number;
+        analysisDate: string;
+        windowsAnalyzed: number;
+        validFits: number;
+      }> = [];
+
+      for (const idx of indices) {
+        try {
+          // Fetch last 12 months of data for multi-scale analysis
+          const endDate = new Date();
+          const startDate = new Date();
+          startDate.setMonth(startDate.getMonth() - 12);
+
+          const chartResult: any = await yf.chart(idx.ticker, {
+            period1: startDate.toISOString().split('T')[0],
+            period2: endDate.toISOString().split('T')[0],
+            interval: '1d'
+          });
+
+          if (!chartResult?.quotes || chartResult.quotes.length < 60) {
+            results.push({
+              ticker: idx.ticker,
+              name: idx.name,
+              currentPrice: 0,
+              bubbleConfidence: 0,
+              regime: 'normal',
+              predictedCrashDate: null,
+              daysToPredict: null,
+              fitQuality: null,
+              priceChange30d: 0,
+              priceChange90d: 0,
+              analysisDate: new Date().toISOString().split('T')[0],
+              windowsAnalyzed: 0,
+              validFits: 0,
+            });
+            continue;
+          }
+
+          const prices = chartResult.quotes
+            .filter((q: any) => q.close != null && q.date != null)
+            .map((q: any) => ({
+              date: new Date(q.date).toISOString().split('T')[0],
+              close: q.close as number
+            }));
+
+          const currentPrice = prices[prices.length - 1].close;
+
+          // Calculate price changes
+          const price30dAgo = prices.length >= 22 ? prices[prices.length - 22].close : prices[0].close;
+          const price90dAgo = prices.length >= 66 ? prices[prices.length - 66].close : prices[0].close;
+          const priceChange30d = ((currentPrice - price30dAgo) / price30dAgo) * 100;
+          const priceChange90d = ((currentPrice - price90dAgo) / price90dAgo) * 100;
+
+          // Run multi-scale LPPL fitting
+          const fitResult = fitLPPLMultiScale(prices, [60, 90, 120, 180]);
+          const confidence = calculateBubbleConfidence(fitResult, prices);
+
+          // Determine regime
+          let regime: 'bubble' | 'normal' | 'crash' = 'normal';
+          if (confidence >= 45) regime = 'bubble';
+          // Check for recent crash (>10% drop in last 20 days)
+          if (prices.length >= 20) {
+            const recent20 = prices.slice(-20);
+            const maxRecent = Math.max(...recent20.map((p: any) => p.close));
+            if ((currentPrice - maxRecent) / maxRecent < -0.10) {
+              regime = 'crash';
+            }
+          }
+
+          // Predict crash date
+          let predictedCrashDate: string | null = null;
+          let daysToPredict: number | null = null;
+          if (fitResult.bestFit && confidence >= 40) {
+            const params = fitResult.bestFit.params;
+            const effectiveWindow = Math.min(prices.length, 180);
+            const daysToTc = Math.round((params.tc - 1) * effectiveWindow);
+            if (daysToTc > 0 && daysToTc < 365) {
+              const crashDate = new Date();
+              crashDate.setDate(crashDate.getDate() + daysToTc);
+              predictedCrashDate = crashDate.toISOString().split('T')[0];
+              daysToPredict = daysToTc;
+            }
+          }
+
+          results.push({
+            ticker: idx.ticker,
+            name: idx.name,
+            currentPrice,
+            bubbleConfidence: confidence,
+            regime,
+            predictedCrashDate,
+            daysToPredict,
+            fitQuality: fitResult.bestFit?.r2 ?? null,
+            priceChange30d,
+            priceChange90d,
+            analysisDate: new Date().toISOString().split('T')[0],
+            windowsAnalyzed: fitResult.totalAttempts,
+            validFits: fitResult.validFitCount,
+          });
+
+          // Rate limiting between Yahoo Finance calls
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          console.error(`[LiveLPPL] Error checking ${idx.name}:`, error.message);
+          results.push({
+            ticker: idx.ticker,
+            name: idx.name,
+            currentPrice: 0,
+            bubbleConfidence: 0,
+            regime: 'normal',
+            predictedCrashDate: null,
+            daysToPredict: null,
+            fitQuality: null,
+            priceChange30d: 0,
+            priceChange90d: 0,
+            analysisDate: new Date().toISOString().split('T')[0],
+            windowsAnalyzed: 0,
+            validFits: 0,
+          });
+        }
+      }
+
+      return { results, checkedAt: new Date().toISOString() };
     }),
 
   getLatestWeeklyReview: protectedProcedure

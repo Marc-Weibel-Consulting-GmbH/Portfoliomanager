@@ -1072,3 +1072,8 @@
 - [x] Backtesting: Zentrale Signal-Engine mit Optimizer-Gewichten nutzen (statt hardcoded RSI+MACD)
 - [x] Watchlist: Signal-Score aus zentraler Engine übernehmen (statt eigene Logik)
 - [x] Walk-Forward: Ticker-Normalisierung Fix (.US Suffix entfernt → DB-Format korrekt, 134 Titel geladen, 51-53 pro Periode bewertet, 173 Perioden)
+
+## Live LPPL-Check Button (24.05.2026)
+- [x] Backend: Neuer Endpoint `liveLpplCheck` für Echtzeit-Bubble-Score-Berechnung (S&P 500 + NASDAQ)
+- [x] Frontend: Live LPPL-Check Button im Monitoring-UI mit Ergebnis-Anzeige
+- [x] Anzeige: Bubble Score, Confidence, Warnstufe, Kurs, Fit R², Wendepunkt-Prognose für beide Indizes
