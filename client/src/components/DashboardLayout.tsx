@@ -61,6 +61,7 @@ const menuGroups: NavGroup[] = [
       { icon: FileText, label: "Performance & Reports", path: "/reports" },
       { icon: TrendingUp, label: "Dividenden-Kalender", path: "/dividends" },
       { icon: ShieldAlert, label: "Risiko-Analyse", path: "/risk-dashboard" },
+      { icon: Brain, label: "Portfolio Copilot", path: "/copilot" },
     ],
   },
   {

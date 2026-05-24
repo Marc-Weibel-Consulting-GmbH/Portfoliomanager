@@ -76,6 +76,7 @@ import SectorHeatmap from "./pages/SectorHeatmap";
 import Prediction from "./pages/Prediction";
 import AdminOptimizer from "./pages/AdminOptimizer";
 import MarketRegime from "./pages/MarketRegime";
+import PortfolioCopilot from "./pages/PortfolioCopilot";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -136,6 +137,7 @@ function Router() {
       <Route path="/sector-heatmap" component={SectorHeatmap} />
       <Route path="/market-regime" component={MarketRegime} />
       <Route path="/prediction" component={Prediction} />
+      <Route path="/copilot" component={PortfolioCopilot} />
       <Route path="/invest" component={Invest} />
       <Route path="/invest/:ticker" component={InvestDetail} />
       <Route path="/reports" component={Reports} />

@@ -877,3 +877,11 @@
 - [x] Backend: Rolling-Window Risikoscore-Berechnung (52 Wochen, 63 Tage Window)
 - [x] Frontend: Mini-Chart Komponente (Liniendiagramm mit Farbzonen + Legende + Trend-Indikator)
 - [x] Integration in RiskDashboard zwischen Risikokennzahlen und Marktrisiko-Sektion
+
+### ML Portfolio Copilot (24.05.2026)
+- [x] Backend: ML Ranking-Score pro Titel (Wahrscheinlichkeit + Unsicherheit statt Buy/Hold/Sell)
+- [x] Backend: Rebalancing-Vorschläge (Zielgewichte mit Constraints: Kosten, Diversifikation, Risikobudget)
+- [x] Backend: Konzentrations- und Drawdown-Warnungen (Klumpenrisiko, schwaches Chance/Risiko)
+- [x] Backend: Explainable AI Textgenerierung (LLM: "Warum?" pro Empfehlung)
+- [x] Frontend: Portfolio Copilot Seite (Ranking-Tabelle, Aktionen, Warnungen, Diversifikations-Score)
+- [x] Integration: Bestehende Signale als Baselines behalten, ML-Layer darüber

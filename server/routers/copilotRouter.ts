@@ -1,0 +1,325 @@
+/**
+ * Portfolio Copilot Router
+ * ========================
+ * tRPC endpoints for the ML Portfolio Copilot feature.
+ * Provides ranking, rebalancing, warnings, and AI-generated explanations.
+ */
+
+import { z } from 'zod';
+import { protectedProcedure, router } from '../_core/trpc';
+import { invokeLLM } from '../_core/llm';
+import { getSavedPortfolioById, getPortfolioTransactions } from '../db';
+import {
+  runCopilotAnalysis,
+  calculateRankings,
+  calculateDiversificationScore,
+  type PortfolioHolding,
+  type CopilotAnalysis,
+} from '../analytics/portfolioCopilot';
+import YahooFinance from 'yahoo-finance2';
+
+const yf = new YahooFinance();
+
+function normalizeForYahoo(ticker: string): string {
+  if (ticker.endsWith('.US')) return ticker.replace('.US', '');
+  return ticker;
+}
+
+async function fetchHoldingData(ticker: string): Promise<{
+  prices: number[];
+  volumes: number[];
+  currentPrice: number;
+  currency: string;
+  sector?: string;
+  fundamentals: {
+    peRatio?: number;
+    pegRatio?: number;
+    dividendYield?: number;
+    beta?: number;
+    marketCap?: number;
+  };
+}> {
+  const yahooTicker = normalizeForYahoo(ticker);
+  let resolvedTicker = yahooTicker;
+  
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setFullYear(startDate.getFullYear() - 1);
+
+  let chart: any;
+  try {
+    chart = await (yf as any).chart(resolvedTicker, {
+      period1: startDate.toISOString().split('T')[0],
+      period2: endDate.toISOString().split('T')[0],
+      interval: '1d',
+    });
+  } catch {
+    if (!resolvedTicker.includes('.')) {
+      resolvedTicker = resolvedTicker + '.SW';
+      chart = await (yf as any).chart(resolvedTicker, {
+        period1: startDate.toISOString().split('T')[0],
+        period2: endDate.toISOString().split('T')[0],
+        interval: '1d',
+      });
+    }
+  }
+
+  const quotes = chart?.quotes?.filter((q: any) => q.close != null) || [];
+  const prices = quotes.map((q: any) => q.close as number);
+  const volumes = quotes.map((q: any) => (q.volume as number) || 0);
+  const currentPrice = prices.length > 0 ? prices[prices.length - 1] : 0;
+  const currency = chart?.meta?.currency || 'USD';
+
+  // Fetch fundamentals
+  let fundamentals: any = {};
+  let sector: string | undefined;
+  try {
+    const quote = await (yf as any).quoteSummary(resolvedTicker, {
+      modules: ['defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
+    });
+    fundamentals = {
+      peRatio: quote?.summaryDetail?.trailingPE || quote?.defaultKeyStatistics?.forwardPE || undefined,
+      pegRatio: quote?.defaultKeyStatistics?.pegRatio || undefined,
+      dividendYield: (quote?.summaryDetail?.dividendYield || 0) * 100,
+      beta: quote?.defaultKeyStatistics?.beta || 1,
+      marketCap: quote?.summaryDetail?.marketCap || undefined,
+    };
+    sector = quote?.assetProfile?.sector || undefined;
+  } catch {}
+
+  return { prices, volumes, currentPrice, currency, sector, fundamentals };
+}
+
+export const copilotRouter = router({
+  /**
+   * Full copilot analysis for a portfolio
+   */
+  analyze: protectedProcedure
+    .input(z.object({ portfolioId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) {
+        return { error: 'Portfolio nicht gefunden', analysis: null, explanation: null };
+      }
+
+      // Parse portfolioData from JSON string
+      let stocks: any[] = [];
+      try {
+        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+        stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+      } catch (e) {
+        stocks = [];
+      }
+      if (stocks.length === 0) {
+        return { error: 'Portfolio enthält keine Aktien', analysis: null, explanation: null };
+      }
+
+      // Calculate total portfolio value for weights
+      const totalValue = stocks.reduce((sum: number, s: any) => sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
+
+      // Fetch data for all holdings in parallel (batches of 5)
+      const holdings: PortfolioHolding[] = [];
+      const batchSize = 5;
+      
+      for (let i = 0; i < stocks.length; i += batchSize) {
+        const batch = stocks.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (stock: any) => {
+            try {
+              const data = await fetchHoldingData(stock.ticker);
+              const value = (stock.shares || 1) * data.currentPrice;
+              return {
+                ticker: stock.ticker,
+                companyName: stock.companyName || stock.name || stock.ticker,
+                weight: totalValue > 0 ? value / totalValue : 1 / stocks.length,
+                shares: parseFloat(stock.shares || '1'),
+                currentPrice: data.currentPrice,
+                currency: data.currency,
+                sector: data.sector || stock.sector || 'Unknown',
+                prices: data.prices,
+                volumes: data.volumes,
+                fundamentals: data.fundamentals,
+              } as PortfolioHolding;
+            } catch (err) {
+              return {
+                ticker: stock.ticker,
+                companyName: stock.name || stock.ticker,
+                weight: 1 / stocks.length,
+                shares: stock.shares || 1,
+                currentPrice: stock.currentPrice || stock.avgPrice || 0,
+                currency: 'USD',
+                prices: [],
+                volumes: [],
+                fundamentals: {},
+              } as PortfolioHolding;
+            }
+          })
+        );
+        
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            holdings.push(result.value);
+          }
+        }
+        
+        // Small delay between batches
+        if (i + batchSize < stocks.length) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+
+      // Run copilot analysis
+      const analysis = runCopilotAnalysis(holdings);
+
+      // Generate LLM explanation
+      let explanation: string | null = null;
+      try {
+        explanation = await generateCopilotExplanation(analysis, (portfolio as any).name || 'Portfolio');
+      } catch (err) {
+        console.error('[Copilot] LLM explanation failed:', err);
+        explanation = generateFallbackExplanation(analysis);
+      }
+
+      return { error: null, analysis, explanation };
+    }),
+
+  /**
+   * Quick ranking only (faster, no LLM call)
+   */
+  quickRanking: protectedProcedure
+    .input(z.object({ portfolioId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) {
+        return { error: 'Portfolio nicht gefunden', rankings: [] };
+      }
+
+      // Parse portfolioData from JSON string
+      let stocks: any[] = [];
+      try {
+        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+        stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+      } catch (e) {
+        stocks = [];
+      }
+      if (stocks.length === 0) {
+        return { error: 'Portfolio enthält keine Aktien', rankings: [] };
+      }
+
+      const totalValue = stocks.reduce((sum: number, s: any) => sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
+
+      const holdings: PortfolioHolding[] = [];
+      const batchSize = 5;
+      
+      for (let i = 0; i < stocks.length; i += batchSize) {
+        const batch = stocks.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (stock: any) => {
+            try {
+              const data = await fetchHoldingData(stock.ticker);
+              const value = (stock.shares || 1) * data.currentPrice;
+              return {
+                ticker: stock.ticker,
+                companyName: stock.companyName || stock.name || stock.ticker,
+                weight: totalValue > 0 ? value / totalValue : 1 / stocks.length,
+                shares: parseFloat(stock.shares || '1'),
+                currentPrice: data.currentPrice,
+                currency: data.currency,
+                sector: data.sector || stock.sector || 'Unknown',
+                prices: data.prices,
+                volumes: data.volumes,
+                fundamentals: data.fundamentals,
+              } as PortfolioHolding;
+            } catch {
+              return null;
+            }
+          })
+        );
+        
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value) {
+            holdings.push(result.value);
+          }
+        }
+        
+        if (i + batchSize < stocks.length) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      const rankings = calculateRankings(holdings);
+      return { error: null, rankings };
+    }),
+});
+
+// ============================================================
+// LLM EXPLANATION GENERATION
+// ============================================================
+
+async function generateCopilotExplanation(analysis: CopilotAnalysis, portfolioName: string): Promise<string> {
+  const { rankings, rebalancingSuggestions, warnings, diversificationScore, portfolioMetrics } = analysis;
+
+  const topRanked = rankings.slice(0, 3).map(r => `${r.companyName} (Score ${r.rankScore}, ${r.signal})`).join(', ');
+  const bottomRanked = rankings.slice(-3).map(r => `${r.companyName} (Score ${r.rankScore}, ${r.signal})`).join(', ');
+  const actionItems = rebalancingSuggestions.filter(s => s.action !== 'hold');
+  const highWarnings = warnings.filter(w => w.severity === 'high');
+
+  const prompt = `Du bist ein erfahrener Portfolio-Analyst. Erstelle eine kurze, prägnante Zusammenfassung (max. 200 Wörter) der folgenden Portfolio-Analyse für "${portfolioName}".
+
+DATEN:
+- Erwartete Rendite: ${(portfolioMetrics.expectedReturn * 100).toFixed(1)}% p.a.
+- Erwartete Volatilität: ${(portfolioMetrics.expectedVolatility * 100).toFixed(1)}% p.a.
+- Sharpe Ratio: ${portfolioMetrics.sharpeRatio}
+- Max Drawdown-Risiko: ${(portfolioMetrics.maxDrawdownRisk * 100).toFixed(1)}%
+- Diversifikations-Score: ${diversificationScore.overall}/100
+
+TOP-POSITIONEN: ${topRanked}
+SCHWÄCHSTE POSITIONEN: ${bottomRanked}
+
+HANDLUNGSEMPFEHLUNGEN: ${actionItems.length} Umschichtungen vorgeschlagen
+${actionItems.slice(0, 5).map(a => `- ${a.companyName}: ${a.action === 'increase' ? 'Aufstocken' : a.action === 'decrease' ? 'Reduzieren' : 'Verkaufen'} (${(a.delta * 100).toFixed(1)}pp)`).join('\n')}
+
+WARNUNGEN: ${highWarnings.length} kritische
+${highWarnings.slice(0, 3).map(w => `- ${w.title}: ${w.description}`).join('\n')}
+
+Schreibe die Zusammenfassung auf Deutsch. Strukturiere sie in: 1) Gesamteinschätzung (1-2 Sätze), 2) Stärken, 3) Schwächen/Risiken, 4) Empfohlene Massnahmen. Verwende keine Markdown-Formatierung, nur Fliesstext mit Absätzen.`;
+
+  const result = await invokeLLM({
+    messages: [
+      { role: 'system', content: 'Du bist ein Schweizer Portfolio-Analyst der prägnante, faktenbasierte Zusammenfassungen schreibt. Antworte immer auf Deutsch.' },
+      { role: 'user', content: prompt },
+    ],
+    maxTokens: 500,
+  });
+
+  const content = result.choices?.[0]?.message?.content;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('');
+  }
+  return generateFallbackExplanation(analysis);
+}
+
+function generateFallbackExplanation(analysis: CopilotAnalysis): string {
+  const { rankings, warnings, diversificationScore, portfolioMetrics } = analysis;
+  
+  const topTickers = rankings.slice(0, 3).map(r => r.companyName).join(', ');
+  const bottomTickers = rankings.slice(-2).map(r => r.companyName).join(', ');
+  const highWarnings = warnings.filter(w => w.severity === 'high');
+
+  let text = `Gesamteinschätzung: Das Portfolio zeigt eine erwartete Rendite von ${(portfolioMetrics.expectedReturn * 100).toFixed(1)}% bei ${(portfolioMetrics.expectedVolatility * 100).toFixed(1)}% Volatilität (Sharpe ${portfolioMetrics.sharpeRatio}). Der Diversifikations-Score liegt bei ${diversificationScore.overall}/100.\n\n`;
+  
+  text += `Stärken: Die Top-Positionen ${topTickers} zeigen starke relative Attraktivität mit hohem Momentum und gutem Chance/Risiko-Verhältnis.\n\n`;
+  
+  if (bottomTickers) {
+    text += `Schwächen: ${bottomTickers} zeigen schwächere relative Performance und könnten von einer Umschichtung profitieren.\n\n`;
+  }
+  
+  if (highWarnings.length > 0) {
+    text += `Risiken: ${highWarnings.map(w => w.title).join('; ')}.\n\n`;
+  }
+  
+  text += `Empfehlung: ${rankings.filter(r => r.signal === 'strong_buy' || r.signal === 'buy').length} Positionen aufstocken, ${rankings.filter(r => r.signal === 'sell' || r.signal === 'strong_sell').length} reduzieren. Max. Drawdown-Risiko: ${(portfolioMetrics.maxDrawdownRisk * 100).toFixed(1)}%.`;
+
+  return text;
+}

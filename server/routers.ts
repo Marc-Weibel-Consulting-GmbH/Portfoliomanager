@@ -39,6 +39,7 @@ import { backtestRouter } from "./routers/backtestRouter";
 import { predictionRouter } from "./routers/predictionRouter";
 import { optimizerRouter } from "./routers/optimizerRouter";
 import { marketRegimeRouter } from "./routers/marketRegimeRouter";
+import { copilotRouter } from "./routers/copilotRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -227,6 +228,7 @@ export const appRouter = router({
   prediction: predictionRouter,
   optimizer: optimizerRouter,
   marketRegime: marketRegimeRouter,
+  copilot: copilotRouter,
 
   // DEBUG: Test endpoint for portfolio creation
   debugTest: debugRouter,
