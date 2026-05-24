@@ -43,34 +43,34 @@ export async function handleWalkForwardWeekly(req: Request, res: Response) {
     });
 
     // Find top performers (consistent top quartile)
-    const topPerformers = results.tickerResults
-      .filter((t: any) => t.avgOosReturn > 0 && t.hitRate > 0.55)
+    const topPerformers = results.topPerformers
+      .filter((t: any) => t.avgOosReturn > 0 && t.consistencyScore > 0.55)
       .sort((a: any, b: any) => b.avgOosReturn - a.avgOosReturn)
       .slice(0, 10);
 
     // Notify owner if there are strong signals
     if (topPerformers.length > 0) {
       const topList = topPerformers
-        .map((t: any) => `• ${t.ticker}: OOS-Return ${(t.avgOosReturn * 100).toFixed(1)}%, Hit Rate ${(t.hitRate * 100).toFixed(0)}%`)
+        .map((t: any) => `• ${t.ticker}: OOS-Return ${(t.avgOosReturn * 100).toFixed(1)}%, Konsistenz ${(t.consistencyScore * 100).toFixed(0)}%`)
         .join('\n');
 
       await notifyOwner({
         title: "🎯 Walk-Forward: Top-Titel der Woche",
         content: `Walk-Forward Validation auf ${tickers.length} Watchlist-Titeln abgeschlossen.\n\n` +
-          `**Gesamt-OOS-Alpha:** ${(results.summary.oosAlpha * 100).toFixed(2)}%\n` +
-          `**OOS Hit Rate:** ${(results.summary.oosHitRate * 100).toFixed(0)}%\n` +
-          `**Overfit Ratio:** ${results.summary.overfitRatio.toFixed(2)}\n\n` +
+          `**Gesamt-OOS-Alpha:** ${(results.oosAlpha * 100).toFixed(2)}%\n` +
+          `**OOS Hit Rate:** ${(results.oosHitRate * 100).toFixed(0)}%\n` +
+          `**Overfit Ratio:** ${results.overfitRatio.toFixed(2)}\n\n` +
           `**Top ${topPerformers.length} Titel:**\n${topList}`,
       });
     }
 
-    console.log(`[Scheduled] Walk-Forward completed: ${results.tickerResults.length} tickers analyzed`);
+    console.log(`[Scheduled] Walk-Forward completed: ${results.topPerformers.length} tickers analyzed`);
     res.json({
       ok: true,
-      tickersAnalyzed: results.tickerResults.length,
+      tickersAnalyzed: results.tickerCount,
       topPerformers: topPerformers.length,
-      oosAlpha: results.summary.oosAlpha,
-      oosHitRate: results.summary.oosHitRate,
+      oosAlpha: results.oosAlpha,
+      oosHitRate: results.oosHitRate,
     });
   } catch (error: any) {
     console.error("[Scheduled] Walk-Forward error:", error);
@@ -118,7 +118,7 @@ export async function handleLPPLMonitoring(req: Request, res: Response) {
     }
 
     // Import LPPL engine
-    const { detectLPPLBubble } = await import("../analytics/lpplsEngine");
+    const { detectBubble } = await import("../analytics/lpplsEngine");
 
     // Check each ticker for bubble signals
     const warnings: { ticker: string; confidence: number; criticalTime: string }[] = [];
@@ -144,14 +144,17 @@ export async function handleLPPLMonitoring(req: Request, res: Response) {
           .filter((q: any) => q.close != null)
           .map((q: any) => q.close);
 
-        // Run LPPL detection
-        const result = detectLPPLBubble(prices);
+        // Run LPPL detection (use last 120 prices for analysis)
+        const analysisWindow = prices.slice(-120);
+        const result = detectBubble({
+          prices: analysisWindow,
+        });
 
-        if (result && result.isBubble && result.confidence > 0.7) {
+        if (result && result.bubbleConfidence > 0.7) {
           warnings.push({
             ticker,
-            confidence: result.confidence,
-            criticalTime: result.criticalTime || 'unknown',
+            confidence: result.bubbleConfidence,
+            criticalTime: result.criticalTime ? new Date(result.criticalTime).toISOString().split('T')[0] : 'unknown',
           });
         }
 
@@ -206,14 +209,12 @@ export async function handleEvaluateRecommendations(req: Request, res: Response)
 
     console.log("[Scheduled] Evaluate recommendations daily job started");
 
-    // Evaluate all pending recommendations
-    const evaluated = await evaluateRecommendations();
-
-    if (evaluated > 0) {
-      console.log(`[Scheduled] Evaluated ${evaluated} past recommendations`);
+        // Evaluate all pending recommendations
+    const evalResult = await evaluateRecommendations();
+    if (evalResult.evaluated > 0) {
+      console.log(`[Scheduled] Evaluated ${evalResult.evaluated} past recommendations`);
     }
-
-    res.json({ ok: true, evaluated });
+    res.json({ ok: true, evaluated: evalResult.evaluated, errors: evalResult.errors });
   } catch (error: any) {
     console.error("[Scheduled] Evaluate recommendations error:", error);
     res.status(500).json({
