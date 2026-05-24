@@ -1952,7 +1952,7 @@ export default function Home() {
                           {(portfolio.avgYtdPerformance || 0) >= 0 ? '+' : ''}{portfolio.avgYtdPerformance?.toFixed(1) || '0.0'}%
                         </p>
                       </div>
-                      {portfolio.isLive && portfolio.liveStartDate && (
+                      {!!portfolio.isLive && portfolio.liveStartDate && (
                         <div>
                           <p className="text-muted-foreground text-sm">Live Performance</p>
                           <p className="text-blue-400 font-semibold text-lg">

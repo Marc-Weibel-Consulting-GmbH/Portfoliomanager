@@ -35,12 +35,11 @@ export async function handleWalkForwardWeekly(req: Request, res: Response) {
 
     // Run walk-forward validation on watchlist universe
     const results = await runWalkForwardValidation({
-      tickers: tickers.slice(0, 100), // Max 100 tickers
-      trainMonths: 6,
-      testMonths: 1,
-      windows: 6,
-      source: 'watchlist',
-    });
+      trainWindowMonths: 6,
+      testWindowMonths: 1,
+      topQuartilePercent: 25,
+      universeSource: 'watchlist',
+    }, -1); // -1 = system/cron user
 
     // Find top performers (consistent top quartile)
     const topPerformers = results.topPerformers

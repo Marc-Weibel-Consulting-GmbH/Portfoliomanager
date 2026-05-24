@@ -65,7 +65,7 @@ export default function PortfolioTransactionsPage() {
               Positionen
             </button>
           </Link>
-          {portfolio.isLive && (
+          {!!portfolio.isLive && (
             <Link href={`/portfolio/${portfolioId}/transactions`}>
               <button className="px-4 py-2 text-[#00CFC1] border-b-2 border-[#00CFC1] font-semibold">
                 Transaktionen

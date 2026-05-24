@@ -128,7 +128,7 @@ export default function PortfolioBuilder() {
                       </div>
 
                       {/* Live Performance */}
-                      {portfolio.isLive && hasLivePerf && (
+                      {!!portfolio.isLive && hasLivePerf && (
                         <div className="pt-4 border-t">
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Live Performance</span>

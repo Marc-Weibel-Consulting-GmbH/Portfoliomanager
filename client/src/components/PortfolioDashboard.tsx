@@ -265,7 +265,7 @@ export default function PortfolioDashboard() {
                     value={portfolio.id.toString()}
                     className="text-white hover:bg-slate-700"
                   >
-                    {portfolio.name} {portfolio.isLive && '(LIVE)'}
+                    {portfolio.name} {!!portfolio.isLive && '(LIVE)'}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -388,7 +388,7 @@ function DashboardLayoutContent({
                                       >
                                         <span className="truncate flex items-center gap-1.5">
                                           {portfolio.name}
-                                          {portfolio.isLive && <span className="text-[9px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1 py-0.5 rounded">Live</span>}
+                                          {!!portfolio.isLive && <span className="text-[9px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1 py-0.5 rounded">Live</span>}
                                         </span>
                                       </SidebarMenuSubButton>
                                     </SidebarMenuSubItem>

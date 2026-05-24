@@ -994,3 +994,13 @@
 - [ ] LPPL-Monitoring Schwellenwert konfigurierbar
   - Benutzer-Einstellung in Monitoring-UI (Slider 50-95%)
   - Backend liest Schwellenwert aus DB statt hardcoded 70%
+
+### isLive "0" Rendering Bug Fix (24.05.2026)
+- [x] Fix isLive tinyint rendering "0" in JSX across all files
+  - DashboardLayout.tsx: !!portfolio.isLive && ...
+  - PortfolioDashboard.tsx: !!portfolio.isLive && '(LIVE)'
+  - Home.tsx: !!portfolio.isLive && portfolio.liveStartDate
+  - PortfolioBuilder.tsx: !!portfolio.isLive && hasLivePerf
+  - PortfolioPositions.tsx: !!portfolio.isLive && (transactions link)
+  - PortfolioTransactionsPage.tsx: !!portfolio.isLive && (transactions tab)
+- [ ] GitHub Push: Alle Änderungen auf GitHub pushen
