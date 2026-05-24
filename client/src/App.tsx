@@ -76,6 +76,8 @@ import SectorHeatmap from "./pages/SectorHeatmap";
 import Prediction from "./pages/Prediction";
 import AdminOptimizer from "./pages/AdminOptimizer";
 import MarketRegime from "./pages/MarketRegime";
+import MarketHeatmap from "./pages/MarketHeatmap";
+import MarketOverview from "./pages/MarketOverview";
 import PortfolioCopilot from "./pages/PortfolioCopilot";
 
 function Router() {
@@ -135,6 +137,8 @@ function Router() {
       <Route path="/technical-analysis" component={TechnicalAnalysis} />
       <Route path="/backtesting" component={Backtesting} />
       <Route path="/sector-heatmap" component={SectorHeatmap} />
+      <Route path="/market-heatmap" component={MarketHeatmap} />
+      <Route path="/market-overview" component={MarketOverview} />
       <Route path="/market-regime" component={MarketRegime} />
       <Route path="/prediction" component={Prediction} />
       <Route path="/copilot" component={PortfolioCopilot} />

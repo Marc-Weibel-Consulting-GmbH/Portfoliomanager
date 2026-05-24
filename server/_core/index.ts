@@ -21,6 +21,8 @@ import { initPriceAlertsCron } from "../cron/priceAlertsCron";
 import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
 import { handleWalkForwardWeekly, handleLPPLMonitoring, handleEvaluateRecommendations } from "../scheduled/copilotScheduled";
+import { handlePriceAlertsCheck } from "../scheduled/priceAlertsScheduled";
+import { handleWeeklyReview } from "../scheduled/weeklyReviewScheduled";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -217,6 +219,8 @@ async function startServer() {
   app.post("/api/scheduled/walkForwardWeekly", handleWalkForwardWeekly);
   app.post("/api/scheduled/lpplMonitoring", handleLPPLMonitoring);
   app.post("/api/scheduled/evaluateRecommendations", handleEvaluateRecommendations);
+  app.post("/api/scheduled/priceAlertsCheck", handlePriceAlertsCheck);
+  app.post("/api/scheduled/weeklyReview", handleWeeklyReview);
 
   // tRPC API
   app.use(

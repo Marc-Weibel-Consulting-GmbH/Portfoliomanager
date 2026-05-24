@@ -1048,3 +1048,13 @@
 - [x] FIX: Terminal Value Spread Minimum 3.5% (verhindert TV-Explosion)
 - [x] FIX: Wachstum decayed linear Richtung Terminal Growth (realistischer)
 - [x] FIX: Sanity Cap bei 2x aktueller Kurs (max +100% Upside)
+
+## OpenStock-inspirierte Features (24.05.2026)
+- [x] TradingView Widget Komponente (generisch, wiederverwendbar)
+- [x] Markt-Heatmap Seite (TradingView Stock Heatmap Widget)
+- [x] Market Overview Widget auf Dashboard
+- [x] TradingView Advanced Chart auf Einzeltitel-Seite
+- [x] TradingView Technical Analysis Widget auf Einzeltitel-Seite
+- [x] TradingView Company Financials Widget auf Einzeltitel-Seite
+- [x] Price Alerts System (DB Schema + Backend Cron + Frontend UI)
+- [x] AI Wochenrückblick (Scheduled LLM Market Summary)

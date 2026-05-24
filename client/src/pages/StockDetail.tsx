@@ -4,9 +4,10 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, TrendingUpIcon, Newspaper } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, TrendingUpIcon, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
 import DashboardLayout from "@/components/DashboardLayout";
+import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
 import {
   ComposedChart,
   Line,
@@ -716,6 +717,12 @@ export default function StockDetail() {
           </div>
         </div>
         
+        {/* TradingView Widgets Section */}
+        <div className="space-y-6">
+          {/* Tab Selector for TradingView Widgets */}
+          <TradingViewSection ticker={ticker} stock={stock} />
+        </div>
+
         {/* Add to Portfolio Dialog */}
         {showAddToPortfolio && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -933,5 +940,111 @@ export default function StockDetail() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+// Helper: Convert EODHD ticker to TradingView symbol
+function toTradingViewSymbol(ticker: string): string {
+  // EODHD format: NESN.SW, SAP.DE, AAPL.US
+  // TradingView format: SIX:NESN, XETR:SAP, NASDAQ:AAPL
+  const parts = ticker.split('.');
+  if (parts.length < 2) return ticker;
+  
+  const symbol = parts[0];
+  const exchange = parts[parts.length - 1];
+  
+  const exchangeMap: Record<string, string> = {
+    'SW': 'SIX',
+    'DE': 'XETR',
+    'US': 'NASDAQ', // Default to NASDAQ for US stocks
+    'LSE': 'LSE',
+    'PA': 'EURONEXT',
+    'AS': 'EURONEXT',
+    'MI': 'MIL',
+    'TO': 'TSX',
+    'HK': 'HKEX',
+  };
+  
+  const tvExchange = exchangeMap[exchange] || exchange;
+  return `${tvExchange}:${symbol}`;
+}
+
+type TVTab = "chart" | "technical" | "financials";
+
+function TradingViewSection({ ticker, stock }: { ticker: string; stock: any }) {
+  const [activeTab, setActiveTab] = useState<TVTab>("chart");
+  const tvSymbol = toTradingViewSymbol(ticker);
+
+  const tabs: { id: TVTab; label: string; icon: any }[] = [
+    { id: "chart", label: "Interaktiver Chart", icon: BarChart3 },
+    { id: "technical", label: "Technische Analyse", icon: Activity },
+    { id: "financials", label: "Finanzkennzahlen", icon: DollarSign },
+  ];
+
+  return (
+    <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+      <CardContent className="p-4">
+        {/* Tab Header */}
+        <div className="flex items-center gap-1 mb-4 border-b border-white/10 pb-3">
+          <span className="text-sm text-gray-400 mr-3">TradingView:</span>
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "chart" && (
+          <TradingViewWidget
+            widgetType="advanced-chart"
+            config={{
+              ...ADVANCED_CHART_CONFIG,
+              symbol: tvSymbol,
+            }}
+            height={500}
+          />
+        )}
+
+        {activeTab === "technical" && (
+          <TradingViewWidget
+            widgetType="technical-analysis"
+            config={{
+              ...TECHNICAL_ANALYSIS_CONFIG,
+              symbol: tvSymbol,
+            }}
+            height={450}
+          />
+        )}
+
+        {activeTab === "financials" && (
+          <TradingViewWidget
+            widgetType="financials"
+            config={{
+              ...COMPANY_FINANCIALS_CONFIG,
+              symbol: tvSymbol,
+            }}
+            height={500}
+          />
+        )}
+
+        {/* Attribution */}
+        <div className="text-xs text-gray-500 mt-3 text-center">
+          Daten und Charts bereitgestellt von TradingView
+        </div>
+      </CardContent>
+    </Card>
   );
 }

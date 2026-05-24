@@ -675,6 +675,21 @@ export const copilotRouter = router({
     .query(() => {
       return KNOWN_BUBBLES;
     }),
+
+  getLatestWeeklyReview: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      try {
+        const [rows] = await (db as any).execute(
+          `SELECT settingValue FROM userSettings WHERE settingKey = 'weeklyReview' LIMIT 1`
+        );
+        if (!rows || rows.length === 0) return null;
+        return JSON.parse(rows[0].settingValue || '{}');
+      } catch {
+        return null;
+      }
+    }),
 });
 
 // ============================================================
