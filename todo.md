@@ -831,6 +831,19 @@
 - [x] Ampel-System (Bullish/Neutral/Bearish) pro Engine
 - [x] Gesamt-Regime-Score mit Aktienquote-Empfehlung und Signal-Multiplikator
 - [x] marketRegimeRouter.ts mit EODHD-basierter Echtzeit-Analyse
-- [ ] Signal-Modell Layer 2 (Einzeltitel): Trend, Fundamental, Momentum, Quality, ML, Bubble
+- [x] Signal-Modell Layer 2 (Einzeltitel): Trend, Fundamental, Momentum, Quality, ML, Bubble
 - [ ] Regime-Multiplikator in Einzeltitel-Signale integrieren
-- [ ] Sektor-Heatmap Seite erstellen
+- [x] Sektor-Heatmap Seite erstellen
+
+### Sektor-Heatmap (24.05.2026)
+- [x] Sektor-Heatmap Seite unter Markt-Regime erstellen
+- [x] Visuelle Heatmap mit Sektor-Performance (1D, 1W, 1M, YTD)
+- [x] Farbcodierung (grün = positiv, rot = negativ, Intensität = Stärke)
+- [ ] Drill-Down: Klick auf Sektor zeigt Top/Flop Aktien
+
+### Signal-Modell Layer 2 (24.05.2026)
+- [x] Quality-Faktor Engine: ROE, Debt/Equity, FCF-Yield
+- [x] Momentum-Faktor Engine: Relative Stärke vs. Sektor, 3M/6M/12M Momentum
+- [x] Neue Faktoren in generateSignal() integrieren
+- [x] WeightConfig um quality und momentum erweitern
+- [x] Optimizer Grid Search mit neuen Gewichten aktualisieren

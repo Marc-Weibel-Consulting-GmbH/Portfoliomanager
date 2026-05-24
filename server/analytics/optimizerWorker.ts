@@ -21,6 +21,8 @@ export interface WeightConfig {
   rf: number;
   sentiment: number;
   bubble: number;
+  quality: number;
+  momentum: number;
 }
 
 export interface OptimizerResult {
@@ -44,16 +46,18 @@ export interface OptimizerResult {
 }
 
 export const DEFAULT_WEIGHTS: WeightConfig = {
-  pe: 0.14,
-  peg: 0.09,
-  rsi: 0.18,
-  macd: 0.09,
-  dividend: 0.09,
-  week52: 0.09,
-  ytd: 0.09,
-  rf: 0.09,
-  sentiment: 0.06,
-  bubble: 0.08,
+  pe: 0.10,
+  peg: 0.07,
+  rsi: 0.14,
+  macd: 0.07,
+  dividend: 0.07,
+  week52: 0.07,
+  ytd: 0.07,
+  rf: 0.08,
+  sentiment: 0.05,
+  bubble: 0.06,
+  quality: 0.12,
+  momentum: 0.10,
 };
 
 /**
@@ -300,16 +304,18 @@ function backtestStock(
  */
 function generateWeightGrid(): WeightConfig[] {
   const combinations: WeightConfig[] = [];
-  const peOptions = [0.08, 0.15, 0.22];
-  const pegOptions = [0.05, 0.12, 0.18];
-  const rsiOptions = [0.10, 0.18, 0.25];
-  const macdOptions = [0.05, 0.12, 0.18];
-  const dividendOptions = [0.05, 0.10, 0.15];
-  const week52Options = [0.05, 0.10, 0.15];
-  const ytdOptions = [0.05, 0.10, 0.15];
-  const rfOptions = [0.08, 0.15, 0.22];
-  const sentimentOptions = [0.03, 0.06, 0.10];
-  const bubbleOptions = [0.0, 0.05, 0.08, 0.12, 0.18];
+  const peOptions = [0.06, 0.10, 0.16];
+  const pegOptions = [0.04, 0.07, 0.12];
+  const rsiOptions = [0.08, 0.14, 0.20];
+  const macdOptions = [0.04, 0.07, 0.12];
+  const dividendOptions = [0.04, 0.07, 0.12];
+  const week52Options = [0.04, 0.07, 0.12];
+  const ytdOptions = [0.04, 0.07, 0.12];
+  const rfOptions = [0.05, 0.08, 0.14];
+  const sentimentOptions = [0.02, 0.05, 0.08];
+  const bubbleOptions = [0.0, 0.04, 0.06, 0.10];
+  const qualityOptions = [0.06, 0.12, 0.18, 0.22];
+  const momentumOptions = [0.05, 0.10, 0.15, 0.20];
 
   const SAMPLE_SIZE = 200;
   for (let i = 0; i < SAMPLE_SIZE; i++) {
@@ -324,6 +330,8 @@ function generateWeightGrid(): WeightConfig[] {
       rf: rfOptions[Math.floor(Math.random() * rfOptions.length)],
       sentiment: sentimentOptions[Math.floor(Math.random() * sentimentOptions.length)],
       bubble: bubbleOptions[Math.floor(Math.random() * bubbleOptions.length)],
+      quality: qualityOptions[Math.floor(Math.random() * qualityOptions.length)],
+      momentum: momentumOptions[Math.floor(Math.random() * momentumOptions.length)],
     });
   }
   combinations.push(DEFAULT_WEIGHTS);
@@ -622,9 +630,15 @@ export async function getActiveWeights(): Promise<WeightConfig> {
 
   try {
     const parsed = JSON.parse(active[0].weights as string);
-    // Ensure backward compatibility: add bubble weight if missing from older optimizations
+    // Ensure backward compatibility: add missing weights from older optimizations
     if (parsed.bubble === undefined) {
       parsed.bubble = DEFAULT_WEIGHTS.bubble;
+    }
+    if (parsed.quality === undefined) {
+      parsed.quality = DEFAULT_WEIGHTS.quality;
+    }
+    if (parsed.momentum === undefined) {
+      parsed.momentum = DEFAULT_WEIGHTS.momentum;
     }
     return parsed as WeightConfig;
   } catch {

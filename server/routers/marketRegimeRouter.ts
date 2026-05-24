@@ -285,7 +285,76 @@ const ENGINE_WEIGHTS = {
   bubble: 0.05,
 };
 
+/**
+ * Sector Performance: Fetch performance data for sector ETFs
+ */
+async function fetchSectorPerformance(): Promise<Array<{
+  sector: string;
+  etf: string;
+  performance1d: number;
+  performance1w: number;
+  performance1m: number;
+  performanceYtd: number;
+  currentPrice: number;
+}>> {
+  const sectorETFs = [
+    { sector: 'Technologie', etf: 'XLK.US' },
+    { sector: 'Gesundheit', etf: 'XLV.US' },
+    { sector: 'Finanzen', etf: 'XLF.US' },
+    { sector: 'Konsumgüter (zyklisch)', etf: 'XLY.US' },
+    { sector: 'Konsumgüter (defensiv)', etf: 'XLP.US' },
+    { sector: 'Industrie', etf: 'XLI.US' },
+    { sector: 'Energie', etf: 'XLE.US' },
+    { sector: 'Versorger', etf: 'XLU.US' },
+    { sector: 'Immobilien', etf: 'XLRE.US' },
+    { sector: 'Materialien', etf: 'XLB.US' },
+    { sector: 'Kommunikation', etf: 'XLC.US' },
+  ];
+
+  const results = await Promise.allSettled(
+    sectorETFs.map(async ({ sector, etf }) => {
+      const prices = await fetchHistoricalPrices(etf, 1);
+      if (!prices || prices.length < 22) {
+        return { sector, etf, performance1d: 0, performance1w: 0, performance1m: 0, performanceYtd: 0, currentPrice: 0 };
+      }
+
+      const closes = prices.map((p: any) => p.close);
+      const current = closes[closes.length - 1];
+      const prev1d = closes.length > 1 ? closes[closes.length - 2] : current;
+      const prev1w = closes.length > 5 ? closes[closes.length - 6] : closes[0];
+      const prev1m = closes.length > 22 ? closes[closes.length - 23] : closes[0];
+      
+      // YTD: find first trading day of current year
+      const now = new Date();
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      let ytdStart = closes[0];
+      for (let i = 0; i < prices.length; i++) {
+        const d = new Date(prices[i].date);
+        if (d >= yearStart) { ytdStart = prices[i].close; break; }
+      }
+
+      return {
+        sector,
+        etf,
+        performance1d: current && prev1d ? ((current - prev1d) / prev1d) * 100 : 0,
+        performance1w: current && prev1w ? ((current - prev1w) / prev1w) * 100 : 0,
+        performance1m: current && prev1m ? ((current - prev1m) / prev1m) * 100 : 0,
+        performanceYtd: current && ytdStart ? ((current - ytdStart) / ytdStart) * 100 : 0,
+        currentPrice: current || 0,
+      };
+    })
+  );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+    .map(r => r.value);
+}
+
 export const marketRegimeRouter = router({
+  sectorPerformance: publicProcedure.query(async () => {
+    return fetchSectorPerformance();
+  }),
+
   getRegime: publicProcedure.query(async () => {
     // Run all engines in parallel
     const [trend, breadth, volatility, liquidity, credit, sentiment, bubble] = await Promise.all([

@@ -16,6 +16,7 @@ import { randomForestSignal } from '../analytics/mlEngine';
 import { analyzeSentiment, sentimentToSignalScore } from '../analytics/sentimentEngine';
 import { getActiveWeights, type WeightConfig } from '../analytics/optimizerWorker';
 import { detectBubble } from '../analytics/lpplsEngine';
+import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
 
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
@@ -45,6 +46,10 @@ interface Signal {
   sentimentLabel?: string;
   bubbleScore?: number;
   bubbleRegime?: string;
+  qualityGrade?: string;
+  qualityScore?: number;
+  momentumGrade?: string;
+  momentumScore?: number;
 }
 
 /**
@@ -68,6 +73,10 @@ async function fetchLiveData(ticker: string): Promise<{
   ytdPerformance: number;
   rsi14: number | null;
   companyName: string;
+  roe: number | null;
+  debtToEquity: number | null;
+  fcfYield: number | null;
+  grossMargin: number | null;
 }> {
   const normalizedTicker = normalizeTicker(ticker);
   
@@ -80,6 +89,10 @@ async function fetchLiveData(ticker: string): Promise<{
   let ytdPerformance = 0;
   let rsi14: number | null = null;
   let companyName = ticker;
+  let roe: number | null = null;
+  let debtToEquity: number | null = null;
+  let fcfYield: number | null = null;
+  let grossMargin: number | null = null;
 
   try {
     // Fetch quoteSummary for fundamentals
@@ -101,6 +114,14 @@ async function fetchLiveData(ticker: string): Promise<{
     fiftyTwoWeekHigh = sd?.fiftyTwoWeekHigh ?? null;
     fiftyTwoWeekLow = sd?.fiftyTwoWeekLow ?? null;
     companyName = price?.longName ?? price?.shortName ?? ticker;
+
+    // Quality metrics extraction
+    roe = fd?.returnOnEquity ? fd.returnOnEquity * 100 : null;
+    debtToEquity = fd?.debtToEquity ? fd.debtToEquity / 100 : null;
+    grossMargin = fd?.grossMargins ? fd.grossMargins * 100 : null;
+    if (fd?.freeCashflow && ks?.marketCap) {
+      fcfYield = (fd.freeCashflow / ks.marketCap) * 100;
+    }
   } catch (err) {
     console.warn(`[Signals] quoteSummary failed for ${normalizedTicker}:`, (err as Error).message);
   }
@@ -147,6 +168,10 @@ async function fetchLiveData(ticker: string): Promise<{
     ytdPerformance,
     rsi14,
     companyName,
+    roe,
+    debtToEquity,
+    fcfYield,
+    grossMargin,
   };
 }
 
@@ -436,6 +461,22 @@ async function enhanceSignalWithML(
     // Bubble analysis failed silently
   }
 
+  // Momentum Factor analysis
+  try {
+    if (prices.length >= 60) {
+      const momentumResult = calculateMomentumScore({ prices });
+      signal.momentumScore = momentumResult.score;
+      signal.momentumGrade = momentumResult.grade;
+      if (momentumResult.trend === 'strong_up') {
+        signal.criteria.push(`Momentum: Stark aufwärts (Score ${(momentumResult.score * 100).toFixed(0)}%)`);
+      } else if (momentumResult.trend === 'strong_down') {
+        signal.criteria.push(`Momentum: Stark abwärts (Score ${(momentumResult.score * 100).toFixed(0)}%)`);
+      }
+    }
+  } catch (e) {
+    // Momentum analysis failed silently
+  }
+
   // Sentiment analysis (only for first 5 stocks to avoid rate limiting)
   try {
     const sentiment = await analyzeSentiment(signal.ticker, signal.companyName);
@@ -548,6 +589,27 @@ export const signalsRouter = router({
           }, optimizedWeights);
         }
 
+        // Quality Factor scoring (uses data already fetched from Yahoo)
+        if (liveData) {
+          try {
+            const qualityResult = calculateQualityScore({
+              roe: liveData.roe,
+              debtToEquity: liveData.debtToEquity,
+              fcfYield: liveData.fcfYield,
+              grossMargin: liveData.grossMargin,
+            });
+            signal.qualityGrade = qualityResult.grade;
+            signal.qualityScore = qualityResult.score;
+            if (qualityResult.grade === 'A') {
+              signal.criteria.push(`Quality: ${qualityResult.grade} (ROE ${liveData.roe?.toFixed(1) ?? 'N/A'}%, D/E ${liveData.debtToEquity?.toFixed(2) ?? 'N/A'})`);
+            } else if (qualityResult.grade === 'F') {
+              signal.criteria.push(`Quality: ${qualityResult.grade} - Schwache Fundamentaldaten`);
+            }
+          } catch (e) {
+            // Quality scoring failed silently
+          }
+        }
+
         // Enhance with ML (RF + Sentiment) - fetch chart data for RF
         try {
           const normalizedTicker = normalizeTicker(stock.ticker);
@@ -578,6 +640,21 @@ export const signalsRouter = router({
               if (rf.signal === 'strong_buy' || rf.signal === 'strong_sell') {
                 signal.criteria.push(`RF: ${rf.signal === 'strong_buy' ? 'Starkes Kaufsignal' : 'Starkes Verkaufssignal'} (Score ${rf.score})`);
               }
+            }
+          }
+          // Momentum Factor scoring (uses prices already fetched for chart)
+          if (prices.length >= 60) {
+            try {
+              const momentumResult = calculateMomentumScore(prices);
+              signal.momentumGrade = momentumResult.grade;
+              signal.momentumScore = momentumResult.score;
+              if (momentumResult.grade === 'A') {
+                signal.criteria.push(`Momentum: ${momentumResult.grade} (Rel. Stärke ${momentumResult.score.toFixed(0)})`);
+              } else if (momentumResult.grade === 'F') {
+                signal.criteria.push(`Momentum: ${momentumResult.grade} - Schwaches Momentum`);
+              }
+            } catch (e) {
+              // Momentum scoring failed silently
             }
           }
         } catch (e) {
