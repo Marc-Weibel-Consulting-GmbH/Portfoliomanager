@@ -486,7 +486,7 @@ export default function RiskDashboard() {
 
               {/* Risikoscore-Entwicklung Timeline */}
               <RiskScoreTimeline
-                data={riskScoreHistory ?? []}
+                data={(riskScoreHistory ?? []) as any}
                 isLoading={historyLoading}
               />
 
