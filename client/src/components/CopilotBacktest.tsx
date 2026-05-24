@@ -20,10 +20,11 @@ interface CopilotBacktestProps {
 export default function CopilotBacktest({ portfolioId }: CopilotBacktestProps) {
   const [months, setMonths] = useState(12);
   const [tradingCostBps, setTradingCostBps] = useState(10);
+  const [maxTurnover, setMaxTurnover] = useState(0.30);
   const [runBacktest, setRunBacktest] = useState(false);
 
   const { data, isLoading, error } = trpc.copilot.backtest.useQuery(
-    { portfolioId, months, tradingCostBps },
+    { portfolioId, months, tradingCostBps, maxTurnoverPerMonth: maxTurnover },
     { enabled: runBacktest, staleTime: 5 * 60 * 1000 }
   );
 
@@ -57,6 +58,8 @@ export default function CopilotBacktest({ portfolioId }: CopilotBacktestProps) {
                   <SelectItem value="9">9 Monate</SelectItem>
                   <SelectItem value="12">12 Monate</SelectItem>
                   <SelectItem value="18">18 Monate</SelectItem>
+                  <SelectItem value="24">2 Jahre</SelectItem>
+                  <SelectItem value="36">3 Jahre</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -72,6 +75,21 @@ export default function CopilotBacktest({ portfolioId }: CopilotBacktestProps) {
                   <SelectItem value="10">10 bps</SelectItem>
                   <SelectItem value="20">20 bps</SelectItem>
                   <SelectItem value="50">50 bps</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Max. Turnover/Monat</label>
+              <Select value={String(maxTurnover)} onValueChange={(v) => { setMaxTurnover(Number(v)); setRunBacktest(false); }}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.10">10%</SelectItem>
+                  <SelectItem value="0.20">20%</SelectItem>
+                  <SelectItem value="0.30">30%</SelectItem>
+                  <SelectItem value="0.50">50%</SelectItem>
+                  <SelectItem value="1.00">100% (unbegrenzt)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

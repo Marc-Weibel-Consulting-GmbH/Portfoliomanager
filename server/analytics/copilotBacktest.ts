@@ -26,6 +26,7 @@ export interface BacktestConfig {
   tradingCostBps: number;   // Trading cost per trade in basis points (default: 10)
   maxPositionSize: number;  // Max weight per position (default: 0.20)
   minPositionSize: number;  // Min weight per position (default: 0.03)
+  maxTurnoverPerMonth: number; // Max turnover per rebalancing (default: 0.30 = 30%)
 }
 
 export interface MonthlySnapshot {
@@ -79,6 +80,7 @@ const DEFAULT_CONFIG: BacktestConfig = {
   tradingCostBps: 10,
   maxPositionSize: 0.20,
   minPositionSize: 0.03,
+  maxTurnoverPerMonth: 0.30,
 };
 
 // ============================================================
@@ -157,8 +159,8 @@ export function runCopilotBacktest(
     const holdings = buildHoldingsAtDate(allPrices, validTickers, allDates, startIdx, cfg.lookbackDays, copilotWeights);
     const rankings = calculateRankings(holdings);
     
-    // 2. Calculate new target weights from rankings
-    const newWeights = calculateTargetWeights(rankings, validTickers, cfg);
+    // 2. Calculate new target weights from rankings (with turnover constraint)
+    const newWeights = calculateTargetWeights(rankings, validTickers, cfg, copilotWeights);
     
     // 3. Calculate turnover and trading costs
     const turnover = calculateTurnover(copilotWeights, newWeights, validTickers);
@@ -344,7 +346,8 @@ function buildHoldingsAtDate(
 function calculateTargetWeights(
   rankings: RankingResult[],
   tickers: string[],
-  cfg: BacktestConfig
+  cfg: BacktestConfig,
+  currentWeights: Map<string, number>
 ): Map<string, number> {
   const weights = new Map<string, number>();
   
@@ -354,21 +357,47 @@ function calculateTargetWeights(
     return weights;
   }
 
-  // Score-weighted allocation
+  // Score-weighted allocation (unconstrained target)
   const totalScore = rankings.reduce((sum, r) => sum + Math.max(r.rankScore, 10), 0);
   
   for (const r of rankings) {
     let w = Math.max(r.rankScore, 10) / totalScore;
-    // Apply constraints
+    // Apply position size constraints
     w = Math.max(cfg.minPositionSize, Math.min(cfg.maxPositionSize, w));
     weights.set(r.ticker, w);
   }
   
   // Normalize to sum to 1
-  const total = [...weights.values()].reduce((sum, w) => sum + w, 0);
+  let total = [...weights.values()].reduce((sum, w) => sum + w, 0);
   if (total > 0) {
     for (const [t, w] of weights) {
       weights.set(t, w / total);
+    }
+  }
+
+  // Apply turnover constraint: limit total weight change per month
+  const maxTurnover = cfg.maxTurnoverPerMonth;
+  let proposedTurnover = 0;
+  for (const t of tickers) {
+    proposedTurnover += Math.abs((weights.get(t) || 0) - (currentWeights.get(t) || 0));
+  }
+
+  if (proposedTurnover > maxTurnover && proposedTurnover > 0) {
+    // Scale down the changes proportionally
+    const scaleFactor = maxTurnover / proposedTurnover;
+    for (const t of tickers) {
+      const currentW = currentWeights.get(t) || 0;
+      const targetW = weights.get(t) || 0;
+      const delta = targetW - currentW;
+      const constrainedW = currentW + delta * scaleFactor;
+      weights.set(t, Math.max(0, constrainedW));
+    }
+    // Re-normalize after constraint
+    total = [...weights.values()].reduce((sum, w) => sum + w, 0);
+    if (total > 0) {
+      for (const [t, w] of weights) {
+        weights.set(t, w / total);
+      }
     }
   }
   

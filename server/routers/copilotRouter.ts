@@ -259,8 +259,9 @@ export const copilotRouter = router({
   backtest: protectedProcedure
     .input(z.object({
       portfolioId: z.number(),
-      months: z.number().min(3).max(24).optional().default(12),
+      months: z.number().min(3).max(36).optional().default(12),
       tradingCostBps: z.number().min(0).max(100).optional().default(10),
+      maxTurnoverPerMonth: z.number().min(0.05).max(2).optional().default(0.30),
     }))
     .query(async ({ ctx, input }) => {
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
@@ -345,6 +346,7 @@ export const copilotRouter = router({
         const backtestResult = runCopilotBacktest(allPrices, tickers, {
           months: input.months,
           tradingCostBps: input.tradingCostBps,
+          maxTurnoverPerMonth: input.maxTurnoverPerMonth,
         });
         return { error: null, result: backtestResult };
       } catch (err: any) {

@@ -235,16 +235,46 @@ export function calculateRankings(holdings: PortfolioHolding[]): RankingResult[]
   const normDD = normalize(rawScores.map(s => s.maxDD), false); // lower is better
   const normFundamental = normalize(rawScores.map(s => s.fundamentalScore));
 
-  // Composite score: weighted combination
+  // Detect market regime from portfolio average momentum
+  const avgMomentum = ss.mean(rawScores.map(s => s.momentum));
+  const isBullRegime = avgMomentum > 0.02; // >2% avg momentum = bull
+  const isBearRegime = avgMomentum < -0.05; // <-5% avg momentum = bear
+
+  // Composite score: weighted combination with regime-adaptive weights
+  // Bull: favor momentum & RF signals (aggressive)
+  // Bear: favor low volatility, low drawdown, fundamentals (defensive)
   const compositeScores = rawScores.map((_, i) => {
-    return (
-      normMomentum[i] * 0.25 +
-      normSharpe[i] * 0.20 +
-      normRF[i] * 0.20 +
-      normVol[i] * 0.10 +
-      normDD[i] * 0.10 +
-      normFundamental[i] * 0.15
-    );
+    if (isBearRegime) {
+      // Defensive: prioritize safety
+      return (
+        normMomentum[i] * 0.15 +
+        normSharpe[i] * 0.15 +
+        normRF[i] * 0.15 +
+        normVol[i] * 0.20 +
+        normDD[i] * 0.15 +
+        normFundamental[i] * 0.20
+      );
+    } else if (isBullRegime) {
+      // Aggressive: prioritize momentum & ML
+      return (
+        normMomentum[i] * 0.35 +
+        normSharpe[i] * 0.20 +
+        normRF[i] * 0.25 +
+        normVol[i] * 0.05 +
+        normDD[i] * 0.05 +
+        normFundamental[i] * 0.10
+      );
+    } else {
+      // Neutral: balanced with momentum tilt
+      return (
+        normMomentum[i] * 0.30 +
+        normSharpe[i] * 0.20 +
+        normRF[i] * 0.20 +
+        normVol[i] * 0.10 +
+        normDD[i] * 0.05 +
+        normFundamental[i] * 0.15
+      );
+    }
   });
 
   // Calculate outperformance probability based on composite score distribution

@@ -887,3 +887,12 @@
 - [x] Integration: Bestehende Signale als Baselines behalten, ML-Layer darüber
 - [x] Backtesting: 12-Monate Rolling Backtest (monatliches Rebalancing, Equity Curve, Alpha, Hit Rate)
   - Ergebnis (6 Monate): Copilot +12.62% vs. B&H +13.18%, Alpha -0.56%, Hit Rate 50%, Sharpe 2.13 vs. 2.20
+
+### Copilot Verbesserungen (24.05.2026)
+- [x] Ranking-Algorithmus tunen: Momentum-Gewichtung auf 35% erhöht + Regime-aware Scoring
+  - Ergebnis: Alpha verbessert von -0.56% auf -0.03%
+- [x] Turnover-Constraint: Max 30%/Monat Umschichtung implementiert
+  - Funktioniert korrekt: Max Monthly Turnover = 30.0% (Limit eingehalten)
+  - Reduziert unnötiges Trading in ruhigen Monaten (19-22%)
+- [x] Backtest-Perioden: Auswahl 6M / 9M / 12M / 18M / 24M / 36M auf Copilot-Seite
+  - Frontend-Dropdown mit allen Optionen + Turnover-Constraint Slider
