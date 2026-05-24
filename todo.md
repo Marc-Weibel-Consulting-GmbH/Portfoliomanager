@@ -1010,3 +1010,8 @@
 - [x] Walk-Forward: SelectItem value="" crash fix (empty string not allowed in Radix Select)
 - [x] LPPL Backtest: Cannot read properties of undefined (reading 'map') crash fix
 - [x] Invest.tsx: SelectItem value="" crash fix (same Radix issue)
+
+### Risikokennzahlen Synchronisierung (24.05.2026)
+- [x] Markt-Regime: "Risikometriken"-Tab entfernt, nur noch Einzeltitel + Weitere Tools
+- [x] Portfolio Copilot: Verwendet jetzt calcRiskMetrics aus engine.ts (gleiche Logik wie Risiko-Analyse)
+- [x] Signal Auto-Optimizer: Fortschrittsbalken mit Phasen-Erkennung und Prozentanzeige hinzugefügt

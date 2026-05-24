@@ -265,7 +265,7 @@ export default function RiskDashboard() {
               <div className="flex items-center gap-2 text-yellow-400 text-sm">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>
-                  Der Analytics-Service ist nicht erreichbar. Bitte stellen Sie sicher, dass der Python-Microservice läuft.
+                  Der Analytics-Service ist nicht erreichbar. Bitte melden Sie sich an, um die Risikoanalyse zu nutzen.
                 </span>
               </div>
             </CardContent>

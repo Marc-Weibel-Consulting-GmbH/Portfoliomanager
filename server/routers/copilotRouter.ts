@@ -20,6 +20,7 @@ import { runCopilotBacktest } from '../analytics/copilotBacktest';
 import { runWalkForwardValidation, getWalkForwardHistory, screenStocksFromEODHD, getWatchlistTickers } from '../analytics/walkForwardEngine';
 import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHistoryStats, evaluateRecommendations, markRecommendationAsApplied } from '../analytics/copilotHistory';
 import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES } from '../analytics/lpplBacktest';
+import { calcRiskMetrics } from '../analytics/engine';
 import YahooFinance from 'yahoo-finance2';
 
 const yf = new YahooFinance();
@@ -174,6 +175,29 @@ export const copilotRouter = router({
 
       // Run copilot analysis
       const analysis = runCopilotAnalysis(holdings);
+
+      // Override portfolioMetrics with the canonical calcRiskMetrics from analytics engine
+      // This ensures consistency with the Risiko-Analyse page
+      try {
+        const holdingsForRisk = holdings
+          .filter(h => h.ticker && h.weight > 0)
+          .map(h => ({ ticker: h.ticker, weight: h.weight, currency: h.currency || 'USD' }));
+        
+        if (holdingsForRisk.length > 0) {
+          const riskResult = await calcRiskMetrics({ holdings: holdingsForRisk, benchmark: 'SPY', lookbackDays: 252 });
+          if (riskResult?.portfolio) {
+            analysis.portfolioMetrics = {
+              expectedReturn: riskResult.portfolio.annualReturn / 100, // convert from % to decimal
+              expectedVolatility: riskResult.portfolio.volatility / 100, // convert from % to decimal
+              sharpeRatio: riskResult.portfolio.sharpeRatio,
+              maxDrawdownRisk: Math.abs(riskResult.portfolio.maxDrawdown) / 100, // convert from % to decimal
+            };
+          }
+        }
+      } catch (riskErr) {
+        console.warn('[Copilot] calcRiskMetrics failed, using internal metrics:', riskErr);
+        // Keep the original portfolioMetrics from runCopilotAnalysis as fallback
+      }
 
       // Generate LLM explanation
       let explanation: string | null = null;

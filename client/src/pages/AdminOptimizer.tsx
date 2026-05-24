@@ -111,6 +111,53 @@ export default function AdminOptimizer() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Progress Bar */}
+              {status.isRunning && (() => {
+                // Parse progress from messages to estimate completion
+                const msgs = status.progress || [];
+                let phase = 0; // 0=loading, 1=pass1, 2=pass2, 3=pass3, 4=walkforward
+                let gridProgress = 0;
+                for (const msg of msgs) {
+                  if (msg.includes('Pass 1:')) phase = 1;
+                  if (msg.includes('Pass 2:') || msg.includes('Grid Search')) phase = 2;
+                  if (msg.includes('Pass 3:')) phase = 3;
+                  if (msg.includes('Walk-Forward')) phase = 4;
+                  // Parse grid search percentage
+                  const gridMatch = msg.match(/Grid Search Fortschritt: \d+\/\d+ \((\d+)%\)/);
+                  if (gridMatch) gridProgress = parseInt(gridMatch[1]);
+                }
+                // Estimate total progress: loading=10%, pass1=20%, pass2=50%, pass3=10%, walkforward=10%
+                let totalProgress = 0;
+                if (phase === 0) {
+                  // Loading data phase - estimate from "Preisdaten geladen" messages
+                  const loadMatch = msgs.filter(m => m.includes('Preisdaten geladen'));
+                  totalProgress = loadMatch.length > 0 ? Math.min(10, loadMatch.length * 2) : 2;
+                } else if (phase === 1) {
+                  totalProgress = 15;
+                } else if (phase === 2) {
+                  totalProgress = 20 + (gridProgress * 0.5); // 20-70%
+                } else if (phase === 3) {
+                  totalProgress = 75;
+                } else if (phase === 4) {
+                  totalProgress = 90;
+                }
+                const pct = Math.min(95, Math.max(2, totalProgress));
+                const phaseLabels = ['Daten laden...', 'Pass 1: Lookforward optimieren', 'Pass 2: Grid Search', 'Pass 3: Feinabstimmung', 'Walk-Forward Validierung'];
+                return (
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>{phaseLabels[phase]}</span>
+                      <span>{Math.round(pct)}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-yellow-500 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="bg-black/50 rounded p-3 max-h-48 overflow-y-auto font-mono text-xs text-green-400">
                 {status.progress?.slice(-15).map((msg, i) => (
                   <div key={i}>{msg}</div>
