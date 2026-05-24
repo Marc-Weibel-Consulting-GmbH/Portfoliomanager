@@ -16,6 +16,7 @@ import {
   type PortfolioHolding,
   type CopilotAnalysis,
 } from '../analytics/portfolioCopilot';
+import { runCopilotBacktest } from '../analytics/copilotBacktest';
 import YahooFinance from 'yahoo-finance2';
 
 const yf = new YahooFinance();
@@ -249,6 +250,106 @@ export const copilotRouter = router({
 
       const rankings = calculateRankings(holdings);
       return { error: null, rankings };
+    }),
+
+  /**
+   * Backtest: Simulate copilot rebalancing over the past 12 months
+   * and compare performance vs. buy-and-hold
+   */
+  backtest: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number(),
+      months: z.number().min(3).max(24).optional().default(12),
+      tradingCostBps: z.number().min(0).max(100).optional().default(10),
+    }))
+    .query(async ({ ctx, input }) => {
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) {
+        return { error: 'Portfolio nicht gefunden', result: null };
+      }
+
+      // Parse portfolio stocks
+      let stocks: any[] = [];
+      try {
+        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+        stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+      } catch (e) {
+        stocks = [];
+      }
+      if (stocks.length < 2) {
+        return { error: 'Portfolio benötigt mindestens 2 Aktien für den Backtest', result: null };
+      }
+
+      const tickers = stocks.map((s: any) => s.ticker as string);
+
+      // Fetch 18 months of historical daily prices for all tickers
+      const totalDaysNeeded = (input.months + 6) * 22; // ~18 months of trading days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - (input.months + 7)); // Extra buffer
+
+      const allPrices = new Map<string, Array<{ date: string; close: number }>>();
+
+      // Fetch in batches of 5
+      const batchSize = 5;
+      for (let i = 0; i < tickers.length; i += batchSize) {
+        const batch = tickers.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (ticker) => {
+            const yahooTicker = normalizeForYahoo(ticker);
+            let resolvedTicker = yahooTicker;
+            let chart: any;
+
+            try {
+              chart = await (yf as any).chart(resolvedTicker, {
+                period1: startDate.toISOString().split('T')[0],
+                period2: endDate.toISOString().split('T')[0],
+                interval: '1d',
+              });
+            } catch {
+              // Try with .SW suffix for Swiss stocks
+              if (!resolvedTicker.includes('.')) {
+                resolvedTicker = resolvedTicker + '.SW';
+                chart = await (yf as any).chart(resolvedTicker, {
+                  period1: startDate.toISOString().split('T')[0],
+                  period2: endDate.toISOString().split('T')[0],
+                  interval: '1d',
+                });
+              }
+            }
+
+            const quotes = chart?.quotes?.filter((q: any) => q.close != null && q.date) || [];
+            const priceData = quotes.map((q: any) => ({
+              date: new Date(q.date).toISOString().split('T')[0],
+              close: q.close as number,
+            }));
+
+            return { ticker, priceData };
+          })
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.priceData.length > 0) {
+            allPrices.set(result.value.ticker, result.value.priceData);
+          }
+        }
+
+        // Small delay between batches
+        if (i + batchSize < tickers.length) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+
+      // Run backtest
+      try {
+        const backtestResult = runCopilotBacktest(allPrices, tickers, {
+          months: input.months,
+          tradingCostBps: input.tradingCostBps,
+        });
+        return { error: null, result: backtestResult };
+      } catch (err: any) {
+        return { error: err.message || 'Backtest fehlgeschlagen', result: null };
+      }
     }),
 });
 

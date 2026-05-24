@@ -885,3 +885,5 @@
 - [x] Backend: Explainable AI Textgenerierung (LLM: "Warum?" pro Empfehlung)
 - [x] Frontend: Portfolio Copilot Seite (Ranking-Tabelle, Aktionen, Warnungen, Diversifikations-Score)
 - [x] Integration: Bestehende Signale als Baselines behalten, ML-Layer darüber
+- [x] Backtesting: 12-Monate Rolling Backtest (monatliches Rebalancing, Equity Curve, Alpha, Hit Rate)
+  - Ergebnis (6 Monate): Copilot +12.62% vs. B&H +13.18%, Alpha -0.56%, Hit Rate 50%, Sharpe 2.13 vs. 2.20

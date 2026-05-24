@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
+import CopilotBacktest from '@/components/CopilotBacktest';
 import { useAuth } from '@/_core/hooks/useAuth';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -381,6 +382,9 @@ export default function PortfolioCopilot() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Backtest Section */}
+            <CopilotBacktest portfolioId={selectedPortfolioId!} />
           </>
         )}
       </div>
