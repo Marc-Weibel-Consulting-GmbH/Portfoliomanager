@@ -8,20 +8,29 @@
  * - 2021-2022 Tech Bubble
  * 
  * Uses Yahoo Finance for long-term historical data since EODHD only has recent data.
+ * 
+ * The LPPL model: ln(p(t)) = A + B*(tc-t)^m + C1*(tc-t)^m * cos(omega*ln(tc-t)) + C2*(tc-t)^m * sin(omega*ln(tc-t))
+ * 
+ * Key insight: For fixed nonlinear params (tc, m, omega), the model is LINEAR in (A, B, C1, C2).
+ * We grid-search over (tc, m, omega) and solve the linear part via OLS.
  */
 
-import yahooFinance from 'yahoo-finance2';
+import YahooFinanceClass from 'yahoo-finance2';
+// yahoo-finance2 v3: default export is a constructor class
+const yahooFinance = new (YahooFinanceClass as any)();
 
 // ============ TYPES ============
 
 export interface LPPLParams {
   tc: number; // Critical time (predicted crash date)
   m: number; // Power law exponent (0.1 < m < 0.9)
-  omega: number; // Log-periodic frequency (4 < omega < 25)
-  A: number; // Price at critical time
-  B: number; // Amplitude of power law
-  C: number; // Amplitude of oscillation
-  phi: number; // Phase of oscillation
+  omega: number; // Log-periodic frequency (4 < 25)
+  A: number; // Log-price at critical time
+  B: number; // Amplitude of power law (must be negative for bubble)
+  C1: number; // Cosine amplitude of oscillation
+  C2: number; // Sine amplitude of oscillation
+  C: number; // Combined oscillation amplitude sqrt(C1^2 + C2^2)
+  phi: number; // Phase of oscillation atan2(C2, C1)
 }
 
 export interface LPPLSignal {
@@ -139,136 +148,315 @@ async function fetchYahooHistorical(
   }
 }
 
-// ============ LPPL MODEL ============
+// ============ LINEAR ALGEBRA HELPERS ============
 
 /**
- * LPPL model function: ln(p(t)) = A + B*(tc-t)^m + C*(tc-t)^m * cos(omega*ln(tc-t) + phi)
+ * Solve linear system Ax = b using QR decomposition (Gram-Schmidt)
+ * Returns x or null if system is singular
  */
-function lpplModel(t: number, params: LPPLParams): number {
-  const dt = params.tc - t;
-  if (dt <= 0) return params.A;
+function solveLinearSystem(A: number[][], b: number[]): number[] | null {
+  const m = A.length; // rows
+  const n = A[0].length; // cols
   
-  const powerTerm = Math.pow(dt, params.m);
-  const oscillation = Math.cos(params.omega * Math.log(dt) + params.phi);
+  if (m < n) return null;
   
-  return params.A + params.B * powerTerm + params.C * powerTerm * oscillation;
+  // Compute A^T * A and A^T * b (normal equations)
+  const ATA: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+  const ATb: number[] = Array(n).fill(0);
+  
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      let sum = 0;
+      for (let k = 0; k < m; k++) {
+        sum += A[k][i] * A[k][j];
+      }
+      ATA[i][j] = sum;
+    }
+    let sum = 0;
+    for (let k = 0; k < m; k++) {
+      sum += A[k][i] * b[k];
+    }
+    ATb[i] = sum;
+  }
+  
+  // Solve using Gaussian elimination with partial pivoting
+  const augmented = ATA.map((row, i) => [...row, ATb[i]]);
+  
+  for (let col = 0; col < n; col++) {
+    // Find pivot
+    let maxVal = Math.abs(augmented[col][col]);
+    let maxRow = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(augmented[row][col]) > maxVal) {
+        maxVal = Math.abs(augmented[row][col]);
+        maxRow = row;
+      }
+    }
+    
+    if (maxVal < 1e-12) return null; // Singular
+    
+    // Swap rows
+    if (maxRow !== col) {
+      [augmented[col], augmented[maxRow]] = [augmented[maxRow], augmented[col]];
+    }
+    
+    // Eliminate below
+    for (let row = col + 1; row < n; row++) {
+      const factor = augmented[row][col] / augmented[col][col];
+      for (let j = col; j <= n; j++) {
+        augmented[row][j] -= factor * augmented[col][j];
+      }
+    }
+  }
+  
+  // Back substitution
+  const x = Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = augmented[i][n];
+    for (let j = i + 1; j < n; j++) {
+      sum -= augmented[i][j] * x[j];
+    }
+    x[i] = sum / augmented[i][i];
+  }
+  
+  return x;
+}
+
+// ============ LPPL FITTING ============
+
+interface FitResult {
+  params: LPPLParams;
+  residual: number; // normalized sum of squared residuals
+  r2: number; // R-squared
 }
 
 /**
- * Simplified LPPL fitting using grid search + Nelder-Mead-like optimization
- * (Full implementation would use scipy-like optimization, but this is a good approximation)
+ * For fixed (tc, m, omega), solve for (A, B, C1, C2) via OLS.
+ * 
+ * Model: y_i = A + B * f_i + C1 * g_i + C2 * h_i
+ * where:
+ *   y_i = ln(price_i)
+ *   f_i = (tc - t_i)^m
+ *   g_i = (tc - t_i)^m * cos(omega * ln(tc - t_i))
+ *   h_i = (tc - t_i)^m * sin(omega * ln(tc - t_i))
  */
-function fitLPPL(
-  prices: HistoricalPrice[],
-  windowSize: number = 120 // ~6 months of trading days
-): LPPLParams | null {
-  if (prices.length < windowSize) return null;
-  
-  const window = prices.slice(-windowSize);
-  const logPrices = window.map(p => Math.log(p.close));
+function fitLPPLLinear(
+  logPrices: number[],
+  times: number[], // normalized [0, 1]
+  tc: number,
+  m: number,
+  omega: number
+): FitResult | null {
   const n = logPrices.length;
   
-  // Normalize time to [0, 1]
-  const times = Array.from({ length: n }, (_, i) => i / n);
+  // Build design matrix
+  const designMatrix: number[][] = [];
+  const validIndices: number[] = [];
   
-  let bestParams: LPPLParams | null = null;
-  let bestError = Infinity;
+  for (let i = 0; i < n; i++) {
+    const dt = tc - times[i];
+    if (dt <= 0.001) continue; // Skip points too close to tc
+    
+    const dtm = Math.pow(dt, m);
+    const logDt = Math.log(dt);
+    const fi = dtm;
+    const gi = dtm * Math.cos(omega * logDt);
+    const hi = dtm * Math.sin(omega * logDt);
+    
+    designMatrix.push([1, fi, gi, hi]);
+    validIndices.push(i);
+  }
   
-  // Grid search over critical parameters
-  const tcRange = [1.01, 1.05, 1.1, 1.15, 1.2, 1.3, 1.5];
-  const mRange = [0.2, 0.33, 0.5, 0.66, 0.8];
-  const omegaRange = [5, 7, 9, 11, 13, 15, 18];
+  if (validIndices.length < 20) return null; // Need enough points
   
-  for (const tc of tcRange) {
-    for (const m of mRange) {
-      for (const omega of omegaRange) {
-        // For each (tc, m, omega), solve for A, B, C, phi using least squares
-        // Simplified: use linear regression on the power law part
-        
-        const dt = times.map(t => tc - t).filter(d => d > 0);
-        if (dt.length < n * 0.8) continue;
-        
-        const powerTerms = dt.map(d => Math.pow(d, m));
-        const cosTerms = dt.map(d => Math.pow(d, m) * Math.cos(omega * Math.log(d)));
-        const sinTerms = dt.map(d => Math.pow(d, m) * Math.sin(omega * Math.log(d)));
-        
-        // Simple linear regression: logP = A + B*powerTerm + C1*cosTerm + C2*sinTerm
-        const validN = dt.length;
-        const y = logPrices.slice(0, validN);
-        
-        // Solve using normal equations (simplified)
-        const sumY = y.reduce((a, b) => a + b, 0);
-        const sumP = powerTerms.reduce((a, b) => a + b, 0);
-        const sumC = cosTerms.reduce((a, b) => a + b, 0);
-        
-        const A = sumY / validN;
-        const B = -Math.abs((y[validN - 1] - y[0]) / (powerTerms[validN - 1] - powerTerms[0] + 0.001));
-        const C = 0.01; // Small oscillation amplitude
-        const phi = 0;
-        
-        // Calculate error
-        let error = 0;
-        for (let i = 0; i < validN; i++) {
-          const predicted = A + B * powerTerms[i] + C * cosTerms[i];
-          error += Math.pow(y[i] - predicted, 2);
-        }
-        error /= validN;
-        
-        // Check LPPL constraints
-        if (B >= 0) continue; // B must be negative (price increases as tc approaches)
-        if (m < 0.1 || m > 0.9) continue;
-        
-        if (error < bestError) {
-          bestError = error;
-          bestParams = { tc, m, omega, A, B, C, phi };
+  const y = validIndices.map(i => logPrices[i]);
+  
+  // Solve OLS: [A, B, C1, C2] = (X^T X)^-1 X^T y
+  const solution = solveLinearSystem(designMatrix, y);
+  if (!solution) return null;
+  
+  const [A, B, C1, C2] = solution;
+  
+  // Check constraints:
+  // B must be negative (super-exponential growth approaching tc)
+  if (B >= 0) return null;
+  
+  // |C| should be smaller than |B| (oscillation is subordinate to trend)
+  const C = Math.sqrt(C1 * C1 + C2 * C2);
+  if (C > Math.abs(B)) return null;
+  
+  // Calculate residual and R²
+  let ssRes = 0;
+  let ssTot = 0;
+  const yMean = y.reduce((a, b) => a + b, 0) / y.length;
+  
+  for (let idx = 0; idx < validIndices.length; idx++) {
+    const predicted = designMatrix[idx][0] * A + 
+                      designMatrix[idx][1] * B + 
+                      designMatrix[idx][2] * C1 + 
+                      designMatrix[idx][3] * C2;
+    ssRes += Math.pow(y[idx] - predicted, 2);
+    ssTot += Math.pow(y[idx] - yMean, 2);
+  }
+  
+  const residual = ssRes / validIndices.length;
+  const r2 = ssTot > 0 ? 1 - (ssRes / ssTot) : 0;
+  
+  // R² should be high for a good fit (>0.9 typically)
+  if (r2 < 0.85) return null;
+  
+  const phi = Math.atan2(C2, C1);
+  
+  return {
+    params: { tc, m, omega, A, B, C1, C2, C, phi },
+    residual,
+    r2
+  };
+}
+
+/**
+ * Multi-scale LPPL fitting with grid search over nonlinear parameters
+ * Uses multiple window sizes to capture different bubble timescales
+ */
+function fitLPPLMultiScale(
+  prices: HistoricalPrice[],
+  windowSizes: number[] = [60, 90, 120, 180]
+): { bestFit: FitResult | null; validFitCount: number; totalAttempts: number } {
+  let bestFit: FitResult | null = null;
+  let validFitCount = 0;
+  let totalAttempts = 0;
+  
+  for (const windowSize of windowSizes) {
+    if (prices.length < windowSize) continue;
+    
+    const window = prices.slice(-windowSize);
+    const logPrices = window.map(p => Math.log(p.close));
+    const n = logPrices.length;
+    const times = Array.from({ length: n }, (_, i) => i / n);
+    
+    // Grid search over (tc, m, omega)
+    // tc > 1 means crash is predicted in the future
+    const tcValues = [1.01, 1.03, 1.05, 1.08, 1.1, 1.15, 1.2, 1.3, 1.4, 1.5];
+    const mValues = [0.15, 0.25, 0.33, 0.4, 0.5, 0.6, 0.7, 0.8];
+    const omegaValues = [5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 20];
+    
+    for (const tc of tcValues) {
+      for (const m of mValues) {
+        for (const omega of omegaValues) {
+          totalAttempts++;
+          const fit = fitLPPLLinear(logPrices, times, tc, m, omega);
+          
+          if (fit) {
+            validFitCount++;
+            if (!bestFit || fit.r2 > bestFit.r2) {
+              bestFit = fit;
+            }
+          }
         }
       }
     }
   }
   
-  return bestParams;
+  return { bestFit, validFitCount, totalAttempts };
 }
 
+// ============ BUBBLE CONFIDENCE ============
+
 /**
- * Calculate bubble confidence based on LPPL fit quality and parameter constraints
+ * Calculate bubble confidence based on multiple indicators:
+ * 1. LPPL fit quality (R², residual)
+ * 2. Fraction of valid fits (multi-scale)
+ * 3. Price acceleration (super-exponential growth)
+ * 4. Proximity to critical time
+ * 5. Oscillation quality (log-periodic signature)
  */
 function calculateBubbleConfidence(
-  params: LPPLParams | null,
-  prices: HistoricalPrice[],
-  fitError: number
+  fitResult: { bestFit: FitResult | null; validFitCount: number; totalAttempts: number },
+  prices: HistoricalPrice[]
 ): number {
-  if (!params) return 0;
+  const { bestFit, validFitCount, totalAttempts } = fitResult;
   
   let confidence = 0;
   
-  // 1. Parameter validity (0-25 points)
-  if (params.m > 0.1 && params.m < 0.9) confidence += 10;
-  if (params.omega > 4 && params.omega < 25) confidence += 10;
-  if (params.B < 0) confidence += 5; // Negative B means super-exponential growth
+  // 1. Valid fit fraction (0-20 points)
+  // Higher fraction of valid fits = stronger bubble signal
+  const fitFraction = totalAttempts > 0 ? validFitCount / totalAttempts : 0;
+  if (fitFraction > 0.15) confidence += 20;
+  else if (fitFraction > 0.08) confidence += 15;
+  else if (fitFraction > 0.04) confidence += 10;
+  else if (fitFraction > 0.02) confidence += 5;
   
-  // 2. Fit quality (0-25 points)
-  if (fitError < 0.01) confidence += 25;
-  else if (fitError < 0.02) confidence += 20;
-  else if (fitError < 0.05) confidence += 10;
-  else if (fitError < 0.1) confidence += 5;
+  if (!bestFit) {
+    // Even without a good LPPL fit, check for price acceleration
+    if (prices.length >= 60) {
+      const recent30 = prices.slice(-30);
+      const prior30 = prices.slice(-60, -30);
+      const recentReturn = (recent30[recent30.length - 1].close - recent30[0].close) / recent30[0].close;
+      const priorReturn = (prior30[prior30.length - 1].close - prior30[0].close) / prior30[0].close;
+      if (recentReturn > 0 && priorReturn > 0 && recentReturn > priorReturn * 1.5) {
+        confidence += 10;
+      }
+    }
+    return Math.min(100, confidence);
+  }
   
-  // 3. Price acceleration (0-25 points)
-  if (prices.length >= 60) {
+  const { params, r2, residual } = bestFit;
+  
+  // 2. Fit quality - R² (0-25 points)
+  if (r2 > 0.98) confidence += 25;
+  else if (r2 > 0.96) confidence += 20;
+  else if (r2 > 0.93) confidence += 15;
+  else if (r2 > 0.90) confidence += 10;
+  else if (r2 > 0.85) confidence += 5;
+  
+  // 3. Price acceleration / super-exponential growth (0-20 points)
+  if (prices.length >= 90) {
+    const recent30 = prices.slice(-30);
+    const mid30 = prices.slice(-60, -30);
+    const prior30 = prices.slice(-90, -60);
+    
+    const recentReturn = (recent30[recent30.length - 1].close - recent30[0].close) / recent30[0].close;
+    const midReturn = (mid30[mid30.length - 1].close - mid30[0].close) / mid30[0].close;
+    const priorReturn = (prior30[prior30.length - 1].close - prior30[0].close) / prior30[0].close;
+    
+    // Super-exponential: each period faster than the last
+    if (recentReturn > midReturn && midReturn > priorReturn && recentReturn > 0.05) {
+      confidence += 20;
+    } else if (recentReturn > midReturn && recentReturn > 0.03) {
+      confidence += 12;
+    } else if (recentReturn > 0.02 && recentReturn > priorReturn) {
+      confidence += 6;
+    }
+  } else if (prices.length >= 60) {
     const recent30 = prices.slice(-30);
     const prior30 = prices.slice(-60, -30);
     const recentReturn = (recent30[recent30.length - 1].close - recent30[0].close) / recent30[0].close;
     const priorReturn = (prior30[prior30.length - 1].close - prior30[0].close) / prior30[0].close;
     
-    // Super-exponential: recent acceleration > prior
-    if (recentReturn > priorReturn * 1.5) confidence += 25;
-    else if (recentReturn > priorReturn * 1.2) confidence += 15;
-    else if (recentReturn > priorReturn) confidence += 8;
+    if (recentReturn > priorReturn * 1.3 && recentReturn > 0.03) {
+      confidence += 15;
+    } else if (recentReturn > priorReturn && recentReturn > 0.02) {
+      confidence += 8;
+    }
   }
   
-  // 4. Proximity to critical time (0-25 points)
-  if (params.tc < 1.3) confidence += 25; // Very close to critical time
-  else if (params.tc < 1.5) confidence += 15;
-  else if (params.tc < 2.0) confidence += 5;
+  // 4. Proximity to critical time (0-15 points)
+  if (params.tc <= 1.05) confidence += 15; // Very close — crash imminent
+  else if (params.tc <= 1.1) confidence += 12;
+  else if (params.tc <= 1.2) confidence += 8;
+  else if (params.tc <= 1.4) confidence += 4;
+  
+  // 5. Log-periodic oscillation quality (0-20 points)
+  // |C|/|B| ratio indicates oscillation strength relative to trend
+  const oscillationRatio = params.C / Math.abs(params.B);
+  if (oscillationRatio > 0.05 && oscillationRatio < 0.8) {
+    // Good oscillation: visible but not dominant
+    if (oscillationRatio > 0.1 && oscillationRatio < 0.5) confidence += 20;
+    else confidence += 10;
+  }
+  
+  // Omega in valid range (academic consensus: 6-13 is most common)
+  if (params.omega >= 6 && params.omega <= 13) confidence += 5;
   
   return Math.min(100, confidence);
 }
@@ -309,44 +497,37 @@ async function backtestSinglePeriod(bubble: BubblePeriod): Promise<LPPLBacktestR
     };
   }
   
+  console.log(`[LPPLBacktest] ${bubble.name}: ${prices.length} data points loaded`);
+  
   // Generate signals using rolling window
   const signals: LPPLSignal[] = [];
-  const windowSize = 120; // ~6 months
   const stepSize = 5; // Check every 5 trading days
+  const minWindowSize = 60; // Minimum window for fitting
   
   let falsePositives = 0;
   let detectedBubble = false;
   let detectionDate: string | null = null;
   let maxConfidence = 0;
   
-  for (let i = windowSize; i < prices.length; i += stepSize) {
-    const windowPrices = prices.slice(i - windowSize, i);
+  // Only analyze the period leading up to and including the crash
+  // Start analysis once we have enough data (minWindowSize)
+  for (let i = minWindowSize; i < prices.length; i += stepSize) {
     const currentDate = prices[i].date;
     const currentPrice = prices[i].close;
     
-    // Fit LPPL model
-    const params = fitLPPL(windowPrices, windowSize);
+    // Use multiple window sizes for multi-scale analysis
+    const windowSizes = [60, 90, 120, 180].filter(w => w <= i);
+    const windowPrices = prices.slice(Math.max(0, i - 180), i);
     
-    // Calculate fit error
-    let fitError = 0.1; // Default high error
-    if (params) {
-      const logPrices = windowPrices.map(p => Math.log(p.close));
-      const n = logPrices.length;
-      let sumSqError = 0;
-      for (let j = 0; j < n; j++) {
-        const t = j / n;
-        const predicted = lpplModel(t, params);
-        sumSqError += Math.pow(logPrices[j] - predicted, 2);
-      }
-      fitError = sumSqError / n;
-    }
+    // Fit LPPL model (multi-scale)
+    const fitResult = fitLPPLMultiScale(windowPrices, windowSizes);
     
     // Calculate confidence
-    const confidence = calculateBubbleConfidence(params, windowPrices, fitError);
+    const confidence = calculateBubbleConfidence(fitResult, windowPrices);
     
     // Determine regime
     let regime: 'bubble' | 'normal' | 'crash' = 'normal';
-    if (confidence >= 60) regime = 'bubble';
+    if (confidence >= 45) regime = 'bubble';
     if (currentDate > bubble.crashStartDate && currentDate <= bubble.crashEndDate) {
       regime = 'crash';
     }
@@ -354,19 +535,22 @@ async function backtestSinglePeriod(bubble: BubblePeriod): Promise<LPPLBacktestR
     // Predict crash date
     let predictedCrashDate: string | null = null;
     let daysToPredict: number | null = null;
-    if (params && confidence >= 50) {
-      const currentDateObj = new Date(currentDate);
-      const daysToTc = Math.round(params.tc * windowSize - windowSize);
+    if (fitResult.bestFit && confidence >= 40) {
+      const params = fitResult.bestFit.params;
+      // tc is in normalized time [0,1] relative to the window
+      // Convert to actual days
+      const effectiveWindow = windowPrices.length;
+      const daysToTc = Math.round((params.tc - 1) * effectiveWindow);
       if (daysToTc > 0 && daysToTc < 365) {
-        const crashDate = new Date(currentDateObj);
+        const crashDate = new Date(currentDate);
         crashDate.setDate(crashDate.getDate() + daysToTc);
         predictedCrashDate = crashDate.toISOString().split('T')[0];
         daysToPredict = daysToTc;
       }
     }
     
-    // Track detection
-    if (confidence >= 60 && !detectedBubble && currentDate <= bubble.peakDate) {
+    // Track detection: bubble detected if confidence >= 45 before peak
+    if (confidence >= 45 && !detectedBubble && currentDate <= bubble.peakDate) {
       detectedBubble = true;
       detectionDate = currentDate;
     }
@@ -375,10 +559,12 @@ async function backtestSinglePeriod(bubble: BubblePeriod): Promise<LPPLBacktestR
       maxConfidence = confidence;
     }
     
-    // Count false positives (high confidence signals during normal/recovery periods)
-    if (confidence >= 60 && currentDate > bubble.crashEndDate) {
+    // Count false positives (high confidence signals during recovery periods)
+    if (confidence >= 45 && currentDate > bubble.crashEndDate) {
       falsePositives++;
     }
+    
+    const params = fitResult.bestFit?.params || null;
     
     signals.push({
       date: currentDate,
@@ -401,9 +587,9 @@ async function backtestSinglePeriod(bubble: BubblePeriod): Promise<LPPLBacktestR
   
   // Determine accuracy
   let accuracy: string;
-  if (detectedBubble && daysBeforePeak && daysBeforePeak > 30) {
+  if (detectedBubble && daysBeforePeak && daysBeforePeak > 60) {
     accuracy = 'excellent';
-  } else if (detectedBubble && daysBeforePeak && daysBeforePeak > 7) {
+  } else if (detectedBubble && daysBeforePeak && daysBeforePeak > 14) {
     accuracy = 'good';
   } else if (detectedBubble) {
     accuracy = 'moderate';
@@ -411,7 +597,7 @@ async function backtestSinglePeriod(bubble: BubblePeriod): Promise<LPPLBacktestR
     accuracy = 'poor';
   }
   
-  console.log(`[LPPLBacktest] ${bubble.name}: detected=${detectedBubble}, daysBeforePeak=${daysBeforePeak}, maxConfidence=${maxConfidence}`);
+  console.log(`[LPPLBacktest] ${bubble.name}: detected=${detectedBubble}, daysBeforePeak=${daysBeforePeak}, maxConfidence=${maxConfidence.toFixed(1)}%`);
   
   return {
     period: bubble,
@@ -439,7 +625,7 @@ export async function runLPPLFullBacktest(): Promise<LPPLFullBacktestResult> {
       results.push(result);
       
       // Rate limiting between Yahoo Finance calls
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
     } catch (error) {
       console.error(`[LPPLBacktest] Error testing ${bubble.name}:`, error);
       results.push({
@@ -485,7 +671,7 @@ export async function runLPPLFullBacktest(): Promise<LPPLFullBacktestResult> {
     'Einzelergebnisse:',
     ...results.map(r => 
       `  ${r.period.name}: ${r.detectedBubble ? '✓' : '✗'} erkannt` +
-      (r.daysBeforePeak ? ` (${r.daysBeforePeak} Tage vorher, Konfidenz: ${r.maxConfidence}%)` : '') +
+      (r.daysBeforePeak ? ` (${r.daysBeforePeak} Tage vorher, Konfidenz: ${r.maxConfidence.toFixed(0)}%)` : ` (Max-Konfidenz: ${r.maxConfidence.toFixed(0)}%)`) +
       ` | Drop: ${r.period.peakToTroughDrop}%`
     )
   ].join('\n');
@@ -510,43 +696,33 @@ export async function runLPPLCustomBacktest(
 ): Promise<LPPLSignal[]> {
   const prices = await fetchYahooHistorical(ticker, startDate, endDate);
   
-  if (prices.length < 120) {
+  if (prices.length < 60) {
     return [];
   }
   
   const signals: LPPLSignal[] = [];
-  const windowSize = 120;
   const stepSize = 5;
+  const minWindowSize = 60;
   
-  for (let i = windowSize; i < prices.length; i += stepSize) {
-    const windowPrices = prices.slice(i - windowSize, i);
+  for (let i = minWindowSize; i < prices.length; i += stepSize) {
     const currentDate = prices[i].date;
     const currentPrice = prices[i].close;
     
-    const params = fitLPPL(windowPrices, windowSize);
+    const windowSizes = [60, 90, 120, 180].filter(w => w <= i);
+    const windowPrices = prices.slice(Math.max(0, i - 180), i);
     
-    let fitError = 0.1;
-    if (params) {
-      const logPrices = windowPrices.map(p => Math.log(p.close));
-      const n = logPrices.length;
-      let sumSqError = 0;
-      for (let j = 0; j < n; j++) {
-        const t = j / n;
-        const predicted = lpplModel(t, params);
-        sumSqError += Math.pow(logPrices[j] - predicted, 2);
-      }
-      fitError = sumSqError / n;
-    }
-    
-    const confidence = calculateBubbleConfidence(params, windowPrices, fitError);
+    const fitResult = fitLPPLMultiScale(windowPrices, windowSizes);
+    const confidence = calculateBubbleConfidence(fitResult, windowPrices);
     
     let regime: 'bubble' | 'normal' | 'crash' = 'normal';
-    if (confidence >= 60) regime = 'bubble';
+    if (confidence >= 45) regime = 'bubble';
     
     let predictedCrashDate: string | null = null;
     let daysToPredict: number | null = null;
-    if (params && confidence >= 50) {
-      const daysToTc = Math.round(params.tc * windowSize - windowSize);
+    if (fitResult.bestFit && confidence >= 40) {
+      const params = fitResult.bestFit.params;
+      const effectiveWindow = windowPrices.length;
+      const daysToTc = Math.round((params.tc - 1) * effectiveWindow);
       if (daysToTc > 0 && daysToTc < 365) {
         const crashDate = new Date(currentDate);
         crashDate.setDate(crashDate.getDate() + daysToTc);
@@ -561,7 +737,7 @@ export async function runLPPLCustomBacktest(
       bubbleConfidence: confidence,
       predictedCrashDate,
       daysToPredict,
-      params,
+      params: fitResult.bestFit?.params || null,
       regime
     });
   }

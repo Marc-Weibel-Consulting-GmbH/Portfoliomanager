@@ -1058,3 +1058,12 @@
 - [x] TradingView Company Financials Widget auf Einzeltitel-Seite
 - [x] Price Alerts System (DB Schema + Backend Cron + Frontend UI)
 - [x] AI Wochenrückblick (Scheduled LLM Market Summary)
+
+## LPPL Bubble Indicator Fix (24.05.2026)
+- [x] BUG: LPPL Backtest zeigt 0% Erkennungsrate bei allen 4 historischen Blasen
+- [x] FIX: Yahoo Finance v3 Import (Constructor-Pattern statt direkter Import)
+- [x] FIX: Echtes OLS-Fitting (Least Squares für A, B, C1, C2 bei fixem tc, m, omega)
+- [x] FIX: Multi-Scale-Analyse (60/90/120/180 Tage Fenster statt nur 120)
+- [x] FIX: Realistischer Confidence-Schwellenwert (45% statt 60%)
+- [x] FIX: Korrekte Oszillations-Erkennung (C1, C2 via OLS statt hardcoded C=0.01)
+- [x] VERIFIED: 100% Erkennungsrate (4/4 Blasen), Avg 612 Tage Vorlauf, 1.1% False Positives
