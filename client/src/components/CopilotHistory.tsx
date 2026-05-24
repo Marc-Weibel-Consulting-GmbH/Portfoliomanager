@@ -73,22 +73,22 @@ export default function CopilotHistory({ portfolioId }: CopilotHistoryProps) {
         {stats && (
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <StatCard label="Empfehlungen" value={String(stats.totalRecommendations)} />
-              <StatCard label="Ausgewertet" value={String(stats.evaluated)} />
+              <StatCard label="Empfehlungen" value={String(stats.totalRecommendations || 0)} />
+              <StatCard label="Ausgewertet" value={String(stats.evaluatedRecommendations || 0)} />
               <StatCard
-                label="Trefferquote"
-                value={stats.evaluated > 0 ? `${(stats.hitRate * 100).toFixed(0)}%` : '–'}
-                positive={stats.hitRate > 0.5}
+                label="Hit Rate (30T)"
+                value={stats.evaluatedRecommendations ? `${((stats.hitRate30d || 0) * 100).toFixed(0)}%` : '–'}
+                positive={(stats.hitRate30d || 0) > 0.5}
               />
               <StatCard
-                label="Ø Rendite (Treffer)"
-                value={stats.avgReturnOnHit ? `+${(stats.avgReturnOnHit * 100).toFixed(1)}%` : '–'}
-                positive={true}
+                label="Ø Rendite (30T)"
+                value={stats.avgReturn30d ? `${stats.avgReturn30d > 0 ? '+' : ''}${(stats.avgReturn30d * 100).toFixed(1)}%` : '–'}
+                positive={(stats.avgReturn30d || 0) > 0}
               />
               <StatCard
-                label="Ø Rendite (Fehl)"
-                value={stats.avgReturnOnMiss ? `${(stats.avgReturnOnMiss * 100).toFixed(1)}%` : '–'}
-                positive={false}
+                label="Ø Rendite (90T)"
+                value={stats.avgReturn90d ? `${stats.avgReturn90d > 0 ? '+' : ''}${(stats.avgReturn90d * 100).toFixed(1)}%` : '–'}
+                positive={(stats.avgReturn90d || 0) > 0}
               />
             </div>
           </CardContent>
