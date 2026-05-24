@@ -1015,3 +1015,13 @@
 - [x] Markt-Regime: "Risikometriken"-Tab entfernt, nur noch Einzeltitel + Weitere Tools
 - [x] Portfolio Copilot: Verwendet jetzt calcRiskMetrics aus engine.ts (gleiche Logik wie Risiko-Analyse)
 - [x] Signal Auto-Optimizer: Fortschrittsbalken mit Phasen-Erkennung und Prozentanzeige hinzugefügt
+
+### Signal-Optimizer Strategie-Presets & KI-Empfehlungen Währung (24.05.2026)
+- [x] Signal-Optimizer: 3 Strategie-Presets (Kurzfristig/Mittelfristig/Langfristig) als Dropdown
+- [x] Signal-Optimizer: Standard-Button setzt Mittelfrist-Profil
+- [x] KI-Empfehlungen: Referenzwährungs-Dropdown (CHF, EUR, USD) im Dialog hinzugefügt
+- [x] Watchlist: Sortierfunktion für alle Spalten implementiert
+- [x] Einzelaktien-Chart: Erweiterte Zeiträume (3Y, 5Y, 10Y) hinzugefügt
+- [x] Benchmark-Chart: Forward-Fill für fehlende Benchmark-Tage implementiert
+- [x] Watchlist Aktien hinzufügen: Autofill/Ticker-Suche implementiert
+- [x] Copilot Backtest: Graceful Degradation bei zu wenig Handelstagen (reduziert Monate statt Fehler)

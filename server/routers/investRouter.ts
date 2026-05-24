@@ -67,7 +67,7 @@ export const investRouter = router({
             modules: ["price", "summaryDetail", "summaryProfile", "defaultKeyStatistics", "financialData", "earningsHistory", "recommendationTrend"] as any,
           }) as any).catch(() => null),
           (yahooFinance.chart(resolvedTicker, {
-            period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            period1: new Date(Date.now() - 10 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             period2: new Date().toISOString().split("T")[0],
             interval: "1d" as any,
           }) as any).catch(() => null),

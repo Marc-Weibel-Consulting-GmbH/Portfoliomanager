@@ -288,6 +288,7 @@ export const watchlistRouter = router({
     .input(z.object({
       maxNew: z.number().min(1).max(50).optional().default(10),
       criteria: z.enum(["value", "growth", "dividend", "momentum", "balanced"]).optional().default("balanced"),
+      currency: z.enum(["CHF", "EUR", "USD"]).optional(),
     }).optional())
     .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== "admin") {
@@ -339,7 +340,30 @@ export const watchlistRouter = router({
       };
 
       const criteria = input?.criteria || "balanced";
-      const candidates = candidatePools[criteria] || candidatePools.balanced;
+      const requestedCurrency = input?.currency;
+      let candidates = candidatePools[criteria] || candidatePools.balanced;
+
+      // Filter by currency/exchange if specified
+      if (requestedCurrency) {
+        const currencyExchangeMap: Record<string, (t: string) => boolean> = {
+          CHF: (t) => t.endsWith(".SW"),
+          EUR: (t) => t.endsWith(".PA") || t.endsWith(".DE") || t.endsWith(".AS") || t.endsWith(".MI"),
+          USD: (t) => !t.includes("."),
+        };
+        const filter = currencyExchangeMap[requestedCurrency];
+        if (filter) {
+          const filtered = candidates.filter(filter);
+          // If we have enough filtered candidates, use them; otherwise expand from all pools
+          if (filtered.length >= 3) {
+            candidates = filtered;
+          } else {
+            // Expand: search all pools for matching currency
+            const allCandidates = Object.values(candidatePools).flat();
+            candidates = [...new Set(allCandidates.filter(filter))];
+          }
+        }
+      }
+
       const newCandidates = candidates.filter(t => !existingTickers.has(t));
 
       const added: string[] = [];

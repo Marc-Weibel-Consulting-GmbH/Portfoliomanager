@@ -115,8 +115,15 @@ export function runCopilotBacktest(
   // Find common date range across all valid tickers
   const allDates = findCommonDates(allPrices, validTickers);
   
-  if (allDates.length < cfg.lookbackDays + cfg.months * 21) {
-    throw new Error(`Zu wenig gemeinsame Handelstage (${allDates.length}). Benötigt: ${cfg.lookbackDays + cfg.months * 21}.`);
+  const requiredDays = cfg.lookbackDays + cfg.months * 21;
+  if (allDates.length < requiredDays) {
+    // Gracefully reduce the backtest period to fit available data
+    const availableForBacktest = allDates.length - cfg.lookbackDays;
+    if (availableForBacktest < 21) {
+      throw new Error(`Zu wenig gemeinsame Handelstage (${allDates.length}). Mindestens ${cfg.lookbackDays + 21} benötigt.`);
+    }
+    // Reduce months to fit available data
+    cfg.months = Math.floor(availableForBacktest / 21);
   }
 
   // Determine monthly rebalancing dates

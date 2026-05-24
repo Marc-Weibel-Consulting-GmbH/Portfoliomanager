@@ -19,7 +19,7 @@ import {
   ReferenceLine,
 } from "recharts";
 
-type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "YTD" | "All";
+type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "YTD" | "All";
 
 // Score circle component with explanation
 function ScoreCircle({ score, onClick }: { score: number; onClick?: () => void }) {
@@ -276,11 +276,14 @@ export default function StockDetail() {
       case "3M": daysToGenerate = 90; break;
       case "6M": daysToGenerate = 180; break;
       case "1Y": daysToGenerate = 365; break;
+      case "3Y": daysToGenerate = 1095; break;
+      case "5Y": daysToGenerate = 1825; break;
+      case "10Y": daysToGenerate = 3650; break;
       case "YTD": 
         const startOfYear = new Date(now.getFullYear(), 0, 1);
         daysToGenerate = Math.ceil((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
         break;
-      case "All": daysToGenerate = 1825; break;
+      case "All": daysToGenerate = 3650; break;
     }
     
     for (let i = daysToGenerate; i >= 0; i--) {
@@ -416,7 +419,7 @@ export default function StockDetail() {
     { label: "Free Cash Flow", value: stock.financialHighlight3 || `${currency} 95B`, isPositive: false },
   ];
 
-  const periods: TimePeriod[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "YTD", "All"];
+  const periods: TimePeriod[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y", "YTD", "All"];
 
   return (
     <DashboardLayout>

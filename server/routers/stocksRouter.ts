@@ -1204,7 +1204,7 @@ export const stocksRouter = router({
     getHistoricalPrices: publicProcedure
       .input(z.object({
         ticker: z.string(),
-        period: z.enum(['1D', '1W', '1M', '3M', '6M', '1Y', 'YTD', 'All']).optional().default('6M'),
+        period: z.enum(['1D', '1W', '1M', '3M', '6M', '1Y', '3Y', '5Y', '10Y', 'YTD', 'All']).optional().default('6M'),
       }))
       .query(async ({ input }) => {
         const { getDb } = await import("../db");
@@ -1236,6 +1236,15 @@ export const stocksRouter = router({
             break;
           case '1Y':
             startDate.setFullYear(now.getFullYear() - 1);
+            break;
+          case '3Y':
+            startDate.setFullYear(now.getFullYear() - 3);
+            break;
+          case '5Y':
+            startDate.setFullYear(now.getFullYear() - 5);
+            break;
+          case '10Y':
+            startDate.setFullYear(now.getFullYear() - 10);
             break;
           case 'YTD':
             // For YTD, start from Dec 25 of previous year to ensure we get the last trading day

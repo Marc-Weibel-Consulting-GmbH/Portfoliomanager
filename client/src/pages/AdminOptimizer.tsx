@@ -3,6 +3,7 @@
  * ===========================
  * Shows current signal weights, optimization history, and allows
  * triggering the auto-optimizer (grid search over indicator weights).
+ * Includes 3 strategy presets (Kurzfristig/Mittelfristig/Langfristig).
  */
 
 import DashboardLayout from "@/components/DashboardLayout";
@@ -11,7 +12,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, RotateCcw, CheckCircle2, AlertTriangle, Zap } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Play, RotateCcw, CheckCircle2, AlertTriangle, Zap, Target, TrendingUp, Shield } from "lucide-react";
 
 export default function AdminOptimizer() {
   const [pollingEnabled, setPollingEnabled] = useState(false);
@@ -22,6 +24,7 @@ export default function AdminOptimizer() {
     refetchInterval: pollingEnabled ? 3000 : false,
   });
   const { data: defaultWeights } = trpc.optimizer.getDefaultWeights.useQuery();
+  const { data: presets } = trpc.optimizer.getPresets.useQuery();
 
   const startMutation = trpc.optimizer.startOptimizer.useMutation({
     onSuccess: () => {
@@ -36,6 +39,12 @@ export default function AdminOptimizer() {
   });
 
   const resetMutation = trpc.optimizer.resetToDefault.useMutation({
+    onSuccess: () => {
+      window.location.reload();
+    },
+  });
+
+  const applyPresetMutation = trpc.optimizer.applyPreset.useMutation({
     onSuccess: () => {
       window.location.reload();
     },
@@ -59,6 +68,14 @@ export default function AdminOptimizer() {
     rf: "Random Forest",
     sentiment: "Sentiment",
     bubble: "Bubble (LPPLS)",
+    quality: "Quality",
+    momentum: "Momentum",
+  };
+
+  const presetIcons: Record<string, React.ReactNode> = {
+    shortTerm: <Target className="w-4 h-4 text-orange-500" />,
+    midTerm: <TrendingUp className="w-4 h-4 text-blue-500" />,
+    longTerm: <Shield className="w-4 h-4 text-emerald-500" />,
   };
 
   return (
@@ -113,29 +130,25 @@ export default function AdminOptimizer() {
             <CardContent>
               {/* Progress Bar */}
               {status.isRunning && (() => {
-                // Parse progress from messages to estimate completion
                 const msgs = status.progress || [];
-                let phase = 0; // 0=loading, 1=pass1, 2=pass2, 3=pass3, 4=walkforward
+                let phase = 0;
                 let gridProgress = 0;
                 for (const msg of msgs) {
                   if (msg.includes('Pass 1:')) phase = 1;
                   if (msg.includes('Pass 2:') || msg.includes('Grid Search')) phase = 2;
                   if (msg.includes('Pass 3:')) phase = 3;
                   if (msg.includes('Walk-Forward')) phase = 4;
-                  // Parse grid search percentage
                   const gridMatch = msg.match(/Grid Search Fortschritt: \d+\/\d+ \((\d+)%\)/);
                   if (gridMatch) gridProgress = parseInt(gridMatch[1]);
                 }
-                // Estimate total progress: loading=10%, pass1=20%, pass2=50%, pass3=10%, walkforward=10%
                 let totalProgress = 0;
                 if (phase === 0) {
-                  // Loading data phase - estimate from "Preisdaten geladen" messages
                   const loadMatch = msgs.filter(m => m.includes('Preisdaten geladen'));
                   totalProgress = loadMatch.length > 0 ? Math.min(10, loadMatch.length * 2) : 2;
                 } else if (phase === 1) {
                   totalProgress = 15;
                 } else if (phase === 2) {
-                  totalProgress = 20 + (gridProgress * 0.5); // 20-70%
+                  totalProgress = 20 + (gridProgress * 0.5);
                 } else if (phase === 3) {
                   totalProgress = 75;
                 } else if (phase === 4) {
@@ -215,6 +228,59 @@ export default function AdminOptimizer() {
             </CardContent>
           </Card>
         )}
+
+        {/* Strategy Presets */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5" />
+              Strategie-Presets
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Wählen Sie ein vordefiniertes Gewichtungsprofil basierend auf Ihrem Anlagehorizont.
+              Die Gewichte werden sofort aktiviert und können anschliessend vom Optimizer weiter verfeinert werden.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {presets?.map((preset) => (
+                <div
+                  key={preset.key}
+                  className="border rounded-lg p-4 hover:border-primary/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    {presetIcons[preset.key]}
+                    <h3 className="font-semibold text-sm">{preset.name}</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">{preset.description}</p>
+                  <div className="grid grid-cols-2 gap-1 mb-3">
+                    {Object.entries(preset.weights)
+                      .sort(([, a], [, b]) => (b as number) - (a as number))
+                      .slice(0, 4)
+                      .map(([key, value]) => (
+                        <div key={key} className="text-xs flex justify-between">
+                          <span className="text-muted-foreground">{weightLabels[key] || key}</span>
+                          <span className="font-mono">{((value as number) * 100).toFixed(0)}%</span>
+                        </div>
+                      ))}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => applyPresetMutation.mutate({ presetKey: preset.key })}
+                    disabled={applyPresetMutation.isPending}
+                  >
+                    {applyPresetMutation.isPending ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : null}
+                    Aktivieren
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Current Active Weights */}
         <Card>
@@ -365,8 +431,13 @@ export default function AdminOptimizer() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p>
-              Der Signal Auto-Optimizer backtestet alle {history?.length ? '' : '113'} Watchlist-Titel mit verschiedenen
+              Der Signal Auto-Optimizer backtestet alle Watchlist-Titel mit verschiedenen
               Indikator-Gewichtungen und findet die Kombination mit der höchsten Trefferquote.
+            </p>
+            <p>
+              <strong>Strategie-Presets:</strong> Wählen Sie zwischen Kurzfristig (Swing/Trading),
+              Mittelfristig (Trend, 6-12M) und Langfristig (Investor, 3-5J) als Ausgangsbasis.
+              Der Optimizer verfeinert dann die Gewichte innerhalb des gewählten Profils.
             </p>
             <p>
               <strong>Methode:</strong> Multi-Pass Optimierung: (1) Lookforward & Threshold optimieren,
@@ -375,7 +446,7 @@ export default function AdminOptimizer() {
             </p>
             <p>
               <strong>Indikatoren:</strong> P/E, PEG, RSI, MACD, Dividendenrendite, 52-Wochen-Range,
-              YTD-Performance, Random Forest ML-Signal, News-Sentiment, LPPLS Bubble-Score.
+              YTD-Performance, Random Forest ML-Signal, News-Sentiment, LPPLS Bubble-Score, Quality, Momentum.
             </p>
             <p>
               <strong>Empfehlung:</strong> Optimierung monatlich durchführen, um die Gewichte an aktuelle

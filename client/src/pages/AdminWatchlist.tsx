@@ -22,12 +22,17 @@ export default function AdminWatchlist() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [newTicker, setNewTicker] = useState("");
+  const [tickerSearchQuery, setTickerSearchQuery] = useState("");
+  const [showTickerSuggestions, setShowTickerSuggestions] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newSector, setNewSector] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [aiCriteria, setAiCriteria] = useState<string>("balanced");
   const [aiCount, setAiCount] = useState(10);
+  const [aiCurrency, setAiCurrency] = useState<string>("all");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const utils = trpc.useUtils();
 
@@ -38,8 +43,45 @@ export default function AdminWatchlist() {
     search: search || undefined,
   });
 
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
+  const sortedStocks = (() => {
+    if (!watchlistData?.stocks || !sortColumn) return watchlistData?.stocks || [];
+    return [...watchlistData.stocks].sort((a: any, b: any) => {
+      let valA: any, valB: any;
+      switch (sortColumn) {
+        case "ticker": valA = a.ticker; valB = b.ticker; break;
+        case "company": valA = a.companyName || ""; valB = b.companyName || ""; break;
+        case "sector": valA = a.sector || ""; valB = b.sector || ""; break;
+        case "price": valA = parseFloat(a.currentPrice || "0"); valB = parseFloat(b.currentPrice || "0"); break;
+        case "pe": valA = parseFloat(a.peRatio || "9999"); valB = parseFloat(b.peRatio || "9999"); break;
+        case "dividend": valA = parseFloat(a.dividendYield || "0"); valB = parseFloat(b.dividendYield || "0"); break;
+        case "signal": valA = a.signalType === "buy" ? 2 : a.signalType === "hold" ? 1 : 0; valB = b.signalType === "buy" ? 2 : b.signalType === "hold" ? 1 : 0; break;
+        case "score": valA = a.signalScore || 0; valB = b.signalScore || 0; break;
+        default: return 0;
+      }
+      if (typeof valA === "string") {
+        return sortDirection === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+      return sortDirection === "asc" ? valA - valB : valB - valA;
+    });
+  })();
+
   const { data: stats } = trpc.watchlist.stats.useQuery();
   const { data: filterOptions } = trpc.watchlist.getFilters.useQuery();
+
+  // Ticker search autofill
+  const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
+    tickerSearchQuery,
+    { enabled: tickerSearchQuery.length >= 2 }
+  );
 
   const addMutation = trpc.watchlist.add.useMutation({
     onSuccess: (data) => {
@@ -48,6 +90,8 @@ export default function AdminWatchlist() {
       utils.watchlist.stats.invalidate();
       setAddDialogOpen(false);
       setNewTicker("");
+      setTickerSearchQuery("");
+      setShowTickerSuggestions(false);
       setNewCompanyName("");
       setNewSector("");
       setNewCategory("");
@@ -151,6 +195,18 @@ export default function AdminWatchlist() {
                     </Select>
                   </div>
                   <div>
+                    <Label>Referenzwährung</Label>
+                    <Select value={aiCurrency} onValueChange={setAiCurrency}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Alle Währungen</SelectItem>
+                        <SelectItem value="CHF">CHF (Schweizer Franken)</SelectItem>
+                        <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                        <SelectItem value="USD">USD (US-Dollar)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label>Anzahl neue Titel (max. {200 - (stats?.total || 0)})</Label>
                     <Input
                       type="number"
@@ -163,7 +219,7 @@ export default function AdminWatchlist() {
                 </div>
                 <DialogFooter>
                   <Button
-                    onClick={() => aiMutation.mutate({ criteria: aiCriteria as any, maxNew: aiCount })}
+                    onClick={() => aiMutation.mutate({ criteria: aiCriteria as any, maxNew: aiCount, currency: aiCurrency === 'all' ? undefined : aiCurrency as "CHF" | "EUR" | "USD" })}
                     disabled={aiMutation.isPending}
                   >
                     {aiMutation.isPending ? "Generiere..." : "Empfehlungen generieren"}
@@ -183,9 +239,41 @@ export default function AdminWatchlist() {
                   <DialogTitle>Titel zur Watchlist hinzufügen</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <div>
+                  <div className="relative">
                     <Label>Ticker *</Label>
-                    <Input placeholder="z.B. AAPL, MSFT, NESN.SW" value={newTicker} onChange={(e) => setNewTicker(e.target.value.toUpperCase())} />
+                    <Input 
+                      placeholder="Suche nach Ticker oder Name..." 
+                      value={tickerSearchQuery || newTicker} 
+                      onChange={(e) => {
+                        const value = e.target.value.toUpperCase();
+                        setTickerSearchQuery(value);
+                        setNewTicker(value);
+                        setShowTickerSuggestions(true);
+                      }}
+                      onFocus={() => setShowTickerSuggestions(true)}
+                    />
+                    {showTickerSuggestions && tickerSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {tickerSuggestions.map((s: any, i: number) => (
+                          <button
+                            key={i}
+                            className="w-full px-3 py-2 text-left hover:bg-muted text-sm flex justify-between items-center"
+                            onClick={() => {
+                              const ticker = s.exchange && s.exchange !== 'US' 
+                                ? `${s.symbol}.${s.exchange}` 
+                                : s.symbol;
+                              setNewTicker(ticker);
+                              setTickerSearchQuery(ticker);
+                              setNewCompanyName(s.shortname || '');
+                              setShowTickerSuggestions(false);
+                            }}
+                          >
+                            <span className="font-medium">{s.symbol}</span>
+                            <span className="text-muted-foreground truncate ml-2">{s.shortname} • {s.exchange}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label>Firmenname *</Label>
@@ -319,21 +407,37 @@ export default function AdminWatchlist() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="text-left p-3 font-medium">Ticker</th>
-                      <th className="text-left p-3 font-medium">Unternehmen</th>
-                      <th className="text-left p-3 font-medium">Sektor</th>
+                      <th className="text-left p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("ticker")}>
+                        Ticker {sortColumn === "ticker" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="text-left p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("company")}>
+                        Unternehmen {sortColumn === "company" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="text-left p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("sector")}>
+                        Sektor {sortColumn === "sector" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
                       <th className="text-left p-3 font-medium">Kategorie</th>
-                      <th className="text-right p-3 font-medium">Kurs</th>
-                      <th className="text-right p-3 font-medium">P/E</th>
-                      <th className="text-right p-3 font-medium">Div.%</th>
-                      <th className="text-center p-3 font-medium">Signal</th>
-                      <th className="text-center p-3 font-medium">Score</th>
+                      <th className="text-right p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("price")}>
+                        Kurs {sortColumn === "price" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="text-right p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("pe")}>
+                        P/E {sortColumn === "pe" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="text-right p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("dividend")}>
+                        Div.% {sortColumn === "dividend" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="text-center p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("signal")}>
+                        Signal {sortColumn === "signal" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th className="text-center p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("score")}>
+                        Score {sortColumn === "score" && (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
                       <th className="text-center p-3 font-medium">Quelle</th>
                       <th className="text-right p-3 font-medium">Aktionen</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {watchlistData?.stocks.map((stock) => (
+                    {sortedStocks.map((stock) => (
                       <tr key={stock.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="p-3 font-mono font-semibold">{stock.ticker}</td>
                         <td className="p-3">
@@ -387,7 +491,7 @@ export default function AdminWatchlist() {
                         </td>
                       </tr>
                     ))}
-                    {watchlistData?.stocks.length === 0 && (
+                    {sortedStocks.length === 0 && (
                       <tr>
                         <td colSpan={11} className="p-8 text-center text-muted-foreground">
                           Keine Titel in der Watchlist. Füge manuell Titel hinzu oder generiere KI-Empfehlungen.

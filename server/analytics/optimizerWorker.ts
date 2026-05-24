@@ -61,6 +61,67 @@ export const DEFAULT_WEIGHTS: WeightConfig = {
 };
 
 /**
+ * Strategy Presets by time horizon
+ * Based on academic factor research and practical portfolio management.
+ */
+export const STRATEGY_PRESETS: Record<string, { name: string; description: string; weights: WeightConfig }> = {
+  shortTerm: {
+    name: "Kurzfristig (Swing/Trading)",
+    description: "Fokus auf Timing, Mean-Reversion und Breakouts. Fundamentals nur als Filter.",
+    weights: {
+      pe: 0.03,
+      peg: 0.02,
+      rsi: 0.22,
+      macd: 0.15,
+      dividend: 0.02,
+      week52: 0.15,
+      ytd: 0.05,
+      rf: 0.10,
+      sentiment: 0.10,
+      bubble: 0.03,
+      quality: 0.05,
+      momentum: 0.08,
+    },
+  },
+  midTerm: {
+    name: "Mittelfristig (Trend)",
+    description: "Mischung aus Trendfolge, ML und soliden Fundamentals. 6-12 Monate Horizont.",
+    weights: {
+      pe: 0.10,
+      peg: 0.10,
+      rsi: 0.10,
+      macd: 0.05,
+      dividend: 0.05,
+      week52: 0.05,
+      ytd: 0.05,
+      rf: 0.15,
+      sentiment: 0.05,
+      bubble: 0.05,
+      quality: 0.15,
+      momentum: 0.10,
+    },
+  },
+  longTerm: {
+    name: "Langfristig (Investor)",
+    description: "Bewertung, Qualität, Blasen-Vermeidung. Technik nur für Entry/Exit-Timing.",
+    weights: {
+      pe: 0.15,
+      peg: 0.15,
+      rsi: 0.03,
+      macd: 0.02,
+      dividend: 0.12,
+      week52: 0.03,
+      ytd: 0.03,
+      rf: 0.12,
+      sentiment: 0.03,
+      bubble: 0.10,
+      quality: 0.22,
+      momentum: 0.00,
+    },
+  },
+};
+
+/**
  * Fetch historical prices from EODHD (non-blocking, with timeout)
  */
 async function fetchPricesEODHD(ticker: string): Promise<{

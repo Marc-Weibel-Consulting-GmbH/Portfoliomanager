@@ -14,6 +14,7 @@ import {
   getActiveWeights,
   getOptimizerHistory,
   DEFAULT_WEIGHTS,
+  STRATEGY_PRESETS,
   type OptimizerResult,
 } from "../analytics/optimizerWorker";
 import { getDb } from "../db";
@@ -145,4 +146,42 @@ export const optimizerRouter = router({
   getDefaultWeights: adminProcedure.query(() => {
     return DEFAULT_WEIGHTS;
   }),
+
+  /**
+   * Get all strategy presets
+   */
+  getPresets: adminProcedure.query(() => {
+    return Object.entries(STRATEGY_PRESETS).map(([key, preset]) => ({
+      key,
+      name: preset.name,
+      description: preset.description,
+      weights: preset.weights,
+    }));
+  }),
+
+  /**
+   * Apply a preset (saves it as active weights in DB)
+   */
+  applyPreset: adminProcedure
+    .input(z.object({ presetKey: z.string() }))
+    .mutation(async ({ input }) => {
+      const preset = STRATEGY_PRESETS[input.presetKey];
+      if (!preset) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Unbekanntes Preset: ${input.presetKey}` });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+      // Deactivate all existing
+      await db.update(signalWeights).set({ isActive: 0 });
+      // Insert the preset as a new active weight config
+      await db.insert(signalWeights).values({
+        name: `Preset: ${preset.name}`,
+        weights: JSON.stringify(preset.weights),
+        hitRate: "0",
+        totalBacktested: 0,
+        correctSignals: 0,
+        isActive: 1,
+      });
+      return { success: true, message: `Preset "${preset.name}" aktiviert.` };
+    }),
 });

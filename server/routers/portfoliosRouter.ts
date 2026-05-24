@@ -2102,8 +2102,17 @@ export const portfoliosRouter = router({
               : 0;
           }
           
-          // Calculate benchmark performance from actual prices
-          const benchmarkCurrentPrice = parseFloat(String(benchmarkMap[date] || 0));
+          // Calculate benchmark performance from actual prices (with forward-fill)
+          let benchmarkCurrentPrice = parseFloat(String(benchmarkMap[date] || 0));
+          // Forward-fill: if no benchmark price for this date, use last known price
+          if (benchmarkCurrentPrice === 0) {
+            const sortedBmDates = Object.keys(benchmarkMap).sort();
+            for (const bmDate of sortedBmDates) {
+              if (bmDate <= date && benchmarkMap[bmDate] > 0) {
+                benchmarkCurrentPrice = benchmarkMap[bmDate];
+              }
+            }
+          }
           const benchmarkPerformance = benchmarkStartPrice > 0 && benchmarkCurrentPrice > 0
             ? ((benchmarkCurrentPrice - benchmarkStartPrice) / benchmarkStartPrice) * 100
             : 0;

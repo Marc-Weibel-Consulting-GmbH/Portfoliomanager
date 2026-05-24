@@ -46,6 +46,10 @@ export default function InvestDetail() {
       case "3M": startDate.setMonth(now.getMonth() - 3); break;
       case "6M": startDate.setMonth(now.getMonth() - 6); break;
       case "1Y": startDate.setFullYear(now.getFullYear() - 1); break;
+      case "3Y": startDate.setFullYear(now.getFullYear() - 3); break;
+      case "5Y": startDate.setFullYear(now.getFullYear() - 5); break;
+      case "10Y": startDate.setFullYear(now.getFullYear() - 10); break;
+      case "MAX": startDate = new Date("2000-01-01"); break;
       default: startDate = new Date("2000-01-01");
     }
 
@@ -220,7 +224,7 @@ export default function InvestDetail() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Kursverlauf</CardTitle>
               <div className="flex gap-1">
-                {["1M", "3M", "6M", "1Y", "MAX"].map(p => (
+                {["1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y", "MAX"].map(p => (
                   <Button
                     key={p}
                     variant={chartPeriod === p ? "default" : "ghost"}
