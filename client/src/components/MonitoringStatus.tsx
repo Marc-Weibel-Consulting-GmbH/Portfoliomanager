@@ -4,13 +4,15 @@
  * - Walk-Forward Weekly
  * - LPPL Daily Monitoring
  * - Recommendation Evaluation
- * Also allows configuring the LPPL bubble confidence threshold.
+ * Also allows configuring the LPPL bubble confidence threshold (server-persisted).
  */
 
 import { useState, useEffect } from 'react';
+import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 import { 
   Activity, 
   Calendar, 
@@ -22,6 +24,8 @@ import {
   BellRing,
   Shield,
   Settings2,
+  Save,
+  Loader2,
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -32,17 +36,35 @@ interface ScheduledJob {
   status: 'active' | 'pending_deploy';
 }
 
-const LPPL_THRESHOLD_KEY = 'lppl-monitoring-threshold';
-
 export default function MonitoringStatus() {
-  const [lpplThreshold, setLpplThreshold] = useState(() => {
-    const saved = localStorage.getItem(LPPL_THRESHOLD_KEY);
-    return saved ? Number(saved) : 70;
+  const [lpplThreshold, setLpplThreshold] = useState(70);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Load threshold from server
+  const { data: serverThreshold } = trpc.copilot.getLpplThreshold.useQuery();
+  
+  // Save threshold mutation
+  const saveMutation = trpc.copilot.setLpplThreshold.useMutation({
+    onSuccess: () => {
+      setHasUnsavedChanges(false);
+    },
   });
 
+  // Initialize from server value
   useEffect(() => {
-    localStorage.setItem(LPPL_THRESHOLD_KEY, String(lpplThreshold));
-  }, [lpplThreshold]);
+    if (serverThreshold !== undefined) {
+      setLpplThreshold(serverThreshold);
+    }
+  }, [serverThreshold]);
+
+  const handleThresholdChange = (val: number[]) => {
+    setLpplThreshold(val[0]);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSave = () => {
+    saveMutation.mutate({ threshold: lpplThreshold });
+  };
 
   const SCHEDULED_JOBS: ScheduledJob[] = [
     {
@@ -87,22 +109,46 @@ export default function MonitoringStatus() {
         </Badge>
       </div>
 
-      {/* LPPL Threshold Configuration */}
+      {/* LPPL Threshold Configuration (Server-persisted) */}
       <Card className="bg-orange-900/10 border-orange-700/30">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <Settings2 className="h-5 w-5 text-orange-400 mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-medium text-white">LPPL Bubble-Schwellenwert</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-white">LPPL Bubble-Schwellenwert</h4>
+                {hasUnsavedChanges && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-500/50 text-orange-300 hover:bg-orange-500/10 h-7 text-xs"
+                    onClick={handleSave}
+                    disabled={saveMutation.isPending}
+                  >
+                    {saveMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3 mr-1" />
+                    )}
+                    Speichern
+                  </Button>
+                )}
+                {!hasUnsavedChanges && saveMutation.isSuccess && (
+                  <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 h-7 text-xs">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Gespeichert (Server)
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-gray-400 mt-1 mb-3">
-                Confidence-Schwellenwert für Bubble-Warnungen. Niedrigere Werte = mehr Warnungen (sensitiver), höhere Werte = weniger Warnungen (spezifischer).
+                Confidence-Schwellenwert für Bubble-Warnungen. Dieser Wert wird serverseitig gespeichert und vom täglichen Monitoring-Job verwendet.
               </p>
               <div className="space-y-3">
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <Slider
                       value={[lpplThreshold]}
-                      onValueChange={(val) => setLpplThreshold(val[0])}
+                      onValueChange={handleThresholdChange}
                       min={50}
                       max={95}
                       step={5}
@@ -201,16 +247,16 @@ export default function MonitoringStatus() {
         </CardContent>
       </Card>
 
-      {/* Auto-Save Info */}
+      {/* Server-Persistence Info */}
       <Card className="bg-emerald-900/20 border-emerald-700/30">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5" />
             <div>
-              <h4 className="font-medium text-emerald-300">Auto-Save aktiv</h4>
+              <h4 className="font-medium text-emerald-300">Server-Persistierung aktiv</h4>
               <p className="text-sm text-gray-400 mt-1">
-                Jede Copilot-Analyse speichert automatisch alle Empfehlungen in der Historie. 
-                So wird die Trefferquote über Zeit messbar und der Algorithmus validierbar.
+                Der LPPL-Schwellenwert wird serverseitig in der Datenbank gespeichert und vom täglichen Monitoring-Job verwendet.
+                Änderungen werden sofort wirksam — kein Redeploy nötig.
               </p>
             </div>
           </div>

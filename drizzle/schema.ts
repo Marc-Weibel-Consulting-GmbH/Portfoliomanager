@@ -693,3 +693,17 @@ export const walkForwardResults = mysqlTable("walkForwardResults", {
 
 export type WalkForwardResult = typeof walkForwardResults.$inferSelect;
 export type InsertWalkForwardResult = typeof walkForwardResults.$inferInsert;
+
+// ============ User Settings (LPPL threshold, etc.) ============
+export const userSettings = mysqlTable("userSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  lpplThreshold: int("lpplThreshold").notNull().default(70), // 50-95, default 70%
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  userIdx: index("ix_user_settings_user").on(t.userId),
+}));
+
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = typeof userSettings.$inferInsert;

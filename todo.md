@@ -1025,3 +1025,12 @@
 - [x] Benchmark-Chart: Forward-Fill für fehlende Benchmark-Tage implementiert
 - [x] Watchlist Aktien hinzufügen: Autofill/Ticker-Suche implementiert
 - [x] Copilot Backtest: Graceful Degradation bei zu wenig Handelstagen (reduziert Monate statt Fehler)
+
+## Walk-Forward & LPPL Verbesserungen (24.05.2026)
+- [x] Walk-Forward: Non-blocking Architektur (startWalkForward + getWalkForwardStatus Polling)
+- [x] Walk-Forward: Fortschrittsbalken im Frontend mit Echtzeit-Statusmeldungen
+- [x] Walk-Forward: Event-Loop-Yielding zwischen Perioden und Ticker-Scoring (verhindert Hängen)
+- [x] Walk-Forward: Strategie-Presets (Kurzfristig/Mittelfristig/Langfristig) mit konfigurierbaren Scoring-Gewichten
+- [x] LPPL Threshold: Serverseitige Persistierung in userSettings-Tabelle (statt nur localStorage)
+- [x] LPPL Threshold: Backend-Job liest konfigurierbaren Schwellenwert aus DB (nicht mehr hardcoded 70%)
+- [x] LPPL Threshold: Speichern-Button im Monitoring-UI mit Server-Feedback

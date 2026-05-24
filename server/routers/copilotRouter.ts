@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { invokeLLM } from '../_core/llm';
-import { getSavedPortfolioById, getPortfolioTransactions, createPortfolioTransaction } from '../db';
+import { getSavedPortfolioById, getPortfolioTransactions, createPortfolioTransaction, getDb } from '../db';
 import {
   runCopilotAnalysis,
   calculateRankings,
@@ -21,9 +21,63 @@ import { runWalkForwardValidation, getWalkForwardHistory, screenStocksFromEODHD,
 import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHistoryStats, evaluateRecommendations, markRecommendationAsApplied } from '../analytics/copilotHistory';
 import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES } from '../analytics/lpplBacktest';
 import { calcRiskMetrics } from '../analytics/engine';
+import { userSettings } from '../../drizzle/schema';
+import { eq } from 'drizzle-orm';
 import YahooFinance from 'yahoo-finance2';
+import type { WalkForwardResult } from '../analytics/walkForwardEngine';
 
 const yf = new YahooFinance();
+
+// ============ Walk-Forward In-Memory State (Non-blocking) ============
+let walkForwardRunning = false;
+let walkForwardProgress: string[] = [];
+let walkForwardResult: WalkForwardResult | null = null;
+let walkForwardError: string | null = null;
+
+// ============ LPPL Threshold DB Helpers ============
+async function getLpplThresholdForUser(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 70; // default
+  try {
+    const rows = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
+    if (rows.length > 0 && rows[0].lpplThreshold != null) {
+      return rows[0].lpplThreshold;
+    }
+  } catch (e) { /* table might not exist yet */ }
+  return 70; // default
+}
+
+async function saveLpplThresholdForUser(userId: number, threshold: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    // Upsert: try insert, on duplicate update
+    await db.insert(userSettings).values({
+      userId,
+      lpplThreshold: threshold,
+    }).onDuplicateKeyUpdate({
+      set: { lpplThreshold: threshold },
+    });
+  } catch (e) {
+    console.error('[CopilotRouter] Failed to save LPPL threshold:', e);
+  }
+}
+
+/**
+ * Get LPPL threshold for scheduled job (system-level, reads admin user or default)
+ */
+export async function getLpplThresholdForScheduledJob(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 70;
+  try {
+    // Get the admin user's threshold (or first user with a setting)
+    const rows = await db.select().from(userSettings).limit(1);
+    if (rows.length > 0 && rows[0].lpplThreshold != null) {
+      return rows[0].lpplThreshold;
+    }
+  } catch (e) { /* table might not exist yet */ }
+  return 70;
+}
 
 function normalizeForYahoo(ticker: string): string {
   if (ticker.endsWith('.US')) return ticker.replace('.US', '');
@@ -500,14 +554,15 @@ export const copilotRouter = router({
     }),
 
   // ============================================================
-  // WALK-FORWARD VALIDATION
+  // WALK-FORWARD VALIDATION (Non-blocking with progress)
   // ============================================================
-  runWalkForward: protectedProcedure
+  startWalkForward: protectedProcedure
     .input(z.object({
       universeSource: z.enum(['watchlist', 'screener', 'combined']),
       trainWindowMonths: z.number().min(3).max(12).default(6),
       testWindowMonths: z.number().min(1).max(3).default(1),
       topQuartilePercent: z.number().min(10).max(50).default(25),
+      strategyProfile: z.enum(['shortTerm', 'midTerm', 'longTerm']).optional(),
       screeningCriteria: z.object({
         region: z.string().optional(),
         exchange: z.string().optional(),
@@ -520,23 +575,72 @@ export const copilotRouter = router({
       }).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      try {
-        const result = await runWalkForwardValidation({
-          trainWindowMonths: input.trainWindowMonths,
-          testWindowMonths: input.testWindowMonths,
-          topQuartilePercent: input.topQuartilePercent,
-          universeSource: input.universeSource,
-          screeningCriteria: input.screeningCriteria,
-        }, ctx.user.id);
-        return { error: null, result };
-      } catch (err: any) {
-        return { error: err.message || 'Walk-Forward fehlgeschlagen', result: null };
+      if (walkForwardRunning) {
+        return { error: 'Walk-Forward läuft bereits. Bitte warten.', started: false };
       }
+
+      // Start non-blocking
+      walkForwardRunning = true;
+      walkForwardProgress = ['Walk-Forward gestartet...'];
+      walkForwardResult = null;
+      walkForwardError = null;
+
+      (async () => {
+        try {
+          const result = await runWalkForwardValidation({
+            trainWindowMonths: input.trainWindowMonths,
+            testWindowMonths: input.testWindowMonths,
+            topQuartilePercent: input.topQuartilePercent,
+            universeSource: input.universeSource,
+            screeningCriteria: input.screeningCriteria,
+            strategyProfile: input.strategyProfile,
+          }, ctx.user.id, (msg: string) => {
+            walkForwardProgress.push(msg);
+            if (walkForwardProgress.length > 100) {
+              walkForwardProgress = walkForwardProgress.slice(-100);
+            }
+          });
+          walkForwardResult = result;
+          walkForwardProgress.push('✅ Walk-Forward abgeschlossen!');
+        } catch (err: any) {
+          walkForwardError = err.message || 'Walk-Forward fehlgeschlagen';
+          walkForwardProgress.push(`❌ Fehler: ${err.message}`);
+        } finally {
+          walkForwardRunning = false;
+        }
+      })();
+
+      return { error: null, started: true };
+    }),
+
+  getWalkForwardStatus: protectedProcedure
+    .query(async () => {
+      return {
+        isRunning: walkForwardRunning,
+        progress: walkForwardProgress,
+        result: walkForwardResult,
+        error: walkForwardError,
+      };
     }),
 
   getWalkForwardHistory: protectedProcedure
     .query(async ({ ctx }) => {
       return getWalkForwardHistory(ctx.user.id);
+    }),
+
+  // ============================================================
+  // LPPL THRESHOLD SETTINGS (Server-side persistence)
+  // ============================================================
+  getLpplThreshold: protectedProcedure
+    .query(async ({ ctx }) => {
+      return getLpplThresholdForUser(ctx.user.id);
+    }),
+
+  setLpplThreshold: protectedProcedure
+    .input(z.object({ threshold: z.number().min(50).max(95) }))
+    .mutation(async ({ ctx, input }) => {
+      await saveLpplThresholdForUser(ctx.user.id, input.threshold);
+      return { success: true, threshold: input.threshold };
     }),
 
   // ============================================================

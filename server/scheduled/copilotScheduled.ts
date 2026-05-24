@@ -98,6 +98,13 @@ export async function handleLPPLMonitoring(req: Request, res: Response) {
       return res.json({ ok: true, skipped: "no database" });
     }
 
+    // Read configurable LPPL threshold from DB (user settings)
+    const { getLpplThresholdForScheduledJob } = await import('../routers/copilotRouter');
+    const lpplThresholdPct = await getLpplThresholdForScheduledJob();
+    const lpplThreshold = lpplThresholdPct / 100; // Convert 70 → 0.7
+    console.log(`[Scheduled] LPPL threshold: ${lpplThresholdPct}% (${lpplThreshold})`);
+
+
     // Get all portfolio tickers across all user portfolios
     const portfolios = await db.select().from(savedPortfolios);
     const allTickers = new Set<string>();
@@ -149,7 +156,7 @@ export async function handleLPPLMonitoring(req: Request, res: Response) {
           prices: analysisWindow,
         });
 
-        if (result && result.bubbleConfidence > 0.7) {
+        if (result && result.bubbleConfidence > lpplThreshold) {
           warnings.push({
             ticker,
             confidence: result.bubbleConfidence,

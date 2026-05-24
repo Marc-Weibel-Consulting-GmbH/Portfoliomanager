@@ -2,10 +2,13 @@
  * WalkForwardValidation Component
  * ================================
  * UI for running Walk-Forward Validation on a broad stock universe
- * with configurable screening criteria and result visualization.
+ * with configurable screening criteria, strategy presets, progress bar,
+ * and result visualization.
+ * 
+ * Uses non-blocking backend pattern with polling for progress updates.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +29,7 @@ import {
   Clock,
   Loader2,
   Star,
+  Zap,
 } from 'lucide-react';
 
 export default function WalkForwardValidation() {
@@ -33,22 +37,43 @@ export default function WalkForwardValidation() {
   const [trainWindowMonths, setTrainWindowMonths] = useState(6);
   const [testWindowMonths, setTestWindowMonths] = useState(1);
   const [topQuartilePercent, setTopQuartilePercent] = useState(25);
+  const [strategyProfile, setStrategyProfile] = useState<'shortTerm' | 'midTerm' | 'longTerm'>('midTerm');
   const [region, setRegion] = useState('all');
   const [sector, setSector] = useState('all');
   const [minMarketCap, setMinMarketCap] = useState('');
   const [minScore, setMinScore] = useState('70');
   const [targetSharpe, setTargetSharpe] = useState('');
   const [maxTickers, setMaxTickers] = useState('100');
+  const [pollingEnabled, setPollingEnabled] = useState(false);
 
-  const walkForwardMutation = trpc.copilot.runWalkForward.useMutation();
+  const startMutation = trpc.copilot.startWalkForward.useMutation({
+    onSuccess: (data) => {
+      if (data.started) {
+        setPollingEnabled(true);
+      }
+    },
+  });
+
+  const { data: status, refetch: refetchStatus } = trpc.copilot.getWalkForwardStatus.useQuery(undefined, {
+    refetchInterval: pollingEnabled ? 2500 : false,
+  });
+
   const { data: history } = trpc.copilot.getWalkForwardHistory.useQuery();
 
+  // Stop polling when walk-forward finishes
+  useEffect(() => {
+    if (status && !status.isRunning && pollingEnabled) {
+      setPollingEnabled(false);
+    }
+  }, [status, pollingEnabled]);
+
   const handleRun = () => {
-    walkForwardMutation.mutate({
+    startMutation.mutate({
       universeSource,
       trainWindowMonths,
       testWindowMonths,
       topQuartilePercent,
+      strategyProfile,
       screeningCriteria: {
         region: region === 'all' ? undefined : region,
         sector: sector === 'all' ? undefined : sector,
@@ -60,8 +85,91 @@ export default function WalkForwardValidation() {
     });
   };
 
-  const result = walkForwardMutation.data?.result;
-  const apiError = walkForwardMutation.data?.error;
+  const isRunning = status?.isRunning || pollingEnabled;
+  const result = status?.result;
+  const apiError = status?.error;
+
+  // Calculate progress percentage from progress messages
+  const calculateProgress = () => {
+    const msgs = status?.progress || [];
+    if (msgs.length === 0) return { pct: 0, label: 'Initialisierung...' };
+
+    // Detect phases from messages
+    let totalPeriods = 0;
+    let currentPeriod = 0;
+    let phase = 'init';
+
+    for (const msg of msgs) {
+      const periodsMatch = msg.match(/Erwartete Perioden: (\d+)/);
+      if (periodsMatch) totalPeriods = parseInt(periodsMatch[1]);
+
+      const periodMatch = msg.match(/Periode (\d+)\/(\d+)/);
+      if (periodMatch) {
+        currentPeriod = parseInt(periodMatch[1]);
+        totalPeriods = parseInt(periodMatch[2]);
+        phase = 'scoring';
+      }
+
+      if (msg.includes('Aggregiere')) phase = 'aggregating';
+      if (msg.includes('Speichere')) phase = 'saving';
+      if (msg.includes('✅')) phase = 'done';
+      if (msg.includes('❌')) phase = 'error';
+    }
+
+    let pct = 0;
+    let label = 'Initialisierung...';
+
+    if (phase === 'init') {
+      // Loading tickers phase
+      const hasWatchlist = msgs.some(m => m.includes('Watchlist-Titel geladen'));
+      const hasScreener = msgs.some(m => m.includes('Screener-Titel geladen'));
+      if (hasWatchlist || hasScreener) {
+        pct = 10;
+        label = 'Universum geladen';
+      } else {
+        pct = 3;
+        label = 'Lade Aktienuniversum...';
+      }
+    } else if (phase === 'scoring') {
+      // Main computation: periods 
+      pct = 10 + (currentPeriod / Math.max(1, totalPeriods)) * 75;
+      label = `Periode ${currentPeriod}/${totalPeriods} berechnet`;
+    } else if (phase === 'aggregating') {
+      pct = 88;
+      label = 'Ergebnisse aggregieren...';
+    } else if (phase === 'saving') {
+      pct = 95;
+      label = 'In Datenbank speichern...';
+    } else if (phase === 'done') {
+      pct = 100;
+      label = 'Abgeschlossen!';
+    } else if (phase === 'error') {
+      pct = 100;
+      label = 'Fehler aufgetreten';
+    }
+
+    return { pct: Math.min(99, Math.max(2, pct)), label };
+  };
+
+  const { pct: progressPct, label: progressLabel } = calculateProgress();
+
+  const STRATEGY_LABELS: Record<string, { name: string; description: string; icon: React.ReactNode }> = {
+    shortTerm: {
+      name: 'Kurzfristig (Swing)',
+      description: 'Momentum & Timing: RSI, MACD, 52W-High dominieren',
+      icon: <Zap className="h-4 w-4 text-yellow-500" />,
+    },
+    midTerm: {
+      name: 'Mittelfristig (Trend)',
+      description: 'Ausgewogen: Momentum, Qualität, Relative Stärke',
+      icon: <TrendingUp className="h-4 w-4 text-blue-500" />,
+    },
+    longTerm: {
+      name: 'Langfristig (Investor)',
+      description: 'Bewertung & Qualität: P/E, Sharpe, Dividende dominieren',
+      icon: <Target className="h-4 w-4 text-emerald-500" />,
+    },
+  };
 
   return (
     <div className="space-y-6">
@@ -78,7 +186,34 @@ export default function WalkForwardValidation() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Universe Source */}
+          {/* Strategy Profile */}
+          <div className="border border-primary/20 rounded-lg p-4 bg-primary/5">
+            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              Strategie-Profil
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {Object.entries(STRATEGY_LABELS).map(([key, info]) => (
+                <button
+                  key={key}
+                  onClick={() => setStrategyProfile(key as any)}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    strategyProfile === key
+                      ? 'border-primary bg-primary/10 ring-1 ring-primary/50'
+                      : 'border-muted hover:border-primary/30 hover:bg-muted/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {info.icon}
+                    <span className="text-sm font-medium">{info.name}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{info.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Universe Source & Windows */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Universum</label>
@@ -227,10 +362,10 @@ export default function WalkForwardValidation() {
           {/* Run Button */}
           <Button
             onClick={handleRun}
-            disabled={walkForwardMutation.isPending}
+            disabled={isRunning || startMutation.isPending}
             className="w-full md:w-auto min-w-[200px]"
           >
-            {walkForwardMutation.isPending ? (
+            {isRunning ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Walk-Forward läuft...
@@ -242,16 +377,36 @@ export default function WalkForwardValidation() {
               </span>
             )}
           </Button>
-          {walkForwardMutation.isPending && (
-            <p className="text-xs text-muted-foreground">
-              ⏳ Lade Kursdaten für das Universum und berechne rollierende Rankings... Dies kann 1-3 Minuten dauern.
-            </p>
-          )}
         </CardContent>
       </Card>
 
+      {/* Progress Bar */}
+      {isRunning && (
+        <Card className="border-yellow-500/30 bg-yellow-500/5">
+          <CardContent className="pt-5 pb-4">
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>{progressLabel}</span>
+                <span>{Math.round(progressPct)}%</span>
+              </div>
+              <div className="w-full h-2.5 bg-black/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-yellow-500 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </div>
+            <div className="bg-black/50 rounded p-3 max-h-36 overflow-y-auto font-mono text-xs text-green-400">
+              {(status?.progress || []).slice(-12).map((msg, i) => (
+                <div key={i}>{msg}</div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Error */}
-      {apiError && (
+      {apiError && !isRunning && (
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="pt-4">
             <p className="text-sm text-destructive">{apiError}</p>
@@ -260,34 +415,34 @@ export default function WalkForwardValidation() {
       )}
 
       {/* Results */}
-      {result && (
+      {result && !isRunning && (
         <>
           {/* Summary KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <WFKPICard
               label="OOS Alpha"
-              value={`${result.summary.oosAlpha > 0 ? '+' : ''}${(result.summary.oosAlpha * 100).toFixed(2)}%`}
-              positive={result.summary.oosAlpha > 0}
+              value={`${result.oosAlpha > 0 ? '+' : ''}${result.oosAlpha.toFixed(2)}%`}
+              positive={result.oosAlpha > 0}
               icon={<TrendingUp className="h-4 w-4" />}
-              tooltip="Out-of-Sample Alpha: Überperformance des Top-Quartils gegenüber dem Gesamtuniversum"
+              tooltip="Out-of-Sample Alpha: Überperformance des Top-Quartils gegenüber dem Benchmark"
             />
             <WFKPICard
               label="OOS Hit Rate"
-              value={`${(result.summary.oosHitRate * 100).toFixed(0)}%`}
-              positive={result.summary.oosHitRate > 0.5}
+              value={`${(result.oosHitRate * 100).toFixed(0)}%`}
+              positive={result.oosHitRate > 0.5}
               icon={<Target className="h-4 w-4" />}
-              tooltip="Anteil der OOS-Perioden mit positivem Alpha"
+              tooltip="Anteil der Top-Quartil-Titel die den Benchmark schlagen"
             />
             <WFKPICard
               label="Overfit Ratio"
-              value={result.summary.overfitRatio.toFixed(2)}
-              positive={result.summary.overfitRatio < 1.5}
+              value={result.overfitRatio.toFixed(2)}
+              positive={result.overfitRatio < 1.5}
               icon={<BarChart3 className="h-4 w-4" />}
               tooltip="Verhältnis In-Sample zu Out-of-Sample Performance. < 1.5 = gut, > 2.0 = Overfitting-Risiko"
             />
             <WFKPICard
               label="Universum"
-              value={`${result.summary.universeTickers} Titel`}
+              value={`${result.tickerCount} Titel`}
               positive={true}
               icon={<Globe className="h-4 w-4" />}
               tooltip="Anzahl Titel im getesteten Universum"
@@ -295,57 +450,63 @@ export default function WalkForwardValidation() {
           </div>
 
           {/* Window Results */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                Rollierende Fenster-Ergebnisse
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-muted">
-                      <th className="text-left py-2 px-2 text-xs text-muted-foreground">Periode</th>
-                      <th className="text-right py-2 px-2 text-xs text-muted-foreground">Top-Q Return</th>
-                      <th className="text-right py-2 px-2 text-xs text-muted-foreground">Universum Return</th>
-                      <th className="text-right py-2 px-2 text-xs text-muted-foreground">Alpha</th>
-                      <th className="text-center py-2 px-2 text-xs text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.windowResults.map((w: any, i: number) => (
-                      <tr key={i} className="border-b border-muted/50 hover:bg-muted/20">
-                        <td className="py-2 px-2 text-xs">
-                          {w.testStart} → {w.testEnd}
-                        </td>
-                        <td className={`py-2 px-2 text-xs text-right font-mono ${w.topQuartileReturn > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                          {(w.topQuartileReturn * 100).toFixed(1)}%
-                        </td>
-                        <td className={`py-2 px-2 text-xs text-right font-mono ${w.universeReturn > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                          {(w.universeReturn * 100).toFixed(1)}%
-                        </td>
-                        <td className={`py-2 px-2 text-xs text-right font-mono font-medium ${w.alpha > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                          {w.alpha > 0 ? '+' : ''}{(w.alpha * 100).toFixed(2)}%
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          {w.alpha > 0 ? (
-                            <CheckCircle className="h-3.5 w-3.5 text-emerald-500 inline" />
-                          ) : (
-                            <XCircle className="h-3.5 w-3.5 text-red-500 inline" />
-                          )}
-                        </td>
+          {result.periodResults && result.periodResults.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Rollierende Fenster-Ergebnisse ({result.periodResults.length} Perioden)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-muted">
+                        <th className="text-left py-2 px-2 text-xs text-muted-foreground">Periode</th>
+                        <th className="text-right py-2 px-2 text-xs text-muted-foreground">Top-Q Return</th>
+                        <th className="text-right py-2 px-2 text-xs text-muted-foreground">Benchmark</th>
+                        <th className="text-right py-2 px-2 text-xs text-muted-foreground">Alpha</th>
+                        <th className="text-right py-2 px-2 text-xs text-muted-foreground">Hit Rate</th>
+                        <th className="text-center py-2 px-2 text-xs text-muted-foreground">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                    </thead>
+                    <tbody>
+                      {result.periodResults.map((w: any, i: number) => (
+                        <tr key={i} className="border-b border-muted/50 hover:bg-muted/20">
+                          <td className="py-2 px-2 text-xs">
+                            {w.testStart} → {w.testEnd}
+                          </td>
+                          <td className={`py-2 px-2 text-xs text-right font-mono ${w.topReturn > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {w.topReturn > 0 ? '+' : ''}{w.topReturn.toFixed(1)}%
+                          </td>
+                          <td className={`py-2 px-2 text-xs text-right font-mono ${w.benchmarkReturn > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {w.benchmarkReturn > 0 ? '+' : ''}{w.benchmarkReturn.toFixed(1)}%
+                          </td>
+                          <td className={`py-2 px-2 text-xs text-right font-mono font-medium ${w.alpha > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {w.alpha > 0 ? '+' : ''}{w.alpha.toFixed(2)}%
+                          </td>
+                          <td className="py-2 px-2 text-xs text-right font-mono">
+                            {(w.hitRate * 100).toFixed(0)}%
+                          </td>
+                          <td className="py-2 px-2 text-center">
+                            {w.alpha > 0 ? (
+                              <CheckCircle className="h-3.5 w-3.5 text-emerald-500 inline" />
+                            ) : (
+                              <XCircle className="h-3.5 w-3.5 text-red-500 inline" />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Top Suggestions */}
-          {result.topSuggestions && result.topSuggestions.length > 0 && (
+          {/* Top Performers */}
+          {result.topPerformers && result.topPerformers.length > 0 && (
             <Card className="border-emerald-500/20">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -358,7 +519,7 @@ export default function WalkForwardValidation() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {result.topSuggestions.map((s: any, i: number) => (
+                  {result.topPerformers.map((s: any, i: number) => (
                     <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/20">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-xs font-bold text-emerald-500">
@@ -373,10 +534,10 @@ export default function WalkForwardValidation() {
                       </div>
                       <div className="text-right">
                         <div className="text-xs font-mono text-emerald-500">
-                          Score: {s.avgScore?.toFixed(0) || 'N/A'}
+                          Konsistenz: {(s.consistencyScore * 100).toFixed(0)}%
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {s.topQuartileCount}/{s.totalWindows} Perioden
+                          {s.timesInTopQuartile}/{s.totalPeriods} Perioden
                         </div>
                       </div>
                     </div>

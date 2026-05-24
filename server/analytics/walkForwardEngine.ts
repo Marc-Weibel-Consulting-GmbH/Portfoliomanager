@@ -42,6 +42,7 @@ export interface WalkForwardConfig {
   topQuartilePercent: number; // e.g. 25 (top 25%)
   universeSource: 'watchlist' | 'screener' | 'combined';
   screeningCriteria?: ScreeningCriteria;
+  strategyProfile?: 'shortTerm' | 'midTerm' | 'longTerm';
 }
 
 export interface WalkForwardPeriodResult {
@@ -242,7 +243,8 @@ interface TickerScoreData {
  */
 function calculateTickerScore(
   prices: { date: string; close: number }[],
-  benchmarkPrices: { date: string; close: number }[]
+  benchmarkPrices: { date: string; close: number }[],
+  weights?: { momentum: number; sharpe: number; relativeStrength: number; lowVol: number }
 ): Omit<TickerScoreData, 'ticker' | 'prices'> {
   if (prices.length < 20) {
     return { momentum1m: 0, momentum3m: 0, momentum6m: 0, volatility: 999, sharpe: 0, relativeStrength: 0, compositeScore: 0 };
@@ -273,9 +275,9 @@ function calculateTickerScore(
   const variance = returns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / returns.length;
   const volatility = Math.sqrt(variance) * Math.sqrt(252); // Annualized
   
-  // Sharpe ratio (risk-free rate = 4%)
+  // Sharpe ratio (risk-free rate = 2% for Swiss investors)
   const annualizedReturn = avgReturn * 252;
-  const sharpe = volatility > 0 ? (annualizedReturn - 0.04) / volatility : 0;
+  const sharpe = volatility > 0 ? (annualizedReturn - 0.02) / volatility : 0;
   
   // Relative strength vs benchmark
   let relativeStrength = 0;
@@ -287,14 +289,14 @@ function calculateTickerScore(
     relativeStrength = momentum3m - benchReturn;
   }
   
-  // Composite score (0-100)
-  // Weighted: Momentum 35%, Sharpe 25%, Relative Strength 20%, Low Volatility 20%
+  // Composite score (0-100) — use strategy weights if provided
+  const w = weights || { momentum: 0.35, sharpe: 0.25, relativeStrength: 0.20, lowVol: 0.20 };
   const momentumScore = Math.min(100, Math.max(0, (momentum3m + 0.3) / 0.6 * 100));
   const sharpeScore = Math.min(100, Math.max(0, (sharpe + 1) / 4 * 100));
   const rsScore = Math.min(100, Math.max(0, (relativeStrength + 0.2) / 0.4 * 100));
   const volScore = Math.min(100, Math.max(0, (0.5 - volatility) / 0.5 * 100));
   
-  const compositeScore = momentumScore * 0.35 + sharpeScore * 0.25 + rsScore * 0.20 + volScore * 0.20;
+  const compositeScore = momentumScore * w.momentum + sharpeScore * w.sharpe + rsScore * w.relativeStrength + volScore * w.lowVol;
   
   return {
     momentum1m,
@@ -312,26 +314,46 @@ function calculateTickerScore(
 /**
  * Run Walk-Forward Validation on a universe of stocks
  */
+// Strategy profile scoring weight overrides
+const STRATEGY_SCORING_WEIGHTS: Record<string, { momentum: number; sharpe: number; relativeStrength: number; lowVol: number }> = {
+  shortTerm: { momentum: 0.50, sharpe: 0.15, relativeStrength: 0.25, lowVol: 0.10 },
+  midTerm: { momentum: 0.35, sharpe: 0.25, relativeStrength: 0.20, lowVol: 0.20 },
+  longTerm: { momentum: 0.15, sharpe: 0.35, relativeStrength: 0.15, lowVol: 0.35 },
+};
+
 export async function runWalkForwardValidation(
   config: WalkForwardConfig,
-  userId: number
+  userId: number,
+  progressCallback?: (msg: string) => void
 ): Promise<WalkForwardResult> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  console.log(`[WalkForward] Starting walk-forward validation`, config);
+  const logProgress = (msg: string) => {
+    console.log(`[WalkForward] ${msg}`);
+    progressCallback?.(msg);
+  };
+
+  logProgress(`Walk-Forward Validation gestartet (${config.universeSource}, Train: ${config.trainWindowMonths}M, Test: ${config.testWindowMonths}M)`);
+  if (config.strategyProfile) {
+    logProgress(`Strategie-Profil: ${config.strategyProfile}`);
+  }
 
   // 1. Get universe of tickers
   let tickers: string[] = [];
   
   if (config.universeSource === 'watchlist' || config.universeSource === 'combined') {
+    logProgress('Lade Watchlist-Titel...');
     const watchlistTickers = await getWatchlistTickers();
     tickers.push(...watchlistTickers);
+    logProgress(`${watchlistTickers.length} Watchlist-Titel geladen`);
   }
   
   if (config.universeSource === 'screener' || config.universeSource === 'combined') {
+    logProgress('Lade Screener-Titel (EODHD)...');
     const screenedTickers = await screenStocksFromEODHD(config.screeningCriteria || { maxTickers: 100 });
     tickers.push(...screenedTickers);
+    logProgress(`${screenedTickers.length} Screener-Titel geladen`);
   }
   
   // Deduplicate
@@ -342,7 +364,7 @@ export async function runWalkForwardValidation(
     // We'll filter after scoring in the first period
   }
   
-  console.log(`[WalkForward] Universe: ${tickers.length} tickers`);
+  logProgress(`Universum: ${tickers.length} Titel (dedupliziert)`);
   
   if (tickers.length < 10) {
     throw new Error(`Universe too small: only ${tickers.length} tickers. Need at least 10.`);
@@ -360,9 +382,9 @@ export async function runWalkForwardValidation(
   const dataStart = dateRange[0]?.minDate || '2023-01-01';
   const dataEnd = dateRange[0]?.maxDate || new Date().toISOString().split('T')[0];
   
-  console.log(`[WalkForward] Data range: ${dataStart} to ${dataEnd}`);
+  logProgress(`Datenbereich: ${dataStart} bis ${dataEnd}`);
 
-  // 3. Generate rolling windows
+  // 3. Pre-calculate total number of periods for progress reporting
   const trainMonths = config.trainWindowMonths;
   const testMonths = config.testWindowMonths;
   const totalWindowMonths = trainMonths + testMonths;
@@ -370,8 +392,31 @@ export async function runWalkForwardValidation(
   const startDate = new Date(dataStart);
   const endDate = new Date(dataEnd);
   
+  // Count total periods first for progress
+  let totalExpectedPeriods = 0;
+  {
+    let tempStart = new Date(startDate);
+    while (true) {
+      const tempTrainEnd = new Date(tempStart);
+      tempTrainEnd.setMonth(tempTrainEnd.getMonth() + trainMonths);
+      const tempTestEnd = new Date(tempTrainEnd);
+      tempTestEnd.setDate(tempTestEnd.getDate() + 1);
+      tempTestEnd.setMonth(tempTestEnd.getMonth() + testMonths);
+      if (tempTestEnd > endDate) break;
+      totalExpectedPeriods++;
+      tempStart.setMonth(tempStart.getMonth() + testMonths);
+    }
+  }
+  logProgress(`Erwartete Perioden: ${totalExpectedPeriods}`);
+
+  // Get strategy scoring weights
+  const scoringWeights = config.strategyProfile 
+    ? STRATEGY_SCORING_WEIGHTS[config.strategyProfile] 
+    : STRATEGY_SCORING_WEIGHTS.midTerm; // default
+  
   const periods: WalkForwardPeriodResult[] = [];
   let currentStart = new Date(startDate);
+  let periodIndex = 0;
   
   // Roll forward by testMonths each iteration
   while (true) {
@@ -386,12 +431,16 @@ export async function runWalkForwardValidation(
     
     if (testEnd > endDate) break;
     
+    periodIndex++;
     const trainStartStr = trainStart.toISOString().split('T')[0];
     const trainEndStr = trainEnd.toISOString().split('T')[0];
     const testStartStr = testStart.toISOString().split('T')[0];
     const testEndStr = testEnd.toISOString().split('T')[0];
     
-    console.log(`[WalkForward] Period: Train ${trainStartStr}-${trainEndStr}, Test ${testStartStr}-${testEndStr}`);
+    logProgress(`Periode ${periodIndex}/${totalExpectedPeriods}: Train ${trainStartStr}–${trainEndStr}, Test ${testStartStr}–${testEndStr}`);
+    
+    // Yield to event loop between periods
+    await new Promise(r => setTimeout(r, 10));
     
     // 4. Score all tickers in training window
     const tickerScores: TickerScoreData[] = [];
@@ -412,8 +461,15 @@ export async function runWalkForwardValidation(
       close: parseFloat(String(p.close)) || 0
     }));
     
-    // Score each ticker
+    // Score each ticker (with event loop yielding)
+    let tickerIdx = 0;
     for (const ticker of tickers) {
+      tickerIdx++;
+      // Yield to event loop every 10 tickers
+      if (tickerIdx % 10 === 0) {
+        await new Promise(r => setTimeout(r, 5));
+      }
+      
       const pricesRaw = await db
         .select({ date: historicalPrices.date, close: historicalPrices.close })
         .from(historicalPrices)
@@ -431,7 +487,7 @@ export async function runWalkForwardValidation(
         close: parseFloat(String(p.close)) || 0
       }));
       
-      const score = calculateTickerScore(prices, benchmarkPrices);
+      const score = calculateTickerScore(prices, benchmarkPrices, scoringWeights);
       
       // Apply minimum score filter
       if (config.screeningCriteria?.minScore && score.compositeScore < config.screeningCriteria.minScore) {
@@ -440,6 +496,7 @@ export async function runWalkForwardValidation(
       
       tickerScores.push({ ticker, prices, ...score });
     }
+    logProgress(`Periode ${periodIndex}: ${tickerScores.length}/${tickers.length} Titel bewertet`);
     
     if (tickerScores.length < 4) {
       console.warn(`[WalkForward] Only ${tickerScores.length} tickers scored in period, skipping`);
@@ -552,6 +609,7 @@ export async function runWalkForwardValidation(
   }
   
   // 7. Aggregate results
+  logProgress(`Aggregiere Ergebnisse aus ${periods.length} Perioden...`);
   const avgAlpha = periods.length > 0 
     ? periods.reduce((a, p) => a + p.alpha, 0) / periods.length 
     : 0;
@@ -619,6 +677,7 @@ export async function runWalkForwardValidation(
   };
   
   // 9. Save to database
+  logProgress(`Speichere Ergebnisse in Datenbank...`);
   try {
     await db.insert(walkForwardResults).values({
       userId,
