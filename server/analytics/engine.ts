@@ -51,7 +51,7 @@ export interface OptimizeInput {
   tickers: string[];
   lookbackDays?: number;
   riskFreeRate?: number;
-  method?: "max_sharpe" | "min_variance" | "equal_weight";
+  method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend";
 }
 
 export interface TechnicalAnalysisInput {
@@ -378,40 +378,52 @@ function optimizeWeights(
   mu: number[],
   cov: number[][],
   method: string,
-  riskFreeRate: number
+  riskFreeRate: number,
+  dividendYields?: number[]
 ): number[] {
   const n = mu.length;
   const x0 = new Array(n).fill(1 / n);
 
   if (method === "equal_weight") return x0;
 
-  // Gradient-free optimization using simulated annealing + local search
+  // For max_dividend: maximize weighted dividend yield with volatility penalty
+  // This produces different results from max_sharpe because it uses dividend yield
+  // instead of total return as the objective
+  const isDividend = method === "max_dividend";
+  const isMinVar = method === "min_variance";
+  const isMaxSharpe = method === "max_sharpe";
+
+  function score(w: number[]): number {
+    const { ret, vol } = portfolioStats(w, mu, cov);
+    if (isDividend && dividendYields) {
+      // Objective: maximize portfolio dividend yield / volatility
+      const portDivYield = w.reduce((sum, wi, i) => sum + wi * (dividendYields[i] || 0), 0);
+      // Penalize high volatility but prioritize dividend income
+      return vol > 0 ? portDivYield / (vol * 0.5 + 0.01) : portDivYield;
+    } else if (isMaxSharpe) {
+      return vol > 0 ? (ret - riskFreeRate) / vol : -Infinity;
+    } else if (isMinVar) {
+      return -vol; // negate so higher = better
+    }
+    return 0;
+  }
+
+  // Gradient-free optimization using random search + local refinement
   const numTrials = 5000;
   let bestWeights = [...x0];
-  let bestScore = method === "max_sharpe" ? -Infinity : Infinity;
+  let bestScore = score(x0);
 
   const rng = () => Math.random();
 
   for (let trial = 0; trial < numTrials; trial++) {
-    // Generate random weights that sum to 1
     const raw = Array.from({ length: n }, () => rng());
     const sum = raw.reduce((s, v) => s + v, 0);
     const w = raw.map((v) => v / sum);
 
-    const { ret, vol, sharpe } = portfolioStats(w, mu, cov);
-
-    if (method === "max_sharpe") {
-      const score = vol > 0 ? (ret - riskFreeRate) / vol : -Infinity;
-      if (score > bestScore) {
-        bestScore = score;
-        bestWeights = w;
-      }
-    } else if (method === "min_variance") {
-      const score = vol;
-      if (score < bestScore) {
-        bestScore = score;
-        bestWeights = w;
-      }
+    const s = score(w);
+    if (s > bestScore) {
+      bestScore = s;
+      bestWeights = w;
     }
   }
 
@@ -425,26 +437,16 @@ function optimizeWeights(
         for (let j = 0; j < n; j++) {
           if (i === j) continue;
           const w = [...bestWeights];
-          const delta = Math.min(step, w[j]); // can't go below 0
+          const delta = Math.min(step, w[j]);
           w[i] += delta;
           w[j] -= delta;
           if (w[i] > 1 || w[j] < 0) continue;
 
-          const { ret, vol, sharpe } = portfolioStats(w, mu, cov);
-          if (method === "max_sharpe") {
-            const score = vol > 0 ? (ret - riskFreeRate) / vol : -Infinity;
-            if (score > bestScore) {
-              bestScore = score;
-              bestWeights = w;
-              improved = true;
-            }
-          } else if (method === "min_variance") {
-            const score = vol;
-            if (score < bestScore) {
-              bestScore = score;
-              bestWeights = w;
-              improved = true;
-            }
+          const s = score(w);
+          if (s > bestScore) {
+            bestScore = s;
+            bestWeights = w;
+            improved = true;
           }
         }
       }
@@ -900,8 +902,24 @@ export async function optimizePortfolio(input: OptimizeInput) {
   const cov = covarianceMatrix(returnsMap, available);
   const n = available.length;
 
+  // Fetch dividend yields for max_dividend method
+  let dividendYields: number[] | undefined;
+  if (method === "max_dividend") {
+    dividendYields = await Promise.all(
+      available.map(async (ticker) => {
+        try {
+          const norm = normalizeTicker(ticker);
+          const summary = await yahooFinance.quoteSummary(norm, { modules: ["summaryDetail"] }) as any;
+          return summary?.summaryDetail?.dividendYield ?? 0;
+        } catch {
+          return 0;
+        }
+      })
+    );
+  }
+
   // Optimal weights
-  const optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate);
+  const optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields);
   const { ret: optRet, vol: optVol, sharpe: optSharpe } = portfolioStats(optimalWeights, mu, cov);
 
   // Current portfolio (equal weight)
@@ -999,21 +1017,39 @@ function calcRSI(prices: number[], period: number = 14): number[] {
 
 /**
  * Calculate EMA (Exponential Moving Average)
+ * Standard implementation: seed with SMA of first 'period' values,
+ * then apply exponential smoothing from index 'period' onwards.
+ * Returns array of same length as input (first period-1 values are SMA approximations).
  */
 function calcEMA(data: number[], period: number): number[] {
-  const ema: number[] = [];
-  if (data.length === 0) return ema;
+  if (data.length === 0) return [];
+  if (data.length < period) {
+    // Not enough data for proper EMA, return SMA approximation
+    const ema: number[] = [];
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      sum += data[i];
+      ema.push(sum / (i + 1));
+    }
+    return ema;
+  }
 
   const multiplier = 2 / (period + 1);
-  // Start with SMA for the first value
-  let sum = 0;
-  for (let i = 0; i < Math.min(period, data.length); i++) {
-    sum += data[i];
-  }
-  ema.push(sum / Math.min(period, data.length));
+  const ema: number[] = new Array(data.length);
 
-  for (let i = 1; i < data.length; i++) {
-    ema.push((data[i] - ema[i - 1]) * multiplier + ema[i - 1]);
+  // Seed: SMA of first 'period' values
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += data[i];
+    // Fill early values with running SMA (for alignment)
+    ema[i] = sum / (i + 1);
+  }
+  // Overwrite the seed point with proper SMA
+  ema[period - 1] = sum / period;
+
+  // Apply EMA formula from period onwards
+  for (let i = period; i < data.length; i++) {
+    ema[i] = (data[i] - ema[i - 1]) * multiplier + ema[i - 1];
   }
 
   return ema;
@@ -1090,9 +1126,11 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
   const normalizedTicker = normalizeTicker(ticker);
 
   const end = new Date();
-  const start = new Date(end.getTime() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000);
+  // Use 2x lookback to ensure enough data for RSI(14) warm-up period
+  // RSI needs at least 14+1 periods to start, plus ~100 periods for Wilder's smoothing to stabilize
+  const start = new Date(end.getTime() - Math.max(lookbackDays, 250) * 1.8 * 24 * 60 * 60 * 1000);
 
-  // Fetch price data
+  // Fetch price data with adjusted close for split-adjusted calculations
   const chartResult = await yahooFinance.chart(normalizedTicker, {
     period1: start.toISOString().split("T")[0],
     period2: end.toISOString().split("T")[0],
@@ -1104,11 +1142,17 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
     throw new Error(`Insufficient price data for ${ticker} (need at least 30 days, got ${quotes.length})`);
   }
 
-  const prices = quotes.filter((q: any) => q.close != null).map((q: any) => q.close as number);
-  const dates = quotes.filter((q: any) => q.close != null).map((q: any) => {
-    const d = new Date(q.date);
-    return d.toISOString().split("T")[0];
-  });
+  // Use adjclose (split-adjusted) if available, otherwise fall back to close
+  // This ensures RSI/MACD are calculated on split-adjusted prices matching external sources
+  const prices = quotes
+    .filter((q: any) => (q.adjclose ?? q.close) != null)
+    .map((q: any) => (q.adjclose ?? q.close) as number);
+  const dates = quotes
+    .filter((q: any) => (q.adjclose ?? q.close) != null)
+    .map((q: any) => {
+      const d = new Date(q.date);
+      return d.toISOString().split("T")[0];
+    });
 
   const currentPrice = prices[prices.length - 1];
 

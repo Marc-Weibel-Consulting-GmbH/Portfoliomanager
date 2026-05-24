@@ -6,6 +6,7 @@
 
 import { apiCache, CACHE_TTL } from "./_core/apiCache";
 import { retryFetch } from "./_core/retryUtil";
+import { getEodhdApiKey } from "./_core/env";
 
 export interface DividendEvent {
   ticker: string;
@@ -36,7 +37,7 @@ function toEODHDTicker(ticker: string): string {
  * Returns both historical and upcoming dividends
  */
 async function fetchTickerDividendsEODHD(ticker: string): Promise<DividendEvent[]> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = await getEodhdApiKey();
   if (!apiKey) {
     console.warn("[DividendCalendar] EODHD_API_KEY not configured");
     return [];

@@ -14,6 +14,7 @@ import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip as Recharts
 
 const METHOD_LABELS: Record<string, string> = {
   max_sharpe: "Max. Sharpe Ratio",
+  max_dividend: "Max. Dividendenrendite",
   min_variance: "Min. Varianz",
   equal_weight: "Gleichgewichtung",
 };
@@ -35,7 +36,7 @@ function WeightBar({ ticker, weight, color }: { ticker: string; weight: number; 
 export default function PortfolioOptimizer() {
   const { user } = useAuth();
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
-  const [method, setMethod] = useState<"max_sharpe" | "min_variance" | "equal_weight">("max_sharpe");
+  const [method, setMethod] = useState<"max_sharpe" | "min_variance" | "equal_weight" | "max_dividend">("max_sharpe");
   const [lookbackDays, setLookbackDays] = useState(252);
   const [riskFreeRate, setRiskFreeRate] = useState(2.0);
   const [queryEnabled, setQueryEnabled] = useState(false);
@@ -124,6 +125,7 @@ export default function PortfolioOptimizer() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="max_sharpe">Max. Sharpe Ratio</SelectItem>
+                    <SelectItem value="max_dividend">Max. Dividendenrendite</SelectItem>
                     <SelectItem value="min_variance">Min. Varianz (Risiko)</SelectItem>
                     <SelectItem value="equal_weight">Gleichgewichtung</SelectItem>
                   </SelectContent>

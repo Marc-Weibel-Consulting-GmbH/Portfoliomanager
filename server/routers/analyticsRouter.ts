@@ -93,7 +93,7 @@ export const analyticsRouter = router({
         tickers: z.array(z.string()).min(2),
         lookbackDays: z.number().default(252),
         riskFreeRate: z.number().default(0.02),
-        method: z.enum(["max_sharpe", "min_variance", "equal_weight"]).default("max_sharpe"),
+        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend"]).default("max_sharpe"),
       })
     )
     .query(async ({ input }) => {

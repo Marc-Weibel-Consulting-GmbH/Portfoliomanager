@@ -30,17 +30,27 @@ export const dividendCalendarRouter = router({
       const transactions = await getPortfolioTransactions(input.portfolioId);
       const holdings: Record<string, number> = {};
 
-      transactions.forEach((tx: any) => {
-        if (!holdings[tx.ticker]) {
-          holdings[tx.ticker] = 0;
-        }
-        const shares = parseFloat(tx.shares || "0");
-        if (tx.transactionType === "buy") {
-          holdings[tx.ticker] += shares;
-        } else if (tx.transactionType === "sell") {
-          holdings[tx.ticker] -= shares;
-        }
-      });
+      if (transactions.length > 0) {
+        // Use transaction-based holdings
+        transactions.forEach((tx: any) => {
+          if (!holdings[tx.ticker]) {
+            holdings[tx.ticker] = 0;
+          }
+          const shares = parseFloat(tx.shares || "0");
+          if (tx.transactionType === "buy") {
+            holdings[tx.ticker] += shares;
+          } else if (tx.transactionType === "sell") {
+            holdings[tx.ticker] -= shares;
+          }
+        });
+      } else {
+        // Fallback: use portfolio data shares (for builder portfolios without transactions)
+        portfolioData.forEach((stock: any) => {
+          if (stock.ticker && stock.ticker !== "CASH") {
+            holdings[stock.ticker] = parseFloat(stock.shares || stock.quantity || "0") || 1;
+          }
+        });
+      }
 
       // Fetch upcoming dividends (365 days ahead)
       const dividends = await getPortfolioDividends(tickers, 365);
@@ -102,17 +112,26 @@ export const dividendCalendarRouter = router({
       const transactions = await getPortfolioTransactions(input.portfolioId);
       const holdings: Record<string, number> = {};
 
-      transactions.forEach((tx: any) => {
-        if (!holdings[tx.ticker]) {
-          holdings[tx.ticker] = 0;
-        }
-        const shares = parseFloat(tx.shares || "0");
-        if (tx.transactionType === "buy") {
-          holdings[tx.ticker] += shares;
-        } else if (tx.transactionType === "sell") {
-          holdings[tx.ticker] -= shares;
-        }
-      });
+      if (transactions.length > 0) {
+        transactions.forEach((tx: any) => {
+          if (!holdings[tx.ticker]) {
+            holdings[tx.ticker] = 0;
+          }
+          const shares = parseFloat(tx.shares || "0");
+          if (tx.transactionType === "buy") {
+            holdings[tx.ticker] += shares;
+          } else if (tx.transactionType === "sell") {
+            holdings[tx.ticker] -= shares;
+          }
+        });
+      } else {
+        // Fallback: use portfolio data shares (for builder portfolios without transactions)
+        portfolioData2.forEach((stock: any) => {
+          if (stock.ticker && stock.ticker !== "CASH") {
+            holdings[stock.ticker] = parseFloat(stock.shares || stock.quantity || "0") || 1;
+          }
+        });
+      }
 
       const dividends = await getAllPortfolioDividends(tickers);
 
@@ -171,17 +190,26 @@ export const dividendCalendarRouter = router({
       const transactions = await getPortfolioTransactions(input.portfolioId);
       const holdings: Record<string, number> = {};
 
-      transactions.forEach((tx: any) => {
-        if (!holdings[tx.ticker]) {
-          holdings[tx.ticker] = 0;
-        }
-        const shares = parseFloat(tx.shares || "0");
-        if (tx.transactionType === "buy") {
-          holdings[tx.ticker] += shares;
-        } else if (tx.transactionType === "sell") {
-          holdings[tx.ticker] -= shares;
-        }
-      });
+      if (transactions.length > 0) {
+        transactions.forEach((tx: any) => {
+          if (!holdings[tx.ticker]) {
+            holdings[tx.ticker] = 0;
+          }
+          const shares = parseFloat(tx.shares || "0");
+          if (tx.transactionType === "buy") {
+            holdings[tx.ticker] += shares;
+          } else if (tx.transactionType === "sell") {
+            holdings[tx.ticker] -= shares;
+          }
+        });
+      } else {
+        // Fallback: use portfolio data shares (for builder portfolios without transactions)
+        portfolioData3.forEach((stock: any) => {
+          if (stock.ticker && stock.ticker !== "CASH") {
+            holdings[stock.ticker] = parseFloat(stock.shares || stock.quantity || "0") || 1;
+          }
+        });
+      }
 
       const dividends = await getPortfolioDividends(tickers, (input as any).daysAhead || 365);
 

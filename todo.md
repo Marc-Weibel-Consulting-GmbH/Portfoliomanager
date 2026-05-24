@@ -858,3 +858,10 @@
   - fetchDCFFromYahoo() als Fallback bei EODHD-Fehler
   - Unterstützt US-Aktien (.US) und Schweizer Aktien (.SW)
   - Getestet: NVDA (3.4s), NESN.SW (1.7s) — beide erfolgreich
+
+### P2 Fixes (24.05.2026)
+- [x] Sektor-Heatmap: Sektornamen korrekt mappen (zeigt "?" statt Namen) — BEREITS KORREKT, nicht reproduzierbar
+- [x] Annual Performance: Jahresperformance-Tab in PortfolioDetail integriert
+- [x] RSI/MACD-Kalibrierung: adjclose (split-adjustiert) + korrekte EMA-Berechnung (SMA-Seed)
+- [x] Portfolio Optimizer: max_dividend Methode hinzugefügt (L1-Differenz zu Sharpe: 1.65)
+- [x] Dividend Calendar: Fallback auf Portfolio-Shares wenn keine Transaktionen + EODHD API Key Fix

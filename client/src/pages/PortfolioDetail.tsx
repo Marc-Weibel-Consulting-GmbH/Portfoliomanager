@@ -21,6 +21,162 @@ import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
+// Inline AnnualPerformanceTab component that calls the tRPC endpoint
+function AnnualPerformanceTab({ portfolioId }: { portfolioId: number }) {
+  const [year] = useState(new Date().getFullYear());
+  const { data, isLoading, error } = trpc.annualPerformance.getSummary.useQuery(
+    { portfolioId, year },
+    { enabled: !!portfolioId }
+  );
+
+  const formatCurrency = (amount: number) => {
+    const sign = amount >= 0 ? '+' : '-';
+    return `${sign}CHF ${Math.abs(amount).toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  const formatPercent = (percent: number) => {
+    const sign = percent >= 0 ? '+' : '';
+    return `${sign}${percent.toFixed(1)}%`;
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="border-border/50">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-pulse text-muted-foreground">Lade Jahresperformance...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-destructive">
+        <CardContent className="pt-6">
+          <p className="text-destructive">Fehler: {error.message}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card className="border-border/50">
+        <CardContent className="pt-6">
+          <p className="text-muted-foreground">Keine Daten verf\u00fcgbar</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Net Performance */}
+      <Card className={`border-2 ${
+        data.netPerformance >= 0 ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-red-500/50 bg-red-500/5'
+      }`}>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Netto-Performance {year}</p>
+              <p className={`text-3xl font-bold ${data.netPerformance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                {formatCurrency(data.netPerformance)}
+              </p>
+              <p className={`text-lg ${data.returnOnInvestment >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                {formatPercent(data.returnOnInvestment)}
+              </p>
+            </div>
+            {data.netPerformance >= 0 ? (
+              <TrendingUp className="w-12 h-12 text-emerald-500 opacity-50" />
+            ) : (
+              <TrendingDown className="w-12 h-12 text-red-500 opacity-50" />
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Breakdown Grid */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Unrealisierte Gewinne</p>
+            <p className={`text-xl font-bold ${data.unrealizedGains >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {formatCurrency(data.unrealizedGains)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Realisierte Gewinne</p>
+            <p className={`text-xl font-bold ${data.realizedGains >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {formatCurrency(data.realizedGains)}
+            </p>
+            {data.realizedStockGains !== undefined && data.realizedFxGains !== undefined && (
+              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                <div className="flex justify-between">
+                  <span>Aktien:</span>
+                  <span className={data.realizedStockGains >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+                    {formatCurrency(data.realizedStockGains)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>W\u00e4hrung:</span>
+                  <span className={data.realizedFxGains >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+                    {formatCurrency(data.realizedFxGains)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Dividendenertr\u00e4ge</p>
+            <p className="text-xl font-bold text-emerald-500">
+              {formatCurrency(data.dividendIncome)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Kosten & Geb\u00fchren</p>
+            <p className="text-xl font-bold text-red-500">
+              -CHF {data.totalFees.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Portfolio Overview */}
+      <Card className="border-border/50">
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Total investiert</p>
+              <p className="text-lg font-bold">CHF {data.totalInvested.toLocaleString('de-CH', { minimumFractionDigits: 0 })}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Aktueller Wert</p>
+              <p className="text-lg font-bold">CHF {data.currentValue.toLocaleString('de-CH', { minimumFractionDigits: 0 })}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Cash</p>
+              <p className="text-lg font-bold">CHF {(data.cashPosition || 0).toLocaleString('de-CH', { minimumFractionDigits: 0 })}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Formula */}
+      <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+        <p className="font-medium">Berechnung: Netto-Performance = Unrealisierte Gewinne + Realisierte Gewinne + Dividenden - Kosten</p>
+        <p className="mt-1">* F\u00fcr Steuer-Reporting: Realisierte Gewinne und Dividenden sind steuerpflichtig</p>
+      </div>
+    </div>
+  );
+}
 
 export default function PortfolioDetail() {
   const [, params] = useRoute<{ id: string }>("/portfolio/:id");
@@ -471,8 +627,9 @@ export default function PortfolioDetail() {
 
       {/* Additional Reports Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="overview">Übersicht</TabsTrigger>
+          <TabsTrigger value="annual-performance">Jahresperformance</TabsTrigger>
           <TabsTrigger value="realized-gains">Realisierte Gewinne</TabsTrigger>
           <TabsTrigger value="costs-fees">Kosten & Gebühren</TabsTrigger>
         </TabsList>
@@ -488,6 +645,10 @@ export default function PortfolioDetail() {
               </p>
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="annual-performance">
+          <AnnualPerformanceTab portfolioId={portfolioId!} />
         </TabsContent>
         
         <TabsContent value="realized-gains">
