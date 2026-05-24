@@ -43,6 +43,17 @@ CREATE TABLE `appSecrets` (
 	CONSTRAINT `appSecrets_key_unique` UNIQUE(`key`)
 );
 --> statement-breakpoint
+CREATE TABLE `benchmarkData` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`benchmark` enum('SMI','SP500','MSCI_WORLD') NOT NULL,
+	`date` varchar(10) NOT NULL,
+	`close` varchar(50) NOT NULL,
+	`source` varchar(50) NOT NULL DEFAULT 'eodhd',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `benchmarkData_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
 CREATE TABLE `categories` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`name` varchar(100) NOT NULL,
@@ -74,6 +85,35 @@ CREATE TABLE `chatMessages` (
 	CONSTRAINT `chatMessages_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+CREATE TABLE `copilotHistory` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`portfolioId` int NOT NULL,
+	`userId` int NOT NULL,
+	`ticker` varchar(50) NOT NULL,
+	`companyName` varchar(255),
+	`signal` enum('strong_buy','buy','hold','sell','strong_sell') NOT NULL,
+	`rankScore` int NOT NULL,
+	`confidence` varchar(10),
+	`priceAtSignal` varchar(50) NOT NULL,
+	`currency` varchar(10) DEFAULT 'USD',
+	`targetWeight` varchar(10),
+	`currentWeight` varchar(10),
+	`priceAfter30d` varchar(50),
+	`priceAfter60d` varchar(50),
+	`priceAfter90d` varchar(50),
+	`returnAfter30d` varchar(20),
+	`returnAfter60d` varchar(20),
+	`returnAfter90d` varchar(20),
+	`wasCorrect30d` tinyint,
+	`wasCorrect60d` tinyint,
+	`wasCorrect90d` tinyint,
+	`source` enum('copilot_analysis','walk_forward','rebalancing') NOT NULL DEFAULT 'copilot_analysis',
+	`appliedAsTransaction` tinyint NOT NULL DEFAULT 0,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `copilotHistory_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
 CREATE TABLE `correlations` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`a` varchar(16) NOT NULL,
@@ -82,9 +122,19 @@ CREATE TABLE `correlations` (
 	CONSTRAINT `correlations_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+CREATE TABLE `emailVerificationTokens` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`token` varchar(255) NOT NULL,
+	`expiresAt` timestamp NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `emailVerificationTokens_id` PRIMARY KEY(`id`),
+	CONSTRAINT `emailVerificationTokens_token_unique` UNIQUE(`token`)
+);
+--> statement-breakpoint
 CREATE TABLE `exchangeRates` (
 	`id` int AUTO_INCREMENT NOT NULL,
-	`date` date NOT NULL,
+	`date` varchar(10) NOT NULL,
 	`currencyPair` varchar(16) NOT NULL,
 	`rate` decimal(10,6) NOT NULL,
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
@@ -105,15 +155,18 @@ CREATE TABLE `historicalMetrics` (
 	CONSTRAINT `historicalMetrics_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-CREATE TABLE `historicalPrices` (
+CREATE TABLE `historical_prices` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`ticker` varchar(50) NOT NULL,
 	`date` varchar(10) NOT NULL,
-	`close` varchar(50) NOT NULL,
-	`source` varchar(50) NOT NULL DEFAULT 'yahoo',
+	`close` decimal(20,6) NOT NULL,
+	`adjustedClose` decimal(20,6),
+	`currency` varchar(10),
+	`source` varchar(50) NOT NULL DEFAULT 'eodhd',
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
 	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	CONSTRAINT `historicalPrices_id` PRIMARY KEY(`id`)
+	CONSTRAINT `historical_prices_id` PRIMARY KEY(`id`),
+	CONSTRAINT `uq_historical_prices_ticker_date` UNIQUE(`ticker`,`date`)
 );
 --> statement-breakpoint
 CREATE TABLE `holdings` (
@@ -122,6 +175,19 @@ CREATE TABLE `holdings` (
 	`quantity` decimal(18,6) NOT NULL,
 	`market_value` decimal(18,6) NOT NULL,
 	CONSTRAINT `holdings_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `logoCache` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`ticker` varchar(50) NOT NULL,
+	`logoUrl` varchar(1000),
+	`source` varchar(50) NOT NULL DEFAULT 'eodhd',
+	`lastFetched` timestamp NOT NULL DEFAULT (now()),
+	`expiresAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `logoCache_id` PRIMARY KEY(`id`),
+	CONSTRAINT `logoCache_ticker_unique` UNIQUE(`ticker`)
 );
 --> statement-breakpoint
 CREATE TABLE `news` (
@@ -148,6 +214,16 @@ CREATE TABLE `newsletter` (
 	CONSTRAINT `newsletter_email_unique` UNIQUE(`email`)
 );
 --> statement-breakpoint
+CREATE TABLE `passwordResetTokens` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`token` varchar(255) NOT NULL,
+	`expiresAt` timestamp NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `passwordResetTokens_id` PRIMARY KEY(`id`),
+	CONSTRAINT `passwordResetTokens_token_unique` UNIQUE(`token`)
+);
+--> statement-breakpoint
 CREATE TABLE `payments` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`userId` int NOT NULL,
@@ -161,10 +237,22 @@ CREATE TABLE `payments` (
 	CONSTRAINT `payments_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
+CREATE TABLE `portfolioSnapshots` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`portfolioId` int NOT NULL,
+	`snapshotDate` varchar(10) NOT NULL,
+	`totalValue` varchar(50) NOT NULL,
+	`cashFlow` varchar(50) NOT NULL DEFAULT '0',
+	`isInitial` tinyint NOT NULL DEFAULT 0,
+	`notes` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `portfolioSnapshots_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
 CREATE TABLE `portfolioTransactions` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`portfolioId` int NOT NULL,
-	`transactionType` enum('buy','sell','dividend','deposit','withdrawal') NOT NULL,
+	`transactionType` enum('buy','sell','dividend','deposit','withdrawal','entry') NOT NULL,
 	`ticker` varchar(50),
 	`shares` varchar(50),
 	`pricePerShare` varchar(50),
@@ -186,8 +274,11 @@ CREATE TABLE `priceAlerts` (
 	`alertType` enum('above_price','below_price','percent_change') NOT NULL,
 	`targetPrice` varchar(50),
 	`percentChange` varchar(50),
+	`notificationMethod` enum('email','whatsapp','both') NOT NULL DEFAULT 'email',
+	`status` enum('active','triggered','disabled') NOT NULL DEFAULT 'active',
 	`isActive` tinyint NOT NULL DEFAULT 1,
 	`lastTriggered` timestamp,
+	`triggeredAt` timestamp,
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
 	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `priceAlerts_id` PRIMARY KEY(`id`)
@@ -237,11 +328,16 @@ CREATE TABLE `savedPortfolios` (
 	`userId` int NOT NULL,
 	`name` varchar(255) NOT NULL,
 	`description` text,
-	`portfolioData` text NOT NULL,
-	`portfolioType` varchar(50),
+	`portfolioData` text,
+	`portfolioType` enum('demo','live') NOT NULL DEFAULT 'demo',
+	`status` enum('planned','live') NOT NULL DEFAULT 'planned',
+	`investmentAmount` varchar(50) NOT NULL,
+	`startCapital` varchar(50),
+	`benchmark` enum('SMI','SP500','MSCI_WORLD'),
 	`isLive` tinyint NOT NULL DEFAULT 0,
 	`liveStartDate` timestamp,
 	`livePerformance` varchar(50),
+	`cashBalance` varchar(50) DEFAULT '0',
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
 	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `savedPortfolios_id` PRIMARY KEY(`id`)
@@ -254,6 +350,21 @@ CREATE TABLE `securities` (
 	`industry` varchar(128) NOT NULL,
 	`currency` varchar(8) NOT NULL,
 	CONSTRAINT `securities_symbol` PRIMARY KEY(`symbol`)
+);
+--> statement-breakpoint
+CREATE TABLE `signalWeights` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`name` varchar(100) NOT NULL DEFAULT 'default',
+	`weights` json NOT NULL,
+	`hitRate` decimal(5,2),
+	`totalBacktested` int DEFAULT 0,
+	`correctSignals` int DEFAULT 0,
+	`isActive` tinyint NOT NULL DEFAULT 0,
+	`optimizerLog` text,
+	`lastRunAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `signalWeights_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
 CREATE TABLE `stocks` (
@@ -308,24 +419,128 @@ CREATE TABLE `transactions` (
 	CONSTRAINT `transactions_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-ALTER TABLE `users` MODIFY COLUMN `openId` varchar(64);--> statement-breakpoint
-ALTER TABLE `users` ADD `username` varchar(50);--> statement-breakpoint
-ALTER TABLE `users` ADD `firstName` varchar(255);--> statement-breakpoint
-ALTER TABLE `users` ADD `lastName` varchar(255);--> statement-breakpoint
-ALTER TABLE `users` ADD `password` varchar(255);--> statement-breakpoint
-ALTER TABLE `users` ADD `mobile` varchar(50);--> statement-breakpoint
-ALTER TABLE `users` ADD `hasPaid` tinyint DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` ADD `paymentDate` timestamp;--> statement-breakpoint
-ALTER TABLE `users` ADD `stripeCustomerId` varchar(255);--> statement-breakpoint
-ALTER TABLE `users` ADD `whatsappAlerts` tinyint DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` ADD `hasSeenOnboarding` tinyint DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` ADD `hasDemoPortfolio` tinyint DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `users` ADD CONSTRAINT `users_email_unique` UNIQUE(`email`);--> statement-breakpoint
+CREATE TABLE `userPreferences` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`investmentGoal` enum('dividends','growth','balanced'),
+	`riskTolerance` enum('low','medium','high'),
+	`investmentHorizon` enum('short','medium','long'),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `userPreferences_id` PRIMARY KEY(`id`),
+	CONSTRAINT `userPreferences_userId_unique` UNIQUE(`userId`)
+);
+--> statement-breakpoint
+CREATE TABLE `users` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`openId` varchar(64),
+	`username` varchar(50),
+	`name` text,
+	`firstName` varchar(255),
+	`lastName` varchar(255),
+	`email` varchar(320),
+	`password` varchar(255),
+	`mobile` varchar(50),
+	`loginMethod` varchar(64),
+	`role` enum('user','admin') NOT NULL DEFAULT 'user',
+	`hasPaid` tinyint NOT NULL DEFAULT 0,
+	`paymentDate` timestamp,
+	`stripeCustomerId` varchar(255),
+	`whatsappAlerts` tinyint NOT NULL DEFAULT 0,
+	`emailVerified` tinyint NOT NULL DEFAULT 0,
+	`hasSeenOnboarding` tinyint NOT NULL DEFAULT 0,
+	`hasDemoPortfolio` tinyint NOT NULL DEFAULT 0,
+	`hasCompletedRegistration` tinyint NOT NULL DEFAULT 0,
+	`hasCompletedOnboarding` tinyint NOT NULL DEFAULT 0,
+	`subscriptionTier` enum('free','premium') NOT NULL DEFAULT 'free',
+	`investmentGoal` enum('dividends','growth','balanced'),
+	`riskTolerance` enum('low','medium','high'),
+	`investmentHorizon` enum('short','medium','long'),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`lastSignedIn` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `users_id` PRIMARY KEY(`id`),
+	CONSTRAINT `users_openId_unique` UNIQUE(`openId`),
+	CONSTRAINT `users_email_unique` UNIQUE(`email`)
+);
+--> statement-breakpoint
+CREATE TABLE `walkForwardResults` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`runName` varchar(255) NOT NULL,
+	`universeSource` enum('watchlist','screener','combined') NOT NULL,
+	`screeningCriteria` json,
+	`tickerCount` int NOT NULL,
+	`tickers` json,
+	`trainWindow` int NOT NULL DEFAULT 6,
+	`testWindow` int NOT NULL DEFAULT 1,
+	`totalPeriods` int NOT NULL,
+	`oosAlpha` varchar(20),
+	`oosHitRate` varchar(20),
+	`oosSharpe` varchar(20),
+	`overfitRatio` varchar(20),
+	`topPerformers` json,
+	`fullResults` json,
+	`status` enum('running','completed','failed') NOT NULL DEFAULT 'running',
+	`completedAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `walkForwardResults_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `watchlistStocks` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`ticker` varchar(50) NOT NULL,
+	`companyName` varchar(255) NOT NULL,
+	`sector` varchar(100),
+	`industry` varchar(150),
+	`category` varchar(100),
+	`country` varchar(50),
+	`currency` varchar(10),
+	`marketCap` varchar(50),
+	`source` enum('manual','ai_recommended') NOT NULL DEFAULT 'manual',
+	`aiReason` text,
+	`peRatio` varchar(50),
+	`pegRatio` varchar(50),
+	`dividendYield` varchar(50),
+	`beta` varchar(50),
+	`currentPrice` varchar(50),
+	`week52High` varchar(50),
+	`week52Low` varchar(50),
+	`rsi14` varchar(50),
+	`signalScore` int DEFAULT 0,
+	`signalType` enum('buy','sell','hold') DEFAULT 'hold',
+	`lastMetricsUpdate` timestamp,
+	`isActive` tinyint NOT NULL DEFAULT 1,
+	`notes` text,
+	`addedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `watchlistStocks_id` PRIMARY KEY(`id`),
+	CONSTRAINT `watchlistStocks_ticker_unique` UNIQUE(`ticker`)
+);
+--> statement-breakpoint
+CREATE INDEX `ix_benchmark_data_benchmark_date` ON `benchmarkData` (`benchmark`,`date`);--> statement-breakpoint
 CREATE INDEX `ix_chat_conversations_userId` ON `chatConversations` (`userId`);--> statement-breakpoint
 CREATE INDEX `ix_chat_messages_conversationId` ON `chatMessages` (`conversationId`);--> statement-breakpoint
+CREATE INDEX `ix_copilot_history_portfolio` ON `copilotHistory` (`portfolioId`);--> statement-breakpoint
+CREATE INDEX `ix_copilot_history_user` ON `copilotHistory` (`userId`);--> statement-breakpoint
+CREATE INDEX `ix_copilot_history_ticker` ON `copilotHistory` (`ticker`);--> statement-breakpoint
+CREATE INDEX `ix_copilot_history_created` ON `copilotHistory` (`createdAt`);--> statement-breakpoint
 CREATE INDEX `ix_exchangeRates_date_pair` ON `exchangeRates` (`date`,`currencyPair`);--> statement-breakpoint
 CREATE INDEX `ix_historical_metrics_ticker_date` ON `historicalMetrics` (`ticker`,`recordedAt`);--> statement-breakpoint
-CREATE INDEX `ix_historical_prices_ticker_date` ON `historicalPrices` (`ticker`,`date`);--> statement-breakpoint
+CREATE INDEX `ix_historical_prices_ticker_date` ON `historical_prices` (`ticker`,`date`);--> statement-breakpoint
+CREATE INDEX `ix_logo_cache_ticker` ON `logoCache` (`ticker`);--> statement-breakpoint
+CREATE INDEX `ix_portfolio_snapshots_portfolio_date` ON `portfolioSnapshots` (`portfolioId`,`snapshotDate`);--> statement-breakpoint
+CREATE INDEX `ix_portfolio_transactions_portfolio_id` ON `portfolioTransactions` (`portfolioId`);--> statement-breakpoint
+CREATE INDEX `ix_portfolio_transactions_ticker` ON `portfolioTransactions` (`ticker`);--> statement-breakpoint
+CREATE INDEX `ix_price_alerts_userId` ON `priceAlerts` (`userId`);--> statement-breakpoint
+CREATE INDEX `ix_price_alerts_ticker` ON `priceAlerts` (`ticker`);--> statement-breakpoint
 CREATE INDEX `ix_prices_symbol_date` ON `prices` (`symbol`,`date`);--> statement-breakpoint
 CREATE INDEX `ix_realized_gains_portfolio` ON `realizedGains` (`portfolioId`);--> statement-breakpoint
-CREATE INDEX `ix_realized_gains_ticker` ON `realizedGains` (`ticker`);
+CREATE INDEX `ix_realized_gains_ticker` ON `realizedGains` (`ticker`);--> statement-breakpoint
+CREATE INDEX `ix_user_preferences_userId` ON `userPreferences` (`userId`);--> statement-breakpoint
+CREATE INDEX `ix_wf_results_user` ON `walkForwardResults` (`userId`);--> statement-breakpoint
+CREATE INDEX `ix_wf_results_status` ON `walkForwardResults` (`status`);--> statement-breakpoint
+CREATE INDEX `ix_watchlist_ticker` ON `watchlistStocks` (`ticker`);--> statement-breakpoint
+CREATE INDEX `ix_watchlist_source` ON `watchlistStocks` (`source`);--> statement-breakpoint
+CREATE INDEX `ix_watchlist_category` ON `watchlistStocks` (`category`);--> statement-breakpoint
+CREATE INDEX `ix_watchlist_sector` ON `watchlistStocks` (`sector`);

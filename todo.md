@@ -896,3 +896,71 @@
   - Reduziert unnötiges Trading in ruhigen Monaten (19-22%)
 - [x] Backtest-Perioden: Auswahl 6M / 9M / 12M / 18M / 24M / 36M auf Copilot-Seite
   - Frontend-Dropdown mit allen Optionen + Turnover-Constraint Slider
+
+### Walk-Forward Validation auf weltweitem Aktienuniversum (24.05.2026)
+- [x] Backend: Universum-Screener mit EODHD API
+  - Weltweites Aktienuniversum abrufbar (US, EU, CH, etc.)
+  - Wählbare Vorselektions-Kriterien: Min. Score, Ziel-Sharpe, MarketCap, Sektor, Region
+  - Ergebnis: 100 Titel die den Kriterien entsprechen
+- [x] Backend: Walk-Forward Backtest Engine auf 100 gescreenten Titeln
+  - Training-Window / Test-Window rollierend (6M Train → 1M OOS Test)
+  - Kein Overfitting: Modell nur auf In-Sample trainiert, Out-of-Sample validiert
+  - Ranking auf alle 100 Titel, Top-Quartil auswählen, Forward-Performance messen
+- [x] Backend: KI-Titelvorschläge aus Walk-Forward Top-Performer
+  - Titel die konsistent im Top-Quartil ranken → Kaufvorschläge
+  - Stabilität des Rankings über Zeit als Qualitätsmerkmal
+  - OOS-Alpha, OOS-Hit-Rate, Overfit-Ratio als Validierungsmetriken
+- [x] Frontend: Walk-Forward UI mit Screening-Kriterien
+  - Universum-Filter (Region, Sektor, MarketCap, Min-Score, Ziel-Sharpe)
+  - Walk-Forward Ergebnisse Dashboard
+  - Top-Titelvorschläge mit Confidence-Score
+- [x] Integration: Walk-Forward Ergebnisse in KI-Empfehlungen für neue Titel
+
+### Copilot-Aktionen ausführbar machen (24.05.2026)
+- [x] Backend: Rebalancing-Empfehlungen als echte Transaktionen buchen
+  - Copilot-Vorschläge (Kauf/Verkauf) in Transaktionen umwandeln
+  - Bestätigungs-Flow: User sieht Vorschau → bestätigt → Transaktionen werden gebucht
+  - Berechnung: Stückzahlen aus Zielgewichtung und verfügbarem Kapital
+- [x] Frontend: "Rebalancing anwenden"-Button im Copilot
+  - Vorschau-Dialog mit allen geplanten Trades
+  - Bestätigungsbutton → Transaktionen werden gebucht
+  - Erfolgs-/Fehler-Feedback
+
+### Copilot-Historie (24.05.2026)
+- [x] Schema: copilotHistory Tabelle (Empfehlungen, Zeitpunkt, Ergebnis)
+- [x] Backend: Empfehlungen bei jeder Copilot-Analyse speichern
+  - Ticker, Signal, Score, Zeitpunkt, Preis zum Zeitpunkt
+  - Nach 30/60/90 Tagen: tatsächliche Performance messen
+- [x] Backend: Trefferquote berechnen (Hit Rate über Zeit)
+  - Wie oft war "Buy" tatsächlich profitabel nach 30 Tagen?
+  - Wie oft war "Sell" korrekt?
+  - Confidence-Kalibrierung: Stimmt die Confidence mit der Hit Rate überein?
+- [x] Frontend: Historie-Dashboard im Copilot
+  - Vergangene Empfehlungen mit Ergebnis
+  - Hit-Rate Chart über Zeit
+  - Confidence vs. tatsächliche Trefferquote
+
+### LPPL Bubble Indicator Historischer Backtest (24.05.2026)
+- [x] Backend: LPPL Bubble Indicator auf historische Blasen testen
+  - Dotcom Bubble (1999-2002): S&P 500, NASDAQ
+  - Finanzkrise (2007-2009): S&P 500, Financials
+  - Weitere: China 2015, Bitcoin 2017/2021
+  - Messung: Wann hätte LPPL gewarnt vs. tatsächlicher Crash-Zeitpunkt
+- [x] Backend: LPPL Treffergenauigkeit berechnen
+  - True Positives: LPPL warnte und Crash kam
+  - False Positives: LPPL warnte aber kein Crash
+  - Lead Time: Wie viele Tage/Wochen vor dem Crash warnte LPPL
+  - Confidence-Kalibrierung
+- [x] Frontend: LPPL Backtest Ergebnis-Dashboard
+  - Historische Blasen mit LPPL-Signal-Timeline
+  - Trefferquote und Lead Time Visualisierung
+  - Custom LPPL-Analyse für beliebigen Ticker/Zeitraum
+
+### Bugfixes und Daten-Erweiterungen (24.05.2026)
+- [x] Bug: Teilen-Button zeigt leere Seite → Share-Dialog mit Link kopieren + native Share API implementiert
+- [x] Bug: Benchmark-Kursverlauf (S&P 500) → Backfill auf 15 Jahre löst das Problem
+- [x] Feature: Historische Kursdaten Backfill auf 10-15 Jahre
+  - MAX_BACKFILL_YEARS von 5 auf 15 erhöht
+  - Backfill-Script für alle 138 Ticker + Benchmarks erstellt
+  - Benchmarks (SPY, QQQ, URTH, SSMI) bereits fertig: 10'960 Preise
+  - Restliche Ticker laufen im Hintergrund (14 Batches)

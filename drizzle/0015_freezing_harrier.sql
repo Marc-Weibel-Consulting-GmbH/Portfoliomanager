@@ -1,1 +1,0 @@
-ALTER TABLE `users` ADD `whatsappAlerts` tinyint DEFAULT 0 NOT NULL;

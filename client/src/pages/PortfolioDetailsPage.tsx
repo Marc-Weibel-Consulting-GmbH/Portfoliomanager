@@ -100,6 +100,9 @@ export default function PortfolioDetailsPage() {
   const [editingPosition, setEditingPosition] = useState<any>(null);
   const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
   
+  // State for share
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  
   // State for activation modal (Demo -> Live)
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
   const [startCapital, setStartCapital] = useState("");
@@ -401,7 +404,7 @@ export default function PortfolioDetailsPage() {
               <Edit className="h-4 w-4 mr-2" />
               Positionen
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setIsShareDialogOpen(true)}>
               <Share2 className="h-4 w-4 mr-2" />
               Teilen
             </Button>
@@ -1113,6 +1116,69 @@ export default function PortfolioDetailsPage() {
         </DialogContent>
       </Dialog>
       
+      {/* Share Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Portfolio teilen</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Teilen Sie Ihr Portfolio mit anderen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Portfolio-Link</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={`${window.location.origin}/portfolios/${portfolioId}`}
+                  className="bg-[#0f1420] border-white/10 text-white text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-[#00CFC1]/30 text-[#00CFC1] hover:bg-[#00CFC1]/10 whitespace-nowrap"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/portfolios/${portfolioId}`);
+                    toast.success('Link kopiert!');
+                    setIsShareDialogOpen(false);
+                  }}
+                >
+                  Kopieren
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-300">Portfolio-Zusammenfassung</Label>
+              <div className="bg-[#0f1420] border border-white/10 rounded-lg p-3 text-sm text-gray-300">
+                <p className="font-medium text-white">{portfolio.name}</p>
+                <p>{portfolio.holdings?.length || 0} Positionen</p>
+                {portfolio.portfolioType && <p>Typ: {portfolioTypeConfig[portfolio.portfolioType]?.label || portfolio.portfolioType}</p>}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 border-white/10 text-gray-300 hover:bg-white/10"
+                onClick={() => {
+                  const text = `Schau dir mein Portfolio "${portfolio.name}" an: ${window.location.origin}/portfolios/${portfolioId}`;
+                  if (navigator.share) {
+                    navigator.share({ title: portfolio.name, text, url: `${window.location.origin}/portfolios/${portfolioId}` });
+                  } else {
+                    navigator.clipboard.writeText(text);
+                    toast.success('Text kopiert!');
+                  }
+                  setIsShareDialogOpen(false);
+                }}
+              >
+                {navigator.share ? 'Teilen...' : 'Als Text kopieren'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30">

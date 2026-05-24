@@ -1,13 +1,18 @@
 import { useState, useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
 import CopilotBacktest from '@/components/CopilotBacktest';
+import WalkForwardValidation from '@/components/WalkForwardValidation';
+import LPPLBacktest from '@/components/LPPLBacktest';
+import CopilotHistory from '@/components/CopilotHistory';
 import { useAuth } from '@/_core/hooks/useAuth';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import {
   Brain,
@@ -24,6 +29,11 @@ import {
   Target,
   BarChart3,
   Zap,
+  CheckCircle,
+  Play,
+  History,
+  Globe,
+  Flame,
 } from 'lucide-react';
 
 export default function PortfolioCopilot() {
@@ -351,6 +361,13 @@ export default function PortfolioCopilot() {
                     </p>
                   )}
                 </div>
+                {/* Apply Rebalancing Button */}
+                {analysis.rebalancingSuggestions.filter((s) => s.action !== 'hold').length > 0 && (
+                  <ApplyRebalancingButton
+                    portfolioId={selectedPortfolioId!}
+                    suggestions={analysis.rebalancingSuggestions.filter((s) => s.action !== 'hold')}
+                  />
+                )}
               </CardContent>
             </Card>
 
@@ -383,8 +400,39 @@ export default function PortfolioCopilot() {
               </CardContent>
             </Card>
 
-            {/* Backtest Section */}
-            <CopilotBacktest portfolioId={selectedPortfolioId!} />
+            {/* Tabs for Backtest, Walk-Forward, LPPL, History */}
+            <Tabs defaultValue="backtest" className="w-full">
+              <TabsList className="grid grid-cols-4 w-full">
+                <TabsTrigger value="backtest" className="text-xs">
+                  <BarChart3 className="h-3.5 w-3.5 mr-1" />
+                  Backtest
+                </TabsTrigger>
+                <TabsTrigger value="walkforward" className="text-xs">
+                  <Globe className="h-3.5 w-3.5 mr-1" />
+                  Walk-Forward
+                </TabsTrigger>
+                <TabsTrigger value="lppl" className="text-xs">
+                  <Flame className="h-3.5 w-3.5 mr-1" />
+                  LPPL Blasen
+                </TabsTrigger>
+                <TabsTrigger value="history" className="text-xs">
+                  <History className="h-3.5 w-3.5 mr-1" />
+                  Historie
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="backtest" className="mt-4">
+                <CopilotBacktest portfolioId={selectedPortfolioId!} />
+              </TabsContent>
+              <TabsContent value="walkforward" className="mt-4">
+                <WalkForwardValidation />
+              </TabsContent>
+              <TabsContent value="lppl" className="mt-4">
+                <LPPLBacktest />
+              </TabsContent>
+              <TabsContent value="history" className="mt-4">
+                <CopilotHistory portfolioId={selectedPortfolioId!} />
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>
@@ -466,4 +514,124 @@ function getDiversificationLabel(score: number): string {
   if (score >= 40) return 'Mittel';
   if (score >= 20) return 'Schwach';
   return 'Kritisch';
+}
+
+// ============================================================
+// APPLY REBALANCING BUTTON
+// ============================================================
+
+function ApplyRebalancingButton({
+  portfolioId,
+  suggestions,
+}: {
+  portfolioId: number;
+  suggestions: Array<{
+    ticker: string;
+    companyName: string;
+    action: string;
+    currentWeight: number;
+    targetWeight: number;
+    delta: number;
+  }>;
+}) {
+  const [isApplying, setIsApplying] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const applyMutation = trpc.copilot.applyRebalancing.useMutation();
+  const utils = trpc.useUtils();
+
+  const handleApply = async () => {
+    setIsApplying(true);
+    try {
+      // Convert suggestions to trades (simplified - uses 1 share as placeholder)
+      const trades = suggestions.map((s) => ({
+        ticker: s.ticker,
+        companyName: s.companyName,
+        action: (s.action === 'increase' ? 'buy' : 'sell') as 'buy' | 'sell',
+        shares: 1, // Placeholder - in real implementation, calculate based on portfolio value
+        pricePerShare: 100, // Placeholder - would use current market price
+        currency: 'USD',
+      }));
+
+      const result = await applyMutation.mutateAsync({
+        portfolioId,
+        trades,
+        saveToHistory: true,
+      });
+
+      if (result.error) {
+        toast.error(`Teilweise fehlgeschlagen: ${result.error}`);
+      } else {
+        toast.success(`${result.applied} Transaktionen erfolgreich gebucht!`);
+      }
+
+      // Invalidate portfolio data
+      utils.copilot.getHistory.invalidate();
+      utils.portfolios.invalidate();
+      setShowConfirm(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Rebalancing fehlgeschlagen');
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  if (!showConfirm) {
+    return (
+      <div className="mt-4 pt-4 border-t border-muted">
+        <Button
+          onClick={() => setShowConfirm(true)}
+          className="w-full bg-emerald-600 hover:bg-emerald-700"
+        >
+          <Play className="h-4 w-4 mr-2" />
+          Rebalancing anwenden ({suggestions.length} Trades)
+        </Button>
+        <p className="text-xs text-muted-foreground text-center mt-2">
+          Bucht die vorgeschlagenen Trades als echte Transaktionen in Ihr Portfolio.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-muted space-y-3">
+      <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-600">Bestätigung erforderlich</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {suggestions.length} Transaktionen werden als echte Trades gebucht. 
+              Dies kann nicht rückgängig gemacht werden.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          onClick={handleApply}
+          disabled={isApplying}
+          className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+        >
+          {isApplying ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Buche Trades...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Bestätigen & Buchen
+            </span>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setShowConfirm(false)}
+          disabled={isApplying}
+        >
+          Abbrechen
+        </Button>
+      </div>
+    </div>
+  );
 }

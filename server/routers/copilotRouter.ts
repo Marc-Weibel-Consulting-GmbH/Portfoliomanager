@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { invokeLLM } from '../_core/llm';
-import { getSavedPortfolioById, getPortfolioTransactions } from '../db';
+import { getSavedPortfolioById, getPortfolioTransactions, createPortfolioTransaction } from '../db';
 import {
   runCopilotAnalysis,
   calculateRankings,
@@ -17,6 +17,9 @@ import {
   type CopilotAnalysis,
 } from '../analytics/portfolioCopilot';
 import { runCopilotBacktest } from '../analytics/copilotBacktest';
+import { runWalkForwardValidation, getWalkForwardHistory, screenStocksFromEODHD, getWatchlistTickers } from '../analytics/walkForwardEngine';
+import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHistoryStats, evaluateRecommendations, markRecommendationAsApplied } from '../analytics/copilotHistory';
+import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES } from '../analytics/lpplBacktest';
 import YahooFinance from 'yahoo-finance2';
 
 const yf = new YahooFinance();
@@ -352,6 +355,175 @@ export const copilotRouter = router({
       } catch (err: any) {
         return { error: err.message || 'Backtest fehlgeschlagen', result: null };
       }
+    }),
+
+  // ============================================================
+  // REBALANCING ACTIONS - Apply trades as real transactions
+  // ============================================================
+  applyRebalancing: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number(),
+      trades: z.array(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+        action: z.enum(['buy', 'sell']),
+        shares: z.number().positive(),
+        pricePerShare: z.number().positive(),
+        currency: z.string().default('USD'),
+        fxRate: z.number().optional(),
+      })),
+      saveToHistory: z.boolean().default(true),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) {
+        return { error: 'Portfolio nicht gefunden', applied: 0 };
+      }
+
+      let applied = 0;
+      const errors: string[] = [];
+
+      for (const trade of input.trades) {
+        try {
+          const totalAmount = trade.shares * trade.pricePerShare;
+          const fxRate = trade.fxRate || 1;
+          const totalAmountCHF = totalAmount * fxRate;
+
+          await createPortfolioTransaction({
+            portfolioId: input.portfolioId,
+            transactionType: trade.action,
+            ticker: trade.ticker,
+            shares: trade.shares.toString(),
+            pricePerShare: trade.pricePerShare.toString(),
+            currency: trade.currency,
+            totalAmount: totalAmount.toFixed(2),
+            fxRate: fxRate.toString(),
+            totalAmountCHF: totalAmountCHF.toFixed(2),
+            fees: '0',
+            notes: `Copilot Rebalancing: ${trade.action} ${trade.shares} ${trade.ticker}`,
+            transactionDate: new Date(),
+          });
+          applied++;
+        } catch (err: any) {
+          errors.push(`${trade.ticker}: ${err.message}`);
+        }
+      }
+
+      // Save to history
+      if (input.saveToHistory) {
+        const recs = input.trades.map(trade => ({
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+          ticker: trade.ticker,
+          companyName: trade.companyName || trade.ticker,
+          signal: trade.action === 'buy' ? 'buy' as const : 'sell' as const,
+          rankScore: 0,
+          priceAtSignal: trade.pricePerShare.toString(),
+          currency: trade.currency,
+          source: 'rebalancing' as const,
+        }));
+        await saveCopilotRecommendations(recs);
+      }
+
+      return { error: errors.length > 0 ? errors.join('; ') : null, applied, total: input.trades.length };
+    }),
+
+  // ============================================================
+  // COPILOT HISTORY
+  // ============================================================
+  getHistory: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number(),
+      limit: z.number().optional().default(50),
+    }))
+    .query(async ({ ctx, input }) => {
+      return getCopilotHistoryForPortfolio(input.portfolioId, ctx.user.id, input.limit);
+    }),
+
+  getHistoryStats: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      return getCopilotHistoryStats(ctx.user.id, input.portfolioId);
+    }),
+
+  evaluateHistory: protectedProcedure
+    .mutation(async () => {
+      return evaluateRecommendations();
+    }),
+
+  // ============================================================
+  // WALK-FORWARD VALIDATION
+  // ============================================================
+  runWalkForward: protectedProcedure
+    .input(z.object({
+      universeSource: z.enum(['watchlist', 'screener', 'combined']),
+      trainWindowMonths: z.number().min(3).max(12).default(6),
+      testWindowMonths: z.number().min(1).max(3).default(1),
+      topQuartilePercent: z.number().min(10).max(50).default(25),
+      screeningCriteria: z.object({
+        region: z.string().optional(),
+        exchange: z.string().optional(),
+        sector: z.string().optional(),
+        minMarketCap: z.number().optional(),
+        maxMarketCap: z.number().optional(),
+        minScore: z.number().optional(),
+        targetSharpe: z.number().optional(),
+        maxTickers: z.number().optional().default(100),
+      }).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const result = await runWalkForwardValidation({
+          trainWindowMonths: input.trainWindowMonths,
+          testWindowMonths: input.testWindowMonths,
+          topQuartilePercent: input.topQuartilePercent,
+          universeSource: input.universeSource,
+          screeningCriteria: input.screeningCriteria,
+        }, ctx.user.id);
+        return { error: null, result };
+      } catch (err: any) {
+        return { error: err.message || 'Walk-Forward fehlgeschlagen', result: null };
+      }
+    }),
+
+  getWalkForwardHistory: protectedProcedure
+    .query(async ({ ctx }) => {
+      return getWalkForwardHistory(ctx.user.id);
+    }),
+
+  // ============================================================
+  // LPPL BUBBLE INDICATOR BACKTEST
+  // ============================================================
+  runLpplBacktest: protectedProcedure
+    .mutation(async () => {
+      try {
+        const result = await runLPPLFullBacktest();
+        return { error: null, result };
+      } catch (err: any) {
+        return { error: err.message || 'LPPL Backtest fehlgeschlagen', result: null };
+      }
+    }),
+
+  runLpplCustom: protectedProcedure
+    .input(z.object({
+      ticker: z.string(),
+      startDate: z.string(),
+      endDate: z.string(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const signals = await runLPPLCustomBacktest(input.ticker, input.startDate, input.endDate);
+        return { error: null, signals };
+      } catch (err: any) {
+        return { error: err.message || 'LPPL Custom Backtest fehlgeschlagen', signals: [] };
+      }
+    }),
+
+  getLpplBubblePeriods: protectedProcedure
+    .query(() => {
+      return KNOWN_BUBBLES;
     }),
 });
 

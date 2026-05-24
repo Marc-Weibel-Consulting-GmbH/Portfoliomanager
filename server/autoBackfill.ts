@@ -19,7 +19,7 @@ import { normalizeTickerForDb, getTickerVariants } from "./tickerNormalization";
 import { backfillHistoricalPrices } from "./backfillHistoricalPrices";
 
 // Configuration
-const MAX_BACKFILL_YEARS = 5; // How many years of data to fetch for new symbols
+const MAX_BACKFILL_YEARS = 15; // How many years of data to fetch for new symbols (extended from 5 to 15)
 const MIN_REQUIRED_DATA_POINTS = 100; // Minimum data points to consider a symbol "backfilled"
 const BACKFILL_QUEUE_DELAY_MS = 500; // Delay between processing queue items
 

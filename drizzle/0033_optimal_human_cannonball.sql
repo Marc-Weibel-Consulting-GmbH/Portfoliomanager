@@ -1,1 +1,0 @@
-ALTER TABLE `portfolioTransactions` ADD `currency` varchar(10) DEFAULT 'CHF';

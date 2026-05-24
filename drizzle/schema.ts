@@ -620,3 +620,76 @@ export const signalWeights = mysqlTable("signalWeights", {
 
 export type SignalWeight = typeof signalWeights.$inferSelect;
 export type InsertSignalWeight = typeof signalWeights.$inferInsert;
+
+
+// Copilot History table - tracks past recommendations and their outcomes
+export const copilotHistory = mysqlTable("copilotHistory", {
+  id: int("id").autoincrement().primaryKey(),
+  portfolioId: int("portfolioId").notNull(),
+  userId: int("userId").notNull(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  companyName: varchar("companyName", { length: 255 }),
+  signal: mysqlEnum("signal", ["strong_buy", "buy", "hold", "sell", "strong_sell"]).notNull(),
+  rankScore: int("rankScore").notNull(), // 0-100
+  confidence: varchar("confidence", { length: 10 }), // e.g. "0.75"
+  priceAtSignal: varchar("priceAtSignal", { length: 50 }).notNull(), // Price when recommendation was made
+  currency: varchar("currency", { length: 10 }).default("USD"),
+  targetWeight: varchar("targetWeight", { length: 10 }), // Suggested weight
+  currentWeight: varchar("currentWeight", { length: 10 }), // Weight at time of signal
+  // Outcome tracking (filled later)
+  priceAfter30d: varchar("priceAfter30d", { length: 50 }),
+  priceAfter60d: varchar("priceAfter60d", { length: 50 }),
+  priceAfter90d: varchar("priceAfter90d", { length: 50 }),
+  returnAfter30d: varchar("returnAfter30d", { length: 20 }), // e.g. "+5.2%"
+  returnAfter60d: varchar("returnAfter60d", { length: 20 }),
+  returnAfter90d: varchar("returnAfter90d", { length: 20 }),
+  wasCorrect30d: tinyint("wasCorrect30d"), // 1 = correct, 0 = wrong, null = pending
+  wasCorrect60d: tinyint("wasCorrect60d"),
+  wasCorrect90d: tinyint("wasCorrect90d"),
+  // Metadata
+  source: mysqlEnum("source", ["copilot_analysis", "walk_forward", "rebalancing"]).notNull().default("copilot_analysis"),
+  appliedAsTransaction: tinyint("appliedAsTransaction").notNull().default(0), // Was this actually executed?
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  portfolioIdx: index("ix_copilot_history_portfolio").on(t.portfolioId),
+  userIdx: index("ix_copilot_history_user").on(t.userId),
+  tickerIdx: index("ix_copilot_history_ticker").on(t.ticker),
+  createdAtIdx: index("ix_copilot_history_created").on(t.createdAt),
+}));
+
+export type CopilotHistoryEntry = typeof copilotHistory.$inferSelect;
+export type InsertCopilotHistoryEntry = typeof copilotHistory.$inferInsert;
+
+// Walk-Forward results table - stores walk-forward validation results
+export const walkForwardResults = mysqlTable("walkForwardResults", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  runName: varchar("runName", { length: 255 }).notNull(), // e.g. "US Large Cap Tech Screening 2026-05"
+  universeSource: mysqlEnum("universeSource", ["watchlist", "screener", "combined"]).notNull(),
+  // Screening criteria used
+  screeningCriteria: json("screeningCriteria"), // JSON: { region, sector, minMarketCap, minScore, targetSharpe, ... }
+  tickerCount: int("tickerCount").notNull(), // Number of tickers in universe
+  tickers: json("tickers"), // JSON array of tickers used
+  // Walk-Forward config
+  trainWindow: int("trainWindow").notNull().default(6), // months
+  testWindow: int("testWindow").notNull().default(1), // months
+  totalPeriods: int("totalPeriods").notNull(), // number of WF periods
+  // Results
+  oosAlpha: varchar("oosAlpha", { length: 20 }), // Out-of-sample alpha
+  oosHitRate: varchar("oosHitRate", { length: 20 }), // Out-of-sample hit rate
+  oosSharpe: varchar("oosSharpe", { length: 20 }), // Out-of-sample Sharpe
+  overfitRatio: varchar("overfitRatio", { length: 20 }), // IS Sharpe / OOS Sharpe
+  topPerformers: json("topPerformers"), // JSON: [{ ticker, avgRank, consistency, oosReturn }]
+  fullResults: json("fullResults"), // JSON: detailed period-by-period results
+  // Metadata
+  status: mysqlEnum("status", ["running", "completed", "failed"]).notNull().default("running"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  userIdx: index("ix_wf_results_user").on(t.userId),
+  statusIdx: index("ix_wf_results_status").on(t.status),
+}));
+
+export type WalkForwardResult = typeof walkForwardResults.$inferSelect;
+export type InsertWalkForwardResult = typeof walkForwardResults.$inferInsert;

@@ -1,1 +1,0 @@
-ALTER TABLE `stocks` ADD `sector` varchar(100);
