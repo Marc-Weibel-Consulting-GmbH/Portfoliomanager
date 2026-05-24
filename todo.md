@@ -981,3 +981,16 @@
 - [x] Frontend: Monitoring-Status Tab im Copilot
   - Übersicht aller Scheduled Jobs mit Status und Zeitplan
   - Benachrichtigungs-Info und Auto-Save Bestätigung
+
+### Heartbeat-Jobs, Caching und Konfiguration (24.05.2026)
+- [ ] Heartbeat-Jobs registrieren via manus-config schedule
+  - Walk-Forward Weekly: Sonntag 03:00 UTC
+  - LPPL Monitoring: Täglich 06:00 UTC
+  - Evaluate Recommendations: Täglich 07:00 UTC
+- [ ] Walk-Forward Ergebnisse in walkForwardResults-Tabelle cachen
+  - Nach jedem Run Ergebnisse persistieren
+  - Abruf-Endpoint für historische Runs
+  - Frontend zeigt gecachte Ergebnisse sofort an
+- [ ] LPPL-Monitoring Schwellenwert konfigurierbar
+  - Benutzer-Einstellung in Monitoring-UI (Slider 50-95%)
+  - Backend liest Schwellenwert aus DB statt hardcoded 70%
