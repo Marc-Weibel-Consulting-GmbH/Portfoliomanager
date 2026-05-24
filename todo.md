@@ -872,3 +872,8 @@
 - [x] KPI-Überblick: Gesamt-Risikoscore (0-100) mit Bewertung + kompakte Kennzahlen-Karten mit Benchmark-Vergleich
 - [x] Interpretation: Textuelle Zusammenfassung des Risikoprofils (regelbasiert)
 - [x] Backend: Benchmark-Metriken, Normalisierung und Score-Berechnung hinzugefügt
+
+### Historische Risikoscore-Entwicklung (24.05.2026)
+- [x] Backend: Rolling-Window Risikoscore-Berechnung (52 Wochen, 63 Tage Window)
+- [x] Frontend: Mini-Chart Komponente (Liniendiagramm mit Farbzonen + Legende + Trend-Indikator)
+- [x] Integration in RiskDashboard zwischen Risikokennzahlen und Marktrisiko-Sektion

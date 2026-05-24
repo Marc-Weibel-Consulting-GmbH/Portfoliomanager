@@ -1422,3 +1422,235 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
     overallDescription,
   };
 }
+
+
+// ─────────────────────────────────────────────
+// Public API: Historical Risk Score Timeline
+// ─────────────────────────────────────────────
+
+export interface RiskScoreHistoryInput {
+  holdings: HoldingInput[];
+  benchmark?: string;
+  riskFreeRate?: number;
+  confidenceLevel?: number;
+  /** Number of weekly data points to generate (default: 52 = 1 year) */
+  weeks?: number;
+  /** Rolling window size in trading days for each score calculation (default: 63 = ~3 months) */
+  windowDays?: number;
+}
+
+export interface RiskScoreDataPoint {
+  date: string; // ISO date string
+  score: number; // 0-100
+  volatility: number; // annualized %
+  sharpe: number;
+  maxDrawdown: number; // %
+}
+
+/**
+ * Calculate historical risk score timeline using rolling windows.
+ * Fetches enough historical data to compute weekly risk scores over the requested period.
+ * Each data point represents the risk score calculated from a rolling window ending on that date.
+ */
+export async function calcRiskScoreHistory(input: RiskScoreHistoryInput): Promise<RiskScoreDataPoint[]> {
+  const {
+    holdings,
+    benchmark = "SPY",
+    riskFreeRate = DEFAULT_RISK_FREE_RATE,
+    confidenceLevel = 0.95,
+    weeks = 52,
+    windowDays = 63, // ~3 months rolling window
+  } = input;
+
+  const tickers = holdings.map((h) => h.ticker);
+  const rawWeights = holdings.map((h) => h.weight);
+  const totalW = rawWeights.reduce((s, v) => s + v, 0);
+  const weights = totalW > 0 ? rawWeights.map((w) => w / totalW) : rawWeights;
+
+  // We need enough data: windowDays + (weeks * 5 trading days per week) + buffer
+  const totalDaysNeeded = windowDays + weeks * 5 + 30;
+
+  // Fetch all prices with dates
+  const allTickers = Array.from(new Set([...tickers, benchmark]));
+  const pricesWithDates = await fetchPricesWithDates(allTickers, totalDaysNeeded);
+
+  // Find available tickers
+  const available = tickers.filter((t) => pricesWithDates[t] && pricesWithDates[t].length > windowDays + 5);
+  if (available.length === 0) {
+    return [];
+  }
+
+  // Recompute weights for available tickers
+  const availIdx = available.map((t) => tickers.indexOf(t));
+  let weightsAvail = availIdx.map((i) => weights[i]);
+  const wSum = weightsAvail.reduce((s, v) => s + v, 0);
+  if (wSum > 0) weightsAvail = weightsAvail.map((w) => w / wSum);
+
+  // Find the minimum common length across all available tickers
+  const minLen = Math.min(...available.map((t) => pricesWithDates[t].length));
+  
+  // Compute daily returns for each ticker (aligned to same length)
+  const returnsWithDates: { dates: string[]; returns: { [ticker: string]: number[] } } = {
+    dates: [],
+    returns: {},
+  };
+
+  // Use the ticker with the shortest data as the date reference
+  const refTicker = available.reduce((a, b) => 
+    pricesWithDates[a].length <= pricesWithDates[b].length ? a : b
+  );
+  
+  for (let i = 1; i < Math.min(minLen, pricesWithDates[refTicker].length); i++) {
+    returnsWithDates.dates.push(pricesWithDates[refTicker][i].date);
+  }
+
+  for (const ticker of available) {
+    const prices = pricesWithDates[ticker];
+    const returns: number[] = [];
+    for (let i = 1; i < Math.min(minLen, prices.length); i++) {
+      returns.push((prices[i].price - prices[i - 1].price) / prices[i - 1].price);
+    }
+    returnsWithDates.returns[ticker] = returns;
+  }
+
+  // Also compute benchmark returns
+  const benchmarkPrices = pricesWithDates[benchmark];
+  let benchmarkReturns: number[] | null = null;
+  if (benchmarkPrices && benchmarkPrices.length > windowDays) {
+    benchmarkReturns = [];
+    for (let i = 1; i < Math.min(minLen, benchmarkPrices.length); i++) {
+      benchmarkReturns.push((benchmarkPrices[i].price - benchmarkPrices[i - 1].price) / benchmarkPrices[i - 1].price);
+    }
+  }
+
+  const totalReturns = returnsWithDates.dates.length;
+  if (totalReturns < windowDays + 5) {
+    return [];
+  }
+
+  // Generate weekly data points by stepping back from the most recent date
+  const dataPoints: RiskScoreDataPoint[] = [];
+  const stepSize = 5; // ~1 week (5 trading days)
+
+  for (let w = 0; w < weeks; w++) {
+    const endIdx = totalReturns - 1 - w * stepSize;
+    const startIdx = endIdx - windowDays + 1;
+    
+    if (startIdx < 0) break;
+
+    // Extract window returns for portfolio
+    const windowPortfolioRets: number[] = new Array(windowDays).fill(0);
+    for (let t = 0; t < available.length; t++) {
+      const tickerReturns = returnsWithDates.returns[available[t]];
+      for (let d = startIdx; d <= endIdx; d++) {
+        windowPortfolioRets[d - startIdx] += (tickerReturns[d] ?? 0) * weightsAvail[t];
+      }
+    }
+
+    // Calculate metrics for this window
+    const volatility = calcVolatility(windowPortfolioRets);
+    const sharpe = calcSharpe(windowPortfolioRets, riskFreeRate);
+    const sortino = calcSortino(windowPortfolioRets, riskFreeRate);
+    const varHist = calcVarHistorical(windowPortfolioRets, confidenceLevel);
+    const maxDD = calcMaxDrawdown(windowPortfolioRets);
+
+    let beta: number | null = null;
+    if (benchmarkReturns) {
+      const windowBenchRets = benchmarkReturns.slice(startIdx, endIdx + 1);
+      if (windowBenchRets.length === windowPortfolioRets.length) {
+        beta = calcBeta(windowPortfolioRets, windowBenchRets);
+      }
+    }
+
+    // Calculate risk score (same formula as main calcRiskMetrics)
+    function normalizeMetric(value: number, min: number, max: number, invert: boolean): number {
+      const clamped = Math.max(min, Math.min(max, value));
+      const normalized = (clamped - min) / (max - min);
+      const score = invert ? (1 - normalized) * 100 : normalized * 100;
+      return Math.round(score);
+    }
+
+    const volScore = normalizeMetric(volatility * 100, 0, 40, true);
+    const maxDDScore = normalizeMetric(Math.abs(maxDD) * 100, 0, 50, true);
+    const varScore = normalizeMetric(Math.abs(varHist) * 100, 0, 10, true);
+    const sharpeScore = normalizeMetric(sharpe, -1, 3, false);
+    const sortinoScore = normalizeMetric(sortino, -1, 4, false);
+    const betaScore = beta !== null ? normalizeMetric(Math.abs(beta - 1), 0, 1.5, true) : 50;
+
+    const riskScore = Math.round(
+      volScore * 0.2 + maxDDScore * 0.2 + varScore * 0.15 +
+      sharpeScore * 0.2 + sortinoScore * 0.15 + betaScore * 0.1
+    );
+
+    dataPoints.push({
+      date: returnsWithDates.dates[endIdx],
+      score: riskScore,
+      volatility: Math.round(volatility * 10000) / 100,
+      sharpe: Math.round(sharpe * 100) / 100,
+      maxDrawdown: Math.round(maxDD * 10000) / 100,
+    });
+  }
+
+  // Reverse so oldest is first
+  dataPoints.reverse();
+  return dataPoints;
+}
+
+/**
+ * Fetch daily prices with dates for multiple tickers.
+ * Returns an object mapping ticker -> array of {date, price} sorted chronologically.
+ */
+async function fetchPricesWithDates(
+  tickers: string[],
+  lookbackDays: number
+): Promise<{ [ticker: string]: Array<{ date: string; price: number }> }> {
+  const normalizedMap: { [orig: string]: string } = {};
+  for (const t of tickers) {
+    normalizedMap[t] = normalizeTicker(t);
+  }
+  const uniqueNormalized = Array.from(new Set(Object.values(normalizedMap)));
+
+  const end = new Date();
+  const start = new Date(end.getTime() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000);
+
+  const pricesByNorm: { [norm: string]: Array<{ date: string; price: number }> } = {};
+
+  await Promise.allSettled(
+    uniqueNormalized.map(async (norm) => {
+      try {
+        const result = await yahooFinance.chart(norm, {
+          period1: start.toISOString().split("T")[0],
+          period2: end.toISOString().split("T")[0],
+          interval: "1d",
+        }) as any;
+        const quotes = (result.quotes ?? result.indicators?.quote?.[0] ?? []) as any[];
+        const prices: Array<{ date: string; price: number }> = [];
+        for (const q of quotes) {
+          const adjClose = q.adjclose ?? q.close;
+          if (adjClose != null && q.date) {
+            prices.push({
+              date: new Date(q.date).toISOString().split("T")[0],
+              price: adjClose,
+            });
+          }
+        }
+        if (prices.length > 5) {
+          pricesByNorm[norm] = prices;
+        }
+      } catch {
+        // Skip tickers with no data
+      }
+    })
+  );
+
+  // Map back to original tickers
+  const result: { [ticker: string]: Array<{ date: string; price: number }> } = {};
+  for (const orig of tickers) {
+    const norm = normalizedMap[orig];
+    if (pricesByNorm[norm]) {
+      result[orig] = pricesByNorm[norm];
+    }
+  }
+
+  return result;
+}

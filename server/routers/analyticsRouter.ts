@@ -8,7 +8,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis } from "../analytics/engine";
+import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory } from "../analytics/engine";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -108,6 +108,38 @@ export const analyticsRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: err.message ?? "Portfolio optimization failed",
+        });
+      }
+    }),
+
+  /**
+   * Historical Risk Score Timeline: Weekly risk scores over the past year
+   */
+  riskScoreHistory: protectedProcedure
+    .input(
+      z.object({
+        holdings: z.array(HoldingSchema).min(1),
+        benchmark: z.string().default("SPY"),
+        riskFreeRate: z.number().default(0.02),
+        confidenceLevel: z.number().default(0.95),
+        weeks: z.number().default(52),
+        windowDays: z.number().default(63),
+      })
+    )
+    .query(async ({ input }) => {
+      try {
+        return await calcRiskScoreHistory({
+          holdings: input.holdings,
+          benchmark: input.benchmark,
+          riskFreeRate: input.riskFreeRate,
+          confidenceLevel: input.confidenceLevel,
+          weeks: input.weeks,
+          windowDays: input.windowDays,
+        });
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Risk score history calculation failed",
         });
       }
     }),

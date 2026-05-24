@@ -12,6 +12,7 @@ import { AlertTriangle, TrendingDown, TrendingUp, Activity, BarChart3, Shield, I
 import RiskRadarChart from "@/components/RiskRadarChart";
 import RiskBulletChart from "@/components/RiskBulletChart";
 import RiskScoreOverview from "@/components/RiskScoreOverview";
+import RiskScoreTimeline from "@/components/RiskScoreTimeline";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -138,6 +139,25 @@ export default function RiskDashboard() {
     {
       enabled: !!user && holdings.length > 0,
       staleTime: 5 * 60 * 1000,
+    }
+  );
+
+  // Fetch risk score history (timeline)
+  const {
+    data: riskScoreHistory,
+    isLoading: historyLoading,
+  } = trpc.analytics.riskScoreHistory.useQuery(
+    {
+      holdings,
+      benchmark,
+      riskFreeRate: 0.02,
+      confidenceLevel,
+      weeks: 52,
+      windowDays: 63,
+    },
+    {
+      enabled: !!user && holdings.length > 0,
+      staleTime: 10 * 60 * 1000, // Cache for 10 min (expensive calculation)
     }
   );
 
@@ -463,6 +483,12 @@ export default function RiskDashboard() {
                   />
                 </div>
               </div>
+
+              {/* Risikoscore-Entwicklung Timeline */}
+              <RiskScoreTimeline
+                data={riskScoreHistory ?? []}
+                isLoading={historyLoading}
+              />
 
               {/* Marktrisiko & Performance */}
               <div>
