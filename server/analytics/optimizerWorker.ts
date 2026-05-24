@@ -582,8 +582,11 @@ export async function runOptimizerNonBlocking(
 
   let inSampleCorrect = 0, inSampleTotal = 0;
   let outOfSampleCorrect = 0, outOfSampleTotal = 0;
+  let wfProcessed = 0;
+  const wfEligible = stockData.filter(s => Math.floor(s.prices.length * 0.8) >= 80).length;
 
-  for (const stock of stockData) {
+  for (let si = 0; si < stockData.length; si++) {
+    const stock = stockData[si];
     const splitIdx = Math.floor(stock.prices.length * 0.8);
     if (splitIdx < 80) continue; // Need enough in-sample data
 
@@ -599,6 +602,13 @@ export async function runOptimizerNonBlocking(
     const outBt = backtestStock(outOfSamplePrices, stock.volumes.slice(splitIdx - 60), best.weights, stock.fundamentals, bestLookforward, bestThreshold);
     outOfSampleCorrect += outBt.correct;
     outOfSampleTotal += outBt.total;
+
+    wfProcessed++;
+    if (wfProcessed % 10 === 0 || wfProcessed === wfEligible) {
+      logMsg(`Walk-Forward Fortschritt: ${wfProcessed}/${wfEligible} Titel validiert (${((wfProcessed / wfEligible) * 100).toFixed(0)}%)`);
+    }
+    // Yield to event loop every 5 stocks
+    if (si % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
 
   const inSampleHitRate = inSampleTotal > 0 ? (inSampleCorrect / inSampleTotal) * 100 : 0;

@@ -1034,3 +1034,8 @@
 - [x] LPPL Threshold: Serverseitige Persistierung in userSettings-Tabelle (statt nur localStorage)
 - [x] LPPL Threshold: Backend-Job liest konfigurierbaren Schwellenwert aus DB (nicht mehr hardcoded 70%)
 - [x] LPPL Threshold: Speichern-Button im Monitoring-UI mit Server-Feedback
+
+## Bugs: Optimizer & Presets (24.05.2026)
+- [x] BUG: Optimizer Fortschrittsbalken bleibt bei 90% stehen (Walk-Forward Phase hat keine granularen Meldungen)
+- [x] BUG: Strategie-Presets "Aktivieren" gibt kein visuelles Feedback (kein Toast, kein Highlight des aktiven Presets)
+- [x] BUG: Optimizer scheint "im Leeren zu drehen" — Walk-Forward Phase braucht feinere Progress-Meldungen

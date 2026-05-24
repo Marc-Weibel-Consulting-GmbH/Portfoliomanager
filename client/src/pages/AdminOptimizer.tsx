@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Play, RotateCcw, CheckCircle2, AlertTriangle, Zap, Target, TrendingUp, Shield } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AdminOptimizer() {
   const [pollingEnabled, setPollingEnabled] = useState(false);
@@ -44,9 +45,22 @@ export default function AdminOptimizer() {
     },
   });
 
+  const [activePresetKey, setActivePresetKey] = useState<string | null>(null);
+
   const applyPresetMutation = trpc.optimizer.applyPreset.useMutation({
-    onSuccess: () => {
-      window.location.reload();
+    onSuccess: (_data, variables) => {
+      const vars = variables as { presetKey: string };
+      setActivePresetKey(vars.presetKey);
+      toast.success(`Preset aktiviert`, {
+        description: `Das Profil wurde erfolgreich als aktive Gewichtung gespeichert.`,
+      });
+      // Refresh weights display after a short delay
+      setTimeout(() => window.location.reload(), 1500);
+    },
+    onError: (err) => {
+      toast.error('Fehler beim Aktivieren', {
+        description: err.message,
+      });
     },
   });
 
@@ -133,6 +147,7 @@ export default function AdminOptimizer() {
                 const msgs = status.progress || [];
                 let phase = 0;
                 let gridProgress = 0;
+                let wfProgress = 0;
                 for (const msg of msgs) {
                   if (msg.includes('Pass 1:')) phase = 1;
                   if (msg.includes('Pass 2:') || msg.includes('Grid Search')) phase = 2;
@@ -140,6 +155,9 @@ export default function AdminOptimizer() {
                   if (msg.includes('Walk-Forward')) phase = 4;
                   const gridMatch = msg.match(/Grid Search Fortschritt: \d+\/\d+ \((\d+)%\)/);
                   if (gridMatch) gridProgress = parseInt(gridMatch[1]);
+                  // Track Walk-Forward progress
+                  const wfMatch = msg.match(/Walk-Forward Fortschritt: \d+\/\d+ .+\((\d+)%\)/);
+                  if (wfMatch) wfProgress = parseInt(wfMatch[1]);
                 }
                 let totalProgress = 0;
                 if (phase === 0) {
@@ -152,7 +170,8 @@ export default function AdminOptimizer() {
                 } else if (phase === 3) {
                   totalProgress = 75;
                 } else if (phase === 4) {
-                  totalProgress = 90;
+                  // Walk-Forward: 80-98% range based on per-stock progress
+                  totalProgress = 80 + (wfProgress * 0.18);
                 }
                 const pct = Math.min(95, Math.max(2, totalProgress));
                 const phaseLabels = ['Daten laden...', 'Pass 1: Lookforward optimieren', 'Pass 2: Grid Search', 'Pass 3: Feinabstimmung', 'Walk-Forward Validierung'];
@@ -246,7 +265,11 @@ export default function AdminOptimizer() {
               {presets?.map((preset) => (
                 <div
                   key={preset.key}
-                  className="border rounded-lg p-4 hover:border-primary/50 transition-colors"
+                  className={`border rounded-lg p-4 transition-colors ${
+                    activePresetKey === preset.key 
+                      ? 'border-green-500 bg-green-500/5 ring-1 ring-green-500/30' 
+                      : 'hover:border-primary/50'
+                  }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     {presetIcons[preset.key]}
@@ -266,15 +289,17 @@ export default function AdminOptimizer() {
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="w-full"
+                    variant={activePresetKey === preset.key ? "default" : "outline"}
+                    className={`w-full ${activePresetKey === preset.key ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
                     onClick={() => applyPresetMutation.mutate({ presetKey: preset.key })}
                     disabled={applyPresetMutation.isPending}
                   >
-                    {applyPresetMutation.isPending ? (
+                    {applyPresetMutation.isPending && (applyPresetMutation.variables as any)?.presetKey === preset.key ? (
                       <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : activePresetKey === preset.key ? (
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
                     ) : null}
-                    Aktivieren
+                    {activePresetKey === preset.key ? 'Aktiviert' : 'Aktivieren'}
                   </Button>
                 </div>
               ))}
