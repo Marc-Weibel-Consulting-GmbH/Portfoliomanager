@@ -707,3 +707,26 @@ export const userSettings = mysqlTable("userSettings", {
 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = typeof userSettings.$inferInsert;
+
+// LPPL Bubble-Check Results (historische Persistierung)
+export const lpplResults = mysqlTable("lppl_results", {
+  id: int("id").autoincrement().primaryKey(),
+  indexSymbol: varchar("indexSymbol", { length: 20 }).notNull(), // ^GSPC, ^IXIC
+  indexName: varchar("indexName", { length: 100 }).notNull(), // S&P 500, NASDAQ Composite
+  bubbleConfidence: int("bubbleConfidence").notNull(), // 0-100
+  fitR2: decimal("fitR2", { precision: 5, scale: 3 }), // e.g. 0.946
+  currentPrice: decimal("currentPrice", { precision: 12, scale: 2 }),
+  predictedTurningPoint: date("predictedTurningPoint", { mode: 'string' }),
+  momentum30d: decimal("momentum30d", { precision: 6, scale: 2 }), // %
+  momentum90d: decimal("momentum90d", { precision: 6, scale: 2 }), // %
+  validFits: int("validFits"),
+  totalCombinations: int("totalCombinations"),
+  warningLevel: varchar("warningLevel", { length: 20 }), // none, low, medium, high
+  checkedAt: timestamp("checkedAt").defaultNow().notNull(),
+}, (t) => ({
+  indexIdx: index("ix_lppl_results_index").on(t.indexSymbol),
+  checkedAtIdx: index("ix_lppl_results_checked_at").on(t.checkedAt),
+}));
+
+export type LpplResult = typeof lpplResults.$inferSelect;
+export type InsertLpplResult = typeof lpplResults.$inferInsert;

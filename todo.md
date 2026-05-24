@@ -1077,3 +1077,19 @@
 - [x] Backend: Neuer Endpoint `liveLpplCheck` für Echtzeit-Bubble-Score-Berechnung (S&P 500 + NASDAQ)
 - [x] Frontend: Live LPPL-Check Button im Monitoring-UI mit Ergebnis-Anzeige
 - [x] Anzeige: Bubble Score, Confidence, Warnstufe, Kurs, Fit R², Wendepunkt-Prognose für beide Indizes
+
+## LPPL DB-Persistierung + Trend-Chart (24.05.2026)
+- [x] Schema: Neue Tabelle `lppl_results` für historische Bubble-Scores (index, confidence, fitR2, kurs, wendepunkt, timestamp)
+- [x] Backend: Live-Check-Ergebnisse automatisch in DB speichern (4 Datenpunkte verifiziert)
+- [x] Backend: Endpoint für historischen LPPL-Verlauf (letzte 30/90/180 Tage)
+- [x] Frontend: Trend-Chart (Line-Chart) der Bubble-Confidence über Zeit mit Zeitfilter-Buttons
+
+## Walk-Forward Quick-Mode (24.05.2026)
+- [x] Backend: Quick-Mode Parameter (letzte 36 Perioden / 3 Jahre) im walkForward Endpoint
+- [x] Frontend: Toggle/Switch im Walk-Forward Tab für Quick-Mode vs. Full-Mode
+- [x] Anzeige der geschätzten Berechnungszeit je Modus (ca. 2 Min vs. 15 Min)
+
+## Push-Benachrichtigung bei kritischem Bubble-Level (24.05.2026)
+- [x] Backend: Täglicher LPPL-Monitoring-Cron-Job mit konfigurierbarem Schwellenwert (Standard 70%)
+- [x] Backend: Bei Überschreitung WhatsApp-Notification an Owner senden
+- [x] Frontend: Konfigurierbare Schwellenwert-Anzeige im Monitoring-Tab (Slider 50-95%)

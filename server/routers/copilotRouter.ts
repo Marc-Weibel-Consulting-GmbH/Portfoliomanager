@@ -21,8 +21,8 @@ import { runWalkForwardValidation, getWalkForwardHistory, screenStocksFromEODHD,
 import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHistoryStats, evaluateRecommendations, markRecommendationAsApplied } from '../analytics/copilotHistory';
 import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES, fitLPPLMultiScale, calculateBubbleConfidence } from '../analytics/lpplBacktest';
 import { calcRiskMetrics } from '../analytics/engine';
-import { userSettings } from '../../drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { userSettings, lpplResults } from '../../drizzle/schema';
+import { eq, desc, gte } from 'drizzle-orm';
 import YahooFinance from 'yahoo-finance2';
 import type { WalkForwardResult } from '../analytics/walkForwardEngine';
 
@@ -563,6 +563,7 @@ export const copilotRouter = router({
       testWindowMonths: z.number().min(1).max(3).default(1),
       topQuartilePercent: z.number().min(10).max(50).default(25),
       strategyProfile: z.enum(['shortTerm', 'midTerm', 'longTerm']).optional(),
+      quickMode: z.boolean().optional().default(false),
       screeningCriteria: z.object({
         region: z.string().optional(),
         exchange: z.string().optional(),
@@ -594,6 +595,7 @@ export const copilotRouter = router({
             universeSource: input.universeSource,
             screeningCriteria: input.screeningCriteria,
             strategyProfile: input.strategyProfile,
+            quickMode: input.quickMode,
           }, ctx.user.id, (msg: string) => {
             walkForwardProgress.push(msg);
             if (walkForwardProgress.length > 100) {
@@ -818,7 +820,60 @@ export const copilotRouter = router({
         }
       }
 
+      // Persist results to DB
+      try {
+        const db = await getDb();
+        if (db) {
+          for (const r of results) {
+            if (r.currentPrice > 0) {
+              let wl: string = 'none';
+              if (r.bubbleConfidence >= 70) wl = 'high';
+              else if (r.bubbleConfidence >= 45) wl = 'medium';
+              else if (r.bubbleConfidence >= 25) wl = 'low';
+              await db.insert(lpplResults).values({
+                indexSymbol: r.ticker,
+                indexName: r.name,
+                bubbleConfidence: r.bubbleConfidence,
+                fitR2: r.fitQuality?.toFixed(3) ?? null,
+                currentPrice: r.currentPrice.toFixed(2),
+                predictedTurningPoint: r.predictedCrashDate ?? null,
+                momentum30d: r.priceChange30d.toFixed(2),
+                momentum90d: r.priceChange90d.toFixed(2),
+                validFits: r.validFits,
+                totalCombinations: r.windowsAnalyzed,
+                warningLevel: wl,
+              });
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error('[LiveLPPL] DB persist error:', e.message);
+      }
+
       return { results, checkedAt: new Date().toISOString() };
+    }),
+
+  // LPPL History (Trend-Daten aus DB)
+  // ============================================================
+  lpplHistory: protectedProcedure
+    .input(z.object({
+      days: z.number().min(7).max(365).default(90),
+    }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return { history: [] };
+      const days = input?.days ?? 90;
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      try {
+        const rows = await db.select().from(lpplResults)
+          .where(gte(lpplResults.checkedAt, since))
+          .orderBy(lpplResults.checkedAt);
+        return { history: rows };
+      } catch (e: any) {
+        console.error('[LPPL History] Error:', e.message);
+        return { history: [] };
+      }
     }),
 
   getLatestWeeklyReview: protectedProcedure

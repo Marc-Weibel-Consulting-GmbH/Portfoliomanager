@@ -43,6 +43,7 @@ export interface WalkForwardConfig {
   universeSource: 'watchlist' | 'screener' | 'combined';
   screeningCriteria?: ScreeningCriteria;
   strategyProfile?: 'shortTerm' | 'midTerm' | 'longTerm';
+  quickMode?: boolean; // Only last 36 periods (3 years)
 }
 
 export interface WalkForwardPeriodResult {
@@ -387,8 +388,19 @@ export async function runWalkForwardValidation(
     .from(historicalPrices)
     .where(inArray(historicalPrices.ticker, tickers.slice(0, 200)));
 
-  const dataStart = dateRange[0]?.minDate || '2023-01-01';
+  let dataStart = dateRange[0]?.minDate || '2023-01-01';
   const dataEnd = dateRange[0]?.maxDate || new Date().toISOString().split('T')[0];
+  
+  // Quick-Mode: Limit to last 3 years of data
+  if (config.quickMode) {
+    const threeYearsAgo = new Date(dataEnd);
+    threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+    const quickStart = threeYearsAgo.toISOString().split('T')[0];
+    if (quickStart > dataStart) {
+      dataStart = quickStart;
+      logProgress(`Quick-Mode: Datenbereich auf letzte 3 Jahre begrenzt`);
+    }
+  }
   
   logProgress(`Datenbereich: ${dataStart} bis ${dataEnd}`);
 

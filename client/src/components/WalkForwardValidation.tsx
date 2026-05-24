@@ -38,6 +38,7 @@ export default function WalkForwardValidation() {
   const [testWindowMonths, setTestWindowMonths] = useState(1);
   const [topQuartilePercent, setTopQuartilePercent] = useState(25);
   const [strategyProfile, setStrategyProfile] = useState<'shortTerm' | 'midTerm' | 'longTerm'>('midTerm');
+  const [quickMode, setQuickMode] = useState(true);
   const [region, setRegion] = useState('all');
   const [sector, setSector] = useState('all');
   const [minMarketCap, setMinMarketCap] = useState('');
@@ -74,6 +75,7 @@ export default function WalkForwardValidation() {
       testWindowMonths,
       topQuartilePercent,
       strategyProfile,
+      quickMode,
       screeningCriteria: {
         region: region === 'all' ? undefined : region,
         sector: sector === 'all' ? undefined : sector,
@@ -358,6 +360,28 @@ export default function WalkForwardValidation() {
               </div>
             </div>
           )}
+
+          {/* Quick Mode Toggle */}
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-muted bg-muted/20">
+            <button
+              onClick={() => setQuickMode(!quickMode)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                quickMode ? 'bg-primary' : 'bg-muted-foreground/30'
+              }`}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                  quickMode ? 'translate-x-4.5' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+            <div>
+              <span className="text-sm font-medium">Quick-Mode</span>
+              <span className="text-xs text-muted-foreground ml-2">
+                {quickMode ? '(Letzte 3 Jahre, ~36 Perioden, ca. 3–5 Min.)' : '(Vollständig, alle verfügbaren Daten, ca. 15–25 Min.)'}
+              </span>
+            </div>
+          </div>
 
           {/* Run Button */}
           <Button

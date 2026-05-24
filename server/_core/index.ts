@@ -19,6 +19,7 @@ import { initTransactionFxUpdateCron } from "../transactionFxUpdateJob";
 import { initHistoricalPricesCron } from "../cron/historicalPricesCron";
 import { initPriceAlertsCron } from "../cron/priceAlertsCron";
 import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
+import { initLpplBubbleAlertCron } from "../cron/lpplBubbleAlertCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
 import { handleWalkForwardWeekly, handleLPPLMonitoring, handleEvaluateRecommendations } from "../scheduled/copilotScheduled";
 import { handlePriceAlertsCheck } from "../scheduled/priceAlertsScheduled";
@@ -272,6 +273,8 @@ async function startServer() {
     initPriceAlertsCron();
     // Start watchlist alerts checker (runs every 4h during market hours)
     initWatchlistAlertsCron();
+    // Start LPPL bubble alert checker (runs daily at 20:00 UTC)
+    initLpplBubbleAlertCron();
   });
 }
 
