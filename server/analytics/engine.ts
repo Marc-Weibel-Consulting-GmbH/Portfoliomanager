@@ -596,6 +596,205 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
 // ─────────────────────────────────────────────
 // Public API: DCF Valuation
 // ─────────────────────────────────────────────
+
+/**
+ * Fetch DCF fundamentals from EODHD API (primary source)
+ * Returns: currentPrice, freeCashFlow, sharesOutstanding, revenueGrowth, beta, companyName, currency
+ */
+async function fetchDCFFromEODHD(ticker: string): Promise<{
+  currentPrice: number;
+  fcf: number;
+  shares: number;
+  revenueGrowth: number;
+  beta: number;
+  companyName: string;
+  currency: string;
+} | null> {
+  const apiKey = process.env.EODHD_API_KEY;
+  if (!apiKey) {
+    console.warn('[DCF] EODHD API key not configured, falling back to Yahoo Finance');
+    return null;
+  }
+
+  try {
+    // EODHD uses exchange-suffixed tickers (e.g., NVDA.US, NESN.SW)
+    let eodhTicker = ticker;
+    // If no exchange suffix, add .US for US stocks
+    if (!ticker.includes('.')) {
+      eodhTicker = `${ticker}.US`;
+    }
+
+    const url = `https://eodhd.com/api/fundamentals/${eodhTicker}?api_token=${apiKey}&fmt=json`;
+    console.log(`[DCF] Fetching EODHD fundamentals for ${eodhTicker}`);
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    
+    if (!response.ok) {
+      console.warn(`[DCF] EODHD API returned ${response.status} for ${eodhTicker}`);
+      return null;
+    }
+
+    const data = await response.json();
+
+    // Extract current price from Technicals or Highlights
+    let currentPrice = 0;
+    if (data.Technicals?.['50DayMA']) {
+      // Use real-time quote as fallback
+      const quoteUrl = `https://eodhd.com/api/real-time/${eodhTicker}?api_token=${apiKey}&fmt=json`;
+      try {
+        const quoteRes = await fetch(quoteUrl);
+        if (quoteRes.ok) {
+          const quoteData = await quoteRes.json();
+          currentPrice = quoteData.close || quoteData.previousClose || 0;
+        }
+      } catch (e) {
+        // Use highlights market cap / shares as price estimate
+      }
+    }
+    if (!currentPrice && data.Highlights?.MarketCapitalization && data.SharesStats?.SharesOutstanding) {
+      currentPrice = data.Highlights.MarketCapitalization / data.SharesStats.SharesOutstanding;
+    }
+
+    // Free Cash Flow from Cash Flow statement
+    let fcf: number | null = null;
+    if (data.Financials?.Cash_Flow?.yearly) {
+      const cfYears = Object.entries(data.Financials.Cash_Flow.yearly)
+        .sort(([a], [b]) => b.localeCompare(a)); // Most recent first
+      
+      if (cfYears.length > 0) {
+        const latestCF = cfYears[0][1] as any;
+        fcf = parseFloat(latestCF.freeCashFlow || '0');
+        
+        // Fallback: operating cash flow - capital expenditures
+        if (!fcf || fcf <= 0) {
+          const opCF = parseFloat(latestCF.totalCashFromOperatingActivities || '0');
+          const capex = Math.abs(parseFloat(latestCF.capitalExpenditures || '0'));
+          if (opCF > 0) {
+            fcf = opCF - capex;
+          }
+        }
+      }
+    }
+
+    // Shares outstanding
+    let shares = 0;
+    if (data.SharesStats?.SharesOutstanding) {
+      shares = parseFloat(data.SharesStats.SharesOutstanding);
+    } else if (data.outstandingShares?.annual) {
+      const annualShares = Object.values(data.outstandingShares.annual) as any[];
+      if (annualShares.length > 0) {
+        shares = annualShares[annualShares.length - 1]?.shares || 0;
+      }
+    }
+
+    // Revenue growth from Income Statement
+    let revenueGrowth = 0.05; // default 5%
+    if (data.Financials?.Income_Statement?.yearly) {
+      const isYears = Object.entries(data.Financials.Income_Statement.yearly)
+        .sort(([a], [b]) => b.localeCompare(a)); // Most recent first
+      
+      if (isYears.length >= 2) {
+        const latestRevenue = parseFloat((isYears[0][1] as any).totalRevenue || '0');
+        const prevRevenue = parseFloat((isYears[1][1] as any).totalRevenue || '0');
+        if (prevRevenue > 0 && latestRevenue > 0) {
+          revenueGrowth = (latestRevenue - prevRevenue) / prevRevenue;
+        }
+      }
+    }
+
+    // Beta
+    const beta = parseFloat(data.Technicals?.Beta || data.Highlights?.Beta || '1.0');
+
+    // Company name
+    const companyName = data.General?.Name || ticker;
+
+    // Currency
+    const currency = data.General?.CurrencyCode || 'USD';
+
+    // Validate minimum required data
+    if (!currentPrice || currentPrice <= 0) {
+      console.warn(`[DCF] EODHD: No current price for ${eodhTicker}`);
+      return null;
+    }
+    if (!fcf || fcf <= 0) {
+      console.warn(`[DCF] EODHD: No positive FCF for ${eodhTicker}`);
+      return null;
+    }
+    if (!shares || shares <= 0) {
+      console.warn(`[DCF] EODHD: No shares outstanding for ${eodhTicker}`);
+      return null;
+    }
+
+    console.log(`[DCF] EODHD data for ${eodhTicker}: price=${currentPrice}, fcf=${fcf}, shares=${shares}, growth=${(revenueGrowth*100).toFixed(1)}%`);
+
+    return {
+      currentPrice,
+      fcf,
+      shares,
+      revenueGrowth,
+      beta,
+      companyName,
+      currency,
+    };
+  } catch (error: any) {
+    console.warn(`[DCF] EODHD fetch failed for ${ticker}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Fetch DCF fundamentals from Yahoo Finance (fallback source)
+ */
+async function fetchDCFFromYahoo(ticker: string): Promise<{
+  currentPrice: number;
+  fcf: number;
+  shares: number;
+  revenueGrowth: number;
+  beta: number;
+  companyName: string;
+  currency: string;
+} | null> {
+  try {
+    const normalizedTicker = normalizeTicker(ticker);
+    const quoteSummary = await yahooFinance.quoteSummary(normalizedTicker, {
+      modules: ["financialData", "defaultKeyStatistics", "summaryDetail"],
+    }) as any;
+
+    const fd = quoteSummary.financialData as any;
+    const ks = quoteSummary.defaultKeyStatistics as any;
+    const sd = quoteSummary.summaryDetail as any;
+
+    const currentPrice = fd?.currentPrice ?? sd?.regularMarketPrice;
+    if (!currentPrice) return null;
+
+    let fcf: number | null = fd?.freeCashflow ?? null;
+    if (!fcf || fcf <= 0) {
+      const opCF = fd?.operatingCashflow;
+      if (opCF && opCF > 0) {
+        fcf = opCF * 0.7;
+      }
+    }
+    if (!fcf || fcf <= 0) return null;
+
+    const shares = ks?.sharesOutstanding ?? ks?.impliedSharesOutstanding;
+    if (!shares || shares <= 0) return null;
+
+    const revenueGrowth = fd?.revenueGrowth ?? 0.05;
+    const beta = ks?.beta ?? 1.0;
+    const companyName = (quoteSummary as any)?.quoteType?.longName ?? ticker;
+    const currency = fd?.currency ?? "USD";
+
+    return { currentPrice, fcf, shares, revenueGrowth, beta, companyName, currency };
+  } catch (error: any) {
+    console.warn(`[DCF] Yahoo Finance fetch failed for ${ticker}:`, error.message);
+    return null;
+  }
+}
+
 export async function calcDCF(input: DCFInput) {
   const {
     ticker,
@@ -605,48 +804,25 @@ export async function calcDCF(input: DCFInput) {
     projectionYears = 5,
   } = input;
 
-  const normalizedTicker = normalizeTicker(ticker);
-
-  // Fetch quote summary from Yahoo Finance
-  const quoteSummary = await yahooFinance.quoteSummary(normalizedTicker, {
-    modules: ["financialData", "defaultKeyStatistics", "summaryDetail"],
-  }) as any;
-
-  const fd = quoteSummary.financialData as any;
-  const ks = quoteSummary.defaultKeyStatistics as any;
-  const sd = quoteSummary.summaryDetail as any;
-
-  const currentPrice = fd?.currentPrice ?? sd?.regularMarketPrice;
-  if (!currentPrice) {
-    throw new Error("Current price not available.");
+  // Try EODHD first (primary), then Yahoo Finance (fallback)
+  let fundamentals = await fetchDCFFromEODHD(ticker);
+  let dataSource = 'EODHD';
+  
+  if (!fundamentals) {
+    console.log(`[DCF] EODHD failed for ${ticker}, trying Yahoo Finance fallback...`);
+    fundamentals = await fetchDCFFromYahoo(ticker);
+    dataSource = 'Yahoo Finance';
   }
 
-  // Free Cash Flow
-  let fcf: number | null = fd?.freeCashflow ?? null;
-
-  // Fallback: operating cash flow - capex
-  if (!fcf || fcf <= 0) {
-    const opCF = fd?.operatingCashflow;
-    if (opCF && opCF > 0) {
-      fcf = opCF * 0.7; // rough FCF estimate as 70% of operating CF
-    }
+  if (!fundamentals) {
+    throw new Error(`DCF valuation failed: Could not fetch fundamental data for ${ticker} from either EODHD or Yahoo Finance.`);
   }
 
-  if (!fcf || fcf <= 0) {
-    throw new Error("Insufficient free cash flow data for DCF valuation.");
-  }
-
-  const shares = ks?.sharesOutstanding ?? ks?.impliedSharesOutstanding;
-  if (!shares || shares <= 0) {
-    throw new Error("Shares outstanding not available.");
-  }
-
-  // Revenue growth estimate
-  let revenueGrowth = fd?.revenueGrowth ?? 0.05;
+  const { currentPrice, fcf, shares, beta: betaVal, companyName, currency } = fundamentals;
+  let revenueGrowth = fundamentals.revenueGrowth;
   revenueGrowth = Math.max(Math.min(revenueGrowth, 0.30), -0.10);
 
   // WACC estimate
-  const betaVal = ks?.beta ?? 1.0;
   const costOfEquity = riskFreeRate + betaVal * marketRiskPremium;
   const debtRatio = 0.3;
   const costOfDebt = 0.04;
@@ -676,9 +852,6 @@ export async function calcDCF(input: DCFInput) {
   const intrinsicValuePerShare = intrinsicValueTotal / shares;
   const upsidePct = ((intrinsicValuePerShare - currentPrice) / currentPrice) * 100;
 
-  const currency = fd?.currency ?? "USD";
-  const companyName = (quoteSummary as any)?.quoteType?.longName ?? ticker;
-
   return {
     ticker,
     currentPrice: Math.round(currentPrice * 100) / 100,
@@ -696,6 +869,7 @@ export async function calcDCF(input: DCFInput) {
     pvTerminalValue: Math.round(pvTerminal),
     currency,
     companyName,
+    dataSource,
   };
 }
 

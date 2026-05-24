@@ -60,6 +60,7 @@ const menuGroups: NavGroup[] = [
       { icon: Receipt, label: "Transaktionen", path: "/transactions" },
       { icon: FileText, label: "Performance & Reports", path: "/reports" },
       { icon: TrendingUp, label: "Dividenden-Kalender", path: "/dividends" },
+      { icon: ShieldAlert, label: "Risiko-Analyse", path: "/risk-dashboard" },
     ],
   },
   {
@@ -79,8 +80,13 @@ const menuGroups: NavGroup[] = [
     label: "Tools",
     items: [
       { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
-      { icon: ShieldAlert, label: "Risiko-Analyse", path: "/risk-dashboard" },
       { icon: Calculator, label: "Rechner", path: "/rechner" },
+    ],
+  },
+  {
+    icon: Settings,
+    label: "Einstellungen",
+    items: [
       { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
     ],
   },

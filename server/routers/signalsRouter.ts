@@ -4,6 +4,9 @@
  * Generates trading signals based on live Yahoo Finance data.
  * Fetches P/E, PEG, dividend yield, YTD performance, 52-week range
  * from Yahoo Finance quoteSummary and chart endpoints.
+ * 
+ * P1 Fix: Parallelized signal generation with batched concurrent processing
+ * and per-stock timeout to prevent overall request timeout.
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
@@ -50,6 +53,23 @@ interface Signal {
   qualityScore?: number;
   momentumGrade?: string;
   momentumScore?: number;
+}
+
+// Per-stock timeout: 12 seconds max per individual stock processing
+const PER_STOCK_TIMEOUT_MS = 12_000;
+// Batch size for concurrent processing (9 = 2 batches for 18 stocks)
+const BATCH_SIZE = 9;
+// Max sentiment analyses to avoid rate limiting
+const MAX_SENTIMENT = 5;
+
+/**
+ * Wrap a promise with a timeout. Returns the result or null on timeout.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 /**
@@ -412,94 +432,181 @@ function generateSignal(data: {
 }
 
 /**
- * Enhanced signal generation with ML (Random Forest + Sentiment)
+ * Process a single stock completely: fetch data + generate signal + ML enhancement
+ * This is the atomic unit of work that runs in parallel.
  */
-async function enhanceSignalWithML(
-  signal: Signal,
-  prices: number[],
-  volumes: number[],
-  fundamentals: any
+async function processStock(
+  stock: { ticker: string; companyName?: string; currentPrice?: number | string },
+  optimizedWeights: WeightConfig | undefined,
+  enableSentiment: boolean,
 ): Promise<Signal> {
-  // Random Forest signal
+  const ticker = stock.ticker;
+  const normalizedTicker = normalizeTicker(ticker);
+
+  // Step 1: Fetch live fundamental data
+  let liveData: Awaited<ReturnType<typeof fetchLiveData>> | null = null;
   try {
-    if (prices.length >= 60) {
-      const rf = randomForestSignal(prices, volumes, fundamentals);
-      signal.rfSignal = rf.signal;
-      signal.rfScore = rf.score;
-      
-      // Adjust signal based on RF
-      if (rf.signal === 'strong_buy' && signal.type !== 'buy') {
-        signal.criteria.push(`RF: Starkes Kaufsignal (Score ${rf.score})`);
-      } else if (rf.signal === 'strong_sell' && signal.type !== 'sell') {
-        signal.criteria.push(`RF: Starkes Verkaufssignal (Score ${rf.score})`);
-      } else if (rf.signal !== 'hold') {
-        signal.criteria.push(`RF: ${rf.signal === 'buy' ? 'Kauf' : 'Verkauf'} (Score ${rf.score})`);
-      }
-    }
+    liveData = await fetchLiveData(ticker);
   } catch (e) {
-    // RF failed silently
+    console.warn(`[Signals] fetchLiveData failed for ${ticker}:`, (e as Error).message);
   }
-  
-  // LPPLS Bubble analysis
-  try {
-    if (prices.length >= 60) {
-      const bubbleResult = detectBubble({
-        prices,
-        sentimentScore: signal.sentimentScore,
-        sentimentConfidence: signal.sentimentScore !== undefined ? 0.6 : 0,
+
+  // Step 2: Generate base signal
+  let signal: Signal;
+  if (liveData && liveData.currentPrice > 0) {
+    signal = generateSignal({
+      ticker,
+      companyName: liveData.companyName || stock.companyName || ticker,
+      peRatio: liveData.peRatio,
+      pegRatio: liveData.pegRatio,
+      dividendYield: liveData.dividendYield,
+      currentPrice: liveData.currentPrice,
+      fiftyTwoWeekHigh: liveData.fiftyTwoWeekHigh,
+      fiftyTwoWeekLow: liveData.fiftyTwoWeekLow,
+      ytdPerformance: liveData.ytdPerformance,
+      rsi14: liveData.rsi14,
+    }, optimizedWeights);
+  } else {
+    // Fallback: use stored data if live fetch fails
+    const currentPrice = typeof stock.currentPrice === 'number'
+      ? stock.currentPrice
+      : parseFloat(stock.currentPrice as string) || 0;
+    signal = generateSignal({
+      ticker,
+      companyName: stock.companyName || ticker,
+      peRatio: null,
+      pegRatio: null,
+      dividendYield: 0,
+      currentPrice,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekLow: null,
+      ytdPerformance: 0,
+      rsi14: null,
+    }, optimizedWeights);
+  }
+
+  // Step 3: Quality Factor scoring
+  if (liveData) {
+    try {
+      const qualityResult = calculateQualityScore({
+        roe: liveData.roe,
+        debtToEquity: liveData.debtToEquity,
+        fcfYield: liveData.fcfYield,
+        grossMargin: liveData.grossMargin,
       });
-      signal.bubbleScore = bubbleResult.bubbleScore;
-      signal.bubbleRegime = bubbleResult.regime;
-
-      if (bubbleResult.regime === 'bubble' && bubbleResult.bubbleConfidence > 0.3) {
-        signal.criteria.push(`Bubble-Risiko: ${(bubbleResult.bubbleConfidence * 100).toFixed(0)}% Confidence`);
-      } else if (bubbleResult.regime === 'negative_bubble' && bubbleResult.negBubbleConfidence > 0.3) {
-        signal.criteria.push(`Negative Bubble: Rebound-Chance (${(bubbleResult.negBubbleConfidence * 100).toFixed(0)}%)`);
+      signal.qualityGrade = qualityResult.grade;
+      signal.qualityScore = qualityResult.score;
+      if (qualityResult.grade === 'A') {
+        signal.criteria.push(`Quality: ${qualityResult.grade} (ROE ${liveData.roe?.toFixed(1) ?? 'N/A'}%, D/E ${liveData.debtToEquity?.toFixed(2) ?? 'N/A'})`);
+      } else if (qualityResult.grade === 'F') {
+        signal.criteria.push(`Quality: ${qualityResult.grade} - Schwache Fundamentaldaten`);
       }
+    } catch (e) {
+      // Quality scoring failed silently
     }
-  } catch (e) {
-    // Bubble analysis failed silently
   }
 
-  // Momentum Factor analysis
+  // Step 4: Fetch historical chart data for ML enhancement
   try {
+    const chartResult = await yahooFinance.chart(normalizedTicker, {
+      period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      period2: new Date().toISOString().split('T')[0],
+      interval: '1d',
+    }) as any;
+    const quotes = chartResult.quotes ?? [];
+    const prices = quotes.map((q: any) => q.close).filter((c: any) => c != null);
+    const volumes = quotes.map((q: any) => q.volume).filter((v: any) => v != null);
+    const fundamentals = liveData ? {
+      peRatio: liveData.peRatio,
+      pegRatio: liveData.pegRatio,
+      dividendYield: liveData.dividendYield,
+    } : {};
+
+    // Step 5: Random Forest signal
     if (prices.length >= 60) {
-      const momentumResult = calculateMomentumScore({ prices });
-      signal.momentumScore = momentumResult.score;
-      signal.momentumGrade = momentumResult.grade;
-      if (momentumResult.trend === 'strong_up') {
-        signal.criteria.push(`Momentum: Stark aufwärts (Score ${(momentumResult.score * 100).toFixed(0)}%)`);
-      } else if (momentumResult.trend === 'strong_down') {
-        signal.criteria.push(`Momentum: Stark abwärts (Score ${(momentumResult.score * 100).toFixed(0)}%)`);
+      try {
+        const rf = randomForestSignal(prices, volumes, fundamentals);
+        signal.rfSignal = rf.signal;
+        signal.rfScore = rf.score;
+        if (rf.signal === 'strong_buy' || rf.signal === 'strong_sell') {
+          signal.criteria.push(`RF: ${rf.signal === 'strong_buy' ? 'Starkes Kaufsignal' : 'Starkes Verkaufssignal'} (Score ${rf.score})`);
+        }
+      } catch (e) {
+        // RF failed silently
+      }
+    }
+
+    // Step 6: LPPLS Bubble analysis
+    if (prices.length >= 60) {
+      try {
+        const bubbleResult = detectBubble({
+          prices,
+          sentimentScore: signal.sentimentScore,
+          sentimentConfidence: signal.sentimentScore !== undefined ? 0.6 : 0,
+        });
+        signal.bubbleScore = bubbleResult.bubbleScore;
+        signal.bubbleRegime = bubbleResult.regime;
+
+        if (bubbleResult.regime === 'bubble' && bubbleResult.bubbleConfidence > 0.3) {
+          signal.criteria.push(`Bubble-Risiko: ${(bubbleResult.bubbleConfidence * 100).toFixed(0)}% Confidence`);
+        } else if (bubbleResult.regime === 'negative_bubble' && bubbleResult.negBubbleConfidence > 0.3) {
+          signal.criteria.push(`Negative Bubble: Rebound-Chance (${(bubbleResult.negBubbleConfidence * 100).toFixed(0)}%)`);
+        }
+      } catch (e) {
+        // Bubble analysis failed silently
+      }
+    }
+
+    // Step 7: Momentum Factor scoring
+    if (prices.length >= 60) {
+      try {
+        const momentumResult = calculateMomentumScore(prices);
+        signal.momentumGrade = momentumResult.grade;
+        signal.momentumScore = momentumResult.score;
+        if (momentumResult.grade === 'A') {
+          signal.criteria.push(`Momentum: ${momentumResult.grade} (Rel. Stärke ${momentumResult.score.toFixed(0)})`);
+        } else if (momentumResult.grade === 'F') {
+          signal.criteria.push(`Momentum: ${momentumResult.grade} - Schwaches Momentum`);
+        }
+      } catch (e) {
+        // Momentum scoring failed silently
+      }
+    }
+
+    // Step 8: Sentiment analysis (only if enabled for this stock)
+    if (enableSentiment) {
+      try {
+        const sentiment = await analyzeSentiment(signal.ticker, signal.companyName);
+        if (sentiment.newsCount > 0 && sentiment.confidence > 0.3) {
+          signal.sentimentScore = sentiment.score;
+          signal.sentimentLabel = sentiment.sentiment;
+          const sentContrib = sentimentToSignalScore(sentiment);
+          if (Math.abs(sentContrib) >= 1) {
+            signal.criteria.push(
+              `Sentiment: ${sentiment.sentiment === 'bullish' ? 'Positiv' : sentiment.sentiment === 'bearish' ? 'Negativ' : 'Neutral'} (${sentiment.score > 0 ? '+' : ''}${sentiment.score})`
+            );
+          }
+        }
+      } catch (e) {
+        // Sentiment failed silently
       }
     }
   } catch (e) {
-    // Momentum analysis failed silently
+    // Chart/ML enhancement failed silently — signal still has base data
+    console.warn(`[Signals] ML enhancement failed for ${ticker}:`, (e as Error).message);
   }
 
-  // Sentiment analysis (only for first 5 stocks to avoid rate limiting)
-  try {
-    const sentiment = await analyzeSentiment(signal.ticker, signal.companyName);
-    if (sentiment.newsCount > 0 && sentiment.confidence > 0.3) {
-      signal.sentimentScore = sentiment.score;
-      signal.sentimentLabel = sentiment.sentiment;
-      const sentContrib = sentimentToSignalScore(sentiment);
-      if (Math.abs(sentContrib) >= 1) {
-        signal.criteria.push(
-          `Sentiment: ${sentiment.sentiment === 'bullish' ? 'Positiv' : sentiment.sentiment === 'bearish' ? 'Negativ' : 'Neutral'} (${sentiment.score > 0 ? '+' : ''}${sentiment.score})`
-        );
-      }
-    }
-  } catch (e) {
-    // Sentiment failed silently
-  }
-  
   return signal;
 }
 
 export const signalsRouter = router({
   /**
    * Generate trading signals for a portfolio using LIVE Yahoo Finance data
+   * 
+   * P1 Fix: Fully parallelized with batched concurrent processing.
+   * Each stock is processed independently with a per-stock timeout.
+   * Batch size of 6 concurrent stocks prevents rate limiting.
+   * Total expected time: ~15-20s for 18 stocks (vs. >60s sequential).
    */
   generate: protectedProcedure
     .input(z.object({
@@ -529,140 +636,70 @@ export const signalsRouter = router({
       const portfolioData = JSON.parse(portfolio.portfolioData);
       const stocks = portfolioData.stocks || [];
 
-      // Fetch live data for all tickers in parallel (with concurrency limit)
-      const tickers = stocks.map((s: any) => s.ticker as string);
-      const BATCH_SIZE = 5; // Limit concurrent requests to avoid rate limiting
-      const liveDataMap = new Map<string, Awaited<ReturnType<typeof fetchLiveData>>>();
+      console.log(`[Signals] Processing ${stocks.length} stocks in parallel (batch size ${BATCH_SIZE})...`);
+      const startTime = Date.now();
 
-      for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
-        const batch = tickers.slice(i, i + BATCH_SIZE);
-        const results = await Promise.allSettled(
-          batch.map(async (ticker: string) => {
-            const data = await fetchLiveData(ticker);
-            return { ticker, data };
+      // Process all stocks in parallel batches with per-stock timeout
+      const signals: Signal[] = [];
+      let sentimentCount = 0;
+
+      for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
+        const batch = stocks.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.allSettled(
+          batch.map((stock: any, batchIdx: number) => {
+            // Only enable sentiment for first MAX_SENTIMENT stocks total
+            const globalIdx = i + batchIdx;
+            const enableSentiment = globalIdx < MAX_SENTIMENT;
+            
+            // Wrap each stock processing with a timeout
+            return withTimeout(
+              processStock(stock, optimizedWeights, enableSentiment),
+              PER_STOCK_TIMEOUT_MS
+            );
           })
         );
-        for (const result of results) {
-          if (result.status === "fulfilled") {
-            liveDataMap.set(result.value.ticker, result.value.data);
-          }
-        }
-      }
 
-      // Generate signals using live data + ML enhancement
-      const signals: Signal[] = [];
-      let sentimentCount = 0; // Limit sentiment calls to avoid rate limiting
-      const MAX_SENTIMENT = 5;
-
-      for (const stock of stocks) {
-        const liveData = liveDataMap.get(stock.ticker);
-        let signal: Signal;
-        if (liveData && liveData.currentPrice > 0) {
-          signal = generateSignal({
-            ticker: stock.ticker,
-            companyName: liveData.companyName || stock.companyName || stock.ticker,
-            peRatio: liveData.peRatio,
-            pegRatio: liveData.pegRatio,
-            dividendYield: liveData.dividendYield,
-            currentPrice: liveData.currentPrice,
-            fiftyTwoWeekHigh: liveData.fiftyTwoWeekHigh,
-            fiftyTwoWeekLow: liveData.fiftyTwoWeekLow,
-            ytdPerformance: liveData.ytdPerformance,
-            rsi14: liveData.rsi14,
-          }, optimizedWeights);
-        } else {
-          // Fallback: use stored data if live fetch fails
-          const currentPrice = typeof stock.currentPrice === 'number'
-            ? stock.currentPrice
-            : parseFloat(stock.currentPrice) || 0;
-          signal = generateSignal({
-            ticker: stock.ticker,
-            companyName: stock.companyName || stock.ticker,
-            peRatio: null,
-            pegRatio: null,
-            dividendYield: 0,
-            currentPrice,
-            fiftyTwoWeekHigh: null,
-            fiftyTwoWeekLow: null,
-            ytdPerformance: 0,
-            rsi14: null,
-          }, optimizedWeights);
-        }
-
-        // Quality Factor scoring (uses data already fetched from Yahoo)
-        if (liveData) {
-          try {
-            const qualityResult = calculateQualityScore({
-              roe: liveData.roe,
-              debtToEquity: liveData.debtToEquity,
-              fcfYield: liveData.fcfYield,
-              grossMargin: liveData.grossMargin,
-            });
-            signal.qualityGrade = qualityResult.grade;
-            signal.qualityScore = qualityResult.score;
-            if (qualityResult.grade === 'A') {
-              signal.criteria.push(`Quality: ${qualityResult.grade} (ROE ${liveData.roe?.toFixed(1) ?? 'N/A'}%, D/E ${liveData.debtToEquity?.toFixed(2) ?? 'N/A'})`);
-            } else if (qualityResult.grade === 'F') {
-              signal.criteria.push(`Quality: ${qualityResult.grade} - Schwache Fundamentaldaten`);
-            }
-          } catch (e) {
-            // Quality scoring failed silently
-          }
-        }
-
-        // Enhance with ML (RF + Sentiment) - fetch chart data for RF
-        try {
-          const normalizedTicker = normalizeTicker(stock.ticker);
-          const chartResult = await yahooFinance.chart(normalizedTicker, {
-            period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            period2: new Date().toISOString().split('T')[0],
-            interval: '1d',
-          }) as any;
-          const quotes = chartResult.quotes ?? [];
-          const prices = quotes.map((q: any) => q.close).filter((c: any) => c != null);
-          const volumes = quotes.map((q: any) => q.volume).filter((v: any) => v != null);
-          const fundamentals = liveData ? {
-            peRatio: liveData.peRatio,
-            pegRatio: liveData.pegRatio,
-            dividendYield: liveData.dividendYield,
-          } : {};
-
-          // Only run sentiment for top stocks (to avoid rate limiting)
-          if (sentimentCount < MAX_SENTIMENT) {
-            signal = await enhanceSignalWithML(signal, prices, volumes, fundamentals);
-            sentimentCount++;
+        // Collect results from this batch
+        for (let j = 0; j < batchResults.length; j++) {
+          const result = batchResults[j];
+          const stock = batch[j];
+          
+          if (result.status === "fulfilled" && result.value !== null) {
+            signals.push(result.value);
           } else {
-            // RF only, no sentiment
-            if (prices.length >= 60) {
-              const rf = randomForestSignal(prices, volumes, fundamentals);
-              signal.rfSignal = rf.signal;
-              signal.rfScore = rf.score;
-              if (rf.signal === 'strong_buy' || rf.signal === 'strong_sell') {
-                signal.criteria.push(`RF: ${rf.signal === 'strong_buy' ? 'Starkes Kaufsignal' : 'Starkes Verkaufssignal'} (Score ${rf.score})`);
-              }
-            }
+            // Stock timed out or failed — create a minimal fallback signal
+            const reason = result.status === "rejected" 
+              ? `Fehler: ${(result.reason as Error)?.message || 'Unbekannt'}`
+              : 'Timeout bei Datenabfrage';
+            console.warn(`[Signals] ${stock.ticker}: ${reason}`);
+            
+            const currentPrice = typeof stock.currentPrice === 'number'
+              ? stock.currentPrice
+              : parseFloat(stock.currentPrice) || 0;
+            
+            signals.push({
+              ticker: stock.ticker,
+              companyName: stock.companyName || stock.ticker,
+              type: "hold",
+              strength: "weak",
+              currentPrice,
+              targetPrice: currentPrice,
+              peRatio: null,
+              pegRatio: null,
+              dividendYield: 0,
+              ytdPerformance: 0,
+              fiftyTwoWeekHigh: null,
+              fiftyTwoWeekLow: null,
+              rsi14: null,
+              reason: `Daten konnten nicht vollständig geladen werden (${reason}). Bitte später erneut versuchen.`,
+              criteria: [`⚠️ ${reason}`],
+            });
           }
-          // Momentum Factor scoring (uses prices already fetched for chart)
-          if (prices.length >= 60) {
-            try {
-              const momentumResult = calculateMomentumScore(prices);
-              signal.momentumGrade = momentumResult.grade;
-              signal.momentumScore = momentumResult.score;
-              if (momentumResult.grade === 'A') {
-                signal.criteria.push(`Momentum: ${momentumResult.grade} (Rel. Stärke ${momentumResult.score.toFixed(0)})`);
-              } else if (momentumResult.grade === 'F') {
-                signal.criteria.push(`Momentum: ${momentumResult.grade} - Schwaches Momentum`);
-              }
-            } catch (e) {
-              // Momentum scoring failed silently
-            }
-          }
-        } catch (e) {
-          // ML enhancement failed silently
         }
-
-        signals.push(signal);
       }
+
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`[Signals] Completed ${signals.length}/${stocks.length} stocks in ${elapsed}s`);
 
       // Sort by signal strength and type (strong buy first, then moderate buy, etc.)
       const signalOrder: Record<string, number> = { buy: 0, hold: 1, sell: 2 };

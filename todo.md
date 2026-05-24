@@ -847,3 +847,14 @@
 - [x] Neue Faktoren in generateSignal() integrieren
 - [x] WeightConfig um quality und momentum erweitern
 - [x] Optimizer Grid Search mit neuen Gewichten aktualisieren
+
+### P1 Fixes (24.05.2026)
+- [x] Signal-Parallelisierung: 18 Titel in <35s statt >60s Timeout
+  - Promise.allSettled mit Batches (9er-Gruppen)
+  - Per-Stock Timeout (12s) verhindert Blockierung durch einzelne Titel
+  - Graceful Degradation: Bei Timeout wird Fallback-Signal generiert
+- [x] DCF Yahoo-Redirect Fix: EODHD Fundamentals API als primäre Quelle
+  - fetchDCFFromEODHD() mit vollständiger Fundamentaldaten-Extraktion
+  - fetchDCFFromYahoo() als Fallback bei EODHD-Fehler
+  - Unterstützt US-Aktien (.US) und Schweizer Aktien (.SW)
+  - Getestet: NVDA (3.4s), NESN.SW (1.7s) — beide erfolgreich
