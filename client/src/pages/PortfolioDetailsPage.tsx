@@ -1152,7 +1152,7 @@ export default function PortfolioDetailsPage() {
               <Label className="text-gray-300">Portfolio-Zusammenfassung</Label>
               <div className="bg-[#0f1420] border border-white/10 rounded-lg p-3 text-sm text-gray-300">
                 <p className="font-medium text-white">{portfolio.name}</p>
-                <p>{portfolio.holdings?.length || 0} Positionen</p>
+                <p>{holdings.length} Positionen</p>
                 {portfolio.portfolioType && <p>Typ: {portfolioTypeConfig[portfolio.portfolioType]?.label || portfolio.portfolioType}</p>}
               </div>
             </div>
