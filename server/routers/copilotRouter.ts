@@ -184,6 +184,28 @@ export const copilotRouter = router({
         explanation = generateFallbackExplanation(analysis);
       }
 
+      // === AUTO-SAVE to Copilot History ===
+      try {
+        const recommendations = analysis.rankings.map((r: any) => ({
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+          ticker: r.ticker,
+          companyName: r.companyName || r.ticker,
+          signal: r.signal as 'strong_buy' | 'buy' | 'hold' | 'sell' | 'strong_sell',
+          rankScore: r.totalScore || 0,
+          confidence: r.confidence || null,
+          priceAtSignal: String(r.currentPrice || 0),
+          currency: r.currency || 'USD',
+          targetWeight: r.targetWeight ? String(r.targetWeight) : null,
+          currentWeight: r.currentWeight ? String(r.currentWeight) : null,
+          source: 'copilot_analysis' as const,
+        }));
+        const saved = await saveCopilotRecommendations(recommendations);
+        console.log(`[Copilot] Auto-saved ${saved} recommendations to history`);
+      } catch (histErr) {
+        console.error('[Copilot] Failed to auto-save history:', histErr);
+      }
+
       return { error: null, analysis, explanation };
     }),
 

@@ -964,3 +964,20 @@
   - Backfill-Script für alle 138 Ticker + Benchmarks erstellt
   - Benchmarks (SPY, QQQ, URTH, SSMI) bereits fertig: 10'960 Preise
   - Restliche Ticker laufen im Hintergrund (14 Batches)
+
+### Copilot-Automatisierung und Monitoring (24.05.2026)
+- [x] Copilot-Historie automatisch bei jeder Analyse speichern
+  - saveCopilotRecommendations() am Ende des analyze-Endpoints
+  - Alle Empfehlungen (Buy/Sell/Hold) mit Score und Preis gespeichert
+- [x] Walk-Forward als wöchentlicher Scheduled Job (Heartbeat)
+  - Handler: /api/scheduled/walkForwardWeekly (Sonntag 03:00 UTC)
+  - Auf Watchlist-Universum (100 Titel), Benachrichtigung bei Top-Titeln
+- [x] LPPL-Echtzeit-Monitoring als täglicher Scheduled Job
+  - Handler: /api/scheduled/lpplMonitoring (täglich 06:00 UTC)
+  - Alle Portfolio-Positionen auf Bubble-Signale, Warnung bei Confidence > 70%
+- [x] Empfehlungs-Evaluation als täglicher Job
+  - Handler: /api/scheduled/evaluateRecommendations (täglich 07:00 UTC)
+  - Vergangene Empfehlungen nach 30/60/90 Tagen evaluieren
+- [x] Frontend: Monitoring-Status Tab im Copilot
+  - Übersicht aller Scheduled Jobs mit Status und Zeitplan
+  - Benachrichtigungs-Info und Auto-Save Bestätigung

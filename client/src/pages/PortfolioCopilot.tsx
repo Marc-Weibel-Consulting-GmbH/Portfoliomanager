@@ -4,6 +4,7 @@ import CopilotBacktest from '@/components/CopilotBacktest';
 import WalkForwardValidation from '@/components/WalkForwardValidation';
 import LPPLBacktest from '@/components/LPPLBacktest';
 import CopilotHistory from '@/components/CopilotHistory';
+import MonitoringStatus from '@/components/MonitoringStatus';
 import { useAuth } from '@/_core/hooks/useAuth';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,7 @@ import {
   History,
   Globe,
   Flame,
+  Bell,
 } from 'lucide-react';
 
 export default function PortfolioCopilot() {
@@ -400,9 +402,9 @@ export default function PortfolioCopilot() {
               </CardContent>
             </Card>
 
-            {/* Tabs for Backtest, Walk-Forward, LPPL, History */}
+            {/* Tabs for Backtest, Walk-Forward, LPPL, History, Monitoring */}
             <Tabs defaultValue="backtest" className="w-full">
-              <TabsList className="grid grid-cols-4 w-full">
+              <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="backtest" className="text-xs">
                   <BarChart3 className="h-3.5 w-3.5 mr-1" />
                   Backtest
@@ -419,6 +421,10 @@ export default function PortfolioCopilot() {
                   <History className="h-3.5 w-3.5 mr-1" />
                   Historie
                 </TabsTrigger>
+                <TabsTrigger value="monitoring" className="text-xs">
+                  <Bell className="h-3.5 w-3.5 mr-1" />
+                  Monitoring
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="backtest" className="mt-4">
                 <CopilotBacktest portfolioId={selectedPortfolioId!} />
@@ -431,6 +437,9 @@ export default function PortfolioCopilot() {
               </TabsContent>
               <TabsContent value="history" className="mt-4">
                 <CopilotHistory portfolioId={selectedPortfolioId!} />
+              </TabsContent>
+              <TabsContent value="monitoring" className="mt-4">
+                <MonitoringStatus />
               </TabsContent>
             </Tabs>
           </>

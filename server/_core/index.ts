@@ -20,6 +20,7 @@ import { initHistoricalPricesCron } from "../cron/historicalPricesCron";
 import { initPriceAlertsCron } from "../cron/priceAlertsCron";
 import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
+import { handleWalkForwardWeekly, handleLPPLMonitoring, handleEvaluateRecommendations } from "../scheduled/copilotScheduled";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -212,6 +213,11 @@ async function startServer() {
     app.use("/api", debugRouter);
   }
   
+  // Scheduled endpoints (Heartbeat cron callbacks)
+  app.post("/api/scheduled/walkForwardWeekly", handleWalkForwardWeekly);
+  app.post("/api/scheduled/lpplMonitoring", handleLPPLMonitoring);
+  app.post("/api/scheduled/evaluateRecommendations", handleEvaluateRecommendations);
+
   // tRPC API
   app.use(
     "/api/trpc",
