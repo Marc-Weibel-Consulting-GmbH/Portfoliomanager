@@ -1039,3 +1039,12 @@
 - [x] BUG: Optimizer Fortschrittsbalken bleibt bei 90% stehen (Walk-Forward Phase hat keine granularen Meldungen)
 - [x] BUG: Strategie-Presets "Aktivieren" gibt kein visuelles Feedback (kein Toast, kein Highlight des aktiven Presets)
 - [x] BUG: Optimizer scheint "im Leeren zu drehen" — Walk-Forward Phase braucht feinere Progress-Meldungen
+
+## DCF Bewertung Fix (24.05.2026)
+- [x] BUG: Intrinsic Value viel zu hoch (CHF 8103 für Swiss Life bei Kurs 860)
+- [x] FIX: Revenue Growth Cap von 30% auf 15% reduziert
+- [x] FIX: WACC Floor von 8% eingeführt (war vorher kein Minimum)
+- [x] FIX: FCF Plausibilitätsprüfung (>8% FCF-Yield → Cap bei 5% der Market Cap)
+- [x] FIX: Terminal Value Spread Minimum 3.5% (verhindert TV-Explosion)
+- [x] FIX: Wachstum decayed linear Richtung Terminal Growth (realistischer)
+- [x] FIX: Sanity Cap bei 2x aktueller Kurs (max +100% Upside)

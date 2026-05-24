@@ -912,9 +912,22 @@ export async function calcDCF(input: DCFInput) {
     throw new Error(`DCF valuation failed: Could not fetch fundamental data for ${ticker} from either EODHD or Yahoo Finance.`);
   }
 
-  const { currentPrice, fcf, shares, beta: betaVal, companyName, currency } = fundamentals;
+  const { currentPrice, fcf: rawFcf, shares, beta: betaVal, companyName, currency } = fundamentals;
   let revenueGrowth = fundamentals.revenueGrowth;
-  revenueGrowth = Math.max(Math.min(revenueGrowth, 0.30), -0.10);
+  // Cap growth at realistic levels: max 15% for established companies
+  // (30% was causing wildly inflated valuations for mature companies like Swiss Life)
+  revenueGrowth = Math.max(Math.min(revenueGrowth, 0.15), -0.05);
+
+  // FCF plausibility check: if FCF yield > 8% of market cap, it's likely inflated
+  // (insurance/financial companies often report investment gains as operating cash flow)
+  const marketCap = currentPrice * shares;
+  let fcf = rawFcf;
+  const fcfYield = rawFcf / marketCap;
+  if (fcfYield > 0.08) {
+    // Cap FCF at 5% of market cap (sustainable level for most companies)
+    fcf = marketCap * 0.05;
+    console.warn(`[DCF] FCF yield ${(fcfYield*100).toFixed(1)}% too high for ${ticker}, capping at 5% of market cap`);
+  }
 
   // WACC estimate
   const costOfEquity = riskFreeRate + betaVal * marketRiskPremium;
@@ -923,27 +936,52 @@ export async function calcDCF(input: DCFInput) {
   const taxRate = 0.21;
   const wacc = costOfEquity * (1 - debtRatio) + costOfDebt * (1 - taxRate) * debtRatio;
 
-  // Project FCF for N years
+  // Ensure WACC is at least 8% to prevent terminal value explosion
+  // (standard DCF practice: even low-beta companies should use 8%+ discount rate
+  //  to account for model uncertainty and illiquidity premium)
+  const effectiveWacc = Math.max(wacc, 0.08);
+
+  // Project FCF for N years with declining growth (mean-reversion to terminal growth)
   const projectedFCF: number[] = [];
+  let cumulativeGrowth = 1;
   for (let year = 1; year <= projectionYears; year++) {
-    const growth = revenueGrowth * Math.max(0.5, 1 - year * 0.1);
-    projectedFCF.push(fcf * (1 + growth) ** year);
+    // Growth decays linearly from revenueGrowth toward terminalGrowthRate
+    const decayFactor = (projectionYears - year) / projectionYears;
+    const yearGrowth = terminalGrowthRate + (revenueGrowth - terminalGrowthRate) * decayFactor;
+    cumulativeGrowth *= (1 + yearGrowth);
+    projectedFCF.push(fcf * cumulativeGrowth);
   }
 
-  // Terminal value
+  // Terminal value — use effectiveWacc to prevent division by near-zero
   const terminalFCF = projectedFCF[projectedFCF.length - 1] * (1 + terminalGrowthRate);
-  const terminalValue =
-    wacc > terminalGrowthRate ? terminalFCF / (wacc - terminalGrowthRate) : 0;
+  const spreadWaccTerminal = effectiveWacc - terminalGrowthRate;
+  // Minimum spread of 3.5% to prevent terminal value explosion
+  // (academic standard: WACC-g spread should be at least 3-4% for mature companies)
+  const effectiveSpread = Math.max(spreadWaccTerminal, 0.035);
+  const terminalValue = terminalFCF / effectiveSpread;
 
-  // Discount to present value
+  // Discount to present value using effectiveWacc (floor of 6%)
   const pvFCF = projectedFCF.reduce(
-    (sum, cf, i) => sum + cf / (1 + wacc) ** (i + 1),
+    (sum, cf, i) => sum + cf / (1 + effectiveWacc) ** (i + 1),
     0
   );
-  const pvTerminal = terminalValue / (1 + wacc) ** projectionYears;
+  const pvTerminal = terminalValue / (1 + effectiveWacc) ** projectionYears;
 
   const intrinsicValueTotal = pvFCF + pvTerminal;
-  const intrinsicValuePerShare = intrinsicValueTotal / shares;
+  let intrinsicValuePerShare = intrinsicValueTotal / shares;
+
+  // Sanity check: cap intrinsic value at 2x current price to prevent absurd results
+  // (DCF models are inherently uncertain; >100% upside signals model error, not opportunity)
+  const maxReasonableValue = currentPrice * 2;
+  if (intrinsicValuePerShare > maxReasonableValue) {
+    console.warn(`[DCF] Sanity check: Intrinsic value ${intrinsicValuePerShare.toFixed(2)} capped at 2x price (${maxReasonableValue.toFixed(2)}) for ${ticker}`);
+    intrinsicValuePerShare = maxReasonableValue;
+  }
+  // Floor at 0 (negative intrinsic value doesn't make sense for equity)
+  if (intrinsicValuePerShare < 0) {
+    intrinsicValuePerShare = 0;
+  }
+
   const upsidePct = ((intrinsicValuePerShare - currentPrice) / currentPrice) * 100;
 
   return {
@@ -951,7 +989,7 @@ export async function calcDCF(input: DCFInput) {
     currentPrice: Math.round(currentPrice * 100) / 100,
     intrinsicValue: Math.round(intrinsicValuePerShare * 100) / 100,
     upsideDownside: Math.round(upsidePct * 10) / 10,
-    wacc: Math.round(wacc * 10000) / 100,
+    wacc: Math.round(effectiveWacc * 10000) / 100,
     terminalGrowthRate: Math.round(terminalGrowthRate * 10000) / 100,
     projectionYears,
     freeCashFlow: Math.round(fcf),
