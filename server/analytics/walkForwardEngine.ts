@@ -18,7 +18,7 @@
 import { getDb } from "../db";
 import { historicalPrices, watchlistStocks, walkForwardResults } from "../../drizzle/schema";
 import { eq, and, gte, lte, asc, desc, inArray, sql } from "drizzle-orm";
-import { normalizeTickerForDb } from "../tickerNormalization";
+// normalizeTickerForDb removed - tickers are used as-is from DB
 
 const EODHD_API_KEY = process.env.EODHD_API_KEY;
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -162,17 +162,22 @@ export async function screenStocksFromEODHD(criteria: ScreeningCriteria): Promis
       return getDefaultUniverseTickers(maxTickers);
     }
 
-    // Convert to normalized tickers
+    // Convert to tickers matching our DB format
+    // Most US tickers are stored WITHOUT .US suffix, Swiss tickers WITH .SW suffix
     const tickers = stocks
       .slice(0, maxTickers)
       .map(s => {
-        const code = s.code || '';
-        const exch = s.exchange || exchange;
-        // Format as TICKER.EXCHANGE for EODHD
+        const code = (s.code || '').trim().toUpperCase();
+        const exch = (s.exchange || exchange).toUpperCase();
+        // Swiss tickers keep .SW suffix
+        if (exch === 'SW' || exch === 'SWX') return code.includes('.') ? code : `${code}.SW`;
+        // European tickers keep their exchange suffix
+        if (['PA', 'XETRA', 'LSE', 'AS', 'MI'].includes(exch)) return code.includes('.') ? code : `${code}.${exch}`;
+        // US tickers: use raw code (no .US suffix) to match DB format
+        if (code.includes('.US')) return code.replace('.US', '');
         if (code.includes('.')) return code;
-        return `${code}.${exch.toUpperCase()}`;
-      })
-      .map(t => normalizeTickerForDb(t));
+        return code;
+      });
 
     console.log(`[WalkForward] Screened ${tickers.length} tickers from ${exchange}`);
     return tickers;
@@ -186,22 +191,23 @@ export async function screenStocksFromEODHD(criteria: ScreeningCriteria): Promis
  * Get default universe tickers (S&P 500 top components) as fallback
  */
 function getDefaultUniverseTickers(count: number): string[] {
+  // Use tickers WITHOUT .US suffix to match historicalPrices DB format
   const sp500Top = [
-    'AAPL.US', 'MSFT.US', 'AMZN.US', 'NVDA.US', 'GOOGL.US', 'META.US', 'BRK-B.US',
-    'TSLA.US', 'UNH.US', 'XOM.US', 'JNJ.US', 'JPM.US', 'V.US', 'PG.US', 'MA.US',
-    'HD.US', 'CVX.US', 'MRK.US', 'ABBV.US', 'LLY.US', 'PEP.US', 'KO.US', 'AVGO.US',
-    'COST.US', 'TMO.US', 'MCD.US', 'WMT.US', 'CSCO.US', 'ACN.US', 'ABT.US',
-    'DHR.US', 'NEE.US', 'LIN.US', 'TXN.US', 'PM.US', 'UNP.US', 'BMY.US', 'RTX.US',
-    'LOW.US', 'HON.US', 'ORCL.US', 'AMGN.US', 'COP.US', 'INTC.US', 'AMD.US',
-    'QCOM.US', 'UPS.US', 'CAT.US', 'BA.US', 'GS.US', 'ELV.US', 'SBUX.US',
-    'MDLZ.US', 'GILD.US', 'ADI.US', 'BLK.US', 'SYK.US', 'DE.US', 'ISRG.US',
-    'VRTX.US', 'REGN.US', 'ADP.US', 'BKNG.US', 'TMUS.US', 'MMC.US', 'CI.US',
-    'CB.US', 'PLD.US', 'SO.US', 'DUK.US', 'ZTS.US', 'CME.US', 'SCHW.US',
-    'MO.US', 'CL.US', 'ITW.US', 'EQIX.US', 'AON.US', 'SHW.US', 'LRCX.US',
-    'KLAC.US', 'SNPS.US', 'CDNS.US', 'PANW.US', 'CRWD.US', 'NOW.US', 'SNOW.US',
-    'DDOG.US', 'NET.US', 'ZS.US', 'FTNT.US', 'WDAY.US', 'TEAM.US', 'HUBS.US',
-    'MELI.US', 'SE.US', 'SHOP.US', 'SQ.US', 'COIN.US', 'PLTR.US', 'UBER.US',
-    'ABNB.US', 'DASH.US'
+    'AAPL', 'MSFT', 'AMZN', 'NVDA', 'GOOGL', 'META', 'BRK-B',
+    'TSLA', 'UNH', 'XOM', 'JNJ', 'JPM', 'V', 'PG', 'MA',
+    'HD', 'CVX', 'MRK', 'ABBV', 'LLY', 'PEP', 'KO', 'AVGO',
+    'COST', 'TMO', 'MCD', 'WMT', 'CSCO', 'ACN', 'ABT',
+    'DHR', 'NEE', 'LIN', 'TXN', 'PM', 'UNP', 'BMY', 'RTX',
+    'LOW', 'HON', 'ORCL', 'AMGN', 'COP', 'INTC', 'AMD',
+    'QCOM', 'UPS', 'CAT', 'BA', 'GS', 'ELV', 'SBUX',
+    'MDLZ', 'GILD', 'ADI', 'BLK', 'SYK', 'DE', 'ISRG',
+    'VRTX', 'REGN', 'ADP', 'BKNG', 'TMUS', 'MMC', 'CI',
+    'CB', 'PLD', 'SO', 'DUK', 'ZTS', 'CME', 'SCHW',
+    'MO', 'CL', 'ITW', 'EQIX', 'AON', 'SHW', 'LRCX',
+    'KLAC', 'SNPS', 'CDNS', 'PANW', 'CRWD', 'NOW', 'SNOW',
+    'DDOG', 'NET', 'ZS', 'FTNT', 'WDAY', 'TEAM', 'HUBS',
+    'MELI', 'SE', 'SHOP', 'SQ', 'COIN', 'PLTR', 'UBER',
+    'ABNB', 'DASH'
   ];
   return sp500Top.slice(0, count);
 }
@@ -220,7 +226,9 @@ export async function getWatchlistTickers(): Promise<string[]> {
     .from(watchlistStocks)
     .where(eq(watchlistStocks.isActive, 1));
 
-  return stocks.map(s => normalizeTickerForDb(s.ticker));
+  // Use tickers as stored in DB (they match historicalPrices.ticker)
+  // Do NOT normalize — the DB already has them in the correct format
+  return stocks.map(s => s.ticker.trim().toUpperCase());
 }
 
 // ============ SCORING ENGINE ============

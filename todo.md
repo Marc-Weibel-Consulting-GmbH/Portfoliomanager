@@ -1067,3 +1067,8 @@
 - [x] FIX: Realistischer Confidence-Schwellenwert (45% statt 60%)
 - [x] FIX: Korrekte Oszillations-Erkennung (C1, C2 via OLS statt hardcoded C=0.01)
 - [x] VERIFIED: 100% Erkennungsrate (4/4 Blasen), Avg 612 Tage Vorlauf, 1.1% False Positives
+
+## Signal-Konsistenz Refactoring (24.05.2026)
+- [x] Backtesting: Zentrale Signal-Engine mit Optimizer-Gewichten nutzen (statt hardcoded RSI+MACD)
+- [x] Watchlist: Signal-Score aus zentraler Engine übernehmen (statt eigene Logik)
+- [x] Walk-Forward: Ticker-Normalisierung Fix (.US Suffix entfernt → DB-Format korrekt, 134 Titel geladen, 51-53 pro Periode bewertet, 173 Perioden)

@@ -4,8 +4,69 @@ import { TRPCError } from "@trpc/server";
 import { watchlistStocks } from "../../drizzle/schema";
 import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
+import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
 
 const yahooFinance: any = new (YahooFinanceClass as any)();
+
+/**
+ * Calculate signal score using the same logic as the central Signal-Engine.
+ * This ensures Watchlist scores match what users see in "Signale & Scores".
+ */
+function calculateSignalScore(
+  data: { peRatio: number | null; pegRatio: number | null; dividendYield: number; rsi14: number | null; priceVs52w: number },
+  weights: WeightConfig
+): { score: number; signalType: "buy" | "sell" | "hold" } {
+  const WEIGHT_SCALE = 12;
+  let score = 0;
+
+  // P/E
+  if (data.peRatio !== null && data.peRatio > 0) {
+    const w = weights.pe * WEIGHT_SCALE;
+    if (data.peRatio < 12) score += 3 * w;
+    else if (data.peRatio < 18) score += 1 * w;
+    else if (data.peRatio > 35) score -= 2 * w;
+    else if (data.peRatio > 25) score -= 1 * w;
+  }
+
+  // PEG
+  if (data.pegRatio !== null && data.pegRatio > 0) {
+    const w = weights.peg * WEIGHT_SCALE;
+    if (data.pegRatio < 0.8) score += 2 * w;
+    else if (data.pegRatio < 1.2) score += 1 * w;
+    else if (data.pegRatio > 2.5) score -= 2 * w;
+    else if (data.pegRatio > 1.8) score -= 1 * w;
+  }
+
+  // Dividend
+  {
+    const w = weights.dividend * WEIGHT_SCALE;
+    if (data.dividendYield > 5) score += 2 * w;
+    else if (data.dividendYield > 3) score += 1 * w;
+  }
+
+  // 52-Week Range
+  {
+    const w = weights.week52 * WEIGHT_SCALE;
+    if (data.priceVs52w < 0.2) score += 2 * w;
+    else if (data.priceVs52w < 0.35) score += 1 * w;
+    else if (data.priceVs52w > 0.95) score -= 1 * w;
+  }
+
+  // RSI
+  if (data.rsi14 !== null) {
+    const w = weights.rsi * WEIGHT_SCALE;
+    if (data.rsi14 < 30) score += 2 * w;
+    else if (data.rsi14 < 40) score += 1 * w;
+    else if (data.rsi14 > 75) score -= 2 * w;
+    else if (data.rsi14 > 65) score -= 1 * w;
+  }
+
+  // Normalize to 0-100 scale (score range is roughly -20 to +20)
+  const normalizedScore = Math.max(0, Math.min(100, 50 + score * 2.5));
+  const signalType = normalizedScore >= 65 ? "buy" : normalizedScore <= 35 ? "sell" : "hold";
+
+  return { score: Math.round(normalizedScore), signalType };
+}
 
 // Normalize ticker for Yahoo Finance (remove .US suffix)
 function normalizeTicker(ticker: string): string {
@@ -251,6 +312,9 @@ export const watchlistRouter = router({
       let updated = 0;
       let failed = 0;
 
+      // Get active optimizer weights for consistent signal scoring
+      const weights = await getActiveWeights();
+
       for (const stock of stocksToRefresh) {
         try {
           const normalizedTicker = normalizeTicker(stock.ticker);
@@ -259,16 +323,57 @@ export const watchlistRouter = router({
           const summary = quote.summaryDetail;
           const keyStats = quote.defaultKeyStatistics;
 
+          const currentPrice = price?.regularMarketPrice || 0;
+          const high52 = summary?.fiftyTwoWeekHigh || 0;
+          const low52 = summary?.fiftyTwoWeekLow || 0;
+          const range52 = high52 - low52;
+          const priceVs52w = range52 > 0 ? (currentPrice - low52) / range52 : 0.5;
+          const peRatio = summary?.trailingPE ?? null;
+          const pegRatio = keyStats?.pegRatio ?? null;
+          const dividendYield = summary?.dividendYield ? summary.dividendYield * 100 : 0;
+
+          // Calculate RSI from recent chart data
+          let rsi14: number | null = null;
+          try {
+            const chartEnd = new Date();
+            const chartStart = new Date(chartEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+            const chartResult = await yahooFinance.chart(normalizedTicker, {
+              period1: chartStart.toISOString().split("T")[0],
+              period2: chartEnd.toISOString().split("T")[0],
+              interval: "1d",
+            }) as any;
+            const closes = (chartResult.quotes || []).map((q: any) => q.close).filter((c: any) => c != null);
+            if (closes.length >= 15) {
+              // Simple RSI calculation
+              let avgGain = 0, avgLoss = 0;
+              for (let i = 1; i <= 14; i++) {
+                const change = closes[i] - closes[i - 1];
+                if (change > 0) avgGain += change; else avgLoss += Math.abs(change);
+              }
+              avgGain /= 14; avgLoss /= 14;
+              const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+              rsi14 = 100 - 100 / (1 + rs);
+            }
+          } catch { /* RSI calculation failed, use null */ }
+
+          // Calculate signal score using central engine weights
+          const { score: signalScore, signalType } = calculateSignalScore(
+            { peRatio, pegRatio, dividendYield, rsi14, priceVs52w },
+            weights
+          );
+
           await db.update(watchlistStocks).set({
-            currentPrice: price?.regularMarketPrice?.toString() || stock.currentPrice,
+            currentPrice: currentPrice?.toString() || stock.currentPrice,
             marketCap: price?.marketCap?.toString() || stock.marketCap,
             currency: price?.currency || stock.currency,
-            peRatio: summary?.trailingPE?.toString() || stock.peRatio,
-            pegRatio: keyStats?.pegRatio?.toString() || stock.pegRatio,
-            dividendYield: summary?.dividendYield ? (summary.dividendYield * 100).toString() : stock.dividendYield,
+            peRatio: peRatio?.toString() || stock.peRatio,
+            pegRatio: pegRatio?.toString() || stock.pegRatio,
+            dividendYield: dividendYield > 0 ? dividendYield.toString() : stock.dividendYield,
             beta: summary?.beta?.toString() || stock.beta,
-            week52High: summary?.fiftyTwoWeekHigh?.toString() || stock.week52High,
-            week52Low: summary?.fiftyTwoWeekLow?.toString() || stock.week52Low,
+            week52High: high52?.toString() || stock.week52High,
+            week52Low: low52?.toString() || stock.week52Low,
+            signalScore,
+            signalType,
             lastMetricsUpdate: new Date(),
           }).where(eq(watchlistStocks.id, stock.id));
           updated++;
@@ -277,7 +382,7 @@ export const watchlistRouter = router({
           failed++;
         }
         // Rate limiting
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 400));
       }
 
       return { updated, failed, total: stocksToRefresh.length };
@@ -369,6 +474,9 @@ export const watchlistRouter = router({
       const added: string[] = [];
       const failed: string[] = [];
 
+      // Get active optimizer weights for consistent scoring
+      const weights = await getActiveWeights();
+
       for (const ticker of newCandidates.slice(0, maxNew)) {
         try {
           const quote: any = await yahooFinance.quoteSummary(ticker, { modules: ["price", "summaryDetail", "defaultKeyStatistics", "assetProfile"] });
@@ -377,38 +485,26 @@ export const watchlistRouter = router({
           const keyStats = quote.defaultKeyStatistics;
           const profile = quote.assetProfile;
 
-          // Calculate a simple signal score
-          let signalScore = 50;
-          let reasons: string[] = [];
-
-          // P/E scoring
-          const pe = summary?.trailingPE;
-          if (pe && pe < 15) { signalScore += 10; reasons.push(`Niedriges P/E (${pe.toFixed(1)})`); }
-          else if (pe && pe < 25) { signalScore += 5; reasons.push(`Moderates P/E (${pe.toFixed(1)})`); }
-          else if (pe && pe > 40) { signalScore -= 5; reasons.push(`Hohes P/E (${pe.toFixed(1)})`); }
-
-          // Dividend scoring
-          const divYield = summary?.dividendYield;
-          if (divYield && divYield > 0.03) { signalScore += 10; reasons.push(`Hohe Dividende (${(divYield * 100).toFixed(1)}%)`); }
-          else if (divYield && divYield > 0.015) { signalScore += 5; reasons.push(`Moderate Dividende (${(divYield * 100).toFixed(1)}%)`); }
-
-          // 52W position scoring
+          const pe = summary?.trailingPE ?? null;
+          const peg = keyStats?.pegRatio ?? null;
+          const divYield = summary?.dividendYield ? summary.dividendYield * 100 : 0;
           const high = summary?.fiftyTwoWeekHigh;
           const low = summary?.fiftyTwoWeekLow;
           const current = price?.regularMarketPrice;
-          if (high && low && current && high !== low) {
-            const position = (current - low) / (high - low);
-            if (position < 0.3) { signalScore += 10; reasons.push("Nahe 52W-Tief (Kaufgelegenheit)"); }
-            else if (position > 0.9) { signalScore -= 5; reasons.push("Nahe 52W-Hoch"); }
-          }
+          const range52 = (high && low) ? high - low : 0;
+          const priceVs52w = range52 > 0 && current ? (current - low) / range52 : 0.5;
 
-          // PEG scoring
-          const peg = keyStats?.pegRatio;
-          if (peg && peg < 1) { signalScore += 10; reasons.push(`PEG < 1 (${peg.toFixed(2)})`); }
-          else if (peg && peg < 1.5) { signalScore += 5; reasons.push(`PEG moderat (${peg.toFixed(2)})`); }
+          // Use central signal engine for consistent scoring
+          const { score: signalScore, signalType } = calculateSignalScore(
+            { peRatio: pe, pegRatio: peg, dividendYield: divYield, rsi14: null, priceVs52w },
+            weights
+          );
 
-          signalScore = Math.max(0, Math.min(100, signalScore));
-          const signalType = signalScore >= 65 ? "buy" : signalScore <= 35 ? "sell" : "hold";
+          const reasons: string[] = [];
+          if (pe && pe < 15) reasons.push(`Niedriges P/E (${pe.toFixed(1)})`);
+          if (peg && peg < 1) reasons.push(`PEG < 1 (${peg.toFixed(2)})`);
+          if (divYield > 3) reasons.push(`Dividende ${divYield.toFixed(1)}%`);
+          if (priceVs52w < 0.3) reasons.push("Nahe 52W-Tief");
 
           await db.insert(watchlistStocks).values({
             ticker,
@@ -424,7 +520,7 @@ export const watchlistRouter = router({
             currentPrice: current?.toString() || null,
             peRatio: pe?.toString() || null,
             pegRatio: peg?.toString() || null,
-            dividendYield: divYield ? (divYield * 100).toString() : null,
+            dividendYield: divYield > 0 ? divYield.toString() : null,
             beta: summary?.beta?.toString() || null,
             week52High: high?.toString() || null,
             week52Low: low?.toString() || null,
