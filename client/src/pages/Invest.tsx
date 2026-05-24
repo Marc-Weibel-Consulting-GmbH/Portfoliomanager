@@ -14,9 +14,9 @@ export default function Invest() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [sectorFilter, setSectorFilter] = useState<string>("");
-  const [signalFilter, setSignalFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sectorFilter, setSectorFilter] = useState<string>("all");
+  const [signalFilter, setSignalFilter] = useState<string>("all");
   const [minDividend, setMinDividend] = useState<string>("");
   const [maxPe, setMaxPe] = useState<string>("");
   const [hasSearched, setHasSearched] = useState(false);
@@ -44,9 +44,9 @@ export default function Invest() {
   // Filter from watchlist universe
   const { data: filterResults, isLoading: filterLoading } = trpc.invest.filter.useQuery(
     {
-      category: categoryFilter || undefined,
-      sector: sectorFilter || undefined,
-      signalType: signalFilter as any || undefined,
+      category: categoryFilter === 'all' ? undefined : categoryFilter,
+      sector: sectorFilter === 'all' ? undefined : sectorFilter,
+      signalType: (signalFilter === 'all' ? undefined : signalFilter) as any,
       minDividendYield: minDividend ? parseFloat(minDividend) : undefined,
       maxPeRatio: maxPe ? parseFloat(maxPe) : undefined,
       limit: 50,
@@ -66,14 +66,14 @@ export default function Invest() {
   };
 
   const clearFilters = () => {
-    setCategoryFilter("");
-    setSectorFilter("");
-    setSignalFilter("");
+    setCategoryFilter("all");
+    setSectorFilter("all");
+    setSignalFilter("all");
     setMinDividend("");
     setMaxPe("");
   };
 
-  const hasActiveFilters = categoryFilter || sectorFilter || signalFilter || minDividend || maxPe;
+  const hasActiveFilters = (categoryFilter && categoryFilter !== 'all') || (sectorFilter && sectorFilter !== 'all') || (signalFilter && signalFilter !== 'all') || minDividend || maxPe;
 
   return (
     <DashboardLayout>
@@ -150,7 +150,7 @@ export default function Invest() {
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Alle" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Alle</SelectItem>
+                      <SelectItem value="all">Alle</SelectItem>
                       {filterOptions?.categories.map(c => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
@@ -162,7 +162,7 @@ export default function Invest() {
                   <Select value={sectorFilter} onValueChange={setSectorFilter}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Alle" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Alle</SelectItem>
+                      <SelectItem value="all">Alle</SelectItem>
                       {filterOptions?.sectors.map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
@@ -174,7 +174,7 @@ export default function Invest() {
                   <Select value={signalFilter} onValueChange={setSignalFilter}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Alle" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Alle</SelectItem>
+                      <SelectItem value="all">Alle</SelectItem>
                       <SelectItem value="buy">Kaufen</SelectItem>
                       <SelectItem value="hold">Halten</SelectItem>
                       <SelectItem value="sell">Verkaufen</SelectItem>

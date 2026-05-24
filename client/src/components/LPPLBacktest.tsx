@@ -62,7 +62,7 @@ export default function LPPLBacktest() {
               <div className="flex flex-wrap gap-2">
                 {bubblePeriods.map((b: any, i: number) => (
                   <Badge key={i} variant="outline" className="text-xs">
-                    {b.name} ({b.peakYear})
+                    {b.name} ({b.peakDate?.split('-')[0]})
                   </Badge>
                 ))}
               </div>
@@ -112,22 +112,22 @@ export default function LPPLBacktest() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryCard
               label="Getestete Blasen"
-              value={String(result.summary.totalBubbles)}
+              value={String(result.results?.length || 0)}
               icon={<Flame className="h-4 w-4" />}
             />
             <SummaryCard
               label="Erkannt (True Positive)"
-              value={String(result.summary.detected)}
+              value={String(result.results?.filter((r: any) => r.detectedBubble).length || 0)}
               icon={<CheckCircle className="h-4 w-4 text-emerald-500" />}
             />
             <SummaryCard
               label="Verpasst (False Negative)"
-              value={String(result.summary.missed)}
+              value={String(result.results?.filter((r: any) => !r.detectedBubble).length || 0)}
               icon={<XCircle className="h-4 w-4 text-red-500" />}
             />
             <SummaryCard
               label="Erkennungsrate"
-              value={`${(result.summary.detectionRate * 100).toFixed(0)}%`}
+              value={`${(result.overallAccuracy || 0).toFixed(0)}%`}
               icon={<BarChart3 className="h-4 w-4 text-primary" />}
             />
           </div>
@@ -139,48 +139,48 @@ export default function LPPLBacktest() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {result.bubbleResults.map((b: any, i: number) => (
+                {(result.results || []).map((b: any, i: number) => (
                   <div key={i} className="p-4 rounded-lg border border-muted hover:bg-muted/20">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        {b.detected ? (
+                        {b.detectedBubble ? (
                           <CheckCircle className="h-5 w-5 text-emerald-500" />
                         ) : (
                           <XCircle className="h-5 w-5 text-red-500" />
                         )}
                         <div>
-                          <span className="font-medium">{b.name}</span>
+                          <span className="font-medium">{b.period?.name}</span>
                           <span className="text-xs text-muted-foreground ml-2">
-                            ({b.ticker}, {b.peakDate})
+                            ({b.period?.ticker}, {b.period?.peakDate})
                           </span>
                         </div>
                       </div>
-                      <Badge variant={b.detected ? 'default' : 'destructive'}>
-                        {b.detected ? 'Erkannt' : 'Verpasst'}
+                      <Badge variant={b.detectedBubble ? 'default' : 'destructive'}>
+                        {b.detectedBubble ? 'Erkannt' : 'Verpasst'}
                       </Badge>
                     </div>
-                    {b.detected && (
+                    {b.detectedBubble && (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-xs">
                         <div>
                           <span className="text-muted-foreground">Signal-Datum:</span>
-                          <span className="ml-1 font-mono">{b.signalDate}</span>
+                          <span className="ml-1 font-mono">{b.detectionDate || 'N/A'}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Vorlaufzeit:</span>
-                          <span className="ml-1 font-mono">{b.leadTimeDays} Tage</span>
+                          <span className="ml-1 font-mono">{b.daysBeforePeak || 0} Tage</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Crash-Tiefe:</span>
-                          <span className="ml-1 font-mono text-red-500">{(b.crashDepth * 100).toFixed(0)}%</span>
+                          <span className="ml-1 font-mono text-red-500">{b.period?.peakToTroughDrop}%</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">LPPL Confidence:</span>
-                          <span className="ml-1 font-mono">{(b.confidence * 100).toFixed(0)}%</span>
+                          <span className="ml-1 font-mono">{b.maxConfidence?.toFixed(0) || 0}%</span>
                         </div>
                       </div>
                     )}
-                    {!b.detected && b.reason && (
-                      <p className="text-xs text-muted-foreground mt-1">{b.reason}</p>
+                    {!b.detectedBubble && (
+                      <p className="text-xs text-muted-foreground mt-1">Qualität: {b.accuracy || 'unbekannt'}</p>
                     )}
                   </div>
                 ))}
@@ -198,8 +198,8 @@ export default function LPPLBacktest() {
                   <p className="text-muted-foreground">
                     Der LPPL-Indikator ist ein probabilistisches Werkzeug — er erkennt 
                     <strong> super-exponentielle Wachstumsmuster</strong>, die auf Blasenbildung hindeuten.
-                    Eine Erkennungsrate von {(result.summary.detectionRate * 100).toFixed(0)}% bei historischen 
-                    Blasen zeigt {result.summary.detectionRate >= 0.7 ? 'eine gute' : 'eine moderate'} prädiktive Kraft.
+                    Eine Erkennungsrate von {(result.overallAccuracy || 0).toFixed(0)}% bei historischen 
+                    Blasen zeigt {(result.overallAccuracy || 0) >= 70 ? 'eine gute' : 'eine moderate'} prädiktive Kraft.
                     Falsch-positive Signale (Fehlalarme) sind möglich und sollten mit anderen Indikatoren validiert werden.
                   </p>
                 </div>

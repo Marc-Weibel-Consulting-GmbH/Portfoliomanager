@@ -1005,3 +1005,8 @@
   - PortfolioPositions.tsx: !!portfolio.isLive && (transactions link)
   - PortfolioTransactionsPage.tsx: !!portfolio.isLive && (transactions tab)
 - [ ] GitHub Push: Alle Änderungen auf GitHub pushen
+
+### Bug Fixes: Walk-Forward und LPPL Backtest Crashes (24.05.2026)
+- [x] Walk-Forward: SelectItem value="" crash fix (empty string not allowed in Radix Select)
+- [x] LPPL Backtest: Cannot read properties of undefined (reading 'map') crash fix
+- [x] Invest.tsx: SelectItem value="" crash fix (same Radix issue)

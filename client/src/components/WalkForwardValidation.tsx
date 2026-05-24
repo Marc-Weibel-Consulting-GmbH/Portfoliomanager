@@ -33,8 +33,8 @@ export default function WalkForwardValidation() {
   const [trainWindowMonths, setTrainWindowMonths] = useState(6);
   const [testWindowMonths, setTestWindowMonths] = useState(1);
   const [topQuartilePercent, setTopQuartilePercent] = useState(25);
-  const [region, setRegion] = useState('');
-  const [sector, setSector] = useState('');
+  const [region, setRegion] = useState('all');
+  const [sector, setSector] = useState('all');
   const [minMarketCap, setMinMarketCap] = useState('');
   const [minScore, setMinScore] = useState('70');
   const [targetSharpe, setTargetSharpe] = useState('');
@@ -50,8 +50,8 @@ export default function WalkForwardValidation() {
       testWindowMonths,
       topQuartilePercent,
       screeningCriteria: {
-        region: region || undefined,
-        sector: sector || undefined,
+        region: region === 'all' ? undefined : region,
+        sector: sector === 'all' ? undefined : sector,
         minMarketCap: minMarketCap ? Number(minMarketCap) * 1e9 : undefined,
         minScore: minScore ? Number(minScore) : undefined,
         targetSharpe: targetSharpe ? Number(targetSharpe) : undefined,
@@ -137,7 +137,7 @@ export default function WalkForwardValidation() {
                       <SelectValue placeholder="Alle" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Alle Regionen</SelectItem>
+                      <SelectItem value="all">Alle Regionen</SelectItem>
                       <SelectItem value="us">USA</SelectItem>
                       <SelectItem value="ch">Schweiz</SelectItem>
                       <SelectItem value="de">Deutschland</SelectItem>
@@ -153,7 +153,7 @@ export default function WalkForwardValidation() {
                       <SelectValue placeholder="Alle" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Alle Sektoren</SelectItem>
+                      <SelectItem value="all">Alle Sektoren</SelectItem>
                       <SelectItem value="Technology">Technologie</SelectItem>
                       <SelectItem value="Healthcare">Gesundheit</SelectItem>
                       <SelectItem value="Financial Services">Finanzen</SelectItem>
