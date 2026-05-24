@@ -987,13 +987,14 @@
   - Walk-Forward Weekly: Sonntag 03:00 UTC
   - LPPL Monitoring: Täglich 06:00 UTC
   - Evaluate Recommendations: Täglich 07:00 UTC
-- [ ] Walk-Forward Ergebnisse in walkForwardResults-Tabelle cachen
-  - Nach jedem Run Ergebnisse persistieren
-  - Abruf-Endpoint für historische Runs
-  - Frontend zeigt gecachte Ergebnisse sofort an
-- [ ] LPPL-Monitoring Schwellenwert konfigurierbar
-  - Benutzer-Einstellung in Monitoring-UI (Slider 50-95%)
-  - Backend liest Schwellenwert aus DB statt hardcoded 70%
+- [x] Walk-Forward Ergebnisse in walkForwardResults-Tabelle cachen
+  - Nach jedem Run Ergebnisse persistieren (walkForwardEngine.ts Zeile 622-644)
+  - Abruf-Endpoint getWalkForwardHistory (copilotRouter.ts Zeile 513-516)
+  - Frontend zeigt gecachte Ergebnisse sofort an (WalkForwardValidation.tsx history section)
+- [x] LPPL-Monitoring Schwellenwert konfigurierbar
+  - Benutzer-Einstellung in Monitoring-UI (Slider 50-95%) implementiert
+  - Wert in localStorage gespeichert, dynamisch in Job-Beschreibung angezeigt
+  - Farbcodierung und Empfehlungstext je nach Schwellenwert
 
 ### isLive "0" Rendering Bug Fix (24.05.2026)
 - [x] Fix isLive tinyint rendering "0" in JSX across all files

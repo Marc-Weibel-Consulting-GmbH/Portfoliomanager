@@ -399,11 +399,11 @@ export default function WalkForwardValidation() {
               {history.slice(0, 5).map((h: any, i: number) => (
                 <div key={i} className="flex items-center justify-between text-xs p-2 rounded border border-muted/50">
                   <span className="text-muted-foreground">{new Date(h.createdAt).toLocaleDateString('de-CH')}</span>
-                  <span>{h.universeTickers} Titel</span>
-                  <span className={h.oosAlpha > 0 ? 'text-emerald-500' : 'text-red-500'}>
-                    Alpha: {(h.oosAlpha * 100).toFixed(2)}%
+                  <span>{h.tickerCount || h.universeTickers} Titel</span>
+                  <span className={Number(h.oosAlpha) > 0 ? 'text-emerald-500' : 'text-red-500'}>
+                    Alpha: {Number(h.oosAlpha) > 0 ? '+' : ''}{Number(h.oosAlpha).toFixed(2)}%
                   </span>
-                  <span>Hit: {(h.oosHitRate * 100).toFixed(0)}%</span>
+                  <span>Hit: {(Number(h.oosHitRate) * 100).toFixed(0)}%</span>
                 </div>
               ))}
             </div>

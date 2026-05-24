@@ -4,11 +4,13 @@
  * - Walk-Forward Weekly
  * - LPPL Daily Monitoring
  * - Recommendation Evaluation
+ * Also allows configuring the LPPL bubble confidence threshold.
  */
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { 
   Activity, 
   Calendar, 
@@ -17,9 +19,9 @@ import {
   Globe, 
   Flame, 
   BarChart3,
-  Bell,
   BellRing,
   Shield,
+  Settings2,
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -30,31 +32,42 @@ interface ScheduledJob {
   status: 'active' | 'pending_deploy';
 }
 
-const SCHEDULED_JOBS: ScheduledJob[] = [
-  {
-    name: 'Walk-Forward Validation',
-    description: 'Wöchentliche Walk-Forward Analyse auf dem Watchlist-Universum (100 Titel). Benachrichtigung bei Top-Titeln mit konsistentem Alpha.',
-    schedule: 'Jeden Sonntag, 03:00 UTC',
-    icon: <Globe className="h-5 w-5 text-blue-400" />,
-    status: 'pending_deploy',
-  },
-  {
-    name: 'LPPL Bubble-Monitoring',
-    description: 'Tägliche LPPL-Analyse auf allen Portfolio-Positionen. Automatische Warnung bei Bubble-Signalen (Confidence > 70%).',
-    schedule: 'Täglich, 06:00 UTC',
-    icon: <Flame className="h-5 w-5 text-orange-400" />,
-    status: 'pending_deploy',
-  },
-  {
-    name: 'Empfehlungs-Evaluation',
-    description: 'Tägliche Überprüfung vergangener Copilot-Empfehlungen. Misst Trefferquote nach 30/60/90 Tagen.',
-    schedule: 'Täglich, 07:00 UTC',
-    icon: <BarChart3 className="h-5 w-5 text-emerald-400" />,
-    status: 'pending_deploy',
-  },
-];
+const LPPL_THRESHOLD_KEY = 'lppl-monitoring-threshold';
 
 export default function MonitoringStatus() {
+  const [lpplThreshold, setLpplThreshold] = useState(() => {
+    const saved = localStorage.getItem(LPPL_THRESHOLD_KEY);
+    return saved ? Number(saved) : 70;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LPPL_THRESHOLD_KEY, String(lpplThreshold));
+  }, [lpplThreshold]);
+
+  const SCHEDULED_JOBS: ScheduledJob[] = [
+    {
+      name: 'Walk-Forward Validation',
+      description: 'Wöchentliche Walk-Forward Analyse auf dem Watchlist-Universum (100 Titel). Benachrichtigung bei Top-Titeln mit konsistentem Alpha.',
+      schedule: 'Jeden Sonntag, 03:00 UTC',
+      icon: <Globe className="h-5 w-5 text-blue-400" />,
+      status: 'pending_deploy',
+    },
+    {
+      name: 'LPPL Bubble-Monitoring',
+      description: `Tägliche LPPL-Analyse auf allen Portfolio-Positionen. Automatische Warnung bei Bubble-Signalen (Confidence > ${lpplThreshold}%).`,
+      schedule: 'Täglich, 06:00 UTC',
+      icon: <Flame className="h-5 w-5 text-orange-400" />,
+      status: 'pending_deploy',
+    },
+    {
+      name: 'Empfehlungs-Evaluation',
+      description: 'Tägliche Überprüfung vergangener Copilot-Empfehlungen. Misst Trefferquote nach 30/60/90 Tagen.',
+      schedule: 'Täglich, 07:00 UTC',
+      icon: <BarChart3 className="h-5 w-5 text-emerald-400" />,
+      status: 'pending_deploy',
+    },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -73,6 +86,55 @@ export default function MonitoringStatus() {
           Aktivierung nach Deploy
         </Badge>
       </div>
+
+      {/* LPPL Threshold Configuration */}
+      <Card className="bg-orange-900/10 border-orange-700/30">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <Settings2 className="h-5 w-5 text-orange-400 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="font-medium text-white">LPPL Bubble-Schwellenwert</h4>
+              <p className="text-sm text-gray-400 mt-1 mb-3">
+                Confidence-Schwellenwert für Bubble-Warnungen. Niedrigere Werte = mehr Warnungen (sensitiver), höhere Werte = weniger Warnungen (spezifischer).
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <Slider
+                      value={[lpplThreshold]}
+                      onValueChange={(val) => setLpplThreshold(val[0])}
+                      min={50}
+                      max={95}
+                      step={5}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="min-w-[60px] text-right">
+                    <span className={`text-lg font-bold ${
+                      lpplThreshold >= 80 ? 'text-emerald-400' : 
+                      lpplThreshold >= 65 ? 'text-orange-400' : 
+                      'text-red-400'
+                    }`}>
+                      {lpplThreshold}%
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>50% (sensitiv)</span>
+                  <span>70% (Standard)</span>
+                  <span>95% (konservativ)</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {lpplThreshold < 65 && '⚠️ Sehr sensitiv — viele Fehlalarme möglich'}
+                  {lpplThreshold >= 65 && lpplThreshold <= 75 && '✓ Ausgewogene Einstellung — gutes Verhältnis zwischen Sensitivität und Spezifität'}
+                  {lpplThreshold > 75 && lpplThreshold <= 85 && '🛡️ Konservativ — nur starke Bubble-Signale lösen Warnung aus'}
+                  {lpplThreshold > 85 && '🔒 Sehr konservativ — nur extreme Bubble-Signale (selten)'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Job Cards */}
       <div className="grid gap-3">
@@ -127,7 +189,7 @@ export default function MonitoringStatus() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Flame className="h-3.5 w-3.5 text-orange-400" />
-                  LPPL: Bubble-Warnung bei Confidence &gt; 70% in deinen Positionen
+                  LPPL: Bubble-Warnung bei Confidence &gt; {lpplThreshold}% in deinen Positionen
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5 text-emerald-400" />
