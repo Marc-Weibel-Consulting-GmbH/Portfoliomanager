@@ -25,6 +25,12 @@ export interface AggregatedMetrics {
   totalReturnPercent?: number;         // since-inception % (across all portfolios)
   benchmarkSmiYtd?: number;            // %
   benchmarkMsciYtd?: number;           // %
+
+  // TTWROR + IRR Performance Metrics (from new performance engine)
+  ttwrorYtd?: number;                  // % — True Time-Weighted Rate of Return (YTD)
+  irrYtd?: number;                     // % — Internal Rate of Return (annualized)
+  ttwrorTotal?: number;                // % — TTWROR since inception
+  irrTotal?: number;                   // % — IRR since inception
 }
 
 export interface TimeseriesPoint {

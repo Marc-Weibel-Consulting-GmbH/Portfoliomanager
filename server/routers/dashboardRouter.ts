@@ -475,6 +475,201 @@ export const dashboardRouter = router({
   }),
 
   // ──────────────────────────────────────────────────────────────────────
+  // TTWROR + IRR Performance Metrics (new engine)
+  // ──────────────────────────────────────────────────────────────────────
+  getPerformanceMetrics: protectedProcedure
+    .input(z.object({
+      scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate"),
+      range: z.enum(["1M", "3M", "YTD", "1J", "3J", "5J", "Max"]).default("YTD"),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
+      const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { convertToCHF } = await import("../fxHelper");
+      const { getDb } = await import("../db");
+      const { historicalPrices } = await import("../../drizzle/schema");
+      const { inArray, and, gte, lte } = await import("drizzle-orm");
+      const {
+        calculateTTWROR,
+        calculateIRR,
+        buildDailyValuations,
+        buildHoldingsTimeline,
+        extractPortfolioCashFlows,
+      } = await import("../lib/performanceEngine");
+
+      const db = await getDb();
+      if (!db) return { ttwror: 0, irr: 0, annualizedTtwror: 0, periodDays: 0, dailySeries: [] };
+
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
+      }
+      if (targetPortfolios.length === 0) return { ttwror: 0, irr: 0, annualizedTtwror: 0, periodDays: 0, dailySeries: [] };
+
+      // Determine date range
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      let startDate = new Date();
+      switch (input.range) {
+        case '1M': startDate.setMonth(startDate.getMonth() - 1); break;
+        case '3M': startDate.setMonth(startDate.getMonth() - 3); break;
+        case 'YTD': startDate = new Date(`${today.getFullYear()}-01-01`); break;
+        case '1J': startDate.setFullYear(startDate.getFullYear() - 1); break;
+        case '3J': startDate.setFullYear(startDate.getFullYear() - 3); break;
+        case '5J': startDate.setFullYear(startDate.getFullYear() - 5); break;
+        case 'Max': startDate = new Date('2020-01-01'); break;
+      }
+      let startDateStr = startDate.toISOString().split('T')[0];
+
+      // Collect all transactions from target portfolios
+      const allTransactions: any[] = [];
+      const allTickers = new Set<string>();
+      let earliestTxDate = todayStr;
+
+      for (const p of targetPortfolios) {
+        if (p.isLive === 1 && p.liveStartDate) {
+          const txs = await getPortfolioTransactions(p.id);
+          allTransactions.push(...txs);
+          for (const tx of txs) {
+            if (tx.ticker) allTickers.add(tx.ticker);
+            if (tx.transactionDate) {
+              const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+              if (txDateStr < earliestTxDate) earliestTxDate = txDateStr;
+            }
+          }
+        }
+      }
+
+      if (allTickers.size === 0 || allTransactions.length === 0) {
+        return { ttwror: 0, irr: 0, annualizedTtwror: 0, periodDays: 0, dailySeries: [] };
+      }
+
+      // Don't go before earliest transaction
+      if (startDateStr < earliestTxDate) startDateStr = earliestTxDate;
+
+      // Get stock metadata
+      const stocksMap = await batchGetStocks(Array.from(allTickers));
+
+      // Get historical prices
+      const pricesResult = await db.select().from(historicalPrices)
+        .where(and(
+          inArray(historicalPrices.ticker, Array.from(allTickers)),
+          gte(historicalPrices.date, startDateStr),
+          lte(historicalPrices.date, todayStr)
+        ));
+
+      const rawPriceMap = new Map<string, Map<string, number>>();
+      for (const p of pricesResult) {
+        if (!rawPriceMap.has(p.ticker)) rawPriceMap.set(p.ticker, new Map());
+        rawPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.close));
+      }
+
+      const allDates = new Set<string>();
+      for (const tp of rawPriceMap.values()) {
+        for (const d of tp.keys()) allDates.add(d);
+      }
+      const sortedDates = Array.from(allDates).sort();
+      if (sortedDates.length === 0) return { ttwror: 0, irr: 0, annualizedTtwror: 0, periodDays: 0, dailySeries: [] };
+
+      // Convert prices to CHF
+      const currencyByTicker = new Map<string, string>();
+      for (const [ticker, stock] of stocksMap.entries()) {
+        currencyByTicker.set(ticker, (stock as any).currency || 'CHF');
+      }
+
+      // Pre-warm FX cache
+      const uniqueCurrencies = new Set<string>();
+      for (const c of currencyByTicker.values()) if (c !== 'CHF') uniqueCurrencies.add(c);
+      await Promise.all(Array.from(uniqueCurrencies).map(c =>
+        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+      ));
+
+      const pricesCHF = new Map<string, Map<string, number>>();
+      for (const [ticker, datePrices] of rawPriceMap.entries()) {
+        const currency = currencyByTicker.get(ticker) || 'CHF';
+        const chfPrices = new Map<string, number>();
+        if (currency === 'CHF') {
+          for (const [date, price] of datePrices.entries()) chfPrices.set(date, price);
+        } else {
+          const fxRate = getCachedFxRate(currency, todayStr) || await convertToCHF(1, currency, todayStr);
+          for (const [date, price] of datePrices.entries()) chfPrices.set(date, price * fxRate);
+        }
+        pricesCHF.set(ticker, chfPrices);
+      }
+
+      // Build holdings timeline
+      const holdingsTimeline = buildHoldingsTimeline(allTransactions, sortedDates);
+
+      // Build cash balances
+      const cashBalances = new Map<string, number>();
+      const sortedTxs = [...allTransactions].sort((a, b) => {
+        const da = new Date(a.transactionDate).toISOString();
+        const db2 = new Date(b.transactionDate).toISOString();
+        return da.localeCompare(db2);
+      });
+      let runningCash = 0;
+      const txDateChanges = new Map<string, number>();
+      for (const tx of sortedTxs) {
+        const date = new Date(tx.transactionDate).toISOString().split('T')[0];
+        const amountCHF = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+        const fees = parseFloat(tx.fees || '0');
+        let change = 0;
+        switch (tx.transactionType) {
+          case 'deposit': case 'entry': change = amountCHF; break;
+          case 'withdrawal': change = -amountCHF; break;
+          case 'buy': change = -(amountCHF + fees); break;
+          case 'sell': change = amountCHF - fees; break;
+          case 'dividend': change = amountCHF; break;
+        }
+        txDateChanges.set(date, (txDateChanges.get(date) || 0) + change);
+      }
+      for (const date of sortedDates) {
+        const change = txDateChanges.get(date);
+        if (change !== undefined) runningCash += change;
+        cashBalances.set(date, Math.max(0, runningCash));
+      }
+
+      // Build daily valuations
+      const valuations = buildDailyValuations(holdingsTimeline, pricesCHF, cashBalances, sortedDates);
+
+      // Extract external cash flows
+      const cashFlows = extractPortfolioCashFlows(allTransactions);
+
+      // Calculate TTWROR
+      const ttwrorResult = calculateTTWROR(valuations, cashFlows);
+
+      // Calculate IRR
+      const mvb = valuations.length > 0 ? valuations[0].marketValue : 0;
+      const mve = valuations.length > 0 ? valuations[valuations.length - 1].marketValue : 0;
+      const irrCashFlows = cashFlows.map(cf => ({
+        ...cf,
+        amount: cf.type === 'withdrawal' ? -Math.abs(cf.amount) : Math.abs(cf.amount),
+      }));
+      const irrResult = calculateIRR(mvb, mve, irrCashFlows, startDateStr, todayStr);
+
+      // Downsample daily series to max 60 points for chart
+      const step = Math.max(1, Math.floor(ttwrorResult.dailySeries.length / 60));
+      const sampledSeries = ttwrorResult.dailySeries.filter((_, i) =>
+        i % step === 0 || i === ttwrorResult.dailySeries.length - 1
+      );
+
+      return {
+        ttwror: Number((ttwrorResult.totalReturn * 100).toFixed(2)), // as percentage
+        annualizedTtwror: Number((ttwrorResult.annualizedReturn * 100).toFixed(2)),
+        irr: Number((irrResult.annualizedIRR * 100).toFixed(2)),
+        periodDays: ttwrorResult.periodDays,
+        converged: irrResult.converged,
+        dailySeries: sampledSeries.map(p => ({
+          date: p.date,
+          value: Number((p.cumulativeReturn * 100).toFixed(2)),
+        })),
+      };
+    }),
+
+  // ──────────────────────────────────────────────────────────────────────
   // Performance time series — portfolio vs SMI vs MSCI World
   // ──────────────────────────────────────────────────────────────────────
   getPerformanceTimeseries: protectedProcedure

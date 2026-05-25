@@ -32,7 +32,7 @@ export function PerformanceChart({ data, range, onRangeChange }: PerformanceChar
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <div>
           <div className="text-sm font-semibold text-white">Performance vs. Benchmarks</div>
-          <div className="text-[11px] text-gray-400">Portfolio · SMI · MSCI World</div>
+          <div className="text-[11px] text-gray-400">TTWROR Portfolio · SMI · MSCI World</div>
         </div>
         <Tabs value={range} onValueChange={v => onRangeChange(v as RangeKey)}>
           <TabsList className="bg-[#0a0f1a] border border-white/10 h-8">

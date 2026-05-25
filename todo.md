@@ -1151,3 +1151,32 @@
 - [x] Benchmarks im Dashboard-Chart fehlen (SMI/MSCI World Linien nicht sichtbar)
   - AreaChart durch ComposedChart ersetzt (recharts rendert Line-Elemente nicht in AreaChart)
   - SMI und MSCI World Linien werden jetzt korrekt als gestrichelte Linien angezeigt
+
+## TTWROR + IRR Performance-Berechnung (25.05.2026)
+- [x] Algorithmus-Research: TTWROR (True Time-Weighted Rate of Return) und IRR (Internal Rate of Return)
+  - Portfolio Performance Docs studiert (help.portfolio-performance.info)
+  - Clean-Room-Ansatz: Pseudocode -> eigenständige TypeScript-Implementierung
+- [x] Bestehende Performance-Berechnung analysieren und Schwachstellen dokumentieren
+  - Einfache Rendite (Endwert-Startwert)/Startwert ohne Cashflow-Bereinigung
+  - Inkonsistenz zwischen Dashboard und Portfolio-Übersicht
+- [x] Neues Performance-Modul designen (Interfaces, Datenfluss, Cashflow-Erkennung)
+  - server/lib/performanceEngine.ts: Reine Berechnungslogik
+  - server/lib/performanceService.ts: DB-Bridge (Transaktionen -> Valuations -> Engine)
+- [x] TTWROR-Engine implementieren (Sub-Perioden bei Ein-/Auszahlungen, geometrische Verkettung)
+  - Tägliche Sub-Perioden, Cashflows neutralisiert, geometrische Verkettung
+  - Daily Series für Chart-Ausgabe
+- [x] IRR-Engine implementieren (Newton-Raphson / Bisection für Money-Weighted Return)
+  - Newton-Raphson mit Bisection-Fallback, max 200 Iterationen
+  - Annualisierung über (1+r)^(365/days)-1
+- [x] Integration ins Backend (dashboardRouter, portfoliosRouter, getAggregatedMetrics)
+  - Neuer Endpoint: dashboard.getPerformanceMetrics (TTWROR + IRR)
+  - Unterstützt scope (aggregate/portfolioId) und range (YTD, 1M, 1J, etc.)
+- [x] Frontend: Beide Metriken (TTWROR + IRR) anzeigen wo relevant
+  - KPI-Karten: "TTWROR YTD" und "IRR (MWR)" mit Info-Tooltips
+  - Performance-Chart: Subtitle "TTWROR Portfolio" für Klarheit
+  - useDashboardData: Overlay der neuen Engine-Daten auf bestehende Metriken
+- [x] Unit-Tests mit bekannten Szenarien (einfach, mit Einzahlungen, mit Auszahlungen)
+  - 25 Tests in performanceEngine.test.ts (alle bestanden)
+  - Szenarien: Einfache Rendite, Deposit-Neutralisierung, Withdrawal, Compound, IRR-Konvergenz
+  - TTWROR vs IRR Divergenz-Test (Nachweis dass beide Metriken unterschiedliche Perspektiven zeigen)
+- [ ] Validierung gegen manuelle Berechnungen und Portfolio Performance Tool

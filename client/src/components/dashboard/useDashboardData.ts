@@ -100,10 +100,24 @@ export function useDashboardData({ scope, range }: UseDashboardDataParams): Dash
       { placeholderData: keepPreviousData }
     );
 
+  // TTWROR + IRR from new performance engine
+  const { data: rawPerfMetrics } =
+    trpc.dashboard.getPerformanceMetrics.useQuery(
+      { scope, range },
+      { placeholderData: keepPreviousData }
+    );
+
   // Merge: real metrics where available, mock for missing fields.
+  // Overlay TTWROR/IRR from the new performance engine
   const metrics: AggregatedMetrics = {
     ...MOCK_METRICS,
     ...(rawMetrics ?? {}),
+    ...(rawPerfMetrics ? {
+      ttwrorYtd: rawPerfMetrics.ttwror,
+      irrYtd: rawPerfMetrics.irr,
+      // Use TTWROR as the primary YTD performance metric
+      totalPerformancePercent: rawPerfMetrics.ttwror,
+    } : {}),
   };
 
   return {
