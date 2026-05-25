@@ -1180,3 +1180,29 @@
   - Szenarien: Einfache Rendite, Deposit-Neutralisierung, Withdrawal, Compound, IRR-Konvergenz
   - TTWROR vs IRR Divergenz-Test (Nachweis dass beide Metriken unterschiedliche Perspektiven zeigen)
 - [ ] Validierung gegen manuelle Berechnungen und Portfolio Performance Tool
+
+## TTWROR Portfolio-Integration + Validierung (25.05.2026)
+- [x] Portfolio-Detailseite: TTWROR/IRR statt einfacher Rendite
+  - Neuer Endpoint portfolios.getPerformanceMetrics (TTWROR + IRR pro Periode)
+  - PortfolioDetailsPage: TTWROR YTD + IRR Karten mit Tooltips
+- [x] getMultiPeriodPerformanceV2 durch TTWROR-Engine ersetzen
+  - portfoliosRouter.ts: getMultiPeriodPerformanceV2 nutzt jetzt performanceService
+  - Perioden: 1M, 3M, 6M, YTD, 1J, 3J, 5J, Gesamt
+- [ ] Portfolios-Übersicht: Tabelle mit TTWROR-Perioden (1M, 3M, 6M, YTD, 1J)
+- [ ] Validierung: TTWROR/IRR gegen manuelle Berechnung und Portfolio Performance Tool
+
+## Swissquote PDF-Import (25.05.2026)
+- [x] pdf-parse installieren und Swissquote PDF-Format analysieren
+  - pdf-parse@2.4.5 installiert
+  - Portfolio Performance SwissquotePDFExtractor.java als Referenz studiert (Clean-Room)
+- [x] Regex-Parser für alle Transaktionstypen (Kauf, Verkauf, Dividende, Gebühren)
+  - server/lib/swissquoteParser.ts: vollständige Implementierung
+  - DE + EN Patterns, ISIN-Extraktion, FX-Rate, Gebühren, Steuern
+  - Confidence-Bewertung (HIGH/MEDIUM/LOW) pro Transaktion
+- [x] Backend-Endpoint: pdfImport.parseSwissquote + pdfImport.importTransactions
+  - server/routers/pdfImportRouter.ts erstellt
+  - Base64-PDF-Transfer, Portfolio-Ownership-Validierung
+- [x] Frontend: Upload-Dialog mit Vorschau und Bestätigung
+  - client/src/components/SwissquotePDFImport.tsx: Drag-and-Drop, Review-Step, Checkbox-Auswahl
+  - PortfolioTransactionsPage: "PDF importieren" Button integriert
+- [ ] Tests mit echten Swissquote-PDFs (manuell zu validieren)

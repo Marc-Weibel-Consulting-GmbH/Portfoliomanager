@@ -3,22 +3,24 @@ import { useRoute, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, FileText } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { TransactionHistory } from "@/components/TransactionHistory";
 import { TransactionModal } from "@/components/TransactionModal";
+import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
 
 export default function PortfolioTransactionsPage() {
   const [, params] = useRoute<{ id: string }>("/portfolio/:id/transactions");
   const portfolioId = params?.id ? parseInt(params.id) : null;
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [showPDFImport, setShowPDFImport] = useState(false);
 
   // Fetch portfolio details
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
   const portfolio = portfolios.find((p: any) => p.id === portfolioId);
 
-  // Fetch transactions
-  const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
+  // Fetch transactions (refetch after PDF import)
+  const { data: transactions = [], refetch: refetchTransactions } = trpc.portfolioTransactions.list.useQuery(
     { portfolioId: portfolioId! },
     { enabled: !!portfolioId }
   );
@@ -49,13 +51,27 @@ export default function PortfolioTransactionsPage() {
               <p className="text-gray-400">{portfolio.description || "Portfolio Details"}</p>
             </div>
           </div>
-          <Button
-            onClick={() => setIsTransactionModalOpen(true)}
-            className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Neue Transaktion
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowPDFImport((v) => !v)}
+              className={`border-white/20 font-semibold transition-colors ${
+                showPDFImport
+                  ? "bg-[#00CFC1]/20 border-[#00CFC1]/50 text-[#00CFC1]"
+                  : "text-white hover:bg-white/10"
+              }`}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              PDF importieren
+            </Button>
+            <Button
+              onClick={() => setIsTransactionModalOpen(true)}
+              className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Neue Transaktion
+            </Button>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
@@ -73,6 +89,18 @@ export default function PortfolioTransactionsPage() {
             </Link>
           )}
         </div>
+
+        {/* PDF Import Panel */}
+        {showPDFImport && (
+          <SwissquotePDFImport
+            portfolioId={portfolioId!}
+            portfolioName={portfolio.name}
+            onImportComplete={(count) => {
+              refetchTransactions();
+              if (count > 0) setShowPDFImport(false);
+            }}
+          />
+        )}
 
         {/* Transaction History */}
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">

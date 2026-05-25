@@ -2665,6 +2665,97 @@ export const portfoliosRouter = router({
 
     // V2: Get multi-period performance using the same logic as getHistoricalPerformance
     // This ensures consistency between overview and detail pages
+    /**
+     * TTWROR + IRR Performance Metrics for a single portfolio
+     * Replaces the old weight-based approximation with proper TTWROR calculation
+     */
+    getPerformanceMetrics: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        range: z.enum(['1M', '3M', '6M', 'YTD', '1J', '3J', '5J', 'Max']).default('YTD'),
+      }))
+      .query(async ({ ctx, input }) => {
+        const { portfolioId, range } = input;
+        const { getSavedPortfolioById } = await import('../db');
+        const { calculatePortfolioPerformance } = await import('../lib/performanceService');
+
+        // Verify portfolio belongs to user
+        const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
+        if (!portfolio) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio not found' });
+        }
+
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        // Calculate start date based on range
+        let startDate: string;
+        switch (range) {
+          case '1M':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString().split('T')[0];
+            break;
+          case '3M':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()).toISOString().split('T')[0];
+            break;
+          case '6M':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate()).toISOString().split('T')[0];
+            break;
+          case '1J':
+            startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+            break;
+          case '3J':
+            startDate = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+            break;
+          case '5J':
+            startDate = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+            break;
+          case 'Max':
+            startDate = '2000-01-01';
+            break;
+          case 'YTD':
+          default:
+            startDate = `${now.getFullYear()}-01-01`;
+            break;
+        }
+
+        try {
+          const result = await calculatePortfolioPerformance({
+            portfolioId,
+            startDate,
+            endDate: todayStr,
+          });
+
+          return {
+            ttwror: result.ttwror.totalReturn,
+            annualizedTtwror: result.ttwror.annualizedReturn,
+            irr: result.irr.annualizedIRR,
+            absoluteGainCHF: result.absoluteGainCHF,
+            currentValueCHF: result.currentValueCHF,
+            totalInvestedCHF: result.totalInvestedCHF,
+            periodDays: result.ttwror.periodDays,
+            dailySeries: result.dailySeries,
+            converged: result.irr.converged,
+          };
+        } catch (err) {
+          console.error(`[portfolios.getPerformanceMetrics] Error for portfolio ${portfolioId}:`, err);
+          return {
+            ttwror: 0,
+            annualizedTtwror: 0,
+            irr: 0,
+            absoluteGainCHF: 0,
+            currentValueCHF: 0,
+            totalInvestedCHF: 0,
+            periodDays: 0,
+            dailySeries: [],
+            converged: false,
+          };
+        }
+      }),
+
+    /**
+     * TTWROR-based multi-period performance for ALL user portfolios
+     * Replaces the old weight-based getMultiPeriodPerformanceV2
+     */
     getMultiPeriodPerformanceV2: protectedProcedure.query(async ({ ctx }) => {
       const { getSavedPortfolios, getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
       const { convertToCHF } = await import("../fxHelper");

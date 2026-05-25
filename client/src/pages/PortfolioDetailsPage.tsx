@@ -198,6 +198,21 @@ export default function PortfolioDetailsPage() {
     return new Date(portfolio.liveStartDate).toISOString().split('T')[0];
   }, [portfolio?.liveStartDate]);
   
+  // Map period labels to getPerformanceMetrics range values
+  const perfRange = useMemo(() => {
+    const map: Record<string, '1M' | '3M' | '6M' | 'YTD' | '1J' | '3J' | '5J' | 'Max'> = {
+      '1M': '1M', '3M': '3M', '6M': '6M', 'YTD': 'YTD',
+      '1Y': '1J', '3Y': '3J', '5Y': '5J', 'All': 'Max',
+    };
+    return map[selectedPeriod] || 'YTD';
+  }, [selectedPeriod]);
+
+  // TTWROR + IRR metrics from the new performance engine
+  const { data: perfMetrics, isLoading: isLoadingPerfMetrics } = trpc.portfolios.getPerformanceMetrics.useQuery(
+    { portfolioId, range: perfRange },
+    { enabled: portfolioId > 0 && !!portfolio?.isLive }
+  );
+
   // Fetch historical performance data from API
   const { data: historicalData, isLoading: isLoadingHistory } = trpc.portfolios.getHistoricalPerformance.useQuery(
     { 
@@ -595,6 +610,59 @@ export default function PortfolioDetailsPage() {
                   <div className="text-sm text-gray-400 mb-1">Portfolio-Übersicht</div>
                   <div className="text-2xl font-bold text-white">{holdings.length} Positionen</div>
                 </div>
+
+                {/* TTWROR + IRR Metrics (only for live portfolios) */}
+                {portfolio?.isLive && (
+                  <div className="pt-4 border-t border-white/10 space-y-3">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Performance ({selectedPeriod})</div>
+                    
+                    {isLoadingPerfMetrics ? (
+                      <div className="text-xs text-gray-500">Berechne...</div>
+                    ) : (
+                      <>
+                        {/* TTWROR */}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-sm text-gray-400">TTWROR</span>
+                            <div className="text-xs text-gray-600 mt-0.5">Zeitgewichtet</div>
+                          </div>
+                          <span className={`text-sm font-semibold ${
+                            (perfMetrics?.ttwror ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {(perfMetrics?.ttwror ?? 0) >= 0 ? '+' : ''}{((perfMetrics?.ttwror ?? 0) * 100).toFixed(2)}%
+                          </span>
+                        </div>
+
+                        {/* IRR */}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-sm text-gray-400">IRR (MWR)</span>
+                            <div className="text-xs text-gray-600 mt-0.5">Geldgewichtet p.a.</div>
+                          </div>
+                          <span className={`text-sm font-semibold ${
+                            (perfMetrics?.irr ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {(perfMetrics?.irr ?? 0) >= 0 ? '+' : ''}{((perfMetrics?.irr ?? 0) * 100).toFixed(2)}%
+                          </span>
+                        </div>
+
+                        {/* Absolute Gain */}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-sm text-gray-400">Absoluter Gewinn</span>
+                            <div className="text-xs text-gray-600 mt-0.5">In CHF</div>
+                          </div>
+                          <span className={`text-sm font-semibold ${
+                            (perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
+                          }`}>
+                            {(perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? '+' : ''}
+                            {new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(perfMetrics?.absoluteGainCHF ?? 0)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
                 
                 <div className="pt-4 border-t border-white/10 space-y-3">
                   <div className="flex justify-between">
