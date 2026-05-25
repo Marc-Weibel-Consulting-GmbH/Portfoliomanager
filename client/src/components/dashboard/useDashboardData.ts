@@ -101,9 +101,11 @@ export function useDashboardData({ scope, range }: UseDashboardDataParams): Dash
     );
 
   // TTWROR + IRR from new performance engine
+  // Map '1T' (intraday) to '1M' since the performance engine doesn't support intraday
+  const perfRange = range === '1T' ? '1M' : range;
   const { data: rawPerfMetrics } =
     trpc.dashboard.getPerformanceMetrics.useQuery(
-      { scope, range },
+      { scope, range: perfRange as Exclude<RangeKey, '1T'> },
       { placeholderData: keepPreviousData }
     );
 
