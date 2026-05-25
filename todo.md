@@ -1106,3 +1106,15 @@
 - [x] useDashboardData Hook mit echten tRPC-Calls verdrahtet
 - [x] TypeScript-Fehler behoben (keepPreviousData → placeholderData mit keepPreviousData import)
 - [x] Live-Test: Dashboard zeigt KPIs, Performance-Chart, Bubble-Gauge, Allokation, Insights, Positionen
+
+## Dashboard Verbesserungen (25.05.2026)
+- [x] Einzeltitel klickbar mit Link zur Detailseite (Treemap, Constellation, Tabelle)
+- [x] Heatmap als Performance-Heatmap (Farbe = YTD Performance, Größe = Gewicht)
+- [x] Performance-Daten prüfen und korrigieren (Demo-Portfolios + Live-Portfolio korrekt berechnet)
+- [x] Bubble Index optisch verbessern (neues Gauge-Design mit Gradient-Arc)
+- [x] Copilot Empfehlungen anzeigen (manuell triggerbar via Aktualisieren-Button)
+- [x] Kurschart zeigt bei längeren Perioden 0 Performance (flache Linie) - Fix (startDateStr auf earliestTransactionDate gesetzt, leading zeros gefiltert)
+- [x] Alle Portfolios im Selektor auswählbar machen (Live + Demo Portfolios)
+- [x] KPI-Konsistenz: Alle Endpoints unterstützen jetzt Demo-Portfolios mit portfolioData
+- [x] Benchmark-Daten: Fallback auf historical_prices (CHSPI.SW für SMI, ACWI.US für MSCI World)
+- [x] Performance-Berechnung: cashBalance nur nach erster Transaktion / wenn Preisdaten vorhanden

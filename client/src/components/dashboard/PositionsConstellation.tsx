@@ -8,6 +8,7 @@
 
 import * as React from "react";
 import type { Holding } from "./types";
+import { useLocation } from "wouter";
 
 interface PackedHolding extends Holding {
   x: number;
@@ -80,6 +81,7 @@ export function PositionsConstellation({
   textColor,
   positiveColor,
 }: PositionsConstellationProps) {
+  const [, setLocation] = useLocation();
   const packed = React.useMemo(
     () => packCircles(holdings, width, height),
     [holdings, width, height],
@@ -133,7 +135,7 @@ export function PositionsConstellation({
 
       {/* Position bubbles */}
       {packed.map((p, i) => (
-        <g key={p.ticker}>
+        <g key={p.ticker} className="cursor-pointer" onClick={() => p.ticker !== 'CASH' && setLocation(`/stock/${p.ticker}`)}>
           <circle
             cx={p.x}
             cy={p.y}

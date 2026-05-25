@@ -1466,7 +1466,7 @@ export async function getBenchmarkData(
   if (!db) return [];
 
   try {
-    const { benchmarkData } = await import("../drizzle/schema");
+    const { benchmarkData, historicalPrices } = await import("../drizzle/schema");
     
     const conditions = [eq(benchmarkData.benchmark, benchmark)];
     
@@ -1484,7 +1484,46 @@ export async function getBenchmarkData(
       .where(and(...conditions))
       .orderBy(asc(benchmarkData.date));
       
-    return results;
+    // If benchmarkData table has sufficient data covering the requested range, use it
+    // Check that the data actually covers the requested period (not stale/old data)
+    if (results.length >= 10) {
+      const lastDate = results[results.length - 1]?.date;
+      // Only use if the last data point is within 30 days of endDate
+      const endDateObj = endDate ? new Date(endDate) : new Date();
+      const lastDateObj = lastDate ? new Date(lastDate) : new Date(0);
+      const daysDiff = (endDateObj.getTime() - lastDateObj.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysDiff < 30) {
+        return results;
+      }
+    }
+
+    // Fallback: use historical_prices with proxy tickers
+    const proxyTickers: Record<string, string> = {
+      SMI: 'CHSPI.SW',
+      SP500: 'SPY',
+      MSCI_WORLD: 'ACWI.US',
+    };
+    const proxyTicker = proxyTickers[benchmark];
+    if (!proxyTicker) return results;
+
+    const hpConditions = [eq(historicalPrices.ticker, proxyTicker)];
+    if (startDate) hpConditions.push(gte(historicalPrices.date, startDate));
+    if (endDate) hpConditions.push(lte(historicalPrices.date, endDate));
+
+    const hpResults = await db
+      .select()
+      .from(historicalPrices)
+      .where(and(...hpConditions))
+      .orderBy(asc(historicalPrices.date));
+
+    return hpResults.map(r => ({
+      id: 0,
+      benchmark,
+      date: r.date,
+      close: r.close,
+      source: 'historical_prices_fallback',
+      createdAt: new Date(),
+    }));
   } catch (error) {
     console.error("[Database] Failed to get benchmark data:", error);
     return [];

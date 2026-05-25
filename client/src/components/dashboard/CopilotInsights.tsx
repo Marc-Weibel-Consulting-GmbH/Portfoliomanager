@@ -1,14 +1,18 @@
 // Copilot insights — vertical stack of 3-5 priority items. Each insight
 // has a severity (positive / watch / info) and optionally an action link.
+// Includes a manual refresh button to trigger insight generation.
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, Info, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, AlertTriangle, Info, ArrowRight, RefreshCw, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import type { CopilotInsight } from "./types";
 
 interface CopilotInsightsProps {
   insights: CopilotInsight[];
+  loading?: boolean;
+  onRefresh?: () => void;
 }
 
 const ICON_BY_SEVERITY = {
@@ -23,19 +27,59 @@ const COLOR_BY_SEVERITY = {
   info: { bg: "bg-[#00CFC1]/15", border: "border-[#00CFC1]", text: "text-[#00CFC1]" },
 };
 
-export function CopilotInsights({ insights }: CopilotInsightsProps) {
+export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsightsProps) {
   return (
     <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <div>
-          <div className="text-sm font-semibold text-white">KI-Insights</div>
+          <div className="text-sm font-semibold text-white flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-[#00CFC1]" />
+            KI-Insights
+          </div>
           <div className="text-[11px] text-gray-400">
-            Copilot · {insights.length} neue
+            Copilot · {insights.length > 0 ? `${insights.length} Empfehlungen` : "Keine Daten"}
           </div>
         </div>
-        <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/40">Live</Badge>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRefresh}
+          disabled={loading}
+          className="h-7 px-2 text-[10px] text-gray-400 hover:text-[#00CFC1] hover:bg-[#00CFC1]/10"
+        >
+          <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />
+          Aktualisieren
+        </Button>
       </CardHeader>
       <CardContent className="flex flex-col gap-2.5">
+        {loading && insights.length === 0 && (
+          <div className="flex items-center justify-center py-8 text-gray-400 text-sm">
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            Insights werden generiert...
+          </div>
+        )}
+
+        {!loading && insights.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <Sparkles className="h-8 w-8 text-gray-600 mb-2" />
+            <div className="text-sm text-gray-400">Keine Insights verfügbar</div>
+            <div className="text-[11px] text-gray-500 mt-1 mb-3">
+              Aktiviere ein Live-Portfolio oder klicke "Aktualisieren"
+            </div>
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                className="text-[11px] border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10"
+              >
+                <RefreshCw className="h-3 w-3 mr-1.5" />
+                Jetzt generieren
+              </Button>
+            )}
+          </div>
+        )}
+
         {insights.map(insight => {
           const Icon = ICON_BY_SEVERITY[insight.severity];
           const colors = COLOR_BY_SEVERITY[insight.severity];

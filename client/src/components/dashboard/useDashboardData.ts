@@ -43,6 +43,8 @@ export interface DashboardData {
   insights: CopilotInsight[];
   portfolios: { id: number; name: string; isLive: boolean }[];
   isLoading: boolean;
+  insightsLoading: boolean;
+  refetchInsights: () => void;
 }
 
 export function useDashboardData({ scope, range }: UseDashboardDataParams): DashboardData {
@@ -89,7 +91,7 @@ export function useDashboardData({ scope, range }: UseDashboardDataParams): Dash
       { placeholderData: keepPreviousData }
     );
 
-  const { data: rawInsights } =
+  const { data: rawInsights, isLoading: insightsLoading, refetch: refetchInsights } =
     trpc.dashboard.getCopilotInsights.useQuery(
       { scope },
       { placeholderData: keepPreviousData }
@@ -116,5 +118,7 @@ export function useDashboardData({ scope, range }: UseDashboardDataParams): Dash
       isLive: !!p.isLive,
     })),
     isLoading: metricsLoading || perfLoading || holdingsLoading,
+    insightsLoading,
+    refetchInsights: () => refetchInsights(),
   };
 }

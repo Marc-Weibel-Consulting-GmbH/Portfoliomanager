@@ -414,9 +414,14 @@ export const dashboardRouter = router({
       if (!db) return { range: input.range, scope: input.scope, points: [] };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      let targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
-      if (input.scope !== "aggregate") {
-        targetPortfolios = targetPortfolios.filter(p => p.id === input.scope);
+      // Support both live and demo portfolios
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        // Aggregate: only live portfolios (with transactions)
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        // Specific portfolio: find by ID regardless of isLive status
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
       if (targetPortfolios.length === 0) return { range: input.range, scope: input.scope, points: [] };
 
@@ -433,17 +438,60 @@ export const dashboardRouter = router({
         case '5J': startDate.setFullYear(startDate.getFullYear() - 5); break;
         case 'Max': startDate = new Date('2020-01-01'); break;
       }
-      const startDateStr = startDate.toISOString().split('T')[0];
+      let startDateStr = startDate.toISOString().split('T')[0];
 
-      // Get all tickers from target portfolios
+      // Get all tickers from target portfolios (live: from transactions, demo: from portfolioData)
       const allTickers = new Set<string>();
       const txByPortfolio = new Map<number, any[]>();
+      const demoHoldingsByPortfolio = new Map<number, Array<{ticker: string; shares: number}>>();
+
+      let earliestTransactionDate = todayStr;
       for (const p of targetPortfolios) {
-        const txs = await getPortfolioTransactions(p.id);
-        txByPortfolio.set(p.id, txs);
-        txs.forEach((tx: any) => { if (tx.ticker) allTickers.add(tx.ticker); });
+        if (p.isLive === 1 && p.liveStartDate) {
+          const txs = await getPortfolioTransactions(p.id);
+          txByPortfolio.set(p.id, txs);
+          txs.forEach((tx: any) => {
+            if (tx.ticker) allTickers.add(tx.ticker);
+            if (tx.transactionDate && tx.transactionType === 'buy') {
+              const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
+              if (txDateStr < earliestTransactionDate) earliestTransactionDate = txDateStr;
+            }
+          });
+        } else {
+          // Demo portfolio: extract tickers from portfolioData
+          try {
+            const pd = JSON.parse(p.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const investmentAmount = parseFloat(p.investmentAmount || '0');
+            const demoHoldings: Array<{ticker: string; shares: number}> = [];
+            for (const stock of stocks) {
+              if (stock.ticker) {
+                allTickers.add(stock.ticker);
+                const weight = parseFloat(stock.weight || '0') / 100;
+                let shares = parseFloat(stock.shares || '0');
+                // Estimate shares if not stored
+                if (shares === 0 && investmentAmount > 0 && weight > 0) {
+                  shares = -1; // placeholder, will calculate with price later
+                }
+                demoHoldings.push({ ticker: stock.ticker, shares });
+              }
+            }
+            demoHoldingsByPortfolio.set(p.id, demoHoldings);
+            // For demo portfolios, use portfolio creation date or a reasonable start
+            if (p.createdAt) {
+              const createdStr = new Date(p.createdAt).toISOString().split('T')[0];
+              if (createdStr < earliestTransactionDate) earliestTransactionDate = createdStr;
+            }
+          } catch {}
+        }
       }
       if (allTickers.size === 0) return { range: input.range, scope: input.scope, points: [] };
+
+      // For live portfolios: ensure startDate is not before the first transaction
+      // This prevents showing flat line periods where no holdings existed
+      if (startDateStr < earliestTransactionDate) {
+        startDateStr = earliestTransactionDate;
+      }
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -487,8 +535,28 @@ export const dashboardRouter = router({
 
       // Calculate portfolio value for sampled dates
       let startingValue = 0;
-      const smiStart = smiMap.get(sampledDates[0]) || smiMap.get(sortedDates[0]) || 0;
-      const msciStart = msciMap.get(sampledDates[0]) || msciMap.get(sortedDates[0]) || 0;
+
+      // Helper: find nearest value from a map for a given date (look back up to 5 days)
+      const getNearestValue = (map: Map<string, number>, targetDate: string): number | null => {
+        if (map.has(targetDate)) return map.get(targetDate)!;
+        const d = new Date(targetDate);
+        for (let i = 1; i <= 5; i++) {
+          d.setDate(d.getDate() - 1);
+          const key = d.toISOString().split('T')[0];
+          if (map.has(key)) return map.get(key)!;
+        }
+        // Also look forward
+        const d2 = new Date(targetDate);
+        for (let i = 1; i <= 5; i++) {
+          d2.setDate(d2.getDate() + 1);
+          const key = d2.toISOString().split('T')[0];
+          if (map.has(key)) return map.get(key)!;
+        }
+        return null;
+      };
+
+      const smiStart = getNearestValue(smiMap, sampledDates[0]) || 0;
+      const msciStart = getNearestValue(msciMap, sampledDates[0]) || 0;
 
       const points: Array<{ label: string; portfolio: number; smi: number; msci: number }> = [];
 
@@ -497,45 +565,91 @@ export const dashboardRouter = router({
         let totalValueCHF = 0;
 
         for (const portfolio of targetPortfolios) {
-          const transactions = txByPortfolio.get(portfolio.id) || [];
-          const holdingsMap = new Map<string, number>();
-          for (const tx of transactions) {
-            const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-            if (txDate > date) break;
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
-            else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
-          }
-          for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
-            if (shares <= 0) continue;
-            const stock = stocksMap.get(ticker) as any;
-            if (!stock) continue;
-            const currency = stock.currency || 'CHF';
-            const tickerPrices = priceMap.get(ticker);
-            if (!tickerPrices) continue;
-            let price = tickerPrices.get(date);
-            if (!price) {
-              const avail = Array.from(tickerPrices.keys()).sort();
-              for (let j = avail.length - 1; j >= 0; j--) {
-                if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-              }
+          if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+            // Live portfolio: calculate from transactions
+            // Skip this portfolio entirely for dates before its first transaction
+            const liveStart = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
+            if (date < liveStart) continue;
+            const transactions = txByPortfolio.get(portfolio.id) || [];
+            const holdingsMap = new Map<string, number>();
+            for (const tx of transactions) {
+              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+              if (txDate > date) continue;
+              const ticker = tx.ticker;
+              if (!ticker) continue;
+              if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
+              else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
             }
-            if (!price) continue;
-            const priceCHF = await convertToCHF(price, currency, date);
-            totalValueCHF += shares * priceCHF;
+            for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
+              if (shares <= 0) continue;
+              const stock = stocksMap.get(ticker) as any;
+              if (!stock) continue;
+              const currency = stock.currency || 'CHF';
+              const tickerPrices = priceMap.get(ticker);
+              if (!tickerPrices) continue;
+              let price = tickerPrices.get(date);
+              if (!price) {
+                const avail = Array.from(tickerPrices.keys()).sort();
+                for (let j = avail.length - 1; j >= 0; j--) {
+                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
+                }
+              }
+              if (!price) continue;
+              const priceCHF = await convertToCHF(price, currency, date);
+              totalValueCHF += shares * priceCHF;
+            }
+            totalValueCHF += parseFloat(portfolio.cashBalance || '0');
+          } else {
+            // Demo portfolio: use fixed holdings from portfolioData
+            const demoHoldings = demoHoldingsByPortfolio.get(portfolio.id) || [];
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            let hasAnyDemoValue = false;
+            for (const dh of demoHoldings) {
+              const stock = stocksMap.get(dh.ticker) as any;
+              if (!stock) continue;
+              const currency = stock.currency || 'CHF';
+              const tickerPrices = priceMap.get(dh.ticker);
+              if (!tickerPrices) continue;
+              let price = tickerPrices.get(date);
+              if (!price) {
+                const avail = Array.from(tickerPrices.keys()).sort();
+                for (let j = avail.length - 1; j >= 0; j--) {
+                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
+                }
+              }
+              if (!price) continue;
+              // Calculate shares from weight if not stored
+              let shares = dh.shares;
+              if (shares <= 0 && investmentAmount > 0) {
+                const pd = JSON.parse(portfolio.portfolioData || '{}');
+                const stocks = pd.stocks || pd.positions || [];
+                const stockDef = stocks.find((s: any) => s.ticker === dh.ticker);
+                const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
+                const allocationCHF = investmentAmount * weight;
+                // Use first available price to estimate shares
+                const firstAvail = Array.from(tickerPrices.values())[0] || price;
+                const firstPriceCHF = await convertToCHF(firstAvail, currency, date);
+                shares = firstPriceCHF > 0 ? allocationCHF / firstPriceCHF : 0;
+              }
+              if (shares <= 0) continue;
+              const priceCHF = await convertToCHF(price, currency, date);
+              totalValueCHF += shares * priceCHF;
+              hasAnyDemoValue = true;
+            }
+            // Only add cash balance if demo portfolio has value on this date
+            if (hasAnyDemoValue) totalValueCHF += parseFloat(portfolio.cashBalance || '0');
           }
-          totalValueCHF += parseFloat(portfolio.cashBalance || '0');
         }
 
-        if (i === 0) startingValue = totalValueCHF;
+        // Use first point with meaningful value as baseline
+        if (startingValue === 0 && totalValueCHF > 0) startingValue = totalValueCHF;
         const portfolioPerf = startingValue > 0 ? ((totalValueCHF - startingValue) / startingValue) * 100 : 0;
 
-        // Benchmark performance
+        // Benchmark performance (use nearest date matching)
         let smiPerf = 0;
         let msciPerf = 0;
-        const smiVal = smiMap.get(date);
-        const msciVal = msciMap.get(date);
+        const smiVal = getNearestValue(smiMap, date);
+        const msciVal = getNearestValue(msciMap, date);
         if (smiVal && smiStart > 0) smiPerf = ((smiVal - smiStart) / smiStart) * 100;
         if (msciVal && msciStart > 0) msciPerf = ((msciVal - msciStart) / msciStart) * 100;
 
@@ -544,7 +658,11 @@ export const dashboardRouter = router({
         points.push({ label, portfolio: Number(portfolioPerf.toFixed(2)), smi: Number(smiPerf.toFixed(2)), msci: Number(msciPerf.toFixed(2)) });
       }
 
-      return { range: input.range, scope: input.scope, points };
+      // Filter out leading zero points (where no portfolio data exists yet)
+      const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0);
+      const filteredPoints = firstNonZeroIdx > 0 ? points.slice(firstNonZeroIdx) : points;
+
+      return { range: input.range, scope: input.scope, points: filteredPoints };
     }),
 
   // ──────────────────────────────────────────────────────────────────────
@@ -558,9 +676,12 @@ export const dashboardRouter = router({
       const { convertToCHF } = await import("../fxHelper");
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      let targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
-      if (input.scope !== "aggregate") {
-        targetPortfolios = targetPortfolios.filter(p => p.id === input.scope);
+      // Support both live and demo portfolios
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
 
       const todayStr = new Date().toISOString().split('T')[0];
@@ -571,20 +692,45 @@ export const dashboardRouter = router({
       let totalCash = 0;
 
       for (const portfolio of targetPortfolios) {
-        const transactions = await getPortfolioTransactions(portfolio.id);
-        for (const tx of transactions) {
-          const ticker = tx.ticker;
-          if (!ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          // Live portfolio: from transactions
+          const transactions = await getPortfolioTransactions(portfolio.id);
+          for (const tx of transactions) {
+            const ticker = tx.ticker;
+            if (!ticker) continue;
+            const shares = parseFloat(tx.shares || '0');
+            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
+            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          }
+        } else {
+          // Demo portfolio: from portfolioData
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            for (const stock of stocks) {
+              if (!stock.ticker) continue;
+              const weight = parseFloat(stock.weight || '0') / 100;
+              let shares = parseFloat(stock.shares || '0');
+              if (shares === 0 && investmentAmount > 0 && weight > 0) {
+                // Estimate shares from weight and current price (will be recalculated below with actual prices)
+                shares = -1; // placeholder
+              }
+              if (shares > 0) {
+                holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
+              } else {
+                // Mark for later calculation
+                holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
+              }
+            }
+          } catch {}
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
 
-      // Remove zero/negative holdings
+      // Remove zero holdings (but keep -1 placeholders for demo portfolios)
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
-        if (s <= 0) holdingsAgg.delete(t);
+        if (s === 0) holdingsAgg.delete(t);
       }
 
       const allTickers = Array.from(holdingsAgg.keys());
@@ -599,6 +745,36 @@ export const dashboardRouter = router({
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
         !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
       ));
+
+      // For demo portfolios with -1 placeholder shares, calculate actual shares from weight
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          for (const stockDef of stocks) {
+            if (!stockDef.ticker) continue;
+            const currentShares = holdingsAgg.get(stockDef.ticker);
+            if (currentShares !== undefined && currentShares < 0) {
+              const stock = stocksMap.get(stockDef.ticker) as any;
+              if (!stock) continue;
+              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currency = stock.currency || 'CHF';
+              const weight = parseFloat(stockDef.weight || '0') / 100;
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              const calculatedShares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              holdingsAgg.set(stockDef.ticker, calculatedShares);
+            }
+          }
+        } catch {}
+      }
+
+      // Now remove any remaining zero/negative
+      for (const [t, s] of Array.from(holdingsAgg.entries())) {
+        if (s <= 0) holdingsAgg.delete(t);
+      }
 
       // Calculate values
       let totalValue = 0;
@@ -686,9 +862,12 @@ export const dashboardRouter = router({
       };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      let targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
-      if (input.scope !== "aggregate") {
-        targetPortfolios = targetPortfolios.filter(p => p.id === input.scope);
+      // Support both live and demo portfolios
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
 
       const todayStr = new Date().toISOString().split('T')[0];
@@ -698,19 +877,37 @@ export const dashboardRouter = router({
       let totalCash = 0;
 
       for (const portfolio of targetPortfolios) {
-        const transactions = await getPortfolioTransactions(portfolio.id);
-        for (const tx of transactions) {
-          const ticker = tx.ticker;
-          if (!ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          const transactions = await getPortfolioTransactions(portfolio.id);
+          for (const tx of transactions) {
+            const ticker = tx.ticker;
+            if (!ticker) continue;
+            const shares = parseFloat(tx.shares || '0');
+            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
+            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          }
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            for (const stock of stocks) {
+              if (!stock.ticker) continue;
+              let shares = parseFloat(stock.shares || '0');
+              if (shares === 0 && investmentAmount > 0) {
+                holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
+              } else if (shares > 0) {
+                holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
+              }
+            }
+          } catch {}
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
 
+      // Remove zero entries
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
-        if (s <= 0) holdingsAgg.delete(t);
+        if (s === 0) holdingsAgg.delete(t);
       }
 
       const allTickers = Array.from(holdingsAgg.keys());
@@ -723,6 +920,35 @@ export const dashboardRouter = router({
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
         !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
       ));
+
+      // Calculate shares for demo portfolios with placeholder -1
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          for (const stockDef of stocks) {
+            if (!stockDef.ticker) continue;
+            const currentShares = holdingsAgg.get(stockDef.ticker);
+            if (currentShares !== undefined && currentShares < 0) {
+              const stock = stocksMap.get(stockDef.ticker) as any;
+              if (!stock) continue;
+              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currency = stock.currency || 'CHF';
+              const weight = parseFloat(stockDef.weight || '0') / 100;
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              const calculatedShares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              holdingsAgg.set(stockDef.ticker, calculatedShares);
+            }
+          }
+        } catch {}
+      }
+
+      for (const [t, s] of Array.from(holdingsAgg.entries())) {
+        if (s <= 0) holdingsAgg.delete(t);
+      }
 
       // Group by sector
       const sectorData = new Map<string, { value: number; ytdWeighted: number }>();
@@ -777,9 +1003,12 @@ export const dashboardRouter = router({
       };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      let targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
-      if (input.scope !== "aggregate") {
-        targetPortfolios = targetPortfolios.filter(p => p.id === input.scope);
+      // Support both live and demo portfolios
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
 
       const todayStr = new Date().toISOString().split('T')[0];
@@ -787,19 +1016,36 @@ export const dashboardRouter = router({
       let totalCash = 0;
 
       for (const portfolio of targetPortfolios) {
-        const transactions = await getPortfolioTransactions(portfolio.id);
-        for (const tx of transactions) {
-          const ticker = tx.ticker;
-          if (!ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          const transactions = await getPortfolioTransactions(portfolio.id);
+          for (const tx of transactions) {
+            const ticker = tx.ticker;
+            if (!ticker) continue;
+            const shares = parseFloat(tx.shares || '0');
+            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
+            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          }
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            for (const stock of stocks) {
+              if (!stock.ticker) continue;
+              let shares = parseFloat(stock.shares || '0');
+              if (shares === 0 && investmentAmount > 0) {
+                holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
+              } else if (shares > 0) {
+                holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
+              }
+            }
+          } catch {}
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
 
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
-        if (s <= 0) holdingsAgg.delete(t);
+        if (s === 0) holdingsAgg.delete(t);
       }
 
       const allTickers = Array.from(holdingsAgg.keys());
@@ -811,6 +1057,35 @@ export const dashboardRouter = router({
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
         !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
       ));
+
+      // Calculate shares for demo portfolios with placeholder -1
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          for (const stockDef of stocks) {
+            if (!stockDef.ticker) continue;
+            const currentShares = holdingsAgg.get(stockDef.ticker);
+            if (currentShares !== undefined && currentShares < 0) {
+              const stock = stocksMap.get(stockDef.ticker) as any;
+              if (!stock) continue;
+              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currency = stock.currency || 'CHF';
+              const weight = parseFloat(stockDef.weight || '0') / 100;
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              const calculatedShares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              holdingsAgg.set(stockDef.ticker, calculatedShares);
+            }
+          }
+        } catch {}
+      }
+
+      for (const [t, s] of Array.from(holdingsAgg.entries())) {
+        if (s <= 0) holdingsAgg.delete(t);
+      }
 
       const regionData = new Map<string, number>();
       let totalValue = 0;
@@ -861,9 +1136,12 @@ export const dashboardRouter = router({
       if (!db) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, beta: 0 };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      let targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
-      if (input.scope !== "aggregate") {
-        targetPortfolios = targetPortfolios.filter(p => p.id === input.scope);
+      // Support both live and demo portfolios
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
       if (targetPortfolios.length === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, beta: 0 };
 
@@ -874,13 +1152,30 @@ export const dashboardRouter = router({
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       const startDateStr = oneYearAgo.toISOString().split('T')[0];
 
-      // Get all tickers
+      // Get all tickers (live: from transactions, demo: from portfolioData)
       const allTickers = new Set<string>();
       const txByPortfolio = new Map<number, any[]>();
+      const demoHoldingsByPortfolio = new Map<number, Array<{ticker: string; shares: number}>>();
+
       for (const p of targetPortfolios) {
-        const txs = await getPortfolioTransactions(p.id);
-        txByPortfolio.set(p.id, txs);
-        txs.forEach((tx: any) => { if (tx.ticker) allTickers.add(tx.ticker); });
+        if (p.isLive === 1 && p.liveStartDate) {
+          const txs = await getPortfolioTransactions(p.id);
+          txByPortfolio.set(p.id, txs);
+          txs.forEach((tx: any) => { if (tx.ticker) allTickers.add(tx.ticker); });
+        } else {
+          try {
+            const pd = JSON.parse(p.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const demoHoldings: Array<{ticker: string; shares: number}> = [];
+            for (const stock of stocks) {
+              if (stock.ticker) {
+                allTickers.add(stock.ticker);
+                demoHoldings.push({ ticker: stock.ticker, shares: parseFloat(stock.shares || '0') });
+              }
+            }
+            demoHoldingsByPortfolio.set(p.id, demoHoldings);
+          } catch {}
+        }
       }
 
       if (allTickers.size === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, beta: 0 };
@@ -915,37 +1210,85 @@ export const dashboardRouter = router({
         !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
       ));
 
+      // Pre-calculate demo portfolio shares (using first available price)
+      const demoSharesCalc = new Map<number, Map<string, number>>(); // portfolioId -> ticker -> shares
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        const demoHoldings = demoHoldingsByPortfolio.get(portfolio.id) || [];
+        const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+        const sharesMap = new Map<string, number>();
+        for (const dh of demoHoldings) {
+          let shares = dh.shares;
+          if (shares <= 0 && investmentAmount > 0) {
+            const stock = stocksMap.get(dh.ticker) as any;
+            if (!stock) continue;
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const stockDef = stocks.find((s: any) => s.ticker === dh.ticker);
+            const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
+            const allocationCHF = investmentAmount * weight;
+            const currentPrice = parseFloat(stock.currentPrice || '0');
+            const currency = stock.currency || 'CHF';
+            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+          }
+          if (shares > 0) sharesMap.set(dh.ticker, shares);
+        }
+        demoSharesCalc.set(portfolio.id, sharesMap);
+      }
+
       // Calculate daily portfolio values
       const dailyValues: number[] = [];
       for (const date of sortedDates) {
         let totalValueCHF = 0;
         for (const portfolio of targetPortfolios) {
-          const transactions = txByPortfolio.get(portfolio.id) || [];
-          const holdingsMap = new Map<string, number>();
-          for (const tx of transactions) {
-            const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-            if (txDate > date) break;
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
-            else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
-          }
-          for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
-            if (shares <= 0) continue;
-            const tickerPrices = priceMap.get(ticker);
-            if (!tickerPrices) continue;
-            let price = tickerPrices.get(date);
-            if (!price) {
-              const avail = Array.from(tickerPrices.keys()).sort();
-              for (let j = avail.length - 1; j >= 0; j--) {
-                if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-              }
+          if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+            const transactions = txByPortfolio.get(portfolio.id) || [];
+            const holdingsMap = new Map<string, number>();
+            for (const tx of transactions) {
+              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
+              if (txDate > date) continue;
+              const ticker = tx.ticker;
+              if (!ticker) continue;
+              if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
+              else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
             }
-            if (!price) continue;
-            const stock = stocksMap.get(ticker) as any;
-            const currency = stock?.currency || 'CHF';
-            const priceCHF = await convertToCHF(price, currency, date);
-            totalValueCHF += shares * priceCHF;
+            for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
+              if (shares <= 0) continue;
+              const tickerPrices = priceMap.get(ticker);
+              if (!tickerPrices) continue;
+              let price = tickerPrices.get(date);
+              if (!price) {
+                const avail = Array.from(tickerPrices.keys()).sort();
+                for (let j = avail.length - 1; j >= 0; j--) {
+                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
+                }
+              }
+              if (!price) continue;
+              const stock = stocksMap.get(ticker) as any;
+              const currency = stock?.currency || 'CHF';
+              const priceCHF = await convertToCHF(price, currency, date);
+              totalValueCHF += shares * priceCHF;
+            }
+          } else {
+            // Demo portfolio: use pre-calculated shares
+            const sharesMap = demoSharesCalc.get(portfolio.id) || new Map();
+            for (const [ticker, shares] of Array.from(sharesMap.entries())) {
+              const tickerPrices = priceMap.get(ticker);
+              if (!tickerPrices) continue;
+              let price = tickerPrices.get(date);
+              if (!price) {
+                const avail = Array.from(tickerPrices.keys()).sort();
+                for (let j = avail.length - 1; j >= 0; j--) {
+                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
+                }
+              }
+              if (!price) continue;
+              const stock = stocksMap.get(ticker) as any;
+              const currency = stock?.currency || 'CHF';
+              const priceCHF = await convertToCHF(price, currency, date);
+              totalValueCHF += shares * priceCHF;
+            }
           }
         }
         dailyValues.push(totalValueCHF);
@@ -1113,9 +1456,12 @@ export const dashboardRouter = router({
       const { convertToCHF } = await import("../fxHelper");
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      let targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
-      if (input.scope !== "aggregate") {
-        targetPortfolios = targetPortfolios.filter(p => p.id === input.scope);
+      // Support both live and demo portfolios
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios; // Include all portfolios for copilot analysis
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
 
       const insights: Array<{ id: string; severity: "positive" | "watch" | "info"; title: string; body: string; action: string; actionHref?: string }> = [];
@@ -1133,19 +1479,36 @@ export const dashboardRouter = router({
       let totalCash = 0;
 
       for (const portfolio of targetPortfolios) {
-        const transactions = await getPortfolioTransactions(portfolio.id);
-        for (const tx of transactions) {
-          const ticker = tx.ticker;
-          if (!ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          const transactions = await getPortfolioTransactions(portfolio.id);
+          for (const tx of transactions) {
+            const ticker = tx.ticker;
+            if (!ticker) continue;
+            const shares = parseFloat(tx.shares || '0');
+            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
+            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          }
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            for (const stock of stocks) {
+              if (!stock.ticker) continue;
+              let shares = parseFloat(stock.shares || '0');
+              if (shares === 0 && investmentAmount > 0) {
+                holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
+              } else if (shares > 0) {
+                holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
+              }
+            }
+          } catch {}
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
 
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
-        if (s <= 0) holdingsAgg.delete(t);
+        if (s === 0) holdingsAgg.delete(t);
       }
 
       const allTickers = Array.from(holdingsAgg.keys());
@@ -1157,6 +1520,34 @@ export const dashboardRouter = router({
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
         !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
       ));
+
+      // Calculate shares for demo portfolios with placeholder -1
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          for (const stockDef of stocks) {
+            if (!stockDef.ticker) continue;
+            const currentShares = holdingsAgg.get(stockDef.ticker);
+            if (currentShares !== undefined && currentShares < 0) {
+              const stock = stocksMap.get(stockDef.ticker) as any;
+              if (!stock) continue;
+              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currency = stock.currency || 'CHF';
+              const weight = parseFloat(stockDef.weight || '0') / 100;
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              const calculatedShares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              holdingsAgg.set(stockDef.ticker, calculatedShares);
+            }
+          }
+        } catch {}
+      }
+      for (const [t, s] of Array.from(holdingsAgg.entries())) {
+        if (s <= 0) holdingsAgg.delete(t);
+      }
 
       // Calculate values and weights
       const holdingData: Array<{ ticker: string; sector: string; value: number; weight: number }> = [];

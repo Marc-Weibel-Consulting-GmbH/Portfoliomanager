@@ -8,12 +8,13 @@
 
 import * as React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PositionsTreemap } from "./PositionsTreemap";
 import { PositionsConstellation } from "./PositionsConstellation";
 import { Sparkline } from "./Sparkline";
 import { formatCHF, formatPercent, SECTOR_COLOR } from "./format";
 import type { Holding, SectorBucket } from "./types";
+import { Link } from "wouter";
 
 interface PositionsViewProps {
   holdings: Holding[];
@@ -89,6 +90,9 @@ export function PositionsView({ holdings, sectors }: PositionsViewProps) {
 }
 
 function PositionsTable({ holdings }: { holdings: Holding[] }) {
+  const [showAll, setShowAll] = React.useState(false);
+  const displayHoldings = showAll ? holdings : holdings.slice(0, 10);
+
   return (
     <>
       <table className="w-full border-collapse text-xs">
@@ -107,10 +111,18 @@ function PositionsTable({ holdings }: { holdings: Holding[] }) {
           </tr>
         </thead>
         <tbody>
-          {holdings.slice(0, 10).map(h => (
-            <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-              <td className="py-2.5 px-2 text-white font-mono font-semibold">{h.ticker}</td>
-              <td className="py-2.5 px-2 text-white">{h.name}</td>
+          {displayHoldings.map(h => (
+            <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer group">
+              <td className="py-2.5 px-2">
+                <Link href={`/stock/${h.ticker}`} className="text-[#00CFC1] font-mono font-semibold hover:underline">
+                  {h.ticker}
+                </Link>
+              </td>
+              <td className="py-2.5 px-2">
+                <Link href={`/stock/${h.ticker}`} className="text-white hover:text-[#00CFC1] transition-colors">
+                  {h.name}
+                </Link>
+              </td>
               <td className="py-2.5 px-2">
                 <span className="inline-flex items-center gap-1.5 text-gray-400 text-[11px]">
                   <span
@@ -144,8 +156,11 @@ function PositionsTable({ holdings }: { holdings: Holding[] }) {
         </tbody>
       </table>
       {holdings.length > 10 && (
-        <div className="mt-3 text-right text-[11px] text-[#00CFC1] cursor-pointer hover:underline">
-          Alle {holdings.length} Holdings anzeigen →
+        <div
+          className="mt-3 text-right text-[11px] text-[#00CFC1] cursor-pointer hover:underline"
+          onClick={() => setShowAll(!showAll)}
+        >
+          {showAll ? "Weniger anzeigen ←" : `Alle ${holdings.length} Holdings anzeigen →`}
         </div>
       )}
     </>

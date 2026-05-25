@@ -1,6 +1,6 @@
 // Semi-circle gauge for the LPPL bubble indicator (0..100).
-// Custom SVG — recharts has RadialBarChart but the API for traffic-light
-// segments + a needle is harder than just drawing it.
+// Custom SVG with improved visual design — gradient arcs, glow effects,
+// and better proportions for a more polished dashboard look.
 
 interface GaugeProps {
   /** Current value, 0..max */
@@ -24,7 +24,7 @@ interface GaugeProps {
 const DEFAULT_SURFACE = {
   text: "#ffffff",
   textMuted: "#9ca3af",
-  grid: "rgba(255,255,255,0.05)",
+  grid: "rgba(255,255,255,0.08)",
 };
 
 export function Gauge({
@@ -37,8 +37,9 @@ export function Gauge({
   surface = DEFAULT_SURFACE,
 }: GaugeProps) {
   const cx = size / 2;
-  const cy = size * 0.78;
-  const r = size * 0.42;
+  const cy = size * 0.72;
+  const r = size * 0.38;
+  const strokeWidth = size * 0.07;
   const start = Math.PI;      // left edge (180°)
   const end = 0;              // right edge (0°)
   const valuePct = Math.max(0, Math.min(1, value / max));
@@ -48,24 +49,47 @@ export function Gauge({
     const y0 = cy + radius * Math.sin(-a0);
     const x1 = cx + radius * Math.cos(a1);
     const y1 = cy + radius * Math.sin(-a1);
-    return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${radius} ${radius} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+    const largeArc = Math.abs(a0 - a1) > Math.PI ? 1 : 0;
+    return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
   };
 
   const valueAngle = start - (start - end) * valuePct;
 
+  // Needle tip position
+  const needleLen = r - 6;
+  const needleX = cx + needleLen * Math.cos(valueAngle);
+  const needleY = cy + needleLen * Math.sin(-valueAngle);
+
+  // Tick marks
+  const ticks = [0, 25, 50, 75, 100];
+
   return (
     <div
-      style={{ position: "relative", width: size, height: size * 0.88 }}
+      style={{ position: "relative", width: size, height: size * 0.82 }}
       className="select-none"
     >
       <svg
         width={size}
-        height={size * 0.88}
-        viewBox={`0 0 ${size} ${size * 0.88}`}
+        height={size * 0.82}
+        viewBox={`0 0 ${size} ${size * 0.82}`}
         style={{ display: "block" }}
       >
-        {/* Track */}
-        <path d={arcPath(start, end)} fill="none" stroke={surface.grid} strokeWidth="10" strokeLinecap="round" />
+        {/* Outer glow */}
+        <defs>
+          <filter id="gauge-glow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        {/* Track background */}
+        <path
+          d={arcPath(start, end)}
+          fill="none"
+          stroke={surface.grid}
+          strokeWidth={strokeWidth + 2}
+          strokeLinecap="round"
+        />
 
         {/* Zone segments (low/medium/high) */}
         {segments?.map((seg, i) => {
@@ -77,32 +101,58 @@ export function Gauge({
               d={arcPath(a0, a1)}
               fill="none"
               stroke={seg.color}
-              strokeWidth="10"
+              strokeWidth={strokeWidth}
               strokeLinecap="butt"
-              opacity="0.7"
+              opacity="0.6"
             />
           );
         })}
 
-        {/* Value arc */}
-        <path
-          d={arcPath(start, valueAngle)}
-          fill="none"
-          stroke={color}
-          strokeWidth="10"
-          strokeLinecap="round"
-        />
+        {/* Value arc with glow */}
+        {valuePct > 0.01 && (
+          <path
+            d={arcPath(start, valueAngle)}
+            fill="none"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            filter="url(#gauge-glow)"
+            opacity="0.9"
+          />
+        )}
+
+        {/* Tick marks */}
+        {ticks.map(t => {
+          const angle = start - (start - end) * (t / max);
+          const outerR = r + strokeWidth / 2 + 3;
+          const innerR = r + strokeWidth / 2 + 8;
+          return (
+            <line
+              key={t}
+              x1={cx + outerR * Math.cos(angle)}
+              y1={cy + outerR * Math.sin(-angle)}
+              x2={cx + innerR * Math.cos(angle)}
+              y2={cy + innerR * Math.sin(-angle)}
+              stroke={surface.textMuted}
+              strokeWidth="1"
+              opacity="0.5"
+            />
+          );
+        })}
 
         {/* Needle */}
         <line
-          x1={cx} y1={cy}
-          x2={cx + (r - 4) * Math.cos(valueAngle)}
-          y2={cy + (r - 4) * Math.sin(-valueAngle)}
+          x1={cx}
+          y1={cy}
+          x2={needleX}
+          y2={needleY}
           stroke={surface.text}
           strokeWidth="2"
           strokeLinecap="round"
+          opacity="0.9"
         />
-        <circle cx={cx} cy={cy} r="4" fill={surface.text} />
+        {/* Center dot */}
+        <circle cx={cx} cy={cy} r="3.5" fill={color} stroke={surface.text} strokeWidth="1" />
       </svg>
 
       {/* Value + label overlay */}
@@ -111,16 +161,16 @@ export function Gauge({
           position: "absolute",
           left: 0,
           right: 0,
-          top: size * 0.3,
+          bottom: 0,
           textAlign: "center",
           pointerEvents: "none",
         }}
       >
         <div
           style={{
-            fontSize: size * 0.22,
-            fontWeight: 600,
-            color: surface.text,
+            fontSize: size * 0.18,
+            fontWeight: 700,
+            color: color,
             lineHeight: 1,
             fontFamily: "ui-monospace, monospace",
           }}
@@ -128,7 +178,7 @@ export function Gauge({
           {value}
           <span
             style={{
-              fontSize: size * 0.1,
+              fontSize: size * 0.09,
               color: surface.textMuted,
               marginLeft: 2,
             }}
@@ -139,10 +189,10 @@ export function Gauge({
         {label && (
           <div
             style={{
-              fontSize: 10,
+              fontSize: 9,
               color: surface.textMuted,
-              marginTop: 4,
-              letterSpacing: 0.3,
+              marginTop: 2,
+              letterSpacing: 0.5,
               textTransform: "uppercase",
             }}
           >

@@ -44,7 +44,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           <AllocationCard sectors={data.sectors} />
           <RegionCard regions={data.regions} />
-          <CopilotInsights insights={data.insights} />
+          <CopilotInsights
+            insights={data.insights}
+            loading={data.insightsLoading}
+            onRefresh={data.refetchInsights}
+          />
         </div>
 
         <PositionsView holdings={data.holdings} sectors={data.sectors} />

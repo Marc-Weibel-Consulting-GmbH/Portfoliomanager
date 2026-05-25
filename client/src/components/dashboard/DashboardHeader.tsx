@@ -1,5 +1,5 @@
 // Dashboard header — title, date, scope (aggregate vs single portfolio).
-// The scope switcher reuses shadcn Tabs since the codebase already has it.
+// Shows all portfolios (live and demo) in the selector.
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -28,25 +28,35 @@ export function DashboardHeader({ scope, onScopeChange, portfolios }: DashboardH
         </h1>
       </div>
 
-      <Tabs
-        value={scopeStr}
-        onValueChange={v => onScopeChange(v === "aggregate" ? "aggregate" : Number(v))}
-      >
-        <TabsList className="bg-[#0f1420] border border-white/10">
-          <TabsTrigger value="aggregate" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]">
-            Aggregiert
-          </TabsTrigger>
-          {portfolios.filter(p => p.isLive).slice(0, 4).map(p => (
+      {portfolios.length > 0 && (
+        <Tabs
+          value={scopeStr}
+          onValueChange={v => onScopeChange(v === "aggregate" ? "aggregate" : Number(v))}
+        >
+          <TabsList className="bg-[#0f1420] border border-white/10 flex-wrap h-auto gap-0.5 p-1">
             <TabsTrigger
-              key={p.id}
-              value={String(p.id)}
-              className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]"
+              value="aggregate"
+              className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs"
             >
-              {p.name}
+              Aggregiert
             </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+            {portfolios.map(p => (
+              <TabsTrigger
+                key={p.id}
+                value={String(p.id)}
+                className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${p.isLive ? "bg-emerald-400" : "bg-gray-500"}`}
+                  />
+                  {p.name}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
     </div>
   );
 }

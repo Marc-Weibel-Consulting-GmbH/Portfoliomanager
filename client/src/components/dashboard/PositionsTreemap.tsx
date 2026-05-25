@@ -8,6 +8,7 @@
 
 import type { Holding } from "./types";
 import { formatPercent } from "./format";
+import { useLocation } from "wouter";
 
 interface TreemapTile extends Holding {
   x: number;
@@ -86,6 +87,7 @@ export function PositionsTreemap({
   mutedColor,
   cardAltColor,
 }: PositionsTreemapProps) {
+  const [, setLocation] = useLocation();
   const tiles = layoutTreemap(holdings, width, height);
 
   return (
@@ -103,7 +105,7 @@ export function PositionsTreemap({
               : `oklch(${dark ? 0.45 - intensity * 0.1 : 0.92 - intensity * 0.3} 0.15 25)`;
 
           return (
-            <g key={t.ticker}>
+            <g key={t.ticker} className="cursor-pointer" onClick={() => t.ticker !== 'CASH' && setLocation(`/stock/${t.ticker}`)}>
               <rect
                 x={t.x + 1}
                 y={t.y + 1}
