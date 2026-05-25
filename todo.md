@@ -1099,3 +1099,10 @@
 - [x] Ursache: Einzelne DB-Queries pro Ticker überlasteten die DB-Verbindung
 - [x] Fix: Batch-Queries (50 Ticker pro Chunk) + Event-Loop Yielding zwischen Perioden
 - [x] Ergebnis: 29 Perioden in Quick-Mode erfolgreich durchlaufen (OOS Alpha +3.61%, Hit Rate 51%)
+
+## Dashboard Redesign (25.05.2026) - DONE
+- [x] Alle Handoff-Komponenten kopiert (DashboardHeader, KpiRow, PerformanceChart, RiskBubbleCard, Gauge, Sparkline, AllocationCard, RegionCard, CopilotInsights, PositionsView, PositionsTreemap, PositionsConstellation)
+- [x] Backend: 7 neue Endpoints (getPerformanceTimeseries, getAggregatedHoldings, getSectorAllocation, getRegionAllocation, getRiskMetrics, getBubbleIndicator, getCopilotInsights)
+- [x] useDashboardData Hook mit echten tRPC-Calls verdrahtet
+- [x] TypeScript-Fehler behoben (keepPreviousData → placeholderData mit keepPreviousData import)
+- [x] Live-Test: Dashboard zeigt KPIs, Performance-Chart, Bubble-Gauge, Allokation, Insights, Positionen
