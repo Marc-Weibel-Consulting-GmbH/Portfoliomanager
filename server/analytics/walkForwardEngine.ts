@@ -18,7 +18,6 @@
 import { getDb } from "../db";
 import { historicalPrices, watchlistStocks, walkForwardResults } from "../../drizzle/schema";
 import { eq, and, gte, lte, asc, desc, inArray, sql } from "drizzle-orm";
-// normalizeTickerForDb removed - tickers are used as-is from DB
 
 const EODHD_API_KEY = process.env.EODHD_API_KEY;
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -151,7 +150,6 @@ export async function screenStocksFromEODHD(criteria: ScreeningCriteria): Promis
     const response = await fetch(url);
     if (!response.ok) {
       console.error(`[WalkForward] EODHD screener failed: ${response.status}`);
-      // Fallback: return top tickers by market cap from a known list
       return getDefaultUniverseTickers(maxTickers);
     }
 
@@ -164,17 +162,13 @@ export async function screenStocksFromEODHD(criteria: ScreeningCriteria): Promis
     }
 
     // Convert to tickers matching our DB format
-    // Most US tickers are stored WITHOUT .US suffix, Swiss tickers WITH .SW suffix
     const tickers = stocks
       .slice(0, maxTickers)
       .map(s => {
         const code = (s.code || '').trim().toUpperCase();
         const exch = (s.exchange || exchange).toUpperCase();
-        // Swiss tickers keep .SW suffix
         if (exch === 'SW' || exch === 'SWX') return code.includes('.') ? code : `${code}.SW`;
-        // European tickers keep their exchange suffix
         if (['PA', 'XETRA', 'LSE', 'AS', 'MI'].includes(exch)) return code.includes('.') ? code : `${code}.${exch}`;
-        // US tickers: use raw code (no .US suffix) to match DB format
         if (code.includes('.US')) return code.replace('.US', '');
         if (code.includes('.')) return code;
         return code;
@@ -192,7 +186,6 @@ export async function screenStocksFromEODHD(criteria: ScreeningCriteria): Promis
  * Get default universe tickers (S&P 500 top components) as fallback
  */
 function getDefaultUniverseTickers(count: number): string[] {
-  // Use tickers WITHOUT .US suffix to match historicalPrices DB format
   const sp500Top = [
     'AAPL', 'MSFT', 'AMZN', 'NVDA', 'GOOGL', 'META', 'BRK-B',
     'TSLA', 'UNH', 'XOM', 'JNJ', 'JPM', 'V', 'PG', 'MA',
@@ -227,8 +220,6 @@ export async function getWatchlistTickers(): Promise<string[]> {
     .from(watchlistStocks)
     .where(eq(watchlistStocks.isActive, 1));
 
-  // Use tickers as stored in DB (they match historicalPrices.ticker)
-  // Do NOT normalize — the DB already has them in the correct format
   return stocks.map(s => s.ticker.trim().toUpperCase());
 }
 
@@ -259,11 +250,9 @@ function calculateTickerScore(
     return { momentum1m: 0, momentum3m: 0, momentum6m: 0, volatility: 999, sharpe: 0, relativeStrength: 0, compositeScore: 0 };
   }
 
-  // Sort by date
   const sorted = [...prices].sort((a, b) => a.date.localeCompare(b.date));
   const latest = sorted[sorted.length - 1].close;
   
-  // Momentum calculations
   const oneMonthAgo = sorted.length >= 22 ? sorted[sorted.length - 22].close : sorted[0].close;
   const threeMonthsAgo = sorted.length >= 66 ? sorted[sorted.length - 66].close : sorted[0].close;
   const sixMonthsAgo = sorted.length >= 132 ? sorted[sorted.length - 132].close : sorted[0].close;
@@ -272,7 +261,6 @@ function calculateTickerScore(
   const momentum3m = (latest - threeMonthsAgo) / threeMonthsAgo;
   const momentum6m = (latest - sixMonthsAgo) / sixMonthsAgo;
   
-  // Daily returns for volatility
   const returns: number[] = [];
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i - 1].close > 0) {
@@ -282,13 +270,11 @@ function calculateTickerScore(
   
   const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
   const variance = returns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / returns.length;
-  const volatility = Math.sqrt(variance) * Math.sqrt(252); // Annualized
+  const volatility = Math.sqrt(variance) * Math.sqrt(252);
   
-  // Sharpe ratio (risk-free rate = 2% for Swiss investors)
   const annualizedReturn = avgReturn * 252;
   const sharpe = volatility > 0 ? (annualizedReturn - 0.02) / volatility : 0;
   
-  // Relative strength vs benchmark
   let relativeStrength = 0;
   if (benchmarkPrices.length >= 22) {
     const benchSorted = [...benchmarkPrices].sort((a, b) => a.date.localeCompare(b.date));
@@ -298,7 +284,6 @@ function calculateTickerScore(
     relativeStrength = momentum3m - benchReturn;
   }
   
-  // Composite score (0-100) — use strategy weights if provided
   const w = weights || { momentum: 0.35, sharpe: 0.25, relativeStrength: 0.20, lowVol: 0.20 };
   const momentumScore = Math.min(100, Math.max(0, (momentum3m + 0.3) / 0.6 * 100));
   const sharpeScore = Math.min(100, Math.max(0, (sharpe + 1) / 4 * 100));
@@ -320,9 +305,6 @@ function calculateTickerScore(
 
 // ============ WALK-FORWARD ENGINE ============
 
-/**
- * Run Walk-Forward Validation on a universe of stocks
- */
 // Strategy profile scoring weight overrides
 const STRATEGY_SCORING_WEIGHTS: Record<string, { momentum: number; sharpe: number; relativeStrength: number; lowVol: number }> = {
   shortTerm: { momentum: 0.50, sharpe: 0.15, relativeStrength: 0.25, lowVol: 0.10 },
@@ -330,6 +312,63 @@ const STRATEGY_SCORING_WEIGHTS: Record<string, { momentum: number; sharpe: numbe
   longTerm: { momentum: 0.15, sharpe: 0.35, relativeStrength: 0.15, lowVol: 0.35 },
 };
 
+/**
+ * Batch-fetch all prices for a set of tickers within a date range.
+ * Returns a Map<ticker, {date, close}[]> — much faster than individual queries.
+ */
+async function batchFetchPrices(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  tickers: string[],
+  startDate: string,
+  endDate: string
+): Promise<Map<string, { date: string; close: number }[]>> {
+  const result = new Map<string, { date: string; close: number }[]>();
+  
+  // Process in chunks of 50 tickers to avoid query size limits
+  const CHUNK_SIZE = 50;
+  for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
+    const chunk = tickers.slice(i, i + CHUNK_SIZE);
+    
+    const rows = await db
+      .select({
+        ticker: historicalPrices.ticker,
+        date: historicalPrices.date,
+        close: historicalPrices.close,
+      })
+      .from(historicalPrices)
+      .where(and(
+        inArray(historicalPrices.ticker, chunk),
+        gte(historicalPrices.date, startDate),
+        lte(historicalPrices.date, endDate)
+      ))
+      .orderBy(asc(historicalPrices.ticker), asc(historicalPrices.date));
+    
+    for (const row of rows) {
+      const ticker = row.ticker;
+      if (!result.has(ticker)) {
+        result.set(ticker, []);
+      }
+      result.get(ticker)!.push({
+        date: typeof row.date === 'string' ? row.date : String(row.date),
+        close: parseFloat(String(row.close)) || 0,
+      });
+    }
+    
+    // Small yield between chunks
+    if (i + CHUNK_SIZE < tickers.length) {
+      await new Promise(r => setTimeout(r, 5));
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Run Walk-Forward Validation on a universe of stocks
+ * 
+ * OPTIMIZED: Uses batch DB queries per period instead of individual ticker queries.
+ * This reduces DB round-trips from O(tickers × periods) to O(periods × 3).
+ */
 export async function runWalkForwardValidation(
   config: WalkForwardConfig,
   userId: number,
@@ -368,11 +407,6 @@ export async function runWalkForwardValidation(
   // Deduplicate
   tickers = Array.from(new Set(tickers));
   
-  // Apply score filter if specified
-  if (config.screeningCriteria?.minScore) {
-    // We'll filter after scoring in the first period
-  }
-  
   logProgress(`Universum: ${tickers.length} Titel (dedupliziert)`);
   
   if (tickers.length < 10) {
@@ -404,15 +438,13 @@ export async function runWalkForwardValidation(
   
   logProgress(`Datenbereich: ${dataStart} bis ${dataEnd}`);
 
-  // 3. Pre-calculate total number of periods for progress reporting
+  // 3. Pre-calculate total number of periods
   const trainMonths = config.trainWindowMonths;
   const testMonths = config.testWindowMonths;
-  const totalWindowMonths = trainMonths + testMonths;
   
   const startDate = new Date(dataStart);
   const endDate = new Date(dataEnd);
   
-  // Count total periods first for progress
   let totalExpectedPeriods = 0;
   {
     let tempStart = new Date(startDate);
@@ -432,7 +464,7 @@ export async function runWalkForwardValidation(
   // Get strategy scoring weights
   const scoringWeights = config.strategyProfile 
     ? STRATEGY_SCORING_WEIGHTS[config.strategyProfile] 
-    : STRATEGY_SCORING_WEIGHTS.midTerm; // default
+    : STRATEGY_SCORING_WEIGHTS.midTerm;
   
   const periods: WalkForwardPeriodResult[] = [];
   let currentStart = new Date(startDate);
@@ -462,54 +494,20 @@ export async function runWalkForwardValidation(
     // Yield to event loop between periods
     await new Promise(r => setTimeout(r, 10));
     
-    // 4. Score all tickers in training window
+    // 4. BATCH FETCH all prices for this training window (single query per chunk)
+    const trainPricesMap = await batchFetchPrices(db, [...tickers, 'SPY'], trainStartStr, trainEndStr);
+    
+    const benchmarkPrices = trainPricesMap.get('SPY') || [];
+    
+    // Score all tickers using pre-fetched data
     const tickerScores: TickerScoreData[] = [];
     
-    // Get benchmark prices for the training window
-    const benchmarkPricesRaw = await db
-      .select({ date: historicalPrices.date, close: historicalPrices.close })
-      .from(historicalPrices)
-      .where(and(
-        eq(historicalPrices.ticker, 'SPY'),
-        gte(historicalPrices.date, trainStartStr),
-        lte(historicalPrices.date, trainEndStr)
-      ))
-      .orderBy(asc(historicalPrices.date));
-    
-    const benchmarkPrices = benchmarkPricesRaw.map(p => ({
-      date: typeof p.date === 'string' ? p.date : String(p.date),
-      close: parseFloat(String(p.close)) || 0
-    }));
-    
-    // Score each ticker (with event loop yielding)
-    let tickerIdx = 0;
     for (const ticker of tickers) {
-      tickerIdx++;
-      // Yield to event loop every 10 tickers
-      if (tickerIdx % 10 === 0) {
-        await new Promise(r => setTimeout(r, 5));
-      }
-      
-      const pricesRaw = await db
-        .select({ date: historicalPrices.date, close: historicalPrices.close })
-        .from(historicalPrices)
-        .where(and(
-          eq(historicalPrices.ticker, ticker),
-          gte(historicalPrices.date, trainStartStr),
-          lte(historicalPrices.date, trainEndStr)
-        ))
-        .orderBy(asc(historicalPrices.date));
-      
-      if (pricesRaw.length < 20) continue; // Skip tickers with insufficient data
-      
-      const prices = pricesRaw.map(p => ({
-        date: typeof p.date === 'string' ? p.date : String(p.date),
-        close: parseFloat(String(p.close)) || 0
-      }));
+      const prices = trainPricesMap.get(ticker);
+      if (!prices || prices.length < 20) continue;
       
       const score = calculateTickerScore(prices, benchmarkPrices, scoringWeights);
       
-      // Apply minimum score filter
       if (config.screeningCriteria?.minScore && score.compositeScore < config.screeningCriteria.minScore) {
         continue;
       }
@@ -531,46 +529,29 @@ export async function runWalkForwardValidation(
     const topTickers = tickerScores.slice(0, quartileSize).map(t => t.ticker);
     const bottomTickers = tickerScores.slice(-quartileSize).map(t => t.ticker);
     
-    // 6. Measure out-of-sample performance in test window
-    let topReturnSum = 0;
-    let topCount = 0;
-    let bottomReturnSum = 0;
-    let bottomCount = 0;
-    let hitsAboveBenchmark = 0;
+    // 6. BATCH FETCH test period prices for top + bottom + benchmark
+    const testTickers = [...new Set([...topTickers, ...bottomTickers, 'SPY'])];
+    const testPricesMap = await batchFetchPrices(db, testTickers, testStartStr, testEndStr);
     
     // Get benchmark return in test period
-    const benchTestPricesRaw = await db
-      .select({ date: historicalPrices.date, close: historicalPrices.close })
-      .from(historicalPrices)
-      .where(and(
-        eq(historicalPrices.ticker, 'SPY'),
-        gte(historicalPrices.date, testStartStr),
-        lte(historicalPrices.date, testEndStr)
-      ))
-      .orderBy(asc(historicalPrices.date));
-    
+    const benchTestPrices = testPricesMap.get('SPY') || [];
     let benchmarkReturn = 0;
-    if (benchTestPricesRaw.length >= 2) {
-      const benchFirst = parseFloat(String(benchTestPricesRaw[0].close)) || 0;
-      const benchLast = parseFloat(String(benchTestPricesRaw[benchTestPricesRaw.length - 1].close)) || 0;
+    if (benchTestPrices.length >= 2) {
+      const benchFirst = benchTestPrices[0].close;
+      const benchLast = benchTestPrices[benchTestPrices.length - 1].close;
       benchmarkReturn = benchFirst > 0 ? (benchLast - benchFirst) / benchFirst : 0;
     }
     
     // Measure top quartile returns
+    let topReturnSum = 0;
+    let topCount = 0;
+    let hitsAboveBenchmark = 0;
+    
     for (const ticker of topTickers) {
-      const testPricesRaw = await db
-        .select({ date: historicalPrices.date, close: historicalPrices.close })
-        .from(historicalPrices)
-        .where(and(
-          eq(historicalPrices.ticker, ticker),
-          gte(historicalPrices.date, testStartStr),
-          lte(historicalPrices.date, testEndStr)
-        ))
-        .orderBy(asc(historicalPrices.date));
-      
-      if (testPricesRaw.length >= 2) {
-        const first = parseFloat(String(testPricesRaw[0].close)) || 0;
-        const last = parseFloat(String(testPricesRaw[testPricesRaw.length - 1].close)) || 0;
+      const testPrices = testPricesMap.get(ticker);
+      if (testPrices && testPrices.length >= 2) {
+        const first = testPrices[0].close;
+        const last = testPrices[testPrices.length - 1].close;
         if (first > 0) {
           const ret = (last - first) / first;
           topReturnSum += ret;
@@ -581,20 +562,14 @@ export async function runWalkForwardValidation(
     }
     
     // Measure bottom quartile returns
+    let bottomReturnSum = 0;
+    let bottomCount = 0;
+    
     for (const ticker of bottomTickers) {
-      const testPricesRaw = await db
-        .select({ date: historicalPrices.date, close: historicalPrices.close })
-        .from(historicalPrices)
-        .where(and(
-          eq(historicalPrices.ticker, ticker),
-          gte(historicalPrices.date, testStartStr),
-          lte(historicalPrices.date, testEndStr)
-        ))
-        .orderBy(asc(historicalPrices.date));
-      
-      if (testPricesRaw.length >= 2) {
-        const first = parseFloat(String(testPricesRaw[0].close)) || 0;
-        const last = parseFloat(String(testPricesRaw[testPricesRaw.length - 1].close)) || 0;
+      const testPrices = testPricesMap.get(ticker);
+      if (testPrices && testPrices.length >= 2) {
+        const first = testPrices[0].close;
+        const last = testPrices[testPrices.length - 1].close;
         if (first > 0) {
           const ret = (last - first) / first;
           bottomReturnSum += ret;
@@ -617,7 +592,7 @@ export async function runWalkForwardValidation(
       testEnd: testEndStr,
       topTickers,
       bottomTickers,
-      topReturn: Math.round(topReturn * 10000) / 100, // as percentage
+      topReturn: Math.round(topReturn * 10000) / 100,
       bottomReturn: Math.round(bottomReturn * 10000) / 100,
       benchmarkReturn: Math.round(benchmarkReturn * 10000) / 100,
       alpha: Math.round(alpha * 10000) / 100,
@@ -644,8 +619,7 @@ export async function runWalkForwardValidation(
   const alphaStd = Math.sqrt(alphaVariance);
   const oosSharpe = alphaStd > 0 ? avgAlphaForSharpe / alphaStd : 0;
   
-  // Calculate overfit ratio (in-sample vs out-of-sample)
-  // Simple approximation: if IS performance >> OOS performance, likely overfit
+  // Calculate overfit ratio
   const avgTopReturn = periods.length > 0
     ? periods.reduce((a, p) => a + p.topReturn, 0) / periods.length
     : 0;
@@ -672,9 +646,9 @@ export async function runWalkForwardValidation(
       totalPeriods: data.totalPeriods,
       consistencyScore: data.topCount / data.totalPeriods,
       avgOosReturn: data.returns.reduce((a, b) => a + b, 0) / data.returns.length,
-      avgRankScore: 0, // Will be filled from last period scores
+      avgRankScore: 0,
     }))
-    .filter(t => t.consistencyScore >= 0.3) // At least 30% of periods in top quartile
+    .filter(t => t.consistencyScore >= 0.3)
     .sort((a, b) => b.consistencyScore - a.consistencyScore)
     .slice(0, 20);
   
@@ -705,7 +679,7 @@ export async function runWalkForwardValidation(
       universeSource: result.universeSource,
       screeningCriteria: JSON.stringify(result.screeningCriteria),
       tickerCount: result.tickerCount,
-      tickers: JSON.stringify(result.tickers.slice(0, 200)), // Limit stored tickers
+      tickers: JSON.stringify(result.tickers.slice(0, 200)),
       trainWindow: result.trainWindow,
       testWindow: result.testWindow,
       totalPeriods: result.totalPeriods,

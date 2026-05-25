@@ -1093,3 +1093,9 @@
 - [x] Backend: Täglicher LPPL-Monitoring-Cron-Job mit konfigurierbarem Schwellenwert (Standard 70%)
 - [x] Backend: Bei Überschreitung WhatsApp-Notification an Owner senden
 - [x] Frontend: Konfigurierbare Schwellenwert-Anzeige im Monitoring-Tab (Slider 50-95%)
+
+## BUG: Walk-Forward hängt bei Periode 11/29 im Quick-Mode (24.05.2026)
+- [x] Walk-Forward bleibt bei Periode 11/29 (38%) stehen - 208 Titel werden bewertet statt 134
+- [x] Ursache: Einzelne DB-Queries pro Ticker überlasteten die DB-Verbindung
+- [x] Fix: Batch-Queries (50 Ticker pro Chunk) + Event-Loop Yielding zwischen Perioden
+- [x] Ergebnis: 29 Perioden in Quick-Mode erfolgreich durchlaufen (OOS Alpha +3.61%, Hit Rate 51%)
