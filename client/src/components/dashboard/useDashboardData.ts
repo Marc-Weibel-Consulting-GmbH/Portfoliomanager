@@ -50,7 +50,10 @@ export interface DashboardData {
 export function useDashboardData({ scope, range }: UseDashboardDataParams): DashboardData {
   // ───── Existing endpoints ─────────────────────────────────────────────
   const { data: rawMetrics, isLoading: metricsLoading } =
-    trpc.dashboard.getAggregatedMetrics.useQuery();
+    trpc.dashboard.getAggregatedMetrics.useQuery(
+      { scope },
+      { placeholderData: keepPreviousData }
+    );
 
   const { data: rawPortfolios } = trpc.dashboard.getTopPortfolios.useQuery();
 

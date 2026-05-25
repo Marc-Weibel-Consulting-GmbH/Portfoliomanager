@@ -8,14 +8,25 @@ function getYTDStartDate(): string {
 }
 
 export const dashboardRouter = router({
-  // Get aggregated metrics across all live portfolios - OPTIMIZED with batch loading
-  getAggregatedMetrics: protectedProcedure.query(async ({ ctx }) => {
+  // Get aggregated metrics - supports scope parameter for per-portfolio metrics
+  getAggregatedMetrics: protectedProcedure
+    .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).optional().default("aggregate") }))
+    .query(async ({ ctx, input }) => {
     const { getSavedPortfolios, getStockByTicker } = await import("../db");
     const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
     const { convertToCHF } = await import("../fxHelper");
     
     const portfolios = await getSavedPortfolios(ctx.user.id);
-    const livePortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+    
+    // Filter portfolios based on scope
+    let targetPortfolios: typeof portfolios;
+    if (input.scope === "aggregate") {
+      targetPortfolios = portfolios; // All portfolios
+    } else {
+      targetPortfolios = portfolios.filter(p => p.id === input.scope);
+    }
+    const livePortfolios = targetPortfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+    const demoPortfolios = targetPortfolios.filter(p => p.isLive !== 1);
     
     // Helper function to calculate portfolio value from portfolioData (for consistent values)
     const calculatePortfolioValueFromData = async (portfolio: any): Promise<number> => {
@@ -61,7 +72,7 @@ export const dashboardRouter = router({
       }
     };
     
-    if (livePortfolios.length === 0) {
+    if (livePortfolios.length === 0 && demoPortfolios.length === 0) {
       return {
         totalValue: 0,
         totalPerformance: 0,
@@ -79,12 +90,22 @@ export const dashboardRouter = router({
     const portfolioIds = livePortfolios.map(p => p.id);
     const transactionsByPortfolio = await batchGetPortfolioTransactions(portfolioIds);
     
-    // OPTIMIZATION: Collect all unique tickers
+    // OPTIMIZATION: Collect all unique tickers (from live transactions AND demo portfolioData)
     const allTickers = new Set<string>();
     for (const transactions of Array.from(transactionsByPortfolio.values())) {
       transactions.forEach(tx => {
         if (tx.ticker) allTickers.add(tx.ticker);
       });
+    }
+    // Also add tickers from demo portfolios
+    for (const portfolio of demoPortfolios) {
+      try {
+        const pd = JSON.parse(portfolio.portfolioData || '{}');
+        const stocks = pd.stocks || pd.positions || [];
+        for (const s of stocks) {
+          if (s.ticker) allTickers.add(s.ticker);
+        }
+      } catch (e) { /* ignore */ }
     }
     
     if (allTickers.size === 0) {
@@ -138,7 +159,53 @@ export const dashboardRouter = router({
     let totalDividendsCHF = 0;
     let totalInvestedCHF = 0;
     
-    // Calculate metrics for each live portfolio - ALWAYS use portfolioData for consistent values
+    // Helper: Calculate portfolio value at YTD start date using historical prices
+    const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string): Promise<number> => {
+      try {
+        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+        const stocks = portfolioData.stocks || portfolioData.positions || [];
+        if (stocks.length === 0) return 0;
+        
+        let totalValueAtDate = 0;
+        const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+        
+        for (const stock of stocks) {
+          const ticker = stock.ticker;
+          if (!ticker) continue;
+          
+          const stockData = stocksMap.get(ticker);
+          if (!stockData) continue;
+          
+          const currency = stockData.currency || 'CHF';
+          const weight = parseFloat(stock.weight || '0') / 100;
+          
+          // Get historical price at the given date
+          const ytdStartPrice = ytdPricesMap.get(ticker);
+          if (!ytdStartPrice) continue;
+          
+          let shares = parseFloat(stock.shares || '0');
+          if (shares === 0 && investmentAmount > 0 && weight > 0) {
+            // Calculate shares from weight and investment amount
+            const allocationCHF = investmentAmount * weight;
+            const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
+            shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+          }
+          
+          const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
+          totalValueAtDate += shares * priceCHF;
+        }
+        
+        const cashBalance = parseFloat(portfolio.cashBalance || '0');
+        totalValueAtDate += cashBalance;
+        
+        return totalValueAtDate;
+      } catch (error) {
+        console.error(`[dashboard.getAggregatedMetrics] Error calculating value at date:`, error);
+        return 0;
+      }
+    };
+    
+    // Calculate metrics for each live portfolio
     for (const portfolio of livePortfolios) {
       const transactions = transactionsByPortfolio.get(portfolio.id) || [];
       
@@ -151,10 +218,28 @@ export const dashboardRouter = router({
       }
       totalDividendsCHF += dividendIncome;
       
-      // ALWAYS calculate value from portfolioData for consistency with portfolio list and detail pages
+      // Calculate CURRENT value from portfolioData for consistency
       const portfolioValueCHF = await calculatePortfolioValueFromData(portfolio);
       const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
-      const portfolioValueYTDStartCHF = investmentAmount || portfolioValueCHF;
+      
+      // Calculate YTD start value using actual historical prices (same method as portfoliosRouter.list)
+      const ytdStartValue = await calculatePortfolioValueAtDate(portfolio, ytdStartDate);
+      // If we couldn't get historical prices, fall back to investmentAmount
+      const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
+      
+      totalValueCHF += portfolioValueCHF;
+      totalValueYTDStartCHF += portfolioValueYTDStartCHF;
+      totalInvestedCHF += investmentAmount;
+    }
+    
+    // Also calculate values for demo portfolios
+    for (const portfolio of demoPortfolios) {
+      const portfolioValueCHF = await calculatePortfolioValueFromData(portfolio);
+      const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+      
+      // Calculate YTD start value using actual historical prices
+      const ytdStartValue = await calculatePortfolioValueAtDate(portfolio, ytdStartDate);
+      const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
       
       totalValueCHF += portfolioValueCHF;
       totalValueYTDStartCHF += portfolioValueYTDStartCHF;
@@ -174,53 +259,46 @@ export const dashboardRouter = router({
     const { eq, and, lte, desc } = await import("drizzle-orm");
     
     let benchmarkPerformance = 0;
+    let benchmarkSmiYtd = 0;
+    let benchmarkMsciYtd = 0;
     try {
       const db = await getDb();
       if (db) {
-        // Get benchmark price at YTD start
-        const ytdBenchmarkPrices = await db
-          .select()
-          .from(historicalPrices)
-          .where(
-            and(
-              eq(historicalPrices.ticker, benchmarkTicker),
-              lte(historicalPrices.date, ytdStartDate)
-            )
-          )
-          .orderBy(desc(historicalPrices.date))
-          .limit(1);
-        
-        // Get current benchmark price
-        const currentBenchmarkPrices = await db
-          .select()
-          .from(historicalPrices)
-          .where(
-            and(
-              eq(historicalPrices.ticker, benchmarkTicker),
-              lte(historicalPrices.date, today)
-            )
-          )
-          .orderBy(desc(historicalPrices.date))
-          .limit(1);
-        
-        if (ytdBenchmarkPrices.length > 0 && currentBenchmarkPrices.length > 0) {
-          const ytdPrice = parseFloat(ytdBenchmarkPrices[0].close || '0');
-          const currentPrice = parseFloat(currentBenchmarkPrices[0].close || '0');
-          
-          if (ytdPrice > 0) {
-            benchmarkPerformance = ((currentPrice - ytdPrice) / ytdPrice) * 100;
+        // Helper to get YTD performance for a ticker
+        const getTickerYtdPerf = async (ticker: string): Promise<number> => {
+          const ytdPrices = await db
+            .select()
+            .from(historicalPrices)
+            .where(and(eq(historicalPrices.ticker, ticker), lte(historicalPrices.date, ytdStartDate)))
+            .orderBy(desc(historicalPrices.date))
+            .limit(1);
+          const currentPrices = await db
+            .select()
+            .from(historicalPrices)
+            .where(and(eq(historicalPrices.ticker, ticker), lte(historicalPrices.date, today)))
+            .orderBy(desc(historicalPrices.date))
+            .limit(1);
+          if (ytdPrices.length > 0 && currentPrices.length > 0) {
+            const ytdPrice = parseFloat(ytdPrices[0].close || '0');
+            const currentPrice = parseFloat(currentPrices[0].close || '0');
+            if (ytdPrice > 0) return ((currentPrice - ytdPrice) / ytdPrice) * 100;
           }
-        }
+          return 0;
+        };
+        
+        benchmarkPerformance = await getTickerYtdPerf(benchmarkTicker);
+        benchmarkSmiYtd = await getTickerYtdPerf('CHSPI.SW');
+        benchmarkMsciYtd = await getTickerYtdPerf('ACWI.US');
       }
     } catch (error) {
       console.error('[dashboard.getAggregatedMetrics] Error calculating benchmark performance:', error);
     }
     
-    // Calculate average dividend yield across all stocks in live portfolios
+    // Calculate average dividend yield across all stocks in target portfolios
     let totalDividendYield = 0;
     let stockCount = 0;
     
-    for (const portfolio of livePortfolios) {
+    for (const portfolio of [...livePortfolios, ...demoPortfolios]) {
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         const stocks = portfolioData.stocks || portfolioData.positions || [];
@@ -254,6 +332,8 @@ export const dashboardRouter = router({
       portfolioCount: portfolios.length,
       livePortfolioCount: livePortfolios.length,
       benchmarkPerformance: benchmarkPerformance,
+      benchmarkSmiYtd: benchmarkSmiYtd,
+      benchmarkMsciYtd: benchmarkMsciYtd,
       avgDividendYield: avgDividendYield,
     };
   }),

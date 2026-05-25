@@ -44,11 +44,10 @@ const topLevelItems: NavItem[] = [
 const menuGroups: NavGroup[] = [
   {
     icon: Globe,
-    label: "Markt-Regime",
+    label: "Markt",
     items: [
       { icon: Gauge, label: "Regime-Dashboard", path: "/market-regime" },
       { icon: Globe, label: "Marktüberblick", path: "/market-overview" },
-      { icon: BarChart3, label: "Makro-Indikatoren", path: "/analysis" },
       { icon: Grid3x3, label: "Sektor-Heatmap", path: "/sector-heatmap" },
       { icon: Grid3x3, label: "Markt-Heatmap", path: "/market-heatmap" },
     ],

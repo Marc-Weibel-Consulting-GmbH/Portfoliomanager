@@ -14,14 +14,21 @@ interface TickerMapping {
  * Known problematic European tickers and their EODHD alternatives
  */
 const EUROPEAN_TICKER_MAP: Record<string, string[]> = {
-  // Italian stocks (Milan Stock Exchange)
-  'MONC.MI': ['MONC.MIL', 'MONC.MI', 'MONC'],
+  // Italian stocks (Milan Stock Exchange - not directly on EODHD)
+  'MONC.MI': ['MONRY', 'MONRY.US'],  // Moncler ADR on US OTC
+  
+  // Swiss stocks with special cases
+  'HELN.SW': ['HELNF', 'HELNF.US'],  // Helvetia Baloise Holding (merged, OTC)
   
   // London Stock Exchange
   'VWRL.L': ['VWRL.LSE', 'VWRL.L', 'VWRL'],
   
   // German stocks (XETRA)
   'EXSA.DE': ['EXSA.XETRA', 'EXSA.F', 'EXSA.DE', 'EXSA'],
+  
+  // Delisted / ticker changes
+  'MESA': ['RJET', 'RJET.US'],  // Mesa Air -> RJET after Nov 2025 reverse split
+  'APPLE': ['AAPL', 'AAPL.US'],  // User typo
 };
 
 /**

@@ -11,6 +11,35 @@ import { historicalPrices, transactions, savedPortfolios } from "../../drizzle/s
 const EODHD_API_KEY = process.env.EODHD_API_KEY;
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
+/**
+ * Ticker mapping: DB ticker -> EODHD ticker
+ * Some tickers in the DB use different formats than EODHD expects.
+ * 
+ * Key corrections:
+ * - HELN.SW: Helvetia merged with Baloise -> now trades as HELNF (US OTC)
+ * - MESA: Mesa Air delisted Nov 2025, reverse-split to RJET
+ * - MONC.MI: Italian exchange not on EODHD, use MONRY (US ADR)
+ * - APPLE: User typo, should be AAPL
+ */
+const TICKER_MAPPING: Record<string, string> = {
+  'EXSA.DE': 'EXSA.XETRA',
+  'ABB.N': 'ABBN.SW',
+  'VWRL.L': 'VWRL.LSE',
+  'HELN.SW': 'HELNF',       // Helvetia Baloise Holding (OTC)
+  'MONC.MI': 'MONRY',       // Moncler ADR (US OTC)
+  'MESA': 'RJET',           // Mesa Air -> RJET after reverse split Nov 2025
+  'APPLE': 'AAPL',          // User typo correction
+};
+
+/** Tickers that are genuinely not available on EODHD (no working alternative) */
+const UNAVAILABLE_TICKERS = new Set<string>([]);
+
+/** Convert a DB ticker to the EODHD format */
+function toEodhdTicker(dbTicker: string): string | null {
+  if (UNAVAILABLE_TICKERS.has(dbTicker)) return null;
+  return TICKER_MAPPING[dbTicker] || dbTicker;
+}
+
 interface EODHDHistoricalPrice {
   date: string;
   open: number;
@@ -213,8 +242,15 @@ export async function importHistoricalPrices(
           continue;
         }
 
-        console.log(`[importHistoricalPrices] Fetching prices for ${ticker}...`);
-        const prices = await fetchHistoricalPrices(ticker, from, to);
+        // Map DB ticker to EODHD ticker format
+        const eodhdTicker = toEodhdTicker(ticker);
+        if (!eodhdTicker) {
+          console.log(`[importHistoricalPrices] Skipping ${ticker} - not available on EODHD`);
+          continue;
+        }
+
+        console.log(`[importHistoricalPrices] Fetching prices for ${ticker} (EODHD: ${eodhdTicker})...`);
+        const prices = await fetchHistoricalPrices(eodhdTicker, from, to);
 
         if (prices.length > 0) {
           const imported = await storeHistoricalPrices(ticker, prices);

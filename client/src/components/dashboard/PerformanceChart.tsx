@@ -5,7 +5,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  AreaChart,
+  ComposedChart,
   Area,
   Line,
   CartesianGrid,
@@ -51,7 +51,7 @@ export function PerformanceChart({ data, range, onRangeChange }: PerformanceChar
       <CardContent className="pt-0">
         <div className="h-[260px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data.points} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+            <ComposedChart data={data.points} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
               <defs>
                 <linearGradient id="portfolioFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#00CFC1" stopOpacity={0.35} />
@@ -115,7 +115,7 @@ export function PerformanceChart({ data, range, onRangeChange }: PerformanceChar
                 strokeWidth={1.4}
                 dot={false}
               />
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </CardContent>

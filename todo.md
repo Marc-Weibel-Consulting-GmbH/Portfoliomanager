@@ -1134,3 +1134,20 @@
 - [x] Personalisierte Empfehlungen generieren (4 Insights: Sektorkonzentration, Top-Positionen, Cash-Quote, Diversifikation)
 - [ ] Caching der LLM-Antworten (z.B. 1h TTL) - noch nicht implementiert
 - [x] Fallback auf regelbasierte Insights bei LLM-Fehler
+
+## Dashboard Bugfixes (25.05.2026 - Runde 2)
+- [ ] Bubble-Indikator und KPIs ändern nicht bei Portfolio-Wechsel
+- [ ] Demo-Portfolios: fehlende historische Daten im Kurschart (nur Portfolio-Linie, keine Benchmarks)
+- [ ] Marktindikatoren aus Sidebar entfernen
+- [ ] "Markt-Regime" → "Markt" umbenennen
+- [ ] Inkonsistenz: Marktregime 80% Aktienquote vs. Bubble-Warnung
+- [ ] Performance-Daten Portfolio-Übersicht stimmen nicht mit Dashboard überein
+- [x] Fehlende Ticker korrigieren (MESA, HELN.SW, MONC.MI etc.) - EODHD Mapping
+  - HELN.SW -> HELNF (Helvetia Baloise, vorher fälschlich auf HOLN.SW/Holcim gemappt)
+  - MONC.MI -> MONRY (Moncler ADR, ital. Börse nicht auf EODHD)
+  - MESA -> RJET (Mesa Air delisted Nov 2025, Reverse-Split zu RJET)
+  - APPLE -> AAPL (Tippfehler-Korrektur)
+  - Historische Preise für alle 3 Ticker neu importiert (352/348/348 Datenpunkte)
+- [x] Benchmarks im Dashboard-Chart fehlen (SMI/MSCI World Linien nicht sichtbar)
+  - AreaChart durch ComposedChart ersetzt (recharts rendert Line-Elemente nicht in AreaChart)
+  - SMI und MSCI World Linien werden jetzt korrekt als gestrichelte Linien angezeigt
