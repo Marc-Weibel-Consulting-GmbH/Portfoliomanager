@@ -1569,62 +1569,139 @@ export const dashboardRouter = router({
       }
       holdingData.sort((a, b) => b.weight - a.weight);
 
-      // Generate insights based on portfolio analysis
-      // 1. Concentration check
-      const top3Weight = holdingData.slice(0, 3).reduce((s, h) => s + h.weight, 0);
-      if (top3Weight > 40) {
-        insights.push({
-          id: 'high-concentration',
-          severity: 'watch',
-          title: 'Hohe Konzentration',
-          body: `Top 3 Positionen machen ${top3Weight.toFixed(0)}% aus. Diversifikation prüfen.`,
-          action: 'Im Optimizer prüfen',
-          actionHref: '/portfolio-optimizer',
-        });
-      }
+      // Generate insights using LLM for personalized recommendations
+      const { invokeLLM } = await import("../_core/llm");
 
-      // 2. Cash position
+      // Prepare portfolio context for LLM
       const cashWeight = totalValue > 0 ? (totalCash / totalValue) * 100 : 0;
-      if (cashWeight > 15) {
-        insights.push({
-          id: 'high-cash',
-          severity: 'info',
-          title: `Cash-Quote ${cashWeight.toFixed(0)}%`,
-          body: 'Hohe Liquidität — Staffel-Einstieg in defensive Werte möglich.',
-          action: 'Vorschläge anzeigen',
-          actionHref: '/invest',
-        });
-      } else if (cashWeight < 5) {
-        insights.push({
-          id: 'low-cash',
-          severity: 'watch',
-          title: `Cash-Quote nur ${cashWeight.toFixed(0)}%`,
-          body: 'Geringe Liquiditätsreserve. Bei Korrekturen fehlt Handlungsspielraum.',
-          action: 'Cash-Strategie prüfen',
-        });
-      }
-
-      // 3. Sector concentration
       const sectorWeights = new Map<string, number>();
       for (const h of holdingData) {
         sectorWeights.set(h.sector, (sectorWeights.get(h.sector) || 0) + h.weight);
       }
-      for (const [sector, weight] of Array.from(sectorWeights.entries())) {
-        if (weight > 30 && sector !== 'Cash') {
+      const top5Holdings = holdingData.slice(0, 5).map(h => `${h.ticker} (${h.weight.toFixed(1)}%, ${h.sector})`);
+      const sectorSummary = Array.from(sectorWeights.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([s, w]) => `${s}: ${w.toFixed(1)}%`);
+
+      const portfolioContext = [
+        `Gesamtwert: CHF ${totalValue.toFixed(0)}`,
+        `Cash-Quote: ${cashWeight.toFixed(1)}%`,
+        `Anzahl Positionen: ${holdingData.length}`,
+        `Top 5: ${top5Holdings.join(', ')}`,
+        `Sektoren: ${sectorSummary.join(', ')}`,
+        `Portfolios: ${targetPortfolios.length} (${targetPortfolios.map(p => p.name).join(', ')})`,
+      ].join('\n');
+
+      try {
+        const llmResponse = await invokeLLM({
+          messages: [
+            {
+              role: 'system',
+              content: `Du bist ein Schweizer Finanzberater-Copilot. Analysiere das Portfolio und gib 3-4 konkrete, actionable Empfehlungen auf Deutsch. Jede Empfehlung hat:
+- severity: "positive" (Stärke), "watch" (Risiko/Warnung), oder "info" (neutral/Tipp)
+- title: Kurzer Titel (max 30 Zeichen)
+- body: 1-2 Sätze Erklärung (max 120 Zeichen)
+- action: Button-Text (max 25 Zeichen)
+
+Fokussiere auf:
+1. Diversifikation (Sektor, Region, Einzeltitel-Konzentration)
+2. Cash-Management (zu viel/wenig Liquidität)
+3. Markt-Timing (aktuelle Marktlage berücksichtigen)
+4. Spezifische Handlungsempfehlungen
+
+Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
+            },
+            {
+              role: 'user',
+              content: `Analysiere dieses Portfolio (Stand ${todayStr}):\n${portfolioContext}`
+            }
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'copilot_insights',
+              strict: true,
+              schema: {
+                type: 'object',
+                properties: {
+                  insights: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        severity: { type: 'string', enum: ['positive', 'watch', 'info'] },
+                        title: { type: 'string' },
+                        body: { type: 'string' },
+                        action: { type: 'string' }
+                      },
+                      required: ['severity', 'title', 'body', 'action'],
+                      additionalProperties: false
+                    }
+                  }
+                },
+                required: ['insights'],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        const content = llmResponse.choices?.[0]?.message?.content;
+        if (content) {
+          const parsed = JSON.parse(typeof content === 'string' ? content : '');
+          if (parsed.insights && Array.isArray(parsed.insights)) {
+            for (const insight of parsed.insights.slice(0, 4)) {
+              insights.push({
+                id: `llm-${insights.length}`,
+                severity: insight.severity || 'info',
+                title: insight.title || 'Empfehlung',
+                body: insight.body || '',
+                action: insight.action || 'Details',
+              });
+            }
+          }
+        }
+      } catch (llmError) {
+        console.error('[getCopilotInsights] LLM error, falling back to rules:', llmError);
+        // Fallback to rule-based insights
+        const top3Weight = holdingData.slice(0, 3).reduce((s, h) => s + h.weight, 0);
+        if (top3Weight > 40) {
           insights.push({
-            id: `sector-${sector.toLowerCase()}`,
+            id: 'high-concentration',
             severity: 'watch',
-            title: `${sector}-Übergewicht`,
-            body: `${sector} macht ${weight.toFixed(0)}% aus. Sektor-Risiko beachten.`,
-            action: 'Allokation anpassen',
+            title: 'Hohe Konzentration',
+            body: `Top 3 Positionen machen ${top3Weight.toFixed(0)}% aus. Diversifikation prüfen.`,
+            action: 'Im Optimizer prüfen',
             actionHref: '/portfolio-optimizer',
           });
-          break; // Only one sector warning
+        }
+        if (cashWeight > 15) {
+          insights.push({
+            id: 'high-cash',
+            severity: 'info',
+            title: `Cash-Quote ${cashWeight.toFixed(0)}%`,
+            body: 'Hohe Liquidität — Staffel-Einstieg in defensive Werte möglich.',
+            action: 'Vorschläge anzeigen',
+            actionHref: '/invest',
+          });
+        }
+        for (const [sector, weight] of Array.from(sectorWeights.entries())) {
+          if (weight > 30 && sector !== 'Cash') {
+            insights.push({
+              id: `sector-${sector.toLowerCase()}`,
+              severity: 'watch',
+              title: `${sector}-Übergewicht`,
+              body: `${sector} macht ${weight.toFixed(0)}% aus. Sektor-Risiko beachten.`,
+              action: 'Allokation anpassen',
+              actionHref: '/portfolio-optimizer',
+            });
+            break;
+          }
         }
       }
 
-      // 4. Positive: portfolio count
-      if (targetPortfolios.length >= 2) {
+      // Always add a positive insight if we have multiple portfolios
+      if (targetPortfolios.length >= 2 && !insights.some(i => i.severity === 'positive')) {
         insights.push({
           id: 'multi-portfolio',
           severity: 'positive',

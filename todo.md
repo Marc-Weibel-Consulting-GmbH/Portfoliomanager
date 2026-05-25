@@ -1118,3 +1118,19 @@
 - [x] KPI-Konsistenz: Alle Endpoints unterstützen jetzt Demo-Portfolios mit portfolioData
 - [x] Benchmark-Daten: Fallback auf historical_prices (CHSPI.SW für SMI, ACWI.US für MSCI World)
 - [x] Performance-Berechnung: cashBalance nur nach erster Transaktion / wenn Preisdaten vorhanden
+
+## EODHD Cron-Job für tägliche Preis-Updates (25.05.2026)
+- [x] Cron-Job: Tägliches Nachladen historischer Preise via EODHD API
+- [x] Alle Ticker aus savedPortfolios + stocks Tabelle identifizieren
+- [x] Preise ab letztem vorhandenen Datum bis heute laden (Backfill: 11'889 Preise für 130 Ticker importiert)
+- [x] Bulk-Insert in historical_prices Tabelle
+- [x] Fehlerbehandlung und Logging
+- [x] Heartbeat-Handler implementiert: /api/scheduled/historicalPricesUpdate
+- [ ] Heartbeat-Cron registrieren nach Deploy (0 0 2 * * * = täglich 02:00 UTC)
+
+## LLM-basierte Copilot-Insights (25.05.2026)
+- [x] getCopilotInsights Endpoint mit invokeLLM erweitern
+- [x] Portfolio-Kontext (Holdings, Performance, Risiko) als Prompt aufbereiten
+- [x] Personalisierte Empfehlungen generieren (4 Insights: Sektorkonzentration, Top-Positionen, Cash-Quote, Diversifikation)
+- [ ] Caching der LLM-Antworten (z.B. 1h TTL) - noch nicht implementiert
+- [x] Fallback auf regelbasierte Insights bei LLM-Fehler
