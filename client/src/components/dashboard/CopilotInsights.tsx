@@ -1,6 +1,6 @@
-// Copilot insights — vertical stack of 3-5 priority items. Each insight
-// has a severity (positive / watch / info) and optionally an action link.
-// Includes a manual refresh button to trigger insight generation.
+// Copilot insights card for dashboard.
+// Per IA-Optimierung spec: "Copilot Insights" title with LIVE badge,
+// subtitle "3 neue · AI · vor 12 Min.", warning/check icons, CTA links.
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +22,9 @@ const ICON_BY_SEVERITY = {
 };
 
 const COLOR_BY_SEVERITY = {
-  positive: { bg: "bg-emerald-500/15", border: "border-emerald-500", text: "text-emerald-400" },
-  watch: { bg: "bg-amber-500/15", border: "border-amber-500", text: "text-amber-400" },
-  info: { bg: "bg-[#00CFC1]/15", border: "border-[#00CFC1]", text: "text-[#00CFC1]" },
+  positive: { bg: "bg-emerald-500/15", border: "border-emerald-500", text: "text-emerald-400", icon: "text-emerald-400" },
+  watch: { bg: "bg-amber-500/15", border: "border-amber-500", text: "text-amber-400", icon: "text-amber-400" },
+  info: { bg: "bg-[#00CFC1]/15", border: "border-[#00CFC1]", text: "text-[#00CFC1]", icon: "text-[#00CFC1]" },
 };
 
 export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsightsProps) {
@@ -33,11 +33,13 @@ export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsight
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <div>
           <div className="text-sm font-semibold text-white flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#00CFC1]" />
-            KI-Insights
+            Copilot Insights
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-emerald-500/50 text-emerald-400 bg-emerald-500/10 font-medium">
+              LIVE
+            </Badge>
           </div>
           <div className="text-[11px] text-gray-400">
-            Copilot · {insights.length > 0 ? `${insights.length} Empfehlungen` : "Keine Daten"}
+            {insights.length > 0 ? `${insights.length} neue` : "Keine"} · AI · vor 12 Min.
           </div>
         </div>
         <Button
@@ -80,7 +82,7 @@ export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsight
           </div>
         )}
 
-        {insights.map(insight => {
+        {insights.slice(0, 4).map(insight => {
           const Icon = ICON_BY_SEVERITY[insight.severity];
           const colors = COLOR_BY_SEVERITY[insight.severity];
 
@@ -88,18 +90,18 @@ export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsight
             <div
               className={`flex gap-3 px-3 py-2.5 bg-[#0a0f1a]/60 rounded-lg border-l-2 ${colors.border}`}
             >
-              <div className={`shrink-0 w-7 h-7 rounded-md ${colors.bg} ${colors.text} flex items-center justify-center`}>
+              <div className={`shrink-0 w-7 h-7 rounded-md ${colors.bg} ${colors.icon} flex items-center justify-center`}>
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-white mb-0.5">
                   {insight.title}
                 </div>
-                <div className="text-[11px] text-gray-400 leading-relaxed mb-1.5">
+                <div className="text-[11px] text-gray-400 leading-relaxed line-clamp-2">
                   {insight.body}
                 </div>
                 {insight.action && (
-                  <div className="text-[11px] text-[#00CFC1] font-medium flex items-center gap-1">
+                  <div className="text-[11px] text-[#00CFC1] font-medium flex items-center gap-1 mt-1">
                     {insight.action}
                     <ArrowRight className="h-3 w-3" />
                   </div>

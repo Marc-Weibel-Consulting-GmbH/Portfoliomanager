@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRoute, Link, useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, TrendingUpIcon, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -454,7 +455,24 @@ export default function StockDetail() {
           </div>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Tabs per IA-Optimierung: Übersicht | Signale | Chart & TA | Bewertung | KI-Prognose | Backtest | News */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="flex flex-wrap gap-1 bg-[#1a1f2e] border border-[#00CFC1]/30 p-1 h-auto mb-6">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Übersicht</TabsTrigger>
+            <TabsTrigger value="signals" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
+              Signale <span className="ml-1 text-[10px] opacity-60">{newsData.length || 0}</span>
+            </TabsTrigger>
+            <TabsTrigger value="chart-ta" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Chart & TA</TabsTrigger>
+            <TabsTrigger value="valuation" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Bewertung (DCF)</TabsTrigger>
+            <TabsTrigger value="prediction" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">KI-Prognose</TabsTrigger>
+            <TabsTrigger value="backtest" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Backtest</TabsTrigger>
+            <TabsTrigger value="news" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
+              News <span className="ml-1 text-[10px] opacity-60">{newsData.length || 0}</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Übersicht Tab */}
+          <TabsContent value="overview">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Chart */}
           <div className="lg:col-span-2 space-y-6">
@@ -717,11 +735,144 @@ export default function StockDetail() {
           </div>
         </div>
         
-        {/* TradingView Widgets Section */}
-        <div className="space-y-6">
-          {/* Tab Selector for TradingView Widgets */}
-          <TradingViewSection ticker={ticker} stock={stock} />
-        </div>
+        </TabsContent>
+
+          {/* Signale Tab */}
+          <TabsContent value="signals">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+              <CardHeader>
+                <CardTitle className="text-white">Technische Signale</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400 text-sm mb-4">Aktuelle Kauf-/Verkaufssignale basierend auf technischer Analyse</p>
+                <Link href={`/signals?ticker=${ticker}`}>
+                  <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Signale anzeigen</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Chart & TA Tab */}
+          <TabsContent value="chart-ta">
+            <TradingViewSection ticker={ticker} stock={stock} />
+          </TabsContent>
+
+          {/* Bewertung (DCF) Tab */}
+          <TabsContent value="valuation">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+              <CardHeader>
+                <CardTitle className="text-white">DCF-Bewertung</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 text-sm">KGV</span>
+                      <span className="text-white font-mono">{stock.peRatio || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 text-sm">KBV</span>
+                      <span className="text-white font-mono">{(stock as any).pbRatio || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 text-sm">PEG Ratio</span>
+                      <span className="text-white font-mono">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 text-sm">Div. Rendite</span>
+                      <span className="text-[#00CFC1] font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(2)}%` : '-'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 text-sm">Marktkapitalisierung</span>
+                      <span className="text-white font-mono">{stock.marketCap ? `${currency} ${parseFloat(stock.marketCap).toFixed(1)}B` : '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 text-sm">52W Hoch</span>
+                      <span className="text-white font-mono">{stock.week52High ? `${currency} ${parseFloat(stock.week52High).toFixed(2)}` : '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400 text-sm">52W Tief</span>
+                      <span className="text-white font-mono">{stock.week52Low ? `${currency} ${parseFloat(stock.week52Low).toFixed(2)}` : '-'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 pt-4 border-t border-white/10">
+                  <Link href={`/dcf-valuation?ticker=${ticker}`}>
+                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Vollständige DCF-Analyse</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* KI-Prognose Tab */}
+          <TabsContent value="prediction">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+              <CardHeader>
+                <CardTitle className="text-white">KI-Kursprognose</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400 text-sm mb-4">Machine-Learning-basierte Preisprognose für {stock.companyName}</p>
+                <Link href={`/prediction?ticker=${ticker}`}>
+                  <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Prognose starten</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Backtest Tab */}
+          <TabsContent value="backtest">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+              <CardHeader>
+                <CardTitle className="text-white">Backtest</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400 text-sm mb-4">Historische Strategie-Simulation für {ticker}</p>
+                <Link href={`/backtesting?ticker=${ticker}`}>
+                  <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Backtest starten</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* News Tab */}
+          <TabsContent value="news">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+              <CardContent className="p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">News zu {stock.companyName}</h3>
+                <div className="space-y-3">
+                  {newsData.length > 0 ? (
+                    newsData.map((news: any, index: number) => (
+                      <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                        <Newspaper className="w-4 h-4 text-[#00CFC1] mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                          <a href={news.url} target="_blank" rel="noopener noreferrer" className="text-sm text-white hover:text-[#00CFC1] transition-colors">
+                            {news.title}
+                          </a>
+                          {news.publishedAt && (
+                            <p className="text-xs text-gray-500 mt-1">{new Date(news.publishedAt).toLocaleDateString('de-CH')}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 text-sm">Keine aktuellen News verfügbar</p>
+                  )}
+                </div>
+                <Button 
+                  variant="ghost" 
+                  className="w-full mt-4 text-[#00CFC1] hover:text-[#00b8ad] hover:bg-[#00CFC1]/10"
+                  onClick={() => navigate(`/newsroom?ticker=${ticker}`)}
+                >
+                  Alle News im Newsroom
+                  <ExternalLink className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Add to Portfolio Dialog */}
         {showAddToPortfolio && (

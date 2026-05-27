@@ -1206,3 +1206,31 @@
   - client/src/components/SwissquotePDFImport.tsx: Drag-and-Drop, Review-Step, Checkbox-Auswahl
   - PortfolioTransactionsPage: "PDF importieren" Button integriert
 - [ ] Tests mit echten Swissquote-PDFs (manuell zu validieren)
+
+## IA-Optimierung: Routing-Restrukturierung (27.05.2026)
+- [x] App.tsx: Neue Route-Struktur (6 Top-Level + Sub-Routes)
+  - 6 Hauptrouten: /dashboard, /portfolios, /aktien, /markt, /copilot + /settings
+  - Alte Routen als Redirects beibehalten
+- [x] Dashboard: Scope-Tabs (Aggregiert + pro Portfolio), konsolidiert Home.tsx + LiveTracking
+  - 4 KPI-Karten (Gesamtwert, YTD, Sharpe, Bubble)
+  - 2-Spalten-Layout: Performance-Chart + Allokation
+  - Copilot Insights + Meine Portfolios Karten
+- [x] Portfolio Detail: 7-Tab-Page (Übersicht, Positionen, Transaktionen, Performance, Risiko, Optimieren, AI)
+  - Breadcrumb-Navigation hinzugefügt
+  - Tabs mit Badges (Anzahl Positionen/Transaktionen)
+- [x] Aktien Detail: 7-Tab-Page (Übersicht, Signale, Chart & TA, Bewertung, KI-Prognose, Backtest, News)
+  - Breadcrumb + Action-Buttons (Alarm, Beobachten, Kaufen)
+  - Kennzahlen-Box im Übersicht-Tab
+- [x] Markt-Hub: 6-Tab-Page (Übersicht, Regime, Bull, Heatmap, News, Dividenden-Kalender)
+  - 4 Index-KPIs (SMI, S&P 500, MSCI World, Gold)
+  - TradingView-Widgets für Übersicht/Heatmap
+  - MarketRegimeContent als eigene Komponente extrahiert
+- [x] Copilot: 3-Tab-Page (Insights, Chat, History)
+  - Insights: Weekly Review Karten mit CTAs
+  - Chat: Konversationen-Sidebar + Message-Area
+  - History: Vergangene Konversationen
+- [x] Alte Routen aufgeräumt und Sidebar finalisiert
+  - DashboardLayout: 6 Haupteinträge + Tools-Gruppe + Einstellungen + Admin
+  - Aktiver State mit Teal-Highlight
+- [x] Live-Test aller Navigationen und Tab-Wechsel
+  - Dashboard, Markt-Hub, Copilot, Portfolio-Detail verifiziert

@@ -1,6 +1,6 @@
-// Performance vs. benchmarks — recharts AreaChart for the portfolio
-// series, two Line overlays for SMI and MSCI World. Range switcher uses
-// shadcn Tabs (segmented control style).
+// Performance chart — recharts ComposedChart with Area for portfolio
+// and Line overlays for SMI and MSCI World.
+// Per IA-Optimierung spec: title "Performance", subtitle "Portfolio · SMI · MSCI World"
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,15 +24,15 @@ interface PerformanceChartProps {
   onRangeChange: (range: RangeKey) => void;
 }
 
-const RANGES: RangeKey[] = ["1T", "1M", "YTD", "1J", "3J", "5J", "Max"];
+const RANGES: RangeKey[] = ["1T", "1M", "YTD", "1J", "Max"];
 
 export function PerformanceChart({ data, range, onRangeChange }: PerformanceChartProps) {
   return (
     <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <div>
-          <div className="text-sm font-semibold text-white">Performance vs. Benchmarks</div>
-          <div className="text-[11px] text-gray-400">TTWROR Portfolio · SMI · MSCI World</div>
+          <div className="text-sm font-semibold text-white">Performance</div>
+          <div className="text-[11px] text-gray-400">Portfolio · SMI · MSCI World</div>
         </div>
         <Tabs value={range} onValueChange={v => onRangeChange(v as RangeKey)}>
           <TabsList className="bg-[#0a0f1a] border border-white/10 h-8">

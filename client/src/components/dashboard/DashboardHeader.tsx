@@ -1,9 +1,8 @@
-// Dashboard header — title, date, scope (aggregate vs single portfolio).
-// Shows all portfolios (live and demo) in the selector.
+// Dashboard header — DASHBOARD label, greeting, date, scope selector.
+// Per IA-Optimierung spec: small label, title, subtitle, tabs top-right.
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { formatDate } from "./format";
 import type { ScopeId } from "./types";
 
 interface DashboardHeaderProps {
@@ -15,17 +14,22 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ scope, onScopeChange, portfolios }: DashboardHeaderProps) {
   const { user } = useAuth();
   const scopeStr = scope === "aggregate" ? "aggregate" : String(scope);
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
       <div>
-        <div className="flex items-center gap-2 mb-1 text-[11px] uppercase tracking-wider text-gray-400">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <span>Live · {formatDate()}</span>
+        <div className="text-[10px] uppercase tracking-widest text-[#00CFC1]/70 font-semibold mb-1">
+          Dashboard
         </div>
         <h1 className="text-2xl font-semibold text-white">
           Willkommen zurück, {user?.name?.split(" ")[0] ?? "Marc"}
         </h1>
+        <p className="text-[12px] text-gray-400 mt-0.5">
+          Aggregiert über alle Live-Portfolios · Daten von heute, {timeStr}
+        </p>
       </div>
 
       {portfolios.length > 0 && (

@@ -892,12 +892,20 @@ export default function PortfolioDetailsPage() {
           </div>
         </div>
         
-        {/* Tabs Section */}
+        {/* Tabs Section — 7 tabs per IA-Optimierung spec */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-[#1a1f2e] border border-[#00CFC1]/30">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]">Übersicht</TabsTrigger>
-            <TabsTrigger value="realized-gains" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]">Realisierte Gewinne</TabsTrigger>
-            <TabsTrigger value="costs-fees" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1]">Kosten & Gebühren</TabsTrigger>
+          <TabsList className="flex flex-wrap gap-1 bg-[#1a1f2e] border border-[#00CFC1]/30 p-1 h-auto">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Übersicht</TabsTrigger>
+            <TabsTrigger value="positions" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
+              Positionen <span className="ml-1 text-[10px] opacity-60">{holdings.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
+              Transaktionen <span className="ml-1 text-[10px] opacity-60">{transactions.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="performance" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Performance</TabsTrigger>
+            <TabsTrigger value="risk" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Risiko</TabsTrigger>
+            <TabsTrigger value="optimize" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Optimieren</TabsTrigger>
+            <TabsTrigger value="ai" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">AI</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="mt-6">
@@ -1044,28 +1052,217 @@ export default function PortfolioDetailsPage() {
             </Card>
           </TabsContent>
           
-          <TabsContent value="realized-gains" className="mt-6">
-            {realizedGains.length > 0 ? (
-              <RealizedGainsTable gains={realizedGains} />
-            ) : (
+          {/* Positions Tab — inline holdings table */}
+          <TabsContent value="positions" className="mt-6">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-white">Positionen ({holdings.length})</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 text-xs">
+                  <Edit className="h-3 w-3 mr-1" /> Bearbeiten
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-white/10">
+                      <tr className="text-gray-400 text-xs">
+                        <th className="text-left p-2">Ticker</th>
+                        <th className="text-left p-2">Name</th>
+                        <th className="text-right p-2">Stk.</th>
+                        <th className="text-right p-2">Kurs</th>
+                        <th className="text-right p-2">Wert (CHF)</th>
+                        <th className="text-right p-2">YTD</th>
+                        <th className="text-right p-2">Gewicht</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holdings.map((h: any) => (
+                        <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="p-2">
+                            <Link href={`/stock/${h.ticker}?from=${portfolioId}`}>
+                              <span className="text-[#00CFC1] font-semibold hover:underline cursor-pointer text-xs">{h.ticker}</span>
+                            </Link>
+                          </td>
+                          <td className="p-2 text-gray-300 text-xs truncate max-w-[120px]">{h.companyName}</td>
+                          <td className="text-right p-2 text-white text-xs">{h.shares ? parseFloat(h.shares).toFixed(0) : '-'}</td>
+                          <td className="text-right p-2 text-white text-xs">{formatCurrency(h.currentPriceCHF || 0, 'CHF')}</td>
+                          <td className="text-right p-2 text-white font-semibold text-xs">{formatCurrency((h.shares || 0) * (h.currentPriceCHF || 0), 'CHF')}</td>
+                          <td className="text-right p-2 text-xs">
+                            <span className={parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                              {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="text-right p-2 text-gray-400 text-xs">{parseFloat(h.weight || '0').toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions" className="mt-6">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-white">Transaktionen ({transactions.length})</CardTitle>
+                <Link href={`/portfolio/${portfolioId}/transactions`}>
+                  <Button variant="outline" size="sm" className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 text-xs">
+                    Alle anzeigen
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {transactions.length === 0 ? (
+                  <p className="text-gray-400 text-center py-4">Keine Transaktionen vorhanden</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="border-b border-white/10">
+                        <tr className="text-gray-400 text-xs">
+                          <th className="text-left p-2">Datum</th>
+                          <th className="text-left p-2">Typ</th>
+                          <th className="text-left p-2">Ticker</th>
+                          <th className="text-right p-2">Stk.</th>
+                          <th className="text-right p-2">Preis</th>
+                          <th className="text-right p-2">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactions.slice(0, 20).map((t: any) => (
+                          <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
+                            <td className="p-2 text-gray-400 text-xs">{new Date(t.date || t.transactionDate).toLocaleDateString('de-CH')}</td>
+                            <td className="p-2 text-xs">
+                              <Badge variant="outline" className={`text-[9px] ${t.type === 'BUY' ? 'border-emerald-500/50 text-emerald-400' : 'border-red-500/50 text-red-400'}`}>
+                                {t.type === 'BUY' ? 'Kauf' : t.type === 'SELL' ? 'Verkauf' : t.type}
+                              </Badge>
+                            </td>
+                            <td className="p-2 text-[#00CFC1] text-xs font-semibold">{t.ticker}</td>
+                            <td className="text-right p-2 text-white text-xs">{t.shares || t.quantity || '-'}</td>
+                            <td className="text-right p-2 text-gray-300 text-xs">{formatCurrency(t.price || t.pricePerShare || 0, t.currency || 'CHF')}</td>
+                            <td className="text-right p-2 text-white text-xs font-semibold">{formatCurrency((t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), t.currency || 'CHF')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {transactions.length > 20 && (
+                      <div className="text-center mt-3">
+                        <Link href={`/portfolio/${portfolioId}/transactions`}>
+                          <Button variant="ghost" size="sm" className="text-[#00CFC1] text-xs">+ {transactions.length - 20} weitere anzeigen</Button>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Performance Tab — TTWROR/IRR details */}
+          <TabsContent value="performance" className="mt-6">
+            <div className="grid md:grid-cols-2 gap-4">
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardContent className="pt-6">
-                  <p className="text-gray-400 text-center">Keine realisierten Gewinne vorhanden</p>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">TTWROR (Zeitgewichtet)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold font-mono text-white">
+                    {perfMetrics ? `${(perfMetrics.ttwror * 100).toFixed(2)}%` : '–'}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">True Time-Weighted Rate of Return · Bereinigt um Ein-/Auszahlungen</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">IRR (Geldgewichtet)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold font-mono text-white">
+                    {perfMetrics ? `${(perfMetrics.irr * 100).toFixed(2)}%` : '–'}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Internal Rate of Return · Persönliche Rendite inkl. Timing</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">Absoluter Gewinn</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-3xl font-bold font-mono ${(perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {perfMetrics ? formatCurrency(perfMetrics.absoluteGainCHF, 'CHF') : '–'}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Realisiert + Unrealisiert</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">Realisierte Gewinne</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {realizedGains.length > 0 ? (
+                    <RealizedGainsTable gains={realizedGains} />
+                  ) : (
+                    <p className="text-gray-400 text-sm">Keine realisierten Gewinne</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            {transactions.length > 0 && (
+              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30 mt-4">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-gray-400">Kosten & Gebühren</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CostFeesReport transactions={transactions} portfolioId={portfolioId} />
                 </CardContent>
               </Card>
             )}
           </TabsContent>
-          
-          <TabsContent value="costs-fees" className="mt-6">
-            {transactions.length > 0 ? (
-              <CostFeesReport transactions={transactions} portfolioId={portfolioId} />
-            ) : (
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardContent className="pt-6">
-                  <p className="text-gray-400 text-center">Keine Transaktionen vorhanden</p>
-                </CardContent>
-              </Card>
-            )}
+
+          {/* Risk Tab — placeholder for risk dashboard integration */}
+          <TabsContent value="risk" className="mt-6">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <div className="text-lg font-semibold text-white mb-2">Risikoanalyse</div>
+                  <p className="text-gray-400 text-sm mb-4">Detaillierte Risikokennzahlen für dieses Portfolio</p>
+                  <Link href="/risk-dashboard">
+                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Risk-Dashboard</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Optimize Tab — placeholder for optimizer integration */}
+          <TabsContent value="optimize" className="mt-6">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <div className="text-lg font-semibold text-white mb-2">Portfolio-Optimierung</div>
+                  <p className="text-gray-400 text-sm mb-4">Markowitz-Optimierung und Rebalancing-Vorschläge</p>
+                  <Link href="/portfolio-optimizer">
+                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Optimizer</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* AI Tab — placeholder for copilot integration */}
+          <TabsContent value="ai" className="mt-6">
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <div className="text-lg font-semibold text-white mb-2">AI-Analyse</div>
+                  <p className="text-gray-400 text-sm mb-4">KI-gestützte Insights und Empfehlungen für dieses Portfolio</p>
+                  <Link href="/copilot">
+                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Copilot</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
         
