@@ -1234,3 +1234,9 @@
   - Aktiver State mit Teal-Highlight
 - [x] Live-Test aller Navigationen und Tab-Wechsel
   - Dashboard, Markt-Hub, Copilot, Portfolio-Detail verifiziert
+
+## Visual Design Improvements (27.05.2026)
+- [x] Sidebar Active State: Teal-tinted background for active menu items
+- [x] Sidebar Footer: Premium badge next to username
+- [x] Copilot Insights CTAs: Proper teal outline buttons with border (Dashboard + CopilotHub)
+- [x] Dark mode sidebar accent color updated to teal-tinted hue

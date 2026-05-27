@@ -191,9 +191,9 @@ function InsightCard({ insight }: { insight: any }) {
         </div>
         {insight.action && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 p-0 h-auto text-xs"
+            className="text-[#00CFC1] border-[#00CFC1]/40 bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 hover:text-[#00CFC1] text-xs h-7 px-3 mt-1"
           >
             <ArrowRight className="w-3 h-3 mr-1" />
             {insight.action}

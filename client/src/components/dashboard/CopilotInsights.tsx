@@ -101,9 +101,11 @@ export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsight
                   {insight.body}
                 </div>
                 {insight.action && (
-                  <div className="text-[11px] text-[#00CFC1] font-medium flex items-center gap-1 mt-1">
-                    {insight.action}
-                    <ArrowRight className="h-3 w-3" />
+                  <div className="mt-2">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#00CFC1] bg-[#00CFC1]/10 border border-[#00CFC1]/30 px-2.5 py-1 rounded-md hover:bg-[#00CFC1]/20 transition-colors">
+                      <ArrowRight className="h-3 w-3" />
+                      {insight.action}
+                    </span>
                   </div>
                 )}
               </div>

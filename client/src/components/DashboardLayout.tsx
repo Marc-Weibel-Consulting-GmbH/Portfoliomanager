@@ -289,7 +289,7 @@ function DashboardLayoutContent({
                         isActive={isActive}
                         onClick={() => setLocation(item.path)}
                         tooltip={item.label}
-                        className="h-10 transition-all font-normal flex-1"
+                        className={`h-10 transition-all font-normal flex-1 ${isActive ? 'bg-[#00CFC1]/15 text-[#00CFC1] font-medium border border-[#00CFC1]/20' : ''}`}
                       >
                         <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
                         <span>{item.label}</span>
@@ -400,19 +400,19 @@ function DashboardLayoutContent({
           <SidebarFooter className="p-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-9 w-9 border shrink-0">
-                    <AvatarFallback className="text-xs font-medium">
-                      {user?.name?.charAt(0).toUpperCase()}
+                <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/60 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="h-9 w-9 shrink-0 bg-[#00CFC1]/20 border-[#00CFC1]/40 border">
+                    <AvatarFallback className="text-xs font-semibold text-[#00CFC1] bg-transparent">
+                      {(user?.name || user?.username || 'U').substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-xs text-muted-foreground truncate leading-none mb-1">
-                      Eingeloggt als:
-                    </p>
-                    <p className="text-sm font-medium truncate leading-none">
+                    <p className="text-sm font-medium truncate leading-none text-foreground">
                       {user?.username || user?.name || user?.email || "-"}
                     </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Premium</span>
+                    </div>
                   </div>
                 </button>
               </DropdownMenuTrigger>
