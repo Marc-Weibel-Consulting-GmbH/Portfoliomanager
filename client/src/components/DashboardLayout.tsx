@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Calendar, LineChart, Signal, Database, Calculator, Settings, Mail, Briefcase, Activity, Grid3x3, PieChart, Bell, Zap, FolderKanban, BarChart3, Sparkles, FileText, Shield, Key, ChevronDown, ChevronRight, Receipt, ShieldAlert, Search, Eye, Brain, Globe, Wallet, Target, Gauge, Wrench, Droplets } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, FileText, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -33,71 +33,35 @@ import { Button } from "./ui/button";
 import TrustpilotMini from "./trustpilot/TrustpilotMini";
 import { FloatingChatButton } from "./FloatingChatButton";
 
-// Grouped navigation: 3 main categories + Tools
+// New flat sidebar structure from design handoff (6 top-level items)
 type NavItem = { icon: any; label: string; path: string };
 type NavGroup = { icon: any; label: string; items: NavItem[] };
 
 const topLevelItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Wallet, label: "Portfolios", path: "/portfolios" },
+  { icon: TrendingUp, label: "Aktien", path: "/invest" },
+  { icon: Globe, label: "Markt", path: "/market-regime" },
+  { icon: Brain, label: "Copilot", path: "/copilot" },
 ];
 
-const menuGroups: NavGroup[] = [
-  {
-    icon: Globe,
-    label: "Markt",
-    items: [
-      { icon: Gauge, label: "Regime-Dashboard", path: "/market-regime" },
-      { icon: Globe, label: "Marktüberblick", path: "/market-overview" },
-      { icon: Grid3x3, label: "Sektor-Heatmap", path: "/sector-heatmap" },
-      { icon: Grid3x3, label: "Markt-Heatmap", path: "/market-heatmap" },
-    ],
-  },
-  {
-    icon: Wallet,
-    label: "Portfolio",
-    items: [
-      { icon: FolderKanban, label: "Übersicht", path: "/portfolios" },
-      { icon: PieChart, label: "Optimierung", path: "/portfolio-optimizer" },
-      { icon: Receipt, label: "Transaktionen", path: "/transactions" },
-      { icon: FileText, label: "Performance & Reports", path: "/reports" },
-      { icon: TrendingUp, label: "Dividenden-Kalender", path: "/dividends" },
-      { icon: ShieldAlert, label: "Risiko-Analyse", path: "/risk-dashboard" },
-      { icon: Brain, label: "Portfolio Copilot", path: "/copilot" },
-    ],
-  },
-  {
-    icon: Target,
-    label: "Einzeltitel-Analyse",
-    items: [
-      { icon: Search, label: "Aktien suchen", path: "/invest" },
-      { icon: Zap, label: "Signale & Scores", path: "/signals" },
-      { icon: Activity, label: "Technische Analyse", path: "/technical-analysis" },
-      { icon: Calculator, label: "DCF-Bewertung", path: "/dcf-valuation" },
-      { icon: Brain, label: "KI-Prognose", path: "/prediction" },
-      { icon: LineChart, label: "Backtesting", path: "/backtesting" },
-    ],
-  },
-  {
-    icon: Wrench,
-    label: "Tools",
-    items: [
-      { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
-      { icon: Calculator, label: "Rechner", path: "/rechner" },
-    ],
-  },
-  {
-    icon: Settings,
-    label: "Einstellungen",
-    items: [
-      { icon: Settings, label: "Einstellungen", path: "/einstellungen" },
-    ],
-  },
-];
+const toolsGroup: NavGroup = {
+  icon: Wrench,
+  label: "Tools",
+  items: [
+    { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
+    { icon: Calculator, label: "Rechner", path: "/rechner" },
+    { icon: FileText, label: "Import", path: "/import" },
+  ],
+};
+
+const settingsItem: NavItem = { icon: Settings, label: "Einstellungen", path: "/einstellungen" };
 
 // Flat list for backwards compat (mobile header, active detection)
 const menuItems: NavItem[] = [
   ...topLevelItems,
-  ...menuGroups.flatMap(g => g.items),
+  ...toolsGroup.items,
+  settingsItem,
 ];
 
 const adminMenuItems = [
@@ -107,7 +71,7 @@ const adminMenuItems = [
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 280;
+const DEFAULT_WIDTH = 260;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;
 
@@ -131,11 +95,8 @@ export default function DashboardLayout({
   }, [sidebarWidth]);
 
   // Redirect to onboarding only if user hasn't completed registration
-  // Users who have completed registration but not onboarding can skip onboarding
   useEffect(() => {
     if (user && onboardingStatus !== undefined && !onboardingStatus.hasCompletedOnboarding && location !== "/onboarding") {
-      // Only redirect to onboarding if user hasn't completed registration
-      // This means they are truly new users who need to go through the onboarding flow
       if (!user.hasCompletedRegistration) {
         setLocation("/onboarding");
       }
@@ -211,24 +172,25 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
-  
+
+  // Active detection: match top-level items or their sub-paths
+  const activeMenuItem = menuItems.find(item =>
+    location === item.path || location.startsWith(item.path + '/')
+  ) ?? topLevelItems[0];
+
   // Fetch portfolios for sidebar submenu
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
-  
-  // State for collapsible group menus
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    menuGroups.forEach(g => {
-      initial[g.label] = g.items.some(i => location.startsWith(i.path));
-    });
-    return initial;
-  });
-  const toggleGroup = (label: string) => setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
-  
+
+  // State for tools group
+  const [toolsOpen, setToolsOpen] = useState(
+    toolsGroup.items.some(i => location === i.path || location.startsWith(i.path + '/'))
+  );
+
   // State for portfolio submenu
-  const [isSubmenuOpen, setIsSubmenuOpen] = useState(true);
+  const [portfolioSubmenuOpen, setPortfolioSubmenuOpen] = useState(
+    location.startsWith('/portfolios')
+  );
 
   useEffect(() => {
     if (isCollapsed) {
@@ -239,7 +201,6 @@ function DashboardLayoutContent({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-
       const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
       const newWidth = e.clientX - sidebarLeft;
       if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
@@ -315,131 +276,123 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {/* Top-level: Dashboard */}
+              {/* Top-level navigation items */}
               {topLevelItems.map(item => {
-                const isActive = location === item.path;
+                const isActive = location === item.path || location.startsWith(item.path + '/');
+                const isPortfolios = item.path === '/portfolios';
+                const showPortfolioSubmenu = isPortfolios && portfolios.length > 0 && !isCollapsed;
+
                 return (
                   <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      onClick={() => setLocation(item.path)}
-                      tooltip={item.label}
-                      className="h-10 transition-all font-normal"
-                    >
-                      <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-
-              {/* Grouped navigation sections */}
-              {menuGroups.map(group => {
-                const isGroupOpen = openGroups[group.label] ?? false;
-                const hasActiveChild = group.items.some(i => location === i.path || location.startsWith(i.path + '/'));
-                const GroupIcon = group.icon;
-                return (
-                  <SidebarMenuItem key={group.label}>
-                    <SidebarMenuButton
-                      onClick={() => toggleGroup(group.label)}
-                      tooltip={group.label}
-                      className={`h-10 transition-all font-medium ${hasActiveChild ? 'text-primary' : ''}`}
-                    >
-                      <GroupIcon className={`h-4 w-4 ${hasActiveChild ? "text-primary" : "text-muted-foreground"}`} />
-                      <span>{group.label}</span>
-                      {!isCollapsed && (
-                        <ChevronRight className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isGroupOpen ? 'rotate-90' : ''}`} />
+                    <div className="flex items-center">
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        onClick={() => setLocation(item.path)}
+                        tooltip={item.label}
+                        className="h-10 transition-all font-normal flex-1"
+                      >
+                        <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                      {isPortfolios && portfolios.length > 0 && !isCollapsed && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPortfolioSubmenuOpen(!portfolioSubmenuOpen); }}
+                          className="h-8 w-6 flex items-center justify-center hover:bg-accent rounded transition-colors mr-1"
+                        >
+                          <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${portfolioSubmenuOpen ? '' : '-rotate-90'}`} />
+                        </button>
                       )}
-                    </SidebarMenuButton>
-                    {isGroupOpen && !isCollapsed && (
+                    </div>
+                    {/* Portfolio submenu */}
+                    {showPortfolioSubmenu && portfolioSubmenuOpen && (
                       <SidebarMenuSub>
-                        {group.items.map(item => {
-                          const isActive = location === item.path;
-                          const isPortfolioPage = location.startsWith('/portfolios/') && item.path === '/portfolios';
-                          const showPortfolios = item.path === '/portfolios' && portfolios.length > 0;
-                          const ItemIcon = item.icon;
-                          return (
-                            <SidebarMenuSubItem key={item.path}>
-                              <div className="flex items-center">
-                                <SidebarMenuSubButton
-                                  isActive={isActive || isPortfolioPage}
-                                  onClick={() => setLocation(item.path)}
-                                  className="text-sm flex-1"
-                                >
-                                  <ItemIcon className={`h-3.5 w-3.5 ${isActive || isPortfolioPage ? "text-primary" : ""}`} />
-                                  <span>{item.label}</span>
-                                </SidebarMenuSubButton>
-                                {showPortfolios && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); setIsSubmenuOpen(!isSubmenuOpen); }}
-                                    className="h-8 w-6 flex items-center justify-center hover:bg-accent rounded transition-colors"
-                                  >
-                                    <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${isSubmenuOpen ? '' : '-rotate-90'}`} />
-                                  </button>
-                                )}
-                              </div>
-                              {showPortfolios && isSubmenuOpen && (
-                                <SidebarMenuSub>
-                                  {portfolios.slice(0, 6).map((portfolio: any) => (
-                                    <SidebarMenuSubItem key={portfolio.id}>
-                                      <SidebarMenuSubButton
-                                        isActive={location === `/portfolios/${portfolio.id}`}
-                                        onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
-                                        className="text-xs"
-                                      >
-                                        <span className="truncate flex items-center gap-1.5">
-                                          {portfolio.name}
-                                          {!!portfolio.isLive && <span className="text-[9px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1 py-0.5 rounded">Live</span>}
-                                        </span>
-                                      </SidebarMenuSubButton>
-                                    </SidebarMenuSubItem>
-                                  ))}
-                                </SidebarMenuSub>
-                              )}
-                            </SidebarMenuSubItem>
-                          );
-                        })}
+                        {portfolios.slice(0, 6).map((portfolio: any) => (
+                          <SidebarMenuSubItem key={portfolio.id}>
+                            <SidebarMenuSubButton
+                              isActive={location === `/portfolios/${portfolio.id}`}
+                              onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
+                              className="text-xs"
+                            >
+                              <span className="truncate flex items-center gap-1.5">
+                                {portfolio.name}
+                                {!!portfolio.isLive && <span className="text-[9px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1 py-0.5 rounded">Live</span>}
+                              </span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
                       </SidebarMenuSub>
                     )}
                   </SidebarMenuItem>
                 );
               })}
 
+              {/* Divider */}
+              <div className="my-2 border-t border-border/50" />
+
+              {/* Tools group */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setToolsOpen(!toolsOpen)}
+                  tooltip="Tools"
+                  className={`h-10 transition-all font-normal ${toolsGroup.items.some(i => location === i.path) ? 'text-primary' : ''}`}
+                >
+                  <Wrench className={`h-4 w-4 ${toolsGroup.items.some(i => location === i.path) ? "text-primary" : "text-muted-foreground"}`} />
+                  <span>Tools</span>
+                  {!isCollapsed && (
+                    <ChevronRight className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${toolsOpen ? 'rotate-90' : ''}`} />
+                  )}
+                </SidebarMenuButton>
+                {toolsOpen && !isCollapsed && (
+                  <SidebarMenuSub>
+                    {toolsGroup.items.map(item => {
+                      const isActive = location === item.path;
+                      const ItemIcon = item.icon;
+                      return (
+                        <SidebarMenuSubItem key={item.path}>
+                          <SidebarMenuSubButton
+                            isActive={isActive}
+                            onClick={() => setLocation(item.path)}
+                            className="text-sm"
+                          >
+                            <ItemIcon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : ""}`} />
+                            <span>{item.label}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      );
+                    })}
+                  </SidebarMenuSub>
+                )}
+              </SidebarMenuItem>
+
+              {/* Settings */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={location === settingsItem.path || location.startsWith(settingsItem.path + '/')}
+                  onClick={() => setLocation(settingsItem.path)}
+                  tooltip={settingsItem.label}
+                  className="h-10 transition-all font-normal"
+                >
+                  <Settings className={`h-4 w-4 ${location === settingsItem.path ? "text-primary" : ""}`} />
+                  <span>{settingsItem.label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               {/* Admin section */}
               {user?.role === 'admin' && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => toggleGroup('Admin')}
-                    tooltip="Admin"
-                    className={`h-10 transition-all font-medium ${location.startsWith('/admin') ? 'text-primary' : ''}`}
-                  >
-                    <Shield className={`h-4 w-4 ${location.startsWith('/admin') ? "text-primary" : "text-muted-foreground"}`} />
-                    <span>Admin</span>
-                    {!isCollapsed && (
-                      <ChevronRight className={`ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${openGroups['Admin'] ? 'rotate-90' : ''}`} />
-                    )}
-                  </SidebarMenuButton>
-                  {openGroups['Admin'] && !isCollapsed && (
-                    <SidebarMenuSub>
-                      {adminMenuItems.map(item => {
-                        const isActive = location === item.path;
-                        const ItemIcon = item.icon;
-                        return (
-                          <SidebarMenuSubItem key={item.path}>
-                            <SidebarMenuSubButton
-                              isActive={isActive}
-                              onClick={() => setLocation(item.path)}
-                              className="text-sm"
-                            >
-                              <ItemIcon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : ""}`} />
-                              <span>{item.label}</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        );
-                      })}
-                    </SidebarMenuSub>
-                  )}
-                </SidebarMenuItem>
+                <>
+                  <div className="my-2 border-t border-border/50" />
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setLocation('/admin')}
+                      tooltip="Admin"
+                      isActive={location.startsWith('/admin')}
+                      className={`h-10 transition-all font-normal ${location.startsWith('/admin') ? 'text-primary' : ''}`}
+                    >
+                      <Shield className={`h-4 w-4 ${location.startsWith('/admin') ? "text-primary" : "text-muted-foreground"}`} />
+                      <span>Admin</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
               )}
             </SidebarMenu>
           </SidebarContent>
@@ -469,7 +422,7 @@ function DashboardLayoutContent({
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>Abmelden</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -501,7 +454,7 @@ function DashboardLayoutContent({
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>
-        
+
         {/* Trustpilot Footer */}
         <footer className="border-t border-slate-700 bg-slate-900 p-4">
           <div className="max-w-7xl mx-auto">
@@ -509,7 +462,7 @@ function DashboardLayoutContent({
           </div>
         </footer>
       </SidebarInset>
-      
+
       {/* Floating Chat Button */}
       <FloatingChatButton />
     </>
