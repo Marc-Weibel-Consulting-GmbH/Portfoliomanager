@@ -368,697 +368,292 @@ export default function PortfolioDetailsPage() {
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Dashboard
-            </Button>
-            
-            {/* Portfolio Switcher */}
-            {allPortfolios && allPortfolios.length > 1 && (
-              <Select value={portfolioId.toString()} onValueChange={handlePortfolioSwitch}>
-                <SelectTrigger className="w-64">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {allPortfolios.map((p) => (
-                    <SelectItem key={p.id} value={p.id.toString()}>
-                      <div className="flex items-center gap-2">
-                        <span>{p.name}</span>
-                        {p.isLive === 1 && (
-                          <Badge variant="default" className="bg-green-500 text-white text-xs">Live</Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            {/* Aktivierungs-Button nur für Demo-Portfolios */}
-            {isDemo && (
-              <Button 
-                size="sm" 
-                onClick={() => setIsActivationModalOpen(true)}
-                className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Portfolio aktivieren
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setIsSettingsModalOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Einstellungen
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Positionen
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsShareDialogOpen(true)}>
-              <Share2 className="h-4 w-4 mr-2" />
-              Teilen
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleDeleteClick}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Löschen
-            </Button>
-          </div>
-        </div>
-        
-        {/* Portfolio Title & Info */}
+        {/* Header — matches design PDF: breadcrumb + title + subtitle + action buttons */}
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+            <button onClick={() => navigate('/portfolios')} className="hover:text-[#00CFC1] transition-colors">Portfolios</button>
+            <span>›</span>
+            <span className="text-gray-300">{portfolio.name}</span>
             {portfolio.isLive === 1 && (
-              <Badge variant="default" className="bg-green-500 text-white">
-                <span className="relative flex h-2 w-2 mr-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5 py-0 h-4">
+                <span className="relative flex h-1.5 w-1.5 mr-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-400"></span>
                 </span>
-                Live
-              </Badge>
-            )}
-            {typeConfig && (
-              <Badge variant="outline" className="flex items-center gap-1">
-                {typeConfig.icon}
-                {typeConfig.label}
+                LIVE
               </Badge>
             )}
           </div>
-          {portfolio.description && (
-            <p className="text-gray-400">{portfolio.description}</p>
-          )}
-          <p className="text-sm text-gray-500 mt-1">
-            Erstellt: {formatDate(portfolio.createdAt)} · Aktualisiert: {formatDate(portfolio.updatedAt)}
-          </p>
+
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
+              <p className="text-sm text-gray-400 mt-1">
+                {typeConfig?.label || 'Portfolio'} · {holdings.length} Positionen
+                {portfolio.createdAt && ` · seit ${new Date(portfolio.createdAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isDemo && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsActivationModalOpen(true)}
+                  className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Aktivieren
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
+                + Position
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsSettingsModalOpen(true)}>
+                <Edit className="h-4 w-4 mr-1" />
+                Bearbeiten
+              </Button>
+              <Button size="sm" className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
+                Optimieren
+              </Button>
+            </div>
+          </div>
         </div>
-        
-        {/* Performance Overview */}
-        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Chart */}
-              <div className="lg:col-span-2">
-                <div className="flex flex-col gap-3 mb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold text-white">Portfolio-Wertentwicklung</h3>
-                      {/* Performance Badge */}
-                      {chartData.data.length > 0 && (() => {
-                        const lastPoint = chartData.data[chartData.data.length - 1];
-                        const performance = lastPoint?.portfolio || 0;
-                        return (
-                          <div className={`px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 ${
-                            performance >= 0 
-                              ? 'bg-emerald-500/20 text-emerald-400' 
-                              : 'bg-red-500/20 text-red-400'
-                          }`}>
-                            <span>{performance >= 0 ? '↗' : '↘'}</span>
-                            <span>{performance >= 0 ? '+' : ''}{performance.toFixed(2)}%</span>
-                            <span className="text-xs opacity-70">({selectedPeriod})</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
+
+        {/* Portfolio Switcher — compact */}
+        {allPortfolios && allPortfolios.length > 1 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Portfolio wechseln:</span>
+            <Select value={portfolioId.toString()} onValueChange={handlePortfolioSwitch}>
+              <SelectTrigger className="w-48 h-7 text-xs bg-[#1a1f2e] border-white/10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1f2e] border-white/10">
+                {allPortfolios.map((p) => (
+                  <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">Benchmark:</span>
-                      <Select value={selectedBenchmark} onValueChange={setSelectedBenchmark}>
-                        <SelectTrigger className="w-[140px] h-8 bg-[#0f1420] border-white/10 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1a1f2e] border-white/10">
-                          {benchmarkOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-white hover:bg-white/10">
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <span>{p.name}</span>
+                      {p.isLive === 1 && (
+                        <Badge variant="default" className="bg-green-500 text-white text-[9px] px-1 py-0">Live</Badge>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {["1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "All"].map((period) => (
-                      <Button
-                        key={period}
-                        variant={selectedPeriod === period ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setSelectedPeriod(period)}
-                        className={selectedPeriod === period ? "bg-[#00CFC1] text-black" : "text-gray-400"}
-                      >
-                        {period}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="h-64 bg-[#0f1420]/50 rounded-lg">
-                  {isLoadingHistory ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">Lade Kursdaten...</p>
-                    </div>
-                  ) : chartData.data.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">Keine historischen Daten verfügbar</p>
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData.data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#00CFC1" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#00CFC1" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#666" 
-                          fontSize={11} 
-                          tickLine={false}
-                          axisLine={{ stroke: '#333' }}
-                        />
-                        <YAxis 
-                          stroke="#666" 
-                          fontSize={11} 
-                          tickFormatter={(v) => `${v.toFixed(0)}%`}
-                          tickLine={false}
-                          axisLine={false}
-                          domain={['auto', 'auto']}
-                        />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px' }}
-                          labelStyle={{ color: '#fff' }}
-                          formatter={(value: number, name: string) => [
-                            `${value.toFixed(2)}%`, 
-                            name === 'portfolio' ? portfolio.name : benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark'
-                          ]}
-                        />
-                        <RechartsLegend 
-                          verticalAlign="bottom" 
-                          height={36}
-                          formatter={(value: string) => {
-                            if (value === 'portfolio') return portfolio.name;
-                            if (value === 'benchmark') return benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
-                            return value;
-                          }}
-                          wrapperStyle={{ paddingTop: '10px' }}
-                        />
-                        {/* Hypothetical performance (before creation date) - dashed line */}
-                        {chartData.hasHypothetical && (
-                          <Area 
-                            type="monotone" 
-                            dataKey="hypothetical" 
-                            name="hypothetical" 
-                            stroke="rgba(0, 207, 193, 0.5)" 
-                            strokeWidth={2}
-                            strokeDasharray="5 5"
-                            fill="none"
-                            connectNulls={false}
-                          />
-                        )}
-                        {/* Real performance (after creation date) - solid line */}
-                        <Area 
-                          type="monotone" 
-                          dataKey="portfolio" 
-                          name="portfolio" 
-                          stroke="#00CFC1" 
-                          strokeWidth={2}
-                          fill="url(#portfolioGradient)"
-                          connectNulls={false}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="benchmark" 
-                          name="benchmark" 
-                          stroke="#6366f1" 
-                          strokeWidth={1.5}
-                          fill="none"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-              
-              {/* Performance Stats */}
-              <div className="space-y-4">
-                <div>
-                  <div className="text-sm text-gray-400 mb-1">Portfolio-Übersicht</div>
-                  <div className="text-2xl font-bold text-white">{holdings.length} Positionen</div>
-                </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {/* KPI Row — matches design PDF: WERT | YTD | GESAMT | SHARPE */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* WERT */}
+          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">WERT</p>
+            <p className="text-2xl font-bold font-mono text-white">
+              {new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(totalValueCHF)}
+            </p>
+            {portfolio?.investmentAmount && (
+              <p className="text-xs text-gray-500 mt-1">Gest. {new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(Number(portfolio.investmentAmount))}</p>
+            )}
+          </div>
 
-                {/* TTWROR + IRR Metrics (only for live portfolios) */}
-                {portfolio?.isLive && (
-                  <div className="pt-4 border-t border-white/10 space-y-3">
-                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Performance ({selectedPeriod})</div>
-                    
-                    {isLoadingPerfMetrics ? (
-                      <div className="text-xs text-gray-500">Berechne...</div>
+          {/* YTD */}
+          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">YTD</p>
+            {(() => {
+              const ytdPerf = chartData.data.length > 0 ? (chartData.data[chartData.data.length - 1]?.portfolio || 0) : 0;
+              return (
+                <p className={`text-2xl font-bold font-mono ${ytdPerf >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                  {ytdPerf >= 0 ? '+' : ''}{ytdPerf.toFixed(1)}%
+                </p>
+              );
+            })()}
+            <p className="text-xs text-gray-500 mt-1">vs. {benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}</p>
+          </div>
+
+          {/* GESAMT */}
+          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">GESAMT</p>
+            {(() => {
+              const invested = Number(portfolio?.investmentAmount || 0);
+              const gain = totalValueCHF - invested;
+              const pct = invested > 0 ? (gain / invested) * 100 : 0;
+              return (
+                <>
+                  <p className={`text-2xl font-bold font-mono ${pct >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                    {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+                  </p>
+                  <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-400' : 'text-red-400'}`}>
+                    {gain >= 0 ? '+' : ''}{new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(gain)}
+                  </p>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* TTWROR p.a. */}
+          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">TTWROR P.A.</p>
+            <p className="text-2xl font-bold font-mono text-white">
+              {perfMetrics?.annualizedTtwror ? `${(perfMetrics.annualizedTtwror * 100).toFixed(1)}%` : '—'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">TTWROR p.a.</p>
+          </div>
+        </div>
+
+        {/* Tabs Section — matches design PDF */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
+            {[
+              { value: 'overview', label: 'Übersicht' },
+              { value: 'positions', label: `Positionen`, badge: holdings.length },
+              { value: 'transactions', label: 'Transaktionen', badge: transactions.length },
+              { value: 'performance', label: 'Performance' },
+              { value: 'risk', label: 'Risiko' },
+              { value: 'optimize', label: 'Optimieren' },
+              { value: 'ai', label: 'AI' },
+            ].map(tab => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5"
+              >
+                {tab.label}
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[10px] px-1.5 py-0.5 rounded-full">{tab.badge}</span>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* OVERVIEW TAB — 2 columns: chart left, top-positions + activity right */}
+          <TabsContent value="overview" className="mt-6">
+            <div className="grid lg:grid-cols-5 gap-6">
+              {/* Left: Wertentwicklung Chart */}
+              <div className="lg:col-span-3">
+                <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">Wertentwicklung seit Erstauf</h3>
+                    </div>
+                    <div className="flex gap-1">
+                      {['1M', 'YTD', '1J', 'Max'].map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setSelectedPeriod(p === '1J' ? '1Y' : p === 'Max' ? 'All' : p)}
+                          className={`px-2 py-1 text-xs rounded transition-colors ${
+                            (selectedPeriod === p || (p === '1J' && selectedPeriod === '1Y') || (p === 'Max' && selectedPeriod === 'All'))
+                              ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
+                              : 'text-gray-500 hover:text-gray-300'
+                          }`}
+                        >{p}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="h-56">
+                    {isLoadingHistory ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="w-5 h-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : chartData.data.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-gray-500 text-sm">Keine historischen Daten verfügbar</p>
+                      </div>
                     ) : (
-                      <>
-                        {/* TTWROR */}
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-sm text-gray-400">TTWROR</span>
-                            <div className="text-xs text-gray-600 mt-0.5">Zeitgewichtet</div>
-                          </div>
-                          <span className={`text-sm font-semibold ${
-                            (perfMetrics?.ttwror ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                          }`}>
-                            {(perfMetrics?.ttwror ?? 0) >= 0 ? '+' : ''}{((perfMetrics?.ttwror ?? 0) * 100).toFixed(2)}%
-                          </span>
-                        </div>
-
-                        {/* IRR */}
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-sm text-gray-400">IRR (MWR)</span>
-                            <div className="text-xs text-gray-600 mt-0.5">Geldgewichtet p.a.</div>
-                          </div>
-                          <span className={`text-sm font-semibold ${
-                            (perfMetrics?.irr ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                          }`}>
-                            {(perfMetrics?.irr ?? 0) >= 0 ? '+' : ''}{((perfMetrics?.irr ?? 0) * 100).toFixed(2)}%
-                          </span>
-                        </div>
-
-                        {/* Absolute Gain */}
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="text-sm text-gray-400">Absoluter Gewinn</span>
-                            <div className="text-xs text-gray-600 mt-0.5">In CHF</div>
-                          </div>
-                          <span className={`text-sm font-semibold ${
-                            (perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                          }`}>
-                            {(perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? '+' : ''}
-                            {new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(perfMetrics?.absoluteGainCHF ?? 0)}
-                          </span>
-                        </div>
-                      </>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData.data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="overviewGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#00CFC1" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#00CFC1" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" vertical={false} />
+                          <XAxis dataKey="date" stroke="#444" fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#444" fontSize={10} tickFormatter={(v) => `${v.toFixed(0)}%`} tickLine={false} axisLine={false} width={40} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '6px', fontSize: '12px' }}
+                            labelStyle={{ color: '#fff' }}
+                            formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name === 'portfolio' ? portfolio.name : 'Benchmark']}
+                          />
+                          <Area type="monotone" dataKey="portfolio" stroke="#00CFC1" strokeWidth={2} fill="url(#overviewGradient)" />
+                          <Area type="monotone" dataKey="benchmark" stroke="rgba(255,255,255,0.3)" strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     )}
                   </div>
-                )}
-                
-                <div className="pt-4 border-t border-white/10 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">Durchschn. Dividendenrendite</span>
-                    <span className="text-sm font-semibold text-[#00CFC1]">{avgDividendYield.toFixed(2)}%</span>
+                </div>
+              </div>
+
+              {/* Right: Top-Positionen + Letzte Aktivität */}
+              <div className="lg:col-span-2 space-y-4">
+                {/* Top-Positionen */}
+                <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-white mb-3">Top-Positionen nach Gewicht</h3>
+                  <div className="space-y-2">
+                    {holdings
+                      .slice()
+                      .sort((a: any, b: any) => parseFloat(b.weight || '0') - parseFloat(a.weight || '0'))
+                      .slice(0, 5)
+                      .map((h: any) => (
+                        <div key={h.ticker} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[#00CFC1] text-xs w-16">{h.ticker}</span>
+                            <span className="text-gray-400 text-xs truncate max-w-[100px]">{h.companyName}</span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <span className="text-gray-300 text-xs">{parseFloat(h.weight || '0').toFixed(1)}%</span>
+                            <span className={`text-xs font-mono ${parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                              {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">Sektoren</span>
-                    <span className="text-sm font-semibold text-white">{Object.keys(sectorWeights).length}</span>
+                </div>
+
+                {/* Letzte Aktivität */}
+                <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-white mb-3">Letzte Aktivität</h3>
+                  <div className="space-y-2">
+                    {transactions.slice(0, 4).map((tx: any) => {
+                      const txDate = new Date(tx.transactionDate);
+                      const isToday = txDate.toDateString() === new Date().toDateString();
+                      const isYesterday = txDate.toDateString() === new Date(Date.now() - 86400000).toDateString();
+                      const dateLabel = isToday ? 'Heute' : isYesterday ? 'Gestern' : txDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
+                      const isBuy = tx.transactionType === 'buy';
+                      const isDividend = tx.transactionType === 'dividend';
+                      return (
+                        <div key={tx.id} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-12">{dateLabel}</span>
+                            <span className={`${isDividend ? 'text-[#00CFC1]' : isBuy ? 'text-blue-400' : 'text-red-400'}`}>
+                              {isDividend ? 'Dividende' : isBuy ? 'Kauf' : 'Verkauf'} {tx.ticker}
+                            </span>
+                          </div>
+                          <span className={`font-mono ${isDividend || isBuy ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                            {isDividend || isBuy ? '+' : '-'}{tx.shares ? `${Math.abs(parseFloat(tx.shares)).toFixed(0)} Stk.` : `CHF ${Math.abs(parseFloat(tx.totalAmount || '0')).toFixed(0)}`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {transactions.length === 0 && (
+                      <p className="text-xs text-gray-500">Keine Transaktionen vorhanden</p>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        
-        {/* Holdings & Allocation */}
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Holdings Table */}
-          <div className="lg:col-span-3">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardHeader>
-                <CardTitle className="text-white">Positionen ({holdings.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="border-b border-white/10">
-                      <tr className="text-gray-400">
-                        <th className="text-left p-3">Ticker</th>
-                        <th className="text-left p-3">Name</th>
-                        <th className="text-right p-3">Anzahl</th>
-                        <th className="text-right p-3">Ø Kaufpreis</th>
-                        <th className="text-right p-3">Kurs (Lokal)</th>
-                        <th className="text-right p-3">Kurs (CHF)</th>
-                        <th className="text-right p-3">Wert (CHF)</th>
-                        <th className="text-right p-3">YTD</th>
-                        <th className="text-right p-3">Div. Rendite</th>
-                        <th className="text-right p-3">Gewicht</th>
-                        <th className="text-right p-3">Aktionen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {holdings.map((holding: any) => {
-                        const avgBuyPrice = holding.avgBuyPrice || 0;
-                        const totalValueCHF = (holding.shares || 0) * (holding.currentPriceCHF || 0);
-                        
-                        return (
-                        <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="p-3">
-                            <Link href={`/stock/${holding.ticker}?from=${portfolioId}`}>
-                              <div className="flex items-center gap-2">
-                                <StockLogo ticker={holding.ticker} companyName={holding.companyName} size="sm" />
-                                <span className="font-semibold text-[#00CFC1] hover:underline cursor-pointer">
-                                  {holding.ticker}
-                                </span>
-                              </div>
-                            </Link>
-                          </td>
-                          <td className="p-3 text-gray-300">{holding.companyName}</td>
-                          <td className="text-right p-3 text-white">
-                            {holding.shares ? parseFloat(holding.shares).toFixed(2) : '-'}
-                          </td>
-                          <td className="text-right p-3 text-gray-300">
-                            {avgBuyPrice > 0 ? formatCurrency(avgBuyPrice, holding.currency || 'USD') : '-'}
-                          </td>
-                          <td className="text-right p-3 text-white">
-                            <div className="flex flex-col items-end">
-                              <span>{formatCurrency(holding.currentPriceLocal || 0, holding.currency || 'USD')}</span>
-                              {holding.currency !== 'CHF' && (
-                                <span className="text-xs text-gray-500">
-                                  FX: {holding.fxRate?.toFixed(4) || '1.0000'}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="text-right p-3 text-white">
-                            {formatCurrency(holding.currentPriceCHF || 0, 'CHF')}
-                          </td>
-                          <td className="text-right p-3 text-white font-semibold">
-                            {formatCurrency(totalValueCHF, 'CHF')}
-                          </td>
-                          <td className="text-right p-3">
-                            <span className={parseFloat(holding.ytdPerformance || '0') >= 0 ? "text-green-500" : "text-red-500"}>
-                              {parseFloat(holding.ytdPerformance || '0') >= 0 ? "+" : ""}{parseFloat(holding.ytdPerformance || '0').toFixed(2)}%
-                            </span>
-                          </td>
-                          <td className="text-right p-3 text-gray-300">
-                            {parseFloat(holding.dividendYield || '0').toFixed(2)}%
-                          </td>
-                          <td className="text-right p-3">
-                            <Badge variant="outline">{parseFloat(holding.weight || '0').toFixed(2)}%</Badge>
-                          </td>
-                          <td className="text-right p-3">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-[#00CFC1] hover:bg-[#00CFC1]/10"
-                              onClick={() => handleEditPosition(holding)}
-                            >
-                              Bearbeiten
-                            </Button>
-                          </td>
-                        </tr>
-                        );
-                      })}
-                      {/* Cash Position Row */}
-                      {portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && (
-                        <tr className="border-b border-white/5 bg-[#00CFC1]/5">
-                          <td className="p-3">
-                            <span className="font-semibold text-gray-400">-</span>
-                          </td>
-                          <td className="p-3 text-gray-300 font-semibold">Cash (CHF)</td>
-                          <td className="text-right p-3 text-white">-</td>
-                          <td className="text-right p-3 text-gray-300">-</td>
-                          <td className="text-right p-3 text-white">-</td>
-                          <td className="text-right p-3 text-white">-</td>
-                          <td className="text-right p-3 text-white font-semibold">
-                            {formatCurrency(parseFloat(portfolio.cashBalance), 'CHF')}
-                          </td>
-                          <td className="text-right p-3 text-gray-400">-</td>
-                          <td className="text-right p-3 text-gray-400">-</td>
-                          <td className="text-right p-3">
-                            <Badge variant="outline">
-                              {((parseFloat(portfolio.cashBalance) / totalValueCHF) * 100).toFixed(2)}%
-                            </Badge>
-                          </td>
-                          <td className="text-right p-3 text-gray-400">-</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Allocation Charts */}
-          <div className="space-y-6">
-            {/* Asset Allocation */}
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardHeader>
-                <CardTitle className="text-white">Asset-Allokation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPieChart>
-                      <Pie
-                        data={assetAllocationData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={70}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {assetAllocationData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px', color: '#ffffff' }}
-                        formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-                      />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4 space-y-2">
-                  {assetAllocationData.map((item, index) => (
-                    <div key={item.name} className="flex justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                        <span className="text-gray-400">{item.name}</span>
-                      </div>
-                      <span className="text-white font-semibold">{item.value.toFixed(2)}%</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Sector Allocation */}
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardHeader>
-                <CardTitle className="text-white">Sektor-Allokation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPieChart>
-                      <Pie
-                        data={sectorAllocationData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={70}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {sectorAllocationData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '8px', color: '#ffffff' }}
-                        formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-                      />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4 space-y-2 max-h-32 overflow-y-auto">
-                  {sectorAllocationData
-                    .sort((a, b) => b.value - a.value)
-                    .map((item, index) => (
-                      <div key={item.name} className="flex justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                          <span className="text-gray-400">{item.name}</span>
-                        </div>
-                        <span className="text-white font-semibold">{item.value.toFixed(2)}%</span>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-        
-        {/* Tabs Section — 7 tabs per IA-Optimierung spec */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="flex flex-wrap gap-1 bg-[#1a1f2e] border border-[#00CFC1]/30 p-1 h-auto">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Übersicht</TabsTrigger>
-            <TabsTrigger value="positions" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              Positionen <span className="ml-1 text-[10px] opacity-60">{holdings.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              Transaktionen <span className="ml-1 text-[10px] opacity-60">{transactions.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="performance" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Performance</TabsTrigger>
-            <TabsTrigger value="risk" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Risiko</TabsTrigger>
-            <TabsTrigger value="optimize" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Optimieren</TabsTrigger>
-            <TabsTrigger value="ai" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">AI</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="overview" className="mt-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Gesamtwert</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-white">{formatCurrency(totalValueCHF, String((portfolio && 'currency' in portfolio ? portfolio.currency : null) || 'CHF'))}</div>
-                  <p className="text-xs text-gray-500 mt-1">Aktueller Portfoliowert</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Performance ({selectedPeriod})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(() => {
-                    // Use chart performance for both demo and live portfolios
-                    const chartPerformance = chartData.data.length > 0 
-                      ? chartData.data[chartData.data.length - 1]?.portfolio || 0 
-                      : 0;
-                    const benchmarkPerformance = chartData.data.length > 0 
-                      ? chartData.data[chartData.data.length - 1]?.benchmark || 0 
-                      : 0;
-                    const outperformance = chartPerformance - benchmarkPerformance;
-                    return (
-                      <>
-                        {/* Portfolio Performance */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400">Portfolio:</span>
-                            <div className={`text-lg font-bold ${chartPerformance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {chartPerformance >= 0 ? '+' : ''}{chartPerformance.toFixed(2)}%
-                            </div>
-                          </div>
-                          {chartPerformance >= 0 ? (
-                            <TrendingUp className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-red-500" />
-                          )}
-                        </div>
-                        {/* Benchmark Performance */}
-                        <div className="flex items-center justify-between mt-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400">{selectedBenchmark}:</span>
-                            <div className={`text-lg font-bold ${benchmarkPerformance >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
-                              {benchmarkPerformance >= 0 ? '+' : ''}{benchmarkPerformance.toFixed(2)}%
-                            </div>
-                          </div>
-                          {benchmarkPerformance >= 0 ? (
-                            <TrendingUp className="h-4 w-4 text-cyan-400" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-red-400" />
-                          )}
-                        </div>
-                        {/* Outperformance Indicator */}
-                        <div className="mt-2 pt-2 border-t border-gray-700">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-400">Differenz:</span>
-                            <div className={`text-sm font-semibold ${outperformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(2)}%
-                              <span className="text-xs ml-1">
-                                {outperformance >= 0 ? '▲' : '▼'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Durchschn. Div. Rendite</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-[#00CFC1]">{avgDividendYield.toFixed(2)}%</div>
-                  <p className="text-xs text-gray-500 mt-1">Gewichteter Durchschnitt</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Positionen</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-white">{holdings.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">{Object.keys(sectorWeights).length} Sektoren</p>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Recent Activity Summary */}
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30 mt-4">
-              <CardHeader>
-                <CardTitle className="text-white">Portfolio-Zusammenfassung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-400 mb-3">Top Positionen</h4>
-                    <div className="space-y-2">
-                      {holdings
-                        .sort((a: any, b: any) => parseFloat(b.weight || '0') - parseFloat(a.weight || '0'))
-                        .slice(0, 5)
-                        .map((h: any) => (
-                          <div key={h.ticker} className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#00CFC1] font-semibold">{h.ticker}</span>
-                              <span className="text-gray-400 text-sm">{h.companyName}</span>
-                            </div>
-                            <Badge variant="outline">{parseFloat(h.weight || '0').toFixed(2)}%</Badge>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-400 mb-3">Beste Performance (YTD)</h4>
-                    <div className="space-y-2">
-                      {holdings
-                        .sort((a: any, b: any) => parseFloat(b.ytdPerformance || '0') - parseFloat(a.ytdPerformance || '0'))
-                        .slice(0, 5)
-                        .map((h: any) => (
-                          <div key={h.ticker} className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#00CFC1] font-semibold">{h.ticker}</span>
-                              <span className="text-gray-400 text-sm">{h.companyName}</span>
-                            </div>
-                            <span className={parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-green-500' : 'text-red-500'}>
-                              {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(2)}%
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
-          
-          {/* Positions Tab — inline holdings table */}
+
+          {/* POSITIONS TAB */}
           <TabsContent value="positions" className="mt-6">
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-white">Positionen ({holdings.length})</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 text-xs">
-                  <Edit className="h-3 w-3 mr-1" /> Bearbeiten
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-white text-sm">Positionen ({holdings.length})</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 text-xs h-7">
+                  + Position hinzufügen
                 </Button>
               </CardHeader>
               <CardContent>
@@ -1069,10 +664,13 @@ export default function PortfolioDetailsPage() {
                         <th className="text-left p-2">Ticker</th>
                         <th className="text-left p-2">Name</th>
                         <th className="text-right p-2">Stk.</th>
-                        <th className="text-right p-2">Kurs</th>
+                        <th className="text-right p-2">Ø Kauf</th>
+                        <th className="text-right p-2">Kurs (CHF)</th>
                         <th className="text-right p-2">Wert (CHF)</th>
                         <th className="text-right p-2">YTD</th>
-                        <th className="text-right p-2">Gewicht</th>
+                        <th className="text-right p-2">Div.</th>
+                        <th className="text-right p-2">Gew.</th>
+                        <th className="text-right p-2"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1080,21 +678,43 @@ export default function PortfolioDetailsPage() {
                         <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/5">
                           <td className="p-2">
                             <Link href={`/stock/${h.ticker}?from=${portfolioId}`}>
-                              <span className="text-[#00CFC1] font-semibold hover:underline cursor-pointer text-xs">{h.ticker}</span>
+                              <div className="flex items-center gap-1.5">
+                                <StockLogo ticker={h.ticker} companyName={h.companyName} size="sm" />
+                                <span className="text-[#00CFC1] font-semibold hover:underline cursor-pointer text-xs">{h.ticker}</span>
+                              </div>
                             </Link>
                           </td>
                           <td className="p-2 text-gray-300 text-xs truncate max-w-[120px]">{h.companyName}</td>
-                          <td className="text-right p-2 text-white text-xs">{h.shares ? parseFloat(h.shares).toFixed(0) : '-'}</td>
+                          <td className="text-right p-2 text-white text-xs">{h.shares ? parseFloat(h.shares).toFixed(2) : '-'}</td>
+                          <td className="text-right p-2 text-gray-400 text-xs">{h.avgBuyPrice > 0 ? formatCurrency(h.avgBuyPrice, h.currency || 'USD') : '-'}</td>
                           <td className="text-right p-2 text-white text-xs">{formatCurrency(h.currentPriceCHF || 0, 'CHF')}</td>
                           <td className="text-right p-2 text-white font-semibold text-xs">{formatCurrency((h.shares || 0) * (h.currentPriceCHF || 0), 'CHF')}</td>
                           <td className="text-right p-2 text-xs">
-                            <span className={parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                            <span className={parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}>
                               {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%
                             </span>
                           </td>
+                          <td className="text-right p-2 text-gray-400 text-xs">{parseFloat(h.dividendYield || '0').toFixed(1)}%</td>
                           <td className="text-right p-2 text-gray-400 text-xs">{parseFloat(h.weight || '0').toFixed(1)}%</td>
+                          <td className="text-right p-2">
+                            <Button variant="ghost" size="sm" className="text-[#00CFC1] hover:bg-[#00CFC1]/10 h-6 text-xs px-2" onClick={() => handleEditPosition(h)}>Bearb.</Button>
+                          </td>
                         </tr>
                       ))}
+                      {portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && (
+                        <tr className="border-b border-white/5 bg-[#00CFC1]/5">
+                          <td className="p-2 text-gray-400 text-xs">-</td>
+                          <td className="p-2 text-gray-300 font-semibold text-xs">Cash (CHF)</td>
+                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
+                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
+                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
+                          <td className="text-right p-2 text-white font-semibold text-xs">{formatCurrency(parseFloat(portfolio.cashBalance), 'CHF')}</td>
+                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
+                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
+                          <td className="text-right p-2 text-gray-400 text-xs">{((parseFloat(portfolio.cashBalance) / totalValueCHF) * 100).toFixed(1)}%</td>
+                          <td></td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1102,20 +722,15 @@ export default function PortfolioDetailsPage() {
             </Card>
           </TabsContent>
 
-          {/* Transactions Tab */}
+          {/* TRANSACTIONS TAB */}
           <TabsContent value="transactions" className="mt-6">
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-white">Transaktionen ({transactions.length})</CardTitle>
-                <Link href={`/portfolio/${portfolioId}/transactions`}>
-                  <Button variant="outline" size="sm" className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 text-xs">
-                    Alle anzeigen
-                  </Button>
-                </Link>
+              <CardHeader>
+                <CardTitle className="text-white text-sm">Transaktionen ({transactions.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 {transactions.length === 0 ? (
-                  <p className="text-gray-400 text-center py-4">Keine Transaktionen vorhanden</p>
+                  <p className="text-gray-400 text-center py-4 text-sm">Keine Transaktionen vorhanden</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -1130,12 +745,18 @@ export default function PortfolioDetailsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {transactions.slice(0, 20).map((t: any) => (
+                        {transactions.slice(0, 30).map((t: any) => (
                           <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
                             <td className="p-2 text-gray-400 text-xs">{new Date(t.date || t.transactionDate).toLocaleDateString('de-CH')}</td>
                             <td className="p-2 text-xs">
-                              <Badge variant="outline" className={`text-[9px] ${t.type === 'BUY' ? 'border-emerald-500/50 text-emerald-400' : 'border-red-500/50 text-red-400'}`}>
-                                {t.type === 'BUY' ? 'Kauf' : t.type === 'SELL' ? 'Verkauf' : t.type}
+                              <Badge variant="outline" className={`text-[9px] ${
+                                (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy' ? 'border-emerald-500/50 text-emerald-400' :
+                                (t.type || t.transactionType) === 'dividend' ? 'border-[#00CFC1]/50 text-[#00CFC1]' :
+                                'border-red-500/50 text-red-400'
+                              }`}>
+                                {(t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy' ? 'Kauf' :
+                                 (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell' ? 'Verkauf' :
+                                 (t.type || t.transactionType) === 'dividend' ? 'Dividende' : (t.type || t.transactionType)}
                               </Badge>
                             </td>
                             <td className="p-2 text-[#00CFC1] text-xs font-semibold">{t.ticker}</td>
@@ -1146,126 +767,93 @@ export default function PortfolioDetailsPage() {
                         ))}
                       </tbody>
                     </table>
-                    {transactions.length > 20 && (
-                      <div className="text-center mt-3">
-                        <Link href={`/portfolio/${portfolioId}/transactions`}>
-                          <Button variant="ghost" size="sm" className="text-[#00CFC1] text-xs">+ {transactions.length - 20} weitere anzeigen</Button>
-                        </Link>
-                      </div>
-                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Performance Tab — TTWROR/IRR details */}
+          {/* PERFORMANCE TAB */}
           <TabsContent value="performance" className="mt-6">
             <div className="grid md:grid-cols-2 gap-4">
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">TTWROR (Zeitgewichtet)</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">TTWROR (Zeitgewichtet)</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold font-mono text-white">
-                    {perfMetrics ? `${(perfMetrics.ttwror * 100).toFixed(2)}%` : '–'}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">True Time-Weighted Rate of Return · Bereinigt um Ein-/Auszahlungen</p>
+                  <div className="text-3xl font-bold font-mono text-white">{perfMetrics ? `${(perfMetrics.ttwror * 100).toFixed(2)}%` : '–'}</div>
+                  <p className="text-xs text-gray-500 mt-1">True Time-Weighted Rate of Return</p>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">IRR (Geldgewichtet)</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">IRR (Geldgewichtet)</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold font-mono text-white">
-                    {perfMetrics ? `${(perfMetrics.irr * 100).toFixed(2)}%` : '–'}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Internal Rate of Return · Persönliche Rendite inkl. Timing</p>
+                  <div className="text-3xl font-bold font-mono text-white">{perfMetrics ? `${(perfMetrics.irr * 100).toFixed(2)}%` : '–'}</div>
+                  <p className="text-xs text-gray-500 mt-1">Internal Rate of Return p.a.</p>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Absoluter Gewinn</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Absoluter Gewinn</CardTitle></CardHeader>
                 <CardContent>
-                  <div className={`text-3xl font-bold font-mono ${(perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <div className={`text-3xl font-bold font-mono ${(perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
                     {perfMetrics ? formatCurrency(perfMetrics.absoluteGainCHF, 'CHF') : '–'}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Realisiert + Unrealisiert</p>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Realisierte Gewinne</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Realisierte Gewinne</CardTitle></CardHeader>
                 <CardContent>
-                  {realizedGains.length > 0 ? (
-                    <RealizedGainsTable gains={realizedGains} />
-                  ) : (
-                    <p className="text-gray-400 text-sm">Keine realisierten Gewinne</p>
-                  )}
+                  {realizedGains.length > 0 ? <RealizedGainsTable gains={realizedGains} /> : <p className="text-gray-400 text-sm">Keine realisierten Gewinne</p>}
                 </CardContent>
               </Card>
             </div>
             {transactions.length > 0 && (
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30 mt-4">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-gray-400">Kosten & Gebühren</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CostFeesReport transactions={transactions} portfolioId={portfolioId} />
-                </CardContent>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Kosten & Gebühren</CardTitle></CardHeader>
+                <CardContent><CostFeesReport transactions={transactions} portfolioId={portfolioId} /></CardContent>
               </Card>
             )}
           </TabsContent>
 
-          {/* Risk Tab — placeholder for risk dashboard integration */}
+          {/* RISK TAB */}
           <TabsContent value="risk" className="mt-6">
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <CardContent className="pt-6">
                 <div className="text-center py-8">
                   <div className="text-lg font-semibold text-white mb-2">Risikoanalyse</div>
                   <p className="text-gray-400 text-sm mb-4">Detaillierte Risikokennzahlen für dieses Portfolio</p>
-                  <Link href="/risk-dashboard">
-                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Risk-Dashboard</Button>
-                  </Link>
+                  <Link href="/risk-dashboard"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Risk-Dashboard</Button></Link>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Optimize Tab — placeholder for optimizer integration */}
+          {/* OPTIMIZE TAB */}
           <TabsContent value="optimize" className="mt-6">
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <CardContent className="pt-6">
                 <div className="text-center py-8">
                   <div className="text-lg font-semibold text-white mb-2">Portfolio-Optimierung</div>
                   <p className="text-gray-400 text-sm mb-4">Markowitz-Optimierung und Rebalancing-Vorschläge</p>
-                  <Link href="/portfolio-optimizer">
-                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Optimizer</Button>
-                  </Link>
+                  <Link href="/portfolio-optimizer"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Optimizer</Button></Link>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* AI Tab — placeholder for copilot integration */}
+          {/* AI TAB */}
           <TabsContent value="ai" className="mt-6">
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <CardContent className="pt-6">
                 <div className="text-center py-8">
                   <div className="text-lg font-semibold text-white mb-2">AI-Analyse</div>
                   <p className="text-gray-400 text-sm mb-4">KI-gestützte Insights und Empfehlungen für dieses Portfolio</p>
-                  <Link href="/copilot">
-                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Copilot</Button>
-                  </Link>
+                  <Link href="/copilot"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Copilot</Button></Link>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-        
+
         {/* Quick Actions */}
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
           <CardHeader>

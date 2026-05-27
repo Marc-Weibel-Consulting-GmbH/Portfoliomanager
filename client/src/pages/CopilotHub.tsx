@@ -36,40 +36,35 @@ export default function CopilotHub() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <p className="text-xs font-medium tracking-widest text-teal-400 uppercase mb-1">COPILOT</p>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Dein KI-Portfolio-Assistent</h1>
-              <p className="text-sm text-slate-400 mt-1">
-                Insights, Chat und History — eine einzige KI-Oberfläche.
-              </p>
-            </div>
-            <Badge variant="outline" className="border-teal-500/30 text-teal-400 text-xs">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-medium tracking-widest text-[#00CFC1] uppercase mb-1">COPILOT</p>
+            <h1 className="text-2xl font-bold text-white">KI-Portfolio-Assistent</h1>
+            <p className="text-sm text-gray-400 mt-1">Insights, Chat und History — eine einzige KI-Oberfläche.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-[#00CFC1]/30 text-[#00CFC1] text-[10px] px-2 py-1">
+              <Brain className="w-3 h-3 mr-1" />
+              CLAUDE · HAIKU 4.5
+            </Badge>
+            <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px] px-2 py-1">
               <Sparkles className="w-3 h-3 mr-1" />
-              POWERED BY AI
+              AI-POWERED
             </Badge>
           </div>
         </div>
 
-        {/* Info Banner */}
-        <div className="rounded-lg bg-fuchsia-950/40 border border-fuchsia-500/30 px-4 py-2.5 text-xs text-fuchsia-200">
-          <span className="font-semibold">Ersetzt</span> 3 separate KI-Pages: AI-Insights + PortfolioCopilot + Chat.
-          Der Floating-Chat-Button öffnet weiterhin den Chat-Tab von überall in der App.
-        </div>
-
-        {/* Tabs */}
+        {/* Tabs — underline style matching design */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-slate-800/50 border border-slate-700/50">
-            <TabsTrigger value="insights" className="data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-400">
-              Insights
-              <InsightsBadge />
+          <TabsList className="flex gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none w-full justify-start">
+            <TabsTrigger value="insights" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5">
+              <Lightbulb className="w-3.5 h-3.5" /> Insights <InsightsBadge />
             </TabsTrigger>
-            <TabsTrigger value="chat" className="data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-400">
-              Chat
+            <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5" /> Chat
             </TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-400">
-              History
+            <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5">
+              <History className="w-3.5 h-3.5" /> History
             </TabsTrigger>
           </TabsList>
 
@@ -166,11 +161,11 @@ function InsightsTab() {
 }
 
 function InsightCard({ insight }: { insight: any }) {
-  const severityConfig: Record<string, { icon: any; color: string; bg: string }> = {
-    warning: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' },
-    positive: { icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
-    info: { icon: Lightbulb, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30' },
-    action: { icon: Target, color: 'text-teal-400', bg: 'bg-teal-500/10 border-teal-500/30' },
+  const severityConfig: Record<string, { icon: any; color: string; borderColor: string; label: string }> = {
+    warning: { icon: AlertTriangle, color: 'text-amber-400', borderColor: 'border-l-amber-400', label: 'WARNUNG' },
+    positive: { icon: TrendingUp, color: 'text-[#00CFC1]', borderColor: 'border-l-[#00CFC1]', label: 'POSITIV' },
+    info: { icon: Lightbulb, color: 'text-blue-400', borderColor: 'border-l-blue-400', label: 'INFO' },
+    action: { icon: Target, color: 'text-[#00CFC1]', borderColor: 'border-l-[#00CFC1]', label: 'AKTION' },
   };
 
   const severity = insight.severity ?? 'info';
@@ -178,29 +173,30 @@ function InsightCard({ insight }: { insight: any }) {
   const Icon = config.icon;
 
   return (
-    <Card className={`${config.bg} border`}>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-lg bg-slate-900/50`}>
-            <Icon className={`w-4 h-4 ${config.color}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-white truncate">{insight.title}</h3>
-            <p className="text-xs text-slate-400 mt-1 line-clamp-3">{insight.description}</p>
-          </div>
+    <div className={`bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 border-l-4 ${config.borderColor} rounded-lg p-4`}>
+      <div className="flex items-start gap-3 mb-3">
+        <div className="p-1.5 rounded-lg bg-white/5 mt-0.5">
+          <Icon className={`w-4 h-4 ${config.color}`} />
         </div>
-        {insight.action && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-[#00CFC1] border-[#00CFC1]/40 bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 hover:text-[#00CFC1] text-xs h-7 px-3 mt-1"
-          >
-            <ArrowRight className="w-3 h-3 mr-1" />
-            {insight.action}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[9px] font-bold tracking-widest ${config.color}`}>{config.label}</span>
+          </div>
+          <h3 className="text-sm font-semibold text-white leading-snug">{insight.title}</h3>
+          <p className="text-xs text-gray-400 mt-1.5 leading-relaxed line-clamp-3">{insight.description}</p>
+        </div>
+      </div>
+      {insight.action && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-[#00CFC1] border-[#00CFC1]/40 hover:bg-[#00CFC1]/10 hover:text-[#00CFC1] text-xs h-7 px-3"
+        >
+          <ArrowRight className="w-3 h-3 mr-1" />
+          {insight.action}
+        </Button>
+      )}
+    </div>
   );
 }
 

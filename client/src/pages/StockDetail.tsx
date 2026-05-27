@@ -425,9 +425,22 @@ export default function StockDetail() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
+      <div className="max-w-7xl mx-auto space-y-0">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+          <Link href="/portfolios"><span className="hover:text-gray-300 cursor-pointer">Portfolios</span></Link>
+          {fromPortfolioId && (
+            <>
+              <span>/</span>
+              <Link href={`/portfolios/${fromPortfolioId}`}><span className="hover:text-gray-300 cursor-pointer">Portfolio</span></Link>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-gray-300">{ticker}</span>
+        </div>
+
+        {/* Header — matches design: logo + name + price + score circle */}
+        <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-4">
             <button 
               onClick={handleBackClick}
@@ -437,18 +450,31 @@ export default function StockDetail() {
             </button>
             <StockLogo ticker={ticker} companyName={stock.companyName} size="lg" />
             <div>
-              <h1 className="text-3xl font-bold text-white">{ticker}</h1>
-              <p className="text-gray-400">{stock.companyName}</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold text-white">{ticker}</h1>
+{(stock as any).exchange && <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded">{(stock as any).exchange}</span>}
+                {(stock as any).sector && <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded">{(stock as any).sector}</span>}
+              </div>
+              <p className="text-gray-400 text-sm mt-0.5">{stock.companyName}</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right">
-              <div className="text-3xl font-bold text-white">
+              <div className="text-3xl font-bold text-white font-mono">
                 {currency} {currentPrice.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              <div className={`flex items-center justify-end gap-1 ${priceChange.percent >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+              <div className={`flex items-center justify-end gap-1 mt-1 ${priceChange.percent >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
                 {priceChange.percent >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                <span>{priceChange.percent >= 0 ? '+' : ''}{priceChange.absolute.toFixed(2)} ({priceChange.percent.toFixed(2)}%)</span>
+                <span className="font-semibold">{priceChange.percent >= 0 ? '+' : ''}{priceChange.absolute.toFixed(2)}</span>
+                <span className="text-gray-400">({priceChange.percent >= 0 ? '+' : ''}{priceChange.percent.toFixed(2)}%)</span>
+              </div>
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <Button size="sm" className="h-7 text-xs bg-[#00CFC1]/10 border border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/20">
+                  <Bell className="h-3 w-3 mr-1" /> Alert
+                </Button>
+                <Button size="sm" className="h-7 text-xs bg-[#00CFC1] text-black hover:bg-[#00CFC1]/80">
+                  <Plus className="h-3 w-3 mr-1" /> Portfolio
+                </Button>
               </div>
             </div>
             <ScoreCircle score={score} onClick={() => setShowScoreExplanation(true)} />
@@ -457,18 +483,27 @@ export default function StockDetail() {
 
         {/* Tabs per IA-Optimierung: Übersicht | Signale | Chart & TA | Bewertung | KI-Prognose | Backtest | News */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="flex flex-wrap gap-1 bg-[#1a1f2e] border border-[#00CFC1]/30 p-1 h-auto mb-6">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Übersicht</TabsTrigger>
-            <TabsTrigger value="signals" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              Signale <span className="ml-1 text-[10px] opacity-60">{newsData.length || 0}</span>
-            </TabsTrigger>
-            <TabsTrigger value="chart-ta" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Chart & TA</TabsTrigger>
-            <TabsTrigger value="valuation" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Bewertung (DCF)</TabsTrigger>
-            <TabsTrigger value="prediction" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">KI-Prognose</TabsTrigger>
-            <TabsTrigger value="backtest" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">Backtest</TabsTrigger>
-            <TabsTrigger value="news" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              News <span className="ml-1 text-[10px] opacity-60">{newsData.length || 0}</span>
-            </TabsTrigger>
+          <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none mb-6">
+            {[
+              { value: 'overview', label: 'Übersicht' },
+              { value: 'signals', label: 'Signale', badge: newsData.length },
+              { value: 'chart-ta', label: 'Chart & TA' },
+              { value: 'valuation', label: 'Bewertung (DCF)' },
+              { value: 'prediction', label: 'KI-Prognose' },
+              { value: 'backtest', label: 'Backtest' },
+              { value: 'news', label: 'News', badge: newsData.length },
+            ].map(tab => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5"
+              >
+                {tab.label}
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[10px] px-1.5 py-0.5 rounded-full">{tab.badge}</span>
+                )}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Übersicht Tab */}

@@ -289,9 +289,9 @@ function DashboardLayoutContent({
                         isActive={isActive}
                         onClick={() => setLocation(item.path)}
                         tooltip={item.label}
-                        className={`h-10 transition-all font-normal flex-1 ${isActive ? 'bg-[#00CFC1]/15 text-[#00CFC1] font-medium border border-[#00CFC1]/20' : ''}`}
+                        className={`h-10 transition-all font-normal flex-1 ${isActive ? 'bg-[#00CFC1] text-[#0a0f1a] font-semibold hover:bg-[#00CFC1]/90' : 'hover:bg-white/5'}`}
                       >
-                        <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
+                        <item.icon className={`h-4 w-4 ${isActive ? 'text-[#0a0f1a]' : ''}`} />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
                       {isPortfolios && portfolios.length > 0 && !isCollapsed && (
@@ -370,9 +370,9 @@ function DashboardLayoutContent({
                   isActive={location === settingsItem.path || location.startsWith(settingsItem.path + '/')}
                   onClick={() => setLocation(settingsItem.path)}
                   tooltip={settingsItem.label}
-                  className="h-10 transition-all font-normal"
+                  className={`h-10 transition-all font-normal ${(location === settingsItem.path || location.startsWith(settingsItem.path + '/')) ? 'bg-[#00CFC1] text-[#0a0f1a] font-semibold hover:bg-[#00CFC1]/90' : 'hover:bg-white/5'}`}
                 >
-                  <Settings className={`h-4 w-4 ${location === settingsItem.path ? "text-primary" : ""}`} />
+                  <Settings className={`h-4 w-4 ${(location === settingsItem.path || location.startsWith(settingsItem.path + '/')) ? 'text-[#0a0f1a]' : ''}`} />
                   <span>{settingsItem.label}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -386,9 +386,9 @@ function DashboardLayoutContent({
                       onClick={() => setLocation('/admin')}
                       tooltip="Admin"
                       isActive={location.startsWith('/admin')}
-                      className={`h-10 transition-all font-normal ${location.startsWith('/admin') ? 'text-primary' : ''}`}
+                      className={`h-10 transition-all font-normal ${location.startsWith('/admin') ? 'bg-[#00CFC1] text-[#0a0f1a] font-semibold hover:bg-[#00CFC1]/90' : 'hover:bg-white/5'}`}
                     >
-                      <Shield className={`h-4 w-4 ${location.startsWith('/admin') ? "text-primary" : "text-muted-foreground"}`} />
+                      <Shield className={`h-4 w-4 ${location.startsWith('/admin') ? 'text-[#0a0f1a]' : 'text-muted-foreground'}`} />
                       <span>Admin</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

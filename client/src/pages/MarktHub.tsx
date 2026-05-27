@@ -147,31 +147,24 @@ export default function MarktHub() {
 
         {/* Tabs per IA-Spec: Übersicht | Regime | Bull | Heatmap | News | Dividenden-Kalender */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="flex flex-wrap gap-1 bg-[#1a1f2e] border border-[#00CFC1]/30 p-1 h-auto">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              <Globe className="w-3.5 h-3.5 mr-1.5" />
-              Übersicht
-            </TabsTrigger>
-            <TabsTrigger value="regime" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              <Activity className="w-3.5 h-3.5 mr-1.5" />
-              Regime
-            </TabsTrigger>
-            <TabsTrigger value="bull" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
-              Bull
-            </TabsTrigger>
-            <TabsTrigger value="heatmap" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
-              Heatmap
-            </TabsTrigger>
-            <TabsTrigger value="news" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              <Newspaper className="w-3.5 h-3.5 mr-1.5" />
-              News
-            </TabsTrigger>
-            <TabsTrigger value="dividends" className="data-[state=active]:bg-[#00CFC1]/20 data-[state=active]:text-[#00CFC1] text-xs">
-              <Calendar className="w-3.5 h-3.5 mr-1.5" />
-              Dividenden-Kalender
-            </TabsTrigger>
+          <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
+            {[
+              { value: 'overview', label: 'Übersicht', icon: Globe },
+              { value: 'regime', label: 'Regime', icon: Activity },
+              { value: 'bull', label: 'Bull', icon: TrendingUp },
+              { value: 'heatmap', label: 'Heatmap', icon: BarChart3 },
+              { value: 'news', label: 'News', icon: Newspaper },
+              { value: 'dividends', label: 'Dividenden-Kalender', icon: Calendar },
+            ].map(tab => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5"
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">
