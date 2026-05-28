@@ -5,10 +5,12 @@ FastAPI microservice exposing Fincept Terminal's Python analytics
 as REST endpoints for the Portfoliomanager web application.
 
 Endpoints:
-  POST /analytics/risk-metrics    - VaR, Sharpe, Sortino, Max Drawdown
-  POST /analytics/dcf             - DCF valuation per stock
-  POST /analytics/optimize        - Portfolio optimization (Efficient Frontier)
-  GET  /health                    - Health check
+  POST /analytics/risk-metrics             - VaR, Sharpe, Sortino, Max Drawdown
+  POST /analytics/dcf                      - DCF valuation per stock
+  POST /analytics/optimize                 - Portfolio optimization (Efficient Frontier)
+  GET  /tradingview/ta/{symbol}            - TradingView TA snapshot for a symbol
+  GET  /tradingview/ta/{symbol}/multi-tf   - Multi-timeframe confluence
+  GET  /health                             - Health check
 """
 
 import sys
@@ -22,9 +24,14 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 from scipy import stats, optimize
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from tradingview import analyze_symbol as tv_analyze_symbol
+from tradingview import multi_timeframe_analysis as tv_multi_timeframe_analysis
+from tradingview.ta_provider import DEFAULT_TIMEFRAMES as TV_DEFAULT_TIMEFRAMES
+from tradingview.ta_provider import INTERVAL_MAP as TV_INTERVAL_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -530,6 +537,64 @@ def optimize_portfolio(req: OptimizeRequest):
         ],
         "tickers": available,
     }
+
+
+# ─────────────────────────────────────────────
+# TradingView Technical Analysis Endpoints
+# ─────────────────────────────────────────────
+
+
+@app.get("/tradingview/ta/{symbol}")
+def tradingview_ta(
+    symbol: str,
+    exchange: str = Query(..., description="TradingView exchange code, e.g. NASDAQ, NYSE, SIX, XETR"),
+    interval: str = Query("1d", description=f"One of: {', '.join(TV_INTERVAL_MAP)}"),
+    screener: str = Query("america", description="TradingView screener: america, switzerland, germany, crypto, ..."),
+):
+    """Return TradingView recommendation + indicator snapshot for a single symbol."""
+    if interval not in TV_INTERVAL_MAP:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported interval '{interval}'. Allowed: {sorted(TV_INTERVAL_MAP)}",
+        )
+    try:
+        return tv_analyze_symbol(symbol=symbol, exchange=exchange, interval=interval, screener=screener)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.exception("tradingview_ta failed for %s/%s", exchange, symbol)
+        raise HTTPException(status_code=502, detail=f"TradingView error: {exc}")
+
+
+@app.get("/tradingview/ta/{symbol}/multi-tf")
+def tradingview_multi_tf(
+    symbol: str,
+    exchange: str = Query(..., description="TradingView exchange code"),
+    screener: str = Query("america"),
+    intervals: Optional[str] = Query(
+        None,
+        description=f"Comma-separated intervals. Default: {','.join(TV_DEFAULT_TIMEFRAMES)}",
+    ),
+):
+    """Run TA across multiple timeframes and aggregate a confluence verdict."""
+    frames = [i.strip() for i in intervals.split(",")] if intervals else None
+    if frames:
+        for f in frames:
+            if f not in TV_INTERVAL_MAP:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Unsupported interval '{f}'. Allowed: {sorted(TV_INTERVAL_MAP)}",
+                )
+    try:
+        return tv_multi_timeframe_analysis(
+            symbol=symbol,
+            exchange=exchange,
+            screener=screener,
+            intervals=frames,
+        )
+    except Exception as exc:
+        logger.exception("tradingview_multi_tf failed for %s/%s", exchange, symbol)
+        raise HTTPException(status_code=502, detail=f"TradingView error: {exc}")
 
 
 if __name__ == "__main__":

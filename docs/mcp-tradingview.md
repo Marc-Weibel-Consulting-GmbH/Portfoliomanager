@@ -86,6 +86,38 @@ relevantesten:
 Vollständige Liste & Beispiele: siehe
 `mcp-servers/tradingview/README.md` und `mcp-servers/tradingview/EXAMPLES.md`.
 
+## Direkt-Integration im `analytics_service`
+
+Parallel zum MCP-Server (für Agenten-Use-Cases) sind die TradingView-Libs
+direkt im FastAPI-Microservice eingebunden — für deterministische
+Aufrufe aus dem Express-Backend, Cron-Jobs und UI-Widgets.
+
+**Module:** `analytics_service/tradingview/`
+- `resilience.py` — Throttle + 60s TTL-Cache + Retry (1:1 portiert vom
+  Upstream)
+- `ta_provider.py` — High-level Wrapper um `tradingview_ta.TA_Handler`
+
+**Endpoints** (auf Port 8001 via `ANALYTICS_PORT`):
+- `GET /tradingview/ta/{symbol}?exchange=NASDAQ&interval=1d&screener=america`
+  → Recommendation-Summary, Oszillatoren, Moving Averages, RSI/MACD/
+    Bollinger/Stoch/ATR-Snapshot
+- `GET /tradingview/ta/{symbol}/multi-tf?exchange=NASDAQ&intervals=15m,1h,1d,1W`
+  → Pro-Timeframe-Recommendation + aggregiertes Verdict
+    (`BULLISH` / `BEARISH` / `MIXED` / `NEUTRAL`)
+
+**Beispiel:**
+```bash
+curl "http://localhost:8001/tradingview/ta/NVDA?exchange=NASDAQ&interval=1d"
+curl "http://localhost:8001/tradingview/ta/NESN/multi-tf?exchange=SIX&screener=switzerland"
+```
+
+**Netzwerk-Hinweis:** TradingView's `scanner.tradingview.com`-Endpoint
+blockt viele Cloud-Egress-IPs (Cloudflare-Regel) und antwortet dann
+mit HTTP 403. Auf lokalen Maschinen und üblichen Production-VMs läuft
+es problemlos; in der Claude-Code-Web-Sandbox ist die Route nicht
+erreichbar. Bei Bedarf via Outbound-Proxy mit Wohn-IP routen oder
+`TRADINGVIEW_MCP_*` Env-Vars für Cache/Retry tunen.
+
 ## Einsatz im Portfoliomanager
 
 Sinnvolle Use-Cases für dieses Projekt:
