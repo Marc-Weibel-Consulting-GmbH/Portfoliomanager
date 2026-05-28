@@ -33,10 +33,6 @@ USER mcpuser
 # Expose the HTTP port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
-
-# Run the MCP server over streamable-http (ideal for Docker/remote deployments)
+# server.py reads $PORT from environment natively — no shell wrapper needed
 ENTRYPOINT ["tradingview-mcp"]
-CMD ["streamable-http", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["streamable-http", "--host", "0.0.0.0"]

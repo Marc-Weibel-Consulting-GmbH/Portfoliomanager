@@ -68,8 +68,14 @@ async function mcpInit(): Promise<string> {
     }),
   });
 
-  const sessionId = res.headers.get("mcp-session-id");
-  if (!sessionId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "MCP server returned no session ID" });
+  // HTTP/2 headers are lowercase; Node.js fetch normalises them, but try both variants
+  const sessionId = res.headers.get("mcp-session-id") ?? res.headers.get("Mcp-Session-Id");
+  if (!sessionId) {
+    const hdrs: Record<string, string> = {};
+    res.headers.forEach((v, k) => { hdrs[k] = v; });
+    console.error("[TradingView MCP] No session ID. Status:", res.status, "Headers:", JSON.stringify(hdrs));
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "MCP server returned no session ID" });
+  }
 
   // Fire-and-forget initialized notification
   fetch(`${MCP_BASE}/mcp`, {
