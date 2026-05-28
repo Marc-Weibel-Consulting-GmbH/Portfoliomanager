@@ -37,12 +37,14 @@ import { FloatingChatButton } from "./FloatingChatButton";
 type NavItem = { icon: any; label: string; path: string };
 type NavGroup = { icon: any; label: string; items: NavItem[] };
 
-const topLevelItems: NavItem[] = [
+type NavItemWithBadge = NavItem & { badge?: string };
+
+const topLevelItems: NavItemWithBadge[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Wallet, label: "Portfolios", path: "/portfolios" },
-  { icon: TrendingUp, label: "Aktien", path: "/aktien" },
-  { icon: Globe, label: "Markt", path: "/markt" },
-  { icon: Brain, label: "Copilot", path: "/copilot" },
+  { icon: TrendingUp, label: "Aktien", path: "/aktien", badge: "9 Pages" },
+  { icon: Globe, label: "Markt", path: "/markt", badge: "5 Pages" },
+  { icon: Brain, label: "Copilot", path: "/copilot", badge: "3 Pages" },
 ];
 
 const toolsGroup: NavGroup = {
@@ -235,39 +237,28 @@ function DashboardLayoutContent({
           className="border-r-0"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center">
-            <div className="flex items-center gap-3 pl-2 group-data-[collapsible=icon]:px-0 transition-all w-full">
+          <SidebarHeader className="h-16 justify-center border-b border-border/30">
+            <div className="flex items-center gap-3 pl-3 pr-2 group-data-[collapsible=icon]:px-0 transition-all w-full">
               {isCollapsed ? (
-                <div className="relative h-8 w-8 shrink-0 group">
-                  <img
-                    src={APP_LOGO}
-                    className="h-8 w-8 rounded-md object-cover ring-1 ring-border"
-                    alt="Logo"
-                  />
-                  <button
-                    onClick={toggleSidebar}
-                    className="absolute inset-0 flex items-center justify-center bg-accent rounded-md ring-1 ring-border opacity-0 group-hover:opacity-100 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <PanelLeft className="h-4 w-4 text-foreground" />
-                  </button>
+                <div className="relative h-8 w-8 shrink-0 flex items-center justify-center bg-[#00CFC1]/20 rounded-md">
+                  <span className="text-[#00CFC1] font-bold text-sm">P</span>
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img
-                      src={APP_LOGO}
-                      className="h-8 w-8 rounded-md object-cover ring-1 ring-border shrink-0"
-                      alt="Logo"
-                    />
-                    <span className="font-semibold tracking-tight truncate">
-                      {APP_TITLE}
-                    </span>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="h-8 w-8 shrink-0 flex items-center justify-center bg-[#00CFC1]/20 rounded-md">
+                      <span className="text-[#00CFC1] font-bold text-sm">P</span>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold text-sm tracking-tight truncate text-foreground leading-tight">Portfoliomanager</span>
+                      <span className="text-[10px] text-muted-foreground truncate leading-tight">Marc Weibel Consulting</span>
+                    </div>
                   </div>
                   <button
                     onClick={toggleSidebar}
-                    className="ml-auto h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
+                    className="h-7 w-7 flex items-center justify-center hover:bg-accent rounded transition-colors focus:outline-none shrink-0"
                   >
-                    <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                    <PanelLeft className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </>
               )}
@@ -281,6 +272,7 @@ function DashboardLayoutContent({
                 const isActive = location === item.path || location.startsWith(item.path + '/');
                 const isPortfolios = item.path === '/portfolios';
                 const showPortfolioSubmenu = isPortfolios && portfolios.length > 0 && !isCollapsed;
+                const portfolioBadge = isPortfolios && portfolios.length > 0 ? `${portfolios.length} Pages` : item.badge;
 
                 return (
                   <SidebarMenuItem key={item.path}>
@@ -289,37 +281,63 @@ function DashboardLayoutContent({
                         isActive={isActive}
                         onClick={() => setLocation(item.path)}
                         tooltip={item.label}
-                        className={`h-10 transition-all font-normal flex-1 ${isActive ? 'bg-[#00CFC1] text-[#0a0f1a] font-semibold hover:bg-[#00CFC1]/90' : 'hover:bg-white/5'}`}
+                        className={`h-9 transition-all font-normal flex-1 rounded-md ${
+                          isActive
+                            ? 'bg-[#00CFC1]/15 text-[#00CFC1] font-medium hover:bg-[#00CFC1]/20'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                        }`}
                       >
-                        <item.icon className={`h-4 w-4 ${isActive ? 'text-[#0a0f1a]' : ''}`} />
-                        <span>{item.label}</span>
+                        <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#00CFC1]' : ''}`} />
+                        <span className="flex-1">{item.label}</span>
+                        {portfolioBadge && !isCollapsed && (
+                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-sm ${
+                            isActive ? 'bg-[#00CFC1]/20 text-[#00CFC1]' : 'bg-white/10 text-muted-foreground'
+                          }`}>{portfolioBadge}</span>
+                        )}
                       </SidebarMenuButton>
                       {isPortfolios && portfolios.length > 0 && !isCollapsed && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setPortfolioSubmenuOpen(!portfolioSubmenuOpen); }}
-                          className="h-8 w-6 flex items-center justify-center hover:bg-accent rounded transition-colors mr-1"
+                          className="h-7 w-5 flex items-center justify-center hover:bg-accent rounded transition-colors"
                         >
                           <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${portfolioSubmenuOpen ? '' : '-rotate-90'}`} />
                         </button>
                       )}
                     </div>
-                    {/* Portfolio submenu */}
+                    {/* Portfolio submenu — matches design: Übersicht + portfolio names + Neues Portfolio */}
                     {showPortfolioSubmenu && portfolioSubmenuOpen && (
                       <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            isActive={location === '/portfolios'}
+                            onClick={() => setLocation('/portfolios')}
+                            className="text-xs"
+                          >
+                            <span>Übersicht</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                         {portfolios.slice(0, 6).map((portfolio: any) => (
                           <SidebarMenuSubItem key={portfolio.id}>
                             <SidebarMenuSubButton
-                              isActive={location === `/portfolios/${portfolio.id}`}
+                              isActive={location === `/portfolios/${portfolio.id}` || location.startsWith(`/portfolios/${portfolio.id}`)}
                               onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
                               className="text-xs"
                             >
-                              <span className="truncate flex items-center gap-1.5">
-                                {portfolio.name}
-                                {!!portfolio.isLive && <span className="text-[9px] font-medium text-[#00CFC1] bg-[#00CFC1]/10 px-1 py-0.5 rounded">Live</span>}
-                              </span>
+                              <span className="truncate">{portfolio.name}</span>
+                              {portfolio.isLive === 1 && (
+                                <span className="ml-auto text-[9px] text-emerald-400 font-medium">Live</span>
+                              )}
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
                         ))}
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => setLocation('/portfolio-builder')}
+                            className="text-xs text-muted-foreground"
+                          >
+                            <span>Neues Portfolio</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                       </SidebarMenuSub>
                     )}
                   </SidebarMenuItem>
@@ -370,9 +388,13 @@ function DashboardLayoutContent({
                   isActive={location === settingsItem.path || location.startsWith(settingsItem.path + '/')}
                   onClick={() => setLocation(settingsItem.path)}
                   tooltip={settingsItem.label}
-                  className={`h-10 transition-all font-normal ${(location === settingsItem.path || location.startsWith(settingsItem.path + '/')) ? 'bg-[#00CFC1] text-[#0a0f1a] font-semibold hover:bg-[#00CFC1]/90' : 'hover:bg-white/5'}`}
+                  className={`h-9 transition-all font-normal rounded-md ${
+                    (location === settingsItem.path || location.startsWith(settingsItem.path + '/'))
+                      ? 'bg-[#00CFC1]/15 text-[#00CFC1] font-medium hover:bg-[#00CFC1]/20'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                  }`}
                 >
-                  <Settings className={`h-4 w-4 ${(location === settingsItem.path || location.startsWith(settingsItem.path + '/')) ? 'text-[#0a0f1a]' : ''}`} />
+                  <Settings className={`h-4 w-4 ${(location === settingsItem.path || location.startsWith(settingsItem.path + '/')) ? 'text-[#00CFC1]' : ''}`} />
                   <span>{settingsItem.label}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -386,9 +408,13 @@ function DashboardLayoutContent({
                       onClick={() => setLocation('/admin')}
                       tooltip="Admin"
                       isActive={location.startsWith('/admin')}
-                      className={`h-10 transition-all font-normal ${location.startsWith('/admin') ? 'bg-[#00CFC1] text-[#0a0f1a] font-semibold hover:bg-[#00CFC1]/90' : 'hover:bg-white/5'}`}
+                      className={`h-9 transition-all font-normal rounded-md ${
+                        location.startsWith('/admin')
+                          ? 'bg-[#00CFC1]/15 text-[#00CFC1] font-medium hover:bg-[#00CFC1]/20'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                      }`}
                     >
-                      <Shield className={`h-4 w-4 ${location.startsWith('/admin') ? 'text-[#0a0f1a]' : 'text-muted-foreground'}`} />
+                      <Shield className={`h-4 w-4 ${location.startsWith('/admin') ? 'text-[#00CFC1]' : 'text-muted-foreground'}`} />
                       <span>Admin</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

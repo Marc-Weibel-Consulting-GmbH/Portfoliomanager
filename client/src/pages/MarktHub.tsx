@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { Globe, Activity, BarChart3, Newspaper, Calendar, TrendingUp } from "lucide-react";
+import { useLocation } from "wouter";
 import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER_TAPE_CONFIG, HEATMAP_CONFIG } from "@/components/TradingViewWidget";
 
 // Lazy load heavy sub-pages (these components have their own DashboardLayout, so we use a wrapper)
@@ -130,6 +131,18 @@ function OverviewContent() {
 }
 
 export default function MarktHub() {
+  const searchString = typeof window !== 'undefined' ? window.location.search : '';
+  const searchParams = new URLSearchParams(searchString);
+  const urlTab = searchParams.get('tab') || 'overview';
+  const [activeMarktTab, setActiveMarktTab] = useState(urlTab);
+  const [, navigate] = useLocation();
+  
+  const handleMarktTabChange = (tab: string) => {
+    setActiveMarktTab(tab);
+    const newSearch = tab === 'overview' ? '' : `?tab=${tab}`;
+    navigate(`/markt${newSearch}`, { replace: true });
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-6">
@@ -145,8 +158,8 @@ export default function MarktHub() {
         {/* Index KPIs */}
         <IndexKpiRow />
 
-        {/* Tabs per IA-Spec: Übersicht | Regime | Bull | Heatmap | News | Dividenden-Kalender */}
-        <Tabs defaultValue="overview" className="w-full">
+        {/* Tabs per IA-Spec: Übersicht | Regime | Heatmap | News | Dividenden-Kalender */}
+        <Tabs value={activeMarktTab} onValueChange={handleMarktTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
               { value: 'overview', label: 'Übersicht', icon: Globe },

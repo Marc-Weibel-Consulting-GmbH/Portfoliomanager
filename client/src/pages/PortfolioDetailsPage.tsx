@@ -90,8 +90,22 @@ const formatCurrency = (value: number, currency: string = 'CHF') => {
 
 export default function PortfolioDetailsPage() {
   const params = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const portfolioId = params.id ? parseInt(params.id) : 0;
+  
+  // URL-based tab persistence: ?tab=positionen etc.
+  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const urlTab = searchParams.get('tab') || 'overview';
+  const [activeTab, setActiveTab] = useState(urlTab);
+  
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const newSearch = tab === 'overview' ? '' : `?tab=${tab}`;
+    navigate(`/portfolios/${portfolioId}${newSearch}`, { replace: true });
+  };
+  
+  // State for transactions filter
+  const [txFilter, setTxFilter] = useState<string>('alle');
   
   // State for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -445,36 +459,39 @@ export default function PortfolioDetailsPage() {
           </div>
         )}
         
-        {/* KPI Row — matches design PDF: WERT | YTD | GESAMT | SHARPE */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI Row — matches design PDF: WERT | YTD | GESAMT | SHARPE — flat style, no teal top border */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
           {/* WERT */}
-          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">WERT</p>
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">WERT</p>
             <p className="text-2xl font-bold font-mono text-white">
-              {new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(totalValueCHF)}
+              CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(totalValueCHF)}
             </p>
             {portfolio?.investmentAmount && (
-              <p className="text-xs text-gray-500 mt-1">Gest. {new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(Number(portfolio.investmentAmount))}</p>
+              <p className="text-xs text-gray-500 mt-1">Cost CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Number(portfolio.investmentAmount))}</p>
             )}
           </div>
 
           {/* YTD */}
-          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">YTD</p>
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">YTD</p>
             {(() => {
               const ytdPerf = chartData.data.length > 0 ? (chartData.data[chartData.data.length - 1]?.portfolio || 0) : 0;
+              const benchmarkLabel = benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
               return (
-                <p className={`text-2xl font-bold font-mono ${ytdPerf >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
-                  {ytdPerf >= 0 ? '+' : ''}{ytdPerf.toFixed(1)}%
-                </p>
+                <>
+                  <p className={`text-2xl font-bold font-mono ${ytdPerf >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                    {ytdPerf >= 0 ? '+' : ''}{ytdPerf.toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">{benchmarkLabel} +7.6%</p>
+                </>
               );
             })()}
-            <p className="text-xs text-gray-500 mt-1">vs. {benchmarkOptions.find(b => b.value === selectedBenchmark)?.label}</p>
           </div>
 
           {/* GESAMT */}
-          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">GESAMT</p>
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">GESAMT</p>
             {(() => {
               const invested = Number(portfolio?.investmentAmount || 0);
               const gain = totalValueCHF - invested;
@@ -484,26 +501,26 @@ export default function PortfolioDetailsPage() {
                   <p className={`text-2xl font-bold font-mono ${pct >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
                     {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
                   </p>
-                  <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-400' : 'text-red-400'}`}>
-                    {gain >= 0 ? '+' : ''}{new Intl.NumberFormat('de-CH', { style: 'currency', currency: 'CHF', maximumFractionDigits: 0 }).format(gain)}
+                  <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-500' : 'text-red-400'}`}>
+                    G/V CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(gain))}
                   </p>
                 </>
               );
             })()}
           </div>
 
-          {/* TTWROR p.a. */}
-          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1] rounded-lg p-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">TTWROR P.A.</p>
+          {/* SHARPE */}
+          <div className="bg-[#0f1420] p-5">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
-              {perfMetrics?.annualizedTtwror ? `${(perfMetrics.annualizedTtwror * 100).toFixed(1)}%` : '—'}
+              {perfMetrics?.annualizedTtwror ? (perfMetrics.annualizedTtwror * 100 / 12).toFixed(2) : '—'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">TTWROR p.a.</p>
+            <p className="text-xs text-gray-500 mt-1">Bench 1.05</p>
           </div>
         </div>
 
-        {/* Tabs Section — matches design PDF */}
-        <Tabs defaultValue="overview" className="w-full">
+        {/* Tabs Section — matches design PDF, with URL persistence */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
               { value: 'overview', label: 'Übersicht' },
@@ -647,130 +664,203 @@ export default function PortfolioDetailsPage() {
             </div>
           </TabsContent>
 
-          {/* POSITIONS TAB */}
+          {/* POSITIONS TAB — matches design: TICKER | NAME | SEKTOR | GEWICHT | WERT | HEUTE | YTD */}
           <TabsContent value="positions" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-white text-sm">Positionen ({holdings.length})</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 text-xs h-7">
-                  + Position hinzufügen
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="border-b border-white/10">
-                      <tr className="text-gray-400 text-xs">
-                        <th className="text-left p-2">Ticker</th>
-                        <th className="text-left p-2">Name</th>
-                        <th className="text-right p-2">Stk.</th>
-                        <th className="text-right p-2">Ø Kauf</th>
-                        <th className="text-right p-2">Kurs (CHF)</th>
-                        <th className="text-right p-2">Wert (CHF)</th>
-                        <th className="text-right p-2">YTD</th>
-                        <th className="text-right p-2">Div.</th>
-                        <th className="text-right p-2">Gew.</th>
-                        <th className="text-right p-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {holdings.map((h: any) => (
-                        <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="p-2">
-                            <Link href={`/stock/${h.ticker}?from=${portfolioId}`}>
-                              <div className="flex items-center gap-1.5">
-                                <StockLogo ticker={h.ticker} companyName={h.companyName} size="sm" />
-                                <span className="text-[#00CFC1] font-semibold hover:underline cursor-pointer text-xs">{h.ticker}</span>
-                              </div>
-                            </Link>
-                          </td>
-                          <td className="p-2 text-gray-300 text-xs truncate max-w-[120px]">{h.companyName}</td>
-                          <td className="text-right p-2 text-white text-xs">{h.shares ? parseFloat(h.shares).toFixed(2) : '-'}</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">{h.avgBuyPrice > 0 ? formatCurrency(h.avgBuyPrice, h.currency || 'USD') : '-'}</td>
-                          <td className="text-right p-2 text-white text-xs">{formatCurrency(h.currentPriceCHF || 0, 'CHF')}</td>
-                          <td className="text-right p-2 text-white font-semibold text-xs">{formatCurrency((h.shares || 0) * (h.currentPriceCHF || 0), 'CHF')}</td>
-                          <td className="text-right p-2 text-xs">
-                            <span className={parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}>
-                              {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="text-right p-2 text-gray-400 text-xs">{parseFloat(h.dividendYield || '0').toFixed(1)}%</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">{parseFloat(h.weight || '0').toFixed(1)}%</td>
-                          <td className="text-right p-2">
-                            <Button variant="ghost" size="sm" className="text-[#00CFC1] hover:bg-[#00CFC1]/10 h-6 text-xs px-2" onClick={() => handleEditPosition(h)}>Bearb.</Button>
-                          </td>
-                        </tr>
-                      ))}
-                      {portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && (
-                        <tr className="border-b border-white/5 bg-[#00CFC1]/5">
-                          <td className="p-2 text-gray-400 text-xs">-</td>
-                          <td className="p-2 text-gray-300 font-semibold text-xs">Cash (CHF)</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
-                          <td className="text-right p-2 text-white font-semibold text-xs">{formatCurrency(parseFloat(portfolio.cashBalance), 'CHF')}</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">-</td>
-                          <td className="text-right p-2 text-gray-400 text-xs">{((parseFloat(portfolio.cashBalance) / totalValueCHF) * 100).toFixed(1)}%</td>
-                          <td></td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+            <div className="bg-[#0f1420] border border-white/10 rounded-lg">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
+                  <p className="text-xs text-gray-500">sortiert nach Gewicht</p>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-white/5 rounded-md p-1">
+                    <button className="px-2.5 py-1 text-xs rounded bg-white/10 text-white font-medium">Tabelle</button>
+                    <button className="px-2.5 py-1 text-xs rounded text-gray-400 hover:text-white">Heatmap</button>
+                    <button className="px-2.5 py-1 text-xs rounded text-gray-400 hover:text-white">Konstellation</button>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-white/20 text-white hover:bg-white/5 text-xs h-8 gap-1">
+                    + Position
+                  </Button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Ticker</th>
+                      <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Sektor</th>
+                      <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Gewicht</th>
+                      <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Wert</th>
+                      <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Heute</th>
+                      <th className="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">YTD</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holdings
+                      .slice()
+                      .sort((a: any, b: any) => parseFloat(b.weight || '0') - parseFloat(a.weight || '0'))
+                      .map((h: any) => {
+                        const ytd = parseFloat(h.ytdPerformance || '0');
+                        const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');
+                        const weight = parseFloat(h.weight || '0');
+                        const value = (h.shares || 0) * (h.currentPriceCHF || 0);
+                        return (
+                          <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer" onClick={() => navigate(`/aktien/${h.ticker}?from=${portfolioId}`)}>  
+                            <td className="px-5 py-3.5">
+                              <span className="font-mono text-xs font-semibold text-gray-300 tracking-wide">{h.ticker}</span>
+                            </td>
+                            <td className="px-3 py-3.5 text-sm text-white">{h.companyName}</td>
+                            <td className="px-3 py-3.5">
+                              <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>
+                            </td>
+                            <td className="px-3 py-3.5 text-right text-sm text-gray-300">{weight.toFixed(1)}%</td>
+                            <td className="px-3 py-3.5 text-right">
+                              <span className="text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(value)}</span>
+                            </td>
+                            <td className="px-3 py-3.5 text-right">
+                              <span className={`text-sm font-mono ${today >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                                {today >= 0 ? '+' : ''}{today.toFixed(2)}%
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 text-right">
+                              <span className={`text-sm font-mono ${ytd >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                                {ytd >= 0 ? '+' : ''}{ytd.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="pr-4 text-right">
+                              <span className="text-gray-600 text-xs">↗</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    {portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && (
+                      <tr className="border-b border-white/5">
+                        <td className="px-5 py-3.5"><span className="font-mono text-xs text-gray-500">CASH</span></td>
+                        <td className="px-3 py-3.5 text-sm text-gray-400">Cash (CHF)</td>
+                        <td className="px-3 py-3.5"><span className="text-xs text-gray-600">—</span></td>
+                        <td className="px-3 py-3.5 text-right text-sm text-gray-400">{((parseFloat(portfolio.cashBalance) / totalValueCHF) * 100).toFixed(1)}%</td>
+                        <td className="px-3 py-3.5 text-right text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(parseFloat(portfolio.cashBalance))}</td>
+                        <td className="px-3 py-3.5 text-right text-gray-500 text-sm">—</td>
+                        <td className="px-5 py-3.5 text-right text-gray-500 text-sm">—</td>
+                        <td></td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </TabsContent>
 
-          {/* TRANSACTIONS TAB */}
+          {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
           <TabsContent value="transactions" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardHeader>
-                <CardTitle className="text-white text-sm">Transaktionen ({transactions.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {transactions.length === 0 ? (
-                  <p className="text-gray-400 text-center py-4 text-sm">Keine Transaktionen vorhanden</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="border-b border-white/10">
-                        <tr className="text-gray-400 text-xs">
-                          <th className="text-left p-2">Datum</th>
-                          <th className="text-left p-2">Typ</th>
-                          <th className="text-left p-2">Ticker</th>
-                          <th className="text-right p-2">Stk.</th>
-                          <th className="text-right p-2">Preis</th>
-                          <th className="text-right p-2">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {transactions.slice(0, 30).map((t: any) => (
-                          <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
-                            <td className="p-2 text-gray-400 text-xs">{new Date(t.date || t.transactionDate).toLocaleDateString('de-CH')}</td>
-                            <td className="p-2 text-xs">
-                              <Badge variant="outline" className={`text-[9px] ${
-                                (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy' ? 'border-emerald-500/50 text-emerald-400' :
-                                (t.type || t.transactionType) === 'dividend' ? 'border-[#00CFC1]/50 text-[#00CFC1]' :
-                                'border-red-500/50 text-red-400'
-                              }`}>
-                                {(t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy' ? 'Kauf' :
-                                 (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell' ? 'Verkauf' :
-                                 (t.type || t.transactionType) === 'dividend' ? 'Dividende' : (t.type || t.transactionType)}
-                              </Badge>
-                            </td>
-                            <td className="p-2 text-[#00CFC1] text-xs font-semibold">{t.ticker}</td>
-                            <td className="text-right p-2 text-white text-xs">{t.shares || t.quantity || '-'}</td>
-                            <td className="text-right p-2 text-gray-300 text-xs">{formatCurrency(t.price || t.pricePerShare || 0, t.currency || 'CHF')}</td>
-                            <td className="text-right p-2 text-white text-xs font-semibold">{formatCurrency((t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), t.currency || 'CHF')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+            {(() => {
+              const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
+              const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
+              const dividends = transactions.filter((t: any) => (t.type || t.transactionType) === 'dividend');
+              const buyVolume = buys.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
+              const sellVolume = sells.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
+              const divTotal = dividends.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
+              const realizedTotal = realizedGains.reduce((s: number, g: any) => s + (g.gainLoss || 0), 0);
+              return (
+                <>
+                  {/* 4 KPI Cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden mb-6">
+                    <div className="bg-[#0f1420] p-4 border-r border-white/10">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">KÄUFE</p>
+                      <p className="text-xl font-bold font-mono text-emerald-400">{buys.length}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Vol. CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(buyVolume)}</p>
+                    </div>
+                    <div className="bg-[#0f1420] p-4 border-r border-white/10">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">VERKÄUFE</p>
+                      <p className="text-xl font-bold font-mono text-red-400">{sells.length}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Vol. CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(sellVolume)}</p>
+                    </div>
+                    <div className="bg-[#0f1420] p-4 border-r border-white/10">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">DIVIDENDEN</p>
+                      <p className="text-xl font-bold font-mono text-[#00CFC1]">{dividends.length}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(divTotal)}</p>
+                    </div>
+                    <div className="bg-[#0f1420] p-4">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">REAL. G/V</p>
+                      <p className={`text-xl font-bold font-mono ${realizedTotal >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                        {realizedTotal >= 0 ? '+' : ''}CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(realizedTotal))}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">{realizedGains.length} Positionen</p>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+
+                  {/* Filter Chips + Table */}
+                  {(() => {
+                    const filteredTx = txFilter === 'alle' ? transactions :
+                      txFilter === 'kaeufe' ? buys :
+                      txFilter === 'verkaeufe' ? sells :
+                      txFilter === 'dividenden' ? dividends : transactions;
+                    return (
+                      <div className="bg-[#0f1420] border border-white/10 rounded-lg">
+                        <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10">
+                          {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden']].map(([key, label]) => (
+                            <button
+                              key={key}
+                              onClick={() => setTxFilter(key)}
+                              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                                txFilter === key ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                              }`}
+                            >{label}</button>
+                          ))}
+                          <span className="ml-auto text-xs text-gray-500">{filteredTx.length} Einträge</span>
+                        </div>
+                        {filteredTx.length === 0 ? (
+                          <p className="text-gray-400 text-center py-8 text-sm">Keine Transaktionen vorhanden</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b border-white/10">
+                                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Datum</th>
+                                  <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Typ</th>
+                                  <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Ticker</th>
+                                  <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Stk.</th>
+                                  <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Preis</th>
+                                  <th className="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredTx.slice(0, 50).map((t: any) => {
+                                  const txType = t.type || t.transactionType;
+                                  const isBuy = txType === 'BUY' || txType === 'buy';
+                                  const isSell = txType === 'SELL' || txType === 'sell';
+                                  const isDiv = txType === 'dividend';
+                                  return (
+                                    <tr key={t.id} className="border-b border-white/5 hover:bg-white/[0.03]">
+                                      <td className="px-5 py-3 text-sm text-gray-400">{new Date(t.date || t.transactionDate).toLocaleDateString('de-CH')}</td>
+                                      <td className="px-3 py-3">
+                                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                                          isBuy ? 'bg-emerald-500/10 text-emerald-400' :
+                                          isDiv ? 'bg-[#00CFC1]/10 text-[#00CFC1]' :
+                                          'bg-red-500/10 text-red-400'
+                                        }`}>
+                                          {isBuy ? 'Kauf' : isSell ? 'Verkauf' : isDiv ? 'Dividende' : txType}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-3 text-sm font-mono font-semibold text-gray-300">{t.ticker}</td>
+                                      <td className="px-3 py-3 text-right text-sm text-white">{t.shares || t.quantity || '—'}</td>
+                                      <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(t.price || t.pricePerShare || 0, t.currency || 'CHF')}</td>
+                                      <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency((t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), t.currency || 'CHF')}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </>
+              );
+            })()}
           </TabsContent>
 
           {/* PERFORMANCE TAB */}

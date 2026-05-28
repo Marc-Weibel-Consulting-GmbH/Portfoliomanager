@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useLocation } from 'wouter';
 import { trpc } from '@/lib/trpc';
 import { useAuth } from '@/_core/hooks/useAuth';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -30,7 +31,15 @@ import {
 
 export default function CopilotHub() {
   const { user, isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState('insights');
+  const [, navigate] = useLocation();
+  const urlTab = typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('tab') || 'insights') : 'insights';
+  const [activeTab, setActiveTab] = useState(urlTab);
+  
+  const handleCopilotTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const newSearch = tab === 'insights' ? '' : `?tab=${tab}`;
+    navigate(`/copilot${newSearch}`, { replace: true });
+  };
 
   return (
     <DashboardLayout>
@@ -55,7 +64,7 @@ export default function CopilotHub() {
         </div>
 
         {/* Tabs — underline style matching design */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleCopilotTabChange}>
           <TabsList className="flex gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none w-full justify-start">
             <TabsTrigger value="insights" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5">
               <Lightbulb className="w-3.5 h-3.5" /> Insights <InsightsBadge />

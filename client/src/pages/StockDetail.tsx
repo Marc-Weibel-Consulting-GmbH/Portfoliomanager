@@ -166,10 +166,24 @@ export default function StockDetail() {
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   const [, navigate] = useLocation();
   
-  // Parse query parameters to get referrer portfolio
+  // Parse query parameters to get referrer portfolio and active tab
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
   const fromPortfolioId = searchParams.get('from');
+  const urlTab = searchParams.get('tab') || 'overview';
+  const [activeStockTab, setActiveStockTab] = useState(urlTab);
+  
+  const handleStockTabChange = (tab: string) => {
+    setActiveStockTab(tab);
+    const newParams = new URLSearchParams(searchString);
+    if (tab === 'overview') {
+      newParams.delete('tab');
+    } else {
+      newParams.set('tab', tab);
+    }
+    const newSearch = newParams.toString() ? `?${newParams.toString()}` : '';
+    navigate(`/aktien/${ticker}${newSearch}`, { replace: true });
+  };
 
   // Fetch stock data
   const { data: stock, isLoading } = trpc.stocks.byTicker.useQuery(ticker, {
@@ -428,7 +442,7 @@ export default function StockDetail() {
       <div className="max-w-7xl mx-auto space-y-0">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-          <Link href="/portfolios"><span className="hover:text-gray-300 cursor-pointer">Portfolios</span></Link>
+          <Link href="/aktien"><span className="hover:text-gray-300 cursor-pointer">Aktien</span></Link>
           {fromPortfolioId && (
             <>
               <span>/</span>
@@ -482,7 +496,7 @@ export default function StockDetail() {
         </div>
 
         {/* Tabs per IA-Optimierung: Übersicht | Signale | Chart & TA | Bewertung | KI-Prognose | Backtest | News */}
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeStockTab} onValueChange={handleStockTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none mb-6">
             {[
               { value: 'overview', label: 'Übersicht' },
