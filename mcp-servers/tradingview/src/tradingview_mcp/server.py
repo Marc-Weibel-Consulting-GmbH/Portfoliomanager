@@ -841,7 +841,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="TradingView Screener MCP server")
     parser.add_argument(
         "transport",
-        choices=["stdio", "streamable-http"],
+        choices=["stdio", "streamable-http", "sse"],
         default="stdio",
         nargs="?",
         help="Transport (default stdio)",
@@ -849,13 +849,18 @@ def main() -> None:
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     args = parser.parse_args()
-
     if os.environ.get("DEBUG_MCP"):
         import sys
         print(f"[DEBUG_MCP] pkg cwd={os.getcwd()} argv={sys.argv} file={__file__}", file=sys.stderr, flush=True)
-
     if args.transport == "stdio":
         mcp.run()
+    elif args.transport == "sse":
+        try:
+            mcp.settings.host = args.host
+            mcp.settings.port = args.port
+        except Exception:
+            pass
+        mcp.run(transport="sse")
     else:
         try:
             mcp.settings.host = args.host
