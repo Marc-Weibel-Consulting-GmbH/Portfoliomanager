@@ -17,6 +17,11 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
+import YahooFinanceClass from 'yahoo-finance2';
+import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
+import { detectBubble } from '../analytics/lpplsEngine';
+// yahoo-finance2 v3: default export is a constructor class
+const yahooFinance = new (YahooFinanceClass as any)();
 
 const MCP_BASE = process.env.TRADINGVIEW_MCP_URL?.replace(/\/$/, "") ?? "";
 
@@ -333,5 +338,109 @@ export const tradingviewRouter = router({
         screener: input.screener,
         limit: input.limit,
       }, 30_000);
+    }),
+
+  /** Bollinger Band scanner */
+  bollingerScan: publicProcedure
+    .input(z.object({
+      exchange: z.string().default("NASDAQ"),
+      screener: z.string().default("america"),
+      limit: z.number().default(20),
+    }))
+    .query(async ({ input }) => {
+      return mcp("bollinger_band_scanner", {
+        exchange: input.exchange,
+        screener: input.screener,
+        limit: input.limit,
+      }, 30_000);
+    }),
+
+  /** Multi-agent analysis (Technical + Sentiment + Risk) */
+  multiAgentAnalysis: publicProcedure
+    .input(z.object({
+      symbol: z.string().min(1),
+      interval: z.string().default("1d"),
+    }))
+    .query(async ({ input }) => {
+      const { exchange, screener, tvSymbol } = inferExchangeInfo(input.symbol);
+      return mcp("multi_agent_analysis", {
+        symbol: tvSymbol,
+        exchange,
+        screener,
+        interval: input.interval,
+      }, 120_000);
+    }),
+
+  /** Combined Momentum + Quality + LPPL Scoring */
+  stockScoring: publicProcedure
+    .input(z.object({ symbol: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const ticker = input.symbol.toUpperCase();
+      try {
+        // 1. Historical prices (12 months)
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        const chartResult: any = await yahooFinance.chart(ticker, {
+          period1: startDate.toISOString().split('T')[0],
+          period2: endDate.toISOString().split('T')[0],
+          interval: '1d',
+        });
+        const quotes = (chartResult?.quotes ?? []).filter((q: any) => q.close != null);
+        const prices: number[] = quotes.map((q: any) => q.close as number);
+
+        // 2. Fundamentals
+        let qualityMetrics: any = {};
+        try {
+          const summary: any = await yahooFinance.quoteSummary(ticker, {
+            modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'],
+          });
+          qualityMetrics = extractQualityFromYahoo(summary);
+        } catch (_) {}
+
+        // 3. Momentum Score
+        let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral', components: {} };
+        if (prices.length >= 60) {
+          try { momentumResult = calculateMomentumScore({ prices }); } catch (_) {}
+        }
+
+        // 4. Quality Score
+        let qualityResult: any = { score: 0, grade: 'C', components: {} };
+        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
+
+        // 5. LPPL Bubble Score
+        let bubbleScore = 0;
+        let bubbleRegime = 'normal';
+        if (prices.length >= 60) {
+          try {
+            const bubble = detectBubble({ prices });
+            bubbleScore = bubble.bubbleScore ?? 0;
+            bubbleRegime = bubble.regime ?? 'normal';
+          } catch (_) {}
+        }
+
+        // 6. Combined Score: 40% Momentum + 40% Quality + 20% LPPL penalty
+        const mNorm = (momentumResult.score + 1) / 2; // -1..1 → 0..1
+        const qNorm = (qualityResult.score + 1) / 2;  // -1..1 → 0..1
+        const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
+        const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+
+        const overallGrade = combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F';
+        const signal = combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL';
+
+        return {
+          ticker,
+          combinedScore: parseFloat((combined * 100).toFixed(1)),
+          overallGrade,
+          signal,
+          momentum: { score: parseFloat((momentumResult.score ?? 0).toFixed(3)), grade: momentumResult.grade, trend: momentumResult.trend },
+          quality: { score: parseFloat((qualityResult.score ?? 0).toFixed(3)), grade: qualityResult.grade },
+          lppl: { bubbleScore: parseFloat((bubbleScore ?? 0).toFixed(3)), regime: bubbleRegime, penalty: parseFloat((lpplPenalty * 100).toFixed(1)) },
+          priceCount: prices.length,
+          analysisDate: new Date().toISOString().split('T')[0],
+        };
+      } catch (err: any) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Scoring failed for ${ticker}: ${err.message}` });
+      }
     }),
 });

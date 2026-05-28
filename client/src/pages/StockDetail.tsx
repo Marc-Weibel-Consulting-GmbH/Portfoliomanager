@@ -11,6 +11,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
 import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
 import TradingViewBacktestTab from "@/components/stock/TradingViewBacktestTab";
+import StockScoringWidget from "@/components/stock/StockScoringWidget";
 import {
   ComposedChart,
   Line,
@@ -693,6 +694,8 @@ export default function StockDetail() {
 
           {/* Right Column - Metrics & News */}
           <div className="space-y-6">
+            {/* Strategie-Scoring Widget */}
+            <StockScoringWidget ticker={ticker} />
             {/* Key Metrics */}
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
               <CardContent className="p-4 space-y-3">

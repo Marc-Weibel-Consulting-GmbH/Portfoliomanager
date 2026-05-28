@@ -11,6 +11,7 @@ import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER
 // For now, we'll embed content directly since these pages wrap in DashboardLayout
 import MarketRegimeContent from "./MarketRegimeContent";
 import NewsroomContent from "./Newsroom";
+import MarktScanner from "@/components/market/MarktScanner";
 
 function LoadingFallback() {
   return (
@@ -168,6 +169,7 @@ export default function MarktHub() {
               { value: 'heatmap', label: 'Heatmap', icon: BarChart3 },
               { value: 'news', label: 'News', icon: Newspaper },
               { value: 'dividends', label: 'Dividenden-Kalender', icon: Calendar },
+              { value: 'scanner', label: 'Scanner', icon: Activity },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
@@ -218,6 +220,9 @@ export default function MarktHub() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+          <TabsContent value="scanner" className="mt-6">
+            <MarktScanner />
           </TabsContent>
         </Tabs>
       </div>

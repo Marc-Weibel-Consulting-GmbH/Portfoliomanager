@@ -1240,3 +1240,13 @@
 - [x] Sidebar Footer: Premium badge next to username
 - [x] Copilot Insights CTAs: Proper teal outline buttons with border (Dashboard + CopilotHub)
 - [x] Dark mode sidebar accent color updated to teal-tinted hue
+
+## TradingView MCP Railway Deployment + 3 neue Features (28.05.2026)
+- [x] TradingView MCP-Server auf Railway deployed (SSE-Transport, Portfoliomanager-Projekt)
+- [x] TRADINGVIEW_MCP_URL Secret gesetzt und tRPC-Router verbunden (reachable: true)
+- [x] stockScoring-Endpunkt: Momentum + Qualität + LPPL-Fit kombiniert (Score 0-100, Grade A-F, Signal BUY/HOLD/SELL)
+- [x] StockScoringWidget in StockDetail-Seite (rechte Sidebar, Übersicht-Tab)
+- [x] StrategyBacktest-Seite (/backtesting): Vollständiger Backtest-Tab mit Strategie-Auswahl, Zeitraum, Ergebnistabelle
+- [x] MarktScanner-Komponente: Top Gainers/Losers, Volume Breakout, Bollinger Scan (SIX/NASDAQ/XETRA)
+- [x] Scanner-Tab im MarktHub eingebaut
+- [x] Backtest-Link in Sidebar (Tools-Gruppe) hinzugefügt
