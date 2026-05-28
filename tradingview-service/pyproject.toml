@@ -1,0 +1,18 @@
+[project]
+name = "tradingview-analytics-bridge"
+version = "1.0.0"
+description = "FastAPI bridge wrapping tradingview-mcp-server for Portfolio App"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "tradingview-mcp-server>=0.7.0",
+    "pydantic>=2.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []

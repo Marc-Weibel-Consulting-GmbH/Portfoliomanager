@@ -9,6 +9,8 @@ import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Pl
 import { StockLogo } from "@/components/StockLogo";
 import DashboardLayout from "@/components/DashboardLayout";
 import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
+import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
+import TradingViewBacktestTab from "@/components/stock/TradingViewBacktestTab";
 import {
   ComposedChart,
   Line,
@@ -788,17 +790,7 @@ export default function StockDetail() {
 
           {/* Signale Tab */}
           <TabsContent value="signals">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-              <CardHeader>
-                <CardTitle className="text-white">Technische Signale</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400 text-sm mb-4">Aktuelle Kauf-/Verkaufssignale basierend auf technischer Analyse</p>
-                <Link href={`/signals?ticker=${ticker}`}>
-                  <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Signale anzeigen</Button>
-                </Link>
-              </CardContent>
-            </Card>
+            <TradingViewSignalsTab ticker={ticker} />
           </TabsContent>
 
           {/* Chart & TA Tab */}
@@ -873,17 +865,7 @@ export default function StockDetail() {
 
           {/* Backtest Tab */}
           <TabsContent value="backtest">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-              <CardHeader>
-                <CardTitle className="text-white">Backtest</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400 text-sm mb-4">Historische Strategie-Simulation für {ticker}</p>
-                <Link href={`/backtesting?ticker=${ticker}`}>
-                  <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Backtest starten</Button>
-                </Link>
-              </CardContent>
-            </Card>
+            <TradingViewBacktestTab ticker={ticker} />
           </TabsContent>
 
           {/* News Tab */}
