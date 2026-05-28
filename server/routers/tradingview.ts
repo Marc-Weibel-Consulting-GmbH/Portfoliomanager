@@ -1,241 +1,331 @@
 /**
- * TradingView Analytics Router
- * Proxies requests to the TradingView Analytics Bridge (FastAPI on Railway).
+ * TradingView MCP Router
  *
- * Environment variables required:
- *   TRADINGVIEW_BRIDGE_URL     — Railway service URL (e.g. https://tv-bridge.up.railway.app)
- *   TRADINGVIEW_BRIDGE_API_KEY — Optional API key to secure the bridge
+ * Calls the TradingView MCP Server directly via the MCP streamable-http protocol.
+ * No FastAPI bridge needed — the MCP server is deployed directly on Railway.
+ *
+ * Environment variable required:
+ *   TRADINGVIEW_MCP_URL  — Railway URL of the MCP server
+ *                          e.g. https://tradingview-mcp-production.up.railway.app
+ *
+ * Protocol (3-step):
+ *   1. POST /mcp  { method: "initialize" }  → get Mcp-Session-Id header
+ *   2. POST /mcp  { method: "notifications/initialized" }  (202, no body)
+ *   3. POST /mcp  { method: "tools/call", params: { name, arguments } }  → SSE result
  */
+
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 
-const BRIDGE_URL = process.env.TRADINGVIEW_BRIDGE_URL?.replace(/\/$/, "") ?? "";
-const BRIDGE_KEY = process.env.TRADINGVIEW_BRIDGE_API_KEY ?? "";
+const MCP_BASE = process.env.TRADINGVIEW_MCP_URL?.replace(/\/$/, "") ?? "";
 
-/** Build URL with optional API key query param */
-function bridgeUrl(path: string, params: Record<string, string | number | boolean> = {}): string {
-  if (!BRIDGE_URL) {
-    throw new TRPCError({
-      code: "PRECONDITION_FAILED",
-      message: "TRADINGVIEW_BRIDGE_URL is not configured. Deploy the tradingview-service to Railway first.",
-    });
+// ── Exchange mapping: Yahoo suffix → TradingView exchange name ─────────────────
+const EXCHANGE_MAP: Record<string, { exchange: string; screener: string }> = {
+  ".SW": { exchange: "SIX",      screener: "europe"  },
+  ".DE": { exchange: "XETRA",    screener: "europe"  },
+  ".PA": { exchange: "EURONEXT", screener: "europe"  },
+  ".L":  { exchange: "LSE",      screener: "europe"  },
+  ".T":  { exchange: "TSE",      screener: "japan"   },
+  ".HK": { exchange: "HKEX",     screener: "hongkong"},
+};
+
+function inferExchangeInfo(symbol: string): { exchange: string; screener: string; tvSymbol: string } {
+  for (const [suffix, info] of Object.entries(EXCHANGE_MAP)) {
+    if (symbol.toUpperCase().endsWith(suffix.toUpperCase())) {
+      return { ...info, tvSymbol: symbol.slice(0, -suffix.length).toUpperCase() };
+    }
   }
-  const url = new URL(`${BRIDGE_URL}${path}`);
-  if (BRIDGE_KEY) url.searchParams.set("api_key", BRIDGE_KEY);
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, String(v));
-  }
-  return url.toString();
+  return { exchange: "NASDAQ", screener: "america", tvSymbol: symbol.toUpperCase() };
 }
 
-/** Fetch helper with timeout and error handling */
-async function bridgeFetch<T>(
-  url: string,
-  options: RequestInit = {},
-  timeoutMs = 30_000
+// ── MCP Protocol Helpers ───────────────────────────────────────────────────────
+
+async function mcpInit(): Promise<string> {
+  if (!MCP_BASE) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "TRADINGVIEW_MCP_URL is not configured. Deploy mcp-servers/tradingview to Railway and set the env var.",
+    });
+  }
+
+  const res = await fetch(`${MCP_BASE}/mcp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "portfolio-app", version: "1.0" },
+      },
+    }),
+  });
+
+  const sessionId = res.headers.get("mcp-session-id");
+  if (!sessionId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "MCP server returned no session ID" });
+
+  // Fire-and-forget initialized notification
+  fetch(`${MCP_BASE}/mcp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "Mcp-Session-Id": sessionId,
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
+  }).catch(() => {});
+
+  return sessionId;
+}
+
+async function mcpCallTool<T = unknown>(
+  sessionId: string,
+  toolName: string,
+  args: Record<string, unknown>,
+  timeoutMs = 60_000
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: `Bridge error ${res.status}: ${text.slice(0, 200)}`,
-      });
+    const res = await fetch(`${MCP_BASE}/mcp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "Mcp-Session-Id": sessionId,
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: toolName, arguments: args },
+      }),
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+
+    // Parse SSE stream — find "data: {...}" line
+    for (const line of text.split("\n")) {
+      if (!line.startsWith("data: ")) continue;
+      const json = JSON.parse(line.slice(6));
+      if (json.error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `MCP tool "${toolName}" error: ${JSON.stringify(json.error)}`,
+        });
+      }
+      const raw = json.result?.content?.[0]?.text;
+      if (raw === undefined) continue;
+      try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
     }
-    return res.json() as Promise<T>;
-  } catch (err: unknown) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No result in MCP response" });
+  } catch (err) {
     if (err instanceof TRPCError) throw err;
     const msg = err instanceof Error ? err.message : String(err);
-    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Bridge fetch failed: ${msg}` });
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `MCP call failed: ${msg}` });
   } finally {
     clearTimeout(timer);
   }
 }
 
-// ── Exchange mapping: map Yahoo-style suffixes to TradingView exchange names ──
-const EXCHANGE_MAP: Record<string, string> = {
-  ".SW": "SIX",
-  ".DE": "XETRA",
-  ".PA": "EURONEXT",
-  ".L": "LSE",
-  ".T": "TSE",
-  ".HK": "HKEX",
-  // US stocks have no suffix → NASDAQ or NYSE
-};
-
-function inferExchange(symbol: string): string {
-  for (const [suffix, exchange] of Object.entries(EXCHANGE_MAP)) {
-    if (symbol.toUpperCase().endsWith(suffix.toUpperCase())) return exchange;
-  }
-  return "NASDAQ"; // default for US stocks
+/** One-shot helper: init session + call tool */
+async function mcp<T = unknown>(
+  toolName: string,
+  args: Record<string, unknown>,
+  timeoutMs = 60_000
+): Promise<T> {
+  const sessionId = await mcpInit();
+  return mcpCallTool<T>(sessionId, toolName, args, timeoutMs);
 }
 
-function stripExchangeSuffix(symbol: string): string {
-  for (const suffix of Object.keys(EXCHANGE_MAP)) {
-    if (symbol.toUpperCase().endsWith(suffix.toUpperCase())) {
-      return symbol.slice(0, -suffix.length);
-    }
-  }
-  return symbol;
-}
+// ── tRPC Router ────────────────────────────────────────────────────────────────
 
-// ── Router ────────────────────────────────────────────────────────────────────
 export const tradingviewRouter = router({
 
-  /** Check if the bridge is reachable */
-  health: publicProcedure.query(async () => {
-    if (!BRIDGE_URL) return { status: "not_configured", message: "TRADINGVIEW_BRIDGE_URL not set" };
+  /** Check if the MCP server is configured and reachable */
+  status: publicProcedure.query(async () => {
+    if (!MCP_BASE) return { configured: false, reachable: false, url: null };
     try {
-      const url = bridgeUrl("/health");
-      const data = await bridgeFetch<{ status: string }>(url, {}, 5_000);
-      return { status: data.status, bridgeUrl: BRIDGE_URL };
-    } catch {
-      return { status: "unreachable", bridgeUrl: BRIDGE_URL };
+      const sessionId = await mcpInit();
+      return { configured: true, reachable: !!sessionId, url: MCP_BASE };
+    } catch (err) {
+      return { configured: true, reachable: false, url: MCP_BASE, error: String(err) };
     }
   }),
 
-  /** Real-time price for a symbol */
+  /** Live price from Yahoo Finance */
   price: publicProcedure
     .input(z.object({ symbol: z.string().min(1) }))
     .query(async ({ input }) => {
-      const url = bridgeUrl(`/price/${encodeURIComponent(input.symbol)}`);
-      return bridgeFetch(url);
+      return mcp("yahoo_price", { symbol: input.symbol });
     }),
 
-  /** Multi-timeframe technical analysis */
+  /** Multi-timeframe technical analysis (1h / 4h / 1d) */
   analysis: publicProcedure
     .input(z.object({
       symbol: z.string().min(1),
       exchange: z.string().optional(),
+      screener: z.string().optional(),
     }))
     .query(async ({ input }) => {
-      const exchange = input.exchange ?? inferExchange(input.symbol);
-      const tvSymbol = stripExchangeSuffix(input.symbol);
-      const url = bridgeUrl(`/analysis/${encodeURIComponent(tvSymbol)}`, { exchange });
-      return bridgeFetch(url, {}, 45_000);
+      const { exchange, screener, tvSymbol } = inferExchangeInfo(input.symbol);
+      return mcp("multi_timeframe_analysis", {
+        symbol: tvSymbol,
+        exchange: input.exchange ?? exchange,
+        screener: input.screener ?? screener,
+      }, 60_000);
     }),
 
-  /** Bollinger Band + indicator signals for a stock */
+  /** Combined TA signals (summary + oscillators + MAs) */
   signals: publicProcedure
     .input(z.object({
       symbol: z.string().min(1),
       exchange: z.string().optional(),
-      timeframe: z.string().default("1d"),
+      screener: z.string().optional(),
+      interval: z.string().default("1d"),
     }))
     .query(async ({ input }) => {
-      const exchange = input.exchange ?? inferExchange(input.symbol);
-      const tvSymbol = stripExchangeSuffix(input.symbol);
-      const url = bridgeUrl(`/signals/${encodeURIComponent(tvSymbol)}`, {
-        exchange,
-        timeframe: input.timeframe,
-      });
-      return bridgeFetch(url, {}, 45_000);
-    }),
-
-  /** Global market snapshot */
-  marketSnapshot: publicProcedure.query(async () => {
-    const url = bridgeUrl("/market-snapshot");
-    return bridgeFetch(url, {}, 20_000);
-  }),
-
-  /** Financial news */
-  news: publicProcedure
-    .input(z.object({
-      query: z.string().default("market"),
-      count: z.number().min(1).max(50).default(10),
-    }))
-    .query(async ({ input }) => {
-      const url = bridgeUrl("/news", { query: input.query, count: input.count });
-      return bridgeFetch(url, {}, 20_000);
-    }),
-
-  /** Reddit sentiment for a symbol */
-  sentiment: publicProcedure
-    .input(z.object({ symbol: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const url = bridgeUrl(`/sentiment/${encodeURIComponent(input.symbol)}`);
-      return bridgeFetch(url, {}, 20_000);
+      const { exchange, screener, tvSymbol } = inferExchangeInfo(input.symbol);
+      return mcp("combined_analysis", {
+        symbol: tvSymbol,
+        exchange: input.exchange ?? exchange,
+        screener: input.screener ?? screener,
+        interval: input.interval,
+      }, 45_000);
     }),
 
   /** Backtest a single strategy */
   backtest: publicProcedure
     .input(z.object({
       symbol: z.string().min(1),
-      exchange: z.string().optional(),
-      strategy: z.enum(["rsi", "bollinger", "macd", "ema_cross", "supertrend", "donchian", "rsi_pullback", "keltner", "triple_ema"]).default("rsi"),
-      timeframe: z.string().default("1d"),
-      initialCapital: z.number().default(10000),
-      includeTradeLog: z.boolean().default(false),
-      includeEquityCurve: z.boolean().default(false),
+      strategy: z.enum([
+        "rsi_oversold", "macd_crossover", "bollinger_breakout",
+        "ema_crossover", "sma_crossover", "rsi_divergence",
+        "volume_breakout", "supertrend", "ichimoku",
+      ]).default("macd_crossover"),
+      period: z.string().default("1y"),
+      interval: z.string().default("1d"),
     }))
-    .mutation(async ({ input }) => {
-      const exchange = input.exchange ?? inferExchange(input.symbol);
-      const tvSymbol = stripExchangeSuffix(input.symbol);
-      const url = bridgeUrl("/backtest");
-      return bridgeFetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symbol: tvSymbol,
-          exchange,
-          strategy: input.strategy,
-          timeframe: input.timeframe,
-          initial_capital: input.initialCapital,
-          include_trade_log: input.includeTradeLog,
-          include_equity_curve: input.includeEquityCurve,
-        }),
+    .query(async ({ input }) => {
+      return mcp("backtest_strategy", {
+        symbol: input.symbol,
+        strategy: input.strategy,
+        period: input.period,
+        interval: input.interval,
       }, 120_000);
     }),
 
-  /** Compare all 9 strategies */
+  /** Compare all strategies on a symbol */
   compareStrategies: publicProcedure
     .input(z.object({
       symbol: z.string().min(1),
-      exchange: z.string().optional(),
-      timeframe: z.string().default("1d"),
-      initialCapital: z.number().default(10000),
+      period: z.string().default("1y"),
+      interval: z.string().default("1d"),
     }))
-    .mutation(async ({ input }) => {
-      const exchange = input.exchange ?? inferExchange(input.symbol);
-      const tvSymbol = stripExchangeSuffix(input.symbol);
-      const url = bridgeUrl("/compare-strategies");
-      return bridgeFetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symbol: tvSymbol,
-          exchange,
-          timeframe: input.timeframe,
-          initial_capital: input.initialCapital,
-        }),
+    .query(async ({ input }) => {
+      return mcp("compare_strategies", {
+        symbol: input.symbol,
+        period: input.period,
+        interval: input.interval,
       }, 180_000);
     }),
 
-  /** Top gainers for an exchange */
+  /** Walk-forward backtest */
+  walkForwardBacktest: publicProcedure
+    .input(z.object({
+      symbol: z.string().min(1),
+      strategy: z.string().default("macd_crossover"),
+      total_period: z.string().default("2y"),
+      interval: z.string().default("1d"),
+      n_splits: z.number().default(5),
+    }))
+    .query(async ({ input }) => {
+      return mcp("walk_forward_backtest_strategy", {
+        symbol: input.symbol,
+        strategy: input.strategy,
+        total_period: input.total_period,
+        interval: input.interval,
+        n_splits: input.n_splits,
+      }, 180_000);
+    }),
+
+  /** Market snapshot (top gainers/losers) */
+  marketSnapshot: publicProcedure
+    .input(z.object({ market: z.string().default("america") }))
+    .query(async ({ input }) => {
+      return mcp("get_market_snapshot", { market: input.market }, 20_000);
+    }),
+
+  /** Financial news for a symbol */
+  news: publicProcedure
+    .input(z.object({
+      symbol: z.string().min(1),
+      limit: z.number().default(10),
+    }))
+    .query(async ({ input }) => {
+      return mcp("financial_news", { symbol: input.symbol, limit: input.limit }, 20_000);
+    }),
+
+  /** Social sentiment */
+  sentiment: publicProcedure
+    .input(z.object({ symbol: z.string().min(1) }))
+    .query(async ({ input }) => {
+      return mcp("market_sentiment", { symbol: input.symbol }, 20_000);
+    }),
+
+  /** Volume breakout scanner */
+  volumeBreakout: publicProcedure
+    .input(z.object({
+      exchange: z.string().default("NASDAQ"),
+      screener: z.string().default("america"),
+      min_volume_ratio: z.number().default(2.0),
+      limit: z.number().default(20),
+    }))
+    .query(async ({ input }) => {
+      return mcp("volume_breakout_scanner", {
+        exchange: input.exchange,
+        screener: input.screener,
+        min_volume_ratio: input.min_volume_ratio,
+        limit: input.limit,
+      }, 30_000);
+    }),
+
+  /** Top gainers */
   topGainers: publicProcedure
     .input(z.object({
       exchange: z.string().default("NASDAQ"),
-      timeframe: z.string().default("1d"),
-      limit: z.number().min(5).max(100).default(20),
+      screener: z.string().default("america"),
+      limit: z.number().default(20),
     }))
     .query(async ({ input }) => {
-      const url = bridgeUrl("/top-gainers", input);
-      return bridgeFetch(url, {}, 30_000);
+      return mcp("top_gainers", {
+        exchange: input.exchange,
+        screener: input.screener,
+        limit: input.limit,
+      }, 30_000);
     }),
 
-  /** Top losers for an exchange */
+  /** Top losers */
   topLosers: publicProcedure
     .input(z.object({
       exchange: z.string().default("NASDAQ"),
-      timeframe: z.string().default("1d"),
-      limit: z.number().min(5).max(100).default(20),
+      screener: z.string().default("america"),
+      limit: z.number().default(20),
     }))
     .query(async ({ input }) => {
-      const url = bridgeUrl("/top-losers", input);
-      return bridgeFetch(url, {}, 30_000);
+      return mcp("top_losers", {
+        exchange: input.exchange,
+        screener: input.screener,
+        limit: input.limit,
+      }, 30_000);
     }),
 });

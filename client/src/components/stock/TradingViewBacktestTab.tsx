@@ -1,12 +1,14 @@
 /**
  * TradingViewBacktestTab
- * Allows running a strategy backtest via the TradingView Analytics Bridge.
+ * Runs strategy backtests via the TradingView MCP Server.
+ * Falls back gracefully if TRADINGVIEW_MCP_URL is not configured.
  */
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Play, TrendingUp, TrendingDown, BarChart2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
@@ -16,22 +18,25 @@ interface Props {
 }
 
 const STRATEGIES = [
-  { value: "rsi", label: "RSI (14)" },
-  { value: "bollinger", label: "Bollinger Bands" },
-  { value: "macd", label: "MACD" },
-  { value: "ema_cross", label: "EMA Cross" },
-  { value: "supertrend", label: "Supertrend" },
-  { value: "donchian", label: "Donchian Channel" },
-  { value: "rsi_pullback", label: "RSI Pullback" },
-  { value: "keltner", label: "Keltner Breakout" },
-  { value: "triple_ema", label: "Triple EMA" },
-];
+  { value: "rsi_oversold",       label: "RSI Oversold" },
+  { value: "macd_crossover",     label: "MACD Crossover" },
+  { value: "bollinger_breakout", label: "Bollinger Breakout" },
+  { value: "ema_crossover",      label: "EMA Crossover" },
+  { value: "sma_crossover",      label: "SMA Crossover" },
+  { value: "rsi_divergence",     label: "RSI Divergence" },
+  { value: "volume_breakout",    label: "Volume Breakout" },
+  { value: "supertrend",         label: "Supertrend" },
+  { value: "ichimoku",           label: "Ichimoku" },
+] as const;
 
-const TIMEFRAMES = [
-  { value: "1d", label: "Täglich" },
-  { value: "1w", label: "Wöchentlich" },
-  { value: "4h", label: "4 Stunden" },
-  { value: "1h", label: "1 Stunde" },
+type StrategyValue = typeof STRATEGIES[number]["value"];
+
+const PERIODS = [
+  { value: "3mo",  label: "3 Monate" },
+  { value: "6mo",  label: "6 Monate" },
+  { value: "1y",   label: "1 Jahr" },
+  { value: "2y",   label: "2 Jahre" },
+  { value: "5y",   label: "5 Jahre" },
 ];
 
 function MetricCard({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
@@ -44,27 +49,38 @@ function MetricCard({ label, value, positive }: { label: string; value: string; 
   );
 }
 
-export default function TradingViewBacktestTab({ ticker, exchange }: Props) {
-  const [strategy, setStrategy] = useState<string>("rsi");
-  const [timeframe, setTimeframe] = useState<string>("1d");
+export default function TradingViewBacktestTab({ ticker }: Props) {
+  const [strategy, setStrategy] = useState<StrategyValue>("macd_crossover");
+  const [period, setPeriod] = useState<string>("1y");
+  const [runBacktest, setRunBacktest] = useState(false);
   const [runCompare, setRunCompare] = useState(false);
 
-  const health = trpc.tradingview.health.useQuery(undefined, { staleTime: 60_000 });
+  // Check if MCP server is configured
+  const status = trpc.tradingview.status.useQuery(undefined, { staleTime: 60_000 });
 
-  const backtest = trpc.tradingview.backtest.useMutation();
-  const compare = trpc.tradingview.compareStrategies.useMutation();
+  // Backtest query — only runs when user clicks "Backtest starten"
+  const backtest = trpc.tradingview.backtest.useQuery(
+    { symbol: ticker, strategy, period },
+    { enabled: runBacktest && status.data?.reachable === true, staleTime: 0 }
+  );
 
-  if (!health.data || health.data.status !== "ok") {
+  // Compare all strategies
+  const compare = trpc.tradingview.compareStrategies.useQuery(
+    { symbol: ticker, period },
+    { enabled: runCompare && status.data?.reachable === true, staleTime: 0 }
+  );
+
+  if (!status.data?.configured || !status.data?.reachable) {
     return (
       <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-amber-500/20">
         <CardContent className="p-6">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
             <div>
-              <h3 className="text-white font-medium mb-1">TradingView Bridge nicht konfiguriert</h3>
+              <h3 className="text-white font-medium mb-1">TradingView MCP nicht konfiguriert</h3>
               <p className="text-gray-400 text-sm">
-                Deploye den <code className="text-[#00CFC1]">tradingview-service</code> auf Railway und setze{" "}
-                <code className="text-[#00CFC1]">TRADINGVIEW_BRIDGE_URL</code> in den App-Secrets.
+                Deploye <code className="text-[#00CFC1]">mcp-servers/tradingview</code> auf Railway und setze{" "}
+                <code className="text-[#00CFC1]">TRADINGVIEW_MCP_URL</code> in den App-Secrets.
               </p>
             </div>
           </div>
@@ -73,24 +89,25 @@ export default function TradingViewBacktestTab({ ticker, exchange }: Props) {
     );
   }
 
-  const result = backtest.data as any;
-  const compareResult = compare.data as any;
+  const backtestData = backtest.data as Record<string, unknown> | null;
+  const compareData = compare.data as Record<string, unknown> | null;
 
   return (
     <div className="space-y-4">
-      {/* Strategy Selector */}
-      <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-white text-base flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-[#00CFC1]" />
-            Strategie-Backtest für {ticker}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3 mb-4">
-            <div className="flex-1 min-w-[180px]">
-              <label className="text-gray-500 text-xs uppercase tracking-wide mb-1.5 block">Strategie</label>
-              <Select value={strategy} onValueChange={setStrategy}>
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <BarChart2 className="w-4 h-4 text-[#00CFC1]" />
+        <span className="text-white font-medium">Strategie-Backtest — {ticker}</span>
+        <Badge className="bg-[#00CFC1]/10 text-[#00CFC1] border-[#00CFC1]/20 text-xs">TradingView MCP</Badge>
+      </div>
+
+      {/* Controls */}
+      <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-white/10">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[160px]">
+              <label className="text-gray-400 text-xs uppercase tracking-wide mb-1 block">Strategie</label>
+              <Select value={strategy} onValueChange={(v) => { setStrategy(v as StrategyValue); setRunBacktest(false); }}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -103,117 +120,153 @@ export default function TradingViewBacktestTab({ ticker, exchange }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[140px]">
-              <label className="text-gray-500 text-xs uppercase tracking-wide mb-1.5 block">Zeitrahmen</label>
-              <Select value={timeframe} onValueChange={setTimeframe}>
+
+            <div className="w-36">
+              <label className="text-gray-400 text-xs uppercase tracking-wide mb-1 block">Zeitraum</label>
+              <Select value={period} onValueChange={(v) => { setPeriod(v); setRunBacktest(false); }}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1f2e] border-white/10">
-                  {TIMEFRAMES.map(t => (
-                    <SelectItem key={t.value} value={t.value} className="text-white hover:bg-white/10">
-                      {t.label}
+                  {PERIODS.map(p => (
+                    <SelectItem key={p.value} value={p.value} className="text-white hover:bg-white/10">
+                      {p.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="flex gap-2">
             <Button
-              className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-medium"
-              disabled={backtest.isPending}
-              onClick={() => {
-                setRunCompare(false);
-                backtest.mutate({ symbol: ticker, exchange, strategy: strategy as any, timeframe, includeEquityCurve: false });
-              }}
+              onClick={() => { setRunBacktest(true); setRunCompare(false); }}
+              disabled={backtest.isFetching}
+              className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black font-medium"
             >
-              {backtest.isPending ? (
-                <><RefreshCw className="w-3 h-3 mr-2 animate-spin" /> Läuft…</>
+              {backtest.isFetching ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <><Play className="w-3 h-3 mr-2" /> Backtest starten</>
+                <Play className="w-4 h-4 mr-2" />
               )}
+              Backtest starten
             </Button>
+
             <Button
               variant="outline"
-              className="border-[#00CFC1]/30 text-[#00CFC1] hover:bg-[#00CFC1]/10"
-              disabled={compare.isPending}
-              onClick={() => {
-                setRunCompare(true);
-                compare.mutate({ symbol: ticker, exchange, timeframe });
-              }}
+              onClick={() => { setRunCompare(true); setRunBacktest(false); }}
+              disabled={compare.isFetching}
+              className="border-white/20 text-gray-300 hover:text-white"
             >
-              {compare.isPending ? (
-                <><RefreshCw className="w-3 h-3 mr-2 animate-spin" /> Vergleiche…</>
+              {compare.isFetching ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                "Alle 9 Strategien vergleichen"
+                <BarChart2 className="w-4 h-4 mr-2" />
               )}
+              Alle Strategien vergleichen
             </Button>
           </div>
-
-          {(backtest.error || compare.error) && (
-            <p className="text-red-400 text-sm mt-3">
-              {(backtest.error || compare.error)?.message}
-            </p>
-          )}
         </CardContent>
       </Card>
 
-      {/* Single Backtest Result */}
-      {!runCompare && result && (
+      {/* Backtest Loading */}
+      {backtest.isFetching && (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full bg-white/5" />)}
+          <p className="text-gray-500 text-xs text-center">Backtest läuft... (kann 30–60 Sek. dauern)</p>
+        </div>
+      )}
+
+      {/* Backtest Results */}
+      {backtestData && !backtest.isFetching && (
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-white text-base flex items-center gap-2">
-              Ergebnis: {STRATEGIES.find(s => s.value === strategy)?.label}
-              <Badge className={
-                (result.total_return ?? result.totalReturn ?? 0) >= 0
-                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                  : "bg-red-500/20 text-red-400 border-red-500/30"
-              }>
-                {(result.total_return ?? result.totalReturn ?? 0) >= 0 ? "+" : ""}
-                {((result.total_return ?? result.totalReturn ?? 0) * 100).toFixed(2)}%
-              </Badge>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white text-sm flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[#00CFC1]" />
+              Backtest-Ergebnis: {STRATEGIES.find(s => s.value === strategy)?.label}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <MetricCard label="Gesamtrendite" value={`${((result.total_return ?? result.totalReturn ?? 0) * 100).toFixed(2)}%`} positive={(result.total_return ?? result.totalReturn ?? 0) >= 0} />
-              <MetricCard label="Sharpe Ratio" value={(result.sharpe_ratio ?? result.sharpeRatio ?? 0).toFixed(3)} positive={(result.sharpe_ratio ?? result.sharpeRatio ?? 0) >= 1} />
-              <MetricCard label="Max Drawdown" value={`${((result.max_drawdown ?? result.maxDrawdown ?? 0) * 100).toFixed(2)}%`} positive={false} />
-              <MetricCard label="Win Rate" value={`${((result.win_rate ?? result.winRate ?? 0) * 100).toFixed(1)}%`} positive={(result.win_rate ?? result.winRate ?? 0) >= 0.5} />
-              <MetricCard label="Trades" value={String(result.total_trades ?? result.totalTrades ?? 0)} />
-              <MetricCard label="Profit Factor" value={(result.profit_factor ?? result.profitFactor ?? 0).toFixed(2)} positive={(result.profit_factor ?? result.profitFactor ?? 0) >= 1} />
+          <CardContent className="p-4 pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <MetricCard
+                label="Gesamtrendite"
+                value={`${((backtestData as any)?.total_return ?? (backtestData as any)?.total_return_pct ?? 0).toFixed(2)}%`}
+                positive={(backtestData as any)?.total_return > 0}
+              />
+              <MetricCard
+                label="Trades"
+                value={String((backtestData as any)?.total_trades ?? (backtestData as any)?.num_trades ?? "–")}
+              />
+              <MetricCard
+                label="Win Rate"
+                value={`${((backtestData as any)?.win_rate ?? 0).toFixed(1)}%`}
+                positive={(backtestData as any)?.win_rate > 50}
+              />
+              <MetricCard
+                label="Max Drawdown"
+                value={`${((backtestData as any)?.max_drawdown ?? 0).toFixed(2)}%`}
+                positive={false}
+              />
             </div>
+            {/* Raw data fallback */}
+            {!(backtestData as any)?.total_return && !(backtestData as any)?.total_return_pct && (
+              <pre className="text-gray-300 text-xs overflow-auto max-h-48 font-mono bg-white/5 rounded p-3">
+                {JSON.stringify(backtestData, null, 2)}
+              </pre>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Compare All Strategies Result */}
-      {runCompare && compareResult && (
-        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-white text-base">Strategie-Vergleich (Leaderboard)</CardTitle>
+      {/* Compare Loading */}
+      {compare.isFetching && (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full bg-white/5" />)}
+          <p className="text-gray-500 text-xs text-center">Alle 9 Strategien werden verglichen... (kann 2–3 Min. dauern)</p>
+        </div>
+      )}
+
+      {/* Compare Results */}
+      {compareData && !compare.isFetching && (
+        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white text-sm flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-[#00CFC1]" />
+              Strategievergleich
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {(compareResult.strategies || compareResult.results || []).map((s: any, i: number) => {
-                const ret = s.total_return ?? s.totalReturn ?? 0;
-                const isPositive = ret >= 0;
-                return (
-                  <div key={i} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-lg">
-                    <span className="text-gray-500 text-xs w-5 text-right">{i + 1}.</span>
-                    <span className="text-white text-sm flex-1">{s.strategy_name ?? s.name ?? s.strategy}</span>
-                    <span className={`font-mono text-sm ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
-                      {isPositive ? "+" : ""}{(ret * 100).toFixed(2)}%
-                    </span>
-                    <span className="text-gray-500 text-xs font-mono">
-                      SR {(s.sharpe_ratio ?? s.sharpeRatio ?? 0).toFixed(2)}
-                    </span>
-                    {i === 0 && <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">Beste</Badge>}
-                  </div>
-                );
-              })}
+          <CardContent className="p-4 pt-0">
+            {Array.isArray((compareData as any)?.results) ? (
+              <div className="space-y-2">
+                {((compareData as any).results as any[])
+                  .sort((a, b) => (b.total_return ?? 0) - (a.total_return ?? 0))
+                  .map((r: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                      <span className="text-white text-sm font-medium">{r.strategy}</span>
+                      <div className="flex items-center gap-4 text-xs">
+                        <span className={r.total_return > 0 ? "text-emerald-400 font-mono" : "text-red-400 font-mono"}>
+                          {r.total_return?.toFixed(2)}%
+                        </span>
+                        <span className="text-gray-400">Win: {r.win_rate?.toFixed(1)}%</span>
+                        <span className="text-gray-400">{r.total_trades} Trades</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <pre className="text-gray-300 text-xs overflow-auto max-h-64 font-mono bg-white/5 rounded p-3">
+                {JSON.stringify(compareData, null, 2)}
+              </pre>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Errors */}
+      {(backtest.error || compare.error) && (
+        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-red-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5" />
+              <p className="text-gray-400 text-sm">{backtest.error?.message || compare.error?.message}</p>
             </div>
           </CardContent>
         </Card>
