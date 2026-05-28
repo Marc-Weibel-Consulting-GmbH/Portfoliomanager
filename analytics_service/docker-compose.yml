@@ -1,0 +1,14 @@
+services:
+  analytics:
+    build: .
+    image: portfoliomanager-analytics:dev
+    container_name: portfoliomanager-analytics
+    ports:
+      - "8001:8001"
+    environment:
+      ANALYTICS_PORT: "8001"
+      # Optional TradingView resilience tuning (defaults are sensible).
+      # TRADINGVIEW_MCP_CACHE_TTL: "60"
+      # TRADINGVIEW_MCP_MAX_INFLIGHT: "4"
+      # TRADINGVIEW_MCP_MIN_INTERVAL_S: "0.8"
+    restart: unless-stopped
