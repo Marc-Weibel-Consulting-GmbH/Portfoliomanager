@@ -309,6 +309,77 @@ export default function StrategyBacktest() {
                     />
                   )}
                 </div>
+
+                {/* ── Recent Trades Table ── */}
+                {singleData.recent_trades && singleData.recent_trades.length > 0 && (
+                  <div className="mt-5">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5" />
+                      Letzte Trades ({singleData.recent_trades.length})
+                    </h4>
+                    <div className="overflow-x-auto rounded-lg border border-white/10">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-white/10 bg-white/5">
+                            <th className="text-left text-gray-400 font-medium px-3 py-2">#</th>
+                            <th className="text-left text-gray-400 font-medium px-3 py-2">Einstieg</th>
+                            <th className="text-right text-gray-400 font-medium px-3 py-2">Kurs Ein</th>
+                            <th className="text-left text-gray-400 font-medium px-3 py-2">Ausstieg</th>
+                            <th className="text-right text-gray-400 font-medium px-3 py-2">Kurs Aus</th>
+                            <th className="text-right text-gray-400 font-medium px-3 py-2">Return</th>
+                            <th className="text-right text-gray-400 font-medium px-3 py-2">Brutto</th>
+                            <th className="text-right text-gray-400 font-medium px-3 py-2">Kosten</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {singleData.recent_trades.map((trade: any, idx: number) => {
+                            const ret = trade.return_pct ?? 0;
+                            const isWin = ret > 0;
+                            return (
+                              <tr key={idx} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${
+                                isWin ? "" : "opacity-80"
+                              }`}>
+                                <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+                                <td className="px-3 py-2 text-gray-300 font-mono">{trade.entry_date}</td>
+                                <td className="px-3 py-2 text-right text-gray-300 font-mono">
+                                  {trade.entry_price != null ? `$${Number(trade.entry_price).toFixed(2)}` : "–"}
+                                </td>
+                                <td className="px-3 py-2 text-gray-300 font-mono">{trade.exit_date ?? "offen"}</td>
+                                <td className="px-3 py-2 text-right text-gray-300 font-mono">
+                                  {trade.exit_price != null ? `$${Number(trade.exit_price).toFixed(2)}` : "–"}
+                                </td>
+                                <td className={`px-3 py-2 text-right font-mono font-semibold ${
+                                  isWin ? "text-emerald-400" : "text-red-400"
+                                }`}>
+                                  {isWin ? "+" : ""}{ret.toFixed(2)}%
+                                </td>
+                                <td className="px-3 py-2 text-right text-gray-400 font-mono">
+                                  {trade.gross_return_pct != null ? `${trade.gross_return_pct > 0 ? "+" : ""}${Number(trade.gross_return_pct).toFixed(2)}%` : "–"}
+                                </td>
+                                <td className="px-3 py-2 text-right text-gray-500 font-mono">
+                                  {trade.cost_pct != null ? `${Number(trade.cost_pct).toFixed(2)}%` : "–"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t border-white/10 bg-white/5">
+                            <td colSpan={5} className="px-3 py-2 text-gray-400 text-xs">Gesamt</td>
+                            <td className={`px-3 py-2 text-right font-mono font-bold text-xs ${
+                              (singleData.total_return_pct ?? 0) > 0 ? "text-emerald-400" : "text-red-400"
+                            }`}>
+                              {pct(singleData.total_return_pct)}
+                            </td>
+                            <td colSpan={2} className="px-3 py-2 text-right text-gray-500 text-xs font-mono">
+                              Win: {(singleData.win_rate_pct ?? 0).toFixed(0)}% · {singleData.winning_trades ?? 0}W / {singleData.losing_trades ?? 0}L
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
