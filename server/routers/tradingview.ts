@@ -136,7 +136,11 @@ async function mcpCallTool<T = unknown>(
       }
       const raw = json.result?.content?.[0]?.text;
       if (raw === undefined) continue;
-      try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
+      try {
+        // Replace Infinity/-Infinity/NaN (invalid JSON) before parsing
+        const sanitized = raw.replace(/:\s*Infinity/g, ': null').replace(/:\s*-Infinity/g, ': null').replace(/:\s*NaN/g, ': null');
+        return JSON.parse(sanitized) as T;
+      } catch { return raw as unknown as T; }
     }
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No result in MCP response" });
   } catch (err) {
@@ -219,10 +223,10 @@ export const tradingviewRouter = router({
     .input(z.object({
       symbol: z.string().min(1),
       strategy: z.enum([
-        "rsi_oversold", "macd_crossover", "bollinger_breakout",
-        "ema_crossover", "sma_crossover", "rsi_divergence",
-        "volume_breakout", "supertrend", "ichimoku",
-      ]).default("macd_crossover"),
+        "rsi", "macd", "bollinger",
+        "ema_cross", "supertrend", "donchian",
+        "rsi_pullback", "keltner_breakout", "triple_ema",
+      ]).default("rsi"),
       period: z.string().default("1y"),
       interval: z.string().default("1d"),
     }))

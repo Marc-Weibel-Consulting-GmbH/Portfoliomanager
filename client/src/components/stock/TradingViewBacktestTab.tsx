@@ -18,15 +18,15 @@ interface Props {
 }
 
 const STRATEGIES = [
-  { value: "rsi_oversold",       label: "RSI Oversold" },
-  { value: "macd_crossover",     label: "MACD Crossover" },
-  { value: "bollinger_breakout", label: "Bollinger Breakout" },
-  { value: "ema_crossover",      label: "EMA Crossover" },
-  { value: "sma_crossover",      label: "SMA Crossover" },
-  { value: "rsi_divergence",     label: "RSI Divergence" },
-  { value: "volume_breakout",    label: "Volume Breakout" },
-  { value: "supertrend",         label: "Supertrend" },
-  { value: "ichimoku",           label: "Ichimoku" },
+  { value: "rsi",              label: "RSI Oversold/Overbought" },
+  { value: "macd",             label: "MACD Crossover" },
+  { value: "bollinger",        label: "Bollinger Band Mean Reversion" },
+  { value: "ema_cross",        label: "EMA 20/50 Golden/Death Cross" },
+  { value: "supertrend",       label: "Supertrend (ATR-based)" },
+  { value: "donchian",         label: "Donchian Channel Breakout" },
+  { value: "rsi_pullback",     label: "RSI Pullback in Uptrend" },
+  { value: "keltner_breakout", label: "Keltner Channel Breakout" },
+  { value: "triple_ema",       label: "EMA 20/50 + SMA200 Filter" },
 ] as const;
 
 type StrategyValue = typeof STRATEGIES[number]["value"];
@@ -50,7 +50,7 @@ function MetricCard({ label, value, positive }: { label: string; value: string; 
 }
 
 export default function TradingViewBacktestTab({ ticker }: Props) {
-  const [strategy, setStrategy] = useState<StrategyValue>("macd_crossover");
+  const [strategy, setStrategy] = useState<StrategyValue>("rsi");
   const [period, setPeriod] = useState<string>("1y");
   const [runBacktest, setRunBacktest] = useState(false);
   const [runCompare, setRunCompare] = useState(false);

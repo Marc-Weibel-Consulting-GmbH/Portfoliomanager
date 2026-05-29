@@ -19,23 +19,23 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const STRATEGIES = [
-  { value: "rsi_oversold",      label: "RSI Oversold/Overbought" },
-  { value: "macd_crossover",    label: "MACD Crossover" },
-  { value: "bollinger_breakout",label: "Bollinger Band Mean Reversion" },
-  { value: "ema_crossover",     label: "EMA 20/50 Golden Cross" },
-  { value: "sma_crossover",     label: "SMA Crossover" },
-  { value: "supertrend",        label: "Supertrend (ATR)" },
-  { value: "volume_breakout",   label: "Volume Breakout" },
-  { value: "ichimoku",          label: "Ichimoku Cloud" },
+  { value: "rsi",             label: "RSI Oversold/Overbought" },
+  { value: "macd",            label: "MACD Crossover" },
+  { value: "bollinger",       label: "Bollinger Band Mean Reversion" },
+  { value: "ema_cross",       label: "EMA 20/50 Golden/Death Cross" },
+  { value: "supertrend",      label: "Supertrend (ATR-based)" },
+  { value: "donchian",        label: "Donchian Channel Breakout" },
+  { value: "rsi_pullback",    label: "RSI Pullback in Uptrend" },
+  { value: "keltner_breakout",label: "Keltner Channel Breakout" },
+  { value: "triple_ema",      label: "EMA 20/50 + SMA200 Filter" },
 ];
 
 const PERIODS = [
-  { value: "3mo",  label: "3 Monate" },
-  { value: "6mo",  label: "6 Monate" },
-  { value: "1y",   label: "1 Jahr" },
-  { value: "2y",   label: "2 Jahre" },
-  { value: "3y",   label: "3 Jahre" },
-  { value: "5y",   label: "5 Jahre" },
+  { value: "1mo", label: "1 Monat" },
+  { value: "3mo", label: "3 Monate" },
+  { value: "6mo", label: "6 Monate" },
+  { value: "1y",  label: "1 Jahr" },
+  { value: "2y",  label: "2 Jahre" },
 ];
 
 const INTERVALS = [
@@ -67,19 +67,21 @@ function pct(v: number | null | undefined, decimals = 2) {
   return `${sign}${v.toFixed(decimals)}%`;
 }
 
+type StrategyKey = "rsi" | "macd" | "bollinger" | "ema_cross" | "supertrend" | "donchian" | "rsi_pullback" | "keltner_breakout" | "triple_ema";
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function StrategyBacktest() {
   const [symbol, setSymbol] = useState("AAPL");
   const [inputSymbol, setInputSymbol] = useState("AAPL");
-  const [strategy, setStrategy] = useState("rsi_oversold");
-  const [period, setPeriod] = useState("3y");
+  const [strategy, setStrategy] = useState<StrategyKey>("rsi");
+  const [period, setPeriod] = useState("1y");
   const [interval, setInterval] = useState("1d");
   const [mode, setMode] = useState<"single" | "compare" | "walkforward">("single");
   const [runEnabled, setRunEnabled] = useState(false);
 
   // Single backtest
   const singleQuery = trpc.tradingview.backtest.useQuery(
-    { symbol, strategy: strategy as any, period, interval },
+    { symbol, strategy: strategy as "rsi" | "macd" | "bollinger" | "ema_cross" | "supertrend" | "donchian" | "rsi_pullback" | "keltner_breakout" | "triple_ema", period, interval },
     { enabled: runEnabled && mode === "single", staleTime: 0, retry: 0 }
   );
 
@@ -91,7 +93,7 @@ export default function StrategyBacktest() {
 
   // Walk-forward
   const wfQuery = trpc.tradingview.walkForwardBacktest.useQuery(
-    { symbol, strategy, total_period: period, interval, n_splits: 3 },
+    { symbol, strategy: strategy as string, total_period: period, interval, n_splits: 3 },
     { enabled: runEnabled && mode === "walkforward", staleTime: 0, retry: 0 }
   );
 
@@ -117,6 +119,7 @@ export default function StrategyBacktest() {
   const compareResults: any[] = useMemo(() => {
     if (!compareData) return [];
     if (Array.isArray(compareData)) return compareData;
+    if (Array.isArray(compareData?.ranking)) return compareData.ranking;
     if (Array.isArray(compareData?.results)) return compareData.results;
     return [];
   }, [compareData]);
@@ -175,7 +178,7 @@ export default function StrategyBacktest() {
               {mode !== "compare" && (
                 <div className="space-y-1.5">
                   <label className="text-xs text-gray-400 font-medium">Strategie</label>
-                  <Select value={strategy} onValueChange={setStrategy}>
+                  <Select value={strategy} onValueChange={(v) => setStrategy(v as StrategyKey)}>
                     <SelectTrigger className="w-52 bg-white/5 border-white/10 text-white">
                       <SelectValue />
                     </SelectTrigger>
@@ -266,8 +269,8 @@ export default function StrategyBacktest() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <MetricCard
                     label="Gesamtrendite"
-                    value={pct(singleData.total_return ?? singleData.total_return_pct)}
-                    positive={(singleData.total_return ?? 0) > 0}
+                    value={pct(singleData.total_return_pct ?? singleData.total_return)}
+                    positive={(singleData.total_return_pct ?? singleData.total_return ?? 0) > 0}
                   />
                   <MetricCard
                     label="Trades"
@@ -275,33 +278,33 @@ export default function StrategyBacktest() {
                   />
                   <MetricCard
                     label="Win-Rate"
-                    value={`${(singleData.win_rate ?? 0).toFixed(1)}%`}
-                    positive={(singleData.win_rate ?? 0) > 50}
+                    value={`${(singleData.win_rate_pct ?? singleData.win_rate ?? 0).toFixed(1)}%`}
+                    positive={(singleData.win_rate_pct ?? singleData.win_rate ?? 0) > 50}
                   />
                   <MetricCard
                     label="Max. Drawdown"
-                    value={pct(singleData.max_drawdown)}
+                    value={pct(singleData.max_drawdown_pct ?? singleData.max_drawdown)}
                     positive={false}
                   />
-                  {singleData.sharpe_ratio != null && (
+                  {(singleData.sharpe_ratio != null) && (
                     <MetricCard
                       label="Sharpe Ratio"
                       value={(singleData.sharpe_ratio ?? 0).toFixed(2)}
                       positive={(singleData.sharpe_ratio ?? 0) > 1}
                     />
                   )}
-                  {singleData.profit_factor != null && (
+                  {(singleData.profit_factor != null) && (
                     <MetricCard
                       label="Profit Factor"
-                      value={(singleData.profit_factor ?? 0).toFixed(2)}
+                      value={isFinite(singleData.profit_factor) ? (singleData.profit_factor ?? 0).toFixed(2) : "∞"}
                       positive={(singleData.profit_factor ?? 0) > 1}
                     />
                   )}
-                  {singleData.buy_hold_return != null && (
+                  {(singleData.buy_and_hold_return_pct ?? singleData.buy_hold_return) != null && (
                     <MetricCard
                       label="Buy & Hold"
-                      value={pct(singleData.buy_hold_return)}
-                      positive={(singleData.buy_hold_return ?? 0) > 0}
+                      value={pct(singleData.buy_and_hold_return_pct ?? singleData.buy_hold_return)}
+                      positive={(singleData.buy_and_hold_return_pct ?? singleData.buy_hold_return ?? 0) > 0}
                       sub="Benchmark"
                     />
                   )}
@@ -325,16 +328,21 @@ export default function StrategyBacktest() {
             </CardHeader>
             <CardContent className="p-4 pt-0">
               {/* Buy & Hold benchmark */}
-              {compareData?.buy_hold_return != null && (
+              {(compareData?.buy_and_hold_return_pct ?? compareData?.buy_hold_return) != null && (
                 <div className="mb-3 px-3 py-2 rounded-lg bg-[#00CFC1]/10 border border-[#00CFC1]/20">
                   <span className="text-[#00CFC1] text-sm font-medium">
-                    Buy & Hold Benchmark: {pct(compareData.buy_hold_return)}
+                    Buy & Hold Benchmark: {pct(compareData.buy_and_hold_return_pct ?? compareData.buy_hold_return)}
                   </span>
+                  {compareData?.winner && (
+                    <span className="ml-3 text-yellow-400 text-sm">
+                      🏆 Bester: {compareData.winner.toUpperCase()}
+                    </span>
+                  )}
                 </div>
               )}
               <div className="space-y-2">
                 {compareResults
-                  .sort((a, b) => (b.total_return ?? 0) - (a.total_return ?? 0))
+                  .sort((a, b) => (b.rank ?? 99) - (a.rank ?? 99) === 0 ? (b.total_return_pct ?? b.total_return ?? 0) - (a.total_return_pct ?? a.total_return ?? 0) : (a.rank ?? 99) - (b.rank ?? 99))
                   .map((r: any, i: number) => (
                     <div
                       key={i}
@@ -345,19 +353,19 @@ export default function StrategyBacktest() {
                       <div className="flex items-center gap-2">
                         {i === 0 && <Trophy className="w-3.5 h-3.5 text-yellow-400" />}
                         {i > 0 && <span className="text-gray-500 text-xs w-4">{i + 1}.</span>}
-                        <span className="text-white text-sm font-medium">{r.strategy_name ?? r.strategy}</span>
+                        <span className="text-white text-sm font-medium">{r.strategy_label ?? r.strategy_name ?? r.strategy}</span>
                       </div>
                       <div className="flex items-center gap-4 text-xs font-mono">
-                        <span className={r.total_return > 0 ? "text-emerald-400" : "text-red-400"}>
-                          {pct(r.total_return)}
+                        <span className={(r.total_return_pct ?? r.total_return ?? 0) > 0 ? "text-emerald-400" : "text-red-400"}>
+                          {pct(r.total_return_pct ?? r.total_return)}
                         </span>
-                        <span className="text-gray-400">Win: {(r.win_rate ?? 0).toFixed(1)}%</span>
+                        <span className="text-gray-400">Win: {(r.win_rate_pct ?? r.win_rate ?? 0).toFixed(1)}%</span>
                         <span className="text-gray-400">{r.total_trades ?? 0} Trades</span>
                         {r.sharpe_ratio != null && (
-                          <span className="text-gray-500">Sharpe: {(r.sharpe_ratio ?? 0).toFixed(2)}</span>
+                          <span className="text-gray-500">Sharpe: {isFinite(r.sharpe_ratio) ? (r.sharpe_ratio ?? 0).toFixed(2) : "∞"}</span>
                         )}
-                        {r.max_drawdown != null && (
-                          <span className="text-red-400">DD: {pct(r.max_drawdown)}</span>
+                        {(r.max_drawdown_pct ?? r.max_drawdown) != null && (
+                          <span className="text-red-400">DD: {pct(r.max_drawdown_pct ?? r.max_drawdown)}</span>
                         )}
                       </div>
                     </div>
