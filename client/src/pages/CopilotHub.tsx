@@ -529,15 +529,21 @@ function SignalFeedTab() {
       {!isLoading && items.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {items.map((item: any) => {
+            // Backend returns: ticker, combinedScore, overallGrade, signal, momentum.grade, quality.grade, lppl.regime, error
+            const symbol = item.symbol ?? item.ticker;
+            const score = item.score ?? item.combinedScore;
+            const grade = item.grade ?? item.overallGrade;
+            const momentumGrade = item.momentumScore ?? item.momentum?.grade;
+            const bubbleRisk = item.bubbleRisk ?? (item.lppl?.regime !== 'normal' ? item.lppl?.regime : null);
             const cfg = signalConfig(item.signal);
             return (
-              <div key={item.symbol} className={`rounded-lg border p-4 ${cfg.bg}`}>
+              <div key={symbol} className={`rounded-lg border p-4 ${cfg.bg}`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <Link href={`/stocks/${item.symbol}`}>
-                      <span className="text-[#00CFC1] font-mono font-bold text-base hover:underline cursor-pointer">{item.symbol}</span>
+                    <Link href={`/stocks/${symbol}`}>
+                      <span className="text-[#00CFC1] font-mono font-bold text-base hover:underline cursor-pointer">{symbol}</span>
                     </Link>
-                    <p className="text-gray-400 text-xs mt-0.5 line-clamp-1">{item.name}</p>
+                    <p className="text-gray-400 text-xs mt-0.5 line-clamp-1">{item.name ?? ''}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     {cfg.icon}
@@ -546,25 +552,34 @@ function SignalFeedTab() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-black/20 rounded px-2 py-1.5">
-                    <div className="text-white font-mono font-bold text-sm">{item.score?.toFixed(0) ?? '–'}</div>
+                    <div className="text-white font-mono font-bold text-sm">
+                      {score != null ? Number(score).toFixed(0) : '–'}
+                    </div>
                     <div className="text-gray-500 text-[10px]">Score</div>
                   </div>
                   <div className="bg-black/20 rounded px-2 py-1.5">
-                    <div className="text-gray-300 font-mono text-sm">{item.grade ?? '–'}</div>
+                    <div className="text-gray-300 font-mono text-sm">{grade ?? '–'}</div>
                     <div className="text-gray-500 text-[10px]">Grade</div>
                   </div>
                   <div className="bg-black/20 rounded px-2 py-1.5">
-                    <div className={`font-mono text-sm ${item.momentumScore > 50 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {item.momentumScore?.toFixed(0) ?? '–'}
+                    <div className={`font-mono text-sm ${
+                      typeof momentumGrade === 'number'
+                        ? (momentumGrade > 50 ? 'text-emerald-400' : 'text-red-400')
+                        : (['A','B'].includes(momentumGrade) ? 'text-emerald-400' : 'text-red-400')
+                    }`}>
+                      {momentumGrade ?? '–'}
                     </div>
                     <div className="text-gray-500 text-[10px]">Momentum</div>
                   </div>
                 </div>
-                {item.bubbleRisk && (
+                {bubbleRisk && bubbleRisk !== 'normal' && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-400">
                     <AlertTriangle className="w-3 h-3" />
-                    <span>LPPL Blasenrisiko: {item.bubbleRisk}</span>
+                    <span>LPPL Blasenrisiko: {bubbleRisk}</span>
                   </div>
+                )}
+                {item.error && (
+                  <div className="mt-2 text-xs text-red-400/70 truncate">{item.error}</div>
                 )}
               </div>
             );
