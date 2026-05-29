@@ -33,7 +33,7 @@ USER mcpuser
 # Expose the HTTP port
 EXPOSE 8000
 
-# server.py reads $PORT from environment natively — no shell wrapper needed
-# SSE transport: exposes /sse endpoint (compatible with Manus MCP connector)
+# streamable-http transport: exposes /mcp endpoint for portfolio app backend
+# The Manus MCP connector uses the same /mcp endpoint via streamable-http type
 ENTRYPOINT ["tradingview-mcp"]
-CMD ["sse", "--host", "0.0.0.0"]
+CMD ["streamable-http", "--host", "0.0.0.0"]
