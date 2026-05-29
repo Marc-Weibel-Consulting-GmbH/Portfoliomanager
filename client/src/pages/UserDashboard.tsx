@@ -16,6 +16,11 @@ import {
   AlertTriangle,
   Calendar,
   TrendingDown,
+  BarChart3,
+  Target,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -41,6 +46,83 @@ const formatDate = () => {
     year: "numeric" 
   });
 };
+
+// ── Scoring Watchlist Widget ────────────────────────────────────────────────
+function ScoringWatchlistWidget() {
+  const { data, isLoading, error } = trpc.dashboard.getScoringWatchlist.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const signalIcon = (signal: string) => {
+    if (signal === 'BUY') return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+    if (signal === 'SELL') return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+    return <MinusCircle className="w-3.5 h-3.5 text-gray-400" />;
+  };
+
+  const signalColor = (signal: string) => {
+    if (signal === 'BUY') return 'text-emerald-400';
+    if (signal === 'SELL') return 'text-red-400';
+    return 'text-gray-400';
+  };
+
+  return (
+    <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-[#00CFC1]" />
+          Strategie-Scoring
+          <span className="text-xs text-gray-500 font-normal ml-auto">Momentum + Qualität + LPPL</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {isLoading && (
+          <div className="text-gray-400 text-sm text-center py-4">Scoring wird berechnet...</div>
+        )}
+        {error && (
+          <div className="text-gray-500 text-xs text-center py-4">Keine Portfolio-Positionen für Scoring verfügbar</div>
+        )}
+        {!isLoading && !error && data && (data as any[]).length === 0 && (
+          <div className="text-gray-500 text-xs text-center py-4">Keine Positionen im Portfolio</div>
+        )}
+        {!isLoading && !error && (data as any[] | undefined)?.map((item: any) => (
+          <div key={item.symbol} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Link href={`/stocks/${item.symbol}`}>
+                <span className="text-[#00CFC1] font-mono text-sm font-semibold hover:underline cursor-pointer">{item.symbol}</span>
+              </Link>
+              <span className="text-gray-500 text-xs hidden sm:block">{item.name}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-white text-sm font-mono font-bold">{item.score?.toFixed(0) ?? '–'}</div>
+                <div className="text-gray-500 text-[10px]">Score</div>
+              </div>
+              <div className="text-right">
+                <div className="text-gray-300 text-xs font-mono">{item.grade ?? '–'}</div>
+                <div className="text-gray-500 text-[10px]">Grade</div>
+              </div>
+              <div className="flex items-center gap-1">
+                {signalIcon(item.signal)}
+                <span className={`text-xs font-semibold ${signalColor(item.signal)}`}>{item.signal}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+        {!isLoading && !error && (data as any[] | undefined) && (data as any[]).length > 0 && (
+          <Link href="/backtesting">
+            <div className="text-center pt-1">
+              <span className="text-[#00CFC1] text-xs hover:underline cursor-pointer flex items-center justify-center gap-1">
+                <Target className="w-3 h-3" />
+                Strategie-Backtest öffnen
+              </span>
+            </div>
+          </Link>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function UserDashboard() {
   const { user } = useAuth();
@@ -401,6 +483,9 @@ export default function UserDashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Scoring Watchlist */}
+          <ScoringWatchlistWidget />
 
           {/* Top News */}
           <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">

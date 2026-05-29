@@ -27,7 +27,14 @@ import {
   MessageSquare,
   Sparkles,
   ArrowRight,
+  BarChart3,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  Zap,
+  Link as LinkIcon,
 } from 'lucide-react';
+import { Link } from 'wouter';
 
 export default function CopilotHub() {
   const { user, isAuthenticated } = useAuth();
@@ -75,6 +82,9 @@ export default function CopilotHub() {
             <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5">
               <History className="w-3.5 h-3.5" /> History
             </TabsTrigger>
+            <TabsTrigger value="signals" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#00CFC1] data-[state=active]:text-[#00CFC1] data-[state=active]:bg-transparent text-gray-400 text-sm px-4 pb-3 pt-2 gap-1.5">
+              <Zap className="w-3.5 h-3.5" /> Signal-Feed
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="insights" className="mt-6">
@@ -87,6 +97,9 @@ export default function CopilotHub() {
 
           <TabsContent value="history" className="mt-6">
             <HistoryTab />
+          </TabsContent>
+          <TabsContent value="signals" className="mt-6">
+            <SignalFeedTab />
           </TabsContent>
         </Tabs>
       </div>
@@ -450,6 +463,123 @@ function HistoryTab() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Signal Feed Tab ─── */
+function SignalFeedTab() {
+  const { user } = useAuth();
+  const { data, isLoading, error, refetch, isFetching } = trpc.dashboard.getScoringWatchlist.useQuery(undefined, {
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const items: any[] = Array.isArray(data) ? data : [];
+
+  const signalConfig = (signal: string) => {
+    if (signal === 'BUY') return { icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' };
+    if (signal === 'SELL') return { icon: <XCircle className="w-4 h-4 text-red-400" />, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30' };
+    return { icon: <MinusCircle className="w-4 h-4 text-gray-400" />, color: 'text-gray-400', bg: 'bg-white/5 border-white/10' };
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-[#00CFC1]" />
+            Kombinations-Signal-Feed
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">Momentum + Qualität + LPPL-Fit — alle Portfolio-Positionen</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isFetching}
+          className="text-slate-400 hover:text-[#00CFC1]">
+          <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isFetching ? 'animate-spin' : ''}`} />
+          Aktualisieren
+        </Button>
+      </div>
+
+      {isLoading && (
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 bg-slate-800/50" />)}
+        </div>
+      )}
+
+      {error && (
+        <Card className="bg-slate-800/30 border-slate-700/50">
+          <CardContent className="py-8 text-center">
+            <AlertTriangle className="w-10 h-10 mx-auto text-amber-500/50 mb-2" />
+            <p className="text-slate-400 text-sm">Keine Portfolio-Positionen verfügbar.</p>
+            <p className="text-xs text-slate-500 mt-1">Füge zuerst Aktien zu einem Portfolio hinzu.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && !error && items.length === 0 && (
+        <Card className="bg-slate-800/30 border-slate-700/50">
+          <CardContent className="py-8 text-center">
+            <Zap className="w-10 h-10 mx-auto text-slate-600 mb-2" />
+            <p className="text-slate-400 text-sm">Keine Signale verfügbar.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && items.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {items.map((item: any) => {
+            const cfg = signalConfig(item.signal);
+            return (
+              <div key={item.symbol} className={`rounded-lg border p-4 ${cfg.bg}`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <Link href={`/stocks/${item.symbol}`}>
+                      <span className="text-[#00CFC1] font-mono font-bold text-base hover:underline cursor-pointer">{item.symbol}</span>
+                    </Link>
+                    <p className="text-gray-400 text-xs mt-0.5 line-clamp-1">{item.name}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {cfg.icon}
+                    <span className={`text-sm font-bold ${cfg.color}`}>{item.signal}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-black/20 rounded px-2 py-1.5">
+                    <div className="text-white font-mono font-bold text-sm">{item.score?.toFixed(0) ?? '–'}</div>
+                    <div className="text-gray-500 text-[10px]">Score</div>
+                  </div>
+                  <div className="bg-black/20 rounded px-2 py-1.5">
+                    <div className="text-gray-300 font-mono text-sm">{item.grade ?? '–'}</div>
+                    <div className="text-gray-500 text-[10px]">Grade</div>
+                  </div>
+                  <div className="bg-black/20 rounded px-2 py-1.5">
+                    <div className={`font-mono text-sm ${item.momentumScore > 50 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {item.momentumScore?.toFixed(0) ?? '–'}
+                    </div>
+                    <div className="text-gray-500 text-[10px]">Momentum</div>
+                  </div>
+                </div>
+                {item.bubbleRisk && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-400">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>LPPL Blasenrisiko: {item.bubbleRisk}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="pt-2 border-t border-white/5">
+        <Link href="/backtesting">
+          <span className="text-[#00CFC1] text-xs hover:underline cursor-pointer flex items-center gap-1">
+            <LinkIcon className="w-3 h-3" />
+            Strategie-Backtest öffnen
+          </span>
+        </Link>
+      </div>
     </div>
   );
 }

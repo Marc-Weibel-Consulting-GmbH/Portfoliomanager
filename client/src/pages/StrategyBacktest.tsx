@@ -397,6 +397,46 @@ export default function StrategyBacktest() {
                   />
                 </div>
               )}
+              {/* Overfitting Warning */}
+              {(() => {
+                const robustness = wfData?.robustness ?? 0;
+                const avgTestReturn = wfData?.avg_test_return ?? 0;
+                const avgTrainReturn = wfData?.avg_train_return ?? 0;
+                const noOosTrades = wfFolds.every((f: any) => (f.test_trades ?? 0) === 0);
+                const isOverfitted = noOosTrades || (robustness < 0.3 && avgTrainReturn > 0 && avgTestReturn <= 0);
+                const isWeak = !isOverfitted && robustness < 0.5;
+                if (isOverfitted) return (
+                  <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3">
+                    <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-red-400 text-xs font-semibold">Overfitting erkannt</p>
+                      <p className="text-gray-400 text-xs mt-0.5">
+                        {noOosTrades
+                          ? 'Die Strategie generiert im Out-of-Sample-Zeitraum keine Trades — die In-Sample-Signale wiederholen sich nicht. Die historischen Ergebnisse sind statistisch nicht robust.'
+                          : 'Hohe Trainings-Rendite, aber negative Test-Rendite. Die Strategie ist auf historische Daten überangepasst.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+                if (isWeak) return (
+                  <div className="mb-4 flex items-start gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 p-3">
+                    <AlertCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-orange-400 text-xs font-semibold">Schwache Robustheit</p>
+                      <p className="text-gray-400 text-xs mt-0.5">Robustheit unter 50% — die Strategie ist möglicherweise nicht zuverlässig genug für den Liveeinsatz.</p>
+                    </div>
+                  </div>
+                );
+                return (
+                  <div className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-emerald-400 text-xs font-semibold">Robuste Strategie</p>
+                      <p className="text-gray-400 text-xs mt-0.5">Robustheit über 50% — die Out-of-Sample-Ergebnisse bestätigen die In-Sample-Performance.</p>
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Fold Details */}
               <div className="space-y-2">
                 {wfFolds.map((fold: any, i: number) => (

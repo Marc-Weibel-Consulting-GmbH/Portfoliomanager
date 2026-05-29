@@ -1989,4 +1989,75 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
 
       return insights.slice(0, 5);
     }),
+
+  /** Scoring Watchlist: batch-score all portfolio tickers with Momentum+Quality+LPPL */
+  getScoringWatchlist: protectedProcedure.query(async ({ ctx }) => {
+    const { getSavedPortfolios, getPortfolioTransactions } = await import('../db');
+    const portfolios = await getSavedPortfolios(ctx.user.id);
+    if (portfolios.length === 0) return [];
+    const allTickers = new Set<string>();
+    for (const portfolio of portfolios) {
+      if (portfolio.isLive && portfolio.liveStartDate) {
+        const txs = await getPortfolioTransactions(portfolio.id);
+        txs.forEach((tx: any) => { if (tx.ticker) allTickers.add(tx.ticker); });
+      } else {
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          stocks.forEach((s: any) => { if (s.ticker) allTickers.add(s.ticker); });
+        } catch {}
+      }
+    }
+    const symbols = Array.from(allTickers).slice(0, 15);
+    if (symbols.length === 0) return [];
+    const YahooFinanceClass = (await import('yahoo-finance2')).default;
+    const yahooFinance = new (YahooFinanceClass as any)();
+    const { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } = await import('../analytics/qualityMomentumEngine');
+    const { detectBubble } = await import('../analytics/lpplsEngine');
+    const results: any[] = [];
+    for (const rawSymbol of symbols) {
+      const ticker = rawSymbol.toUpperCase();
+      try {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        const chartResult: any = await yahooFinance.chart(ticker, {
+          period1: startDate.toISOString().split('T')[0],
+          period2: endDate.toISOString().split('T')[0],
+          interval: '1d',
+        });
+        const quotes = (chartResult?.quotes ?? []).filter((q: any) => q.close != null);
+        const prices: number[] = quotes.map((q: any) => q.close as number);
+        let qualityMetrics: any = {};
+        try {
+          const summary: any = await yahooFinance.quoteSummary(ticker, { modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'] });
+          qualityMetrics = extractQualityFromYahoo(summary);
+        } catch (_) {}
+        let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral' };
+        if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (_) {} }
+        let qualityResult: any = { score: 0, grade: 'C' };
+        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
+        let bubbleScore = 0, bubbleRegime = 'normal';
+        if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (_) {} }
+        const mNorm = (momentumResult.score + 1) / 2;
+        const qNorm = (qualityResult.score + 1) / 2;
+        const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
+        const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+        results.push({
+          ticker,
+          combinedScore: parseFloat((combined * 100).toFixed(1)),
+          overallGrade: combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F',
+          signal: combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL',
+          momentum: { grade: momentumResult.grade, trend: momentumResult.trend },
+          quality: { grade: qualityResult.grade },
+          lppl: { regime: bubbleRegime },
+          error: null,
+        });
+      } catch (err: any) {
+        results.push({ ticker, combinedScore: 0, overallGrade: 'F', signal: 'ERROR', error: (err as Error).message });
+      }
+    }
+    return results.sort((a, b) => b.combinedScore - a.combinedScore);
+  }),
 });
+

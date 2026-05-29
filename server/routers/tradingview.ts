@@ -443,4 +443,55 @@ export const tradingviewRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Scoring failed for ${ticker}: ${err.message}` });
       }
     }),
+
+  /** Batch scoring: score multiple symbols, returns sorted array */
+  batchScoring: publicProcedure
+    .input(z.object({ symbols: z.array(z.string().min(1)).min(1).max(20) }))
+    .query(async ({ input }) => {
+      const results: any[] = [];
+      for (const rawSymbol of input.symbols) {
+        const ticker = rawSymbol.toUpperCase();
+        try {
+          const endDate = new Date();
+          const startDate = new Date();
+          startDate.setFullYear(startDate.getFullYear() - 1);
+          const chartResult: any = await yahooFinance.chart(ticker, {
+            period1: startDate.toISOString().split('T')[0],
+            period2: endDate.toISOString().split('T')[0],
+            interval: '1d',
+          });
+          const quotes = (chartResult?.quotes ?? []).filter((q: any) => q.close != null);
+          const prices: number[] = quotes.map((q: any) => q.close as number);
+          let qualityMetrics: any = {};
+          try {
+            const summary: any = await yahooFinance.quoteSummary(ticker, { modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'] });
+            qualityMetrics = extractQualityFromYahoo(summary);
+          } catch (_) {}
+          let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral' };
+          if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (_) {} }
+          let qualityResult: any = { score: 0, grade: 'C' };
+          try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
+          let bubbleScore = 0, bubbleRegime = 'normal';
+          if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (_) {} }
+          const mNorm = (momentumResult.score + 1) / 2;
+          const qNorm = (qualityResult.score + 1) / 2;
+          const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
+          const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+          results.push({
+            ticker,
+            combinedScore: parseFloat((combined * 100).toFixed(1)),
+            overallGrade: combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F',
+            signal: combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL',
+            momentum: { score: parseFloat((momentumResult.score ?? 0).toFixed(3)), grade: momentumResult.grade, trend: momentumResult.trend },
+            quality: { score: parseFloat((qualityResult.score ?? 0).toFixed(3)), grade: qualityResult.grade },
+            lppl: { bubbleScore: parseFloat((bubbleScore ?? 0).toFixed(3)), regime: bubbleRegime },
+            error: null,
+          });
+        } catch (err: any) {
+          results.push({ ticker, combinedScore: 0, overallGrade: 'F', signal: 'ERROR', error: (err as Error).message });
+        }
+      }
+      return results.sort((a, b) => b.combinedScore - a.combinedScore);
+    }),
 });
+

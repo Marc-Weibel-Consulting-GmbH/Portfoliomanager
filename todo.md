@@ -1250,3 +1250,10 @@
 - [x] MarktScanner-Komponente: Top Gainers/Losers, Volume Breakout, Bollinger Scan (SIX/NASDAQ/XETRA)
 - [x] Scanner-Tab im MarktHub eingebaut
 - [x] Backtest-Link in Sidebar (Tools-Gruppe) hinzugefügt
+
+## Drei neue Features (29.05.2026)
+- [x] Walk-Forward-Backtest Overfitting-Warnung in StrategyBacktest UI
+- [x] Scoring-Watchlist Widget im UserDashboard (Momentum + Qualität + LPPL)
+- [x] Signal-Feed Tab im CopilotHub (Kombinations-Signale für alle Portfolio-Positionen)
+- [x] batchScoring Endpunkt im tradingview Router
+- [x] getScoringWatchlist Endpunkt im dashboardRouter
