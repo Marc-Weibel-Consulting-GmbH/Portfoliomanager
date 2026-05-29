@@ -137,7 +137,7 @@ async function mcpCallTool<T = unknown>(
       const raw = json.result?.content?.[0]?.text;
       if (raw === undefined) continue;
       try {
-        // Replace Infinity/-Infinity/NaN (invalid JSON) before parsing
+        // Replace Infinity/-Infinity/NaN (invalid JSON values) before parsing
         const sanitized = raw.replace(/:\s*Infinity/g, ': null').replace(/:\s*-Infinity/g, ': null').replace(/:\s*NaN/g, ': null');
         return JSON.parse(sanitized) as T;
       } catch { return raw as unknown as T; }
