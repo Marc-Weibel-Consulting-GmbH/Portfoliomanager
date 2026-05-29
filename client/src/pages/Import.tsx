@@ -7,7 +7,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 
 interface ImportProps {
-  onBackClick: () => void;
+  onBackClick?: () => void;
 }
 
 interface ImportResult {

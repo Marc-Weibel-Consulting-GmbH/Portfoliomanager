@@ -39,6 +39,7 @@ import PortfolioBuilderNew from "./pages/PortfolioBuilderNew";
 import Rechner from "./pages/Rechner";
 import PortfolioComparison from "./pages/PortfolioComparison";
 import StrategyBacktest from "./pages/StrategyBacktest";
+import Import from "./pages/Import";
 
 // ─── Einstellungen ───
 import Einstellungen from "./pages/Einstellungen";
@@ -189,6 +190,7 @@ function Router() {
         <Redirect to="/dashboard" />
       </Route>
       <Route path="/backtesting" component={StrategyBacktest} />
+      <Route path="/import">{() => <Import />}</Route>
       <Route path="/prediction">
         <Redirect to="/copilot" />
       </Route>
