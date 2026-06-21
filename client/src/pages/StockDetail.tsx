@@ -488,10 +488,10 @@ export default function StockDetail() {
                 <span className="text-gray-400">({priceChange.percent >= 0 ? '+' : ''}{priceChange.percent.toFixed(2)}%)</span>
               </div>
               <div className="flex items-center justify-end gap-2 mt-2">
-                <Button size="sm" className="h-7 text-xs bg-[#00CFC1]/10 border border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/20">
+                <Button size="sm" onClick={() => setShowPriceAlert(true)} className="h-7 text-xs bg-[#00CFC1]/10 border border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/20">
                   <Bell className="h-3 w-3 mr-1" /> Alert
                 </Button>
-                <Button size="sm" className="h-7 text-xs bg-[#00CFC1] text-black hover:bg-[#00CFC1]/80">
+                <Button size="sm" onClick={() => setShowAddToPortfolio(true)} className="h-7 text-xs bg-[#00CFC1] text-black hover:bg-[#00CFC1]/80">
                   <Plus className="h-3 w-3 mr-1" /> Portfolio
                 </Button>
               </div>
