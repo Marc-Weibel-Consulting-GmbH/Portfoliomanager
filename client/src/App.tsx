@@ -204,10 +204,10 @@ function Router() {
         <Redirect to="/dashboard" />
       </Route>
       <Route path="/categories">
-        <Redirect to="/admin/categories" />
+        <Redirect to="/aktien?filter=kategorie" />
       </Route>
       <Route path="/sectors">
-        <Redirect to="/admin/sectors" />
+        <Redirect to="/aktien?filter=sektor" />
       </Route>
       <Route path="/transactions">
         <Redirect to="/portfolios" />
