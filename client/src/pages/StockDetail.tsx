@@ -14,6 +14,8 @@ import TradingViewBacktestTab from "@/components/stock/TradingViewBacktestTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
 import ValuationTab from "@/components/stock/ValuationTab";
 import PredictionTab from "@/components/stock/PredictionTab";
+import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
+import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
 import {
   ComposedChart,
   Line,
@@ -698,8 +700,12 @@ export default function StockDetail() {
 
           {/* Right Column - Metrics & News */}
           <div className="space-y-6">
+            {/* LPPLS Bubble-Risiko (Sornette) — nur sichtbar bei relevantem Risiko */}
+            <BubbleRiskCard ticker={ticker} />
             {/* Strategie-Scoring Widget */}
             <StockScoringWidget ticker={ticker} />
+            {/* Analysten-Konsens */}
+            <AnalystConsensusCard ticker={ticker} />
             {/* Key Metrics */}
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
               <CardContent className="p-4 space-y-3">
