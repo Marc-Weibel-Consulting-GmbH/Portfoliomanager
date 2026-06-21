@@ -33,9 +33,7 @@ import MarktHub from "./pages/MarktHub";
 import CopilotHub from "./pages/CopilotHub";
 
 // ─── Tools (unter Sidebar "Tools" Gruppe) ───
-import PortfolioBuilderLanding from "./pages/PortfolioBuilderLanding";
 import PortfolioBuilderWizard from "./pages/PortfolioBuilderWizard";
-import PortfolioBuilderNew from "./pages/PortfolioBuilderNew";
 import Rechner from "./pages/Rechner";
 import PortfolioComparison from "./pages/PortfolioComparison";
 import StrategyBacktest from "./pages/StrategyBacktest";
@@ -113,9 +111,14 @@ function Router() {
       <Route path="/copilot" component={CopilotHub} />
 
       {/* ═══ 6. TOOLS ═══ */}
-      <Route path="/portfolio-builder" component={PortfolioBuilderLanding} />
+      <Route path="/portfolio-builder" component={PortfolioBuilderWizard} />
       <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />
-      <Route path="/portfolio-builder/new" component={PortfolioBuilderNew} />
+      <Route path="/portfolio-builder/new">
+        <Redirect to="/portfolio-builder" />
+      </Route>
+      <Route path="/portfolio-builder/old">
+        <Redirect to="/portfolio-builder" />
+      </Route>
       <Route path="/rechner" component={Rechner} />
       <Route path="/portfolio-comparison" component={PortfolioComparison} />
       <Route path="/price-alerts" component={PriceAlerts} />

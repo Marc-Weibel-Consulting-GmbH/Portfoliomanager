@@ -8,12 +8,80 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { ChevronLeft, ChevronRight, Check, Search, Plus, X, TrendingUp, DollarSign, Scale, PieChart } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Search, Plus, X, TrendingUp, DollarSign, Scale, PieChart, LayoutTemplate, PencilRuler, Upload, Shield, Flame } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import Import from "./Import";
 
 type PortfolioType = "dividends" | "growth" | "balanced" | "etf";
+
+type BuilderPath = "manual" | "template" | "import";
+type RiskProfile = "konservativ" | "mittel" | "mutig";
+
+const pathOptions: Array<{
+  value: BuilderPath;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+}> = [
+  {
+    value: "template",
+    label: "Vorlage",
+    icon: <LayoutTemplate className="h-8 w-8" />,
+    description: "Starten Sie mit einer vorkonfigurierten Vorlage je nach Risikoprofil",
+  },
+  {
+    value: "manual",
+    label: "Manuell",
+    icon: <PencilRuler className="h-8 w-8" />,
+    description: "Erstellen Sie Ihr Portfolio Schritt für Schritt von Grund auf",
+  },
+  {
+    value: "import",
+    label: "Import",
+    icon: <Upload className="h-8 w-8" />,
+    description: "Importieren Sie Ihre Positionen aus einer CSV- oder Excel-Datei",
+  },
+];
+
+// Client-side template defaults per risk profile. There is no backend template
+// endpoint, so each profile pre-seeds the manual wizard's initial state and then
+// drops the user into the existing step flow (which ends with the same
+// portfolios.create mutation).
+const riskProfiles: Array<{
+  value: RiskProfile;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+  portfolioType: PortfolioType;
+  defaultName: string;
+}> = [
+  {
+    value: "konservativ",
+    label: "Konservativ",
+    icon: <Shield className="h-8 w-8" />,
+    description: "Kapitalerhalt im Fokus – Schwerpunkt auf Dividenden & Stabilität",
+    portfolioType: "dividends",
+    defaultName: "Konservatives Portfolio",
+  },
+  {
+    value: "mittel",
+    label: "Mittel",
+    icon: <Scale className="h-8 w-8" />,
+    description: "Ausgewogene Mischung aus Wachstum und laufenden Erträgen",
+    portfolioType: "balanced",
+    defaultName: "Ausgewogenes Portfolio",
+  },
+  {
+    value: "mutig",
+    label: "Mutig",
+    icon: <Flame className="h-8 w-8" />,
+    description: "Maximales Wachstum – Schwerpunkt auf Wachstumswerten",
+    portfolioType: "growth",
+    defaultName: "Wachstums-Portfolio",
+  },
+];
 
 type StockSelection = {
   ticker: string;
@@ -57,8 +125,11 @@ const portfolioTypes: Array<{
 
 export default function PortfolioBuilderWizard() {
   const [, navigate] = useLocation();
-  const [currentStep, setCurrentStep] = useState(1);
-  
+  // Step 0 = path picker; steps 1-5 = manual/template flow
+  const [currentStep, setCurrentStep] = useState(0);
+  const [path, setPath] = useState<BuilderPath | null>(null);
+  const [riskProfile, setRiskProfile] = useState<RiskProfile | null>(null);
+
   // Step 1: Portfolio Type & Grundlagen
   const [portfolioType, setPortfolioType] = useState<PortfolioType | null>(null);
   const [portfolioName, setPortfolioName] = useState("");
@@ -152,6 +223,25 @@ export default function PortfolioBuilderWizard() {
     }));
   };
   
+  const startManual = () => {
+    setPath("manual");
+    setRiskProfile(null);
+    setCurrentStep(1);
+  };
+
+  const startTemplate = (profile: RiskProfile) => {
+    const preset = riskProfiles.find((p) => p.value === profile);
+    if (!preset) return;
+    setPath("template");
+    setRiskProfile(profile);
+    // Pre-seed the manual wizard's initial state with sensible defaults.
+    setPortfolioType(preset.portfolioType);
+    if (!portfolioName.trim()) {
+      setPortfolioName(preset.defaultName);
+    }
+    setCurrentStep(1);
+  };
+
   const handleNext = () => {
     if (currentStep === 1) {
       if (!portfolioType) {
@@ -172,6 +262,11 @@ export default function PortfolioBuilderWizard() {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    } else if (currentStep === 1) {
+      // Back from step 1 returns to the path picker
+      setCurrentStep(0);
+      setPath(null);
+      setRiskProfile(null);
     }
   };
   
@@ -228,6 +323,126 @@ export default function PortfolioBuilderWizard() {
     etfs: allocation.filter((a) => a.assetType === "etf").reduce((sum, a) => sum + a.weight, 0),
   };
   
+  // ── Step 0: Path picker ──
+  if (currentStep === 0) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1a] p-4 md:p-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2 text-white">Wähle deinen Pfad</h1>
+            <p className="text-gray-400">
+              Wie möchten Sie Ihr Portfolio erstellen?
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {pathOptions.map((option) => (
+              <Card
+                key={option.value}
+                className={`cursor-pointer transition-all bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] hover:border-[#00CFC1]/60 ${
+                  path === option.value
+                    ? "border-[#00CFC1] ring-2 ring-[#00CFC1]/30"
+                    : "border-white/10"
+                }`}
+                onClick={() => setPath(option.value)}
+              >
+                <CardContent className="p-6 flex flex-col items-center text-center space-y-3">
+                  <div className={path === option.value ? "text-[#00CFC1]" : "text-gray-400"}>
+                    {option.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg text-white">{option.label}</h3>
+                    <p className="text-sm text-gray-400 mt-1">{option.description}</p>
+                  </div>
+                  {path === option.value && (
+                    <Badge className="mt-2 bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]">
+                      <Check className="h-3 w-3 mr-1" />
+                      Ausgewählt
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Template: risk profile choice */}
+          {path === "template" && (
+            <Card className="bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20 mb-8">
+              <CardHeader>
+                <CardTitle className="text-white">Risikoprofil wählen</CardTitle>
+                <CardDescription className="text-gray-400">
+                  Ihr Profil bestimmt den vorausgewählten Portfolio-Typ. Sie können
+                  alles in den folgenden Schritten anpassen.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {riskProfiles.map((profile) => (
+                    <Card
+                      key={profile.value}
+                      className={`cursor-pointer transition-all bg-[#0f1420] hover:border-[#00CFC1]/60 ${
+                        riskProfile === profile.value
+                          ? "border-[#00CFC1] ring-2 ring-[#00CFC1]/30"
+                          : "border-white/10"
+                      }`}
+                      onClick={() => setRiskProfile(profile.value)}
+                    >
+                      <CardContent className="p-5 flex flex-col items-center text-center space-y-2">
+                        <div className={riskProfile === profile.value ? "text-[#00CFC1]" : "text-gray-400"}>
+                          {profile.icon}
+                        </div>
+                        <h4 className="font-semibold text-white">{profile.label}</h4>
+                        <p className="text-xs text-gray-400">{profile.description}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                <div className="flex justify-end mt-6">
+                  <Button
+                    className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90"
+                    disabled={!riskProfile}
+                    onClick={() => riskProfile && startTemplate(riskProfile)}
+                  >
+                    Vorlage verwenden
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Manual: start the existing 5-step wizard */}
+          {path === "manual" && (
+            <div className="flex justify-end mb-8">
+              <Button
+                className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90"
+                onClick={startManual}
+              >
+                Manuell starten
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
+
+          {/* Import: embed the existing import component */}
+          {path === "import" && (
+            <Card className="bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+              <CardHeader>
+                <CardTitle className="text-white">Positionen importieren</CardTitle>
+                <CardDescription className="text-gray-400">
+                  Laden Sie eine CSV- oder Excel-Datei hoch, um Kursdaten zu importieren.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Import />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
@@ -235,10 +450,12 @@ export default function PortfolioBuilderWizard() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Portfolio erstellen</h1>
           <p className="text-muted-foreground">
-            Erstellen Sie Ihr Portfolio in 5 einfachen Schritten
+            {path === "template"
+              ? "Vorlage angepasst – verfeinern Sie Ihr Portfolio in 5 Schritten"
+              : "Erstellen Sie Ihr Portfolio in 5 einfachen Schritten"}
           </p>
         </div>
-        
+
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between mb-2">
@@ -246,7 +463,7 @@ export default function PortfolioBuilderWizard() {
             <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-2" />
-          
+
           <div className="flex justify-between mt-4 text-xs text-muted-foreground">
             <span className={currentStep === 1 ? "text-primary font-medium" : ""}>Portfolio-Typ</span>
             <span className={currentStep === 2 ? "text-primary font-medium" : ""}>Aktien</span>
@@ -255,7 +472,7 @@ export default function PortfolioBuilderWizard() {
             <span className={currentStep === 5 ? "text-primary font-medium" : ""}>Abschluss</span>
           </div>
         </div>
-        
+
         {/* Step Content */}
         <Card>
           <CardHeader>
@@ -715,7 +932,6 @@ export default function PortfolioBuilderWizard() {
           <Button
             variant="outline"
             onClick={handleBack}
-            disabled={currentStep === 1}
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Zurück
