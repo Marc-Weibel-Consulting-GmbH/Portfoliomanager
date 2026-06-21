@@ -5,12 +5,47 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Search, TrendingUp, TrendingDown, Minus, Filter, X, ArrowRight, BarChart3, Loader2 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
+
+// Filter dimension types persisted via the ?filter= URL param
+type FilterDimension = "sektor" | "kategorie" | "region";
+const FILTER_DIMENSIONS: FilterDimension[] = ["sektor", "kategorie", "region"];
+const FILTER_LABELS: Record<FilterDimension, string> = {
+  sektor: "Sektor",
+  kategorie: "Kategorie",
+  region: "Region",
+};
+
+// Small local chip component matching the app's design tokens
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+        active
+          ? "bg-[#00CFC1] text-black font-medium"
+          : "bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
 
 export default function Invest() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -21,6 +56,34 @@ export default function Invest() {
   const [maxPe, setMaxPe] = useState<string>("");
   const [hasSearched, setHasSearched] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Active filter dimension (chip group), persisted in the URL via ?filter=
+  const [activeDimension, setActiveDimension] = useState<FilterDimension>("sektor");
+  // Selected chip value within the active dimension ("all" = no value filter)
+  const [activeValue, setActiveValue] = useState<string>("all");
+
+  // Read ?filter= from the URL on load / when it changes (e.g. via /categories,
+  // /sectors redirects). When a filter param is present, open the filter UI and
+  // activate the corresponding grouping.
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const filterParam = params.get("filter");
+    if (filterParam && (FILTER_DIMENSIONS as string[]).includes(filterParam)) {
+      setActiveDimension(filterParam as FilterDimension);
+      setShowFilters(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchString]);
+
+  // Write the active dimension to the URL (?filter=) so it is shareable and
+  // survives reload. Reset the selected chip value when switching dimensions.
+  const selectDimension = (dim: FilterDimension) => {
+    setActiveDimension(dim);
+    setActiveValue("all");
+    const params = new URLSearchParams(searchString);
+    params.set("filter", dim);
+    setLocation(`/aktien?${params.toString()}`, { replace: true });
+  };
 
   // Debounce search query
   useEffect(() => {
@@ -59,6 +122,42 @@ export default function Invest() {
     enabled: showFilters,
   });
 
+  // Derive available chip values for each dimension from the already-loaded
+  // universe rows (unique values) so no extra backend endpoint is needed.
+  // Region is derived from the existing `country` field on each stock.
+  const universe = filterResults?.results ?? [];
+  const dimensionOptions = useMemo<Record<FilterDimension, string[]>>(() => {
+    const collect = (fn: (s: typeof universe[number]) => string | null | undefined) =>
+      Array.from(
+        new Set(
+          universe
+            .map(fn)
+            .filter((v): v is string => Boolean(v && v.trim()))
+        )
+      ).sort((a, b) => a.localeCompare(b));
+    return {
+      sektor: collect((s) => s.sector),
+      kategorie: collect((s) => s.category),
+      region: collect((s) => s.country),
+    };
+  }, [universe]);
+
+  // Apply the active chip value to the loaded universe (client-side). The
+  // backend already filters by Sektor/Kategorie via the Select dropdowns; the
+  // chips provide quick, URL-persisted filtering on top of the loaded list.
+  const visibleUniverse = useMemo(() => {
+    if (activeValue === "all") return universe;
+    return universe.filter((s) => {
+      const field =
+        activeDimension === "sektor"
+          ? s.sector
+          : activeDimension === "kategorie"
+          ? s.category
+          : s.country;
+      return field === activeValue;
+    });
+  }, [universe, activeDimension, activeValue]);
+
   const getSignalBadge = (type: string | null) => {
     if (type === "buy") return <Badge className="bg-green-500/10 text-green-600 border-green-500/20"><TrendingUp className="w-3 h-3 mr-1" />Kaufen</Badge>;
     if (type === "sell") return <Badge className="bg-red-500/10 text-red-600 border-red-500/20"><TrendingDown className="w-3 h-3 mr-1" />Verkaufen</Badge>;
@@ -71,6 +170,7 @@ export default function Invest() {
     setSignalFilter("all");
     setMinDividend("");
     setMaxPe("");
+    setActiveValue("all");
   };
 
   const hasActiveFilters = (categoryFilter && categoryFilter !== 'all') || (sectorFilter && sectorFilter !== 'all') || (signalFilter && signalFilter !== 'all') || minDividend || maxPe;
@@ -136,6 +236,45 @@ export default function Invest() {
             </div>
           </div>
         </div>
+
+        {/* Filter Chips (Sektor / Kategorie / Region) — URL-persisted via ?filter= */}
+        {showFilters && (
+          <div className="space-y-3 rounded-xl border border-white/10 bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] p-4">
+            {/* Dimension switch */}
+            <div className="flex flex-wrap items-center gap-2">
+              {FILTER_DIMENSIONS.map((dim) => (
+                <FilterChip
+                  key={dim}
+                  label={FILTER_LABELS[dim]}
+                  active={activeDimension === dim}
+                  onClick={() => selectDimension(dim)}
+                />
+              ))}
+            </div>
+            {/* Values for the active dimension */}
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterChip
+                label="Alle"
+                active={activeValue === "all"}
+                onClick={() => setActiveValue("all")}
+              />
+              {dimensionOptions[activeDimension].length === 0 ? (
+                <span className="text-xs text-gray-500">
+                  Keine {FILTER_LABELS[activeDimension]}-Werte im Universum
+                </span>
+              ) : (
+                dimensionOptions[activeDimension].map((value) => (
+                  <FilterChip
+                    key={value}
+                    label={value}
+                    active={activeValue === value}
+                    onClick={() => setActiveValue(value)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Filter Panel */}
         {showFilters && (
@@ -257,9 +396,9 @@ export default function Invest() {
             <h2 className="text-lg font-semibold mb-3">
               Aktien-Universum
               {filterLoading && <Loader2 className="inline w-4 h-4 ml-2 animate-spin" />}
-              {filterResults && <span className="text-sm font-normal text-muted-foreground ml-2">({filterResults.total} Ergebnisse)</span>}
+              {filterResults && <span className="text-sm font-normal text-muted-foreground ml-2">({visibleUniverse.length} Ergebnisse)</span>}
             </h2>
-            {filterResults?.results && filterResults.results.length > 0 ? (
+            {visibleUniverse.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -277,7 +416,7 @@ export default function Invest() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filterResults.results.map((stock) => (
+                    {visibleUniverse.map((stock) => (
                       <tr
                         key={stock.ticker}
                         className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
