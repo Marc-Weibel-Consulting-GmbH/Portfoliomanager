@@ -12,6 +12,8 @@ import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, CO
 import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
 import TradingViewBacktestTab from "@/components/stock/TradingViewBacktestTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
+import ValuationTab from "@/components/stock/ValuationTab";
+import PredictionTab from "@/components/stock/PredictionTab";
 import {
   ComposedChart,
   Line,
@@ -805,67 +807,12 @@ export default function StockDetail() {
 
           {/* Bewertung (DCF) Tab */}
           <TabsContent value="valuation">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-              <CardHeader>
-                <CardTitle className="text-white">DCF-Bewertung</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">KGV</span>
-                      <span className="text-white font-mono">{stock.peRatio || '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">KBV</span>
-                      <span className="text-white font-mono">{(stock as any).pbRatio || '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">PEG Ratio</span>
-                      <span className="text-white font-mono">{stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">Div. Rendite</span>
-                      <span className="text-[#00CFC1] font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(2)}%` : '-'}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">Marktkapitalisierung</span>
-                      <span className="text-white font-mono">{stock.marketCap ? `${currency} ${parseFloat(stock.marketCap).toFixed(1)}B` : '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">52W Hoch</span>
-                      <span className="text-white font-mono">{stock.week52High ? `${currency} ${parseFloat(stock.week52High).toFixed(2)}` : '-'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">52W Tief</span>
-                      <span className="text-white font-mono">{stock.week52Low ? `${currency} ${parseFloat(stock.week52Low).toFixed(2)}` : '-'}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-6 pt-4 border-t border-white/10">
-                  <Link href={`/dcf-valuation?ticker=${ticker}`}>
-                    <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Vollständige DCF-Analyse</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <ValuationTab ticker={ticker} stock={stock} />
           </TabsContent>
 
           {/* KI-Prognose Tab */}
           <TabsContent value="prediction">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-              <CardHeader>
-                <CardTitle className="text-white">KI-Kursprognose</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400 text-sm mb-4">Machine-Learning-basierte Preisprognose für {stock.companyName}</p>
-                <Link href={`/prediction?ticker=${ticker}`}>
-                  <Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Prognose starten</Button>
-                </Link>
-              </CardContent>
-            </Card>
+            <PredictionTab ticker={ticker} stock={stock} />
           </TabsContent>
 
           {/* Backtest Tab */}
