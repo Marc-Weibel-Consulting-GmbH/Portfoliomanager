@@ -11,6 +11,7 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Registration from "./pages/Registration";
 import ForgotPassword from "./pages/ForgotPassword";
+import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import Pricing from "./pages/Pricing";
@@ -66,9 +67,16 @@ function Router() {
     <Switch>
       {/* ═══ Public ═══ */}
       <Route path="/" component={Landing} />
-      <Route path="/register" component={Register} />
-      <Route path="/login" component={Login} />
-      <Route path="/registration" component={Registration} />
+      <Route path="/auth" component={Auth} />
+      <Route path="/register">
+        <Redirect to="/auth?tab=register" />
+      </Route>
+      <Route path="/login">
+        <Redirect to="/auth?tab=login" />
+      </Route>
+      <Route path="/registration">
+        <Redirect to="/auth?tab=register" />
+      </Route>
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/verify-email" component={VerifyEmail} />
