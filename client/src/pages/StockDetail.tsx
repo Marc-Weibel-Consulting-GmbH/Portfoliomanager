@@ -161,7 +161,9 @@ function NewsItem({ title, icon: Icon, url, date }: { title: string; icon: React
 }
 
 export default function StockDetail() {
-  const [match, params] = useRoute<{ ticker: string }>("/stock/:ticker");
+  // Active route is /aktien/:ticker (legacy /stock/:ticker redirects here).
+  // Must match the live route or the page renders blank via `if (!match) return null`.
+  const [match, params] = useRoute<{ ticker: string }>("/aktien/:ticker");
   const ticker = params?.ticker || '';
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("6M");
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);

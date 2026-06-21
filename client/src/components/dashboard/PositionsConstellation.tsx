@@ -135,7 +135,7 @@ export function PositionsConstellation({
 
       {/* Position bubbles */}
       {packed.map((p, i) => (
-        <g key={p.ticker} className="cursor-pointer" onClick={() => p.ticker !== 'CASH' && setLocation(`/stock/${p.ticker}`)}>
+        <g key={p.ticker} className="cursor-pointer" onClick={() => p.ticker !== 'CASH' && setLocation(`/aktien/${p.ticker}`)}>
           <circle
             cx={p.x}
             cy={p.y}

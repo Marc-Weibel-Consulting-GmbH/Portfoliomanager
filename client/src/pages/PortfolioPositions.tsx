@@ -270,7 +270,7 @@ export default function PortfolioPositions() {
                     return (
                       <tr key={holding.ticker} className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
                         <td className="py-4 px-4">
-                          <Link href={`/stock/${holding.ticker}`}>
+                          <Link href={`/aktien/${holding.ticker}`}>
                             <div className="flex items-center gap-3">
                               <StockLogo ticker={holding.ticker} companyName={stock?.companyName || holding.ticker} size="sm" />
                               <div>
