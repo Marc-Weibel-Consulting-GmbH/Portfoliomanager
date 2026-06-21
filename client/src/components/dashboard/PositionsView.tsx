@@ -114,12 +114,12 @@ function PositionsTable({ holdings }: { holdings: Holding[] }) {
           {displayHoldings.map(h => (
             <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/[0.04] transition-colors cursor-pointer group">
               <td className="py-2.5 px-2">
-                <Link href={`/stock/${h.ticker}`} className="text-[#00CFC1] font-mono font-semibold hover:underline">
+                <Link href={`/aktien/${h.ticker}`} className="text-[#00CFC1] font-mono font-semibold hover:underline">
                   {h.ticker}
                 </Link>
               </td>
               <td className="py-2.5 px-2">
-                <Link href={`/stock/${h.ticker}`} className="text-white hover:text-[#00CFC1] transition-colors">
+                <Link href={`/aktien/${h.ticker}`} className="text-white hover:text-[#00CFC1] transition-colors">
                   {h.name}
                 </Link>
               </td>

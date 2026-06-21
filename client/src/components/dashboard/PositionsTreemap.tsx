@@ -105,7 +105,7 @@ export function PositionsTreemap({
               : `oklch(${dark ? 0.45 - intensity * 0.1 : 0.92 - intensity * 0.3} 0.15 25)`;
 
           return (
-            <g key={t.ticker} className="cursor-pointer" onClick={() => t.ticker !== 'CASH' && setLocation(`/stock/${t.ticker}`)}>
+            <g key={t.ticker} className="cursor-pointer" onClick={() => t.ticker !== 'CASH' && setLocation(`/aktien/${t.ticker}`)}>
               <rect
                 x={t.x + 1}
                 y={t.y + 1}
