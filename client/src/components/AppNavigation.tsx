@@ -1,3 +1,8 @@
+/**
+ * @deprecated Ersetzt durch die konsolidierte Sidebar in `DashboardLayout.tsx`
+ * (flache 6 Top-Level-Einträge, IA-Konsolidierung — siehe design/handoff/02-IA-Routes.md).
+ * Diese Komponente wird nirgends mehr importiert und in PR 03 gelöscht. Nicht weiterverwenden.
+ */
 import { Button } from "@/components/ui/button";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
