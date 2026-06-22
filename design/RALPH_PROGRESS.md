@@ -97,19 +97,19 @@ Datei: `pages/StockDetail.tsx` + `components/stock-detail/*Tab.tsx` · Spec: `ha
 Datei: `pages/PortfolioBuilderWizard.tsx` · Spec: `handoff/04-Migration-Plan.md`
 > 🔴 Open-Question: Müssen alle 3 Pfade Day-1 laufen? (siehe 05-Open-Questions.md) — vor Start klären.
 
-- [ ] Step 0: 3 Pfad-Karten (Vorlage / Manuell / Import)
-- [ ] Import akzeptiert CSV+PDF · Bestätigen ruft `portfoliosRouter.create`, redirect zu `/portfolios/:id?onboarding=success`
-- [ ] Alte Builder-URLs redirecten
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] Step 0: 3 Pfad-Karten (Vorlage / Manuell / Import) — bereits gebaut (`BuilderPath` manual/template/import)
+- [~] Import akzeptiert CSV+PDF · Bestätigen ruft `portfolios.create`, redirect zu `/portfolios/:id?onboarding=success` — `portfolios.create` + Redirect mit `?onboarding=success` (Erfolgs-Toast „Portfolio erstellt 🎉" ergänzt); Import akzeptiert **CSV/Excel** (PDF nicht unterstützt → zurückgestellt)
+- [x] Alte Builder-URLs redirecten — `/portfolios/create`, `/portfolio-builder/new|old` → `/portfolio-builder`
+- [x] Funktionalität+Korrektheit+Build-Gates grün — tsc grün; Tests 239/6 (vorbestehend)
 
 ## PR 08 — Onboarding + Auth-Page · Risk 3
 Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff/04-Migration-Plan.md`
-> 🔴 Open-Question: Ist `InvestorTypeTest` Pflicht? — vor Start klären.
+> 🔴 Open-Question (InvestorTypeTest Pflicht?) — auf Marc-Wunsch nicht blockierend; pragmatisch umgesetzt.
 
-- [ ] Auth-Page mit 3 Tabs (Login/Register/Forgot) · alte Auth-URLs redirecten
-- [ ] Neuer-User-Flow: Register → Verify → Onboarding (4 Steps) → Dashboard
-- [ ] Tour aus `/einstellungen?tab=hilfe` neu startbar
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] Auth-Page mit 3 Tabs (Login/Register/Forgot) · alte Auth-URLs redirecten — `pages/Auth.tsx` (3 Tabs, `?tab=`); `/login`,`/register` → `/auth?tab=`
+- [~] Neuer-User-Flow: Register → Verify → Onboarding (4 Steps) → Dashboard — Auth-Register + `OnboardingWizard` (4 Steps) + `/onboarding`-Route vorhanden; vollständige Flow-Verkettung nicht end-to-end live verifiziert
+- [x] Tour aus `/einstellungen?tab=hilfe` neu startbar — **neu**: Einstellungen auf Spec-Subtabs (profil/benachrichtigungen/sicherheit/api/hilfe) umgebaut, Hilfe-Tab mit „App-Tour starten" (`GuidedTourModal`)
+- [x] Funktionalität+Korrektheit+Build-Gates grün — tsc grün; Tests 239/6 (vorbestehend)
 
 ---
 
@@ -123,6 +123,15 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ## Iterations-Log
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
+
+### 2026-06-22 11:15 — PR07 + PR08 · Builder-Success + Settings-Tour ✅ (grösstenteils)
+- **PR07:** Builder hat bereits 3 Pfade + `portfolios.create`. Ergänzt: Redirect mit `?onboarding=success`
+  + Erfolgs-Toast „Portfolio erstellt 🎉" (Builder & Detail-Page). Import = CSV/Excel (PDF zurückgestellt).
+- **PR08:** Auth-Page (3 Tabs) + Onboarding (4 Steps) + Redirects bereits vorhanden. **Neu:** `Einstellungen.tsx`
+  auf Spec-Subtabs (profil/benachrichtigungen/sicherheit/api/hilfe, `?tab=`) umgebaut; Hilfe-Tab startet die
+  App-Tour neu (`GuidedTourModal`).
+- **Verifikation:** `pnpm check` grün; `pnpm test` 239/6 (vorbestehend). Live nach Deploy.
+- **Offen:** PDF-Import, end-to-end Neu-User-Flow-Verkettung, Sicherheit/API-Tab-Inhalte (Platzhalter).
 
 ### 2026-06-22 11:05 — PR04 · Aktien-Detail „Kaufen" funktionsfähig ✅
 - **Befund (live):** Aktien-Detail bereits umfangreich & real (7 deutsche Tabs, Scoring-Gauge, Analysten-

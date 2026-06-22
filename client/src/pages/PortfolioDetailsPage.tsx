@@ -110,6 +110,14 @@ export default function PortfolioDetailsPage() {
     const newSearch = tab === 'uebersicht' ? '' : `?tab=${tab}`;
     navigate(`/portfolios/${portfolioId}${newSearch}`, { replace: true });
   };
+
+  // Erfolgs-Toast nach dem Portfolio-Builder (redirect mit ?onboarding=success)
+  useEffect(() => {
+    if (searchParams.get('onboarding') === 'success') {
+      toast.success('Portfolio erstellt 🎉');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // State for transactions filter
   const [txFilter, setTxFilter] = useState<string>('alle');
