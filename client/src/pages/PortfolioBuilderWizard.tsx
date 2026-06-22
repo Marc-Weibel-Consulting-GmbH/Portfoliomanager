@@ -303,9 +303,9 @@ export default function PortfolioBuilderWizard() {
         portfolioType: isLive ? "live" : "demo",
       });
       
-      toast.success("Portfolio erfolgreich erstellt!");
+      toast.success("Portfolio erstellt 🎉");
       if (result?.portfolio?.id) {
-        navigate(`/portfolios/${result.portfolio.id}`);
+        navigate(`/portfolios/${result.portfolio.id}?onboarding=success`);
       } else {
         navigate('/portfolios');
       }
