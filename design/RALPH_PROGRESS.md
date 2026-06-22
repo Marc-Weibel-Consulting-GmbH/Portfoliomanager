@@ -42,7 +42,7 @@ Datei: `client/src/components/DashboardLayout.tsx` · Spec: `handoff/02-IA-Route
 ## PR 02 — Portfolio-Detail · 6 Tabs · Risk 3  ▸ Mockup: Seite 01–06
 Datei: `pages/PortfolioDetailsPage.tsx` + `components/portfolio/*Tab.tsx` · Spec: `handoff/03-Screens.md`
 
-- [ ] `/portfolios/:id` öffnet Tab „Übersicht" (Default), KPIs WERT/YTD/GESAMT/SHARPE gefüllt (S.01)
+- [x] `/portfolios/:id` öffnet Tab „Übersicht" (Default), KPIs WERT/YTD/GESAMT/SHARPE gefüllt (S.01) — SHARPE auf echte Server-Kennzahl (`dashboard.getRiskMetrics.sharpeRatio`) umgestellt (war kaputte Formel → „—"), Mock-Reste „+7.6%"/„Bench 1.05" durch echte Benchmark-Werte ersetzt
 - [ ] Tabs Positionen/Transaktionen/Performance/Risiko/Optimierung schalten via `?tab=` ohne Reload
 - [ ] Direkter Aufruf `?tab=risiko` öffnet Risiko-Tab; alte Sub-URLs redirecten
 - [ ] Alle 6 Tabs liefern echte Daten aus bestehenden tRPC-Endpoints (kein Mock)
@@ -123,6 +123,26 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ## Iterations-Log
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
+
+### 2026-06-22 09:50 — PR02 · Übersicht-Tab KPIs (S.01) ✅
+- **Befund (Live, verifiziert):** Übersicht-Tab ist bereits Default & layoutet korrekt zum Mockup S.01
+  (Breadcrumb, Titel, 4 KPIs, Wertentwicklung-Chart links, Top-Positionen + Letzte Aktivität rechts).
+  ABER drei Korrektheits-Defekte: **SHARPE = „—"** (kaputte Formel `annualizedTtwror*100/12`),
+  hardcoded Mock „S&P 500 **+7.6%**" (YTD-Subtitle) und „Bench **1.05**" (SHARPE-Subtitle).
+  Live-Login + Screenshot von `/portfolios/1560006` bestätigt: WERT CHF 525’000 / YTD +2.5% /
+  GESAMT +5.0% / SHARPE „—".
+- **Gemacht:** (1) Server `dashboard.getRiskMetrics` um echte **`sharpeBenchmark`** (gleiche rf/Annualisierung
+  wie Portfolio-Sharpe, aus SMI-Returns) erweitert; alle 4 Early-Returns konsistent. (2) Client
+  `PortfolioDetailsPage.tsx`: SHARPE-KPI nutzt jetzt `riskMetrics.sharpeRatio`, Subtitle `Bench {sharpeBenchmark}`;
+  YTD-Subtitle nutzt echten Benchmark-Wert aus `chartData` (letzter Punkt) statt „+7.6%".
+- **Verifikation:** `pnpm check` (tsc) **grün**. `pnpm test`: 239 passed / 6 failed (dieselben vorbestehenden
+  env-Failures: DATABASE_URL/TRADINGVIEW_MCP_URL etc.), **keine neuen**. Korrektheit: deployter Endpoint
+  `dashboard.getRiskMetrics(scope=1560006)` liefert `sharpeRatio: 1.45` (vol 11%, beta 0.09) → nach Deploy
+  zeigt die KPI **1.45** statt „—". Plausibel (niedrige Vola, ~+5% Gewinn).
+- **Grenze:** Fix selbst erst nach Deploy live sichtbar (Live zeigt deployten Stand). Datenquelle aber live
+  bestätigt. Benchmark-Sharpe wird serverseitig aus SMI berechnet (deployter Server hat das Feld noch nicht →
+  Client zeigt dort übergangsweise „Bench —", was korrekt/ehrlich ist).
+- **Nächste Aufgabe:** PR02 — Tabs via `?tab=` ohne Reload schalten / echte Daten je Tab.
 
 ### 2026-06-22 08:39 — PR01 · Sidebar konsolidieren ✅
 - **Befund:** Die flache 6-Item-Sidebar war in `client/src/components/DashboardLayout.tsx` bereits

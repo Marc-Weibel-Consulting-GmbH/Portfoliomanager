@@ -227,6 +227,12 @@ export default function PortfolioDetailsPage() {
     { enabled: portfolioId > 0 && !!portfolio?.isLive }
   );
 
+  // Risk metrics (real Sharpe ratio + benchmark Sharpe) scoped to this portfolio
+  const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(
+    { scope: portfolioId },
+    { enabled: portfolioId > 0 }
+  );
+
   // Fetch historical performance data from API
   const { data: historicalData, isLoading: isLoadingHistory } = trpc.portfolios.getHistoricalPerformance.useQuery(
     { 
@@ -476,14 +482,18 @@ export default function PortfolioDetailsPage() {
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">YTD</p>
             {(() => {
-              const ytdPerf = chartData.data.length > 0 ? (chartData.data[chartData.data.length - 1]?.portfolio || 0) : 0;
+              const lastPoint = chartData.data.length > 0 ? chartData.data[chartData.data.length - 1] : null;
+              const ytdPerf = lastPoint?.portfolio || 0;
+              const benchPerf = lastPoint?.benchmark ?? null;
               const benchmarkLabel = benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
               return (
                 <>
                   <p className={`text-2xl font-bold font-mono ${ytdPerf >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
                     {ytdPerf >= 0 ? '+' : ''}{ytdPerf.toFixed(1)}%
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{benchmarkLabel} +7.6%</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {benchmarkLabel} {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
+                  </p>
                 </>
               );
             })()}
@@ -513,9 +523,11 @@ export default function PortfolioDetailsPage() {
           <div className="bg-[#0f1420] p-5">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
-              {perfMetrics?.annualizedTtwror ? (perfMetrics.annualizedTtwror * 100 / 12).toFixed(2) : '—'}
+              {riskMetrics?.sharpeRatio !== undefined ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Bench 1.05</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Bench {riskMetrics?.sharpeBenchmark !== undefined ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
+            </p>
           </div>
         </div>
 
