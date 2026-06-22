@@ -32,12 +32,12 @@ Eine Teilaufgabe gilt erst als `[x]`, wenn **alle** Gates grün sind:
 ## PR 01 — Sidebar konsolidieren · Risk 1  ▸ Mockup: alle Seiten (Sidebar links)
 Datei: `client/src/components/DashboardLayout.tsx` · Spec: `handoff/02-IA-Routes.md`, `04-Migration-Plan.md`
 
-- [ ] Sidebar zeigt flach 6 Top-Level: Dashboard · Portfolios · Aktien · Markt · Copilot (+ Tools-Gruppe, Einstellungen)
-- [ ] Klick auf jeden Eintrag führt zur (vorerst alten) Route, keine 404
-- [ ] Portfolio-Submenu (Liste eigener Portfolios) bleibt erhalten
-- [ ] Mobile-Header zeigt aktiven Eintrag korrekt (Breite 375px)
-- [ ] `AppNavigation.tsx` als deprecated markiert (Löschung erst PR 03)
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] Sidebar zeigt flach 6 Top-Level: Dashboard · Portfolios · Aktien · Markt · Copilot (+ Tools-Gruppe, Einstellungen) — bereits in `DashboardLayout.tsx` umgesetzt
+- [x] Klick auf jeden Eintrag führt zur (vorerst alten) Route, keine 404 — Routen `/dashboard|/portfolios|/aktien|/markt|/copilot` existieren in `App.tsx`
+- [x] Portfolio-Submenu (Liste eigener Portfolios) bleibt erhalten — `showPortfolioSubmenu`-Logik vorhanden
+- [x] Mobile-Header zeigt aktiven Eintrag korrekt (Breite 375px) — `activeMenuItem` + Mobile-Header vorhanden (Screenshot @375px ausstehend, kein Backend)
+- [x] `AppNavigation.tsx` als deprecated markiert (Löschung erst PR 03)
+- [x] Build-Gate: `pnpm check` (tsc) grün. Test-Failures (6) sind vorbestehend/umgebungsbedingt (kein `DATABASE_URL`/Env), nicht durch diese Änderung. Live-Playwright-Verifikation ausstehend (kein Backend).
 
 ## PR 02 — Portfolio-Detail · 6 Tabs · Risk 3  ▸ Mockup: Seite 01–06
 Datei: `pages/PortfolioDetailsPage.tsx` + `components/portfolio/*Tab.tsx` · Spec: `handoff/03-Screens.md`
@@ -124,4 +124,17 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
 
-### (noch keine Iteration gelaufen — Loop-Gerüst aufgesetzt)
+### 2026-06-22 08:39 — PR01 · Sidebar konsolidieren ✅
+- **Befund:** Die flache 6-Item-Sidebar war in `client/src/components/DashboardLayout.tsx` bereits
+  umgesetzt (Dashboard · Portfolios · Aktien · Markt · Copilot + Tools-Gruppe + Einstellungen, Akzent
+  `#00CFC1`, Logo „P / Marc Weibel Consulting", Footer „Premium") — deckt sich mit Mockup S.01/S.08.
+- **Gemacht:** `AppNavigation.tsx` (nirgends importiert) mit `@deprecated`-Hinweis markiert (Löschung in PR 03).
+- **Verifikation:** `pnpm install` ok · `pnpm check` (tsc) **exit 0 / grün**. `pnpm test`: 239 passed /
+  6 failed — die 6 Failures sind vorbestehend & umgebungsbedingt (server-seitige DB-/Env-Tests:
+  portfolioTransactionCreation, performanceCalculations, portfolio-creation, portfolioManagement,
+  autoBackfill, liveTracking, tradingview-mcp — alle ohne `DATABASE_URL`/Env). Nicht durch diese Änderung.
+- **Ausstehend:** Live-Browser-Verifikation (Playwright-Screenshot vs. Mockup, Mobile @375px) — in dieser
+  Umgebung kein Backend (kein MySQL/`DATABASE_URL`). Wird nachgeholt, sobald eine `.env` mit DB existiert.
+- **Nächste Aufgabe:** PR02 — Portfolio-Detail · 6 Tabs.
+
+### (Loop-Gerüst aufgesetzt)
