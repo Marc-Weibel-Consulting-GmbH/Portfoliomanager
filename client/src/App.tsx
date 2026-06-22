@@ -59,7 +59,6 @@ import AdminLogs from "./pages/AdminLogs";
 import AdminSecrets from "./pages/AdminSecrets";
 
 // ─── Legacy (für Redirects) ───
-import PortfolioTransactionsPage from "./pages/PortfolioTransactionsPage";
 import DebugTest from "./pages/DebugTest";
 
 function Router() {
@@ -161,9 +160,11 @@ function Router() {
         {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}`} />}
       </Route>
       <Route path="/portfolio/:id/positions">
-        {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}`} />}
+        {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}?tab=positionen`} />}
       </Route>
-      <Route path="/portfolio/:id/transactions" component={PortfolioTransactionsPage} />
+      <Route path="/portfolio/:id/transactions">
+        {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}?tab=transaktionen`} />}
+      </Route>
       <Route path="/market-overview">
         <Redirect to="/markt" />
       </Route>

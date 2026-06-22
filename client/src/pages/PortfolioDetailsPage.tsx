@@ -45,6 +45,8 @@ import { EditPositionModal } from "@/components/EditPositionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
+import RiskTab from "@/components/portfolio/RiskTab";
+import OptimierenTab from "@/components/portfolio/OptimierenTab";
 import { StockLogo } from "@/components/StockLogo";
 import {
   AlertDialog,
@@ -93,14 +95,19 @@ export default function PortfolioDetailsPage() {
   const [location, navigate] = useLocation();
   const portfolioId = params.id ? parseInt(params.id) : 0;
   
-  // URL-based tab persistence: ?tab=positionen etc.
+  // URL-based tab persistence: ?tab=positionen etc. (German keys per Mockup S.01-06)
+  const legacyTabMap: Record<string, string> = {
+    overview: 'uebersicht', positions: 'positionen', transactions: 'transaktionen',
+    risk: 'risiko', optimize: 'optimieren', ai: 'optimieren',
+  };
   const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const urlTab = searchParams.get('tab') || 'overview';
+  const rawTab = searchParams.get('tab') || 'uebersicht';
+  const urlTab = legacyTabMap[rawTab] || rawTab;
   const [activeTab, setActiveTab] = useState(urlTab);
-  
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    const newSearch = tab === 'overview' ? '' : `?tab=${tab}`;
+    const newSearch = tab === 'uebersicht' ? '' : `?tab=${tab}`;
     navigate(`/portfolios/${portfolioId}${newSearch}`, { replace: true });
   };
   
@@ -434,7 +441,7 @@ export default function PortfolioDetailsPage() {
                 <Edit className="h-4 w-4 mr-1" />
                 Bearbeiten
               </Button>
-              <Button size="sm" className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
+              <Button size="sm" onClick={() => handleTabChange('optimieren')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                 Optimieren
               </Button>
             </div>
@@ -535,13 +542,12 @@ export default function PortfolioDetailsPage() {
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
-              { value: 'overview', label: 'Übersicht' },
-              { value: 'positions', label: `Positionen`, badge: holdings.length },
-              { value: 'transactions', label: 'Transaktionen', badge: transactions.length },
+              { value: 'uebersicht', label: 'Übersicht' },
+              { value: 'positionen', label: `Positionen`, badge: holdings.length },
+              { value: 'transaktionen', label: 'Transaktionen', badge: transactions.length },
               { value: 'performance', label: 'Performance' },
-              { value: 'risk', label: 'Risiko' },
-              { value: 'optimize', label: 'Optimieren' },
-              { value: 'ai', label: 'AI' },
+              { value: 'risiko', label: 'Risiko' },
+              { value: 'optimieren', label: 'Optimieren', aiBadge: true },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
@@ -552,12 +558,15 @@ export default function PortfolioDetailsPage() {
                 {tab.badge !== undefined && tab.badge > 0 && (
                   <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[10px] px-1.5 py-0.5 rounded-full">{tab.badge}</span>
                 )}
+                {tab.aiBadge && (
+                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-wider">AI</span>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
 
           {/* OVERVIEW TAB — 2 columns: chart left, top-positions + activity right */}
-          <TabsContent value="overview" className="mt-6">
+          <TabsContent value="uebersicht" className="mt-6">
             <div className="grid lg:grid-cols-5 gap-6">
               {/* Left: Wertentwicklung Chart */}
               <div className="lg:col-span-3">
@@ -677,7 +686,7 @@ export default function PortfolioDetailsPage() {
           </TabsContent>
 
           {/* POSITIONS TAB — matches design: TICKER | NAME | SEKTOR | GEWICHT | WERT | HEUTE | YTD */}
-          <TabsContent value="positions" className="mt-6">
+          <TabsContent value="positionen" className="mt-6">
             <div className="bg-[#0f1420] border border-white/10 rounded-lg">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                 <div>
@@ -766,7 +775,7 @@ export default function PortfolioDetailsPage() {
           </TabsContent>
 
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
-          <TabsContent value="transactions" className="mt-6">
+          <TabsContent value="transaktionen" className="mt-6">
             {(() => {
               const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
@@ -916,43 +925,14 @@ export default function PortfolioDetailsPage() {
             )}
           </TabsContent>
 
-          {/* RISK TAB */}
-          <TabsContent value="risk" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <div className="text-lg font-semibold text-white mb-2">Risikoanalyse</div>
-                  <p className="text-gray-400 text-sm mb-4">Detaillierte Risikokennzahlen für dieses Portfolio</p>
-                  <Link href="/risk-dashboard"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Risk-Dashboard</Button></Link>
-                </div>
-              </CardContent>
-            </Card>
+          {/* RISK TAB — echte Kennzahlen + LPPL-Bubble-Indikator (S.05) */}
+          <TabsContent value="risiko" className="mt-6">
+            <RiskTab portfolioId={portfolioId} />
           </TabsContent>
 
-          {/* OPTIMIZE TAB */}
-          <TabsContent value="optimize" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <div className="text-lg font-semibold text-white mb-2">Portfolio-Optimierung</div>
-                  <p className="text-gray-400 text-sm mb-4">Markowitz-Optimierung und Rebalancing-Vorschläge</p>
-                  <Link href="/portfolio-optimizer"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Optimizer</Button></Link>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* AI TAB */}
-          <TabsContent value="ai" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <div className="text-lg font-semibold text-white mb-2">AI-Analyse</div>
-                  <p className="text-gray-400 text-sm mb-4">KI-gestützte Insights und Empfehlungen für dieses Portfolio</p>
-                  <Link href="/copilot"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Copilot</Button></Link>
-                </div>
-              </CardContent>
-            </Card>
+          {/* OPTIMIZE TAB — KI-Re-Allocation + Effizienzgrenze (S.06) */}
+          <TabsContent value="optimieren" className="mt-6">
+            <OptimierenTab portfolioId={portfolioId} holdings={holdings} />
           </TabsContent>
         </Tabs>
 

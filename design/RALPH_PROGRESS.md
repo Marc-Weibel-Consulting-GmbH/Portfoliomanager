@@ -43,11 +43,11 @@ Datei: `client/src/components/DashboardLayout.tsx` · Spec: `handoff/02-IA-Route
 Datei: `pages/PortfolioDetailsPage.tsx` + `components/portfolio/*Tab.tsx` · Spec: `handoff/03-Screens.md`
 
 - [x] `/portfolios/:id` öffnet Tab „Übersicht" (Default), KPIs WERT/YTD/GESAMT/SHARPE gefüllt (S.01) — SHARPE auf echte Server-Kennzahl (`dashboard.getRiskMetrics.sharpeRatio`) umgestellt (war kaputte Formel → „—"), Mock-Reste „+7.6%"/„Bench 1.05" durch echte Benchmark-Werte ersetzt
-- [ ] Tabs Positionen/Transaktionen/Performance/Risiko/Optimierung schalten via `?tab=` ohne Reload
-- [ ] Direkter Aufruf `?tab=risiko` öffnet Risiko-Tab; alte Sub-URLs redirecten
-- [ ] Alle 6 Tabs liefern echte Daten aus bestehenden tRPC-Endpoints (kein Mock)
+- [x] Tabs Positionen/Transaktionen/Performance/Risiko/Optimierung schalten via `?tab=` ohne Reload — deutsche Keys (uebersicht/positionen/transaktionen/performance/risiko/optimieren), Legacy-EN-Keys gemappt, `navigate(replace)` ohne Reload
+- [x] Direkter Aufruf `?tab=risiko` öffnet Risiko-Tab; alte Sub-URLs redirecten — `/portfolio/:id/positions|transactions` → `?tab=positionen|transaktionen`
+- [x] Alle 6 Tabs liefern echte Daten aus bestehenden tRPC-Endpoints (kein Mock) — Risiko: `dashboard.getRiskMetrics`+`getBubbleIndicator`; Optimieren: `analytics.optimize`; übrige bereits real
 - [ ] Transaktionen: Filter „Käufe/Verkäufe" + „Realisierte Gewinne" + Export funktionieren (S.03)
-- [ ] Optimierung: ≥1 KI-Vorschlag + Effizienzgrenze sichtbar (S.06)
+- [x] Optimierung: ≥1 KI-Vorschlag + Effizienzgrenze sichtbar (S.06) — `OptimierenTab` zeigt Re-Allocation-Vorschläge (optimal vs. aktuell) + Effizienzgrenze-Scatter
 - [ ] **Korrektheit:** YTD/Gesamt/Sharpe/Annualisiert gegen `performanceCalculations.ts` plausibilisiert
 - [ ] Funktionalität+Korrektheit+Build-Gates grün
 
