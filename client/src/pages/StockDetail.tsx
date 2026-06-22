@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRoute, Link, useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,6 +174,10 @@ export default function StockDetail() {
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
+  // Kauf-Modal-State (echte Transaktion)
+  const [buyPortfolioId, setBuyPortfolioId] = useState<string>("");
+  const [buyShares, setBuyShares] = useState<string>("");
+  const [buyPrice, setBuyPrice] = useState<string>("");
   const [, navigate] = useLocation();
   
   // Parse query parameters to get referrer portfolio and active tab
@@ -213,6 +218,45 @@ export default function StockDetail() {
 
   // Check if stock is already in a portfolio (for hiding "Add to Portfolio" button)
   const { data: userPortfolios = [] } = trpc.portfolios.list.useQuery();
+  const utils = trpc.useUtils();
+
+  // Echte Kauf-Transaktion (Mockup S.07: "Kaufen" → Portfolio-Picker → Transaktion)
+  const createTransaction = trpc.portfolioTransactions.create.useMutation({
+    onSuccess: () => {
+      toast.success("Kauf erfasst");
+      setShowAddToPortfolio(false);
+      setBuyShares("");
+      setBuyPrice("");
+      const pid = Number(buyPortfolioId);
+      if (pid > 0) {
+        utils.portfolios.getWithCurrency.invalidate(pid);
+        utils.portfolioTransactions.list.invalidate({ portfolioId: pid });
+      }
+      utils.portfolios.list.invalidate();
+    },
+    onError: (e) => toast.error(`Fehler beim Kauf: ${e.message}`),
+  });
+
+  const handleBuy = () => {
+    const pid = Number(buyPortfolioId || userPortfolios[0]?.id);
+    const sharesNum = parseFloat(buyShares);
+    const priceNum = parseFloat(buyPrice) || parseFloat(stock?.currentPrice || "0");
+    if (!pid || !(sharesNum > 0)) {
+      toast.error("Bitte Portfolio und Anzahl Aktien angeben");
+      return;
+    }
+    createTransaction.mutate({
+      portfolioId: pid,
+      transactionType: "buy",
+      ticker,
+      shares: String(sharesNum),
+      pricePerShare: String(priceNum),
+      totalAmount: String(sharesNum * priceNum),
+      fees: "0",
+      notes: null,
+      transactionDate: new Date().toISOString(),
+    });
+  };
   
   // Check if this stock exists in any of the user's portfolios
   const isInPortfolio = useMemo(() => {
@@ -680,7 +724,7 @@ export default function StockDetail() {
                   className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold h-12"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Zu Portfolio hinzufügen
+                  Kaufen
                 </Button>
               )}
               <Button 
@@ -884,39 +928,44 @@ export default function StockDetail() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Portfolio auswählen</label>
-                  <select className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none">
+                  <select
+                    value={buyPortfolioId || (userPortfolios[0]?.id?.toString() ?? "")}
+                    onChange={(e) => setBuyPortfolioId(e.target.value)}
+                    className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none"
+                  >
                     {userPortfolios.length > 0 ? (
                       userPortfolios.map((p: any) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))
                     ) : (
-                      <>
-                        <option>Mein Hauptportfolio</option>
-                        <option>Dividenden Portfolio</option>
-                        <option>Wachstums Portfolio</option>
-                      </>
+                      <option value="">Kein Portfolio vorhanden</option>
                     )}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Anzahl Aktien</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     placeholder="10"
+                    value={buyShares}
+                    onChange={(e) => setBuyShares(e.target.value)}
                     className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none"
                   />
                 </div>
-                
+
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Kaufpreis (optional)</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     placeholder={currentPrice.toFixed(2)}
+                    value={buyPrice}
+                    onChange={(e) => setBuyPrice(e.target.value)}
                     className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Aktuell: {currency} {currentPrice.toFixed(2)}</p>
                 </div>
-                
+
                 <div className="flex gap-3 pt-2">
                   <Button
                     onClick={() => setShowAddToPortfolio(false)}
@@ -926,9 +975,11 @@ export default function StockDetail() {
                     Abbrechen
                   </Button>
                   <Button
+                    onClick={handleBuy}
+                    disabled={createTransaction.isPending || userPortfolios.length === 0}
                     className="flex-1 bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold"
                   >
-                    Hinzufügen
+                    {createTransaction.isPending ? "Wird gekauft…" : "Kaufen"}
                   </Button>
                 </div>
               </div>
