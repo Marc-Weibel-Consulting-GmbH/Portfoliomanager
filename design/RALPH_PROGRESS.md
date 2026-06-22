@@ -65,8 +65,8 @@ Neu `pages/Markt.tsx` + `components/markt/*Tab.tsx` · Spec: `handoff/03-Screens
 
 - [x] `/markt` Tab Überblick: 4 Index-KPIs (SMI/S&P/MSCI/Gold) + Indizes-YTD-Chart (S.13) — **Mock entfernt**: neuer Endpoint `marketRegime.getIndices` (echte DB-Daten, YTD-KPIs + normalisierte Chart-Serie)
 - [x] Tab Regime: Pill + Engine-Scores (S.14) — `MarketRegimeContent` (real, `marketRegime.getRegime`), Bull-Badge am Tab; (explizite VIX/Yield/12M-Verlauf-Sektion ggf. später verfeinern)
-- [ ] Tab Heatmap: Sektor-Tiles mit YTD-Färbung, Toggle 1T/1W/1M/YTD (S.15) — TradingView-Heatmap real, aber Toggle ist Datenquelle statt Zeitraum → offen
-- [ ] Tab News: Filter Alle/Schweiz/Europa/USA/Asien (S.16) — Newsroom filtert nach Ticker, Region-Filter fehlen (News-Daten haben kein Region-Feld) → offen
+- [!] Tab Heatmap: Toggle 1T/1W/1M/YTD (S.15) — TradingView-Heatmap (real) hat nur Quellen-Toggle; Zeitraum-Toggle ist TradingView-Widget-intern → zurückgestellt
+- [!] Tab News: Filter Alle/Schweiz/Europa/USA/Asien (S.16) — News-Daten haben **kein Region-Feld**; bräuchte Backend-Erweiterung (Region-Klassifizierung) → zurückgestellt
 - [x] Tab Dividenden: nur eigene Live-Positionen, nächste 30 Tage (S.17) — neuer Endpoint `dividendCalendar.upcomingAll` + `components/markt/DividendenTab`
 - [x] Alte Markt-URLs redirecten · Newsroom bleibt unverändert — `/market-regime|heatmap|sector-heatmap|newsroom|dividends` → spezifische `?tab=`
 - [x] 5 deutsche Tabs (ueberblick/regime/heatmap/news/dividenden) statt 7 EN-Tabs; Build-Gate grün (Bull/Scanner-Tab entfernt)
@@ -74,11 +74,11 @@ Neu `pages/Markt.tsx` + `components/markt/*Tab.tsx` · Spec: `handoff/03-Screens
 ## PR 06 — Copilot-Hub · 3 Tabs · Risk 2  ▸ Mockup: Seite 18–20
 Datei: `pages/PortfolioCopilot.tsx` + `components/copilot/*Tab.tsx` · Spec: `handoff/03-Screens.md`
 
-- [ ] `/copilot` Tab Insights mit ≥3 Karten (S.18)
-- [ ] Floating-Chat-Button (im Dashboard sichtbar) öffnet `/copilot?tab=chat`
-- [ ] Chat-Tab: Streaming-Response Wort-für-Wort (S.19)
-- [ ] History-Tab: Konversationen klickbar, laden Verlauf (S.20)
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] `/copilot` Tab Insights mit ≥3 Karten (S.18) — **Fix**: Tab war leer (`copilot.getLatestWeeklyReview`=null); jetzt `dashboard.getCopilotInsights` (≥3 echte Karten: Sektor-/Einzeltitel-Konzentration etc.)
+- [~] Floating-Chat-Button öffnet Chat — Button öffnet eingebettetes Chat-Panel (gleiche `chat.*`-Backend) statt Navigation zu `/copilot?tab=chat`; funktional äquivalent, Abweichung dokumentiert
+- [~] Chat-Tab: Streaming-Response Wort-für-Wort (S.19) — Chat funktioniert (Request/Response via `chat.sendMessage`), echtes Token-Streaming noch nicht (grösserer SSE-Umbau) → zurückgestellt
+- [x] History-Tab: Konversationen klickbar, laden Verlauf (S.20) — `chat.getConversations`/`getMessages` (live: echte Konversationen „Nvidia Kaufberatung" etc.)
+- [~] Funktionalität+Korrektheit+Build-Gates grün — tsc grün; Insights-Fix live-datengeprüft; Streaming/Floating-Nav als Abweichung offen
 
 ## PR 04 — Aktien-Detail · 7 Tabs · Risk 4  ▸ Mockup: Seite 07–12
 Datei: `pages/StockDetail.tsx` + `components/stock-detail/*Tab.tsx` · Spec: `handoff/03-Screens.md`
@@ -123,6 +123,24 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ## Iterations-Log
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
+
+### 2026-06-22 10:50 — Deploy-Workflow bestätigt + Live-Verifikation PR02/05 ✅
+- **Erkenntnis:** manus.space **deployt `main`-Merges automatisch** — mit ~8–10 Min Verzögerung (der erste
+  5-Min-Poll war zu kurz). Damit funktioniert push→merge→live-test. Loop um Schritt 7 erweitert (RALPH_LOOP.md,
+  ralph.md): nach Merge den Deploy pollen (z. B. neuer Endpoint 200), dann live verifizieren.
+- **Live verifiziert (nach Merge PR #10):** Portfolio-Detail SHARPE = **1.45** (war „—"), Bench **1.13**
+  (echt), YTD-Subtitle „S&P 500 **+9.3%**" (echt, war hardcoded). Markt-Hub: **5 deutsche Tabs**
+  (Überblick/Regime[BULL]/Heatmap/News/Dividenden-Kalender), echte Index-KPIs + YTD-Chart (3 Linien),
+  keine Konsolenfehler. **Hinweis:** Index-KPI-Absolutwert zeigt ETF-Proxy-Kurs (z. B. CHSPI 166) statt
+  Index-Level (11'842) — echte Daten, %-Änderungen korrekt; Absolutwert-Politur offen.
+
+### 2026-06-22 10:48 — PR06 · Copilot Insights-Fix ✅
+- **Befund (live):** Insights-Tab war **leer** („Keine neuen Insights") — `copilot.getLatestWeeklyReview`=null.
+- **Fix:** Insights-Tab + Badge nutzen jetzt `dashboard.getCopilotInsights` (≥3 echte, aus dem Portfolio
+  berechnete Karten: Sektor-Konzentration 36.1%, Einzeltitel CHDVD.SW 13% …). `InsightCard` unterstützt
+  `body`/severity `watch`. Chat/History bereits real (`chat.*`; live: „Nvidia Kaufberatung" etc.).
+- **Offen:** Token-Streaming (S.19) + Floating-Button-Navigation — als Abweichung dokumentiert.
+- **Verifikation:** `pnpm check` grün; `pnpm test` 239/6 (vorbestehend). getCopilotInsights live = ≥3 Items.
 
 ### 2026-06-22 10:15 — PR05 · Markt-Hub Überblick + Dividenden + 5-Tab-Struktur ✅ (teilweise)
 - **Gemacht:** (a) Index-KPIs (S.13) **Mock entfernt** → neuer `marketRegime.getIndices` (echte DB-Daten:

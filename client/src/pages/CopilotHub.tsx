@@ -110,10 +110,11 @@ export default function CopilotHub() {
 /* ─── Insights Badge ─── */
 function InsightsBadge() {
   const { user } = useAuth();
-  const { data: weeklyReview } = trpc.copilot.getLatestWeeklyReview.useQuery(undefined, {
-    enabled: !!user,
-  });
-  const count = weeklyReview?.insights?.length ?? 0;
+  const { data: insights } = trpc.dashboard.getCopilotInsights.useQuery(
+    { scope: 'aggregate' },
+    { enabled: !!user, staleTime: 60000 }
+  );
+  const count = insights?.length ?? 0;
   if (count === 0) return null;
   return (
     <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/20 text-teal-400 text-[10px] font-bold">
@@ -125,9 +126,12 @@ function InsightsBadge() {
 /* ─── Insights Tab ─── */
 function InsightsTab() {
   const { user } = useAuth();
-  const { data: weeklyReview, isLoading, refetch } = trpc.copilot.getLatestWeeklyReview.useQuery(undefined, {
-    enabled: !!user,
-  });
+  // Echte, deterministisch aus dem Portfolio berechnete Insights (Konzentration,
+  // Performance, Risiko …) — dashboard.getCopilotInsights liefert ≥3 Karten (Mockup S.18).
+  const { data: insightItems = [], isLoading, refetch } = trpc.dashboard.getCopilotInsights.useQuery(
+    { scope: 'aggregate' },
+    { enabled: !!user, staleTime: 60000 }
+  );
 
   if (isLoading) {
     return (
@@ -138,8 +142,6 @@ function InsightsTab() {
       </div>
     );
   }
-
-  const insightItems = weeklyReview?.insights ?? [];
 
   return (
     <div className="space-y-4">
@@ -185,6 +187,7 @@ function InsightsTab() {
 function InsightCard({ insight }: { insight: any }) {
   const severityConfig: Record<string, { icon: any; color: string; borderColor: string; label: string }> = {
     warning: { icon: AlertTriangle, color: 'text-amber-400', borderColor: 'border-l-amber-400', label: 'WARNUNG' },
+    watch: { icon: AlertTriangle, color: 'text-amber-400', borderColor: 'border-l-amber-400', label: 'BEOBACHTEN' },
     positive: { icon: TrendingUp, color: 'text-[#00CFC1]', borderColor: 'border-l-[#00CFC1]', label: 'POSITIV' },
     info: { icon: Lightbulb, color: 'text-blue-400', borderColor: 'border-l-blue-400', label: 'INFO' },
     action: { icon: Target, color: 'text-[#00CFC1]', borderColor: 'border-l-[#00CFC1]', label: 'AKTION' },
@@ -193,6 +196,7 @@ function InsightCard({ insight }: { insight: any }) {
   const severity = insight.severity ?? 'info';
   const config = severityConfig[severity] ?? severityConfig.info;
   const Icon = config.icon;
+  const bodyText = insight.body ?? insight.description;
 
   return (
     <div className={`bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 border-l-4 ${config.borderColor} rounded-lg p-4`}>
@@ -205,7 +209,7 @@ function InsightCard({ insight }: { insight: any }) {
             <span className={`text-[9px] font-bold tracking-widest ${config.color}`}>{config.label}</span>
           </div>
           <h3 className="text-sm font-semibold text-white leading-snug">{insight.title}</h3>
-          <p className="text-xs text-gray-400 mt-1.5 leading-relaxed line-clamp-3">{insight.description}</p>
+          <p className="text-xs text-gray-400 mt-1.5 leading-relaxed line-clamp-3">{bodyText}</p>
         </div>
       </div>
       {insight.action && (
