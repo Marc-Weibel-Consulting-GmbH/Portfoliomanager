@@ -124,6 +124,7 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
 
+<<<<<<< HEAD
 ### 2026-06-22 10:50 — Deploy-Workflow bestätigt + Live-Verifikation PR02/05 ✅
 - **Erkenntnis:** manus.space **deployt `main`-Merges automatisch** — mit ~8–10 Min Verzögerung (der erste
   5-Min-Poll war zu kurz). Damit funktioniert push→merge→live-test. Loop um Schritt 7 erweitert (RALPH_LOOP.md,
@@ -142,6 +143,8 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 - **Offen:** Token-Streaming (S.19) + Floating-Button-Navigation — als Abweichung dokumentiert.
 - **Verifikation:** `pnpm check` grün; `pnpm test` 239/6 (vorbestehend). getCopilotInsights live = ≥3 Items.
 
+=======
+>>>>>>> origin/main
 ### 2026-06-22 10:15 — PR05 · Markt-Hub Überblick + Dividenden + 5-Tab-Struktur ✅ (teilweise)
 - **Gemacht:** (a) Index-KPIs (S.13) **Mock entfernt** → neuer `marketRegime.getIndices` (echte DB-Daten:
   SMI/SP500/MSCI via `getBenchmarkData`, Gold via Proxy-Ticker; YTD-KPIs + normalisierte Chart-Serie) +
