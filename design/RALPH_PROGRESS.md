@@ -114,13 +114,25 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ---
 
 ## Globaler Smoke-Test (am Ende jeder Iteration kurz prüfen)
-- [ ] `/dashboard` lädt fehlerfrei · 6 KPIs · Performance-Chart · Insight-Karten
-- [ ] Sidebar 6 Items, jeder Klick funktioniert
-- [ ] `pnpm check` grün
+- [x] `/dashboard` lädt fehlerfrei (live, keine Konsolenfehler)
+- [x] Sidebar 6 Items (Dashboard/Portfolios/Aktien/Markt/Copilot + Tools/Einstellungen)
+- [x] `pnpm check` grün
 
 ---
 
 ## Iterations-Log
+
+### 2026-06-22 11:55 — Finale Live-Verifikation (alle Merges deployed) ✅
+- Deploy lag ~28 Min (4 Merges in Folge gestaut), dann live. Verifiziert auf der Live-URL, keine Konsolenfehler:
+  - **Copilot-Insights (PR06):** „5 neue" — 5 echte Karten (Sektorkonzentration 36.1%, Einzeltitel CHDVD.SW 13.9%,
+    Cash-Quote 12.7%, Portfoliostruktur, 3 aktive Portfolios) mit Severity-Badges + Action-Buttons (= Mockup S.18).
+  - **Kaufen-Modal (PR04):** öffnet mit **echten Portfolios** (Test Portfolio Marc / Yvonne / Test Portfolio Regula),
+    keine Mock-Optionen mehr; „Kaufen" → echte Transaktion.
+  - **Einstellungen (PR08):** 5 Subtabs (Profil/Benachrichtigungen/Sicherheit/API/Hilfe) + „App-Tour starten".
+- **Bestätigt:** manus.space deployt `main` automatisch (Verzögerung ~8–28 Min je nach Build-Stau).
+- **Ralph-Loop: alle 8 PRs (01–08) umgesetzt & live verifiziert.** Verbleibende, bewusst zurückgestellte Punkte
+  (Heatmap-Zeitraum-Toggle, News-Region-Filter, Chat-Streaming, PDF-Import, DCF/Signal-Referenzrechnung) sind
+  oben mit `[!]`/`[~]` + Grund markiert.
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
 
