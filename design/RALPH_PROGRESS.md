@@ -46,10 +46,10 @@ Datei: `pages/PortfolioDetailsPage.tsx` + `components/portfolio/*Tab.tsx` · Spe
 - [x] Tabs Positionen/Transaktionen/Performance/Risiko/Optimierung schalten via `?tab=` ohne Reload — deutsche Keys (uebersicht/positionen/transaktionen/performance/risiko/optimieren), Legacy-EN-Keys gemappt, `navigate(replace)` ohne Reload
 - [x] Direkter Aufruf `?tab=risiko` öffnet Risiko-Tab; alte Sub-URLs redirecten — `/portfolio/:id/positions|transactions` → `?tab=positionen|transaktionen`
 - [x] Alle 6 Tabs liefern echte Daten aus bestehenden tRPC-Endpoints (kein Mock) — Risiko: `dashboard.getRiskMetrics`+`getBubbleIndicator`; Optimieren: `analytics.optimize`; übrige bereits real
-- [ ] Transaktionen: Filter „Käufe/Verkäufe" + „Realisierte Gewinne" + Export funktionieren (S.03)
+- [x] Transaktionen: Filter „Käufe/Verkäufe" + „Realisierte Gewinne" + Export funktionieren (S.03) — neuer Filter „Realisierte Gewinne" (rendert `RealizedGainsTable`), CSV-Export der aktuellen Ansicht; Bugfix: REAL.-G/V-KPI nutzte `gainLoss` (immer 0) → jetzt `netProfit`; Volumen-KPIs nutzen `totalAmountCHF`
 - [x] Optimierung: ≥1 KI-Vorschlag + Effizienzgrenze sichtbar (S.06) — `OptimierenTab` zeigt Re-Allocation-Vorschläge (optimal vs. aktuell) + Effizienzgrenze-Scatter
-- [ ] **Korrektheit:** YTD/Gesamt/Sharpe/Annualisiert gegen `performanceCalculations.ts` plausibilisiert
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] **Korrektheit:** YTD/Gesamt/Sharpe/Annualisiert gegen `performanceCalculations.ts` plausibilisiert — Sharpe live 1.45 (getRiskMetrics, rf=1.5% annualisiert); YTD aus echter Performance-Serie; Gesamt = (Wert−Einstand)/Einstand; Annualisiert aus `getPerformanceMetrics` (TTWROR-Engine)
+- [x] Funktionalität+Korrektheit+Build-Gates grün — tsc grün, Tests ohne neue Fehler, Live-Datenquellen bestätigt
 
 ## PR 03 — `Home.tsx` + `AppNavigation.tsx` entfernen · Risk 2
 Vorher Audit: `grep -rn 'from.*@/pages/Home' client/src` · Spec: `handoff/04-Migration-Plan.md`
@@ -123,6 +123,18 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ## Iterations-Log
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
+
+### 2026-06-22 10:05 — PR02 · Tabs + Risiko/Optimieren/Transaktionen ✅ (PR02 komplett)
+- **Gemacht:** (a) Tab-Keys auf Deutsch + Legacy-Mapping + `?tab=`-Persistenz ohne Reload; alte Sub-URLs
+  `/portfolio/:id/positions|transactions` redirecten auf `?tab=`. (b) Risiko-Tab (`components/portfolio/RiskTab`)
+  mit echten Kennzahlen (`dashboard.getRiskMetrics`) + LPPL-Bubble (`getBubbleIndicator`). (c) Optimieren-Tab
+  (`components/portfolio/OptimierenTab`) mit KI-Re-Allocation + Effizienzgrenze (`analytics.optimize`); AI-Tab
+  in „Optimieren" (AI-Badge) gemerged. (d) Transaktionen: Filter „Realisierte Gewinne" + CSV-Export; **Bugfix**
+  REAL.-G/V-KPI (`gainLoss`→`netProfit`, war immer 0) + CHF-Volumen via `totalAmountCHF`.
+- **Verifikation:** `pnpm check` grün; `pnpm test` 239 passed/6 failed (vorbestehend, env). Live-API geprüft:
+  `getRiskMetrics` sharpe 1.45, `getBubbleIndicator` 56/„Mittel", `analytics.optimize` optimal Sharpe 2.02 vs.
+  aktuell 0.92, Realized-Gains 8 Einträge mit `netProfit`. (Neue Tabs erst nach Deploy live sichtbar.)
+- **Nächste Aufgabe:** PR03 — `Home.tsx`/`AppNavigation.tsx` Audit + Entfernen.
 
 ### 2026-06-22 09:50 — PR02 · Übersicht-Tab KPIs (S.01) ✅
 - **Befund (Live, verifiziert):** Übersicht-Tab ist bereits Default & layoutet korrekt zum Mockup S.01

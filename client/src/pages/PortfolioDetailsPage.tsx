@@ -780,10 +780,12 @@ export default function PortfolioDetailsPage() {
               const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
               const dividends = transactions.filter((t: any) => (t.type || t.transactionType) === 'dividend');
-              const buyVolume = buys.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
-              const sellVolume = sells.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
-              const divTotal = dividends.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
-              const realizedTotal = realizedGains.reduce((s: number, g: any) => s + (g.gainLoss || 0), 0);
+              // Volumen in CHF (totalAmountCHF ist der vom Server umgerechnete Betrag; Fallback shares*price)
+              const volCHF = (t: any) => parseFloat(t.totalAmountCHF ?? '') || (parseFloat(t.shares || t.quantity || 0) * parseFloat(t.price || t.pricePerShare || 0));
+              const buyVolume = buys.reduce((s: number, t: any) => s + volCHF(t), 0);
+              const sellVolume = sells.reduce((s: number, t: any) => s + volCHF(t), 0);
+              const divTotal = dividends.reduce((s: number, t: any) => s + volCHF(t), 0);
+              const realizedTotal = realizedGains.reduce((s: number, g: any) => s + (g.netProfit ?? g.totalGain ?? 0), 0);
               return (
                 <>
                   {/* 4 KPI Cards */}
@@ -814,14 +816,45 @@ export default function PortfolioDetailsPage() {
 
                   {/* Filter Chips + Table */}
                   {(() => {
+                    const isRealized = txFilter === 'realisierte';
                     const filteredTx = txFilter === 'alle' ? transactions :
                       txFilter === 'kaeufe' ? buys :
                       txFilter === 'verkaeufe' ? sells :
                       txFilter === 'dividenden' ? dividends : transactions;
+
+                    // CSV-Export der aktuell sichtbaren Ansicht
+                    const handleExport = () => {
+                      const csvEscape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+                      let rows: string[][];
+                      if (isRealized) {
+                        rows = [["Datum", "Ticker", "Name", "Stk.", "Kaufpreis", "Verkaufspreis", "Netto G/V", "Rendite %"]];
+                        realizedGains.forEach((g: any) => rows.push([
+                          new Date(g.transactionDate).toLocaleDateString('de-CH'), g.ticker, g.stockName,
+                          g.shares, g.avgCostBasis, g.sellPrice, g.netProfit ?? g.totalGain ?? 0, g.realizedGainPercent ?? 0,
+                        ]));
+                      } else {
+                        rows = [["Datum", "Typ", "Ticker", "Stk.", "Preis", "Waehrung", "Total CHF"]];
+                        filteredTx.forEach((t: any) => rows.push([
+                          new Date(t.date || t.transactionDate).toLocaleDateString('de-CH'),
+                          (t.type || t.transactionType), t.ticker, t.shares || t.quantity,
+                          t.price || t.pricePerShare, t.currency || 'CHF', volCHF(t).toFixed(2),
+                        ]));
+                      }
+                      const csv = rows.map(r => r.map(csvEscape).join(';')).join('\n');
+                      const blob = new Blob(["﻿" + csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${portfolio.name.replace(/[^a-z0-9]/gi, '_')}_${isRealized ? 'realisierte_gewinne' : 'transaktionen'}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('Export erstellt');
+                    };
+
                     return (
                       <div className="bg-[#0f1420] border border-white/10 rounded-lg">
                         <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10">
-                          {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden']].map(([key, label]) => (
+                          {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden'], ['realisierte', 'Realisierte Gewinne']].map(([key, label]) => (
                             <button
                               key={key}
                               onClick={() => setTxFilter(key)}
@@ -830,9 +863,22 @@ export default function PortfolioDetailsPage() {
                               }`}
                             >{label}</button>
                           ))}
-                          <span className="ml-auto text-xs text-gray-500">{filteredTx.length} Einträge</span>
+                          <span className="ml-auto text-xs text-gray-500">{isRealized ? realizedGains.length : filteredTx.length} Einträge</span>
+                          <button
+                            onClick={handleExport}
+                            disabled={isRealized ? realizedGains.length === 0 : filteredTx.length === 0}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-md border border-white/15 text-gray-300 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Share2 className="h-3 w-3" /> Export
+                          </button>
                         </div>
-                        {filteredTx.length === 0 ? (
+                        {isRealized ? (
+                          realizedGains.length === 0 ? (
+                            <p className="text-gray-400 text-center py-8 text-sm">Keine realisierten Gewinne vorhanden</p>
+                          ) : (
+                            <div className="p-4"><RealizedGainsTable gains={realizedGains} /></div>
+                          )
+                        ) : filteredTx.length === 0 ? (
                           <p className="text-gray-400 text-center py-8 text-sm">Keine Transaktionen vorhanden</p>
                         ) : (
                           <div className="overflow-x-auto">
