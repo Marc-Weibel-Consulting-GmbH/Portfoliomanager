@@ -54,11 +54,11 @@ Datei: `pages/PortfolioDetailsPage.tsx` + `components/portfolio/*Tab.tsx` · Spe
 ## PR 03 — `Home.tsx` + `AppNavigation.tsx` entfernen · Risk 2
 Vorher Audit: `grep -rn 'from.*@/pages/Home' client/src` · Spec: `handoff/04-Migration-Plan.md`
 
-- [ ] Feature-Audit von `Home.tsx` (210 KB) gemacht, fehlende Features in Dashboard integriert oder als Open-Question notiert
-- [ ] `Home.tsx`, `AppNavigation.tsx`, ggf. `BreadcrumbNav.tsx` gelöscht
-- [ ] `/home` und `/optimizer` redirecten zu `/dashboard`
-- [ ] `grep -r 'from "@/pages/Home"' client/src` leer · Build grün
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] Feature-Audit von `Home.tsx` (4037 Zeilen) gemacht — **toter Code**: nirgends importiert/geroutet, `/home` redirectet bereits zu `/dashboard`; App läuft schon auf `Dashboard.tsx`. Keine erreichbaren Features gehen verloren → nichts zu integrieren
+- [x] `Home.tsx`, `AppNavigation.tsx`, `BreadcrumbNav.tsx` gelöscht (+ verwaiste `PortfolioBuilderWizard.tsx.backup`, die einzige BreadcrumbNav-Referenz)
+- [x] `/home` und `/optimizer` redirecten zu `/dashboard` (bereits in App.tsx vorhanden, bestätigt)
+- [x] `grep -r 'AppNavigation|BreadcrumbNav|pages/Home' client/src` leer · Build grün
+- [x] Funktionalität+Korrektheit+Build-Gates grün — tsc grün (fängt gebrochene Imports projektweit)
 
 ## PR 05 — Markt-Hub · 5 Tabs · Risk 2  ▸ Mockup: Seite 13–17
 Neu `pages/Markt.tsx` + `components/markt/*Tab.tsx` · Spec: `handoff/03-Screens.md`
@@ -123,6 +123,14 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ## Iterations-Log
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
+
+### 2026-06-22 10:08 — PR03 · Home/AppNavigation/BreadcrumbNav entfernt ✅
+- **Audit:** `Home.tsx` (4037 Z.) ist toter Code — kein Import/Route, `/home`→`/dashboard` existiert; die App
+  läuft längst auf `Dashboard.tsx`. `AppNavigation.tsx` (PR01 deprecated) ungenutzt. `BreadcrumbNav.tsx` nur von
+  einer `.backup`-Datei referenziert. Keine fehlenden Features → keine Open-Question nötig.
+- **Gemacht:** Alle drei + die verwaiste `.backup` gelöscht. `/home`+`/optimizer`-Redirects bestätigt.
+- **Verifikation:** `grep` nach Restreferenzen leer; `pnpm check` (tsc) **grün** (prüft Imports projektweit).
+- **Nächste Aufgabe:** PR05 — Markt-Hub (`pages/Markt.tsx`, 5 Tabs, S.13–17).
 
 ### 2026-06-22 10:05 — PR02 · Tabs + Risiko/Optimieren/Transaktionen ✅ (PR02 komplett)
 - **Gemacht:** (a) Tab-Keys auf Deutsch + Legacy-Mapping + `?tab=`-Persistenz ohne Reload; alte Sub-URLs
