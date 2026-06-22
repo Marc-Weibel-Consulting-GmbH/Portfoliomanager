@@ -137,4 +137,17 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
   Umgebung kein Backend (kein MySQL/`DATABASE_URL`). Wird nachgeholt, sobald eine `.env` mit DB existiert.
 - **Nächste Aufgabe:** PR02 — Portfolio-Detail · 6 Tabs.
 
+### 2026-06-22 08:55 — Verifikations-Umgebung eingerichtet & diagnostiziert
+- **Secrets:** 6 gelieferte Keys (EODHD, FISCAL, FINNHUB_WEBHOOK, TRADINGVIEW_MCP_URL, RESEND,
+  VITE_STRIPE_PUBLISHABLE) in gitignorierter `.env` hinterlegt. **Fehlen weiterhin: `DATABASE_URL` + `JWT_SECRET`**
+  → lokaler Dev-Server kann ohne diese nicht booten.
+- **Playwright:** Gebündeltes Chromium (`/opt/pw-browsers/chromium-1194`) funktioniert. MCP war auf
+  `chrome`-Channel (nicht vorhanden) → in `.mcp.json` auf `--browser chromium` umgestellt (greift nach MCP-Reload).
+- **Live-Deploy nicht erreichbar:** `https://portfoliodash-aqvizp6n.manus.space/` liefert 403 vom
+  Egress-Proxy: *"Host not in allowlist"*. Diese Umgebung erreicht nur Allowlist-Hosts → Live-Verifikation
+  gegen den Deploy hier **blockiert** (auch Browser-Download von cdn.playwright.dev blockiert).
+- **Konsequenz:** Vollwertige Live-Verifikation braucht ENTWEDER (a) `DATABASE_URL`+`JWT_SECRET` (+ DB-Host
+  in der Egress-Allowlist) für lokalen Boot, ODER (b) manus.space-Host in der Egress-Allowlist + Login-Daten.
+  Bis dahin verifiziert der Loop statisch (tsc + Tests + Code-Review gegen Mockup).
+
 ### (Loop-Gerüst aufgesetzt)
