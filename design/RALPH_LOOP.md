@@ -23,7 +23,15 @@ der Fortschritt in einer Datei festgehalten; jeder Durchlauf nimmt sich die näc
 4. **Verifizieren:** `pnpm check` + `pnpm test`, Dev-Server starten, mit **Playwright** die Route öffnen,
    Screenshot gegen Mockup vergleichen, Buttons/Tabs klicken, Konsole prüfen, Zahlen plausibilisieren.
 5. Kriterien in `RALPH_PROGRESS.md` abhaken + Log-Eintrag.
-6. Commit + Push auf `claude/festive-newton-49pqw4`; Draft-PR anlegen, falls noch keiner existiert.
+6. Commit + Push auf den Feature-Branch; Draft-PR anlegen, falls noch keiner existiert.
+7. **Deploy + Live-Nachtest:** PR auf `main` **mergen** → warten bis der manus.space-Deploy den neuen
+   Stand übernommen hat (per Playwright/API pollen, z. B. neuer Endpoint liefert 200 / KPI zeigt echten
+   Wert) → die umgesetzte Route **live** öffnen und gegen das Mockup verifizieren (Screenshot, Klicks,
+   Konsole, Zahlen). Erst dann gilt die Live-Verifikation als erbracht.
+   - ⚠️ **Deploy-Trigger prüfen:** Das Repo hat (Stand 2026-06-22) **keine** GitHub-Actions/Deploy-Pipeline.
+     Ob ein Merge auf `main` den manus.space-Deploy auslöst, wird im Loop empirisch geprüft (nach Merge
+     pollen). Übernimmt der Live-Deploy den Merge **nicht** automatisch, ist der Deploy extern (Manus-
+     Plattform) und muss angestossen werden — dann im Log vermerken statt einen grünen Live-Haken vorzutäuschen.
 
 ## Loop starten
 

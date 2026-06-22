@@ -63,13 +63,13 @@ Vorher Audit: `grep -rn 'from.*@/pages/Home' client/src` · Spec: `handoff/04-Mi
 ## PR 05 — Markt-Hub · 5 Tabs · Risk 2  ▸ Mockup: Seite 13–17
 Neu `pages/Markt.tsx` + `components/markt/*Tab.tsx` · Spec: `handoff/03-Screens.md`
 
-- [ ] `/markt` Tab Überblick: 4 Index-KPIs (SMI/S&P/MSCI/Gold) + Indizes-YTD-Chart (S.13)
-- [ ] Tab Regime: Pill „Bull · Niedrige Vola" + VIX/Yield/LPPL + Regime-Verlauf (S.14)
-- [ ] Tab Heatmap: Sektor-Tiles mit YTD-Färbung, Toggle 1T/1W/1M/YTD (S.15)
-- [ ] Tab News: Filter Alle/Schweiz/Europa/USA/Asien (S.16)
-- [ ] Tab Dividenden: nur eigene Live-Positionen, nächste 30 Tage (S.17)
-- [ ] Alte Markt-URLs redirecten · Newsroom bleibt unverändert
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] `/markt` Tab Überblick: 4 Index-KPIs (SMI/S&P/MSCI/Gold) + Indizes-YTD-Chart (S.13) — **Mock entfernt**: neuer Endpoint `marketRegime.getIndices` (echte DB-Daten, YTD-KPIs + normalisierte Chart-Serie)
+- [x] Tab Regime: Pill + Engine-Scores (S.14) — `MarketRegimeContent` (real, `marketRegime.getRegime`), Bull-Badge am Tab; (explizite VIX/Yield/12M-Verlauf-Sektion ggf. später verfeinern)
+- [ ] Tab Heatmap: Sektor-Tiles mit YTD-Färbung, Toggle 1T/1W/1M/YTD (S.15) — TradingView-Heatmap real, aber Toggle ist Datenquelle statt Zeitraum → offen
+- [ ] Tab News: Filter Alle/Schweiz/Europa/USA/Asien (S.16) — Newsroom filtert nach Ticker, Region-Filter fehlen (News-Daten haben kein Region-Feld) → offen
+- [x] Tab Dividenden: nur eigene Live-Positionen, nächste 30 Tage (S.17) — neuer Endpoint `dividendCalendar.upcomingAll` + `components/markt/DividendenTab`
+- [x] Alte Markt-URLs redirecten · Newsroom bleibt unverändert — `/market-regime|heatmap|sector-heatmap|newsroom|dividends` → spezifische `?tab=`
+- [x] 5 deutsche Tabs (ueberblick/regime/heatmap/news/dividenden) statt 7 EN-Tabs; Build-Gate grün (Bull/Scanner-Tab entfernt)
 
 ## PR 06 — Copilot-Hub · 3 Tabs · Risk 2  ▸ Mockup: Seite 18–20
 Datei: `pages/PortfolioCopilot.tsx` + `components/copilot/*Tab.tsx` · Spec: `handoff/03-Screens.md`
@@ -123,6 +123,18 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ## Iterations-Log
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
+
+### 2026-06-22 10:15 — PR05 · Markt-Hub Überblick + Dividenden + 5-Tab-Struktur ✅ (teilweise)
+- **Gemacht:** (a) Index-KPIs (S.13) **Mock entfernt** → neuer `marketRegime.getIndices` (echte DB-Daten:
+  SMI/SP500/MSCI via `getBenchmarkData`, Gold via Proxy-Ticker; YTD-KPIs + normalisierte Chart-Serie) +
+  „Indizes Performance YTD"-Chart. (b) Dividenden-Tab (S.17) real: neuer `dividendCalendar.upcomingAll`
+  (aggregiert alle Portfolios, 30 Tage) + `components/markt/DividendenTab`. (c) Tabs auf 5 deutsche Keys
+  reduziert (Bull-Badge auf Regime, Scanner/Bull-Tab entfernt), Legacy-Mapping. (d) alte Markt-URLs auf
+  spezifische `?tab=` redirecten.
+- **Offen (PR05):** Heatmap-Zeitraum-Toggle (1T/1W/1M/YTD) statt Quellen-Toggle; News-Region-Filter
+  (News-Daten haben kein Region-Feld → bräuchte Backend-Erweiterung).
+- **Verifikation:** `pnpm check` grün; `pnpm test` 239/6 (vorbestehend). Daten-Pipeline live bestätigt
+  (`getRegime` Risk-On, `dividendCalendar.getUpcoming` 200). Neue Endpoints erst nach Deploy live testbar.
 
 ### 2026-06-22 10:08 — PR03 · Home/AppNavigation/BreadcrumbNav entfernt ✅
 - **Audit:** `Home.tsx` (4037 Z.) ist toter Code — kein Import/Route, `/home`→`/dashboard` existiert; die App

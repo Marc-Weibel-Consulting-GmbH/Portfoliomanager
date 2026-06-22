@@ -169,19 +169,19 @@ function Router() {
         <Redirect to="/markt" />
       </Route>
       <Route path="/market-regime">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=regime" />
       </Route>
       <Route path="/market-heatmap">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=heatmap" />
       </Route>
       <Route path="/sector-heatmap">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=heatmap" />
       </Route>
       <Route path="/newsroom">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=news" />
       </Route>
       <Route path="/dividends">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=dividenden" />
       </Route>
       <Route path="/chat">
         <Redirect to="/copilot" />

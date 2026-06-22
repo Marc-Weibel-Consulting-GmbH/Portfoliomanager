@@ -355,6 +355,95 @@ export const marketRegimeRouter = router({
     return fetchSectorPerformance();
   }),
 
+  // Markt-Hub Überblick (Mockup S.13): Index-KPIs (SMI / S&P 500 / MSCI World / Gold)
+  // + normalisierte YTD-Performance-Serie für das "Indizes Performance YTD"-Chart.
+  // Echte Daten aus der DB (benchmarkData bzw. historical_prices Proxy-Ticker).
+  getIndices: publicProcedure.query(async () => {
+    const { getBenchmarkData, getDb } = await import("../db");
+    const { historicalPrices } = await import("../../drizzle/schema");
+    const { eq, gte, asc, and } = await import("drizzle-orm");
+
+    const today = new Date();
+    const ytdStart = `${today.getFullYear()}-01-01`;
+    const todayStr = today.toISOString().split("T")[0];
+
+    const summarize = (rows: { date: string; close: any }[]) => {
+      const series = rows
+        .map((r) => ({ date: r.date, close: parseFloat(String(r.close)) }))
+        .filter((r) => r.close > 0);
+      if (series.length === 0) return null;
+      const first = series[0].close;
+      const last = series[series.length - 1].close;
+      const prev = series.length > 1 ? series[series.length - 2].close : last;
+      return {
+        value: last,
+        dayChange: prev > 0 ? ((last - prev) / prev) * 100 : 0,
+        ytd: first > 0 ? ((last - first) / first) * 100 : 0,
+        series,
+      };
+    };
+
+    const benchKeys: { key: string; label: string; bench: "SMI" | "SP500" | "MSCI_WORLD"; currency: string }[] = [
+      { key: "smi", label: "SMI", bench: "SMI", currency: "CHF" },
+      { key: "sp500", label: "S&P 500", bench: "SP500", currency: "USD" },
+      { key: "msci", label: "MSCI WORLD", bench: "MSCI_WORLD", currency: "USD" },
+    ];
+
+    const benchResults = await Promise.all(
+      benchKeys.map(async (b) => ({ ...b, summary: summarize((await getBenchmarkData(b.bench, ytdStart, todayStr)) as any) }))
+    );
+
+    // Gold über Proxy-Ticker aus historical_prices
+    let gold: { key: string; label: string; currency: string; summary: ReturnType<typeof summarize> } | null = null;
+    const db = await getDb();
+    if (db) {
+      for (const t of ["GLD", "GC=F", "GOLD", "XAUUSD", "IAU"]) {
+        const rows = await db
+          .select()
+          .from(historicalPrices)
+          .where(and(eq(historicalPrices.ticker, t), gte(historicalPrices.date, ytdStart)))
+          .orderBy(asc(historicalPrices.date));
+        const s = summarize(rows as any);
+        if (s) { gold = { key: "gold", label: "GOLD (USD)", currency: "USD", summary: s }; break; }
+      }
+    }
+
+    const all = [...benchResults, ...(gold ? [gold] : [])];
+    const indices = all.map((b) =>
+      b.summary
+        ? { key: b.key, label: b.label, currency: b.currency, value: b.summary.value, dayChange: +b.summary.dayChange.toFixed(2), ytd: +b.summary.ytd.toFixed(2) }
+        : { key: b.key, label: b.label, currency: b.currency, value: null, dayChange: null, ytd: null }
+    );
+
+    // Merge YTD-normalisierte Serien (wöchentlich gesampelt) für das Chart
+    const dateSet = new Set<string>();
+    benchResults.forEach((b) => b.summary?.series.forEach((p) => dateSet.add(p.date)));
+    const dates = Array.from(dateSet).sort();
+    const interval = Math.max(1, Math.floor(dates.length / 52));
+    const sampled = dates.filter((_, i) => i % interval === 0 || i === dates.length - 1);
+
+    const norm = (series?: { date: string; close: number }[]) => {
+      if (!series || series.length === 0) return null;
+      const base = series[0].close;
+      const map: Record<string, number> = {};
+      series.forEach((p) => { map[p.date] = base > 0 ? ((p.close - base) / base) * 100 : 0; });
+      return map;
+    };
+    const smiMap = norm(benchResults.find((b) => b.key === "smi")?.summary?.series);
+    const spMap = norm(benchResults.find((b) => b.key === "sp500")?.summary?.series);
+    const msciMap = norm(benchResults.find((b) => b.key === "msci")?.summary?.series);
+
+    let lastSmi = 0, lastSp = 0, lastMsci = 0;
+    const chart = sampled.map((d) => {
+      if (smiMap && smiMap[d] !== undefined) lastSmi = smiMap[d];
+      if (spMap && spMap[d] !== undefined) lastSp = spMap[d];
+      if (msciMap && msciMap[d] !== undefined) lastMsci = msciMap[d];
+      return { date: d, smi: +lastSmi.toFixed(2), sp500: +lastSp.toFixed(2), msci: +lastMsci.toFixed(2) };
+    });
+
+    return { indices, chart, asOf: todayStr };
+  }),
+
   getRegime: publicProcedure.query(async () => {
     // Run all engines in parallel
     const [trend, breadth, volatility, liquidity, credit, sentiment, bubble] = await Promise.all([

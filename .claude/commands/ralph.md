@@ -57,10 +57,19 @@ sauber abgeschlossener Schritt als drei halbe.
    `[!]` mit Grund). Trage oben im **Iterations-Log** einen Eintrag ein: Datum/Zeit, PR + Teilaufgabe,
    was gemacht, Verifikations-Befund (tsc/test + Playwright + welcher Screenshot), und offene Punkte.
 
-6. **Committen & pushen.** Branch `claude/festive-newton-49pqw4`. Commit-Message aussagekräftig, z. B.
+6. **Committen & pushen.** Auf den aktuellen Feature-Branch. Commit-Message aussagekräftig, z. B.
    `ralph: PR01 Sidebar auf 6 Top-Level-Einträge (Mockup S.01)`. Dann
-   `git push -u origin claude/festive-newton-49pqw4` (bei Netzwerkfehler bis zu 4× mit Backoff). Existiert
+   `git push -u origin <branch>` (bei Netzwerkfehler bis zu 4× mit Backoff). Existiert
    noch kein PR für den Branch, lege einen **Draft-PR** an.
+
+7. **Deploy + Live-Nachtest.** PR auf `main` **mergen** (`mcp__github__merge_pull_request`), dann den
+   manus.space-Deploy **pollen**, bis der neue Stand live ist (z. B. ein neu gebauter Endpoint liefert 200
+   statt 404, oder eine korrigierte KPI zeigt den echten Wert) — per Playwright/`context.request`.
+   Anschliessend die umgesetzte Route **live** öffnen, Screenshot gegen das Mockup, Buttons/Tabs klicken,
+   Konsole prüfen, Zahlen plausibilisieren. Erst dann ist die Live-Verifikation erbracht.
+   - ⚠️ Repo hat **keine** Deploy-Pipeline (kein `.github/workflows`). Ob ein `main`-Merge den Live-Deploy
+     auslöst, **empirisch nach dem Merge prüfen**. Übernimmt der Deploy nicht automatisch → externer
+     (Manus-)Deploy nötig; im Log vermerken und **keinen** Live-Haken vortäuschen.
 
 ## Regeln
 - **Eine Teilaufgabe pro Lauf.** Nach dem Commit ist der Lauf fertig — der Loop ruft dich erneut auf.
