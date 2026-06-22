@@ -240,4 +240,71 @@ export const dividendCalendarRouter = router({
 
       return enrichedDividends;
     }),
+
+  /**
+   * Aggregierter Dividenden-Kalender über ALLE Portfolios des Users (Markt-Hub S.17).
+   * Liefert die anstehenden Ex-Dividenden der nächsten `daysAhead` Tage (default 30),
+   * gemerged über alle eigenen Positionen, sortiert nach Ex-Datum.
+   */
+  upcomingAll: protectedProcedure
+    .input((val: unknown) => {
+      const v = (val ?? {}) as any;
+      return { daysAhead: typeof v.daysAhead === "number" ? v.daysAhead : 30 };
+    })
+    .query(async ({ input, ctx }) => {
+      const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
+      const { getPortfolioDividends } = await import("../dividendCalendar");
+
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      const holdings: Record<string, number> = {};
+      const nameByTicker: Record<string, string> = {};
+
+      for (const p of portfolios) {
+        let raw: any;
+        try { raw = JSON.parse(p.portfolioData); } catch { continue; }
+        const stocks: any[] = Array.isArray(raw) ? raw : (raw.stocks || []);
+        stocks.forEach((s: any) => {
+          if (s.ticker && s.ticker !== "CASH") nameByTicker[s.ticker] = s.name || s.companyName || s.ticker;
+        });
+        const txs = await getPortfolioTransactions(p.id);
+        if (txs.length > 0) {
+          txs.forEach((tx: any) => {
+            const sh = parseFloat(tx.shares || "0");
+            if (tx.transactionType === "buy") holdings[tx.ticker] = (holdings[tx.ticker] || 0) + sh;
+            else if (tx.transactionType === "sell") holdings[tx.ticker] = (holdings[tx.ticker] || 0) - sh;
+          });
+        } else {
+          stocks.forEach((s: any) => {
+            if (s.ticker && s.ticker !== "CASH") holdings[s.ticker] = (holdings[s.ticker] || 0) + (parseFloat(s.shares || s.quantity || "0") || 0);
+          });
+        }
+      }
+
+      const tickers = Object.keys(holdings).filter((t) => holdings[t] > 0);
+      if (tickers.length === 0) return [];
+
+      const dividends = await getPortfolioDividends(tickers, input.daysAhead);
+      const startOfToday = new Date(new Date().toDateString());
+      const horizon = new Date(startOfToday.getTime() + input.daysAhead * 86400000);
+
+      return dividends
+        .map((div) => {
+          const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
+          const amountCHF = div.currency === "USD" ? div.amount * 0.88 : div.currency === "EUR" ? div.amount * 0.95 : div.amount;
+          return {
+            ticker: div.ticker,
+            companyName: nameByTicker[div.ticker] || nameByTicker[div.ticker.toUpperCase()] || div.ticker,
+            exDividendDate: div.exDividendDate,
+            paymentDate: div.paymentDate,
+            amount: div.amount,
+            currency: div.currency,
+            period: div.period,
+            type: div.type,
+            shares,
+            expectedIncome: shares * amountCHF,
+          };
+        })
+        .filter((d) => d.shares > 0 && d.exDividendDate && new Date(d.exDividendDate) >= startOfToday && new Date(d.exDividendDate) <= horizon)
+        .sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
+    }),
 });

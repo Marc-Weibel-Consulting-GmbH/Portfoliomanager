@@ -59,7 +59,6 @@ import AdminLogs from "./pages/AdminLogs";
 import AdminSecrets from "./pages/AdminSecrets";
 
 // ─── Legacy (für Redirects) ───
-import PortfolioTransactionsPage from "./pages/PortfolioTransactionsPage";
 import DebugTest from "./pages/DebugTest";
 
 function Router() {
@@ -161,26 +160,28 @@ function Router() {
         {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}`} />}
       </Route>
       <Route path="/portfolio/:id/positions">
-        {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}`} />}
+        {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}?tab=positionen`} />}
       </Route>
-      <Route path="/portfolio/:id/transactions" component={PortfolioTransactionsPage} />
+      <Route path="/portfolio/:id/transactions">
+        {(params: { id?: string }) => <Redirect to={`/portfolios/${params.id}?tab=transaktionen`} />}
+      </Route>
       <Route path="/market-overview">
         <Redirect to="/markt" />
       </Route>
       <Route path="/market-regime">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=regime" />
       </Route>
       <Route path="/market-heatmap">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=heatmap" />
       </Route>
       <Route path="/sector-heatmap">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=heatmap" />
       </Route>
       <Route path="/newsroom">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=news" />
       </Route>
       <Route path="/dividends">
-        <Redirect to="/markt" />
+        <Redirect to="/markt?tab=dividenden" />
       </Route>
       <Route path="/chat">
         <Redirect to="/copilot" />

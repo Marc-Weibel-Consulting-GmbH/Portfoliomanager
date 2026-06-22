@@ -45,6 +45,8 @@ import { EditPositionModal } from "@/components/EditPositionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
+import RiskTab from "@/components/portfolio/RiskTab";
+import OptimierenTab from "@/components/portfolio/OptimierenTab";
 import { StockLogo } from "@/components/StockLogo";
 import {
   AlertDialog,
@@ -93,14 +95,19 @@ export default function PortfolioDetailsPage() {
   const [location, navigate] = useLocation();
   const portfolioId = params.id ? parseInt(params.id) : 0;
   
-  // URL-based tab persistence: ?tab=positionen etc.
+  // URL-based tab persistence: ?tab=positionen etc. (German keys per Mockup S.01-06)
+  const legacyTabMap: Record<string, string> = {
+    overview: 'uebersicht', positions: 'positionen', transactions: 'transaktionen',
+    risk: 'risiko', optimize: 'optimieren', ai: 'optimieren',
+  };
   const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const urlTab = searchParams.get('tab') || 'overview';
+  const rawTab = searchParams.get('tab') || 'uebersicht';
+  const urlTab = legacyTabMap[rawTab] || rawTab;
   const [activeTab, setActiveTab] = useState(urlTab);
-  
+
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    const newSearch = tab === 'overview' ? '' : `?tab=${tab}`;
+    const newSearch = tab === 'uebersicht' ? '' : `?tab=${tab}`;
     navigate(`/portfolios/${portfolioId}${newSearch}`, { replace: true });
   };
   
@@ -225,6 +232,12 @@ export default function PortfolioDetailsPage() {
   const { data: perfMetrics, isLoading: isLoadingPerfMetrics } = trpc.portfolios.getPerformanceMetrics.useQuery(
     { portfolioId, range: perfRange },
     { enabled: portfolioId > 0 && !!portfolio?.isLive }
+  );
+
+  // Risk metrics (real Sharpe ratio + benchmark Sharpe) scoped to this portfolio
+  const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(
+    { scope: portfolioId },
+    { enabled: portfolioId > 0 }
   );
 
   // Fetch historical performance data from API
@@ -428,7 +441,7 @@ export default function PortfolioDetailsPage() {
                 <Edit className="h-4 w-4 mr-1" />
                 Bearbeiten
               </Button>
-              <Button size="sm" className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
+              <Button size="sm" onClick={() => handleTabChange('optimieren')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                 Optimieren
               </Button>
             </div>
@@ -476,14 +489,18 @@ export default function PortfolioDetailsPage() {
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">YTD</p>
             {(() => {
-              const ytdPerf = chartData.data.length > 0 ? (chartData.data[chartData.data.length - 1]?.portfolio || 0) : 0;
+              const lastPoint = chartData.data.length > 0 ? chartData.data[chartData.data.length - 1] : null;
+              const ytdPerf = lastPoint?.portfolio || 0;
+              const benchPerf = lastPoint?.benchmark ?? null;
               const benchmarkLabel = benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
               return (
                 <>
                   <p className={`text-2xl font-bold font-mono ${ytdPerf >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
                     {ytdPerf >= 0 ? '+' : ''}{ytdPerf.toFixed(1)}%
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{benchmarkLabel} +7.6%</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {benchmarkLabel} {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
+                  </p>
                 </>
               );
             })()}
@@ -513,9 +530,11 @@ export default function PortfolioDetailsPage() {
           <div className="bg-[#0f1420] p-5">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
-              {perfMetrics?.annualizedTtwror ? (perfMetrics.annualizedTtwror * 100 / 12).toFixed(2) : '—'}
+              {riskMetrics?.sharpeRatio !== undefined ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Bench 1.05</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Bench {riskMetrics?.sharpeBenchmark !== undefined ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
+            </p>
           </div>
         </div>
 
@@ -523,13 +542,12 @@ export default function PortfolioDetailsPage() {
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
-              { value: 'overview', label: 'Übersicht' },
-              { value: 'positions', label: `Positionen`, badge: holdings.length },
-              { value: 'transactions', label: 'Transaktionen', badge: transactions.length },
+              { value: 'uebersicht', label: 'Übersicht' },
+              { value: 'positionen', label: `Positionen`, badge: holdings.length },
+              { value: 'transaktionen', label: 'Transaktionen', badge: transactions.length },
               { value: 'performance', label: 'Performance' },
-              { value: 'risk', label: 'Risiko' },
-              { value: 'optimize', label: 'Optimieren' },
-              { value: 'ai', label: 'AI' },
+              { value: 'risiko', label: 'Risiko' },
+              { value: 'optimieren', label: 'Optimieren', aiBadge: true },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
@@ -540,12 +558,15 @@ export default function PortfolioDetailsPage() {
                 {tab.badge !== undefined && tab.badge > 0 && (
                   <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[10px] px-1.5 py-0.5 rounded-full">{tab.badge}</span>
                 )}
+                {tab.aiBadge && (
+                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-wider">AI</span>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
 
           {/* OVERVIEW TAB — 2 columns: chart left, top-positions + activity right */}
-          <TabsContent value="overview" className="mt-6">
+          <TabsContent value="uebersicht" className="mt-6">
             <div className="grid lg:grid-cols-5 gap-6">
               {/* Left: Wertentwicklung Chart */}
               <div className="lg:col-span-3">
@@ -665,7 +686,7 @@ export default function PortfolioDetailsPage() {
           </TabsContent>
 
           {/* POSITIONS TAB — matches design: TICKER | NAME | SEKTOR | GEWICHT | WERT | HEUTE | YTD */}
-          <TabsContent value="positions" className="mt-6">
+          <TabsContent value="positionen" className="mt-6">
             <div className="bg-[#0f1420] border border-white/10 rounded-lg">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                 <div>
@@ -754,15 +775,17 @@ export default function PortfolioDetailsPage() {
           </TabsContent>
 
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
-          <TabsContent value="transactions" className="mt-6">
+          <TabsContent value="transaktionen" className="mt-6">
             {(() => {
               const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
               const dividends = transactions.filter((t: any) => (t.type || t.transactionType) === 'dividend');
-              const buyVolume = buys.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
-              const sellVolume = sells.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
-              const divTotal = dividends.reduce((s: number, t: any) => s + (t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), 0);
-              const realizedTotal = realizedGains.reduce((s: number, g: any) => s + (g.gainLoss || 0), 0);
+              // Volumen in CHF (totalAmountCHF ist der vom Server umgerechnete Betrag; Fallback shares*price)
+              const volCHF = (t: any) => parseFloat(t.totalAmountCHF ?? '') || (parseFloat(t.shares || t.quantity || 0) * parseFloat(t.price || t.pricePerShare || 0));
+              const buyVolume = buys.reduce((s: number, t: any) => s + volCHF(t), 0);
+              const sellVolume = sells.reduce((s: number, t: any) => s + volCHF(t), 0);
+              const divTotal = dividends.reduce((s: number, t: any) => s + volCHF(t), 0);
+              const realizedTotal = realizedGains.reduce((s: number, g: any) => s + (g.netProfit ?? g.totalGain ?? 0), 0);
               return (
                 <>
                   {/* 4 KPI Cards */}
@@ -793,14 +816,45 @@ export default function PortfolioDetailsPage() {
 
                   {/* Filter Chips + Table */}
                   {(() => {
+                    const isRealized = txFilter === 'realisierte';
                     const filteredTx = txFilter === 'alle' ? transactions :
                       txFilter === 'kaeufe' ? buys :
                       txFilter === 'verkaeufe' ? sells :
                       txFilter === 'dividenden' ? dividends : transactions;
+
+                    // CSV-Export der aktuell sichtbaren Ansicht
+                    const handleExport = () => {
+                      const csvEscape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+                      let rows: string[][];
+                      if (isRealized) {
+                        rows = [["Datum", "Ticker", "Name", "Stk.", "Kaufpreis", "Verkaufspreis", "Netto G/V", "Rendite %"]];
+                        realizedGains.forEach((g: any) => rows.push([
+                          new Date(g.transactionDate).toLocaleDateString('de-CH'), g.ticker, g.stockName,
+                          g.shares, g.avgCostBasis, g.sellPrice, g.netProfit ?? g.totalGain ?? 0, g.realizedGainPercent ?? 0,
+                        ]));
+                      } else {
+                        rows = [["Datum", "Typ", "Ticker", "Stk.", "Preis", "Waehrung", "Total CHF"]];
+                        filteredTx.forEach((t: any) => rows.push([
+                          new Date(t.date || t.transactionDate).toLocaleDateString('de-CH'),
+                          (t.type || t.transactionType), t.ticker, t.shares || t.quantity,
+                          t.price || t.pricePerShare, t.currency || 'CHF', volCHF(t).toFixed(2),
+                        ]));
+                      }
+                      const csv = rows.map(r => r.map(csvEscape).join(';')).join('\n');
+                      const blob = new Blob(["﻿" + csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${portfolio.name.replace(/[^a-z0-9]/gi, '_')}_${isRealized ? 'realisierte_gewinne' : 'transaktionen'}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('Export erstellt');
+                    };
+
                     return (
                       <div className="bg-[#0f1420] border border-white/10 rounded-lg">
                         <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10">
-                          {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden']].map(([key, label]) => (
+                          {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden'], ['realisierte', 'Realisierte Gewinne']].map(([key, label]) => (
                             <button
                               key={key}
                               onClick={() => setTxFilter(key)}
@@ -809,9 +863,22 @@ export default function PortfolioDetailsPage() {
                               }`}
                             >{label}</button>
                           ))}
-                          <span className="ml-auto text-xs text-gray-500">{filteredTx.length} Einträge</span>
+                          <span className="ml-auto text-xs text-gray-500">{isRealized ? realizedGains.length : filteredTx.length} Einträge</span>
+                          <button
+                            onClick={handleExport}
+                            disabled={isRealized ? realizedGains.length === 0 : filteredTx.length === 0}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-md border border-white/15 text-gray-300 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Share2 className="h-3 w-3" /> Export
+                          </button>
                         </div>
-                        {filteredTx.length === 0 ? (
+                        {isRealized ? (
+                          realizedGains.length === 0 ? (
+                            <p className="text-gray-400 text-center py-8 text-sm">Keine realisierten Gewinne vorhanden</p>
+                          ) : (
+                            <div className="p-4"><RealizedGainsTable gains={realizedGains} /></div>
+                          )
+                        ) : filteredTx.length === 0 ? (
                           <p className="text-gray-400 text-center py-8 text-sm">Keine Transaktionen vorhanden</p>
                         ) : (
                           <div className="overflow-x-auto">
@@ -904,43 +971,14 @@ export default function PortfolioDetailsPage() {
             )}
           </TabsContent>
 
-          {/* RISK TAB */}
-          <TabsContent value="risk" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <div className="text-lg font-semibold text-white mb-2">Risikoanalyse</div>
-                  <p className="text-gray-400 text-sm mb-4">Detaillierte Risikokennzahlen für dieses Portfolio</p>
-                  <Link href="/risk-dashboard"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Risk-Dashboard</Button></Link>
-                </div>
-              </CardContent>
-            </Card>
+          {/* RISK TAB — echte Kennzahlen + LPPL-Bubble-Indikator (S.05) */}
+          <TabsContent value="risiko" className="mt-6">
+            <RiskTab portfolioId={portfolioId} />
           </TabsContent>
 
-          {/* OPTIMIZE TAB */}
-          <TabsContent value="optimize" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <div className="text-lg font-semibold text-white mb-2">Portfolio-Optimierung</div>
-                  <p className="text-gray-400 text-sm mb-4">Markowitz-Optimierung und Rebalancing-Vorschläge</p>
-                  <Link href="/portfolio-optimizer"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Optimizer</Button></Link>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* AI TAB */}
-          <TabsContent value="ai" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <div className="text-lg font-semibold text-white mb-2">AI-Analyse</div>
-                  <p className="text-gray-400 text-sm mb-4">KI-gestützte Insights und Empfehlungen für dieses Portfolio</p>
-                  <Link href="/copilot"><Button className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">Zum Copilot</Button></Link>
-                </div>
-              </CardContent>
-            </Card>
+          {/* OPTIMIZE TAB — KI-Re-Allocation + Effizienzgrenze (S.06) */}
+          <TabsContent value="optimieren" className="mt-6">
+            <OptimierenTab portfolioId={portfolioId} holdings={holdings} />
           </TabsContent>
         </Tabs>
 

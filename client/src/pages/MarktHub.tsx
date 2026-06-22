@@ -3,56 +3,107 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Globe, Activity, BarChart3, Newspaper, Calendar, TrendingUp } from "lucide-react";
+import { Globe, Activity, BarChart3, Newspaper, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER_TAPE_CONFIG, HEATMAP_CONFIG } from "@/components/TradingViewWidget";
 
-// Lazy load heavy sub-pages (these components have their own DashboardLayout, so we use a wrapper)
-// For now, we'll embed content directly since these pages wrap in DashboardLayout
 import MarketRegimeContent from "./MarketRegimeContent";
 import NewsroomContent from "./Newsroom";
-import MarktScanner from "@/components/market/MarktScanner";
+import DividendenTab from "@/components/markt/DividendenTab";
 
-function LoadingFallback() {
-  return (
-    <div className="flex items-center justify-center py-12">
-      <div className="w-6 h-6 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-}
-
-// Index KPI cards per spec
+// Index-KPIs (Mockup S.13): echte Werte aus marketRegime.getIndices (SMI/S&P/MSCI/Gold)
 function IndexKpiRow() {
-  const { data: regimeData } = trpc.marketRegime.getRegime.useQuery(undefined, {
-    staleTime: 60000,
-    retry: 1,
-  });
+  const { data, isLoading } = trpc.marketRegime.getIndices.useQuery(undefined, { staleTime: 60000, retry: 1 });
+  const indices = data?.indices ?? [];
 
-  const indices = [
-    { label: "SMI", value: "11'842", change: "+6.4%", positive: true },
-    { label: "S&P 500", value: "5'820", change: "-0.2%", positive: false },
-    { label: "MSCI WORLD", value: "3'412", change: "+8.9%", positive: true },
-    { label: "GOLD (USD)", value: "2'418", change: "+6.4%", positive: true },
-  ];
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="bg-[#0f1420] p-5 border-r border-white/10 last:border-r-0">
+            <div className="h-3 w-12 bg-white/10 rounded mb-3 animate-pulse" />
+            <div className="h-6 w-20 bg-white/10 rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {indices.map((idx) => (
-        <Card key={idx.label} className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20 border-t-2 border-t-[#00CFC1]">
-          <CardContent className="p-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wider">{idx.label}</p>
-            <p className="text-xl font-bold font-mono text-white mt-1">{idx.value}</p>
-            <p className={`text-sm font-mono mt-1 ${idx.positive ? 'text-[#00CFC1]' : 'text-red-400'}`}>
-              {idx.change}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
+      {indices.map((idx: any, i: number) => {
+        const positive = (idx.dayChange ?? 0) >= 0;
+        return (
+          <div key={idx.key} className={`bg-[#0f1420] p-5 ${i < indices.length - 1 ? "border-r border-white/10" : ""}`}>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">{idx.label}</p>
+            <p className="text-2xl font-bold font-mono text-white">
+              {idx.value !== null ? new Intl.NumberFormat("de-CH", { maximumFractionDigits: 0 }).format(idx.value) : "—"}
             </p>
-          </CardContent>
-        </Card>
-      ))}
+            <p className={`text-xs font-mono mt-1 ${idx.dayChange === null ? "text-gray-500" : positive ? "text-[#00CFC1]" : "text-red-400"}`}>
+              {idx.dayChange === null ? "—" : `${positive ? "+" : ""}${idx.dayChange.toFixed(1)}%`}
+              {idx.ytd !== null && <span className="text-gray-600"> · YTD {idx.ytd >= 0 ? "+" : ""}{idx.ytd.toFixed(1)}%</span>}
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-// Heatmap content
+// Indizes Performance YTD Chart (Mockup S.13)
+function IndicesYtdChart() {
+  const { data, isLoading } = trpc.marketRegime.getIndices.useQuery(undefined, { staleTime: 60000, retry: 1 });
+  const chart = data?.chart ?? [];
+
+  return (
+    <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-5">
+      <h3 className="text-sm font-semibold text-white mb-4">Indizes Performance YTD</h3>
+      <div className="h-72">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-5 h-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : chart.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500 text-sm">Keine Index-Daten verfügbar</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="smiGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00CFC1" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#00CFC1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" vertical={false} />
+              <XAxis dataKey="date" stroke="#444" fontSize={10} tickLine={false} axisLine={false}
+                tickFormatter={(d) => new Date(d).toLocaleDateString("de-CH", { month: "short" })} minTickGap={40} />
+              <YAxis stroke="#444" fontSize={10} tickFormatter={(v) => `${v.toFixed(0)}%`} tickLine={false} axisLine={false} width={40} />
+              <Tooltip
+                contentStyle={{ backgroundColor: "#1a1f2e", border: "1px solid #00CFC1", borderRadius: "6px", fontSize: "12px" }}
+                labelStyle={{ color: "#fff" }}
+                formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name === "smi" ? "SMI" : name === "sp500" ? "S&P 500" : "MSCI World"]}
+              />
+              <Area type="monotone" dataKey="smi" stroke="#00CFC1" strokeWidth={2} fill="url(#smiGrad)" />
+              <Area type="monotone" dataKey="sp500" stroke="rgba(255,255,255,0.4)" strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
+              <Area type="monotone" dataKey="msci" stroke="#6366f1" strokeWidth={1.5} fill="none" />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+      <div className="flex gap-4 justify-center mt-2 text-xs text-gray-400">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#00CFC1] inline-block" /> SMI</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/40 inline-block" /> S&amp;P 500</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" /> MSCI World</span>
+      </div>
+    </div>
+  );
+}
+
 function HeatmapContent() {
   const [dataSource, setDataSource] = useState<"SPX500" | "ETFHEATMAP" | "AllUSEtf">("SPX500");
   const sources = [
@@ -60,7 +111,6 @@ function HeatmapContent() {
     { value: "ETFHEATMAP" as const, label: "ETF Heatmap" },
     { value: "AllUSEtf" as const, label: "Alle US ETFs" },
   ];
-
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -69,9 +119,7 @@ function HeatmapContent() {
             key={s.value}
             onClick={() => setDataSource(s.value)}
             className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-              dataSource === s.value
-                ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              dataSource === s.value ? "bg-[#00CFC1]/20 text-[#00CFC1] font-medium" : "text-gray-400 hover:text-white hover:bg-white/5"
             }`}
           >
             {s.label}
@@ -80,50 +128,32 @@ function HeatmapContent() {
       </div>
       <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
         <CardContent className="p-0">
-          <TradingViewWidget
-            widgetType="stock-heatmap"
-            config={{ ...HEATMAP_CONFIG, dataSource }}
-            height={600}
-          />
+          <TradingViewWidget widgetType="stock-heatmap" config={{ ...HEATMAP_CONFIG, dataSource }} height={600} />
         </CardContent>
       </Card>
     </div>
   );
 }
 
-// Overview tab content
 function OverviewContent() {
   return (
     <div className="space-y-6">
-      {/* Ticker Tape */}
+      <IndexKpiRow />
+      <IndicesYtdChart />
       <Card className="bg-[#1a1f2e] border-gray-800 overflow-hidden">
         <CardContent className="p-0">
-          <TradingViewWidget
-            widgetType="ticker-tape"
-            config={TICKER_TAPE_CONFIG}
-            height={46}
-          />
+          <TradingViewWidget widgetType="ticker-tape" config={TICKER_TAPE_CONFIG} height={46} />
         </CardContent>
       </Card>
-
-      {/* Market Overview + Quotes Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
           <CardContent className="p-0">
-            <TradingViewWidget
-              widgetType="market-overview"
-              config={MARKET_OVERVIEW_CONFIG}
-              height={500}
-            />
+            <TradingViewWidget widgetType="market-overview" config={MARKET_OVERVIEW_CONFIG} height={500} />
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
           <CardContent className="p-0">
-            <TradingViewWidget
-              widgetType="market-quotes"
-              config={MARKET_QUOTES_CONFIG}
-              height={500}
-            />
+            <TradingViewWidget widgetType="market-quotes" config={MARKET_QUOTES_CONFIG} height={500} />
           </CardContent>
         </Card>
       </div>
@@ -131,23 +161,24 @@ function OverviewContent() {
   );
 }
 
+const LEGACY_TAB_MAP: Record<string, string> = {
+  overview: "ueberblick", dividends: "dividenden", bull: "regime", scanner: "ueberblick",
+};
+
 export default function MarktHub() {
-  const searchString = typeof window !== 'undefined' ? window.location.search : '';
-  const searchParams = new URLSearchParams(searchString);
-  const urlTab = searchParams.get('tab') || 'overview';
-  const [activeMarktTab, setActiveMarktTab] = useState(urlTab);
+  const searchString = typeof window !== "undefined" ? window.location.search : "";
+  const rawTab = new URLSearchParams(searchString).get("tab") || "ueberblick";
+  const [activeMarktTab, setActiveMarktTab] = useState(LEGACY_TAB_MAP[rawTab] || rawTab);
   const [, navigate] = useLocation();
-  
+
   const handleMarktTabChange = (tab: string) => {
     setActiveMarktTab(tab);
-    const newSearch = tab === 'overview' ? '' : `?tab=${tab}`;
-    navigate(`/markt${newSearch}`, { replace: true });
+    navigate(`/markt${tab === "ueberblick" ? "" : `?tab=${tab}`}`, { replace: true });
   };
 
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header per IA-Spec */}
         <div>
           <p className="text-xs font-medium text-[#00CFC1] uppercase tracking-widest mb-1">MARKT</p>
           <h1 className="text-2xl font-bold text-white">Markt-Hub</h1>
@@ -156,21 +187,16 @@ export default function MarktHub() {
           </p>
         </div>
 
-        {/* Index KPIs */}
-        <IndexKpiRow />
-
-        {/* Tabs per IA-Spec: Übersicht | Regime | Heatmap | News | Dividenden-Kalender */}
+        {/* 5 Tabs per Mockup S.13: Überblick | Regime (Bull) | Heatmap | News | Dividenden-Kalender */}
         <Tabs value={activeMarktTab} onValueChange={handleMarktTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
-              { value: 'overview', label: 'Übersicht', icon: Globe },
-              { value: 'regime', label: 'Regime', icon: Activity },
-              { value: 'bull', label: 'Bull', icon: TrendingUp },
-              { value: 'heatmap', label: 'Heatmap', icon: BarChart3 },
-              { value: 'news', label: 'News', icon: Newspaper },
-              { value: 'dividends', label: 'Dividenden-Kalender', icon: Calendar },
-              { value: 'scanner', label: 'Scanner', icon: Activity },
-            ].map(tab => (
+              { value: "ueberblick", label: "Überblick", icon: Globe },
+              { value: "regime", label: "Regime", icon: Activity, badge: "Bull" },
+              { value: "heatmap", label: "Heatmap", icon: BarChart3 },
+              { value: "news", label: "News", icon: Newspaper },
+              { value: "dividenden", label: "Dividenden-Kalender", icon: Calendar },
+            ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
@@ -178,51 +204,27 @@ export default function MarktHub() {
               >
                 <tab.icon className="w-3.5 h-3.5" />
                 {tab.label}
+                {tab.badge && (
+                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-wider">{tab.badge}</span>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          <TabsContent value="overview" className="mt-6">
+          <TabsContent value="ueberblick" className="mt-6">
             <OverviewContent />
           </TabsContent>
-
           <TabsContent value="regime" className="mt-6">
             <MarketRegimeContent />
           </TabsContent>
-
-          <TabsContent value="bull" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">Bull/Bear-Indikator</h3>
-                <p className="text-gray-400 text-sm">
-                  Marktbreite-Analyse und Bull/Bear-Signale basierend auf dem aktuellen Regime.
-                </p>
-                <MarketRegimeContent />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="heatmap" className="mt-6">
             <HeatmapContent />
           </TabsContent>
-
           <TabsContent value="news" className="mt-6">
             <NewsroomContent />
           </TabsContent>
-
-          <TabsContent value="dividends" className="mt-6">
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-3">Dividenden-Kalender</h3>
-                <p className="text-gray-400 text-sm">Kommende Ex-Dividenden-Termine und Ausschüttungen deiner Positionen.</p>
-                <div className="mt-4 text-center">
-                  <a href="/dividends" className="text-[#00CFC1] hover:underline text-sm">Vollständigen Kalender öffnen →</a>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="scanner" className="mt-6">
-            <MarktScanner />
+          <TabsContent value="dividenden" className="mt-6">
+            <DividendenTab />
           </TabsContent>
         </Tabs>
       </div>

@@ -1408,7 +1408,7 @@ export const dashboardRouter = router({
       const { inArray, and, gte, lte } = await import("drizzle-orm");
 
       const db = await getDb();
-      if (!db) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, beta: 0 };
+      if (!db) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       // Support both live and demo portfolios
@@ -1418,7 +1418,7 @@ export const dashboardRouter = router({
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
-      if (targetPortfolios.length === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, beta: 0 };
+      if (targetPortfolios.length === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Get 1 year of data for risk calculation
       const today = new Date();
@@ -1453,7 +1453,7 @@ export const dashboardRouter = router({
         }
       }
 
-      if (allTickers.size === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, beta: 0 };
+      if (allTickers.size === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -1577,7 +1577,7 @@ export const dashboardRouter = router({
         }
       }
 
-      if (dailyReturns.length < 10) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, beta: 0 };
+      if (dailyReturns.length < 10) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Volatility (annualized)
       const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
@@ -1608,6 +1608,7 @@ export const dashboardRouter = router({
       let volBenchmark = 0;
       let drawdownBenchmark = 0;
       let beta = 0;
+      let sharpeBenchmark = 0;
 
       if (smiData.length > 10) {
         const smiPrices = smiData.map(d => parseFloat(d.close));
@@ -1619,6 +1620,8 @@ export const dashboardRouter = router({
         const smiMean = smiReturns.reduce((s, r) => s + r, 0) / smiReturns.length;
         const smiVariance = smiReturns.reduce((s, r) => s + (r - smiMean) ** 2, 0) / (smiReturns.length - 1);
         volBenchmark = Math.sqrt(smiVariance) * Math.sqrt(252) * 100;
+        // Benchmark Sharpe (same rf and annualization as the portfolio Sharpe above)
+        sharpeBenchmark = smiVariance > 0 ? ((smiMean - rf) / Math.sqrt(smiVariance)) * Math.sqrt(252) : 0;
 
         let smiPeak = smiPrices[0];
         for (const val of smiPrices) {
@@ -1675,6 +1678,7 @@ export const dashboardRouter = router({
         var95: Number(var95.toFixed(1)),
         concentrationTop3: Number(concentrationTop3.toFixed(1)),
         sharpeRatio: Number(sharpeRatio.toFixed(2)),
+        sharpeBenchmark: Number(sharpeBenchmark.toFixed(2)),
         beta: Number(beta.toFixed(2)),
       };
     }),
