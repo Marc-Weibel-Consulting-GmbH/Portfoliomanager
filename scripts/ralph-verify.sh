@@ -35,7 +35,11 @@ case "${1:-check}" in
       echo "==> Dev server already running (pid $(cat "$PIDFILE")) on port $PORT"; exit 0
     fi
     echo "==> Starting dev server (pnpm dev) on port $PORT …"
-    if [ ! -f .env ] && [ -f .env.example ]; then
+    if [ -f .env ]; then
+      # The app does not import dotenv — load .env into the server's environment here.
+      set -a; . ./.env; set +a
+      echo "==> .env geladen (DATABASE_URL ${DATABASE_URL:+gesetzt})"
+    elif [ -f .env.example ]; then
       echo "!! No .env found — dev server may fail without DATABASE_URL etc. (see .env.example)"
     fi
     nohup pnpm dev > "$LOGFILE" 2>&1 &

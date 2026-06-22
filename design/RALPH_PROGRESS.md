@@ -150,4 +150,21 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
   in der Egress-Allowlist) für lokalen Boot, ODER (b) manus.space-Host in der Egress-Allowlist + Login-Daten.
   Bis dahin verifiziert der Loop statisch (tsc + Tests + Code-Review gegen Mockup).
 
+### 2026-06-22 09:1x — Lokale Verifikations-Umgebung aufgebaut (Teilerfolg)
+- **Aufgesetzt:** MariaDB 10.11 lokal im Container + Schema via `pnpm db:push` + Demo-Stammdaten
+  (62 Stocks/Research/Transaktionen) via neuem `scripts/ralph-seed.ts`. `.env` mit lokaler `DATABASE_URL`
+  + `JWT_SECRET` + `VITE_APP_ID`. `scripts/ralph-verify.sh serve` lädt jetzt `.env` (App importiert kein dotenv).
+- **App bootet & rendert:** `/auth?tab=login` (Login/Registrieren/Passwort-vergessen-Tabs) + öffentliche
+  Routen rendern; Login-API liefert 200 + Session-Cookie. Screenshot Login-Seite ok.
+- **Root-Cause Auth-401 gefunden:** `verifySession` verlangt non-empty `appId`; ohne `VITE_APP_ID` ist
+  `appId` im JWT leer → jede Session wird verworfen. Fix (VITE_APP_ID in `.env`) ist gesetzt; authentifizierte
+  Seiten brauchen nur noch einen **sauberen Server-Neustart** (in dieser Session durch Background-Prozess-
+  Flakiness des Harness gebremst, **kein** Code-Problem).
+- **Wichtige Grenze (aus Server-Log):** Marktdaten-Hosts sind auch lokal egress-blockiert
+  (`Host not in allowlist: query2.finance.yahoo.com`, ebenso eodhd/fmp). D. h. **echte Kurs-/Portfolio-
+  Berechnungen lassen sich lokal NICHT verifizieren** — dafür braucht es die Allowlist (Live-Deploy) ODER
+  die Datenprovider-Hosts in der Egress-Allowlist. Lokal verifizierbar: Layout/IA/Navigation/Tabs/Auth-Flow.
+- **Tooling-Fix:** `.mcp.json` Playwright auf `--browser chromium`; gebündeltes Chromium unter
+  `/opt/pw-browsers` funktioniert (Standalone-Screenshots bestätigt).
+
 ### (Loop-Gerüst aufgesetzt)
