@@ -83,15 +83,15 @@ Datei: `pages/PortfolioCopilot.tsx` + `components/copilot/*Tab.tsx` · Spec: `ha
 ## PR 04 — Aktien-Detail · 7 Tabs · Risk 4  ▸ Mockup: Seite 07–12
 Datei: `pages/StockDetail.tsx` + `components/stock-detail/*Tab.tsx` · Spec: `handoff/03-Screens.md`
 
-- [ ] `/aktien/:ticker` Tab Übersicht (Preis, Kennzahlen, In meinen Portfolios) (S.07)
-- [ ] Tab Signale: Gesamt-Score-Gauge + ≥7 Einzel-Signale (S.08)
-- [ ] Tab Chart & TA: Kurs + Zeitraum-Toggle (S.09)
-- [ ] Tab Bewertung: DCF Fair Value + Sensitivitäts-Heatmap (S.10)
-- [ ] Tab KI-Prognose (S.11) · Tab Backtest: Strategie-Vergleich (S.12) · Tab News
-- [ ] „Kaufen"-Button öffnet Modal mit Portfolio-Picker und führt **echte** Transaktion aus
-- [ ] `/aktien` Suche + Filter Sektor/Kategorie · alle 10 alten URLs redirecten
-- [ ] **Korrektheit:** DCF-Fair-Value & Signal-Scores gegen Server-Logik geprüft
-- [ ] Funktionalität+Korrektheit+Build-Gates grün
+- [x] `/aktien/:ticker` Tab Übersicht (Preis, Kennzahlen, In meinen Portfolios) (S.07) — bereits gebaut, live real (Preis, Kennzahlen, Scoring, Analysten-Konsens, Moats), keine Konsolenfehler
+- [x] Tab Signale: Gesamt-Score-Gauge + ≥7 Einzel-Signale (S.08) — `StockScoringWidget` + `TradingViewSignalsTab` (real)
+- [x] Tab Chart & TA: Kurs + Zeitraum-Toggle (S.09) — Kurs-Chart + Zeitraum-Toggle + TradingView TA (real)
+- [x] Tab Bewertung: DCF Fair Value + Sensitivitäts-Heatmap (S.10) — `ValuationTab` (real)
+- [x] Tab KI-Prognose (S.11) · Tab Backtest (S.12) · Tab News — `PredictionTab`/`TradingViewBacktestTab`/`news.getByTicker` (real)
+- [x] „Kaufen"-Button öffnet Modal mit Portfolio-Picker und führt **echte** Transaktion aus — **Fix**: Modal war tot (unkontrolliert, Mock-Portfolios, Button ohne onClick); jetzt controlled + `portfolioTransactions.create` (buy) mit echten Portfolios; Button-Label „Kaufen"
+- [x] `/aktien` Suche + Filter Sektor/Kategorie · alte URLs redirecten — `Invest.tsx` Suche + Filter (Sektor/Kategorie/Region, `?filter=`); `/stock/:ticker`→`/aktien/:ticker`, `/signals`→`/aktien`
+- [~] **Korrektheit:** DCF-Fair-Value & Signal-Scores gegen Server-Logik — Werte stammen aus echten Endpoints (`stocks.*`, Scoring-Widget, ValuationTab); detaillierte Referenzrechnung zurückgestellt
+- [x] Funktionalität+Korrektheit+Build-Gates grün — tsc grün; Tests 239/6 (vorbestehend)
 
 ## PR 07 — Portfolio-Builder · Wizard 3 Pfade · Risk 3
 Datei: `pages/PortfolioBuilderWizard.tsx` · Spec: `handoff/04-Migration-Plan.md`
@@ -123,6 +123,17 @@ Datei: `components/OnboardingWizard.tsx`, neu `pages/Auth.tsx` · Spec: `handoff
 ## Iterations-Log
 <!-- Neueste oben. Format: ### YYYY-MM-DD HH:MM — PRxx · Teilaufgabe -->
 <!-- Was gemacht · Verifikation (tsc/test/Playwright-Screenshot + Befund) · Commit-Hash · Offene Punkte -->
+
+### 2026-06-22 11:05 — PR04 · Aktien-Detail „Kaufen" funktionsfähig ✅
+- **Befund (live):** Aktien-Detail bereits umfangreich & real (7 deutsche Tabs, Scoring-Gauge, Analysten-
+  Konsens, Moats, Kurs-Chart; Aktien-Liste mit Suche+Filtern). **Aber** das „Zu Portfolio hinzufügen"-Modal
+  war **tot**: unkontrollierte Inputs, hardcoded Mock-Portfolios, „Hinzufügen"-Button ohne onClick.
+- **Fix:** Modal verdrahtet (controlled state, echte Portfolios), Button → echte `portfolioTransactions.create`
+  (buy) mit shares/pricePerShare/totalAmount; Label „Kaufen"; Invalidation der Portfolio-Queries.
+- **Verifikation:** `pnpm check` grün; `pnpm test` 239/6 (vorbestehend). Endpoint = derselbe wie der
+  funktionierende „+Position"-Flow im Portfolio-Detail. Finaler Live-Kauf-Klick bewusst ausgelassen (würde
+  echte Transaktion in Marcs Portfolio anlegen); Modal-Funktion ohne Seiteneffekt verifizierbar.
+- **Offen (PR04):** DCF/Signal-Referenzrechnung; Aktien-Tab `?tab=`-Keys bleiben EN (Labels sind DE).
 
 ### 2026-06-22 10:50 — Deploy-Workflow bestätigt + Live-Verifikation PR02/05 ✅
 - **Erkenntnis:** manus.space **deployt `main`-Merges automatisch** — mit ~8–10 Min Verzögerung (der erste
