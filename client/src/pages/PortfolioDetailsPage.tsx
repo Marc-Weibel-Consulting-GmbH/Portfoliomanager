@@ -527,7 +527,7 @@ export default function PortfolioDetailsPage() {
                     {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
                   </p>
                   <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-500' : 'text-red-400'}`}>
-                    G/V CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(gain))}
+                    G/V CHF {gain >= 0 ? '+' : '-'}{new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(gain))}
                   </p>
                 </>
               );
@@ -816,7 +816,7 @@ export default function PortfolioDetailsPage() {
                     <div className="bg-[#0f1420] p-4">
                       <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">REAL. G/V</p>
                       <p className={`text-xl font-bold font-mono ${realizedTotal >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
-                        {realizedTotal >= 0 ? '+' : ''}CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(realizedTotal))}
+                        {realizedTotal >= 0 ? '+' : '-'}CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(realizedTotal))}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">{realizedGains.length} Positionen</p>
                     </div>
