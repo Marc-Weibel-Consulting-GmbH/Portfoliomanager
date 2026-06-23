@@ -11,12 +11,19 @@
  * - Skips stocks updated within last 12 hours (configurable)
  */
 
+import cron from 'node-cron';
 import { drizzle } from 'drizzle-orm/mysql2';
 import { eq, lt } from 'drizzle-orm';
 import mysql from 'mysql2/promise';
 import { stocks } from '../../drizzle/schema';
 import { fetchCompleteStockData } from './multiApiDataMerger';
+import { fetchEODHDRealTime } from './eodhdApi';
 import { recordMetricsSnapshot } from './historicalMetricsRecorder';
+
+/** EODHD expects an exchange suffix; default US tickers to ".US". */
+function toEodhdTicker(ticker: string): string {
+  return ticker.includes('.') ? ticker : `${ticker}.US`;
+}
 
 const RATE_LIMIT_MS = 500; // 500ms between API calls
 const MIN_REFRESH_INTERVAL_HOURS = 12; // Only refresh if last update was >12h ago
@@ -32,7 +39,7 @@ interface RefreshResult {
 /**
  * Refresh all stocks in the database with latest data
  */
-export async function refreshAllStocks(): Promise<RefreshResult> {
+export async function refreshAllStocks(options: { force?: boolean } = {}): Promise<RefreshResult> {
   console.log('[Daily Refresh] Starting automated stock data refresh...');
   
   const result: RefreshResult = {
@@ -66,8 +73,8 @@ export async function refreshAllStocks(): Promise<RefreshResult> {
 
     for (const stock of allStocks) {
       try {
-        // Skip if recently updated
-        if (stock.lastDataRefresh && stock.lastDataRefresh > cutoffTime) {
+        // Skip if recently updated (unless forced, e.g. one-time backfill)
+        if (!options.force && stock.lastDataRefresh && stock.lastDataRefresh > cutoffTime) {
           console.log(`[${stock.ticker}] Skipped (updated ${Math.round((Date.now() - stock.lastDataRefresh.getTime()) / 1000 / 60)} min ago)`);
           result.skipped++;
           continue;
@@ -109,6 +116,19 @@ export async function refreshAllStocks(): Promise<RefreshResult> {
         }
         if (completeData.volatility !== null) {
           updateData.volatility = completeData.volatility.toString();
+        }
+
+        // Daily change ("Heute") via EODHD real-time
+        try {
+          const rt = await fetchEODHDRealTime(toEodhdTicker(stock.ticker));
+          if (rt.changePercent !== null) {
+            updateData.dailyChangePercent = rt.changePercent.toFixed(2);
+          }
+          if (rt.previousClose !== null) {
+            updateData.previousClose = rt.previousClose.toString();
+          }
+        } catch (e: any) {
+          console.warn(`[${stock.ticker}] daily-change fetch failed: ${e?.message}`);
         }
 
         // Execute update
@@ -163,13 +183,20 @@ export async function refreshAllStocks(): Promise<RefreshResult> {
 }
 
 /**
- * Setup cron job for daily refresh
- * Runs every day at 2 AM UTC
+ * Initialize the daily refresh cron job.
+ * Runs every day at 23:00 UTC — after both EU and US market close — so the
+ * daily change ("Heute"), prices and metrics reflect the latest trading day.
  */
-export function setupDailyRefreshCron() {
-  // Note: This is a placeholder for cron setup
-  // In production, use node-cron or similar library
-  // For now, this can be called manually or via tRPC procedure
-  
-  console.log('[Daily Refresh] Cron job setup (manual trigger available via tRPC)');
+export function initDailyRefreshCron() {
+  // Cron format: second minute hour day month dayOfWeek
+  cron.schedule('0 0 23 * * *', async () => {
+    console.log('[Daily Refresh] Cron job triggered');
+    try {
+      await refreshAllStocks();
+    } catch (error) {
+      console.error('[Daily Refresh] Cron job failed:', error);
+    }
+  });
+
+  console.log('[Daily Refresh] Cron job initialized (runs daily at 23:00 UTC)');
 }
