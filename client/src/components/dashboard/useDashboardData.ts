@@ -57,6 +57,10 @@ export function useDashboardData({ scope, range }: UseDashboardDataParams): Dash
 
   const { data: rawPortfolios } = trpc.dashboard.getTopPortfolios.useQuery();
 
+  // Canonical YTD source — same getMultiPeriodPerformanceV2 the Portfolios list
+  // and the portfolio detail header use. Value-weighted for the aggregate scope.
+  const { data: multiPeriod } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
+
   // ───── New endpoints (real data) ──────────────────────────────────────
   const { data: rawPerformance, isLoading: perfLoading } =
     trpc.dashboard.getPerformanceTimeseries.useQuery(
@@ -109,16 +113,34 @@ export function useDashboardData({ scope, range }: UseDashboardDataParams): Dash
       { placeholderData: keepPreviousData }
     );
 
+  // Canonical YTD (getMultiPeriodPerformanceV2): per portfolio for a single
+  // scope, value-weighted across portfolios for the aggregate scope.
+  const canonicalYtd: number | undefined = (() => {
+    const mp = multiPeriod as Array<{ portfolioId: number; performance?: { YTD?: number } }> | undefined;
+    if (!mp || mp.length === 0) return undefined;
+    const ytdById = new Map(mp.map(p => [p.portfolioId, p.performance?.YTD]));
+    if (scope !== "aggregate") {
+      const y = ytdById.get(Number(scope));
+      return typeof y === "number" ? y : undefined;
+    }
+    let valueSum = 0;
+    let weighted = 0;
+    (rawPortfolios ?? []).forEach(p => {
+      const y = ytdById.get(p.id);
+      const v = (p as any).value ?? 0;
+      if (typeof y === "number" && v > 0) { valueSum += v; weighted += v * y; }
+    });
+    return valueSum > 0 ? weighted / valueSum : undefined;
+  })();
+
   // Merge: real metrics where available, mock for missing fields.
-  // Overlay TTWROR/IRR from the new performance engine
   const metrics: AggregatedMetrics = {
     ...MOCK_METRICS,
     ...(rawMetrics ?? {}),
-    ...(rawPerfMetrics ? {
-      ttwrorYtd: rawPerfMetrics.ttwror,
-      irrYtd: rawPerfMetrics.irr,
-      // Use TTWROR as the primary YTD performance metric
-      totalPerformancePercent: rawPerfMetrics.ttwror,
+    ...(rawPerfMetrics ? { irrYtd: rawPerfMetrics.irr } : {}),
+    ...(canonicalYtd !== undefined ? {
+      ttwrorYtd: canonicalYtd,
+      totalPerformancePercent: canonicalYtd,
     } : {}),
   };
 
