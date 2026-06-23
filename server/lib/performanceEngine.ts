@@ -618,6 +618,20 @@ export function buildHoldingsTimeline(
   // Now fill the timeline for all dates
   const result = new Map<string, Map<string, number>>();
 
+  // Seed opening holdings from any transactions BEFORE the window start, so a
+  // YTD/period view of a portfolio whose positions were opened earlier still
+  // values those holdings (otherwise pre-window buys are dropped -> MV 0 -> TWR 0).
+  const firstDate = dates[0];
+  if (firstDate) {
+    for (const [txDate, dayChanges] of transactionDates.entries()) {
+      if (txDate < firstDate) {
+        for (const [ticker, change] of dayChanges.entries()) {
+          holdingsState.set(ticker, (holdingsState.get(ticker) || 0) + change);
+        }
+      }
+    }
+  }
+
   for (const date of dates) {
     // Apply any transactions on this date
     const dayChanges = transactionDates.get(date);
