@@ -364,20 +364,22 @@ function isSignalCorrect(signal: string, returnPct: number): boolean {
  * Get copilot history for a portfolio
  */
 export async function getCopilotHistoryForPortfolio(
-  portfolioId: number,
+  portfolioId: number | undefined,
   userId: number,
   limit: number = 50
 ): Promise<HistoryEntry[]> {
   const db = await getDb();
   if (!db) return [];
 
+  const conditions = [eq(copilotHistory.userId, userId)];
+  if (portfolioId) {
+    conditions.push(eq(copilotHistory.portfolioId, portfolioId));
+  }
+
   const results = await db
     .select()
     .from(copilotHistory)
-    .where(and(
-      eq(copilotHistory.portfolioId, portfolioId),
-      eq(copilotHistory.userId, userId)
-    ))
+    .where(and(...conditions))
     .orderBy(desc(copilotHistory.createdAt))
     .limit(limit);
 

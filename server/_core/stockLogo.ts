@@ -20,8 +20,9 @@ export function getStockLogoUrl(ticker: string, companyName?: string): string {
   const domain = getCompanyDomain(ticker, companyName);
   
   if (domain) {
-    // Clearbit Logo API - high quality, free tier available
-    return `https://logo.clearbit.com/${domain}`;
+    // DuckDuckGo icon service - free, reliable, no API key
+    // (Clearbit's free Logo API was discontinued)
+    return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
   }
 
   // Fallback to generic logo
