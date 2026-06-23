@@ -21,6 +21,7 @@ import { runWalkForwardValidation, getWalkForwardHistory, screenStocksFromEODHD,
 import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHistoryStats, evaluateRecommendations, markRecommendationAsApplied } from '../analytics/copilotHistory';
 import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES, fitLPPLMultiScale, calculateBubbleConfidence } from '../analytics/lpplBacktest';
 import { calcRiskMetrics } from '../analytics/engine';
+import { fetchEODHDFundamentals, type EODHDFundamentals } from '../_core/eodhdApi';
 import { userSettings, lpplResults } from '../../drizzle/schema';
 import { eq, desc, gte } from 'drizzle-orm';
 import YahooFinance from 'yahoo-finance2';
@@ -889,6 +890,125 @@ export const copilotRouter = router({
       } catch {
         return null;
       }
+    }),
+
+  /**
+   * Portfolio Deep-Dive: EODHD-Fundamentaldaten + KI-Zusammenfassung
+   */
+  portfolioDeepDive: protectedProcedure
+    .input(z.object({ portfolioId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) throw new Error('Portfolio nicht gefunden');
+
+      let stocks: any[] = [];
+      try {
+        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+        stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+      } catch { stocks = []; }
+
+      if (stocks.length === 0) return { error: 'Keine Positionen im Portfolio', holdings: [], sectorBreakdown: [], portfolioMetrics: null, topDividend: [], highBeta: [], aiSummary: null };
+
+      const totalValue = stocks.reduce((sum: number, s: any) =>
+        sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
+
+      // Fetch EODHD fundamentals in parallel batches of 4
+      const fundamentalsMap: Record<string, EODHDFundamentals> = {};
+      const batchSize = 4;
+      for (let i = 0; i < stocks.length; i += batchSize) {
+        const batch = stocks.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (s: any) => ({ ticker: s.ticker, f: await fetchEODHDFundamentals(s.ticker) }))
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') fundamentalsMap[r.value.ticker] = r.value.f;
+        }
+        if (i + batchSize < stocks.length) await new Promise(res => setTimeout(res, 250));
+      }
+
+      // Build enriched holdings
+      const holdings = stocks.map((s: any) => {
+        const value = (s.shares || 1) * (s.currentPrice || s.avgPrice || 100);
+        const weight = totalValue > 0 ? Math.round((value / totalValue) * 1000) / 10 : Math.round(1000 / stocks.length) / 10;
+        const f = fundamentalsMap[s.ticker] || {} as EODHDFundamentals;
+        return {
+          ticker: s.ticker,
+          name: f.companyName || s.companyName || s.name || s.ticker,
+          weight,
+          value: Math.round(value * 100) / 100,
+          sector: f.sector || s.sector || 'Unbekannt',
+          industry: f.industry || null,
+          peRatio: f.peRatio !== null ? Math.round((f.peRatio ?? 0) * 10) / 10 : null,
+          pegRatio: f.pegRatio !== null ? Math.round((f.pegRatio ?? 0) * 100) / 100 : null,
+          dividendYield: f.dividendYield !== null ? Math.round((f.dividendYield ?? 0) * 10) / 10 : null,
+          beta: f.beta !== null ? Math.round((f.beta ?? 0) * 100) / 100 : null,
+          eps: f.eps,
+          marketCap: f.marketCap,
+          earningsGrowth: f.earningsGrowth !== null ? Math.round((f.earningsGrowth ?? 0) * 1000) / 10 : null,
+        };
+      });
+
+      // Sector breakdown
+      const sectorMap: Record<string, { weight: number; count: number; tickers: string[] }> = {};
+      for (const h of holdings) {
+        const sec = h.sector;
+        if (!sectorMap[sec]) sectorMap[sec] = { weight: 0, count: 0, tickers: [] };
+        sectorMap[sec].weight += h.weight;
+        sectorMap[sec].count++;
+        sectorMap[sec].tickers.push(h.ticker);
+      }
+      const sectorBreakdown = Object.entries(sectorMap)
+        .map(([sector, d]) => ({ sector, weight: Math.round(d.weight * 10) / 10, count: d.count, tickers: d.tickers }))
+        .sort((a, b) => b.weight - a.weight);
+
+      // Weighted average helper
+      const wavg = (field: keyof typeof holdings[0]) => {
+        const valid = holdings.filter(h => h[field] !== null && h[field] !== undefined);
+        if (!valid.length) return null;
+        const tw = valid.reduce((s, h) => s + h.weight, 0);
+        return tw > 0 ? Math.round(valid.reduce((s, h) => s + (h[field] as number) * h.weight, 0) / tw * 100) / 100 : null;
+      };
+
+      const portfolioMetrics = {
+        avgPE: wavg('peRatio'),
+        avgPEG: wavg('pegRatio'),
+        avgBeta: wavg('beta'),
+        avgDividendYield: wavg('dividendYield'),
+        avgEarningsGrowth: wavg('earningsGrowth'),
+        totalValue,
+        positionCount: holdings.length,
+      };
+
+      const topDividend = [...holdings]
+        .filter(h => h.dividendYield !== null && (h.dividendYield as number) > 0)
+        .sort((a, b) => (b.dividendYield as number) - (a.dividendYield as number))
+        .slice(0, 5)
+        .map(h => ({ ticker: h.ticker, name: h.name, yield: h.dividendYield }));
+
+      const highBeta = [...holdings]
+        .filter(h => h.beta !== null)
+        .sort((a, b) => Math.abs(b.beta as number) - Math.abs(a.beta as number))
+        .slice(0, 5)
+        .map(h => ({ ticker: h.ticker, name: h.name, beta: h.beta }));
+
+      // AI summary
+      let aiSummary: string | null = null;
+      try {
+        const topSectors = sectorBreakdown.slice(0, 3).map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ');
+        const prompt = `Erstelle eine pr\u00e4zise Portfolio-Zusammenfassung auf Deutsch (max. 180 W\u00f6rter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen: ${portfolioMetrics.positionCount}\nTop-Sektoren: ${topSectors}\nDurchschn. KGV: ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG: ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta: ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum: ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nBewerte: Ist das Portfolio g\u00fcnstig oder teuer bewertet? Defensiv oder aggressiv? Dividendenst\u00e4rke? Gib 2 konkrete Handlungsempfehlungen.`;
+        const response = await invokeLLM({
+          messages: [
+            { role: 'system', content: 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte pr\u00e4zise auf Deutsch.' },
+            { role: 'user', content: prompt },
+          ],
+        });
+        const content = response?.choices?.[0]?.message?.content;
+        aiSummary = typeof content === 'string' ? content : null;
+      } catch (e) {
+        console.warn('[portfolioDeepDive] LLM failed:', e);
+      }
+
+      return { error: null, portfolioName: (portfolio as any).name, holdings, sectorBreakdown, portfolioMetrics, topDividend, highBeta, aiSummary };
     }),
 });
 
