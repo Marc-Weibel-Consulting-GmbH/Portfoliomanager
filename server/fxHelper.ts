@@ -8,6 +8,12 @@ import { getDb } from './db';
 import { exchangeRates, stocks } from '../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 
+// In-memory cache for resolved FX rates. Historical rates are immutable, so
+// caching (date, pair) -> rate avoids thousands of repeated DB lookups inside
+// the day-by-day valuation loops of the risk/performance engines (which were
+// the dominant cause of 15-20s response times).
+const fxRateCache = new Map<string, number>();
+
 /**
  * Get exchange rate for a specific date and currency pair
  * @param date - Date in YYYY-MM-DD format
@@ -18,13 +24,19 @@ export async function getFxRate(date: string, currencyPair: string): Promise<num
   if (currencyPair === 'CHFCHF') {
     return 1.0;
   }
-  
+
+  const cacheKey = `${date}:${currencyPair}`;
+  const cachedRate = fxRateCache.get(cacheKey);
+  if (cachedRate !== undefined) {
+    return cachedRate;
+  }
+
   const db = await getDb();
   if (!db) {
     console.error('[FxHelper] Database not available');
     return 1.0;
   }
-  
+
   try {
     const [rate] = await db
       .select()
@@ -36,9 +48,11 @@ export async function getFxRate(date: string, currencyPair: string): Promise<num
         )
       )
       .limit(1);
-    
+
     if (rate) {
-      return parseFloat(rate.rate);
+      const parsed = parseFloat(rate.rate);
+      fxRateCache.set(cacheKey, parsed);
+      return parsed;
     }
     
     // If exact date not found, try to find nearest previous date
@@ -56,8 +70,9 @@ export async function getFxRate(date: string, currencyPair: string): Promise<num
       .limit(1);
     
     if (nearestRate) {
-      console.warn(`[FxHelper] Using nearest rate for ${currencyPair} on ${date}: ${nearestRate.rate}`);
-      return parseFloat(nearestRate.rate);
+      const parsed = parseFloat(nearestRate.rate);
+      fxRateCache.set(cacheKey, parsed);
+      return parsed;
     }
     
     console.error(`[FxHelper] No FX rate found for ${currencyPair} on ${date}`);
