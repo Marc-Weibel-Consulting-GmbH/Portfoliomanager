@@ -17,6 +17,7 @@ import { initDividendCaptureJob } from "../dividendCaptureJob";
 import { initFxRatesCron } from "../fxRatesFetchJob";
 import { initTransactionFxUpdateCron } from "../transactionFxUpdateJob";
 import { initHistoricalPricesCron } from "../cron/historicalPricesCron";
+import { initDailyRefreshCron } from "./dailyRefreshCron";
 import { initPriceAlertsCron } from "../cron/priceAlertsCron";
 import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
 import { initLpplBubbleAlertCron } from "../cron/lpplBubbleAlertCron";
@@ -271,6 +272,8 @@ async function startServer() {
     initTransactionFxUpdateCron();
     // Start historical prices updater (runs daily at 2:00 AM UTC)
     initHistoricalPricesCron();
+    // Start daily stock-data refresh incl. daily change (runs daily at 23:00 UTC)
+    initDailyRefreshCron();
     // Start price alerts checker (runs every hour)
     initPriceAlertsCron();
     // Start watchlist alerts checker (runs every 4h during market hours)
