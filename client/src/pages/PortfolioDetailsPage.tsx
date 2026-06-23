@@ -171,6 +171,8 @@ export default function PortfolioDetailsPage() {
     }
   );
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
+  // Canonical YTD source — same as the Portfolios list ("eine Quelle der Wahrheit")
+  const { data: multiPeriod } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
   
@@ -493,28 +495,20 @@ export default function PortfolioDetailsPage() {
             )}
           </div>
 
-          {/* YTD — gewichtetes Kalender-YTD der Positionen (seit Jahresanfang) */}
+          {/* YTD — kanonische Quelle: getMultiPeriodPerformanceV2 (identisch zur Portfolios-Liste) */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">YTD</p>
             {(() => {
-              let weightSum = 0;
-              let weighted = 0;
-              holdings.forEach((h: any) => {
-                const w = parseFloat(h.weight || '0');
-                const y = parseFloat(h.ytdPerformance || '0');
-                if (w > 0) { weightSum += w; weighted += w * y; }
-              });
-              const ytdPerf = weightSum > 0 ? weighted / weightSum : 0;
-              const lastPoint = chartData.data.length > 0 ? chartData.data[chartData.data.length - 1] : null;
-              const benchPerf = lastPoint?.benchmark ?? null;
-              const benchmarkLabel = benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
+              const entry = (multiPeriod as any[] | undefined)?.find(p => p.portfolioId === portfolioId);
+              const ytdPerf = entry?.performance?.YTD ?? null;
+              const benchPerf = entry?.benchmarkPerformance?.YTD ?? null;
               return (
                 <>
-                  <p className={`text-2xl font-bold font-mono ${ytdPerf >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
-                    {ytdPerf >= 0 ? '+' : ''}{ytdPerf.toFixed(1)}%
+                  <p className={`text-2xl font-bold font-mono ${(ytdPerf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                    {ytdPerf !== null ? `${ytdPerf >= 0 ? '+' : ''}${ytdPerf.toFixed(1)}%` : '—'}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {benchmarkLabel} {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
+                    S&amp;P 500 {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
                   </p>
                 </>
               );
