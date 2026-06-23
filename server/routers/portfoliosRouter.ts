@@ -228,8 +228,8 @@ export const portfoliosRouter = router({
       .input(z.number().int().positive())
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getStockByTicker } = await import("../db");
-        const { getStockCurrency, getCurrentFxRate, convertToCHF } = await import("../fxHelper");
-        
+        const { getStockCurrency, convertToCHF } = await import("../fxHelper");
+
         const portfolio = await getSavedPortfolioById(input, ctx.user.id);
         if (!portfolio) return null;
         
@@ -252,15 +252,12 @@ export const portfoliosRouter = router({
             const ticker = stock.ticker;
             const dbStock = await getStockByTicker(ticker);
             const currency = dbStock?.currency || await getStockCurrency(ticker);
-            const currentPrice = parseFloat(stock.currentPrice) || parseFloat(dbStock?.currentPrice || '0');
-            
-            // Get FX rate for this currency
-            let fxRate = 1.0;
-            if (currency !== 'CHF') {
-              fxRate = await getCurrentFxRate(`${currency}CHF`);
-            }
-            
-            const priceCHF = currentPrice * fxRate;
+            // Single source of truth: DB price + convertToCHF — identical to
+            // portfolios.list and dashboard.getAggregatedMetrics so the WERT
+            // matches across list, detail and dashboard.
+            const currentPrice = parseFloat(dbStock?.currentPrice || stock.currentPrice || '0');
+            const priceCHF = currency === 'CHF' ? currentPrice : await convertToCHF(currentPrice, currency, todayStr);
+            const fxRate = currentPrice > 0 ? priceCHF / currentPrice : 1;
             
             // Calculate weight - for test portfolios, use equal weight if not specified
             const stockCount = portfolioData.stocks?.length || 1;
