@@ -221,6 +221,18 @@ describe('performanceEngine', () => {
       expect(aaplHoldings.get('2025-01-06')).toBe(15);
     });
 
+    it('carries forward positions opened before the window (YTD view)', () => {
+      // Bought in Nov 2025; viewing a 2026 window must still hold the shares.
+      const transactions = [
+        { transactionType: 'buy', transactionDate: '2025-11-12', ticker: 'NOVN', shares: '97' },
+      ];
+      const dates = ['2026-01-02', '2026-01-03', '2026-06-19'];
+      const result = buildHoldingsTimeline(transactions, dates);
+      const novn = result.get('NOVN')!;
+      expect(novn.get('2026-01-02')).toBe(97);
+      expect(novn.get('2026-06-19')).toBe(97);
+    });
+
     it('tracks sell transactions correctly', () => {
       const transactions = [
         { transactionType: 'buy', transactionDate: '2025-01-01', ticker: 'NOVN', shares: '100' },
@@ -236,8 +248,7 @@ describe('performanceEngine', () => {
       expect(novnHoldings.get('2025-01-04')).toBe(70);
     });
 
-    it('handles multiple tickers', () => {
-      const transactions = [
+    it('handles multiple tickers', () => {      const transactions = [
         { transactionType: 'buy', transactionDate: '2025-01-01', ticker: 'AAPL', shares: '10' },
         { transactionType: 'buy', transactionDate: '2025-01-01', ticker: 'NOVN', shares: '50' },
       ];
