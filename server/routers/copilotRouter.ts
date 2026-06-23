@@ -533,9 +533,9 @@ export const copilotRouter = router({
   // ============================================================
   getHistory: protectedProcedure
     .input(z.object({
-      portfolioId: z.number(),
+      portfolioId: z.number().optional(),
       limit: z.number().optional().default(50),
-    }))
+    }).optional().default({ limit: 50 }))
     .query(async ({ ctx, input }) => {
       return getCopilotHistoryForPortfolio(input.portfolioId, ctx.user.id, input.limit);
     }),

@@ -10,7 +10,7 @@ function getYTDStartDate(): string {
 export const dashboardRouter = router({
   // Get aggregated metrics - supports scope parameter for per-portfolio metrics
   getAggregatedMetrics: protectedProcedure
-    .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).optional().default("aggregate") }))
+    .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).optional().default("aggregate") }).optional().default({ scope: "aggregate" }))
     .query(async ({ ctx, input }) => {
     const { getSavedPortfolios, getStockByTicker } = await import("../db");
     const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");

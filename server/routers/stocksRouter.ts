@@ -380,7 +380,49 @@ export const stocksRouter = router({
       })
       .query(async ({ input }) => {
         const { getStockByTicker } = await import("../db");
-        return await getStockByTicker(input);
+        const dbStock = await getStockByTicker(input);
+        if (dbStock) return dbStock;
+
+        // Fallback: ticker not in local DB → fetch live from Yahoo so any
+        // searchable stock can be viewed. Mapped to the DB stock shape.
+        try {
+          const YahooFinanceClass = (await import("yahoo-finance2")).default;
+          const yahooFinance: any = new (YahooFinanceClass as any)();
+          const qs: any = await yahooFinance.quoteSummary(input, {
+            modules: ["price", "summaryDetail", "summaryProfile", "defaultKeyStatistics"],
+          }, { validateResult: false }).catch(() => null);
+          if (!qs?.price) return undefined;
+
+          const price = qs.price || {};
+          const summary = qs.summaryDetail || {};
+          const profile = qs.summaryProfile || {};
+          const keyStats = qs.defaultKeyStatistics || {};
+          const str = (v: any, d = 2) => (v === null || v === undefined ? null : Number(v).toFixed(d));
+          const divYield = summary.dividendYield ?? summary.trailingAnnualDividendYield;
+
+          return {
+            ticker: input,
+            companyName: price.longName || price.shortName || input,
+            currentPrice: str(price.regularMarketPrice),
+            currency: price.currency || null,
+            peRatio: str(summary.trailingPE),
+            pegRatio: str(keyStats.pegRatio),
+            dividendYield: divYield ? str(divYield * 100) : null,
+            beta: str(summary.beta),
+            marketCap: price.marketCap ? str(price.marketCap / 1e9) : null,
+            week52High: str(summary.fiftyTwoWeekHigh),
+            week52Low: str(summary.fiftyTwoWeekLow),
+            sector: profile.sector || null,
+            category: null,
+            volatility: null,
+            sharpeRatio: null,
+            ytdPerformance: null,
+            chartData: null,
+            score: 0,
+          } as any;
+        } catch {
+          return undefined;
+        }
       }),
     stats: publicProcedure.query(async () => {
       const { getAllStocks } = await import("../db");

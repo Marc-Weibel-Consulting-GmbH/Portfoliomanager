@@ -32,7 +32,7 @@ export const investRouter = router({
     }))
     .query(async ({ input }) => {
       try {
-        const results: any = await yahooFinance.search(input.query, { quotesCount: 15, newsCount: 0 });
+        const results: any = await yahooFinance.search(input.query, { quotesCount: 15, newsCount: 0 }, { validateResult: false });
         
         const quotes = (results.quotes || [])
           .filter((q: any) => q.quoteType === "EQUITY" || q.quoteType === "ETF")
@@ -294,7 +294,7 @@ export const investRouter = router({
     .query(async ({ input }) => {
       try {
         const resolvedTicker = resolveYahooTicker(input.ticker);
-        const searchResult: any = await yahooFinance.search(resolvedTicker, { quotesCount: 0, newsCount: 10 });
+        const searchResult: any = await yahooFinance.search(resolvedTicker, { quotesCount: 0, newsCount: 10 }, { validateResult: false });
         const news = (searchResult.news || []).slice(0, 8).map((n: any) => ({
           title: n.title,
           link: n.link,
