@@ -303,7 +303,6 @@ export const portfoliosRouter = router({
               // Add missing fields from database
               sector: dbStock?.sector || stock.sector || 'Other',
               ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || '0',
-              dailyChangePercent: dbStock?.dailyChangePercent ?? stock.dailyChangePercent ?? null,
               dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
               companyName: dbStock?.companyName || stock.companyName || ticker,
               category: dbStock?.category || stock.category || 'Aktien',

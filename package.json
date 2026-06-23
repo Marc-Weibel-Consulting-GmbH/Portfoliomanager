@@ -16,7 +16,6 @@
     "update-financials": "tsx scripts/update-financial-highlights.ts",
     "import-financials": "tsx scripts/import-financial-highlights.ts",
     "backfill:prices": "tsx scripts/backfillPrices.ts",
-    "backfill:daily-change": "tsx scripts/backfill-daily-change.ts",
     "backfill:all": "tsx scripts/backfill-all.ts",
     "repopulate:logos": "tsx scripts/repopulate-logos.ts"
   },
