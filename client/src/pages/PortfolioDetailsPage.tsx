@@ -493,12 +493,19 @@ export default function PortfolioDetailsPage() {
             )}
           </div>
 
-          {/* YTD */}
+          {/* YTD — gewichtetes Kalender-YTD der Positionen (seit Jahresanfang) */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">YTD</p>
             {(() => {
+              let weightSum = 0;
+              let weighted = 0;
+              holdings.forEach((h: any) => {
+                const w = parseFloat(h.weight || '0');
+                const y = parseFloat(h.ytdPerformance || '0');
+                if (w > 0) { weightSum += w; weighted += w * y; }
+              });
+              const ytdPerf = weightSum > 0 ? weighted / weightSum : 0;
               const lastPoint = chartData.data.length > 0 ? chartData.data[chartData.data.length - 1] : null;
-              const ytdPerf = lastPoint?.portfolio || 0;
               const benchPerf = lastPoint?.benchmark ?? null;
               const benchmarkLabel = benchmarkOptions.find(b => b.value === selectedBenchmark)?.label || 'Benchmark';
               return (
@@ -514,9 +521,9 @@ export default function PortfolioDetailsPage() {
             })()}
           </div>
 
-          {/* GESAMT */}
+          {/* SEIT KAUF — Gesamtrendite seit Erstinvestition */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">GESAMT</p>
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">SEIT KAUF</p>
             {(() => {
               const invested = Number(portfolio?.investmentAmount || 0);
               const gain = totalValueCHF - invested;

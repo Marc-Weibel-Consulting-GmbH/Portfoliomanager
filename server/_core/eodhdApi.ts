@@ -25,6 +25,50 @@ export interface EODHDFundamentals {
   earningsGrowth: number | null; // Calculated from quarterly earnings (annual %)
 }
 
+export interface EODHDRealTime {
+  close: number | null;
+  previousClose: number | null;
+  changePercent: number | null; // Today's change in % (e.g. 1.23 = +1.23%)
+}
+
+/**
+ * Fetch real-time (delayed) quote from EODHD, used for the daily change ("Heute").
+ * @param ticker Stock ticker (e.g., "NESN.SW" for Swiss stocks)
+ */
+export async function fetchEODHDRealTime(ticker: string): Promise<EODHDRealTime> {
+  const empty: EODHDRealTime = { close: null, previousClose: null, changePercent: null };
+  const apiKey = process.env.EODHD_API_KEY;
+  if (!apiKey) {
+    console.warn('[EODHD] API key not configured');
+    return empty;
+  }
+
+  const cacheKey = `eodhd:realtime:${ticker}`;
+  const cached = apiCache.get<EODHDRealTime>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `https://eodhd.com/api/real-time/${ticker}?api_token=${apiKey}&fmt=json`;
+    const response = await retryFetch(url, {}, { maxRetries: 3, baseDelay: 1000 });
+    if (!response.ok) {
+      console.warn(`[EODHD] real-time request failed for ${ticker}: ${response.status} ${response.statusText}`);
+      return empty;
+    }
+    const data: any = await response.json();
+    const toNum = (v: any) => (v === undefined || v === null || v === 'NA' ? null : Number(v));
+    const result: EODHDRealTime = {
+      close: toNum(data.close),
+      previousClose: toNum(data.previousClose),
+      changePercent: toNum(data.change_p),
+    };
+    apiCache.set(cacheKey, result, CACHE_TTL.FUNDAMENTALS);
+    return result;
+  } catch (error: any) {
+    console.error(`[EODHD] Error fetching real-time for ${ticker}:`, error.message);
+    return empty;
+  }
+}
+
 /**
  * Fetch fundamental data from EODHD API
  * @param ticker Stock ticker (e.g., "NESN.SW" for Swiss stocks)

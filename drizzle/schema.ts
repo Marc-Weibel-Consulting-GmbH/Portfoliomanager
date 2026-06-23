@@ -76,6 +76,8 @@ export const stocks = mysqlTable("stocks", {
   companyName: varchar("companyName", { length: 255 }).notNull(),
   ticker: varchar("ticker", { length: 50 }).notNull().unique(),
   currentPrice: varchar("currentPrice", { length: 50 }),
+  previousClose: varchar("previousClose", { length: 50 }), // Prior trading day close (for daily change)
+  dailyChangePercent: varchar("dailyChangePercent", { length: 50 }), // Today's price change in %
   currency: varchar("currency", { length: 10 }),
   peRatio: varchar("peRatio", { length: 50 }),
   pegRatio: varchar("pegRatio", { length: 50 }),

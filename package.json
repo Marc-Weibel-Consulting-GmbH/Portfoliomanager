@@ -15,7 +15,9 @@
     "import-data": "tsx scripts/import-data.ts",
     "update-financials": "tsx scripts/update-financial-highlights.ts",
     "import-financials": "tsx scripts/import-financial-highlights.ts",
-    "backfill:prices": "tsx scripts/backfillPrices.ts"
+    "backfill:prices": "tsx scripts/backfillPrices.ts",
+    "backfill:daily-change": "tsx scripts/backfill-daily-change.ts",
+    "repopulate:logos": "tsx scripts/repopulate-logos.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
