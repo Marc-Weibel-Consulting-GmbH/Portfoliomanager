@@ -146,7 +146,14 @@ export async function getStockByTicker(ticker: string) {
     console.warn("[Database] Cannot get stock: database not available");
     return undefined;
   }
-  const result = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+  let result = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+  // US tickers are stored inconsistently (some with ".US", some without). If the
+  // exact lookup misses, retry with the ".US" suffix stripped so the same stock
+  // is found by every value/performance function (avoids dropped holdings).
+  if (result.length === 0 && ticker.endsWith(".US")) {
+    const base = ticker.slice(0, -3);
+    result = await db.select().from(stocks).where(eq(stocks.ticker, base)).limit(1);
+  }
   return result.length > 0 ? result[0] : undefined;
 }
 
