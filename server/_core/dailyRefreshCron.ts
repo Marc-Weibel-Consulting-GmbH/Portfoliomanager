@@ -17,13 +17,7 @@ import { eq, lt } from 'drizzle-orm';
 import mysql from 'mysql2/promise';
 import { stocks } from '../../drizzle/schema';
 import { fetchCompleteStockData } from './multiApiDataMerger';
-import { fetchEODHDRealTime } from './eodhdApi';
 import { recordMetricsSnapshot } from './historicalMetricsRecorder';
-
-/** EODHD expects an exchange suffix; default US tickers to ".US". */
-function toEodhdTicker(ticker: string): string {
-  return ticker.includes('.') ? ticker : `${ticker}.US`;
-}
 
 const RATE_LIMIT_MS = 500; // 500ms between API calls
 const MIN_REFRESH_INTERVAL_HOURS = 12; // Only refresh if last update was >12h ago
@@ -116,19 +110,6 @@ export async function refreshAllStocks(options: { force?: boolean } = {}): Promi
         }
         if (completeData.volatility !== null) {
           updateData.volatility = completeData.volatility.toString();
-        }
-
-        // Daily change ("Heute") via EODHD real-time
-        try {
-          const rt = await fetchEODHDRealTime(toEodhdTicker(stock.ticker));
-          if (rt.changePercent !== null) {
-            updateData.dailyChangePercent = rt.changePercent.toFixed(2);
-          }
-          if (rt.previousClose !== null) {
-            updateData.previousClose = rt.previousClose.toString();
-          }
-        } catch (e: any) {
-          console.warn(`[${stock.ticker}] daily-change fetch failed: ${e?.message}`);
         }
 
         // Execute update
