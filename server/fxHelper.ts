@@ -14,6 +14,27 @@ import { eq, and } from 'drizzle-orm';
 // the dominant cause of 15-20s response times).
 const fxRateCache = new Map<string, number>();
 
+// One-time bulk load of the entire (small) exchangeRates table into the cache.
+// The first FX lookup after a process start triggers this single query, after
+// which every getFxRate call is served from memory — eliminating the thousands
+// of per-date DB roundtrips that made the risk/performance engines slow even on
+// a cold first request.
+let fxPrewarmed = false;
+async function ensureFxRatesPrewarmed(): Promise<void> {
+  if (fxPrewarmed) return;
+  fxPrewarmed = true; // set first so concurrent calls don't all query
+  try {
+    const db = await getDb();
+    if (!db) { fxPrewarmed = false; return; }
+    const all = await db.select().from(exchangeRates);
+    for (const r of all) {
+      fxRateCache.set(`${r.date}:${r.currencyPair}`, parseFloat(r.rate as any));
+    }
+  } catch (error) {
+    console.error('[FxHelper] FX prewarm failed:', error);
+  }
+}
+
 /**
  * Get exchange rate for a specific date and currency pair
  * @param date - Date in YYYY-MM-DD format
@@ -26,7 +47,14 @@ export async function getFxRate(date: string, currencyPair: string): Promise<num
   }
 
   const cacheKey = `${date}:${currencyPair}`;
-  const cachedRate = fxRateCache.get(cacheKey);
+  let cachedRate = fxRateCache.get(cacheKey);
+  if (cachedRate !== undefined) {
+    return cachedRate;
+  }
+
+  // First miss after process start: bulk-load all rates, then re-check.
+  await ensureFxRatesPrewarmed();
+  cachedRate = fxRateCache.get(cacheKey);
   if (cachedRate !== undefined) {
     return cachedRate;
   }
