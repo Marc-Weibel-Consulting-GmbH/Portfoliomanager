@@ -941,28 +941,38 @@ export default function PortfolioDetailsPage() {
 
           {/* PERFORMANCE TAB */}
           <TabsContent value="performance" className="mt-6">
+            {(() => {
+              // Use the same canonical sources as the header/list ("eine Quelle der
+              // Wahrheit"): weight-based YTD + value-based Seit-Kauf/G-V. The raw
+              // TTWROR/IRR engine is currently unreliable and intentionally not shown.
+              const entry = (multiPeriod as any[] | undefined)?.find(p => p.portfolioId === portfolioId);
+              const ytd = entry?.performance?.YTD ?? null;
+              const invested = Number(portfolio?.investmentAmount || 0);
+              const seitKauf = invested > 0 ? ((totalValueCHF - invested) / invested) * 100 : null;
+              const gv = totalValueCHF - invested;
+              return (
             <div className="grid md:grid-cols-2 gap-4">
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">TTWROR (Zeitgewichtet)</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Performance YTD</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold font-mono text-white">{perfMetrics ? `${(perfMetrics.ttwror * 100).toFixed(2)}%` : '–'}</div>
-                  <p className="text-xs text-gray-500 mt-1">True Time-Weighted Rate of Return</p>
+                  <div className={`text-3xl font-bold font-mono ${(ytd ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{ytd !== null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(2)}%` : '–'}</div>
+                  <p className="text-xs text-gray-500 mt-1">Seit Jahresanfang (gewichtet)</p>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">IRR (Geldgewichtet)</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Seit Kauf</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold font-mono text-white">{perfMetrics ? `${(perfMetrics.irr * 100).toFixed(2)}%` : '–'}</div>
-                  <p className="text-xs text-gray-500 mt-1">Internal Rate of Return p.a.</p>
+                  <div className={`text-3xl font-bold font-mono ${(seitKauf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{seitKauf !== null ? `${seitKauf >= 0 ? '+' : ''}${seitKauf.toFixed(2)}%` : '–'}</div>
+                  <p className="text-xs text-gray-500 mt-1">Gesamtrendite seit Erstinvestition</p>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
                 <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Absoluter Gewinn</CardTitle></CardHeader>
                 <CardContent>
-                  <div className={`text-3xl font-bold font-mono ${(perfMetrics?.absoluteGainCHF ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
-                    {perfMetrics ? formatCurrency(perfMetrics.absoluteGainCHF, 'CHF') : '–'}
+                  <div className={`text-3xl font-bold font-mono ${gv >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                    {`${gv >= 0 ? '+' : '-'}${formatCurrency(Math.abs(gv), 'CHF')}`}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Realisiert + Unrealisiert</p>
+                  <p className="text-xs text-gray-500 mt-1">Wert − investiertes Kapital</p>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
@@ -972,6 +982,8 @@ export default function PortfolioDetailsPage() {
                 </CardContent>
               </Card>
             </div>
+              );
+            })()}
             {transactions.length > 0 && (
               <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30 mt-4">
                 <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Kosten & Gebühren</CardTitle></CardHeader>
