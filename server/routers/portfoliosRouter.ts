@@ -1186,7 +1186,12 @@ export const portfoliosRouter = router({
         const creationDate = portfolio.liveStartDate ? new Date(portfolio.liveStartDate) : null;
         
         // Live portfolios with transactions use real TWR calculation
-        const useLiveRealPerformance = isLivePortfolio && transactions.length > 0;
+        // DISABLED (24.06.2026): the transaction-based TWR path produced
+        // inconsistent/incorrect values (e.g. Regula 54%/0.91% vs. the correct
+        // weight-based 25%). Until the TWR engine is reliable, ALL portfolios use
+        // the weight-based historical series so the chart matches the YTD number
+        // (getMultiPeriodPerformanceV2). See chart==Zahl consistency work.
+        const useLiveRealPerformance = false && isLivePortfolio && transactions.length > 0;
         
         // For live portfolios, start from creation date (not before)
         if (useLiveRealPerformance && creationDate && startDate < creationDate) {
