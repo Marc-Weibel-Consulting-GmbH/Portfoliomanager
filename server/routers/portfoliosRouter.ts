@@ -1,6 +1,7 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
 
 // Helper to get YTD start date (January 1st of current year)
 function getYTDStartDate(): string {
@@ -1958,7 +1959,23 @@ export const portfoliosRouter = router({
         const maxDataPoints = 100;
         const sampleInterval = Math.max(1, Math.floor(sortedDates.length / maxDataPoints));
         const sampledDates = sortedDates.filter((_, idx) => idx % sampleInterval === 0 || idx === sortedDates.length - 1);
-        
+
+        // Compute the portfolio line with the SAME weighted per-stock formula as the
+        // displayed numbers (getMultiPeriodPerformanceV2), so the chart endpoint equals
+        // the YTD figure for every portfolio — including ones with an extreme mover.
+        // Uses portfolio weights + local prices, no clamping, no daily smoothing.
+        const weightedSeriesInputs = portfolioStocks
+          .filter((s: any) => s.ticker && s.ticker !== 'CASH')
+          .map((s: any) => ({
+            ticker: s.ticker,
+            weight: parseFloat(s.weight) || 0,
+            prices: pricesMap[s.ticker] || {},
+          }));
+        const weightedSeriesMap = new Map(
+          computeWeightedReturnSeries(weightedSeriesInputs, sampledDates, ytdStartDate)
+            .map((p) => [p.date, p.portfolio])
+        );
+
         // Process each sampled date
         for (const date of sampledDates) {
           // Apply any transactions on this date (for live portfolios)
@@ -2104,6 +2121,13 @@ export const portfoliosRouter = router({
               : 0;
           }
           
+          // Use the weighted per-stock series so the portfolio line is identical in
+          // methodology to the displayed numbers. Falls back to the legacy value only
+          // if the series has no entry for this date.
+          if (weightedSeriesMap.has(date)) {
+            portfolioPerformance = weightedSeriesMap.get(date) as number;
+          }
+
           // Calculate benchmark performance from actual prices (with forward-fill)
           let benchmarkCurrentPrice = parseFloat(String(benchmarkMap[date] || 0));
           // Forward-fill: if no benchmark price for this date, use last known price
@@ -2119,29 +2143,14 @@ export const portfoliosRouter = router({
             ? ((benchmarkCurrentPrice - benchmarkStartPrice) / benchmarkStartPrice) * 100
             : 0;
           
-          // Only add data point if we have valid performance data
-          // Skip dates where more than 30% of holdings have forward-filled prices
-          // This prevents large jumps due to market holidays (e.g., Swiss holidays)
-          const forwardFillRatio = totalHoldingsCount > 0 ? missingPriceCount / totalHoldingsCount : 0;
-          const hasEnoughData = forwardFillRatio < 0.3 || totalHoldingsCount === 0;
-          
-          // Detect and smooth unrealistic jumps (max 15% daily change)
-          const MAX_DAILY_CHANGE_PCT = 15; // 15% max daily change
-          const lastDataPoint = chartData.length > 0 ? chartData[chartData.length - 1] : null;
-          let smoothedPerformance = portfolioPerformance;
-          
-          if (lastDataPoint && hasEnoughData) {
-            const dailyChange = Math.abs(portfolioPerformance - lastDataPoint.portfolio);
-            if (dailyChange > MAX_DAILY_CHANGE_PCT) {
-              console.warn(`[HistoricalPerformance] ${date}: Large daily change ${dailyChange.toFixed(2)}%, smoothing`);
-              smoothedPerformance = lastDataPoint.portfolio + (portfolioPerformance > lastDataPoint.portfolio ? MAX_DAILY_CHANGE_PCT : -MAX_DAILY_CHANGE_PCT);
-            }
-          }
-          
-          if ((smoothedPerformance !== 0 || benchmarkPerformance !== 0) && hasEnoughData) {
+          // The portfolio line comes from the weighted per-stock series, which already
+          // forward-fills correctly and preserves legitimate large moves. No clamping or
+          // daily-change smoothing here — that previously flattened extreme movers and
+          // made the chart diverge from the displayed numbers.
+          if (portfolioPerformance !== 0 || benchmarkPerformance !== 0) {
             chartData.push({
               date,
-              portfolio: parseFloat(smoothedPerformance.toFixed(2)),
+              portfolio: parseFloat(portfolioPerformance.toFixed(2)),
               benchmark: parseFloat(benchmarkPerformance.toFixed(2)),
             });
           }
