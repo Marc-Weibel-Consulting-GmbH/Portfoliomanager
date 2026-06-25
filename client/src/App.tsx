@@ -132,6 +132,7 @@ function Router() {
 
       {/* ═══ EINSTELLUNGEN ═══ */}
       <Route path="/einstellungen" component={Einstellungen} />
+      <Route path="/settings" component={Einstellungen} />
       <Route path="/settings/notifications" component={NotificationSettings} />
 
       {/* ═══ ADMIN ═══ */}
@@ -202,6 +203,7 @@ function Router() {
         <Redirect to="/dashboard" />
       </Route>
       <Route path="/backtesting" component={StrategyBacktest} />
+      <Route path="/backtest" component={StrategyBacktest} />
       <Route path="/import">{() => <Import />}</Route>
       <Route path="/prediction">
         <Redirect to="/copilot" />

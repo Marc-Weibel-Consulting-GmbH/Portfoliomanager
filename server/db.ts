@@ -682,7 +682,9 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
             }
             
             // Try to get historical price for the live start date
-            let priceToUse = parseFloat(stock.currentPrice || stock.price || '0');
+            const rawPriceStr = stock.currentPrice || stock.price || '0';
+            let priceToUse = (rawPriceStr === 'NA' || rawPriceStr === 'N/A') ? 0 : parseFloat(rawPriceStr);
+            if (isNaN(priceToUse)) priceToUse = 0;
             
             try {
               const historicalPrice = await db
@@ -1407,9 +1409,10 @@ export async function activatePortfolio(
     for (const holding of holdings) {
       const weight = parseFloat(holding.weight || "0") / 100;
       const allocationAmount = capitalNum * weight;
-      const currentPrice = parseFloat(holding.currentPrice || "0");
+      const rawHoldingPrice = holding.currentPrice || '0';
+      const currentPrice = (rawHoldingPrice === 'NA' || rawHoldingPrice === 'N/A') ? 0 : parseFloat(rawHoldingPrice);
       
-      if (currentPrice > 0) {
+      if (!isNaN(currentPrice) && currentPrice > 0) {
         const shares = (allocationAmount / currentPrice).toFixed(6);
         
         transactions.push({
@@ -1607,8 +1610,9 @@ export async function calculatePortfolioMetrics(portfolioId: number, userId: num
     // Calculate current value from holdings
     for (const holding of holdings) {
       const shares = parseFloat(holding.shares || "0");
-      const currentPrice = parseFloat(holding.currentPrice || "0");
-      currentValue += shares * currentPrice;
+      const rawCp = holding.currentPrice || '0';
+      const currentPrice = (rawCp === 'NA' || rawCp === 'N/A') ? 0 : parseFloat(rawCp);
+      if (!isNaN(currentPrice)) currentValue += shares * currentPrice;
     }
 
     // Simple return calculation

@@ -1,6 +1,13 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 
+// Helper to safely parse float values - handles 'NA', null, undefined
+function safeParseFloat(value: string | null | undefined, fallback = 0): number {
+  if (!value || value === 'NA' || value === 'N/A' || value === 'null') return fallback;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? fallback : parsed;
+}
+
 // Helper to get YTD start date (January 1st of current year)
 function getYTDStartDate(): string {
   const now = new Date();
@@ -47,22 +54,23 @@ export const dashboardRouter = router({
           const stockData = await getStockByTicker(ticker);
           if (!stockData) continue;
           
-          const currentPrice = parseFloat(stockData.currentPrice || '0');
+          const currentPrice = safeParseFloat(stockData.currentPrice);
           const currency = stockData.currency || 'CHF';
           const weight = parseFloat(stock.weight || '0') / 100;
           
-          let shares = parseFloat(stock.shares || '0');
+          let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
             const allocationCHF = investmentAmount * weight;
             const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-            shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            shares = (priceCHF > 0 ? allocationCHF / priceCHF : 0) || 0;
           }
           
           const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-          totalValueCHF += shares * priceCHF;
+          const positionValue = (shares * priceCHF) || 0;
+          totalValueCHF += positionValue;
         }
         
-        const cashBalance = parseFloat(portfolio.cashBalance || '0');
+        const cashBalance = parseFloat(portfolio.cashBalance || '0') || 0;
         totalValueCHF += cashBalance;
         
         return totalValueCHF;
@@ -183,19 +191,20 @@ export const dashboardRouter = router({
           const ytdStartPrice = ytdPricesMap.get(ticker);
           if (!ytdStartPrice) continue;
           
-          let shares = parseFloat(stock.shares || '0');
+          let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
             // Calculate shares from weight and investment amount
             const allocationCHF = investmentAmount * weight;
             const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
-            shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            shares = (priceCHF > 0 ? allocationCHF / priceCHF : 0) || 0;
           }
           
           const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
-          totalValueAtDate += shares * priceCHF;
+          const posValue = (shares * priceCHF) || 0;
+          totalValueAtDate += posValue;
         }
         
-        const cashBalance = parseFloat(portfolio.cashBalance || '0');
+        const cashBalance = parseFloat(portfolio.cashBalance || '0') || 0;
         totalValueAtDate += cashBalance;
         
         return totalValueAtDate;
@@ -324,17 +333,17 @@ export const dashboardRouter = router({
     const avgDividendYield = stockCount > 0 ? totalDividendYield / stockCount : 0;
     
     return {
-      totalValue: totalValueCHF,
-      totalInvested: totalInvestedCHF,
-      totalPerformance: totalPerformanceCHF,
-      totalPerformancePercent: totalPerformancePercent,
-      totalDividends: totalDividendsCHF,
+      totalValue: isFinite(totalValueCHF) ? totalValueCHF : 0,
+      totalInvested: isFinite(totalInvestedCHF) ? totalInvestedCHF : 0,
+      totalPerformance: isFinite(totalPerformanceCHF) ? totalPerformanceCHF : 0,
+      totalPerformancePercent: isFinite(totalPerformancePercent) ? totalPerformancePercent : 0,
+      totalDividends: isFinite(totalDividendsCHF) ? totalDividendsCHF : 0,
       portfolioCount: portfolios.length,
       livePortfolioCount: livePortfolios.length,
-      benchmarkPerformance: benchmarkPerformance,
-      benchmarkSmiYtd: benchmarkSmiYtd,
-      benchmarkMsciYtd: benchmarkMsciYtd,
-      avgDividendYield: avgDividendYield,
+      benchmarkPerformance: isFinite(benchmarkPerformance) ? benchmarkPerformance : 0,
+      benchmarkSmiYtd: isFinite(benchmarkSmiYtd) ? benchmarkSmiYtd : 0,
+      benchmarkMsciYtd: isFinite(benchmarkMsciYtd) ? benchmarkMsciYtd : 0,
+      avgDividendYield: isFinite(avgDividendYield) ? avgDividendYield : 0,
     };
   }),
   
@@ -345,6 +354,7 @@ export const dashboardRouter = router({
     const { convertToCHF } = await import("../fxHelper");
     
     const portfolios = await getSavedPortfolios(ctx.user.id);
+    console.log(`[getTopPortfolios] userId=${ctx.user.id}, found ${portfolios.length} portfolios`);
     if (portfolios.length === 0) return [];
 
     const ytdStartDate = getYTDStartDate();
@@ -410,7 +420,7 @@ export const dashboardRouter = router({
             const stock = stocksMap.get(ticker) as any;
             if (!stock) continue;
             const currency = stock.currency || 'CHF';
-            const currentPrice = parseFloat(stock.currentPrice || '0');
+            const currentPrice = safeParseFloat(stock.currentPrice);
             const ytdStartPrice = ytdPricesMap.get(ticker);
             const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
             portfolioValueCHF += shares * currentPriceCHF;
@@ -437,7 +447,7 @@ export const dashboardRouter = router({
             if (!ticker) continue;
             const stockData = stocksMap.get(ticker) as any;
             if (!stockData) continue;
-            const currentPrice = parseFloat(stockData.currentPrice || '0');
+            const currentPrice = safeParseFloat(stockData.currentPrice);
             const currency = stockData.currency || 'CHF';
             const weight = parseFloat(stock.weight || '0') / 100;
             let shares = parseFloat(stock.shares || '0');
@@ -456,14 +466,37 @@ export const dashboardRouter = router({
           }
         }
 
+        // Count positions
+        let positionCount = 0;
+        if (isLive) {
+          const transactions = transactionsByPortfolio.get(portfolio.id) || [];
+          const holdings: Record<string, number> = {};
+          transactions.forEach((tx: any) => {
+            const shares = parseFloat(tx.shares || '0');
+            const ticker = tx.ticker;
+            if (!ticker) return;
+            if (tx.transactionType === 'buy') holdings[ticker] = (holdings[ticker] || 0) + shares;
+            else if (tx.transactionType === 'sell') holdings[ticker] = (holdings[ticker] || 0) - shares;
+          });
+          positionCount = Object.values(holdings).filter(s => s > 0).length;
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            positionCount = stocks.length;
+          } catch {}
+        }
+
         portfolioMetrics.push({
           id: portfolio.id,
           name: portfolio.name,
           description: portfolio.description,
           isLive,
-          value: portfolioValueCHF,
-          performance: Number(performancePercent.toFixed(2)),
-          performanceCHF: Number((portfolioValueCHF - parseFloat(portfolio.investmentAmount || '0')).toFixed(2)),
+          value: isFinite(portfolioValueCHF) ? portfolioValueCHF : 0,
+          performance: isFinite(performancePercent) ? Number(performancePercent.toFixed(2)) : 0,
+          performanceCHF: isFinite(portfolioValueCHF) ? Number((portfolioValueCHF - parseFloat(portfolio.investmentAmount || '0')).toFixed(2)) : 0,
+          positionCount,
+          strategy: (portfolio as any).strategy || null,
         });
       } catch (error) {
         console.error(`[dashboard.getTopPortfolios] Error for portfolio ${portfolio.id}:`, error);
@@ -1034,7 +1067,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1062,7 +1095,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;
@@ -1078,9 +1111,17 @@ export const dashboardRouter = router({
         const ytdStartPrice = ytdPricesMap.get(ticker) as number | undefined;
         const ytd = ytdStartPrice && ytdStartPrice > 0 ? ((currentPrice - ytdStartPrice) / ytdStartPrice) * 100 : 0;
 
-        // 1d change from previousClose or ytdPerformance
-        const prevClose = parseFloat(stock.week52Low || '0'); // approximate
-        const change1d = stock.ytdPerformance ? parseFloat(stock.ytdPerformance) / 252 : 0; // rough daily
+        // 1d change: use ytdPerformance as a rough proxy if no real-time data
+        // The real-time change will be fetched via EODHD in getHoldings1dChange below
+        let change1d = 0;
+        if (stock.ytdPerformance) {
+          // Rough daily: ytd% / trading days elapsed this year
+          const now = new Date();
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          const daysSinceYearStart = Math.max(1, Math.floor((now.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)));
+          const tradingDays = Math.floor(daysSinceYearStart * 5 / 7); // approximate
+          change1d = parseFloat(stock.ytdPerformance) / Math.max(tradingDays, 1);
+        }
 
         holdings.push({
           ticker,
@@ -1106,6 +1147,23 @@ export const dashboardRouter = router({
           weight: 0, value: totalCash, shares: 0, currentPrice: 1, currency: 'CHF',
           change1d: 0, ytd: 0,
         });
+      }
+
+      // Fetch real-time 1d change from EODHD for top holdings (limit to avoid rate limits)
+      try {
+        const { fetchEODHDRealTime } = await import("../_core/eodhdApi");
+        const tickersToFetch = holdings.filter(h => h.ticker !== 'CASH').slice(0, 20);
+        const realTimeResults = await Promise.allSettled(
+          tickersToFetch.map(h => fetchEODHDRealTime(h.ticker))
+        );
+        for (let i = 0; i < tickersToFetch.length; i++) {
+          const result = realTimeResults[i];
+          if (result.status === 'fulfilled' && result.value.changePercent !== null) {
+            tickersToFetch[i].change1d = Number(result.value.changePercent.toFixed(2));
+          }
+        }
+      } catch (e) {
+        // Silently fall back to approximation
       }
 
       // Calculate weights
@@ -1209,7 +1267,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1232,7 +1290,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;
@@ -1346,7 +1404,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1368,7 +1426,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;
@@ -1502,7 +1560,7 @@ export const dashboardRouter = router({
             const stockDef = stocks.find((s: any) => s.ticker === dh.ticker);
             const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
             const allocationCHF = investmentAmount * weight;
-            const currentPrice = parseFloat(stock.currentPrice || '0');
+            const currentPrice = safeParseFloat(stock.currentPrice);
             const currency = stock.currency || 'CHF';
             const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
             shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
@@ -1660,7 +1718,7 @@ export const dashboardRouter = router({
         if (shares <= 0) continue;
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const price = parseFloat(stock.currentPrice || '0');
+        const price = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(price, currency, todayStr);
         const val = shares * priceCHF;
@@ -1813,7 +1871,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1835,7 +1893,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;

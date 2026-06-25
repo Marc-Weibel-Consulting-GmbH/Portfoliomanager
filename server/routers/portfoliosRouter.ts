@@ -3,6 +3,13 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
 
+// Helper to safely parse float values - handles 'NA', null, undefined
+function safeParseFloat(value: string | null | undefined, fallback = 0): number {
+  if (!value || value === 'NA' || value === 'N/A' || value === 'null') return fallback;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? fallback : parsed;
+}
+
 // Helper to get YTD start date (January 1st of current year)
 function getYTDStartDate(): string {
   const now = new Date();
@@ -41,7 +48,9 @@ export const portfoliosRouter = router({
             const stockData = await getStockByTicker(ticker);
             if (!stockData) continue;
             
-            const currentPrice = parseFloat(stockData.currentPrice || '0');
+            const rawPrice = stockData.currentPrice;
+            const currentPrice = (rawPrice && rawPrice !== 'NA') ? parseFloat(rawPrice) : 0;
+            if (isNaN(currentPrice) || currentPrice <= 0) continue;
             const currency = stockData.currency || 'CHF';
             const weight = parseFloat(stock.weight || '0') / 100;
             
@@ -183,7 +192,7 @@ export const portfoliosRouter = router({
                 if (!stock) continue;
                 
                 const currency = stock.currency || 'CHF';
-                const currentPrice = parseFloat(stock.currentPrice || '0');
+                const currentPrice = safeParseFloat(stock.currentPrice);
                 const ytdStartPrice = ytdPricesMap.get(ticker);
                 
                 if (ytdStartPrice) {
@@ -256,7 +265,7 @@ export const portfoliosRouter = router({
             // Single source of truth: DB price + convertToCHF — identical to
             // portfolios.list and dashboard.getAggregatedMetrics so the WERT
             // matches across list, detail and dashboard.
-            const currentPrice = parseFloat(dbStock?.currentPrice || stock.currentPrice || '0');
+            const currentPrice = safeParseFloat(dbStock?.currentPrice || stock.currentPrice);
             const priceCHF = currency === 'CHF' ? currentPrice : await convertToCHF(currentPrice, currency, todayStr);
             const fxRate = currentPrice > 0 ? priceCHF / currentPrice : 1;
             
@@ -973,7 +982,7 @@ export const portfoliosRouter = router({
           if (!stock) continue;
           
           const currency = stock.currency || 'CHF';
-          const currentPrice = parseFloat(stock.currentPrice || '0');
+          const currentPrice = safeParseFloat(stock.currentPrice);
           const ytdStartPrice = await getHistoricalPrice(ticker, ytdStartDate) || currentPrice;
           
           const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
@@ -2586,7 +2595,7 @@ export const portfoliosRouter = router({
                   const stockData = await getStockByTicker(stock.ticker);
                   if (!stockData) continue;
                   
-                  const currentPrice = parseFloat(stockData.currentPrice || '0');
+                  const currentPrice = safeParseFloat(stockData.currentPrice);
                   const currency = stockData.currency || 'CHF';
                   const weight = parseFloat(stock.weight || '0') / 100;
                   
@@ -2616,7 +2625,7 @@ export const portfoliosRouter = router({
                     const stockData = await getStockByTicker(stock.ticker);
                     if (!stockData) continue;
                     
-                    const currentPrice = parseFloat(stockData.currentPrice || '0');
+                    const currentPrice = safeParseFloat(stockData.currentPrice);
                     const currency = stockData.currency || 'CHF';
                     const weight = parseFloat(stock.weight || '0') / 100;
                     

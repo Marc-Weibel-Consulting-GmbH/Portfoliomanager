@@ -1,22 +1,28 @@
 // Number formatters — match the patterns already used in UserDashboard.tsx
 // so the new dashboard reads consistently with the rest of the app.
 
-export const formatCHF = (value: number, decimals = 0) =>
-  new Intl.NumberFormat("de-CH", {
+export const formatCHF = (value: number | undefined | null, decimals = 0) => {
+  const v = typeof value === 'number' && isFinite(value) ? value : 0;
+  return new Intl.NumberFormat("de-CH", {
     style: "currency",
     currency: "CHF",
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(value);
+  }).format(v);
+};
 
-export const formatPercent = (value: number, decimals = 2) =>
-  `${value >= 0 ? "+" : ""}${value.toFixed(decimals)}%`;
+export const formatPercent = (value: number | undefined | null, decimals = 2) => {
+  const v = typeof value === 'number' && isFinite(value) ? value : 0;
+  return `${v >= 0 ? "+" : ""}${v.toFixed(decimals)}%`;
+};
 
-export const formatNumber = (value: number, decimals = 0) =>
-  new Intl.NumberFormat("de-CH", {
+export const formatNumber = (value: number | undefined | null, decimals = 0) => {
+  const v = typeof value === 'number' && isFinite(value) ? value : 0;
+  return new Intl.NumberFormat("de-CH", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(value);
+  }).format(v);
+};
 
 export const formatDate = (date: Date = new Date()) =>
   date.toLocaleDateString("de-CH", {

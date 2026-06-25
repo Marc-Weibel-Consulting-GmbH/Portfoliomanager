@@ -42,8 +42,9 @@ export const stocksRouter = router({
         const weight = parseFloat(stock.portfolioWeight || '0');
         if (weight === 0) continue;
         
-        const currentPrice = parseFloat(stock.currentPrice || '0');
-        if (currentPrice === 0) continue;
+        const rawStkPrice = stock.currentPrice || '0';
+        const currentPrice = (rawStkPrice === 'NA' || rawStkPrice === 'N/A') ? 0 : parseFloat(rawStkPrice);
+        if (isNaN(currentPrice) || currentPrice === 0) continue;
         
         // Get yesterday's closing price
         const { desc } = await import("drizzle-orm");

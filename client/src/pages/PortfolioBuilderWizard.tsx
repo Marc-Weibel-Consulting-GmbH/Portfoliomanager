@@ -142,6 +142,7 @@ export default function PortfolioBuilderWizard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState("");
   const [selectedPrice, setSelectedPrice] = useState("");
+  const [perStockInputs, setPerStockInputs] = useState<Record<string, { quantity: string; price: string }>>({});
   
   // Step 4: Live Tracking
   const [isLive, setIsLive] = useState(false);
@@ -169,9 +170,17 @@ export default function PortfolioBuilderWizard() {
     return matchesSearch;
   });
   
+  const getStockInput = (ticker: string, field: 'quantity' | 'price') => {
+    return perStockInputs[ticker]?.[field] || '';
+  };
+  const setStockInput = (ticker: string, field: 'quantity' | 'price', value: string) => {
+    setPerStockInputs(prev => ({ ...prev, [ticker]: { ...prev[ticker], [field]: value } }));
+  };
+
   const handleAddStock = (stock: typeof allStocks[0]) => {
-    const quantity = parseFloat(selectedQuantity);
-    const price = parseFloat(selectedPrice);
+    const inputs = perStockInputs[stock.ticker] || { quantity: '', price: '' };
+    const quantity = parseFloat(inputs.quantity);
+    const price = parseFloat(inputs.price);
     
     if (!quantity || quantity <= 0) {
       toast.error("Bitte geben Sie eine gültige Anzahl ein");
@@ -199,8 +208,11 @@ export default function PortfolioBuilderWizard() {
       },
     ]);
     
-    setSelectedQuantity("");
-    setSelectedPrice("");
+    setPerStockInputs(prev => {
+      const next = { ...prev };
+      delete next[stock.ticker];
+      return next;
+    });
     setSearchQuery("");
     toast.success(`${stock.ticker} hinzugefügt`);
   };
@@ -672,8 +684,8 @@ export default function PortfolioBuilderWizard() {
                                     <Input
                                       type="number"
                                       placeholder="10"
-                                      value={selectedQuantity}
-                                      onChange={(e) => setSelectedQuantity(e.target.value)}
+                                      value={getStockInput(stock.ticker, 'quantity')}
+                                      onChange={(e) => setStockInput(stock.ticker, 'quantity', e.target.value)}
                                       className="w-20"
                                     />
                                   </div>
@@ -682,8 +694,8 @@ export default function PortfolioBuilderWizard() {
                                     <Input
                                       type="number"
                                       placeholder={stock.currentPrice || "100"}
-                                      value={selectedPrice}
-                                      onChange={(e) => setSelectedPrice(e.target.value)}
+                                      value={getStockInput(stock.ticker, 'price')}
+                                      onChange={(e) => setStockInput(stock.ticker, 'price', e.target.value)}
                                       className="w-24"
                                     />
                                   </div>
