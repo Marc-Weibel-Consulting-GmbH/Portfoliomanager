@@ -18,7 +18,8 @@
     "backfill:prices": "tsx scripts/backfillPrices.ts",
     "backfill:all": "tsx scripts/backfill-all.ts",
     "repopulate:logos": "tsx scripts/repopulate-logos.ts",
-    "check:redis": "tsx scripts/check-redis.ts"
+    "check:redis": "tsx scripts/check-redis.ts",
+    "ml:train": "tsx scripts/run-ml-training.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
