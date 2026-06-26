@@ -514,6 +514,9 @@ export default function PortfolioDetailsPage() {
                   <p className="text-xs text-gray-500 mt-1">
                     S&amp;P 500 {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
                   </p>
+                  <p className="text-[9px] text-gray-600 mt-1">
+                    in CHF · gewichtete Rendite · {includeCash ? 'inkl. Cash' : 'nur Aktien'}
+                  </p>
                 </>
               );
             })()}
