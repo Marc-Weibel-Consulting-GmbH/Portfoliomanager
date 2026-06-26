@@ -2,8 +2,8 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
-import { convertPriceMapToChf } from "../lib/fxPriceConvert";
 import { applyCashDrag } from "../lib/cashAdjust";
+import { toChfPriceMap as toChfPriceMapCore, deriveStocksValueChf } from "../lib/performanceCore";
 
 // Helper to get YTD start date (January 1st of current year)
 function getYTDStartDate(): string {
@@ -1075,19 +1075,11 @@ export const portfoliosRouter = router({
         const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
         const { convertToCHF, getFxRate } = await import("../fxHelper");
 
-        // Reporting currency is CHF: convert a local-currency price map to CHF using
-        // per-date FX rates (forward-filled). Used for both the portfolio line and the
-        // benchmark line so the whole chart is in CHF (consistent with the numbers).
-        const toChfChartMap = async (
-          priceMap: Record<string, number>,
-          currency: string,
-        ): Promise<Record<string, number>> => {
-          if (!currency || currency === 'CHF') return priceMap;
-          const pair = `${currency}CHF`;
-          const ratesByDate: Record<string, number> = {};
-          for (const d of Object.keys(priceMap)) ratesByDate[d] = await getFxRate(d, pair);
-          return convertPriceMapToChf(priceMap, ratesByDate);
-        };
+        // Reporting currency is CHF: convert local-currency price maps to CHF (per-date
+        // FX) via the shared performanceCore helper, used for both the portfolio and
+        // benchmark lines so the whole chart is in CHF (consistent with the numbers).
+        const toChfChartMap = (priceMap: Record<string, number>, currency: string) =>
+          toChfPriceMapCore(priceMap, currency, getFxRate);
 
         const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
         if (!portfolio) {
@@ -2002,18 +1994,17 @@ export const portfoliosRouter = router({
         // Current cash weight for the optional total-portfolio (incl. cash) line.
         const chartInvestmentAmount = parseFloat((portfolio as any).investmentAmount || '0');
         const chartCashBalance = parseFloat((portfolio as any).cashBalance || '0');
-        let chartStocksValueCHF = 0;
-        for (const inp of weightedSeriesInputs) {
-          const ds = Object.keys(inp.prices).sort((a, b) => a.localeCompare(b));
-          const latest = ds.length ? inp.prices[ds[ds.length - 1]] : 0;
-          const raw = weightedSeriesStocks.find((s: any) => s.ticker === inp.ticker);
-          const rawWeight = parseFloat(raw?.weight || '0');
-          let sh = parseFloat(raw?.shares || '0');
-          if (sh === 0 && chartInvestmentAmount > 0 && rawWeight > 0 && latest > 0) {
-            sh = (chartInvestmentAmount * (rawWeight / 100)) / latest;
-          }
-          chartStocksValueCHF += sh * latest;
-        }
+        const chartStocksValueCHF = deriveStocksValueChf(
+          weightedSeriesInputs.map((inp) => {
+            const raw = weightedSeriesStocks.find((s: any) => s.ticker === inp.ticker);
+            return {
+              chfPrices: inp.prices,
+              rawWeight: parseFloat(raw?.weight || '0'),
+              shares: parseFloat(raw?.shares || '0') || undefined,
+            };
+          }),
+          chartInvestmentAmount,
+        );
         const { cashWeight: chartCashWeight } = applyCashDrag(0, chartStocksValueCHF, chartCashBalance);
 
         // Process each sampled date
@@ -2814,18 +2805,10 @@ export const portfoliosRouter = router({
       const { historicalPrices } = await import("../../drizzle/schema");
       const { eq, and, gte, lte, asc, desc } = await import("drizzle-orm");
 
-      // Reporting currency is CHF: convert a local-currency price map to CHF using
-      // per-date FX rates (forward-filled). All performance numbers below are CHF.
-      const toChfPriceMap = async (
-        priceMap: Record<string, number>,
-        currency: string,
-      ): Promise<Record<string, number>> => {
-        if (!currency || currency === 'CHF') return priceMap;
-        const pair = `${currency}CHF`;
-        const ratesByDate: Record<string, number> = {};
-        for (const d of Object.keys(priceMap)) ratesByDate[d] = await getFxRate(d, pair);
-        return convertPriceMapToChf(priceMap, ratesByDate);
-      };
+      // Reporting currency is CHF: convert local-currency price maps to CHF (per-date
+      // FX) via the shared performanceCore helper. All performance numbers below are CHF.
+      const toChfPriceMap = (priceMap: Record<string, number>, currency: string) =>
+        toChfPriceMapCore(priceMap, currency, getFxRate);
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       const db = await getDb();
@@ -2983,17 +2966,19 @@ export const portfoliosRouter = router({
               }
               // Convert to CHF so the weighted return is a true CHF return (incl. FX).
               stockPrices[ticker] = await toChfPriceMap(localPrices, stockData[ticker].currency);
-
-              // Accumulate current CHF stock value (for the cash-drag figure).
-              const chfDates = Object.keys(stockPrices[ticker]).sort((a, b) => a.localeCompare(b));
-              const latestChf = chfDates.length ? stockPrices[ticker][chfDates[chfDates.length - 1]] : 0;
-              const rawWeight = parseFloat(stock.weight || '0');
-              let shares = parseFloat(stock.shares || '0');
-              if (shares === 0 && investmentAmount > 0 && rawWeight > 0 && latestChf > 0) {
-                shares = (investmentAmount * (rawWeight / 100)) / latestChf;
-              }
-              stocksValueCHF += shares * latestChf;
             }
+
+            // Current CHF stock value (for the optional cash-drag figure).
+            stocksValueCHF = deriveStocksValueChf(
+              stocks
+                .filter((s: any) => s.ticker && s.ticker !== 'CASH')
+                .map((s: any) => ({
+                  chfPrices: stockPrices[s.ticker] || {},
+                  rawWeight: parseFloat(s.weight || '0'),
+                  shares: parseFloat(s.shares || '0') || undefined,
+                })),
+              investmentAmount,
+            );
 
             // Calculate performance for each period
             const portfolioPerformance: Record<string, number> = {};
