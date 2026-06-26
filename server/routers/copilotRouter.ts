@@ -229,7 +229,7 @@ export const copilotRouter = router({
       }
 
       // Run copilot analysis
-      const analysis = runCopilotAnalysis(holdings);
+      const analysis = await runCopilotAnalysis(holdings);
 
       // Override portfolioMetrics with the canonical calcRiskMetrics from analytics engine
       // This ensures consistency with the Risiko-Analyse page
@@ -352,7 +352,7 @@ export const copilotRouter = router({
         }
       }
 
-      const rankings = calculateRankings(holdings);
+      const rankings = await calculateRankings(holdings);
       return { error: null, rankings };
     }),
 
@@ -447,7 +447,7 @@ export const copilotRouter = router({
 
       // Run backtest
       try {
-        const backtestResult = runCopilotBacktest(allPrices, tickers, {
+        const backtestResult = await runCopilotBacktest(allPrices, tickers, {
           months: input.months,
           tradingCostBps: input.tradingCostBps,
           maxTurnoverPerMonth: input.maxTurnoverPerMonth,

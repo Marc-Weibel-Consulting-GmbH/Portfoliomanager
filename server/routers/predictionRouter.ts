@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { generatePricePrediction, randomForestSignal } from '../analytics/mlEngine';
+import { signalForSeries, getActiveSignalModel } from '../analytics/signalService';
 import { analyzeSentiment, batchSentimentAnalysis, sentimentToSignalScore } from '../analytics/sentimentEngine';
 import { detectBubble, calculatePortfolioBubbleExposure } from '../analytics/lpplsEngine';
 import YahooFinance from 'yahoo-finance2';
@@ -70,8 +71,8 @@ export const predictionRouter = router({
         // Generate predictions
         const prediction = generatePricePrediction(input.ticker, prices, currentPrice);
         
-        // Generate Random Forest signal
-        const rfSignal = randomForestSignal(prices, volumes, fundamentals);
+        // Generate signal: active GB model if promoted, else RandomForest fallback.
+        const rfSignal = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, volumes, fundamentals), 'gb_signal', prices);
         
         return {
           error: null,
@@ -124,7 +125,7 @@ export const predictionRouter = router({
             } catch (e) {}
             
             const prediction = generatePricePrediction(input.ticker, prices, currentPrice);
-            const rfSignal = randomForestSignal(prices, volumes, fundamentals);
+            const rfSignal = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, volumes, fundamentals), 'gb_signal', prices);
             
             return {
               error: null,
@@ -346,7 +347,7 @@ export const predictionRouter = router({
           
           const currentPrice = prices[prices.length - 1];
           const prediction = generatePricePrediction(ticker, prices, currentPrice);
-          const rfSignal = randomForestSignal(prices, volumes, {});
+          const rfSignal = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, volumes, {}), 'gb_signal', prices);
           
           results.push({
             ticker,
