@@ -133,6 +133,12 @@ export const dashboardRouter = router({
     // OPTIMIZATION: Batch load ALL historical prices in ONE query
     const ytdPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), ytdStartDate);
     
+    // Load yesterday's prices for dayChange calculation
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), yesterdayStr);
+    
     // OPTIMIZATION: Pre-warm FX cache
     const uniqueCurrencies = new Set<string>();
     for (const stock of Array.from(stocksMap.values())) {
@@ -164,11 +170,12 @@ export const dashboardRouter = router({
     
     let totalValueCHF = 0;
     let totalValueYTDStartCHF = 0;
+    let totalValueYesterdayCHF = 0;
     let totalDividendsCHF = 0;
     let totalInvestedCHF = 0;
     
     // Helper: Calculate portfolio value at YTD start date using historical prices
-    const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string): Promise<number> => {
+    const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string, pricesMap?: Map<string, number>): Promise<number> => {
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         const stocks = portfolioData.stocks || portfolioData.positions || [];
@@ -176,6 +183,7 @@ export const dashboardRouter = router({
         
         let totalValueAtDate = 0;
         const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+        const usePricesMap = pricesMap || ytdPricesMap;
         
         for (const stock of stocks) {
           const ticker = stock.ticker;
@@ -188,18 +196,18 @@ export const dashboardRouter = router({
           const weight = parseFloat(stock.weight || '0') / 100;
           
           // Get historical price at the given date
-          const ytdStartPrice = ytdPricesMap.get(ticker);
-          if (!ytdStartPrice) continue;
+          const historicalPrice = usePricesMap.get(ticker);
+          if (!historicalPrice) continue;
           
           let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
             // Calculate shares from weight and investment amount
             const allocationCHF = investmentAmount * weight;
-            const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
+            const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
             shares = (priceCHF > 0 ? allocationCHF / priceCHF : 0) || 0;
           }
           
-          const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
+          const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
           const posValue = (shares * priceCHF) || 0;
           totalValueAtDate += posValue;
         }
@@ -236,8 +244,12 @@ export const dashboardRouter = router({
       // If we couldn't get historical prices, fall back to investmentAmount
       const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
       
+      // Calculate yesterday value for dayChange
+      const portfolioValueYesterdayCHF = await calculatePortfolioValueAtDate(portfolio, yesterdayStr, yesterdayPricesMap);
+      
       totalValueCHF += portfolioValueCHF;
       totalValueYTDStartCHF += portfolioValueYTDStartCHF;
+      totalValueYesterdayCHF += portfolioValueYesterdayCHF > 0 ? portfolioValueYesterdayCHF : portfolioValueCHF;
       totalInvestedCHF += investmentAmount;
     }
     
@@ -250,8 +262,12 @@ export const dashboardRouter = router({
       const ytdStartValue = await calculatePortfolioValueAtDate(portfolio, ytdStartDate);
       const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
       
+      // Calculate yesterday value for dayChange
+      const portfolioValueYesterdayCHF = await calculatePortfolioValueAtDate(portfolio, yesterdayStr, yesterdayPricesMap);
+      
       totalValueCHF += portfolioValueCHF;
       totalValueYTDStartCHF += portfolioValueYTDStartCHF;
+      totalValueYesterdayCHF += portfolioValueYesterdayCHF > 0 ? portfolioValueYesterdayCHF : portfolioValueCHF;
       totalInvestedCHF += investmentAmount;
     }
     
@@ -332,6 +348,10 @@ export const dashboardRouter = router({
     
     const avgDividendYield = stockCount > 0 ? totalDividendYield / stockCount : 0;
     
+    // Calculate day change
+    const dayChangeCHF = totalValueCHF - totalValueYesterdayCHF;
+    const dayChangePercent = totalValueYesterdayCHF > 0 ? (dayChangeCHF / totalValueYesterdayCHF) * 100 : 0;
+    
     return {
       totalValue: isFinite(totalValueCHF) ? totalValueCHF : 0,
       totalInvested: isFinite(totalInvestedCHF) ? totalInvestedCHF : 0,
@@ -344,6 +364,8 @@ export const dashboardRouter = router({
       benchmarkSmiYtd: isFinite(benchmarkSmiYtd) ? benchmarkSmiYtd : 0,
       benchmarkMsciYtd: isFinite(benchmarkMsciYtd) ? benchmarkMsciYtd : 0,
       avgDividendYield: isFinite(avgDividendYield) ? avgDividendYield : 0,
+      dayChange: isFinite(dayChangeCHF) ? dayChangeCHF : 0,
+      dayChangePercent: isFinite(dayChangePercent) ? dayChangePercent : 0,
     };
   }),
   
@@ -438,10 +460,15 @@ export const dashboardRouter = router({
             performancePercent = ((currentValueForPerf - ytdStartValueCHF) / ytdStartValueCHF) * 100;
           }
         } else {
-          // Demo portfolio: calculate from portfolioData
+          // Demo portfolio: calculate from portfolioData using historical prices for YTD
           const pd = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = pd.stocks || pd.positions || [];
           const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          
+          let currentValueForPerf = 0;
+          let ytdStartValueCHF = 0;
+          let hasHistoricalData = false;
+          
           for (const stock of stocks) {
             const ticker = stock.ticker;
             if (!ticker) continue;
@@ -450,18 +477,41 @@ export const dashboardRouter = router({
             const currentPrice = safeParseFloat(stockData.currentPrice);
             const currency = stockData.currency || 'CHF';
             const weight = parseFloat(stock.weight || '0') / 100;
+            
+            // Determine shares: use stored shares, or derive from investmentAmount+weight
             let shares = parseFloat(stock.shares || '0');
-            if (shares === 0 && investmentAmount > 0 && weight > 0) {
-              const allocationCHF = investmentAmount * weight;
-              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-              shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            const ytdStartPrice = ytdPricesMap.get(ticker);
+            
+            if (shares === 0 && weight > 0) {
+              // Derive shares from YTD start price (so performance is normalized to YTD start)
+              if (ytdStartPrice) {
+                const ytdPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                const allocationCHF = investmentAmount > 0 ? investmentAmount * weight : 100000 * weight;
+                shares = ytdPriceCHF > 0 ? allocationCHF / ytdPriceCHF : 0;
+              } else if (investmentAmount > 0) {
+                const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                const allocationCHF = investmentAmount * weight;
+                shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              }
             }
-            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-            portfolioValueCHF += shares * priceCHF;
+            
+            const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            portfolioValueCHF += shares * currentPriceCHF;
+            currentValueForPerf += shares * currentPriceCHF;
+            
+            if (ytdStartPrice && shares > 0) {
+              hasHistoricalData = true;
+              const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+              ytdStartValueCHF += shares * ytdStartPriceCHF;
+            }
           }
           const cashBalance = parseFloat(portfolio.cashBalance || '0');
           portfolioValueCHF += cashBalance;
-          if (investmentAmount > 0) {
+          
+          // Use historical YTD performance if available, otherwise fall back to investmentAmount
+          if (hasHistoricalData && ytdStartValueCHF > 0) {
+            performancePercent = ((currentValueForPerf - ytdStartValueCHF) / ytdStartValueCHF) * 100;
+          } else if (investmentAmount > 0) {
             performancePercent = ((portfolioValueCHF - investmentAmount) / investmentAmount) * 100;
           }
         }

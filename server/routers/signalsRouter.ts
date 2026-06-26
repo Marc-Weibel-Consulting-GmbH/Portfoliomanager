@@ -54,6 +54,10 @@ interface Signal {
   qualityScore?: number;
   momentumGrade?: string;
   momentumScore?: number;
+  // Combined Momentum+Quality+LPPL score (same model as tradingview.stockScoring)
+  combinedScore?: number;
+  combinedSignal?: string;
+  overallGrade?: string;
 }
 
 // Per-stock timeout: 12 seconds max per individual stock processing
@@ -571,6 +575,35 @@ async function processStock(
         }
       } catch (e) {
         // Momentum scoring failed silently
+      }
+    }
+
+    // Step 8a: Compute combined Momentum+Quality+LPPL score (same formula as tradingview.stockScoring)
+    // This ensures consistency between the Signals page and StockDetail page
+    if (signal.momentumScore !== undefined && signal.qualityScore !== undefined) {
+      try {
+        const mNorm = (signal.momentumScore + 1) / 2; // -1..1 → 0..1
+        const qNorm = (signal.qualityScore + 1) / 2;  // -1..1 → 0..1
+        const bScore = signal.bubbleScore ?? 0;
+        const bRegime = signal.bubbleRegime ?? 'normal';
+        const lpplPenalty = bRegime === 'bubble' ? bScore * 0.5 : 0;
+        const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+        signal.combinedScore = parseFloat((combined * 100).toFixed(1));
+        signal.overallGrade = combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F';
+        signal.combinedSignal = combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL';
+        // Override the legacy signal type with the combined model for consistency
+        if (signal.combinedSignal === 'STRONG BUY' || signal.combinedSignal === 'BUY') {
+          signal.type = 'buy';
+          signal.strength = signal.combinedSignal === 'STRONG BUY' ? 'strong' : 'moderate';
+        } else if (signal.combinedSignal === 'STRONG SELL' || signal.combinedSignal === 'SELL') {
+          signal.type = 'sell';
+          signal.strength = signal.combinedSignal === 'STRONG SELL' ? 'strong' : 'moderate';
+        } else {
+          signal.type = 'hold';
+          signal.strength = 'moderate';
+        }
+      } catch (e) {
+        // Combined scoring failed silently
       }
     }
 
