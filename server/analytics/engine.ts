@@ -32,6 +32,7 @@ import {
   alignReturnsByDate,
   type DatedReturns,
 } from "./riskStats";
+import { getFxRate, getStockCurrency } from "../fxHelper";
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
 
@@ -178,6 +179,7 @@ async function fetchReturns(
 async function fetchReturnsWithDates(
   tickers: string[],
   lookbackDays: number,
+  currencyByTicker: { [ticker: string]: string } = {},
 ): Promise<{ [ticker: string]: DatedReturns }> {
   const normalizedMap: { [orig: string]: string } = {};
   for (const t of tickers) {
@@ -220,10 +222,20 @@ async function fetchReturnsWithDates(
   for (const orig of tickers) {
     const s = seriesByNorm[normalizedMap[orig]];
     if (s && s.prices.length > 1) {
+      // Convert prices to CHF (reporting currency) before computing returns, so risk
+      // metrics include FX volatility for a CHF investor. Uses per-date FX rates.
+      let prices = s.prices;
+      const currency = currencyByTicker[orig];
+      if (currency && currency !== "CHF") {
+        const pair = `${currency}CHF`;
+        prices = await Promise.all(
+          s.prices.map(async (p, i) => p * (await getFxRate(s.dates[i], pair))),
+        );
+      }
       const dates: string[] = [];
       const returns: number[] = [];
-      for (let i = 1; i < s.prices.length; i++) {
-        returns.push((s.prices[i] - s.prices[i - 1]) / s.prices[i - 1]);
+      for (let i = 1; i < prices.length; i++) {
+        returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
         dates.push(s.dates[i]);
       }
       out[orig] = { dates, returns };
@@ -449,7 +461,17 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
   const weights = totalW > 0 ? rawWeights.map((w) => w / totalW) : rawWeights;
 
   const allTickers = Array.from(new Set([...tickers, benchmark]));
-  const datedMap = await fetchReturnsWithDates(allTickers, lookbackDays);
+
+  // Resolve each ticker's quote currency so returns can be computed in CHF.
+  const currencyByTicker: { [ticker: string]: string } = {};
+  for (const h of holdings) {
+    currencyByTicker[h.ticker] = h.currency || (await getStockCurrency(h.ticker));
+  }
+  if (!currencyByTicker[benchmark]) {
+    currencyByTicker[benchmark] = await getStockCurrency(benchmark);
+  }
+
+  const datedMap = await fetchReturnsWithDates(allTickers, lookbackDays, currencyByTicker);
 
   const available = tickers.filter((t) => datedMap[t]);
   if (available.length === 0) {
