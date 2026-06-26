@@ -151,20 +151,34 @@ export default function StockScoringWidget({ ticker }: Props) {
               {/* LPPL */}
               <div className="bg-white/5 rounded-lg p-3">
                 <div className="flex items-center gap-1.5 mb-2">
-                  <AlertCircle className={`w-3.5 h-3.5 ${scoring.lppl?.regime === 'bubble' ? 'text-red-400' : 'text-gray-400'}`} />
+                  <AlertCircle className={`w-3.5 h-3.5 ${
+                    scoring.lppl?.regime === 'bubble' ? 'text-red-400' :
+                    scoring.lppl?.regime === 'anti-bubble' ? 'text-emerald-400' : 'text-gray-400'
+                  }`} />
                   <span className="text-gray-400 text-xs">LPPL</span>
+                  {scoring.lppl?.source === 'sornette_api' && (
+                    <span className="text-[9px] text-teal-500 bg-teal-500/10 px-1 rounded leading-tight">Sornette</span>
+                  )}
                 </div>
                 <div>
-                  <span className={`text-xs font-medium capitalize ${
+                  <span className={`text-xs font-medium ${
                     scoring.lppl?.regime === 'bubble' ? 'text-red-400' :
+                    scoring.lppl?.regime === 'anti-bubble' ? 'text-emerald-400' :
                     scoring.lppl?.regime === 'crash' ? 'text-orange-400' : 'text-emerald-400'
                   }`}>
                     {scoring.lppl?.regime === 'bubble' ? '⚠ Blase' :
+                     scoring.lppl?.regime === 'anti-bubble' ? '📈 Boden' :
                      scoring.lppl?.regime === 'crash' ? '⚠ Crash' : '✓ Normal'}
                   </span>
+                  {scoring.lppl?.sornetteScore != null && (
+                    <span className="text-gray-500 text-[10px] ml-1">({scoring.lppl.sornetteScore}/100)</span>
+                  )}
                 </div>
                 {scoring.lppl?.penalty > 0 && (
                   <p className="text-red-400 text-[10px] mt-1">-{scoring.lppl.penalty}% Malus</p>
+                )}
+                {scoring.lppl?.longTermBubble && (
+                  <p className="text-orange-400 text-[10px] mt-1">⚠ Langfristig überhitzt</p>
                 )}
               </div>
             </div>

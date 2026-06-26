@@ -412,26 +412,35 @@ export const tradingviewRouter = router({
         let qualityResult: any = { score: 0, grade: 'C', components: {} };
         try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
 
-        // 5. LPPL Bubble Score
+                // 5. LPPL Bubble Score — Sornette API first, fallback to local engine
         let bubbleScore = 0;
         let bubbleRegime = 'normal';
-        if (prices.length >= 60) {
+        let sornetteData: any = null;
+        try {
+          const { getSornetteBubbleScore } = await import('../analytics/sornetteApi');
+          const sornetteResult = await getSornetteBubbleScore(ticker);
+          if (sornetteResult) {
+            sornetteData = sornetteResult;
+            // Convert Sornette score (0-100, 50=neutral) to bubble risk (0-1)
+            const sornetteRisk = Math.max(0, (sornetteResult.score - 50) / 50);
+            bubbleScore = sornetteRisk;
+            bubbleRegime = sornetteResult.score >= 65 ? 'bubble' : sornetteResult.score <= 35 ? 'anti-bubble' : 'normal';
+          }
+        } catch (_) {}
+        if (!sornetteData && prices.length >= 60) {
           try {
             const bubble = detectBubble({ prices });
             bubbleScore = bubble.bubbleScore ?? 0;
             bubbleRegime = bubble.regime ?? 'normal';
           } catch (_) {}
         }
-
         // 6. Combined Score: 40% Momentum + 40% Quality + 20% LPPL penalty
         const mNorm = (momentumResult.score + 1) / 2; // -1..1 → 0..1
         const qNorm = (qualityResult.score + 1) / 2;  // -1..1 → 0..1
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
         const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
-
         const overallGrade = combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F';
         const signal = combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL';
-
         return {
           ticker,
           combinedScore: parseFloat((combined * 100).toFixed(1)),
@@ -439,7 +448,17 @@ export const tradingviewRouter = router({
           signal,
           momentum: { score: parseFloat((momentumResult.score ?? 0).toFixed(3)), grade: momentumResult.grade, trend: momentumResult.trend },
           quality: { score: parseFloat((qualityResult.score ?? 0).toFixed(3)), grade: qualityResult.grade },
-          lppl: { bubbleScore: parseFloat((bubbleScore ?? 0).toFixed(3)), regime: bubbleRegime, penalty: parseFloat((lpplPenalty * 100).toFixed(1)) },
+          lppl: {
+            bubbleScore: parseFloat((bubbleScore ?? 0).toFixed(3)),
+            regime: bubbleRegime,
+            penalty: parseFloat((lpplPenalty * 100).toFixed(1)),
+            source: sornetteData ? 'sornette_api' : 'local_engine',
+            sornetteScore: sornetteData ? sornetteData.score : null,
+            positiveByScale: sornetteData ? sornetteData.positiveByScale : null,
+            negativeByScale: sornetteData ? sornetteData.negativeByScale : null,
+            longTermBubble: sornetteData ? sornetteData.longTermBubble : false,
+            dataDate: sornetteData ? sornetteData.dataDate : null,
+          },
           priceCount: prices.length,
           analysisDate: new Date().toISOString().split('T')[0],
         };

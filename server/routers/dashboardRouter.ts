@@ -1843,42 +1843,56 @@ export const dashboardRouter = router({
   // ──────────────────────────────────────────────────────────────────────
   // LPPL Bubble indicator
   // ──────────────────────────────────────────────────────────────────────
-  getBubbleIndicator: protectedProcedure
+    getBubbleIndicator: protectedProcedure
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx }) => {
+      // ── Primary: Sornette Finance API (FCO/ETH Zurich LPPLS data) ──────────
+      try {
+        const { getMarketBubbleScore, formatBubbleIndicatorResponse } = await import("../analytics/sornetteApi");
+        const sornetteScore = await getMarketBubbleScore();
+        if (sornetteScore) {
+          const formatted = formatBubbleIndicatorResponse(sornetteScore);
+          return {
+            score: formatted.score,
+            label: formatted.label,
+            history: [] as number[],
+            interpretation: formatted.interpretation,
+            source: 'sornette_api' as const,
+            dataDate: formatted.dataDate,
+            longTermBubble: formatted.longTermBubble,
+            bestPositiveT1_2_6y: formatted.bestPositiveT1_2_6y,
+            positiveByScale: formatted.positiveByScale,
+            negativeByScale: formatted.negativeByScale,
+          };
+        }
+      } catch (err) {
+        console.warn('[getBubbleIndicator] Sornette API failed, falling back to DB:', err);
+      }
+      // ── Fallback: local DB (lpplResults from own LPPL engine) ─────────────
       const { getDb } = await import("../db");
       const { lpplResults } = await import("../../drizzle/schema");
       const { desc, eq } = await import("drizzle-orm");
-
       const db = await getDb();
-      if (!db) return { score: 0, label: "Niedrig" as const, history: [] as number[], interpretation: "Keine Daten verfügbar." };
-
-      // Get latest LPPL result for S&P 500 (most representative)
+      if (!db) return { score: 50, label: "Mittel" as const, history: [] as number[], interpretation: "Keine Daten verfügbar.", source: 'fallback' as const };
       const latest = await db.select().from(lpplResults)
         .where(eq(lpplResults.indexSymbol, '^GSPC'))
         .orderBy(desc(lpplResults.checkedAt))
         .limit(1);
-
-      // Get last 8 results for history sparkline
       const history = await db.select().from(lpplResults)
         .where(eq(lpplResults.indexSymbol, '^GSPC'))
         .orderBy(desc(lpplResults.checkedAt))
         .limit(8);
-
       if (latest.length === 0) {
-        return { score: 0, label: "Niedrig" as const, history: [] as number[], interpretation: "Noch kein LPPL-Check durchgeführt. Starte einen Live-Check im Monitoring-Tab." };
+        return { score: 50, label: "Mittel" as const, history: [] as number[], interpretation: "Keine Sornette API-Verbindung. Kein lokaler LPPL-Check verfügbar.", source: 'fallback' as const };
       }
-
       const score = latest[0].bubbleConfidence;
       const label = score < 33 ? "Niedrig" : score < 66 ? "Mittel" : "Hoch";
       const historyScores = history.reverse().map(r => r.bubbleConfidence);
-
       let interpretation = "";
       if (score < 33) interpretation = "Markt zeigt keine Überhitzung. Strategie kann beibehalten werden.";
       else if (score < 66) interpretation = "Moderate Überhitzungssignale. Risikomanagement überprüfen.";
       else interpretation = "Starke Bubble-Signale erkannt. Defensive Positionierung empfohlen.";
-
-      return { score, label: label as "Niedrig" | "Mittel" | "Hoch", history: historyScores, interpretation };
+      return { score, label: label as "Niedrig" | "Mittel" | "Hoch", history: historyScores, interpretation, source: 'local_db' as const };
     }),
 
   // ──────────────────────────────────────────────────────────────────────

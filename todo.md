@@ -1336,3 +1336,5 @@
 ## Bugs (26.06.2026)
 - [x] BUG: Bubble-Indikator zeigt für alle Portfolios denselben Wert (50 Mittel) - LPPL ist globaler Markt-Indikator, nicht portfolio-spezifisch. Füge klaren Hinweis hinzu und zeige portfolio-spezifischen Kontext.
 - [x] BUG: Microsoft zeigt SELL in Aktiendetails (tradingview.stockScoring) aber Kaufen in Aktien-Signale-Liste (signals.generate) - zwei verschiedene Modelle liefern inkonsistente Ergebnisse. Signale-Seite soll Momentum+Qualität+LPPL-Score nutzen für Konsistenz.
+- [x] FEATURE: Sornette Finance API integriert - getBubbleIndicator nutzt echte GSPC-Daten (Score 24/100), stockScoring nutzt Sornette für MSFT/AAPL/NVDA/TSLA/META/AMZN
+- [x] BUG: Technische Signale zeigen alle NEUTRAL und roher JSON sichtbar - TradingViewSignalsTab komplett neu geschrieben, wertet jetzt market_sentiment.buy_sell_signal und timeframe_context.bias korrekt aus
