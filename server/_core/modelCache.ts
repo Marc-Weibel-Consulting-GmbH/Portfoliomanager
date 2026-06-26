@@ -2,8 +2,10 @@
  * Bytes cache for ML model artifacts (ONNX) — shared across instances via Redis,
  * with a graceful in-memory fallback when Redis is not configured or down.
  *
- * Uses Upstash Redis REST API (@upstash/redis) instead of ioredis so it works
- * in serverless/Autoscale environments without persistent TCP connections.
+ * Supports two Redis backends:
+ *   1. UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN → @upstash/redis REST (serverless-friendly)
+ *   2. REDIS_URL → ioredis TCP (legacy, for self-hosted Redis)
+ *   3. In-memory fallback (single instance / local dev)
  *
  * The DB (modelArtifacts) is the source of truth; this only caches the ONNX bytes
  * of the active model so every request/instance doesn't re-read them.
@@ -47,10 +49,50 @@ export class InMemoryBytesCache implements BytesCache {
   }
 }
 
+/** Minimal Upstash REST client surface (so the cache is testable without network). */
+export interface UpstashLike {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string, opts?: { ex?: number }): Promise<unknown>;
+  del(key: string): Promise<unknown>;
+}
+
 /**
- * Upstash Redis-backed cache for ONNX model bytes.
- * Stores buffers as base64 strings (Upstash REST API is JSON-based).
- * Falls back to in-memory cache on any error.
+ * Upstash REST-backed cache (@upstash/redis). HTTPS/serverless-friendly. Bytes are
+ * stored base64-encoded. Falls back to in-memory on any error.
+ */
+export class UpstashRestBytesCache implements BytesCache {
+  constructor(private client: UpstashLike, private fallback: BytesCache = new InMemoryBytesCache()) {}
+
+  async get(key: string): Promise<Buffer | null> {
+    try {
+      const v = await this.client.get(key);
+      return v ? Buffer.from(v, "base64") : null;
+    } catch {
+      return this.fallback.get(key);
+    }
+  }
+
+  async set(key: string, value: Buffer, ttlSeconds?: number): Promise<void> {
+    try {
+      const b64 = value.toString("base64");
+      await this.client.set(key, b64, ttlSeconds && ttlSeconds > 0 ? { ex: ttlSeconds } : undefined);
+    } catch {
+      await this.fallback.set(key, value, ttlSeconds);
+    }
+  }
+
+  async del(key: string): Promise<void> {
+    try {
+      await this.client.del(key);
+    } catch {
+      await this.fallback.del(key);
+    }
+  }
+}
+
+/**
+ * Direct Upstash REST fetch cache (no @upstash/redis dependency needed).
+ * Stores buffers as base64 strings. Falls back to in-memory on any error.
  */
 export class UpstashBytesCache implements BytesCache {
   private fallback: BytesCache;
@@ -112,115 +154,57 @@ export class UpstashBytesCache implements BytesCache {
   }
 }
 
-/** Minimal Upstash REST client surface (so the cache is testable without network). */
-export interface UpstashLike {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, opts?: { ex?: number }): Promise<unknown>;
-  del(key: string): Promise<unknown>;
-}
-
-/**
- * Upstash REST-backed cache (@upstash/redis). HTTPS/serverless-friendly. Bytes are
- * stored base64-encoded. Falls back to in-memory on any error.
- */
-export class UpstashRestBytesCache implements BytesCache {
-  constructor(private client: UpstashLike, private fallback: BytesCache = new InMemoryBytesCache()) {}
-
-  async get(key: string): Promise<Buffer | null> {
-    try {
-      const v = await this.client.get(key);
-      return v ? Buffer.from(v, "base64") : null;
-    } catch {
-      return this.fallback.get(key);
-    }
-  }
-
-  async set(key: string, value: Buffer, ttlSeconds?: number): Promise<void> {
-    try {
-      const b64 = value.toString("base64");
-      await this.client.set(key, b64, ttlSeconds && ttlSeconds > 0 ? { ex: ttlSeconds } : undefined);
-    } catch {
-      await this.fallback.set(key, value, ttlSeconds);
-    }
-  }
-
-  async del(key: string): Promise<void> {
-    try {
-      await this.client.del(key);
-    } catch {
-      await this.fallback.del(key);
-    }
-  }
-}
-
 let singleton: BytesCache | null = null;
 
 /**
-<<<<<<< Updated upstream
  * Returns the process-wide model cache. Selection order:
- *   1. REDIS_URL  -> ioredis (TCP, e.g. Upstash rediss://…)
- *   2. UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN -> @upstash/redis (REST)
- *   3. in-memory (single instance / local)
+ *   1. UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN → @upstash/redis REST (serverless)
+ *   2. REDIS_URL → ioredis TCP (legacy self-hosted Redis)
+ *   3. in-memory (single instance / local dev)
  * Imports are lazy so unused clients are never loaded.
  */
 export async function getModelCache(): Promise<BytesCache> {
   if (singleton) return singleton;
-  const url = process.env.REDIS_URL;
+
   const restUrl = process.env.UPSTASH_REDIS_REST_URL;
   const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const redisUrl = process.env.REDIS_URL;
 
-  if (url) {
-    try {
-      const { default: IORedis } = await import("ioredis");
-      const redis = new IORedis(url, { lazyConnect: false, maxRetriesPerRequest: 2 });
-      redis.on("error", (e) => console.error("[modelCache] Redis error:", e?.message));
-      singleton = new RedisBytesCache(redis);
-      console.log("[modelCache] using ioredis (REDIS_URL)");
-      return singleton;
-    } catch (e) {
-      console.error("[modelCache] ioredis init failed:", (e as Error)?.message);
-    }
-  }
-
+  // Prefer Upstash REST (serverless-compatible)
   if (restUrl && restToken) {
     try {
       const { Redis } = await import("@upstash/redis");
       const client = new Redis({ url: restUrl, token: restToken, automaticDeserialization: false });
       singleton = new UpstashRestBytesCache(client as unknown as UpstashLike);
-      console.log("[modelCache] using Upstash REST");
+      console.log("[modelCache] Using Upstash REST cache →", restUrl.split('//')[1]);
       return singleton;
     } catch (e) {
-      console.error("[modelCache] Upstash REST init failed:", (e as Error)?.message);
+      console.error("[modelCache] Upstash REST init failed, trying ioredis:", (e as Error)?.message);
+    }
+  }
+
+  // Fallback: ioredis TCP (for self-hosted Redis or Upstash rediss:// URL)
+  if (redisUrl) {
+    try {
+      const { default: IORedis } = await import("ioredis");
+      const redis = new IORedis(redisUrl, { lazyConnect: false, maxRetriesPerRequest: 2 });
+      redis.on("error", (e) => console.error("[modelCache] ioredis error:", e?.message));
+      // Wrap ioredis in UpstashRestBytesCache-compatible interface
+      const iface: UpstashLike = {
+        get: async (k) => redis.get(k),
+        set: async (k, v, opts) => opts?.ex ? redis.set(k, v, "EX", opts.ex) : redis.set(k, v),
+        del: async (k) => redis.del(k),
+      };
+      singleton = new UpstashRestBytesCache(iface);
+      console.log("[modelCache] Using ioredis cache (REDIS_URL)");
+      return singleton;
+    } catch (e) {
+      console.error("[modelCache] ioredis init failed, using in-memory:", (e as Error)?.message);
     }
   }
 
   singleton = new InMemoryBytesCache();
-  console.log("[modelCache] using in-memory cache");
-=======
- * Returns the process-wide model cache.
- * Uses Upstash Redis when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set,
- * otherwise an in-memory cache.
- */
-export async function getModelCache(): Promise<BytesCache> {
-  if (singleton) return singleton;
-
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (url && token) {
-    try {
-      singleton = new UpstashBytesCache(url, token);
-      console.log('[modelCache] Using Upstash Redis cache →', url.split('//')[1]);
-    } catch (e) {
-      console.error('[modelCache] Upstash init failed, using in-memory:', (e as Error)?.message);
-      singleton = new InMemoryBytesCache();
-    }
-  } else {
-    console.log('[modelCache] No Redis configured — using in-memory cache');
-    singleton = new InMemoryBytesCache();
-  }
-
->>>>>>> Stashed changes
+  console.log("[modelCache] Using in-memory cache (no Redis configured)");
   return singleton;
 }
 
