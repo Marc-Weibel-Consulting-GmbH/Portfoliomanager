@@ -69,6 +69,7 @@
     "express": "^4.21.2",
     "framer-motion": "^12.23.22",
     "input-otp": "^1.4.2",
+    "ioredis": "^5.11.1",
     "jose": "6.1.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",

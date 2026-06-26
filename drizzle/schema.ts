@@ -1,4 +1,4 @@
-import { date, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
+import { date, decimal, index, int, json, longtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -746,8 +746,8 @@ export const modelArtifacts = mysqlTable("modelArtifacts", {
   status: mysqlEnum("status", ["candidate", "active", "archived", "failed"]).notNull().default("candidate"),
   format: varchar("format", { length: 20 }).notNull().default("onnx"), // onnx | json
   // Where the model bytes live (object-store key / URL); inline JSON only for tiny models.
-  artifactUri: varchar("artifactUri", { length: 512 }),
-  modelBlob: text("modelBlob"), // small models only (<64KB), else use artifactUri
+  artifactUri: varchar("artifactUri", { length: 512 }), // optional external store (S3) for very large models
+  modelBlob: longtext("modelBlob"), // base64 ONNX bytes — DB is the source of truth; Redis caches
   // Feature contract: ordered feature names + per-feature normalization (mean/std).
   featureSpec: json("featureSpec").notNull(),
   trainStart: varchar("trainStart", { length: 10 }), // YYYY-MM-DD
