@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
+<<<<<<< Updated upstream
 import { InMemoryBytesCache, RedisBytesCache, UpstashRestBytesCache, type BytesCache, type UpstashLike } from './modelCache';
+=======
+import { InMemoryBytesCache, UpstashBytesCache, type BytesCache } from './modelCache';
+>>>>>>> Stashed changes
 
 describe('InMemoryBytesCache', () => {
   it('stores and retrieves bytes', async () => {
@@ -30,23 +34,19 @@ describe('InMemoryBytesCache', () => {
   });
 });
 
-describe('RedisBytesCache fallback', () => {
-  // Simulate a Redis client that always throws -> must fall back to in-memory.
-  const brokenRedis = {
-    getBuffer: async () => { throw new Error('down'); },
-    set: async () => { throw new Error('down'); },
-    del: async () => { throw new Error('down'); },
-  } as any;
-
-  it('falls back to in-memory when Redis throws', async () => {
+describe('UpstashBytesCache fallback', () => {
+  // Simulate an Upstash endpoint that always throws -> must fall back to in-memory.
+  it('falls back to in-memory when Upstash throws', async () => {
+    // Use an invalid URL so fetch will throw
     const fallback: BytesCache = new InMemoryBytesCache();
-    const c = new RedisBytesCache(brokenRedis, fallback);
+    const c = new UpstashBytesCache('http://invalid-upstash-url', 'bad-token', fallback);
     await c.set('k', Buffer.from([9]));
-    // value landed in the fallback despite Redis throwing
+    // value landed in the fallback despite Upstash throwing
     expect(Array.from((await c.get('k'))!)).toEqual([9]);
   });
 });
 
+<<<<<<< Updated upstream
 describe('UpstashRestBytesCache', () => {
   function fakeUpstash(): UpstashLike & { store: Map<string, string>; lastEx?: number } {
     const store = new Map<string, string>();
@@ -86,4 +86,31 @@ describe('UpstashRestBytesCache', () => {
     await c.set('k', Buffer.from([7]));
     expect(Array.from((await c.get('k'))!)).toEqual([7]);
   });
+=======
+describe('UpstashBytesCache with real Redis', () => {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  it.skipIf(!url || !token)('can ping Upstash Redis', async () => {
+    const res = await fetch(url!, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['PING']),
+    });
+    expect(res.ok).toBe(true);
+    const json = await res.json() as { result: string };
+    expect(json.result).toBe('PONG');
+  });
+
+  it.skipIf(!url || !token)('stores and retrieves bytes via Upstash', async () => {
+    const c = new UpstashBytesCache(url!, token!);
+    const testKey = `test:modelcache:${Date.now()}`;
+    const testData = Buffer.from([42, 43, 44]);
+    await c.set(testKey, testData, 60);
+    const result = await c.get(testKey);
+    expect(result).not.toBeNull();
+    expect(Array.from(result!)).toEqual([42, 43, 44]);
+    await c.del(testKey);
+  }, 15_000);
+>>>>>>> Stashed changes
 });

@@ -1322,3 +1322,13 @@
   - Fixed: Buttons sind jetzt mit konkreten Seiten verknüpft (Portfolio-Optimizer, Analyse, Invest)
   - Aggregiert-Tab: "Im Optimizer prüfen" → /portfolio-optimizer, "Detail-Report" → /analysis, "Vorschläge anzeigen" → /invest
   - Portfolio-spezifisch: Links zu /portfolios, /markt je nach Insight-Typ
+
+## Redis Integration (26.06.2026)
+
+- [x] FEATURE: Upstash Redis für ML-Modul Cache integriert
+  - @upstash/redis installiert (REST API, serverless-kompatibel)
+  - server/redisClient.ts: Typed Cache Helpers (cacheGet, cacheSet, cacheGetOrSet) + ML_CACHE_KEYS
+  - server/_core/modelCache.ts: UpstashBytesCache ersetzt ioredis RedisBytesCache (kein TCP, REST-basiert)
+  - server/_core/systemRouter.ts: redisHealth Endpoint für Admin-Monitoring
+  - Alle 7 Tests bestanden (PING, Set/Get/Del, Fallback)
+  - Secrets: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, REDIS_URL gesetzt

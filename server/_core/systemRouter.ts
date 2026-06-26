@@ -28,6 +28,18 @@ export const systemRouter = router({
       } as const;
     }),
 
+  redisHealth: adminProcedure
+    .query(async () => {
+      const { redisPing } = await import('../redisClient');
+      const ok = await redisPing();
+      return {
+        connected: ok,
+        url: process.env.UPSTASH_REDIS_REST_URL
+          ? process.env.UPSTASH_REDIS_REST_URL.replace(/\/\/.*@/, '//***@')
+          : null,
+      };
+    }),
+
   importHistoricalData: adminProcedure
     .input(
       z.object({
