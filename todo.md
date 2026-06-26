@@ -1296,3 +1296,5 @@
 - [ ] HELN.SW shows CHF 0 value because it's delisted/unavailable on EODHD - should ideally show last known price
 - [ ] AdminKPIs page shows all zeros - placeholder implementation, not connected to real data
 - [ ] Rechner page calculators are placeholders (Pension, Budget, Steuer)
+
+- [x] BUG: Portfolio Builder Abschluss-Schritt zeigt "Positionen (0)" und "CHF 0.00" obwohl Aktien ausgewählt wurden - FIXED: Fallback auf aktuellen Preis wenn kein Preis eingegeben, Validierung dass mindestens 1 Position vorhanden, NaN-Schutz für delisted Stocks

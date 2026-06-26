@@ -179,8 +179,9 @@ export default function PortfolioBuilderWizard() {
 
   const handleAddStock = (stock: typeof allStocks[0]) => {
     const inputs = perStockInputs[stock.ticker] || { quantity: '', price: '' };
-    const quantity = parseFloat(inputs.quantity);
-    const price = parseFloat(inputs.price);
+    const quantity = parseFloat(inputs.quantity) || 10;
+    // Use current stock price as fallback if user didn't enter a price
+    const price = parseFloat(inputs.price) || parseFloat(stock.currentPrice || '0');
     
     if (!quantity || quantity <= 0) {
       toast.error("Bitte geben Sie eine gültige Anzahl ein");
@@ -188,7 +189,7 @@ export default function PortfolioBuilderWizard() {
     }
     
     if (!price || price <= 0) {
-      toast.error("Bitte geben Sie einen gültigen Preis ein");
+      toast.error("Kein aktueller Preis verfügbar. Bitte geben Sie einen Preis ein.");
       return;
     }
     
@@ -262,6 +263,57 @@ export default function PortfolioBuilderWizard() {
       }
       if (!portfolioName.trim()) {
         toast.error("Bitte geben Sie einen Portfolio-Namen ein");
+        return;
+      }
+    }
+    
+    // When leaving step 2 or 3: auto-add any pending inputs that have quantity filled (use current price as fallback)
+    if (currentStep === 2 || currentStep === 3) {
+      const pendingTickers = Object.entries(perStockInputs).filter(([ticker, inputs]) => {
+        const qty = parseFloat(inputs.quantity);
+        if (!(qty > 0)) return false;
+        if (selectedStocks.some(s => s.ticker === ticker)) return false;
+        // Accept if user typed a price OR if the stock has a current price we can use
+        const price = parseFloat(inputs.price);
+        if (price > 0) return true;
+        const stockInfo = allStocks.find(s => s.ticker === ticker);
+        const fallbackPrice = parseFloat(stockInfo?.currentPrice || '0');
+        return fallbackPrice > 0;
+      });
+      
+      if (pendingTickers.length > 0) {
+        const newStocks: StockSelection[] = [];
+        for (const [ticker, inputs] of pendingTickers) {
+          const stockInfo = allStocks.find(s => s.ticker === ticker);
+          if (stockInfo) {
+            const assetType: "stock" | "bond" | "etf" = 
+              stockInfo.category === "ETF" ? "etf" :
+              stockInfo.category?.includes("Anleihe") ? "bond" :
+              "stock";
+            const price = parseFloat(inputs.price) || parseFloat(stockInfo.currentPrice || '0');
+            newStocks.push({
+              ticker,
+              companyName: stockInfo.companyName,
+              quantity: parseFloat(inputs.quantity),
+              purchasePrice: price,
+              assetType,
+            });
+          }
+        }
+        if (newStocks.length > 0) {
+          setSelectedStocks(prev => [...prev, ...newStocks]);
+          setPerStockInputs(prev => {
+            const next = { ...prev };
+            newStocks.forEach(s => delete next[s.ticker]);
+            return next;
+          });
+          toast.success(`${newStocks.length} Position(en) automatisch hinzugefügt`);
+        }
+      }
+      
+      // Block transition from step 3 to step 4 if no positions at all
+      if (currentStep === 3 && selectedStocks.length === 0 && pendingTickers.length === 0) {
+        toast.error("Bitte fügen Sie mindestens eine Position hinzu, bevor Sie fortfahren");
         return;
       }
     }
@@ -670,9 +722,14 @@ export default function PortfolioBuilderWizard() {
                                   )}
                                 </div>
                                 <div className="text-sm text-muted-foreground">{stock.companyName}</div>
-                                {stock.currentPrice && (
+                                {stock.currentPrice && !isNaN(parseFloat(stock.currentPrice)) && parseFloat(stock.currentPrice) > 0 && (
                                   <div className="text-sm mt-1">
                                     Aktueller Preis: {stock.currency} {parseFloat(stock.currentPrice).toFixed(2)}
+                                  </div>
+                                )}
+                                {stock.currentPrice && (isNaN(parseFloat(stock.currentPrice)) || parseFloat(stock.currentPrice) <= 0) && (
+                                  <div className="text-sm mt-1 text-yellow-500">
+                                    Kein aktueller Preis verfügbar
                                   </div>
                                 )}
                               </div>
@@ -693,7 +750,7 @@ export default function PortfolioBuilderWizard() {
                                     <Label className="text-xs">Preis</Label>
                                     <Input
                                       type="number"
-                                      placeholder={stock.currentPrice || "100"}
+                                      placeholder={stock.currentPrice && !isNaN(parseFloat(stock.currentPrice)) && parseFloat(stock.currentPrice) > 0 ? stock.currentPrice : "Preis eingeben"}
                                       value={getStockInput(stock.ticker, 'price')}
                                       onChange={(e) => setStockInput(stock.ticker, 'price', e.target.value)}
                                       className="w-24"
