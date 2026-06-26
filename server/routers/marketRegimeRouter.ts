@@ -357,11 +357,10 @@ export const marketRegimeRouter = router({
 
   // Markt-Hub Überblick (Mockup S.13): Index-KPIs (SMI / S&P 500 / MSCI World / Gold)
   // + normalisierte YTD-Performance-Serie für das "Indizes Performance YTD"-Chart.
-  // Echte Daten aus der DB (benchmarkData bzw. historical_prices Proxy-Ticker).
+  // Echte Indexpunkte via EODHD (SSMI.INDX=SMI, GSPC.INDX=S&P 500, URTH.US=MSCI World ETF, GLD.US=Gold ETF).
   getIndices: publicProcedure.query(async () => {
-    const { getBenchmarkData, getDb } = await import("../db");
-    const { historicalPrices } = await import("../../drizzle/schema");
-    const { eq, gte, asc, and } = await import("drizzle-orm");
+    const EODHD_API_KEY = process.env.EODHD_API_KEY;
+    const EODHD_BASE_URL = "https://eodhd.com/api";
 
     const today = new Date();
     const ytdStart = `${today.getFullYear()}-01-01`;
@@ -383,41 +382,87 @@ export const marketRegimeRouter = router({
       };
     };
 
-    const benchKeys: { key: string; label: string; bench: "SMI" | "SP500" | "MSCI_WORLD"; currency: string }[] = [
-      { key: "smi", label: "SMI", bench: "SMI", currency: "CHF" },
-      { key: "sp500", label: "S&P 500", bench: "SP500", currency: "USD" },
-      { key: "msci", label: "MSCI WORLD", bench: "MSCI_WORLD", currency: "USD" },
+    // Fetch historical EOD data from EODHD for real index points
+    const fetchEodhdHistory = async (ticker: string): Promise<{ date: string; close: number }[]> => {
+      if (!EODHD_API_KEY) return [];
+      try {
+        const url = `${EODHD_BASE_URL}/eod/${ticker}?api_token=${EODHD_API_KEY}&from=${ytdStart}&to=${todayStr}&fmt=json&period=d`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json() as Array<{ date: string; close: number; adjusted_close: number }>;
+        if (!Array.isArray(data)) return [];
+        return data.map(d => ({ date: d.date, close: d.adjusted_close || d.close }));
+      } catch {
+        return [];
+      }
+    };
+
+    // Real index tickers on EODHD
+    const indexKeys: { key: string; label: string; eodhdTicker: string; currency: string }[] = [
+      { key: "smi",   label: "SMI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
+      { key: "sp500", label: "S&P 500",    eodhdTicker: "GSPC.INDX",  currency: "USD" },
+      { key: "msci",  label: "MSCI WORLD", eodhdTicker: "URTH.US",    currency: "USD" },
+      { key: "gold",  label: "GOLD (USD)", eodhdTicker: "GLD.US",     currency: "USD" },
     ];
 
-    const benchResults = await Promise.all(
-      benchKeys.map(async (b) => ({ ...b, summary: summarize((await getBenchmarkData(b.bench, ytdStart, todayStr)) as any) }))
+    const results = await Promise.all(
+      indexKeys.map(async (b) => {
+        const rows = await fetchEodhdHistory(b.eodhdTicker);
+        return { ...b, summary: summarize(rows) };
+      })
     );
 
-    // Gold über Proxy-Ticker aus historical_prices
-    let gold: { key: string; label: string; currency: string; summary: ReturnType<typeof summarize> } | null = null;
+    // Fallback to DB proxy tickers if EODHD failed
+    const { getBenchmarkData, getDb } = await import("../db");
+    const { historicalPrices } = await import("../../drizzle/schema");
+    const { eq, gte, asc, and } = await import("drizzle-orm");
     const db = await getDb();
-    if (db) {
-      for (const t of ["GLD", "GC=F", "GOLD", "XAUUSD", "IAU"]) {
-        const rows = await db
-          .select()
-          .from(historicalPrices)
-          .where(and(eq(historicalPrices.ticker, t), gte(historicalPrices.date, ytdStart)))
-          .orderBy(asc(historicalPrices.date));
-        const s = summarize(rows as any);
-        if (s) { gold = { key: "gold", label: "GOLD (USD)", currency: "USD", summary: s }; break; }
-      }
-    }
 
-    const all = [...benchResults, ...(gold ? [gold] : [])];
-    const indices = all.map((b) =>
+    const finalResults = await Promise.all(
+      results.map(async (r) => {
+        if (r.summary) return r;
+        // Fallback for SMI/SP500/MSCI
+        if (r.key === "smi") {
+          const rows = (await getBenchmarkData("SMI", ytdStart, todayStr)) as any;
+          return { ...r, summary: summarize(rows) };
+        }
+        if (r.key === "sp500") {
+          const rows = (await getBenchmarkData("SP500", ytdStart, todayStr)) as any;
+          return { ...r, summary: summarize(rows) };
+        }
+        if (r.key === "msci") {
+          const rows = (await getBenchmarkData("MSCI_WORLD", ytdStart, todayStr)) as any;
+          return { ...r, summary: summarize(rows) };
+        }
+        // Fallback for gold: try DB
+        if (r.key === "gold" && db) {
+          for (const t of ["GLD", "GC=F", "GOLD", "XAUUSD", "IAU"]) {
+            const rows = await db
+              .select()
+              .from(historicalPrices)
+              .where(and(eq(historicalPrices.ticker, t), gte(historicalPrices.date, ytdStart)))
+              .orderBy(asc(historicalPrices.date));
+            const s = summarize(rows as any);
+            if (s) return { ...r, summary: s };
+          }
+        }
+        return r;
+      })
+    );
+
+    const indices = finalResults.map((b) =>
       b.summary
         ? { key: b.key, label: b.label, currency: b.currency, value: b.summary.value, dayChange: +b.summary.dayChange.toFixed(2), ytd: +b.summary.ytd.toFixed(2) }
         : { key: b.key, label: b.label, currency: b.currency, value: null, dayChange: null, ytd: null }
     );
 
     // Merge YTD-normalisierte Serien (wöchentlich gesampelt) für das Chart
+    const smiResult  = finalResults.find((b) => b.key === "smi");
+    const spResult   = finalResults.find((b) => b.key === "sp500");
+    const msciResult = finalResults.find((b) => b.key === "msci");
+
     const dateSet = new Set<string>();
-    benchResults.forEach((b) => b.summary?.series.forEach((p) => dateSet.add(p.date)));
+    [smiResult, spResult, msciResult].forEach((b) => b?.summary?.series.forEach((p) => dateSet.add(p.date)));
     const dates = Array.from(dateSet).sort();
     const interval = Math.max(1, Math.floor(dates.length / 52));
     const sampled = dates.filter((_, i) => i % interval === 0 || i === dates.length - 1);
@@ -429,14 +474,14 @@ export const marketRegimeRouter = router({
       series.forEach((p) => { map[p.date] = base > 0 ? ((p.close - base) / base) * 100 : 0; });
       return map;
     };
-    const smiMap = norm(benchResults.find((b) => b.key === "smi")?.summary?.series);
-    const spMap = norm(benchResults.find((b) => b.key === "sp500")?.summary?.series);
-    const msciMap = norm(benchResults.find((b) => b.key === "msci")?.summary?.series);
+    const smiMap  = norm(smiResult?.summary?.series);
+    const spMap   = norm(spResult?.summary?.series);
+    const msciMap = norm(msciResult?.summary?.series);
 
     let lastSmi = 0, lastSp = 0, lastMsci = 0;
     const chart = sampled.map((d) => {
-      if (smiMap && smiMap[d] !== undefined) lastSmi = smiMap[d];
-      if (spMap && spMap[d] !== undefined) lastSp = spMap[d];
+      if (smiMap  && smiMap[d]  !== undefined) lastSmi  = smiMap[d];
+      if (spMap   && spMap[d]   !== undefined) lastSp   = spMap[d];
       if (msciMap && msciMap[d] !== undefined) lastMsci = msciMap[d];
       return { date: d, smi: +lastSmi.toFixed(2), sp500: +lastSp.toFixed(2), msci: +lastMsci.toFixed(2) };
     });

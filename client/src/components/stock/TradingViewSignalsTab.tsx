@@ -22,39 +22,42 @@ interface Props {
 function deriveSignal(tfData: any): string {
   if (!tfData) return "NEUTRAL";
 
-  // Try direct fields first
-  const direct =
-    tfData?.RECOMMENDATION ||
-    tfData?.recommendation ||
-    tfData?.market_sentiment?.buy_sell_signal ||
-    tfData?.technical?.market_sentiment?.buy_sell_signal;
-  if (direct && direct !== "NEUTRAL") return direct.toUpperCase();
-
-  // Derive from timeframe_context.bias
-  const bias =
-    tfData?.timeframe_context?.bias ||
-    tfData?.technical?.timeframe_context?.bias;
+  // Primary: use the 'bias' field from multi_timeframe_analysis response
+  // e.g. { "1W": { "bias": "Bearish", ... }, "1D": { "bias": "Bullish", ... } }
+  const bias = tfData?.bias || tfData?.timeframe_context?.bias || tfData?.technical?.timeframe_context?.bias;
   if (bias) {
     const b = bias.toUpperCase();
+    if (b === "STRONG BULLISH" || b === "STRONG_BULLISH") return "STRONG_BUY";
+    if (b === "BULLISH" || b === "BULL") return "BUY";
+    if (b === "STRONG BEARISH" || b === "STRONG_BEARISH") return "STRONG_SELL";
+    if (b === "BEARISH" || b === "BEAR") return "SELL";
+    if (b === "NEUTRAL" || b === "NEUTRAL/RANGING") return "NEUTRAL";
+    // Partial matches
     if (b.includes("STRONG") && b.includes("BULL")) return "STRONG_BUY";
     if (b.includes("BULL")) return "BUY";
     if (b.includes("STRONG") && b.includes("BEAR")) return "STRONG_SELL";
     if (b.includes("BEAR")) return "SELL";
   }
 
-  // Derive from market_structure.trend
-  const trend =
-    tfData?.market_structure?.trend ||
-    tfData?.technical?.market_structure?.trend;
-  if (trend) {
-    const t = trend.toUpperCase();
-    if (t.includes("STRONG") && t.includes("UP")) return "STRONG_BUY";
-    if (t.includes("UP")) return "BUY";
-    if (t.includes("STRONG") && t.includes("DOWN")) return "STRONG_SELL";
-    if (t.includes("DOWN")) return "SELL";
+  // Secondary: market_structure field
+  const ms = tfData?.market_structure || tfData?.technical?.market_structure;
+  if (ms) {
+    const m = ms.toUpperCase();
+    if (m.includes("STRONG") && m.includes("BULL")) return "STRONG_BUY";
+    if (m.includes("BULL")) return "BUY";
+    if (m.includes("STRONG") && m.includes("BEAR")) return "STRONG_SELL";
+    if (m.includes("BEAR")) return "SELL";
   }
 
-  return direct || "NEUTRAL";
+  // Fallback: RECOMMENDATION or buy_sell_signal fields
+  const direct =
+    tfData?.RECOMMENDATION ||
+    tfData?.recommendation ||
+    tfData?.market_sentiment?.buy_sell_signal ||
+    tfData?.technical?.market_sentiment?.buy_sell_signal;
+  if (direct && direct.toUpperCase() !== "NEUTRAL") return direct.toUpperCase();
+
+  return "NEUTRAL";
 }
 
 /** Derive overall signal from combined_analysis data */

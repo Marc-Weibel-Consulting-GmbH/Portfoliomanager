@@ -249,7 +249,7 @@ export const dividendCalendarRouter = router({
   upcomingAll: protectedProcedure
     .input((val: unknown) => {
       const v = (val ?? {}) as any;
-      return { daysAhead: typeof v.daysAhead === "number" ? v.daysAhead : 30 };
+      return { daysAhead: typeof v.daysAhead === "number" ? v.daysAhead : 365 };
     })
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
