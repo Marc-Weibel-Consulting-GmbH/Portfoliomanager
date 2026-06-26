@@ -106,3 +106,12 @@ temp/
 *.sqlite
 *.sqlite3
 .project-config.json
+
+# Python build artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Python bytecode
+__pycache__/
+*.pyc

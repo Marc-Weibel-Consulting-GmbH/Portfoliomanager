@@ -1,4 +1,4 @@
-import { date, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
+import { date, decimal, index, int, json, longtext, mysqlEnum, mysqlTable, text, timestamp, tinyint, unique, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -730,3 +730,37 @@ export const lpplResults = mysqlTable("lppl_results", {
 
 export type LpplResult = typeof lpplResults.$inferSelect;
 export type InsertLpplResult = typeof lpplResults.$inferInsert;
+
+// ============================================
+// ML model artifacts (pre-trained, walk-forward-validated models)
+// Training runs offline in the Python analytics_service (GB), exports ONNX;
+// the TS server serves inference from the active artifact. The ONNX bytes live
+// in object storage / Redis (referenced by artifactUri); the DB row holds the
+// metadata, feature contract and validation metrics. Only one row per `kind`
+// may be status='active'.
+// ============================================
+export const modelArtifacts = mysqlTable("modelArtifacts", {
+  id: int("id").autoincrement().primaryKey(),
+  kind: mysqlEnum("kind", ["rf_signal", "gb_signal", "ranking", "ensemble_weights"]).notNull(),
+  version: int("version").notNull(), // monotonically increasing per kind
+  status: mysqlEnum("status", ["candidate", "active", "archived", "failed"]).notNull().default("candidate"),
+  format: varchar("format", { length: 20 }).notNull().default("onnx"), // onnx | json
+  // Where the model bytes live (object-store key / URL); inline JSON only for tiny models.
+  artifactUri: varchar("artifactUri", { length: 512 }), // optional external store (S3) for very large models
+  modelBlob: longtext("modelBlob"), // base64 ONNX bytes — DB is the source of truth; Redis caches
+  // Feature contract: ordered feature names + per-feature normalization (mean/std).
+  featureSpec: json("featureSpec").notNull(),
+  trainStart: varchar("trainStart", { length: 10 }), // YYYY-MM-DD
+  trainEnd: varchar("trainEnd", { length: 10 }),
+  universeSize: int("universeSize"),
+  // Out-of-sample validation: { hitRate, alpha, sharpe, overfitRatio, perHorizon: {30,60,90} }
+  metrics: json("metrics"),
+  promotedAt: timestamp("promotedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  kindStatusIdx: index("ix_model_artifacts_kind_status").on(t.kind, t.status),
+  kindVersionUnique: unique("uq_model_artifacts_kind_version").on(t.kind, t.version),
+}));
+
+export type ModelArtifact = typeof modelArtifacts.$inferSelect;
+export type InsertModelArtifact = typeof modelArtifacts.$inferInsert;

@@ -8,3 +8,8 @@ pyportfolioopt>=1.5.5
 pydantic>=2.0.0
 tradingview-ta>=3.3.0
 tradingview-screener>=0.6.4
+# ML pre-training (GB + walk-forward + ONNX export)
+scikit-learn>=1.5.0
+skl2onnx>=1.17.0
+onnx>=1.16.0
+onnxruntime>=1.18.0
