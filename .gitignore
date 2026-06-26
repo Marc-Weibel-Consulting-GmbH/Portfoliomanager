@@ -111,3 +111,7 @@ temp/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Python bytecode
+__pycache__/
+*.pyc
