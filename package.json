@@ -17,7 +17,8 @@
     "import-financials": "tsx scripts/import-financial-highlights.ts",
     "backfill:prices": "tsx scripts/backfillPrices.ts",
     "backfill:all": "tsx scripts/backfill-all.ts",
-    "repopulate:logos": "tsx scripts/repopulate-logos.ts"
+    "repopulate:logos": "tsx scripts/repopulate-logos.ts",
+    "check:redis": "tsx scripts/check-redis.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
@@ -53,6 +54,7 @@
     "@trpc/react-query": "^11.6.0",
     "@trpc/server": "^11.6.0",
     "@types/pdf-parse": "^1.1.5",
+    "@upstash/redis": "^1.38.0",
     "axios": "^1.12.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",

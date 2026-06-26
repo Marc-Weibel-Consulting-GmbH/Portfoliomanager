@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { savedPortfolios } from "../../drizzle/schema";
 import YahooFinanceClass from "yahoo-finance2";
 import { randomForestSignal } from '../analytics/mlEngine';
+import { signalForSeries, getActiveSignalModel } from '../analytics/signalService';
 import { analyzeSentiment, sentimentToSignalScore } from '../analytics/sentimentEngine';
 import { getActiveWeights, type WeightConfig } from '../analytics/optimizerWorker';
 import { detectBubble } from '../analytics/lpplsEngine';
@@ -525,7 +526,7 @@ async function processStock(
     // Step 5: Random Forest signal
     if (prices.length >= 60) {
       try {
-        const rf = randomForestSignal(prices, volumes, fundamentals);
+        const rf = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, volumes, fundamentals), 'gb_signal', prices);
         signal.rfSignal = rf.signal;
         signal.rfScore = rf.score;
         if (rf.signal === 'strong_buy' || rf.signal === 'strong_sell') {

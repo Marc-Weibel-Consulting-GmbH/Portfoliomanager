@@ -23,6 +23,7 @@ export interface ArtifactRow {
   version: number;
   status: string;
   modelBlob: string | null; // base64 ONNX
+  featureSpec?: FeatureSpec;
 }
 
 export interface ArtifactRepo {
@@ -107,7 +108,7 @@ export function createDbArtifactRepo(db: any): ArtifactRepo {
       const { modelArtifacts } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
       const rows = await db.select().from(modelArtifacts).where(eq(modelArtifacts.kind, kind as any));
-      return rows.map((r: any) => ({ id: r.id, kind: r.kind, version: r.version, status: r.status, modelBlob: r.modelBlob }));
+      return rows.map((r: any) => ({ id: r.id, kind: r.kind, version: r.version, status: r.status, modelBlob: r.modelBlob, featureSpec: r.featureSpec }));
     },
     async insert(row): Promise<number> {
       const { modelArtifacts } = await import("../../drizzle/schema");
@@ -144,4 +145,27 @@ export async function loadActiveModelBytes(
   const bytes = Buffer.from(active.modelBlob, "base64");
   await deps.cache.set(activeCacheKey(kind), bytes, ACTIVE_TTL);
   return bytes;
+}
+
+export interface ActiveArtifact {
+  bytes: Buffer;
+  featureSpec: FeatureSpec;
+  version: number;
+}
+
+/**
+ * Load the active artifact's bytes + feature spec + version. Bytes come from the
+ * cache when warm; the feature spec/version always come from the DB row (small).
+ * Returns null if no model has been promoted or the spec is missing.
+ */
+export async function loadActiveArtifact(
+  deps: { repo: ArtifactRepo; cache: BytesCache },
+  kind: string,
+): Promise<ActiveArtifact | null> {
+  const active = selectActiveArtifact(await deps.repo.list(kind), kind);
+  if (!active || !active.modelBlob || !active.featureSpec) return null;
+  const cached = await deps.cache.get(activeCacheKey(kind));
+  const bytes = cached ?? Buffer.from(active.modelBlob, "base64");
+  if (!cached) await deps.cache.set(activeCacheKey(kind), bytes, ACTIVE_TTL);
+  return { bytes, featureSpec: active.featureSpec, version: active.version };
 }

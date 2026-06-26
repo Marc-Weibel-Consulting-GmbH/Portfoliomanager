@@ -12,6 +12,7 @@
  */
 
 import { randomForestSignal } from './mlEngine';
+import { signalForSeries, getActiveSignalModel } from './signalService';
 import * as ss from 'simple-statistics';
 
 // ============================================================
@@ -147,7 +148,7 @@ function calculateSharpeForStock(prices: number[], riskFreeRate = 0.02): number 
   return (meanReturn - riskFreeRate) / vol;
 }
 
-export function calculateRankings(holdings: PortfolioHolding[]): RankingResult[] {
+export async function calculateRankings(holdings: PortfolioHolding[]): Promise<RankingResult[]> {
   const rawScores: Array<{
     holding: PortfolioHolding;
     momentum: number;
@@ -172,7 +173,7 @@ export function calculateRankings(holdings: PortfolioHolding[]): RankingResult[]
     let rfScore = 50;
     let rfConfidence = 0;
     if (prices.length >= 100) {
-      const rf = randomForestSignal(prices, volumes, h.fundamentals || {});
+      const rf = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, volumes, h.fundamentals || {}), 'gb_signal', prices);
       rfScore = rf.score;
       rfConfidence = rf.confidence;
     }
@@ -705,9 +706,9 @@ function calculatePortfolioMetrics(holdings: PortfolioHolding[]) {
 // MAIN COPILOT FUNCTION
 // ============================================================
 
-export function runCopilotAnalysis(holdings: PortfolioHolding[]): CopilotAnalysis {
+export async function runCopilotAnalysis(holdings: PortfolioHolding[]): Promise<CopilotAnalysis> {
   // Step 1: Calculate rankings
-  const rankings = calculateRankings(holdings);
+  const rankings = await calculateRankings(holdings);
   
   // Step 2: Generate rebalancing suggestions
   const rebalancingSuggestions = calculateRebalancingSuggestions(holdings, rankings);

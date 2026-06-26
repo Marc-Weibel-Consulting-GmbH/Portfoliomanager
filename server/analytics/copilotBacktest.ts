@@ -95,11 +95,11 @@ const DEFAULT_CONFIG: BacktestConfig = {
  * @param tickers - List of tickers in the portfolio
  * @param config - Backtest configuration
  */
-export function runCopilotBacktest(
+export async function runCopilotBacktest(
   allPrices: Map<string, Array<{ date: string; close: number }>>,
   tickers: string[],
   config: Partial<BacktestConfig> = {}
-): BacktestResult {
+): Promise<BacktestResult> {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   
   // Validate data availability
@@ -164,7 +164,7 @@ export function runCopilotBacktest(
 
     // 1. Calculate rankings at this point in time (using lookback data)
     const holdings = buildHoldingsAtDate(allPrices, validTickers, allDates, startIdx, cfg.lookbackDays, copilotWeights);
-    const rankings = calculateRankings(holdings);
+    const rankings = await calculateRankings(holdings);
     
     // 2. Calculate new target weights from rankings (with turnover constraint)
     const newWeights = calculateTargetWeights(rankings, validTickers, cfg, copilotWeights);
