@@ -247,6 +247,20 @@ function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
     color: beta.color,
   });
 
+  // 5. Momentum (YTD) - growth stocks reward positive price momentum.
+  const momentum = calcSubscore(
+    metrics.ytdPerformance,
+    [0, 5, 15, 30],  // <0% red, 0-5% orange, 5-15% yellow, >30% green
+    false
+  );
+  subScores.push({
+    metric: 'Momentum (YTD)',
+    value: metrics.ytdPerformance ?? null,
+    score: momentum.score,
+    weight: 0.15,
+    color: momentum.color,
+  });
+
   return subScores;
 }
 
