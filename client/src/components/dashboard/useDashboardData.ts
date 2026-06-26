@@ -113,9 +113,20 @@ export function useDashboardData({ scope, range }: UseDashboardDataParams): Dash
       { placeholderData: keepPreviousData }
     );
 
-  // Canonical YTD (getMultiPeriodPerformanceV2): per portfolio for a single
-  // scope, value-weighted across portfolios for the aggregate scope.
+  // Canonical YTD: derive from the performance chart's last data point when
+  // the selected range is YTD. This ensures the KPI card always matches the
+  // chart visually. Fallback to getMultiPeriodPerformanceV2 if chart data is
+  // not yet available.
   const canonicalYtd: number | undefined = (() => {
+    // Primary source: last point of the YTD performance chart
+    if (range === 'YTD' && rawPerformance && (rawPerformance as any).points?.length > 0) {
+      const points = (rawPerformance as any).points;
+      const lastPoint = points[points.length - 1];
+      if (lastPoint && typeof lastPoint.portfolio === 'number') {
+        return lastPoint.portfolio;
+      }
+    }
+    // Fallback: getMultiPeriodPerformanceV2 weighted calculation
     const mp = multiPeriod as Array<{ portfolioId: number; performance?: { YTD?: number } }> | undefined;
     if (!mp || mp.length === 0) return undefined;
     const ytdById = new Map(mp.map(p => [p.portfolioId, p.performance?.YTD]));

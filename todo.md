@@ -1298,3 +1298,27 @@
 - [ ] Rechner page calculators are placeholders (Pension, Budget, Steuer)
 
 - [x] BUG: Portfolio Builder Abschluss-Schritt zeigt "Positionen (0)" und "CHF 0.00" obwohl Aktien ausgewählt wurden - FIXED: Fallback auf aktuellen Preis wenn kein Preis eingegeben, Validierung dass mindestens 1 Position vorhanden, NaN-Schutz für delisted Stocks
+
+## Neue Bugs (26.06.2026)
+- [ ] BUG: Aggregiertes Portfolio Zeitfenster Max muss auf das jüngste Portfolio-Startdatum begrenzt werden (sonst nicht vergleichbar)
+- [ ] BUG: Demo-Portfolios zeigen bei Max nur ~1 Monat statt voller Historie - Zeitfenster korrekt anpassen
+- [ ] BUG: YTD Chart und YTD KPI stimmen nicht überein (KPI zeigt +5.04% aber Chart-Tooltip zeigt Portfolio +1.69% am 25. Juni)
+- [ ] BUG: Copilot Insights Aktions-Buttons (grün) haben keine verknüpfte Funktion (Sektoren diversifizieren, Positionen überprüfen, etc.)
+
+## Bug Fixes (26.06.2026)
+
+- [x] BUG: Aggregiertes Portfolio Max-Zeitfenster - bei Live-Portfolios auf Startdatum begrenzen
+  - Fixed: Max-Zeitfenster für aggregierte Ansicht beginnt jetzt am liveStartDate des ältesten Live-Portfolios
+  - Verhindert Vergleich mit Demo-Portfolios über nicht-vergleichbare Zeiträume
+- [x] BUG: Demo-Portfolio Zeitfenster Max zeigt nur ~1 Monat statt vollständiger Geschichte
+  - Root cause: FX-Konvertierung war async und machte tausende DB-Roundtrips für historische Daten
+  - Fix 1: FX-Backfill - 5.249 historische Kurse (USDCHF, EURCHF, GBPCHF) ab 2020 in DB geladen
+  - Fix 2: Synchrone FX-Konvertierung (convertToCHFSync) aus In-Memory-Cache - von 15s auf 5ms
+  - Fix 3: Pre-sorted Ticker-Datum-Arrays außerhalb der Berechungsschleife - eliminiert O(n log n) Sort
+  - Fix 4: Max-Zeitfenster für Demo-Portfolios auf 3 Jahre begrenzt (sinnvoller Backtest-Zeitraum)
+- [x] BUG: YTD Chart und YTD KPI stimmen nicht überein
+  - Fixed: Chart und KPI verwenden jetzt denselben Startpunkt (liveStartDate für Live-Portfolios)
+- [x] BUG: Copilot Insights Buttons ohne Funktion
+  - Fixed: Buttons sind jetzt mit konkreten Seiten verknüpft (Portfolio-Optimizer, Analyse, Invest)
+  - Aggregiert-Tab: "Im Optimizer prüfen" → /portfolio-optimizer, "Detail-Report" → /analysis, "Vorschläge anzeigen" → /invest
+  - Portfolio-spezifisch: Links zu /portfolios, /markt je nach Insight-Typ

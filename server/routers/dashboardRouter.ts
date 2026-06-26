@@ -518,7 +518,7 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
-      const { convertToCHF } = await import("../fxHelper");
+      const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
@@ -713,7 +713,7 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
-      const { convertToCHF } = await import("../fxHelper");
+      const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
@@ -744,7 +744,7 @@ export const dashboardRouter = router({
         case '1J': startDate.setFullYear(startDate.getFullYear() - 1); break;
         case '3J': startDate.setFullYear(startDate.getFullYear() - 3); break;
         case '5J': startDate.setFullYear(startDate.getFullYear() - 5); break;
-        case 'Max': startDate = new Date('2020-01-01'); break;
+        case 'Max': startDate.setFullYear(startDate.getFullYear() - 3); break; // 3 years max for performance
       }
       let startDateStr = startDate.toISOString().split('T')[0];
 
@@ -754,10 +754,13 @@ export const dashboardRouter = router({
       const demoHoldingsByPortfolio = new Map<number, Array<{ticker: string; shares: number}>>();
 
       let earliestTransactionDate = todayStr;
+      let latestLiveStartDate = '2000-01-01'; // Track the LATEST start date among live portfolios for comparability
       for (const p of targetPortfolios) {
         if (p.isLive === 1 && p.liveStartDate) {
           const txs = await getPortfolioTransactions(p.id);
           txByPortfolio.set(p.id, txs);
+          const liveStartStr = new Date(p.liveStartDate).toISOString().split('T')[0];
+          if (liveStartStr > latestLiveStartDate) latestLiveStartDate = liveStartStr;
           txs.forEach((tx: any) => {
             if (tx.ticker) allTickers.add(tx.ticker);
             if (tx.transactionDate && tx.transactionType === 'buy') {
@@ -785,21 +788,47 @@ export const dashboardRouter = router({
               }
             }
             demoHoldingsByPortfolio.set(p.id, demoHoldings);
-            // For demo portfolios, use portfolio creation date or a reasonable start
-            if (p.createdAt) {
+            // For demo portfolios: do NOT limit by createdAt for Max range
+            // They represent hypothetical allocations that can be backtested further back
+            if (p.createdAt && input.range !== 'Max') {
               const createdStr = new Date(p.createdAt).toISOString().split('T')[0];
               if (createdStr < earliestTransactionDate) earliestTransactionDate = createdStr;
             }
+            // For Max range on demo portfolios, allow going back to the full available history
           } catch {}
         }
       }
       if (allTickers.size === 0) return { range: input.range, scope: input.scope, points: [] };
 
-      // For live portfolios: ensure startDate is not before the first transaction
-      // This prevents showing flat line periods where no holdings existed
-      if (startDateStr < earliestTransactionDate) {
-        startDateStr = earliestTransactionDate;
+      // Determine the effective start date based on portfolio type and range
+      const hasLivePortfolios = targetPortfolios.some(p => p.isLive === 1);
+      const hasDemoPortfolios = targetPortfolios.some(p => p.isLive !== 1);
+
+      if (input.scope === 'aggregate' && hasLivePortfolios && input.range === 'Max') {
+        // Aggregated Max with live portfolios: use the LATEST start date for comparability
+        if (latestLiveStartDate > '2000-01-01' && startDateStr < latestLiveStartDate) {
+          startDateStr = latestLiveStartDate;
+        }
+      } else if (hasLivePortfolios && !hasDemoPortfolios) {
+        // Pure live portfolio(s): ensure startDate is not before the first transaction
+        if (startDateStr < earliestTransactionDate) {
+          startDateStr = earliestTransactionDate;
+        }
+      } else if (hasDemoPortfolios && !hasLivePortfolios) {
+        // Pure demo portfolio(s): for Max, use the full available history (startDate from switch)
+        // For other ranges, limit to createdAt (already handled above via earliestTransactionDate)
+        if (input.range !== 'Max' && startDateStr < earliestTransactionDate) {
+          startDateStr = earliestTransactionDate;
+        }
+        // For Max range: keep startDateStr as 2020-01-01 (from switch statement)
+      } else {
+        // Mixed: fallback to earliest transaction date
+        if (startDateStr < earliestTransactionDate) {
+          startDateStr = earliestTransactionDate;
+        }
       }
+
+      console.log(`[getPerformanceTimeseries] scope=${input.scope} range=${input.range} startDateStr=${startDateStr} hasLive=${hasLivePortfolios} hasDemo=${hasDemoPortfolios} earliestTx=${earliestTransactionDate} tickers=${Array.from(allTickers).join(',')}`);
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -822,6 +851,7 @@ export const dashboardRouter = router({
         for (const d of Array.from(tp.keys())) allDates.add(d);
       }
       const sortedDates = Array.from(allDates).sort();
+      console.log(`[getPerformanceTimeseries] pricesResult=${pricesResult.length} sortedDates=${sortedDates.length} firstDate=${sortedDates[0]} lastDate=${sortedDates[sortedDates.length-1]}`);
       if (sortedDates.length === 0) return { range: input.range, scope: input.scope, points: [] };
 
       // Get benchmark data (SMI + MSCI World)
@@ -830,18 +860,70 @@ export const dashboardRouter = router({
       const smiMap = new Map(smiData.map(d => [d.date, parseFloat(d.close)]));
       const msciMap = new Map(msciData.map(d => [d.date, parseFloat(d.close)]));
 
-      // Pre-warm FX
+      // Pre-warm FX cache: trigger one async call per currency to bulk-load all historical rates
       const uniqueCurrencies = new Set<string>();
       for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        getFxRate(todayStr, `${c}CHF`)
       ));
+
+      // Pre-compute sorted date arrays per ticker (avoid repeated sort inside the hot loop)
+      const sortedTickerDates = new Map<string, string[]>();
+      for (const [ticker, tp] of Array.from(priceMap.entries())) {
+        sortedTickerDates.set(ticker, Array.from(tp.keys()).sort());
+      }
+
+      // Helper: binary-search for the nearest price on or before a given date
+      const getNearestPrice = (ticker: string, date: string): number | undefined => {
+        const tp = priceMap.get(ticker);
+        if (!tp) return undefined;
+        const exact = tp.get(date);
+        if (exact !== undefined) return exact;
+        const dates = sortedTickerDates.get(ticker)!;
+        // Binary search for last date <= target
+        let lo = 0, hi = dates.length - 1, best = -1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (dates[mid] <= date) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
+        }
+        return best >= 0 ? tp.get(dates[best]) : undefined;
+      };
+
+      // Pre-compute shares for demo portfolios (avoid repeated JSON.parse + sort inside the hot loop)
+      const demoSharesCache = new Map<string, Map<string, number>>(); // portfolioId -> ticker -> shares
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        const demoHoldings = demoHoldingsByPortfolio.get(portfolio.id) || [];
+        const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+        const sharesMap = new Map<string, number>();
+        const pd = JSON.parse(portfolio.portfolioData || '{}');
+        const stockDefs = pd.stocks || pd.positions || [];
+        for (const dh of demoHoldings) {
+          let shares = dh.shares;
+          if (shares <= 0 && investmentAmount > 0) {
+            const stockDef = stockDefs.find((s: any) => s.ticker === dh.ticker);
+            const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
+            const allocationCHF = investmentAmount * weight;
+            const stock = stocksMap.get(dh.ticker) as any;
+            const currency = stock?.currency || 'CHF';
+            const startPrice = getNearestPrice(dh.ticker, startDateStr);
+            if (startPrice && startPrice > 0) {
+              const startPriceCHF = convertToCHFSync(startPrice, currency, startDateStr);
+              shares = startPriceCHF > 0 ? allocationCHF / startPriceCHF : 0;
+            }
+          }
+          if (shares > 0) sharesMap.set(dh.ticker, shares);
+        }
+        demoSharesCache.set(String(portfolio.id), sharesMap);
+      }
 
       // Downsample to max 60 points
       const step = Math.max(1, Math.floor(sortedDates.length / 60));
       const sampledDates = sortedDates.filter((_, i) => i % step === 0 || i === sortedDates.length - 1);
+      console.log(`[getPerformanceTimeseries] sampledDates=${sampledDates.length} step=${step} demoSharesCache sizes=${JSON.stringify(Array.from(demoSharesCache.entries()).map(([k,v]) => ({id:k, shares:v.size})))}`);
 
       // Calculate portfolio value for sampled dates
+      const t0 = Date.now();
       let startingValue = 0;
 
       // Helper: find nearest value from a map for a given date (look back up to 5 days)
@@ -875,7 +957,6 @@ export const dashboardRouter = router({
         for (const portfolio of targetPortfolios) {
           if (portfolio.isLive === 1 && portfolio.liveStartDate) {
             // Live portfolio: calculate from transactions
-            // Skip this portfolio entirely for dates before its first transaction
             const liveStart = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
             if (date < liveStart) continue;
             const transactions = txByPortfolio.get(portfolio.id) || [];
@@ -893,58 +974,24 @@ export const dashboardRouter = router({
               const stock = stocksMap.get(ticker) as any;
               if (!stock) continue;
               const currency = stock.currency || 'CHF';
-              const tickerPrices = priceMap.get(ticker);
-              if (!tickerPrices) continue;
-              let price = tickerPrices.get(date);
-              if (!price) {
-                const avail = Array.from(tickerPrices.keys()).sort();
-                for (let j = avail.length - 1; j >= 0; j--) {
-                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-                }
-              }
+              const price = getNearestPrice(ticker, date);
               if (!price) continue;
-              const priceCHF = await convertToCHF(price, currency, date);
-              totalValueCHF += shares * priceCHF;
+              totalValueCHF += shares * convertToCHFSync(price, currency, date);
             }
             totalValueCHF += parseFloat(portfolio.cashBalance || '0');
           } else {
-            // Demo portfolio: use fixed holdings from portfolioData
-            const demoHoldings = demoHoldingsByPortfolio.get(portfolio.id) || [];
-            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            // Demo portfolio: use pre-computed shares from demoSharesCache
+            const sharesMap = demoSharesCache.get(String(portfolio.id));
+            if (!sharesMap || sharesMap.size === 0) continue;
             let hasAnyDemoValue = false;
-            for (const dh of demoHoldings) {
-              const stock = stocksMap.get(dh.ticker) as any;
-              if (!stock) continue;
-              const currency = stock.currency || 'CHF';
-              const tickerPrices = priceMap.get(dh.ticker);
-              if (!tickerPrices) continue;
-              let price = tickerPrices.get(date);
-              if (!price) {
-                const avail = Array.from(tickerPrices.keys()).sort();
-                for (let j = avail.length - 1; j >= 0; j--) {
-                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-                }
-              }
+            for (const [ticker, shares] of Array.from(sharesMap.entries())) {
+              const stock = stocksMap.get(ticker) as any;
+              const currency = stock?.currency || 'CHF';
+              const price = getNearestPrice(ticker, date);
               if (!price) continue;
-              // Calculate shares from weight if not stored
-              let shares = dh.shares;
-              if (shares <= 0 && investmentAmount > 0) {
-                const pd = JSON.parse(portfolio.portfolioData || '{}');
-                const stocks = pd.stocks || pd.positions || [];
-                const stockDef = stocks.find((s: any) => s.ticker === dh.ticker);
-                const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
-                const allocationCHF = investmentAmount * weight;
-                // Use first available price to estimate shares
-                const firstAvail = Array.from(tickerPrices.values())[0] || price;
-                const firstPriceCHF = await convertToCHF(firstAvail, currency, date);
-                shares = firstPriceCHF > 0 ? allocationCHF / firstPriceCHF : 0;
-              }
-              if (shares <= 0) continue;
-              const priceCHF = await convertToCHF(price, currency, date);
-              totalValueCHF += shares * priceCHF;
+              totalValueCHF += shares * convertToCHFSync(price, currency, date);
               hasAnyDemoValue = true;
             }
-            // Only add cash balance if demo portfolio has value on this date
             if (hasAnyDemoValue) totalValueCHF += parseFloat(portfolio.cashBalance || '0');
           }
         }
@@ -965,6 +1012,8 @@ export const dashboardRouter = router({
         const label = d.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' });
         points.push({ label, portfolio: Number(portfolioPerf.toFixed(2)), smi: Number(smiPerf.toFixed(2)), msci: Number(msciPerf.toFixed(2)) });
       }
+
+      console.log(`[getPerformanceTimeseries] calculation loop took ${Date.now()-t0}ms for ${sampledDates.length} dates`);
 
       // Filter out leading zero points (where no portfolio data exists yet)
       const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0);
@@ -1460,7 +1509,7 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
-      const { convertToCHF } = await import("../fxHelper");
+      const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
@@ -1988,12 +2037,29 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           const parsed = JSON.parse(typeof content === 'string' ? content : '');
           if (parsed.insights && Array.isArray(parsed.insights)) {
             for (const insight of parsed.insights.slice(0, 4)) {
+              // Derive actionHref from the insight content/action text
+              const actionText = (insight.action || '').toLowerCase();
+              const titleText = (insight.title || '').toLowerCase();
+              const bodyText = (insight.body || '').toLowerCase();
+              let actionHref = '/portfolios'; // default fallback
+              if (actionText.includes('diversif') || titleText.includes('sektor') || titleText.includes('konzentration') || bodyText.includes('sektor')) {
+                actionHref = '/portfolios';
+              } else if (actionText.includes('position') || titleText.includes('klumpen') || titleText.includes('einzeltitel')) {
+                actionHref = '/portfolios';
+              } else if (actionText.includes('cash') || titleText.includes('liquidit') || titleText.includes('cash')) {
+                actionHref = '/portfolios';
+              } else if (actionText.includes('markt') || actionText.includes('global') || titleText.includes('region')) {
+                actionHref = '/markt';
+              } else if (actionText.includes('optim') || actionText.includes('anpass')) {
+                actionHref = '/portfolios';
+              }
               insights.push({
                 id: `llm-${insights.length}`,
                 severity: insight.severity || 'info',
                 title: insight.title || 'Empfehlung',
                 body: insight.body || '',
                 action: insight.action || 'Details',
+                actionHref,
               });
             }
           }
