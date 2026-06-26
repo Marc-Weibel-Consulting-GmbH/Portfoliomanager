@@ -193,6 +193,8 @@ export default function PortfolioDetailsPage() {
   
   const [selectedPeriod, setSelectedPeriod] = useState("YTD");
   const [selectedBenchmark, setSelectedBenchmark] = useState("SPY");
+  // Performance view: stocks-only vs. total portfolio incl. cash drag.
+  const [includeCash, setIncludeCash] = useState(false);
   
   const benchmarkOptions = [
     { value: "SPY", label: "S&P 500" },
@@ -276,17 +278,17 @@ export default function PortfolioDetailsPage() {
     // Format dates - all data is now "real" (no hypothetical distinction)
     const formattedData = sampledData.map((d: any) => ({
       date: new Date(d.date).toLocaleDateString('de-CH', { day: '2-digit', month: 'short', year: '2-digit' }),
-      portfolio: d.portfolio,
+      portfolio: includeCash ? (d.portfolioInclCash ?? d.portfolio) : d.portfolio,
       hypothetical: null, // No hypothetical data anymore
       benchmark: d.benchmark,
     }));
-    
-    return { 
-      data: formattedData, 
+
+    return {
+      data: formattedData,
       creationDateIndex: -1,
       hasHypothetical: false // No hypothetical data anymore
     };
-  }, [historicalData]);
+  }, [historicalData, includeCash]);
   
   // Prepare pie chart data for asset allocation
   const assetAllocationData = useMemo(() => {
@@ -500,7 +502,9 @@ export default function PortfolioDetailsPage() {
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">YTD</p>
             {(() => {
               const entry = (multiPeriod as any[] | undefined)?.find(p => p.portfolioId === portfolioId);
-              const ytdPerf = entry?.performance?.YTD ?? null;
+              const ytdStocks = entry?.performance?.YTD ?? null;
+              const ytdInclCash = entry?.performanceInclCash?.YTD ?? ytdStocks;
+              const ytdPerf = includeCash ? ytdInclCash : ytdStocks;
               const benchPerf = entry?.benchmarkPerformance?.YTD ?? null;
               return (
                 <>
@@ -584,18 +588,34 @@ export default function PortfolioDetailsPage() {
                     <div>
                       <h3 className="text-sm font-semibold text-white">Wertentwicklung seit Erstauf</h3>
                     </div>
-                    <div className="flex gap-1">
-                      {['1M', 'YTD', '1J', 'Max'].map(p => (
-                        <button
-                          key={p}
-                          onClick={() => setSelectedPeriod(p === '1J' ? '1Y' : p === 'Max' ? 'All' : p)}
-                          className={`px-2 py-1 text-xs rounded transition-colors ${
-                            (selectedPeriod === p || (p === '1J' && selectedPeriod === '1Y') || (p === 'Max' && selectedPeriod === 'All'))
-                              ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
-                              : 'text-gray-500 hover:text-gray-300'
-                          }`}
-                        >{p}</button>
-                      ))}
+                    <div className="flex gap-2 items-center">
+                      <div className="flex gap-1">
+                        {(['stocks', 'total'] as const).map(v => (
+                          <button
+                            key={v}
+                            onClick={() => setIncludeCash(v === 'total')}
+                            title={v === 'total' ? 'Gesamtportfolio inkl. Cash (Cash = 0% Rendite)' : 'Nur Aktien-Rendite (ohne Cash)'}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${
+                              (includeCash ? v === 'total' : v === 'stocks')
+                                ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
+                                : 'text-gray-500 hover:text-gray-300'
+                            }`}
+                          >{v === 'total' ? 'Gesamt' : 'Aktien'}</button>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        {['1M', 'YTD', '1J', 'Max'].map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setSelectedPeriod(p === '1J' ? '1Y' : p === 'Max' ? 'All' : p)}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${
+                              (selectedPeriod === p || (p === '1J' && selectedPeriod === '1Y') || (p === 'Max' && selectedPeriod === 'All'))
+                                ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
+                                : 'text-gray-500 hover:text-gray-300'
+                            }`}
+                          >{p}</button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="h-56">

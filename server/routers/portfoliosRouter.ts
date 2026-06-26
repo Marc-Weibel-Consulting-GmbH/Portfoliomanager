@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
 import { convertPriceMapToChf } from "../lib/fxPriceConvert";
+import { applyCashDrag } from "../lib/cashAdjust";
 
 // Helper to get YTD start date (January 1st of current year)
 function getYTDStartDate(): string {
@@ -1836,7 +1837,7 @@ export const portfoliosRouter = router({
         }
         
         // Generate daily portfolio values
-        const chartData: { date: string; portfolio: number; benchmark: number }[] = [];
+        const chartData: { date: string; portfolio: number; portfolioInclCash: number; benchmark: number }[] = [];
         let currentHoldings = { ...holdingsAtYtdStart };
         let txIndex = 0;
         
@@ -1997,6 +1998,23 @@ export const portfoliosRouter = router({
           computeWeightedReturnSeries(weightedSeriesInputs, sampledDates, ytdStartDate)
             .map((p) => [p.date, p.portfolio])
         );
+
+        // Current cash weight for the optional total-portfolio (incl. cash) line.
+        const chartInvestmentAmount = parseFloat((portfolio as any).investmentAmount || '0');
+        const chartCashBalance = parseFloat((portfolio as any).cashBalance || '0');
+        let chartStocksValueCHF = 0;
+        for (const inp of weightedSeriesInputs) {
+          const ds = Object.keys(inp.prices).sort((a, b) => a.localeCompare(b));
+          const latest = ds.length ? inp.prices[ds[ds.length - 1]] : 0;
+          const raw = weightedSeriesStocks.find((s: any) => s.ticker === inp.ticker);
+          const rawWeight = parseFloat(raw?.weight || '0');
+          let sh = parseFloat(raw?.shares || '0');
+          if (sh === 0 && chartInvestmentAmount > 0 && rawWeight > 0 && latest > 0) {
+            sh = (chartInvestmentAmount * (rawWeight / 100)) / latest;
+          }
+          chartStocksValueCHF += sh * latest;
+        }
+        const { cashWeight: chartCashWeight } = applyCashDrag(0, chartStocksValueCHF, chartCashBalance);
 
         // Process each sampled date
         for (const date of sampledDates) {
@@ -2173,6 +2191,7 @@ export const portfoliosRouter = router({
             chartData.push({
               date,
               portfolio: parseFloat(portfolioPerformance.toFixed(2)),
+              portfolioInclCash: parseFloat((portfolioPerformance * (1 - chartCashWeight)).toFixed(2)),
               benchmark: parseFloat(benchmarkPerformance.toFixed(2)),
             });
           }
@@ -2907,6 +2926,8 @@ export const portfoliosRouter = router({
               return {
                 portfolioId: portfolio.id,
                 performance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+                performanceInclCash: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+                cashWeight: 0,
                 benchmarkPerformance,
                 outperformance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
               };
@@ -2923,7 +2944,14 @@ export const portfoliosRouter = router({
                 totalWeight += parseFloat(stock.weight || '0');
               }
             }
-            
+
+            // For the optional cash-drag (total-portfolio) figure we need the current
+            // CHF stock value and the cash balance. Cash is held separately as an
+            // absolute amount (portfolio.cashBalance).
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            const cashBalance = parseFloat(portfolio.cashBalance || '0');
+            let stocksValueCHF = 0;
+
             for (const stock of stocks) {
               if (!stock.ticker || stock.ticker === 'CASH') continue;
               
@@ -2955,8 +2983,18 @@ export const portfoliosRouter = router({
               }
               // Convert to CHF so the weighted return is a true CHF return (incl. FX).
               stockPrices[ticker] = await toChfPriceMap(localPrices, stockData[ticker].currency);
+
+              // Accumulate current CHF stock value (for the cash-drag figure).
+              const chfDates = Object.keys(stockPrices[ticker]).sort((a, b) => a.localeCompare(b));
+              const latestChf = chfDates.length ? stockPrices[ticker][chfDates[chfDates.length - 1]] : 0;
+              const rawWeight = parseFloat(stock.weight || '0');
+              let shares = parseFloat(stock.shares || '0');
+              if (shares === 0 && investmentAmount > 0 && rawWeight > 0 && latestChf > 0) {
+                shares = (investmentAmount * (rawWeight / 100)) / latestChf;
+              }
+              stocksValueCHF += shares * latestChf;
             }
-            
+
             // Calculate performance for each period
             const portfolioPerformance: Record<string, number> = {};
             
@@ -3010,10 +3048,21 @@ export const portfoliosRouter = router({
             for (const period of periods) {
               outperformance[period] = portfolioPerformance[period] - benchmarkPerformance[period];
             }
-            
+
+            // Total-portfolio variant including cash drag (cash assumed 0% return).
+            const performanceInclCash: Record<string, number> = {};
+            let cashWeight = 0;
+            for (const period of periods) {
+              const adj = applyCashDrag(portfolioPerformance[period], stocksValueCHF, cashBalance);
+              performanceInclCash[period] = adj.inclCashPct;
+              cashWeight = adj.cashWeight;
+            }
+
             return {
               portfolioId: portfolio.id,
               performance: portfolioPerformance,
+              performanceInclCash,
+              cashWeight,
               benchmarkPerformance,
               outperformance,
             };
@@ -3022,6 +3071,8 @@ export const portfoliosRouter = router({
             return {
               portfolioId: portfolio.id,
               performance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+              performanceInclCash: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
+              cashWeight: 0,
               benchmarkPerformance,
               outperformance: { '1M': 0, '3M': 0, '6M': 0, 'YTD': 0, '1Y': 0 },
             };
