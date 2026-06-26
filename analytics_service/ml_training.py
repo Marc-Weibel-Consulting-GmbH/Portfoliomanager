@@ -228,3 +228,79 @@ def train_and_export(prices: np.ndarray, cfg: TrainConfig = TrainConfig(),
         notes.append("did not pass promotion gate")
     return TrainResult(metrics=metrics, feature_spec=feature_spec,
                        onnx_bytes=onnx_bytes, passed_gate=passed, notes=notes)
+
+
+# ----------------------------------------------------------------------------
+# Pooled (cross-sectional) training over a whole universe
+# ----------------------------------------------------------------------------
+def build_pooled(series_by_ticker: dict, lookahead: int = 30,
+                 fundamentals_by_ticker: Optional[dict] = None):
+    """Build a date-sorted pooled (X, y) across many tickers (point-in-time)."""
+    rows = []
+    for tk, ser in series_by_ticker.items():
+        prices = np.asarray(ser["prices"], dtype=np.float64)
+        dates = ser["dates"]
+        fund = (fundamentals_by_ticker or {}).get(tk)
+        for i in range(50, len(prices) - lookahead):
+            f = features_at(prices, i, fund)
+            if f is None:
+                continue
+            fwd = prices[i + lookahead] / prices[i] - 1
+            rows.append((dates[i], f, 1 if fwd > 0 else 0))
+    rows.sort(key=lambda r: r[0])  # global chronological order
+    X = np.array([r[1] for r in rows], dtype=np.float64)
+    y = np.array([r[2] for r in rows], dtype=np.int64)
+    dates = [r[0] for r in rows]
+    return X, y, dates
+
+
+def time_split_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig, n_folds: int = 5) -> dict:
+    """Expanding-window, time-ordered OOS evaluation on date-sorted pooled data."""
+    n = len(X)
+    if n < (n_folds + 1) * 20:
+        n_folds = max(1, n // 40)
+    fold = n // (n_folds + 1)
+    if fold == 0:
+        return {"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
+    oos, is_ = [], []
+    for k in range(1, n_folds + 1):
+        tr_end = fold * k
+        te_end = fold * (k + 1)
+        if len(np.unique(y[:tr_end])) < 2:
+            continue
+        m = _make_model(cfg)
+        m.fit(X[:tr_end], y[:tr_end])
+        is_.append(_hit_rate(y[:tr_end], m.predict(X[:tr_end])))
+        oos.append(_hit_rate(y[tr_end:te_end], m.predict(X[tr_end:te_end])))
+    if not oos:
+        return {"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
+    oos_m = float(np.mean(oos))
+    is_m = float(np.mean(is_))
+    oos_edge = max(oos_m - 0.5, 1e-6)
+    is_edge = max(is_m - 0.5, 0.0)
+    return {"hitRate": oos_m, "overfitRatio": float(is_edge / oos_edge),
+            "alpha": float(oos_m - 0.5), "folds": len(oos)}
+
+
+def train_and_export_pooled(series_by_ticker: dict, cfg: TrainConfig = TrainConfig(),
+                            gate: GateConfig = GateConfig(),
+                            fundamentals_by_ticker: Optional[dict] = None) -> TrainResult:
+    """Universe-wide pooled training: features -> time-split eval -> final GB -> ONNX."""
+    sample_fund = next(iter(fundamentals_by_ticker.values())) if fundamentals_by_ticker else None
+    names = feature_names(sample_fund)
+    X, y, _dates = build_pooled(series_by_ticker, cfg.lookahead, fundamentals_by_ticker)
+    if len(X) < 100 or len(np.unique(y)) < 2:
+        return TrainResult(metrics={"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0},
+                           feature_spec={"features": []}, passed_gate=False, notes=["insufficient pooled data"])
+
+    metrics = time_split_evaluate(X, y, cfg)
+    mean, std = fit_standardizer(X)
+    Xs = (X - mean) / std
+    final = _make_model(cfg)
+    final.fit(Xs, y)
+    feature_spec = {"features": [{"name": n, "mean": float(mean[i]), "std": float(std[i])}
+                                 for i, n in enumerate(names)]}
+    onnx_bytes = export_onnx(final, X.shape[1])
+    passed = passes_gate(metrics, gate)
+    return TrainResult(metrics=metrics, feature_spec=feature_spec, onnx_bytes=onnx_bytes,
+                       passed_gate=passed, notes=[] if passed else ["did not pass promotion gate"])

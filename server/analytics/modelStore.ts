@@ -97,6 +97,38 @@ export async function persistAndMaybePromote(
 }
 
 /**
+ * Drizzle-backed ArtifactRepo over the modelArtifacts table. Thin adapter; the
+ * orchestration logic is tested with a fake repo.
+ */
+export function createDbArtifactRepo(db: any): ArtifactRepo {
+  // Lazy requires to avoid import cycles / load cost when unused.
+  return {
+    async list(kind: string): Promise<ArtifactRow[]> {
+      const { modelArtifacts } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const rows = await db.select().from(modelArtifacts).where(eq(modelArtifacts.kind, kind as any));
+      return rows.map((r: any) => ({ id: r.id, kind: r.kind, version: r.version, status: r.status, modelBlob: r.modelBlob }));
+    },
+    async insert(row): Promise<number> {
+      const { modelArtifacts } = await import("../../drizzle/schema");
+      const res = await db.insert(modelArtifacts).values({
+        kind: row.kind, version: row.version, status: row.status, format: row.format,
+        modelBlob: row.modelBlob, featureSpec: row.featureSpec, metrics: row.metrics,
+        trainStart: row.trainStart, trainEnd: row.trainEnd, universeSize: row.universeSize,
+      });
+      return Number(res?.[0]?.insertId ?? 0);
+    },
+    async setStatus(id: number, status: string, promotedAt?: boolean): Promise<void> {
+      const { modelArtifacts } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const patch: Record<string, unknown> = { status };
+      if (promotedAt) patch.promotedAt = new Date();
+      await db.update(modelArtifacts).set(patch).where(eq(modelArtifacts.id, id));
+    },
+  };
+}
+
+/**
  * Load the active model's ONNX bytes for a kind: cache first, then DB (and warm
  * the cache). Returns null if no model has been promoted yet.
  */

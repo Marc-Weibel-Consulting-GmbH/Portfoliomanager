@@ -87,3 +87,46 @@ def test_promotion_gate():
     assert mt.passes_gate({"hitRate": 0.6, "overfitRatio": 1.2, "alpha": 0.1}, gate)
     assert not mt.passes_gate({"hitRate": 0.5, "overfitRatio": 1.2, "alpha": 0.1}, gate)
     assert not mt.passes_gate({"hitRate": 0.6, "overfitRatio": 3.0, "alpha": 0.1}, gate)
+
+
+def _regime_series_with_dates(n=1200, seed=1, start_day=0):
+    prices = _regime_prices(n=n, seed=seed)
+    # synthetic ISO dates, daily
+    import datetime as dt
+    base = dt.date(2020, 1, 1) + dt.timedelta(days=start_day)
+    dates = [(base + dt.timedelta(days=i)).isoformat() for i in range(n)]
+    return {"prices": prices.tolist(), "dates": dates}
+
+
+def test_build_pooled_is_date_sorted_across_tickers():
+    s = {
+        "AAA": _regime_series_with_dates(seed=1, start_day=0),
+        "BBB": _regime_series_with_dates(seed=2, start_day=0),
+    }
+    X, y, dates = mt.build_pooled(s, lookahead=30)
+    assert len(X) == len(y) == len(dates)
+    assert dates == sorted(dates)  # globally chronological
+    assert X.shape[1] == len(mt.feature_names())
+
+
+def test_train_and_export_pooled_learns_and_exports():
+    s = {f"T{i}": _regime_series_with_dates(seed=i + 1) for i in range(4)}
+    res = mt.train_and_export_pooled(s, mt.TrainConfig())
+    assert res.onnx_bytes is not None and len(res.onnx_bytes) > 0
+    assert res.metrics["folds"] > 0
+    assert res.metrics["hitRate"] > 0.55  # pooled regime signal is learnable
+    assert [f["name"] for f in res.feature_spec["features"]] == mt.feature_names()
+
+
+def test_pooled_onnx_roundtrip():
+    s = {f"T{i}": _regime_series_with_dates(seed=i + 1) for i in range(4)}
+    X, y, _ = mt.build_pooled(s, lookahead=30)
+    mean, std = mt.fit_standardizer(X)
+    Xs = (X - mean) / std
+    model = mt._make_model(mt.TrainConfig())
+    model.fit(Xs, y)
+    onnx_bytes = mt.export_onnx(model, X.shape[1])
+    sess = ort.InferenceSession(onnx_bytes, providers=["CPUExecutionProvider"])
+    sample = Xs[-40:].astype(np.float32)
+    onnx_labels = sess.run(None, {"input": sample})[0].ravel().astype(int)
+    assert np.mean(onnx_labels == model.predict(Xs[-40:]).astype(int)) >= 0.99

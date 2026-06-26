@@ -16,6 +16,7 @@ Endpoints:
 import sys
 import os
 import json
+import base64
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
@@ -86,6 +87,22 @@ class OptimizeRequest(BaseModel):
     lookback_days: int = 252
     risk_free_rate: float = DEFAULT_RISK_FREE_RATE
     method: str = "max_sharpe"   # max_sharpe | min_variance | equal_weight
+
+
+class TrainSeries(BaseModel):
+    dates: List[str]
+    prices: List[float]
+
+
+class TrainRequest(BaseModel):
+    kind: str = "gb_signal"
+    seriesByTicker: Dict[str, TrainSeries]
+    # Optional point-in-time fundamentals per ticker: { ticker: { featureName: [per-day values] } }
+    fundamentalsByTicker: Optional[Dict[str, Dict[str, List[float]]]] = None
+    lookahead: int = 30
+    minHitRate: float = 0.52
+    maxOverfitRatio: float = 1.6
+    minAlpha: float = 0.0
 
 
 # ─────────────────────────────────────────────
@@ -536,6 +553,46 @@ def optimize_portfolio(req: OptimizeRequest):
             for p in frontier
         ],
         "tickers": available,
+    }
+
+
+# ─────────────────────────────────────────────
+# ML pre-training: Gradient-Boosting + walk-forward + ONNX export
+# ─────────────────────────────────────────────
+
+
+@app.post("/analytics/train")
+def train_signal_model(req: TrainRequest):
+    """Pooled GB training over the supplied universe; returns ONNX (base64) +
+    feature_spec + OOS metrics + promotion-gate verdict. The TS caller persists
+    the artifact and promotes it if passedGate is true."""
+    import ml_training as mt
+
+    series = {tk: {"dates": s.dates, "prices": s.prices}
+              for tk, s in req.seriesByTicker.items()}
+    fundamentals = None
+    if req.fundamentalsByTicker:
+        fundamentals = {
+            tk: {k: np.asarray(v, dtype=float) for k, v in d.items()}
+            for tk, d in req.fundamentalsByTicker.items()
+        }
+    cfg = mt.TrainConfig(lookahead=req.lookahead)
+    gate = mt.GateConfig(min_hit_rate=req.minHitRate,
+                         max_overfit_ratio=req.maxOverfitRatio,
+                         min_alpha=req.minAlpha)
+    try:
+        res = mt.train_and_export_pooled(series, cfg, gate, fundamentals)
+    except Exception as exc:
+        logger.exception("train_signal_model failed")
+        raise HTTPException(status_code=500, detail=f"training error: {exc}")
+
+    return {
+        "kind": req.kind,
+        "metrics": res.metrics,
+        "featureSpec": res.feature_spec,
+        "passedGate": res.passed_gate,
+        "onnxBase64": base64.b64encode(res.onnx_bytes).decode() if res.onnx_bytes else None,
+        "notes": res.notes,
     }
 
 
