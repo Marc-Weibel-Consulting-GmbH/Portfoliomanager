@@ -57,7 +57,7 @@ export function computeWeightedReturnSeries(
 
     const priceDates = Object.keys(input.prices)
       .filter((d) => input.prices[d] > 0)
-      .sort();
+      .sort((a, b) => a.localeCompare(b));
     if (priceDates.length === 0) continue;
 
     // startPrice = first price at or after startDate, else earliest available.
@@ -79,7 +79,7 @@ export function computeWeightedReturnSeries(
     });
   }
 
-  const sortedDates = [...dates].sort();
+  const sortedDates = [...dates].sort((a, b) => a.localeCompare(b));
 
   return sortedDates.map((date) => {
     let weightedPerformance = 0;

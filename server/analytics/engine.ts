@@ -12,15 +12,28 @@
  */
 
 import YahooFinanceClass from "yahoo-finance2";
+import {
+  TRADING_DAYS_YEAR,
+  SQRT_TRADING_DAYS,
+  DEFAULT_RISK_FREE_RATE,
+  mean,
+  std,
+  percentile,
+  normInv,
+  calcSharpe,
+  calcSortino,
+  calcVarHistorical,
+  calcVarParametric,
+  calcCVar,
+  calcMaxDrawdown,
+  calcBeta,
+  calcVolatility,
+  calcCalmar,
+  alignReturnsByDate,
+  type DatedReturns,
+} from "./riskStats";
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
-
-// ─────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────
-const TRADING_DAYS_YEAR = 252;
-const SQRT_TRADING_DAYS = Math.sqrt(TRADING_DAYS_YEAR);
-const DEFAULT_RISK_FREE_RATE = 0.02;
 
 // ─────────────────────────────────────────────
 // Types
@@ -157,30 +170,72 @@ async function fetchReturns(
   return returnsMap;
 }
 
+/**
+ * Like fetchReturns, but keeps the trading date for each return so series from
+ * different exchanges can be aligned by date (see alignReturnsByDate). Each
+ * return at index i is the move from day i to day i+1 and is dated with day i+1.
+ */
+async function fetchReturnsWithDates(
+  tickers: string[],
+  lookbackDays: number,
+): Promise<{ [ticker: string]: DatedReturns }> {
+  const normalizedMap: { [orig: string]: string } = {};
+  for (const t of tickers) {
+    normalizedMap[t] = normalizeTicker(t);
+  }
+  const uniqueNormalized = Array.from(new Set(Object.values(normalizedMap)));
+
+  const end = new Date();
+  const start = new Date(end.getTime() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000);
+
+  const seriesByNorm: { [norm: string]: { dates: string[]; prices: number[] } } = {};
+
+  await Promise.allSettled(
+    uniqueNormalized.map(async (norm) => {
+      try {
+        const result = await yahooFinance.chart(norm, {
+          period1: start.toISOString().split("T")[0],
+          period2: end.toISOString().split("T")[0],
+          interval: "1d",
+        }) as any;
+        const quotes = (result.quotes ?? result.indicators?.quote?.[0] ?? []) as any[];
+        const dates: string[] = [];
+        const prices: number[] = [];
+        for (const q of quotes) {
+          if (q.close == null || q.date == null) continue;
+          const d = q.date instanceof Date ? q.date : new Date(q.date);
+          dates.push(d.toISOString().split("T")[0]);
+          prices.push(q.close as number);
+        }
+        if (prices.length > 5) {
+          seriesByNorm[norm] = { dates, prices };
+        }
+      } catch {
+        // Skip tickers with no data
+      }
+    })
+  );
+
+  const out: { [ticker: string]: DatedReturns } = {};
+  for (const orig of tickers) {
+    const s = seriesByNorm[normalizedMap[orig]];
+    if (s && s.prices.length > 1) {
+      const dates: string[] = [];
+      const returns: number[] = [];
+      for (let i = 1; i < s.prices.length; i++) {
+        returns.push((s.prices[i] - s.prices[i - 1]) / s.prices[i - 1]);
+        dates.push(s.dates[i]);
+      }
+      out[orig] = { dates, returns };
+    }
+  }
+  return out;
+}
+
 // ─────────────────────────────────────────────
-// Statistical Helpers
+// Linear-algebra helpers (optimizer)
+// mean/std/percentile and all risk metrics live in ./riskStats (unit-tested).
 // ─────────────────────────────────────────────
-function mean(arr: number[]): number {
-  if (arr.length === 0) return 0;
-  return arr.reduce((s, v) => s + v, 0) / arr.length;
-}
-
-function std(arr: number[]): number {
-  if (arr.length < 2) return 0;
-  const m = mean(arr);
-  const variance = arr.reduce((s, v) => s + (v - m) ** 2, 0) / (arr.length - 1);
-  return Math.sqrt(variance);
-}
-
-function percentile(arr: number[], p: number): number {
-  const sorted = [...arr].sort((a, b) => a - b);
-  const idx = (p / 100) * (sorted.length - 1);
-  const lower = Math.floor(idx);
-  const upper = Math.ceil(idx);
-  if (lower === upper) return sorted[lower];
-  return sorted[lower] + (sorted[upper] - sorted[lower]) * (idx - lower);
-}
-
 function dotProduct(a: number[], b: number[]): number {
   let sum = 0;
   for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
@@ -189,129 +244,6 @@ function dotProduct(a: number[], b: number[]): number {
 
 function matVecMul(mat: number[][], vec: number[]): number[] {
   return mat.map((row) => dotProduct(row, vec));
-}
-
-function calcSharpe(returns: number[], rf = DEFAULT_RISK_FREE_RATE): number {
-  const excess = returns.map((r) => r - rf / TRADING_DAYS_YEAR);
-  const s = std(excess);
-  if (s === 0) return 0;
-  return (mean(excess) / s) * SQRT_TRADING_DAYS;
-}
-
-function calcSortino(returns: number[], rf = DEFAULT_RISK_FREE_RATE): number {
-  const excess = returns.map((r) => r - rf / TRADING_DAYS_YEAR);
-  const downside = returns.filter((r) => r < 0);
-  if (downside.length === 0) return 0;
-  const downsideDev =
-    Math.sqrt(downside.reduce((s, v) => s + v ** 2, 0) / downside.length) *
-    SQRT_TRADING_DAYS;
-  if (downsideDev === 0) return 0;
-  return (mean(excess) * TRADING_DAYS_YEAR) / downsideDev;
-}
-
-function calcVarHistorical(returns: number[], confidence = 0.95): number {
-  return -percentile(returns, (1 - confidence) * 100);
-}
-
-function calcVarParametric(returns: number[], confidence = 0.95): number {
-  const m = mean(returns);
-  const s = std(returns);
-  // Inverse normal CDF approximation (Beasley-Springer-Moro)
-  const z = normInv(1 - confidence);
-  return -(m + z * s);
-}
-
-function calcCVar(returns: number[], confidence = 0.95): number {
-  const varVal = calcVarHistorical(returns, confidence);
-  const tail = returns.filter((r) => r <= -varVal);
-  if (tail.length === 0) return varVal;
-  return -mean(tail);
-}
-
-function calcMaxDrawdown(returns: number[]): number {
-  let cumulative = 1;
-  let peak = 1;
-  let maxDD = 0;
-  for (const r of returns) {
-    cumulative *= 1 + r;
-    if (cumulative > peak) peak = cumulative;
-    const dd = (cumulative - peak) / peak;
-    if (dd < maxDD) maxDD = dd;
-  }
-  return maxDD;
-}
-
-function calcBeta(portfolioReturns: number[], benchmarkReturns: number[]): number {
-  const n = Math.min(portfolioReturns.length, benchmarkReturns.length);
-  const p = portfolioReturns.slice(0, n);
-  const b = benchmarkReturns.slice(0, n);
-  const mp = mean(p);
-  const mb = mean(b);
-  let cov = 0;
-  let varB = 0;
-  for (let i = 0; i < n; i++) {
-    cov += (p[i] - mp) * (b[i] - mb);
-    varB += (b[i] - mb) ** 2;
-  }
-  cov /= n - 1;
-  varB /= n - 1;
-  return varB !== 0 ? cov / varB : 0;
-}
-
-function calcVolatility(returns: number[]): number {
-  return std(returns) * SQRT_TRADING_DAYS;
-}
-
-function calcCalmar(returns: number[]): number {
-  const annualReturn = mean(returns) * TRADING_DAYS_YEAR;
-  const maxDD = Math.abs(calcMaxDrawdown(returns));
-  if (maxDD === 0) return 0;
-  return annualReturn / maxDD;
-}
-
-// Normal inverse CDF approximation (rational approximation)
-function normInv(p: number): number {
-  if (p <= 0) return -Infinity;
-  if (p >= 1) return Infinity;
-  const a = [
-    -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
-    1.38357751867269e2, -3.066479806614716e1, 2.506628277459239,
-  ];
-  const b = [
-    -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
-    6.680131188771972e1, -1.328068155288572e1,
-  ];
-  const c = [
-    -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
-    -2.549732539343734, 4.374664141464968, 2.938163982698783,
-  ];
-  const d = [
-    7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
-    3.754408661907416,
-  ];
-  const pLow = 0.02425;
-  const pHigh = 1 - pLow;
-  let q: number;
-  if (p < pLow) {
-    q = Math.sqrt(-2 * Math.log(p));
-    return (
-      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-    );
-  } else if (p <= pHigh) {
-    q = p - 0.5;
-    const r = q * q;
-    return (
-      ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) /
-      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
-    );
-  } else {
-    q = Math.sqrt(-2 * Math.log(1 - p));
-    return -(
-      (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-    );
-  }
 }
 
 // ─────────────────────────────────────────────
@@ -517,9 +449,9 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
   const weights = totalW > 0 ? rawWeights.map((w) => w / totalW) : rawWeights;
 
   const allTickers = Array.from(new Set([...tickers, benchmark]));
-  const returnsMap = await fetchReturns(allTickers, lookbackDays);
+  const datedMap = await fetchReturnsWithDates(allTickers, lookbackDays);
 
-  const available = tickers.filter((t) => returnsMap[t]);
+  const available = tickers.filter((t) => datedMap[t]);
   if (available.length === 0) {
     throw new Error("None of the provided tickers returned data.");
   }
@@ -530,8 +462,18 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
   const wSum = weightsAvail.reduce((s, v) => s + v, 0);
   if (wSum > 0) weightsAvail = weightsAvail.map((w) => w / wSum);
 
-  const portfolioRets = weightedReturns(returnsMap, available, weightsAvail);
-  const benchmarkRets = returnsMap[benchmark] ?? null;
+  // Align all holdings (and the benchmark) onto common trading dates BEFORE
+  // combining them. Without this, series from different exchanges are zipped by
+  // array index and the resulting portfolio/covariance/beta/tracking-error are
+  // computed across mismatched calendar days.
+  const hasBenchmark = !!datedMap[benchmark];
+  const alignTickers = hasBenchmark ? [...available, benchmark] : [...available];
+  const { returnsByTicker: aligned } = alignReturnsByDate(datedMap, alignTickers);
+
+  const portfolioRets = weightedReturns(aligned, available, weightsAvail);
+  const benchmarkRets = hasBenchmark ? (aligned[benchmark] ?? null) : null;
+  // Benchmark's own (full-history) returns for its standalone metrics.
+  const benchmarkFull = hasBenchmark ? datedMap[benchmark].returns : null;
 
   const sharpe = calcSharpe(portfolioRets, riskFreeRate);
   const sortino = calcSortino(portfolioRets, riskFreeRate);
@@ -548,29 +490,34 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
   let informationRatio: number | null = null;
 
   if (benchmarkRets) {
+    // portfolioRets and benchmarkRets are aligned on identical dates here.
     beta = calcBeta(portfolioRets, benchmarkRets);
     if (beta !== 0) {
       treynor = (annualReturn - riskFreeRate) / beta;
     }
-    // Information ratio
-    const n = Math.min(portfolioRets.length, benchmarkRets.length);
-    const excess = portfolioRets.slice(0, n).map((r, i) => r - benchmarkRets[i]);
+    const excess = portfolioRets.map((r, i) => r - benchmarkRets[i]);
     const trackingError = std(excess) * SQRT_TRADING_DAYS;
     if (trackingError > 0) {
       informationRatio = (mean(excess) * TRADING_DAYS_YEAR) / trackingError;
     }
   }
 
-  // Per-asset metrics
+  // Per-asset metrics: standalone risk on the asset's own full history; beta is
+  // computed on the asset aligned by date with the benchmark.
   const assetMetrics = available.map((ticker, i) => {
-    const ar = returnsMap[ticker];
+    const ar = datedMap[ticker].returns;
+    let assetBeta: number | null = null;
+    if (hasBenchmark) {
+      const pair = alignReturnsByDate(datedMap, [ticker, benchmark]).returnsByTicker;
+      assetBeta = Math.round(calcBeta(pair[ticker] ?? [], pair[benchmark] ?? []) * 1000) / 1000;
+    }
     return {
       ticker,
       weight: weightsAvail[i],
       annualReturn: Math.round(mean(ar) * TRADING_DAYS_YEAR * 10000) / 100,
       volatility: Math.round(calcVolatility(ar) * 10000) / 100,
       sharpe: Math.round(calcSharpe(ar, riskFreeRate) * 1000) / 1000,
-      beta: benchmarkRets ? Math.round(calcBeta(ar, benchmarkRets) * 1000) / 1000 : null,
+      beta: assetBeta,
       var95: Math.round(calcVarHistorical(ar, confidenceLevel) * 10000) / 100,
       maxDrawdown: Math.round(calcMaxDrawdown(ar) * 10000) / 100,
     };
@@ -587,13 +534,13 @@ export async function calcRiskMetrics(input: RiskMetricsInput) {
     beta: number;
   } | null = null;
 
-  if (benchmarkRets) {
-    const bmVol = calcVolatility(benchmarkRets);
-    const bmSharpe = calcSharpe(benchmarkRets, riskFreeRate);
-    const bmSortino = calcSortino(benchmarkRets, riskFreeRate);
-    const bmMaxDD = calcMaxDrawdown(benchmarkRets);
-    const bmVarHist = calcVarHistorical(benchmarkRets, confidenceLevel);
-    const bmAnnualReturn = mean(benchmarkRets) * TRADING_DAYS_YEAR;
+  if (benchmarkFull) {
+    const bmVol = calcVolatility(benchmarkFull);
+    const bmSharpe = calcSharpe(benchmarkFull, riskFreeRate);
+    const bmSortino = calcSortino(benchmarkFull, riskFreeRate);
+    const bmMaxDD = calcMaxDrawdown(benchmarkFull);
+    const bmVarHist = calcVarHistorical(benchmarkFull, confidenceLevel);
+    const bmAnnualReturn = mean(benchmarkFull) * TRADING_DAYS_YEAR;
     benchmarkMetrics = {
       annualReturn: Math.round(bmAnnualReturn * 10000) / 100,
       volatility: Math.round(bmVol * 10000) / 100,
