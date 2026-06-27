@@ -5,6 +5,13 @@ import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
 import { applyCashDrag } from "../lib/cashAdjust";
 import { toChfPriceMap as toChfPriceMapCore, deriveStocksValueChf } from "../lib/performanceCore";
 
+// Parse a possibly-string/null DB numeric field to number|undefined for scoring.
+function parseNum(v: unknown): number | undefined {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = typeof v === 'number' ? v : parseFloat(String(v));
+  return Number.isFinite(n) ? n : undefined;
+}
+
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
   if (!value || value === 'NA' || value === 'N/A' || value === 'null') return fallback;
@@ -295,6 +302,7 @@ export const portfoliosRouter = router({
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getStockByTicker } = await import("../db");
         const { getStockCurrency, convertToCHF } = await import("../fxHelper");
+        const { calculateStockScore } = await import("../scoring");
 
         const portfolio = await getSavedPortfolioById(input, ctx.user.id);
         if (!portfolio) return null;
@@ -369,6 +377,23 @@ export const portfoliosRouter = router({
               dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
               companyName: dbStock?.companyName || stock.companyName || ticker,
               category: dbStock?.category || stock.category || 'Aktien',
+              // Fundamentals + composite score — drive the Konstellation view.
+              // marketCap is stored in CHF billions (see stocksRouter.refreshStock).
+              peRatio: dbStock?.peRatio ?? stock.peRatio ?? null,
+              pegRatio: dbStock?.pegRatio ?? stock.pegRatio ?? null,
+              marketCap: dbStock?.marketCap ?? stock.marketCap ?? null,
+              beta: dbStock?.beta ?? stock.beta ?? null,
+              volatility: dbStock?.volatility ?? stock.volatility ?? null,
+              sharpeRatio: dbStock?.sharpeRatio ?? stock.sharpeRatio ?? null,
+              qualityScore: calculateStockScore(ticker, {
+                dividendYield: parseNum(dbStock?.dividendYield),
+                peRatio: parseNum(dbStock?.peRatio),
+                pegRatio: parseNum(dbStock?.pegRatio),
+                beta: parseNum(dbStock?.beta),
+                volatility: parseNum(dbStock?.volatility),
+                sharpeRatio: parseNum(dbStock?.sharpeRatio),
+                ytdPerformance: parseNum(dbStock?.ytdPerformance ?? stock.ytdPerformance),
+              }, undefined, dbStock?.category).totalScore,
             };
           })
         );
