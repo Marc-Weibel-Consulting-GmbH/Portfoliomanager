@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { watchlistStocks } from "../../drizzle/schema";
+import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession } from '../lib/wikifolioService';
 import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
 import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
@@ -607,4 +608,139 @@ export const watchlistRouter = router({
 
       return results;
     }),
+
+  // ─── Wikifolio Integration ───────────────────────────────────────────────
+
+  /**
+   * Fetch portfolio positions of a Wikifolio (e.g. wfglobalnt)
+   */
+  getWikifolioPortfolio: protectedProcedure
+    .input(z.object({
+      symbol: z.string().min(1).default('wfglobalnt'),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+      }
+      try {
+        const portfolio = await getWikifolioPortfolio(input.symbol);
+        return { success: true, portfolio };
+      } catch (err: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: err?.message || 'Wikifolio-Daten konnten nicht abgerufen werden',
+        });
+      }
+    }),
+
+  /**
+   * Fetch basic details of a Wikifolio
+   */
+  getWikifolioDetails: protectedProcedure
+    .input(z.object({
+      symbol: z.string().min(1).default('wfglobalnt'),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+      }
+      try {
+        const details = await getWikifolioDetails(input.symbol);
+        return { success: true, details };
+      } catch (err: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: err?.message || 'Wikifolio-Details konnten nicht abgerufen werden',
+        });
+      }
+    }),
+
+  /**
+   * Clear Wikifolio session (force re-login)
+   */
+  clearWikifolioSession: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+      }
+      clearWikifolioSession();
+      return { success: true, message: 'Wikifolio-Session zurückgesetzt' };
+    }),
+
+  /**
+   * Import Wikifolio positions into the local watchlist
+   */
+  importWikifolioToWatchlist: protectedProcedure
+    .input(z.object({
+      symbol: z.string().min(1).default('wfglobalnt'),
+      overwriteExisting: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+      }
+      const { getDb } = await import('../db');
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+
+      const portfolio = await getWikifolioPortfolio(input.symbol);
+      const equityItems = portfolio.items.filter(item =>
+        item.groupName === 'equities' || item.groupName === 'etfs'
+      );
+
+      let added = 0;
+      let skipped = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (const item of equityItems) {
+        try {
+          // Derive ticker from ISIN or name (best effort)
+          const ticker = item.isin || item.name.substring(0, 10).toUpperCase().replace(/\s/g, '');
+
+          const existing = await db.select().from(watchlistStocks)
+            .where(eq(watchlistStocks.ticker, ticker)).limit(1);
+
+          if (existing.length > 0 && !input.overwriteExisting) {
+            skipped++;
+            continue;
+          }
+
+          if (existing.length > 0 && input.overwriteExisting) {
+            await db.update(watchlistStocks).set({
+              companyName: item.name,
+              currentPrice: item.close?.toString() || null,
+              notes: `Wikifolio ${input.symbol} | Anteil: ${item.percentage?.toFixed(2)}%`,
+              lastMetricsUpdate: new Date(),
+            }).where(eq(watchlistStocks.ticker, ticker));
+            added++;
+            continue;
+          }
+
+          await db.insert(watchlistStocks).values({
+            ticker,
+            companyName: item.name,
+            source: 'manual',
+            currentPrice: item.close?.toString() || null,
+            notes: `Importiert aus Wikifolio ${input.symbol} | Anteil: ${item.percentage?.toFixed(2)}%`,
+            lastMetricsUpdate: new Date(),
+          });
+          added++;
+        } catch (err: any) {
+          failed++;
+          errors.push(`${item.name}: ${err?.message}`);
+        }
+      }
+
+      return {
+        success: true,
+        added,
+        skipped,
+        failed,
+        total: equityItems.length,
+        errors,
+        message: `${added} Positionen importiert, ${skipped} übersprungen, ${failed} Fehler`,
+      };
+    }),
 });
+// end of watchlistRouter
