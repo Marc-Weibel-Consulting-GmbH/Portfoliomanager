@@ -154,12 +154,25 @@ def _make_model(cfg: TrainConfig) -> GradientBoostingClassifier:
     )
 
 
+<<<<<<< Updated upstream
 def walk_forward_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig) -> dict:
     """Walk-forward OOS evaluation. Skill is measured vs the base rate (majority
     class), not vs 0.5; alpha = OOS hitRate - OOS base rate."""
+=======
+def walk_forward_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig,
+                          embargo: int = 5) -> dict:
+    """Walk-forward OOS evaluation with embargo/purge to prevent label leakage.
+
+    embargo: number of samples to drop from the end of the training set.
+    This prevents the forward-return labels near the train/test boundary from
+    overlapping with the test period (purge), and adds a small buffer gap
+    (embargo) so that autocorrelated features cannot leak information.
+    """
+>>>>>>> Stashed changes
     splits = walk_forward_indices(len(X), cfg.train_window, cfg.test_window)
     oos_acc, is_skill, oos_skill, base = [], [], [], []
     for (a, b), (c, d) in splits:
+<<<<<<< Updated upstream
         ytr, yte = y[a:b], y[c:d]
         if len(np.unique(ytr)) < 2 or len(yte) == 0:
             continue
@@ -171,6 +184,18 @@ def walk_forward_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig) -> dic
         is_skill.append(is_a - _base_rate(ytr))
         oos_skill.append(oos_a - _base_rate(yte))
         base.append(_base_rate(yte))
+=======
+        # Purge + embargo: drop the last `embargo` rows from the training set.
+        # These rows have labels whose forward-return window overlaps the test
+        # period, so including them would be a look-ahead leak.
+        b_purged = max(a, b - embargo)
+        if len(np.unique(y[a:b_purged])) < 2:
+            continue
+        m = _make_model(cfg)
+        m.fit(X[a:b_purged], y[a:b_purged])
+        is_acc.append(_hit_rate(y[a:b_purged], m.predict(X[a:b_purged])))
+        oos_acc.append(_hit_rate(y[c:d], m.predict(X[c:d])))
+>>>>>>> Stashed changes
     if not oos_acc:
         return {"hitRate": 0.0, "baseRate": 0.0, "skill": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
     skill = float(np.mean(oos_skill))

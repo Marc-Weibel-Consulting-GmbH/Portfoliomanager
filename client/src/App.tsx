@@ -57,6 +57,7 @@ import AdminWatchlist from "./pages/AdminWatchlist";
 import AdminOptimizer from "./pages/AdminOptimizer";
 import AdminLogs from "./pages/AdminLogs";
 import AdminSecrets from "./pages/AdminSecrets";
+import AdminMlTrainer from "./pages/AdminMlTrainer";
 
 // ─── Legacy (für Redirects) ───
 import DebugTest from "./pages/DebugTest";
@@ -146,6 +147,7 @@ function Router() {
       <Route path="/admin/watchlist" component={AdminWatchlist} />
       <Route path="/admin/optimizer" component={AdminOptimizer} />
       <Route path="/admin/logs" component={AdminLogs} />
+      <Route path="/admin/ml-trainer" component={AdminMlTrainer} />
 
       {/* ═══ Legacy Redirects (alte Routen → neue Struktur) ═══ */}
       <Route path="/home">

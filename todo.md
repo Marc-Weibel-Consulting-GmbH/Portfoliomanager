@@ -1343,3 +1343,33 @@
 - [x] BUG: Indexstände falsch (SMI 171, S&P 500 733, MSCI 154, Gold 366) - getIndices Procedure nutzt jetzt echte EODHD-Indexpunkte (SSMI.INDX=SMI ~14.172, GSPC.INDX=S&P 500 ~7.366) statt ETF-Proxy-Preise. Mit DB-Fallback falls EODHD nicht erreichbar.
 - [x] BUG: Multi-Timeframe Analyse zeigt für alle Zeitrahmen NEUTRAL - deriveSignal() las falsche Felder (RECOMMENDATION, buy_sell_signal). Fix: Liest jetzt primär das 'bias'-Feld aus dem MCP-Response (z.B. "Bearish" → SELL, "Bullish" → BUY).
 - [x] BUG: Benchmark-Daten (SPY, CHSPI.SW, ACWI.US) fehlten für 2026 - 123 neue Preise bis 25.06.2026 importiert. Benchmark-Tickers werden ab sofort automatisch im täglichen Cron-Job aktualisiert.
+
+## ML Trainer – Admin & User Integration (27.06.2026)
+- [ ] Backend: adminRouter ml.triggerTraining Procedure (admin-only, startet Training async)
+- [ ] Backend: adminRouter ml.getStatus Procedure (letzter Lauf, Metriken, ONNX-Größe, passedGate)
+- [ ] Backend: adminRouter ml.getHistory Procedure (alle Trainingsläufe aus mlArtifacts Tabelle)
+- [ ] Admin-UI: /admin/ml-trainer Seite mit Training-Button, Status-Card, Metriken, History-Tabelle
+- [ ] Admin-UI: Polling-basierte Fortschrittsanzeige während Training läuft
+- [ ] User-Frontend: ML-Signal Widget in StockDetail (BUY/HOLD/SELL + Konfidenz-Balken)
+- [ ] User-Frontend: ML-Signale Spalte in Signale-Liste (ml_signal Badge)
+- [ ] User-Frontend: ML-Score in Aktien-Screener als Filterkriterium
+
+## ML Verbesserungen (Claude Input, 27.06.2026)
+
+### Frontend – Prompt 2 (Nutzer-Mehrwert)
+- [ ] ml.getActiveModelInfo Endpoint (aus modelArtifacts, ohne Blob) → schlanker Info-Endpoint
+- [ ] signalService: modelKind='gb_signal' korrekt zurückgeben wenn GB-Modell aktiv ist
+- [ ] MlSignalWidget: Badge nur wenn source='gb', sonst klar als Fallback labeln
+- [ ] Modell-Transparenz-Panel: Version, OOS-Skill/Alpha, Trainingsstand (Admin + User sichtbar)
+- [ ] Backtest-Equity-Kurve des Modells in Admin-ML-Trainer-Seite
+- [ ] Watchlist/Screener nach KI-Score sortierbar
+- [ ] Copilot-Ranking nach GB-Score + Rebalancing-Hinweise
+
+### Modellqualität – Prompt 1
+- [ ] Breites Universum: 300-500 Titel × 10 J EODHD (survivorship-bewusst)
+- [ ] Cross-sektionale Feature-Normalisierung pro Tag (grösster Hebel für relatives Alpha)
+- [ ] Reicheres Feature-Set: EODHD-Fundamentaldaten (PE, PEG, DivYield, Beta) point-in-time
+- [ ] Embargo/Purge gegen Label-Leakage am Train/Test-Rand
+- [ ] Label-/Horizont-Varianten: Terzil-Klassen, Excess-Return-Regression; 5/21/63 T Horizonte
+- [ ] Ökonomisches Gate: Dezil-Spread, Alpha vs. SPY, Sharpe > 0.5, Turnover/Kosten
+- [ ] Erfolgskriterium hart: OOS-Skill > +2pp, overfitRatio < 1.6, Alpha > 0 nach Kosten

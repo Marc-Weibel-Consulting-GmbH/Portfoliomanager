@@ -530,4 +530,109 @@ export const adminRouter = router({
         clearBackfillCache();
         return { success: true, message: 'Backfill cache cleared' };
       }),
+
+    // ─── ML Trainer ───────────────────────────────────────────────────────────
+
+    /**
+     * Get the current status of the ML model:
+     * latest artifact metadata, metrics, and whether a model is active.
+     */
+    mlGetStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+
+        const { getDb } = await import('../db');
+        const { modelArtifacts } = await import('../../drizzle/schema');
+        const { desc } = await import('drizzle-orm');
+        const db = await getDb();
+        if (!db) return { hasModel: false, artifacts: [] };
+
+        const rows = await db
+          .select({
+            id: modelArtifacts.id,
+            kind: modelArtifacts.kind,
+            version: modelArtifacts.version,
+            status: modelArtifacts.status,
+            format: modelArtifacts.format,
+            trainStart: modelArtifacts.trainStart,
+            trainEnd: modelArtifacts.trainEnd,
+            universeSize: modelArtifacts.universeSize,
+            metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt,
+            createdAt: modelArtifacts.createdAt,
+            // modelBlob intentionally omitted (large)
+          })
+          .from(modelArtifacts)
+          .orderBy(desc(modelArtifacts.createdAt))
+          .limit(1);
+
+        const active = await db
+          .select({
+            id: modelArtifacts.id,
+            kind: modelArtifacts.kind,
+            version: modelArtifacts.version,
+            status: modelArtifacts.status,
+            trainStart: modelArtifacts.trainStart,
+            trainEnd: modelArtifacts.trainEnd,
+            universeSize: modelArtifacts.universeSize,
+            metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt,
+            createdAt: modelArtifacts.createdAt,
+          })
+          .from(modelArtifacts)
+          .where((await import('drizzle-orm')).eq(modelArtifacts.status, 'active'))
+          .limit(1);
+
+        const analyticsUrl = process.env.ANALYTICS_SERVICE_URL;
+        let serviceOnline = false;
+        if (analyticsUrl) {
+          try {
+            const r = await fetch(`${analyticsUrl.replace(/\/$/, '')}/health`, { signal: AbortSignal.timeout(3000) });
+            serviceOnline = r.ok;
+          } catch { /* offline */ }
+        }
+
+        return {
+          hasModel: active.length > 0,
+          activeModel: active[0] ?? null,
+          latestRun: rows[0] ?? null,
+          serviceOnline,
+          analyticsServiceConfigured: !!analyticsUrl,
+        };
+      }),
+
+    /**
+     * Get full training history (all artifacts, newest first).
+     */
+    mlGetHistory: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(100).optional().default(20) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+
+        const { getDb } = await import('../db');
+        const { modelArtifacts } = await import('../../drizzle/schema');
+        const { desc } = await import('drizzle-orm');
+        const db = await getDb();
+        if (!db) return { runs: [] };
+
+        const rows = await db
+          .select({
+            id: modelArtifacts.id,
+            kind: modelArtifacts.kind,
+            version: modelArtifacts.version,
+            status: modelArtifacts.status,
+            format: modelArtifacts.format,
+            trainStart: modelArtifacts.trainStart,
+            trainEnd: modelArtifacts.trainEnd,
+            universeSize: modelArtifacts.universeSize,
+            metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt,
+            createdAt: modelArtifacts.createdAt,
+          })
+          .from(modelArtifacts)
+          .orderBy(desc(modelArtifacts.createdAt))
+          .limit(input.limit);
+
+        return { runs: rows };
+      }),
 });
