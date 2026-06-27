@@ -47,6 +47,9 @@ import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
 import RiskTab from "@/components/portfolio/RiskTab";
 import OptimierenTab from "@/components/portfolio/OptimierenTab";
+import PositionsKonstellation from "@/components/portfolio/PositionsKonstellation";
+import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
+import { SECTOR_COLOR } from "@/components/dashboard/format";
 import { StockLogo } from "@/components/StockLogo";
 import {
   AlertDialog,
@@ -104,6 +107,7 @@ export default function PortfolioDetailsPage() {
   const rawTab = searchParams.get('tab') || 'uebersicht';
   const urlTab = legacyTabMap[rawTab] || rawTab;
   const [activeTab, setActiveTab] = useState(urlTab);
+  const [posView, setPosView] = useState<'tabelle' | 'heatmap' | 'konstellation'>('tabelle');
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -719,23 +723,32 @@ export default function PortfolioDetailsPage() {
 
           {/* POSITIONS TAB — matches design: TICKER | NAME | SEKTOR | GEWICHT | WERT | HEUTE | YTD */}
           <TabsContent value="positionen" className="mt-6">
-            <div className="bg-[#0f1420] border border-white/10 rounded-lg">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-                <div>
-                  <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
-                  <p className="text-xs text-gray-500">sortiert nach Gewicht</p>
-                </div>
+            <div className={posView === 'tabelle' ? "bg-[#0f1420] border border-white/10 rounded-lg" : ""}>
+              <div className={`flex items-center justify-between ${posView === 'tabelle' ? 'px-5 py-4 border-b border-white/10' : 'mb-3'}`}>
+                {posView === 'konstellation' ? <div /> : (
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
+                    {posView === 'tabelle' && <p className="text-xs text-gray-500">sortiert nach Gewicht</p>}
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 bg-white/5 rounded-md p-1">
-                    <button className="px-2.5 py-1 text-xs rounded bg-white/10 text-white font-medium">Tabelle</button>
-                    <button className="px-2.5 py-1 text-xs rounded text-gray-400 hover:text-white">Heatmap</button>
-                    <button className="px-2.5 py-1 text-xs rounded text-gray-400 hover:text-white">Konstellation</button>
+                    {(['tabelle', 'heatmap', 'konstellation'] as const).map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setPosView(v)}
+                        className={`px-2.5 py-1 text-xs rounded ${posView === v ? 'bg-white/10 text-white font-medium' : 'text-gray-400 hover:text-white'}`}
+                      >
+                        {v === 'tabelle' ? 'Tabelle' : v === 'heatmap' ? 'Heatmap' : 'Konstellation'}
+                      </button>
+                    ))}
                   </div>
                   <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-white/20 text-white hover:bg-white/5 text-xs h-8 gap-1">
                     + Position
                   </Button>
                 </div>
               </div>
+              {posView === 'tabelle' && (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -803,6 +816,41 @@ export default function PortfolioDetailsPage() {
                   </tbody>
                 </table>
               </div>
+              )}
+              {posView === 'heatmap' && (
+                <div className="bg-[#0f1420] border border-[#00CFC1]/30 rounded-lg p-4">
+                  <PositionsTreemap
+                    holdings={holdings.map((h: any) => ({
+                      ticker: h.ticker,
+                      name: h.companyName || h.ticker,
+                      sector: h.sector || 'Other',
+                      region: 'Other' as const,
+                      weight: typeof h.weight === 'number' ? h.weight : parseFloat(h.weight || '0'),
+                      value: parseFloat(h.shares || '0') * (h.currentPriceCHF || 0),
+                      shares: parseFloat(h.shares || '0'),
+                      currentPrice: h.currentPrice || 0,
+                      currency: h.currency || 'CHF',
+                      change1d: parseFloat(h.dailyChangePercent || h.changePercent || '0'),
+                      ytd: parseFloat(h.ytdPerformance || '0'),
+                      color: SECTOR_COLOR[h.sector] ?? '#888',
+                    }))}
+                    width={1100}
+                    height={380}
+                    dark
+                    bgColor="#0a0f1a"
+                    textColor="#ffffff"
+                    mutedColor="#9ca3af"
+                    cardAltColor="#131b27"
+                  />
+                </div>
+              )}
+              {posView === 'konstellation' && (
+                <PositionsKonstellation
+                  holdings={holdings}
+                  portfolioId={portfolioId}
+                  onOptimize={() => handleTabChange('optimieren')}
+                />
+              )}
             </div>
           </TabsContent>
 
