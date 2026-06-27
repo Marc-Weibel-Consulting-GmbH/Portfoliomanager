@@ -1,16 +1,26 @@
 /**
- * riskOverlayEngine — LPPL + Volatilität → Signal-Dämpfung
+ * riskOverlayEngine — Phase 3: Historisch validierte Schwellenwerte
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Verwendet kalibrierte Schwellenwerte aus riskThresholdCalibrator.ts
+ * statt hartcodierter Werte.
  *
- * Reduziert die Konfidenz und blockiert Entry-Signale bei erhöhtem Risiko.
- * Modifiziert kein Signal-Vorzeichen — nur die Stärke.
- *
- * Quellen:
- *   - LPPLS BubbleScore (aus lpplsEngine.ts, bereits im System)
- *   - Realisierte Volatilität (aus Preisserie)
- *   - Drawdown (aus Preisserie)
+ * Verbesserungen gegenüber Phase 1/2:
+ * - Schwellenwerte per Walk-Forward-Backtest kalibriert (IS=252T, OOS=63T)
+ * - Regime-spezifische Multiplikatoren aus historischer Validierung
+ * - On-the-fly Kalibrierung wenn Cache leer (≥252 Preispunkte nötig)
+ * - Transparente Ausgabe: zeigt ob Default oder kalibrierte Schwellenwerte
  */
 
 import type { MarketRegime, RiskOverlay, SignalOutput } from "./types";
+import {
+  CalibratedThresholds,
+  DEFAULT_DD_THRESHOLDS,
+  DEFAULT_VOL_THRESHOLDS,
+  DEFAULT_REGIME_MULTIPLIERS,
+  calibrateRiskThresholds,
+  getCachedThresholds,
+  setCachedThresholds,
+} from './riskThresholdCalibrator';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Hilfsfunktionen
@@ -44,18 +54,59 @@ function maxDrawdown(prices: number[], period: number): number | null {
   return maxDD;
 }
 
+// Re-Exports für Abwärtskompatibilität und Admin-Nutzung
+export type { CalibratedThresholds } from './riskThresholdCalibrator';
+export {
+  calibrateRiskThresholds,
+  getCachedThresholds,
+  setCachedThresholds,
+  getCacheStats,
+  clearThresholdCache,
+  DEFAULT_VOL_THRESHOLDS,
+  DEFAULT_DD_THRESHOLDS,
+  DEFAULT_REGIME_MULTIPLIERS,
+} from './riskThresholdCalibrator';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Risk Overlay Berechnung
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Berechnet den Risk Overlay mit historisch validierten Schwellenwerten.
+ *
+ * @param prices          Historische Schlusskurse (älteste zuerst)
+ * @param regime          Aktuelles Marktregime
+ * @param lpplBubbleScore LPPLS-Blasenscore (optional)
+ * @param ticker          Ticker für Cache-Lookup (optional)
+ * @param calibrated      Vorberechnete kalibrierte Schwellenwerte (optional)
+ */
 export function computeRiskOverlay(
   prices: number[],
   regime: MarketRegime,
-  lpplBubbleScore: number | null = null
+  lpplBubbleScore: number | null = null,
+  ticker?: string,
+  calibrated?: CalibratedThresholds
 ): RiskOverlay {
   const warnings: string[] = [];
-  let dampingFactor = 1.0; // 1.0 = kein Dämpfen, 0.0 = vollständig blockiert
+  let dampingFactor = 1.0;
   let blockEntry = false;
+
+  // ── Schwellenwerte laden (kalibriert > Cache > Default) ───────────────────
+  let thresholds: CalibratedThresholds | null = calibrated ?? null;
+  if (!thresholds && ticker) thresholds = getCachedThresholds(ticker);
+  // On-the-fly Kalibrierung wenn genug Daten vorhanden
+  if (!thresholds && prices.length >= 252) {
+    thresholds = calibrateRiskThresholds(ticker ?? 'unknown', prices);
+    if (ticker) setCachedThresholds(ticker, thresholds);
+  }
+
+  const volT = thresholds?.vol ?? DEFAULT_VOL_THRESHOLDS;
+  const ddT = thresholds?.drawdown ?? DEFAULT_DD_THRESHOLDS;
+  const regimeMult = thresholds?.regimeMultipliers ?? DEFAULT_REGIME_MULTIPLIERS;
+  const isCalibrated = thresholds !== null && thresholds.meta.numFolds > 0;
+  const calibLabel = isCalibrated
+    ? `kalibriert/${thresholds!.meta.confidence}`
+    : 'Standard';
 
   const vol20 = realizedVol(prices, 20);
   const vol60 = realizedVol(prices, 60);
@@ -80,52 +131,72 @@ export function computeRiskOverlay(
     }
   }
 
-  // ── 2. Realisierte Volatilität ──────────────────────────────────────────────
+  // ── 2. Realisierte Volatilität (kalibrierte Schwellenwerte) ─────────────────
   if (vol20 !== null) {
-    if (vol20 > 0.50) {
-      dampingFactor *= 0.4;
+    if (vol20 > volT.blockLevel) {
+      dampingFactor *= volT.dampFactor3;
       blockEntry = true;
-      warnings.push(`⚠ Volatilität ${(vol20 * 100).toFixed(0)}% > 50% (extrem) — Entry blockiert`);
-    } else if (vol20 > 0.35) {
-      dampingFactor *= 0.6;
-      warnings.push(`⚠ Volatilität ${(vol20 * 100).toFixed(0)}% > 35% (sehr hoch) — Signal gedämpft`);
-    } else if (vol20 > 0.25) {
-      dampingFactor *= 0.8;
-      warnings.push(`~ Volatilität ${(vol20 * 100).toFixed(0)}% > 25% (erhöht)`);
+      warnings.push(`⚠ Vol ${(vol20 * 100).toFixed(0)}% > ${(volT.blockLevel * 100).toFixed(0)}% (extrem, ${calibLabel}) — Entry blockiert`);
+    } else if (vol20 > volT.dampLevel2) {
+      dampingFactor *= volT.dampFactor2;
+      warnings.push(`⚠ Vol ${(vol20 * 100).toFixed(0)}% > ${(volT.dampLevel2 * 100).toFixed(0)}% (sehr hoch, ${calibLabel}) — Signal gedämpft`);
+    } else if (vol20 > volT.dampLevel1) {
+      dampingFactor *= volT.dampFactor1;
+      warnings.push(`~ Vol ${(vol20 * 100).toFixed(0)}% > ${(volT.dampLevel1 * 100).toFixed(0)}% (erhöht, ${calibLabel})`);
     }
   }
 
-  // ── 3. Drawdown ─────────────────────────────────────────────────────────────
+  // ── 3. Drawdown (kalibrierte Schwellenwerte) ──────────────────────────────
   if (dd63 !== null) {
-    if (dd63 < -0.25) {
-      dampingFactor *= 0.5;
-      warnings.push(`⚠ Drawdown ${(dd63 * 100).toFixed(1)}% < -25% (starker Rückgang) — Signal gedämpft`);
-    } else if (dd63 < -0.15) {
-      dampingFactor *= 0.75;
-      warnings.push(`~ Drawdown ${(dd63 * 100).toFixed(1)}% < -15% (moderater Rückgang)`);
+    if (dd63 < ddT.dampLevel2) {
+      dampingFactor *= ddT.dampFactor2;
+      warnings.push(`⚠ Drawdown ${(dd63 * 100).toFixed(1)}% < ${(ddT.dampLevel2 * 100).toFixed(0)}% (stark, ${calibLabel}) — Signal gedämpft`);
+    } else if (dd63 < ddT.dampLevel1) {
+      dampingFactor *= ddT.dampFactor1;
+      warnings.push(`~ Drawdown ${(dd63 * 100).toFixed(1)}% < ${(ddT.dampLevel1 * 100).toFixed(0)}% (moderat, ${calibLabel})`);
     }
   }
 
-  // ── 4. Regime-spezifische Anpassungen ──────────────────────────────────────
+  // ── 4. Regime-spezifische Anpassungen (kalibriert) ───────────────────────
+  const regMultiplier = regimeMult[regime] ?? 1.0;
   if (regime === "crisis") {
-    dampingFactor *= 0.4;
+    dampingFactor *= regMultiplier;
     blockEntry = true;
-    warnings.push("⚠ Krisenregime — alle Entry-Signale blockiert");
+    warnings.push(`⚠ Krisenregime (Mult. ${regMultiplier.toFixed(2)}) — alle Entry-Signale blockiert`);
   } else if (regime === "sideways_high_vol") {
-    dampingFactor *= 0.7;
-    warnings.push("~ Seitwärts mit hoher Volatilität — Signal gedämpft");
+    dampingFactor *= regMultiplier;
+    warnings.push(`~ Seitwärts/hohe Vol (Mult. ${regMultiplier.toFixed(2)}) — Signal gedämpft`);
+  } else if (regime === "bear_trend" && regMultiplier < 1.0) {
+    dampingFactor *= regMultiplier;
+    warnings.push(`~ Bärenmarkt (Mult. ${regMultiplier.toFixed(2)}) — Signal gedämpft`);
+  } else if (regime === "bull_trend" && regMultiplier > 1.0) {
+    dampingFactor = Math.min(1.0, dampingFactor * regMultiplier);
   }
 
   // Volatilitäts-Normalisierung für Stop-Loss-Anpassung
   const volAdjustment = vol20 !== null ? Math.min(2.0, vol20 / 0.15) : 1.0;
 
-  return {
+  const result: RiskOverlay & { calibrationMeta?: any } = {
     dampingFactor: Math.max(0, Math.min(1, dampingFactor)),
     blockEntry,
     volAdjustment,
     lpplBubbleScore: lpplBubbleScore ?? undefined,
     warnings,
   };
+
+  // Kalibrierungs-Metadaten für Transparenz-Trail anhängen
+  if (isCalibrated && thresholds) {
+    result.calibrationMeta = {
+      numFolds: thresholds.meta.numFolds,
+      confidence: thresholds.meta.confidence,
+      avgOosImprovement: thresholds.meta.avgOosImprovement,
+      volDampLevel2: volT.dampLevel2,
+      ddDampLevel1: ddT.dampLevel1,
+      calibratedAt: thresholds.meta.calibratedAt,
+    };
+  }
+
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,6 +218,11 @@ export function applyRiskOverlay(
     ? signal.takeProfitPct * overlay.volAdjustment
     : null;
 
+  const calibMeta = (overlay as any).calibrationMeta;
+  const calibLine = calibMeta
+    ? `Kalibrierung: ${calibMeta.numFolds} Folds, ${calibMeta.confidence} Konfidenz, OOS-ΔSharpe ${calibMeta.avgOosImprovement.toFixed(2)}`
+    : 'Kalibrierung: Standard-Schwellenwerte';
+
   return {
     ...signal,
     confidence: dampedConfidence,
@@ -156,8 +232,9 @@ export function applyRiskOverlay(
     rationale: [
       ...signal.rationale,
       "",
-      "── Risk Overlay ──",
+      "── Risk Overlay (Phase 3) ──",
       `Dämpfungsfaktor: ${(overlay.dampingFactor * 100).toFixed(0)}%`,
+      calibLine,
       ...overlay.warnings,
     ],
   };

@@ -781,4 +781,79 @@ export const adminRouter = router({
         evaluatePendingSignals().catch(console.error);
         return { started: true, message: 'Lookback-Evaluation gestartet' };
       }),
+
+    // ── Phase 3: Risk Threshold Kalibrierung ─────────────────────────────────
+
+    /** Kalibrierungsstatus: Cache-Stats und kalibrierte Ticker anzeigen */
+    getRiskCalibrationStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { getCacheStats } = await import('../lib/signals/riskThresholdCalibrator');
+        const stats = getCacheStats();
+        return {
+          cachedTickers: stats.tickers,
+          cacheSize: stats.size,
+          description: 'Kalibrierte Schwellenwerte im In-Memory Cache (TTL: 24h)',
+        };
+      }),
+
+    /** Kalibrierung für einen einzelnen Ticker triggern */
+    calibrateRiskThresholdsForTicker: protectedProcedure
+      .input(z.object({ ticker: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const yahooFinance = (await import('yahoo-finance2')).default;
+        const { calibrateRiskThresholds, setCachedThresholds } = await import('../lib/signals/riskThresholdCalibrator');
+
+        const ticker = input.ticker;
+        try {
+          const chartResult = await (yahooFinance as any).chart(ticker, {
+            period1: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            period2: new Date().toISOString().split('T')[0],
+            interval: '1d',
+          });
+          const prices: number[] = ((chartResult as any).quotes ?? [])
+            .map((q: any) => q.close)
+            .filter((c: any) => c != null && c > 0);
+
+          if (prices.length < 100) {
+            return { success: false, message: `Zu wenig Daten: ${prices.length} Preispunkte (mind. 100 nötig)` };
+          }
+
+          const start = Date.now();
+          const thresholds = calibrateRiskThresholds(ticker, prices);
+          setCachedThresholds(ticker, thresholds);
+          const durationMs = Date.now() - start;
+
+          return {
+            success: true,
+            ticker,
+            durationMs,
+            dataPoints: prices.length,
+            numFolds: thresholds.meta.numFolds,
+            confidence: thresholds.meta.confidence,
+            avgOosImprovement: thresholds.meta.avgOosImprovement,
+            calibratedAt: thresholds.meta.calibratedAt,
+            thresholds: {
+              volDampLevel1: thresholds.vol.dampLevel1,
+              volDampLevel2: thresholds.vol.dampLevel2,
+              volBlockLevel: thresholds.vol.blockLevel,
+              ddDampLevel1: thresholds.drawdown.dampLevel1,
+              ddDampLevel2: thresholds.drawdown.dampLevel2,
+            },
+            regimeMultipliers: thresholds.regimeMultipliers,
+          };
+        } catch (e) {
+          return { success: false, message: `Fehler: ${(e as Error).message}` };
+        }
+      }),
+
+    /** Cache leeren (erzwingt Neukalibrierung beim nächsten Request) */
+    clearRiskCalibrationCache: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { clearThresholdCache } = await import('../lib/signals/riskThresholdCalibrator');
+        clearThresholdCache();
+        return { success: true, message: 'Kalibrierungs-Cache geleert' };
+      }),
 });
