@@ -1373,3 +1373,9 @@
 - [ ] Label-/Horizont-Varianten: Terzil-Klassen, Excess-Return-Regression; 5/21/63 T Horizonte
 - [ ] Ökonomisches Gate: Dezil-Spread, Alpha vs. SPY, Sharpe > 0.5, Turnover/Kosten
 - [ ] Erfolgskriterium hart: OOS-Skill > +2pp, overfitRatio < 1.6, Alpha > 0 nach Kosten
+
+## Signal-Framework Phase 2 (27.06.2026)
+- [x] meanReversionSignalEngine.ts — RSI(14) Wilder, Stochastik(%K/%D), Bollinger Bands, Z-Score, CCI(20)
+- [x] breakoutSignalEngine.ts — Donchian Channel(20), ATR-Breakout, Momentum-Beschleunigung, BB-Squeeze, 52W-Hoch/Tief
+- [x] modelSelector.ts — Walk-Forward (3 Folds, IS=120T, OOS=30T), Regime-Priors, Gewichtungsformel aus Blueprint
+- [x] signalOrchestrator.ts — Alle 4 Engines integriert, modelSelector als Entscheidungsinstanz

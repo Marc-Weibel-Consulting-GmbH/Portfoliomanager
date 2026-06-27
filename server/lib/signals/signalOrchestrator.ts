@@ -1,11 +1,16 @@
 /**
- * signalOrchestrator — Zentraler Einstiegspunkt des Signal-Frameworks
+ * signalOrchestrator — Zentraler Einstiegspunkt des Signal-Frameworks (Phase 2)
  *
  * Ablauf:
  *  1. Regime klassifizieren (regimeEngine)
- *  2. Ensemble-Signal berechnen (ensembleSignalEngine, regime-aware)
- *  3. Risk Overlay anwenden (riskOverlayEngine)
- *  4. Finale PortfolioAction erzeugen
+ *  2. Alle 4 Signal-Engines berechnen:
+ *     - trendSignalEngine (MA-Alignment, ADX, Slope)
+ *     - meanReversionSignalEngine (RSI, Stochastik, Bollinger, Z-Score, CCI)
+ *     - breakoutSignalEngine (Donchian, ATR-Breakout, Momentum, BB-Squeeze)
+ *     - ensembleSignalEngine (Regime-gewichtete Kombination)
+ *  3. modelSelector: beste Engine per Walk-Forward-Evaluation wählen
+ *  4. Risk Overlay anwenden (riskOverlayEngine)
+ *  5. Finale PortfolioAction erzeugen
  *
  * Alle Zwischenergebnisse werden in PortfolioAction.signalOutputs gespeichert
  * für vollständige Auditierbarkeit.
@@ -13,13 +18,17 @@
 
 import { computeRegime } from "./regimeEngine";
 import { computeTrendSignal } from "./trendSignalEngine";
+import { computeMeanReversionSignal } from "./meanReversionSignalEngine";
+import { computeBreakoutSignal } from "./breakoutSignalEngine";
 import { computeEnsembleSignal } from "./ensembleSignalEngine";
 import { computeRiskOverlay, applyRiskOverlay } from "./riskOverlayEngine";
+import { selectBestModel } from "./modelSelector";
 import type {
   OrchestratorInput,
   PortfolioAction,
   PortfolioActionType,
   RiskOverlayResult,
+  SignalEngineType,
   SignalOutput,
 } from "./types";
 
@@ -69,23 +78,32 @@ export function runSignalOrchestrator(input: OrchestratorInput): PortfolioAction
   const now = new Date().toISOString();
 
   // ── 1. Regime klassifizieren ─────────────────────────────────────────────
-  // computeRegime(prices, lpplRisk?, date?) → RegimeSnapshot
   const regimeSnapshot = computeRegime(
     prices,
     lpplRisk ?? null,
     new Date().toISOString().slice(0, 10)
   );
 
-  // ── 2. Trend-Signal (für signalOutputs Audit-Trail) ──────────────────────
+  // ── 2. Alle 4 Signal-Engines berechnen ───────────────────────────────────
   const trendSignal = computeTrendSignal(prices, regimeSnapshot.regime);
-
-  // ── 3. Ensemble-Signal ───────────────────────────────────────────────────
-  // computeEnsembleSignal(prices, regime) → SignalOutput
+  const meanRevSignal = computeMeanReversionSignal(prices, regimeSnapshot.regime);
+  const breakoutSignal = computeBreakoutSignal(prices, regimeSnapshot.regime);
   const ensembleSignal = computeEnsembleSignal(prices, regimeSnapshot.regime);
+
+  // ── 3. modelSelector: beste Engine wählen ────────────────────────────────
+  const signalMap = new Map<SignalEngineType, SignalOutput>([
+    ["trend", trendSignal],
+    ["mean_reversion", meanRevSignal],
+    ["breakout", breakoutSignal],
+    ["ensemble", ensembleSignal],
+  ]);
+
+  const modelSelection = selectBestModel(prices, regimeSnapshot.regime, signalMap);
+  const selectedSignal = modelSelection.selectedSignal;
 
   // ── 4. Risk Overlay ──────────────────────────────────────────────────────
   const overlay = computeRiskOverlay(prices, regimeSnapshot.regime, lpplRisk ?? null);
-  const adjustedEnsemble = applyRiskOverlay(ensembleSignal, overlay);
+  const adjustedSignal = applyRiskOverlay(selectedSignal, overlay);
 
   const riskOverlayResult = toRiskOverlayResult(
     overlay.dampingFactor,
@@ -95,33 +113,51 @@ export function runSignalOrchestrator(input: OrchestratorInput): PortfolioAction
 
   // ── 5. Finale Aktion ─────────────────────────────────────────────────────
   const action = scoreToAction(
-    adjustedEnsemble.rawScore,
-    adjustedEnsemble.confidence,
-    adjustedEnsemble.entry,
-    adjustedEnsemble.exit
+    adjustedSignal.rawScore,
+    adjustedSignal.confidence,
+    adjustedSignal.entry,
+    adjustedSignal.exit
   );
 
+  // ── Audit-Trail ──────────────────────────────────────────────────────────
   const triggeredBy: string[] = [];
   if (trendSignal.direction !== 0) triggeredBy.push("trendSignalEngine");
+  if (meanRevSignal.direction !== 0) triggeredBy.push("meanReversionSignalEngine");
+  if (breakoutSignal.direction !== 0) triggeredBy.push("breakoutSignalEngine");
   if (ensembleSignal.direction !== 0) triggeredBy.push("ensembleSignalEngine");
   if (overlay.warnings.length > 0) triggeredBy.push("riskOverlayEngine");
 
-  const signalOutputs: SignalOutput[] = [trendSignal, ensembleSignal, adjustedEnsemble];
+  // Rationale: modelSelector-Begründung + ausgewähltes Signal
+  const combinedRationale = [
+    `── ModelSelector ──`,
+    ...modelSelection.rationale,
+    ``,
+    `── ${modelSelection.selectedEngine} Signal ──`,
+    ...adjustedSignal.rationale,
+  ];
+
+  const signalOutputs: SignalOutput[] = [
+    trendSignal,
+    meanRevSignal,
+    breakoutSignal,
+    ensembleSignal,
+    adjustedSignal,
+  ];
 
   return {
     ticker,
     action,
-    conviction: adjustedEnsemble.confidence,
-    rationale: adjustedEnsemble.rationale,
+    conviction: adjustedSignal.confidence,
+    rationale: combinedRationale,
     triggeredBy,
     regime: regimeSnapshot.regime,
     regimeConfidence: regimeSnapshot.confidence,
-    selectedModel: "ensemble",
-    rawScore: ensembleSignal.rawScore,
-    adjustedScore: adjustedEnsemble.rawScore,
-    targetWeight: null, // V2: Portfolio-Optimierer
-    stopLossPct: adjustedEnsemble.stopLossPct,
-    takeProfitPct: adjustedEnsemble.takeProfitPct,
+    selectedModel: modelSelection.selectedEngine,
+    rawScore: selectedSignal.rawScore,
+    adjustedScore: adjustedSignal.rawScore,
+    targetWeight: null, // V3: Portfolio-Optimierer
+    stopLossPct: adjustedSignal.stopLossPct,
+    takeProfitPct: adjustedSignal.takeProfitPct,
     regimeFeatures: regimeSnapshot.features,
     signalOutputs,
     riskOverlay: riskOverlayResult,
