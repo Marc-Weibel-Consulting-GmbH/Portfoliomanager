@@ -15,6 +15,12 @@ Design notes
   per-date time series — NOT a single current value broadcast over history (that
   is the leak in the current TS randomForestSignal).
 - Labels: direction of the forward return over `lookahead` days (1 = up, 0 = down).
+- Cross-sectional normalization: features are z-scored per date across the universe
+  before training (reduces market-regime bias, biggest cheap lever for relative alpha).
+- Embargo/Purge: the last `lookahead` rows of each training fold are dropped to
+  prevent forward-return label leakage at the train/test boundary.
+- Skill is measured vs the majority-class baseline (not vs 0.5): a model that just
+  predicts the bull-market majority class looks skilled vs 0.5 but has zero edge.
 """
 from __future__ import annotations
 
@@ -79,7 +85,7 @@ def feature_names(fundamentals: Optional[dict[str, np.ndarray]] = None) -> list[
     return names
 
 
-def build_features_labels(prices: np.ndarray, lookahead: int = 30,
+def build_features_labels(prices: np.ndarray, lookahead: int = 20,
                           fundamentals: Optional[dict[str, np.ndarray]] = None):
     """Return (X, y) where y=1 if the forward `lookahead` return is positive."""
     X, y = [], []
@@ -92,6 +98,41 @@ def build_features_labels(prices: np.ndarray, lookahead: int = 30,
         X.append(f)
         y.append(1 if fwd > 0 else 0)
     return np.array(X, dtype=np.float64), np.array(y, dtype=np.int64)
+
+
+# ----------------------------------------------------------------------------
+# Cross-sectional normalization (per-date z-score across universe)
+# ----------------------------------------------------------------------------
+def cross_sectional_normalize(X: np.ndarray, dates: list) -> np.ndarray:
+    """Z-score each feature within each trading date across the universe.
+
+    Fast numpy implementation (no pandas dependency).
+    This removes market-regime bias: instead of asking "did ret_1d > 0?",
+    the model learns "did this stock's ret_1d beat the cross-sectional median?".
+    This is the biggest cheap lever for relative alpha in a pooled model.
+
+    Args:
+        X: (n_samples, n_features) feature matrix
+        dates: list of date strings/objects of length n_samples (same order as X)
+
+    Returns:
+        X_cs: cross-sectionally normalized feature matrix, same shape as X
+    """
+    X_cs = X.copy()
+    # Build unique date index
+    dates_arr = np.array(dates)
+    unique_dates, inverse = np.unique(dates_arr, return_inverse=True)
+    n_features = X.shape[1]
+    for d_idx in range(len(unique_dates)):
+        mask = (inverse == d_idx)
+        if mask.sum() < 2:
+            continue  # Can't normalize with only 1 sample
+        group = X[mask]  # shape (n_stocks_on_date, n_features)
+        mean = group.mean(axis=0)
+        std = group.std(axis=0)
+        std[std == 0] = 1.0  # avoid division by zero
+        X_cs[mask] = (group - mean) / std
+    return X_cs
 
 
 # ----------------------------------------------------------------------------
@@ -126,8 +167,8 @@ class TrainConfig:
 @dataclass
 class GateConfig:
     min_hit_rate: float = 0.52
-    max_overfit_ratio: float = 5.0   # Realistic threshold for financial ML (1.6 is too strict)
-    min_alpha: float = 0.01          # Require at least 1% positive OOS edge
+    max_overfit_ratio: float = 1.6   # Strict: IS-skill / OOS-skill must be < 1.6
+    min_alpha: float = 0.02          # Require at least +2pp skill vs majority-class
 
 
 @dataclass
@@ -143,6 +184,14 @@ def _hit_rate(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return float(np.mean(y_true == y_pred)) if len(y_true) else 0.0
 
 
+def _base_rate(y: np.ndarray) -> float:
+    """Accuracy of always predicting the majority class (the naive baseline)."""
+    if len(y) == 0:
+        return 0.5
+    p = float(np.mean(y))
+    return max(p, 1.0 - p)
+
+
 def _make_model(cfg: TrainConfig) -> GradientBoostingClassifier:
     return GradientBoostingClassifier(
         n_estimators=cfg.n_estimators,
@@ -154,53 +203,40 @@ def _make_model(cfg: TrainConfig) -> GradientBoostingClassifier:
     )
 
 
-<<<<<<< Updated upstream
 def walk_forward_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig) -> dict:
-    """Walk-forward OOS evaluation. Skill is measured vs the base rate (majority
-    class), not vs 0.5; alpha = OOS hitRate - OOS base rate."""
-=======
-def walk_forward_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig,
-                          embargo: int = 5) -> dict:
-    """Walk-forward OOS evaluation with embargo/purge to prevent label leakage.
+    """Walk-forward OOS evaluation with correct embargo/purge.
 
-    embargo: number of samples to drop from the end of the training set.
-    This prevents the forward-return labels near the train/test boundary from
-    overlapping with the test period (purge), and adds a small buffer gap
-    (embargo) so that autocorrelated features cannot leak information.
+    Embargo = lookahead days: the last `cfg.lookahead` rows of each training fold
+    are dropped. These rows have forward-return labels whose window overlaps the
+    test period, so including them would be a look-ahead leak.
+
+    Skill is measured vs the majority-class baseline (not vs 0.5):
+      skill = OOS hitRate - OOS base rate
+    alpha = skill (same definition for single-ticker evaluation).
+    overfitRatio = IS skill / OOS skill (should be < 1.6).
     """
->>>>>>> Stashed changes
+    embargo = cfg.lookahead  # Correct: embargo = lookahead
     splits = walk_forward_indices(len(X), cfg.train_window, cfg.test_window)
-    oos_acc, is_skill, oos_skill, base = [], [], [], []
+    oos_acc, is_skill_list, oos_skill_list, base = [], [], [], []
     for (a, b), (c, d) in splits:
-<<<<<<< Updated upstream
-        ytr, yte = y[a:b], y[c:d]
+        # Purge + embargo: drop last `embargo` rows from training
+        b_purged = max(a + 10, b - embargo)
+        ytr, yte = y[a:b_purged], y[c:d]
         if len(np.unique(ytr)) < 2 or len(yte) == 0:
             continue
         m = _make_model(cfg)
-        m.fit(X[a:b], ytr)
-        is_a = _hit_rate(ytr, m.predict(X[a:b]))
+        m.fit(X[a:b_purged], ytr)
+        is_a = _hit_rate(ytr, m.predict(X[a:b_purged]))
         oos_a = _hit_rate(yte, m.predict(X[c:d]))
         oos_acc.append(oos_a)
-        is_skill.append(is_a - _base_rate(ytr))
-        oos_skill.append(oos_a - _base_rate(yte))
+        is_skill_list.append(is_a - _base_rate(ytr))
+        oos_skill_list.append(oos_a - _base_rate(yte))
         base.append(_base_rate(yte))
-=======
-        # Purge + embargo: drop the last `embargo` rows from the training set.
-        # These rows have labels whose forward-return window overlaps the test
-        # period, so including them would be a look-ahead leak.
-        b_purged = max(a, b - embargo)
-        if len(np.unique(y[a:b_purged])) < 2:
-            continue
-        m = _make_model(cfg)
-        m.fit(X[a:b_purged], y[a:b_purged])
-        is_acc.append(_hit_rate(y[a:b_purged], m.predict(X[a:b_purged])))
-        oos_acc.append(_hit_rate(y[c:d], m.predict(X[c:d])))
->>>>>>> Stashed changes
     if not oos_acc:
         return {"hitRate": 0.0, "baseRate": 0.0, "skill": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
-    skill = float(np.mean(oos_skill))
-    is_sk = float(np.mean(is_skill))
-    overfit = 99.0 if skill <= 0 else max(is_sk, 0.0) / skill
+    skill = float(np.mean(oos_skill_list))
+    is_sk = float(np.mean(is_skill_list))
+    overfit = 99.0 if skill <= 0 else max(is_sk, 0.0) / max(skill, 1e-6)
     return {
         "hitRate": float(np.mean(oos_acc)), "baseRate": float(np.mean(base)),
         "skill": skill, "overfitRatio": float(overfit), "alpha": skill, "folds": len(oos_acc),
@@ -267,7 +303,7 @@ def train_and_export(prices: np.ndarray, cfg: TrainConfig = TrainConfig(),
 # ----------------------------------------------------------------------------
 # Pooled (cross-sectional) training over a whole universe
 # ----------------------------------------------------------------------------
-def build_pooled(series_by_ticker: dict, lookahead: int = 30,
+def build_pooled(series_by_ticker: dict, lookahead: int = 20,
                  fundamentals_by_ticker: Optional[dict] = None):
     """Build a date-sorted pooled (X, y) across many tickers (point-in-time)."""
     rows = []
@@ -288,20 +324,25 @@ def build_pooled(series_by_ticker: dict, lookahead: int = 30,
     return X, y, dates
 
 
-def _base_rate(y: np.ndarray) -> float:
-    """Accuracy of always predicting the majority class (the naive baseline)."""
-    if len(y) == 0:
-        return 0.5
-    p = float(np.mean(y))
-    return max(p, 1.0 - p)
-
-
-def time_split_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig, n_folds: int = 5) -> dict:
+def time_split_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig,
+                        n_folds: int = 5, dates: Optional[list] = None,
+                        use_cross_sectional: bool = True) -> dict:
     """Expanding-window, time-ordered OOS evaluation on date-sorted pooled data.
 
-    Skill is measured RELATIVE TO THE BASE RATE (majority-class accuracy), not vs
-    0.5 — otherwise a model that just predicts the bull-market majority class looks
-    skilled. alpha = OOS hitRate - OOS base rate; overfitRatio = IS skill / OOS skill.
+    Improvements vs v1:
+    - Embargo = lookahead (not 5): drops last `cfg.lookahead` rows from each fold's
+      training set to prevent forward-return label leakage.
+    - Cross-sectional normalization (optional): z-scores features per date across
+      the universe before training. This is the biggest cheap lever for relative alpha.
+    - Skill is measured vs the majority-class baseline (not vs 0.5).
+
+    Args:
+        X: (n_samples, n_features) pooled feature matrix (date-sorted)
+        y: (n_samples,) labels
+        cfg: training config
+        n_folds: number of expanding-window folds
+        dates: list of date strings (required for cross-sectional normalization)
+        use_cross_sectional: if True and dates is provided, apply CS normalization
     """
     n = len(X)
     if n < (n_folds + 1) * 20:
@@ -310,26 +351,37 @@ def time_split_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig, n_folds:
     empty = {"hitRate": 0.0, "baseRate": 0.0, "skill": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
     if fold == 0:
         return empty
-    oos, is_skill, oos_skill, base = [], [], [], []
+
+    # Apply cross-sectional normalization if dates are available
+    if use_cross_sectional and dates is not None:
+        try:
+            X = cross_sectional_normalize(X, dates)
+        except Exception:
+            pass  # Fall back to raw features if CS normalization fails
+
+    embargo = cfg.lookahead
+    oos, is_skill_list, oos_skill_list, base = [], [], [], []
     for k in range(1, n_folds + 1):
         tr_end = fold * k
-        te_end = fold * (k + 1)
-        ytr, yte = y[:tr_end], y[tr_end:te_end]
+        te_end = min(fold * (k + 1), n)
+        # Purge + embargo
+        tr_end_purged = max(0, tr_end - embargo)
+        ytr, yte = y[:tr_end_purged], y[tr_end:te_end]
         if len(np.unique(ytr)) < 2 or len(yte) == 0:
             continue
         m = _make_model(cfg)
-        m.fit(X[:tr_end], ytr)
-        is_acc = _hit_rate(ytr, m.predict(X[:tr_end]))
+        m.fit(X[:tr_end_purged], ytr)
+        is_acc = _hit_rate(ytr, m.predict(X[:tr_end_purged]))
         oos_acc = _hit_rate(yte, m.predict(X[tr_end:te_end]))
         oos.append(oos_acc)
-        is_skill.append(is_acc - _base_rate(ytr))
-        oos_skill.append(oos_acc - _base_rate(yte))
+        is_skill_list.append(is_acc - _base_rate(ytr))
+        oos_skill_list.append(oos_acc - _base_rate(yte))
         base.append(_base_rate(yte))
     if not oos:
         return empty
-    skill = float(np.mean(oos_skill))
-    is_sk = float(np.mean(is_skill))
-    overfit = 99.0 if skill <= 0 else max(is_sk, 0.0) / skill
+    skill = float(np.mean(oos_skill_list))
+    is_sk = float(np.mean(is_skill_list))
+    overfit = 99.0 if skill <= 0 else max(is_sk, 0.0) / max(skill, 1e-6)
     return {"hitRate": float(np.mean(oos)), "baseRate": float(np.mean(base)),
             "skill": skill, "overfitRatio": float(overfit), "alpha": skill, "folds": len(oos)}
 
@@ -337,22 +389,35 @@ def time_split_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig, n_folds:
 def train_and_export_pooled(series_by_ticker: dict, cfg: TrainConfig = TrainConfig(),
                             gate: GateConfig = GateConfig(),
                             fundamentals_by_ticker: Optional[dict] = None) -> TrainResult:
-    """Universe-wide pooled training: features -> time-split eval -> final GB -> ONNX."""
+    """Universe-wide pooled training with cross-sectional normalization.
+
+    Features -> CS normalization -> time-split eval -> final GB -> ONNX.
+    """
     sample_fund = next(iter(fundamentals_by_ticker.values())) if fundamentals_by_ticker else None
     names = feature_names(sample_fund)
-    X, y, _dates = build_pooled(series_by_ticker, cfg.lookahead, fundamentals_by_ticker)
+    X, y, dates = build_pooled(series_by_ticker, cfg.lookahead, fundamentals_by_ticker)
     if len(X) < 100 or len(np.unique(y)) < 2:
         return TrainResult(metrics={"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0},
                            feature_spec={"features": []}, passed_gate=False, notes=["insufficient pooled data"])
 
-    metrics = time_split_evaluate(X, y, cfg)
-    mean, std = fit_standardizer(X)
-    Xs = (X - mean) / std
+    # Evaluate with cross-sectional normalization
+    metrics = time_split_evaluate(X, y, cfg, dates=dates, use_cross_sectional=True)
+
+    # For the final model: apply CS normalization on the full dataset, then standardize
+    try:
+        X_cs = cross_sectional_normalize(X, dates)
+    except Exception:
+        X_cs = X  # fallback
+
+    mean, std = fit_standardizer(X_cs)
+    Xs = (X_cs - mean) / std
     final = _make_model(cfg)
     final.fit(Xs, y)
     feature_spec = {"features": [{"name": n, "mean": float(mean[i]), "std": float(std[i])}
                                  for i, n in enumerate(names)]}
     onnx_bytes = export_onnx(final, X.shape[1])
     passed = passes_gate(metrics, gate)
+    notes = [] if passed else ["did not pass promotion gate"]
+    notes.append(f"cross_sectional=True, embargo={cfg.lookahead}d, skill={metrics.get('skill', 0)*100:.2f}pp")
     return TrainResult(metrics=metrics, feature_spec=feature_spec, onnx_bytes=onnx_bytes,
-                       passed_gate=passed, notes=[] if passed else ["did not pass promotion gate"])
+                       passed_gate=passed, notes=notes)

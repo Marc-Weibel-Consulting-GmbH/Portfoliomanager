@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
 import MlSignalWidget from "./MlSignalWidget";
+import RegimeSignalWidget from "./RegimeSignalWidget";
 import {
   AreaChart,
   Area,
@@ -249,6 +250,19 @@ export default function PredictionTab({ ticker, stock }: Props) {
           })}
         </div>
       )}
+
+      {/* Regime-Signal Widget */}
+      <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-white flex items-center gap-2">
+            <span className="text-[#00CFC1]">⚡</span>
+            Regime-Signal
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RegimeSignalWidget ticker={ticker} />
+        </CardContent>
+      </Card>
 
       {/* ML Signal Widget */}
       <MlSignalWidget ticker={ticker} />
