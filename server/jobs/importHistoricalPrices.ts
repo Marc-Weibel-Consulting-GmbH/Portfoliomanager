@@ -85,6 +85,32 @@ async function fetchHistoricalPrices(
 }
 
 /**
+ * Fetch a long EOD price series from EODHD for ML training (does NOT touch the DB).
+ * Uses adjusted close (split/dividend-adjusted) for clean return-based features.
+ * Returns chronologically sorted { dates, prices }.
+ */
+export async function fetchEodSeries(
+  ticker: string,
+  fromDate: string,
+  toDate: string,
+): Promise<{ dates: string[]; prices: number[] }> {
+  const rows = await fetchHistoricalPrices(ticker, fromDate, toDate);
+  const sorted = rows
+    .filter((r) => r && r.date)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const dates: string[] = [];
+  const prices: number[] = [];
+  for (const r of sorted) {
+    const px = (r.adjusted_close ?? r.close);
+    if (px > 0) {
+      dates.push(r.date);
+      prices.push(px);
+    }
+  }
+  return { dates, prices };
+}
+
+/**
  * Get all unique tickers from user transactions AND portfolio holdings
  */
 async function getUniqueTickers(): Promise<string[]> {

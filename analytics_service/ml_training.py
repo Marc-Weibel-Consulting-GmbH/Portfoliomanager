@@ -155,27 +155,30 @@ def _make_model(cfg: TrainConfig) -> GradientBoostingClassifier:
 
 
 def walk_forward_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig) -> dict:
-    """Walk-forward OOS evaluation; returns hitRate, overfitRatio, alpha."""
+    """Walk-forward OOS evaluation. Skill is measured vs the base rate (majority
+    class), not vs 0.5; alpha = OOS hitRate - OOS base rate."""
     splits = walk_forward_indices(len(X), cfg.train_window, cfg.test_window)
-    oos_acc, is_acc = [], []
+    oos_acc, is_skill, oos_skill, base = [], [], [], []
     for (a, b), (c, d) in splits:
-        if len(np.unique(y[a:b])) < 2:
+        ytr, yte = y[a:b], y[c:d]
+        if len(np.unique(ytr)) < 2 or len(yte) == 0:
             continue
         m = _make_model(cfg)
-        m.fit(X[a:b], y[a:b])
-        is_acc.append(_hit_rate(y[a:b], m.predict(X[a:b])))
-        oos_acc.append(_hit_rate(y[c:d], m.predict(X[c:d])))
+        m.fit(X[a:b], ytr)
+        is_a = _hit_rate(ytr, m.predict(X[a:b]))
+        oos_a = _hit_rate(yte, m.predict(X[c:d]))
+        oos_acc.append(oos_a)
+        is_skill.append(is_a - _base_rate(ytr))
+        oos_skill.append(oos_a - _base_rate(yte))
+        base.append(_base_rate(yte))
     if not oos_acc:
-        return {"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
-    oos = float(np.mean(oos_acc))
-    is_ = float(np.mean(is_acc))
-    # overfitRatio: in-sample edge over OOS edge (edge = accuracy - 0.5).
-    oos_edge = max(oos - 0.5, 1e-6)
-    is_edge = max(is_ - 0.5, 0.0)
-    overfit = is_edge / oos_edge
+        return {"hitRate": 0.0, "baseRate": 0.0, "skill": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
+    skill = float(np.mean(oos_skill))
+    is_sk = float(np.mean(is_skill))
+    overfit = 99.0 if skill <= 0 else max(is_sk, 0.0) / skill
     return {
-        "hitRate": oos, "overfitRatio": float(overfit),
-        "alpha": float(oos - 0.5), "folds": len(oos_acc),
+        "hitRate": float(np.mean(oos_acc)), "baseRate": float(np.mean(base)),
+        "skill": skill, "overfitRatio": float(overfit), "alpha": skill, "folds": len(oos_acc),
     }
 
 
@@ -260,32 +263,50 @@ def build_pooled(series_by_ticker: dict, lookahead: int = 30,
     return X, y, dates
 
 
+def _base_rate(y: np.ndarray) -> float:
+    """Accuracy of always predicting the majority class (the naive baseline)."""
+    if len(y) == 0:
+        return 0.5
+    p = float(np.mean(y))
+    return max(p, 1.0 - p)
+
+
 def time_split_evaluate(X: np.ndarray, y: np.ndarray, cfg: TrainConfig, n_folds: int = 5) -> dict:
-    """Expanding-window, time-ordered OOS evaluation on date-sorted pooled data."""
+    """Expanding-window, time-ordered OOS evaluation on date-sorted pooled data.
+
+    Skill is measured RELATIVE TO THE BASE RATE (majority-class accuracy), not vs
+    0.5 — otherwise a model that just predicts the bull-market majority class looks
+    skilled. alpha = OOS hitRate - OOS base rate; overfitRatio = IS skill / OOS skill.
+    """
     n = len(X)
     if n < (n_folds + 1) * 20:
         n_folds = max(1, n // 40)
     fold = n // (n_folds + 1)
+    empty = {"hitRate": 0.0, "baseRate": 0.0, "skill": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
     if fold == 0:
-        return {"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
-    oos, is_ = [], []
+        return empty
+    oos, is_skill, oos_skill, base = [], [], [], []
     for k in range(1, n_folds + 1):
         tr_end = fold * k
         te_end = fold * (k + 1)
-        if len(np.unique(y[:tr_end])) < 2:
+        ytr, yte = y[:tr_end], y[tr_end:te_end]
+        if len(np.unique(ytr)) < 2 or len(yte) == 0:
             continue
         m = _make_model(cfg)
-        m.fit(X[:tr_end], y[:tr_end])
-        is_.append(_hit_rate(y[:tr_end], m.predict(X[:tr_end])))
-        oos.append(_hit_rate(y[tr_end:te_end], m.predict(X[tr_end:te_end])))
+        m.fit(X[:tr_end], ytr)
+        is_acc = _hit_rate(ytr, m.predict(X[:tr_end]))
+        oos_acc = _hit_rate(yte, m.predict(X[tr_end:te_end]))
+        oos.append(oos_acc)
+        is_skill.append(is_acc - _base_rate(ytr))
+        oos_skill.append(oos_acc - _base_rate(yte))
+        base.append(_base_rate(yte))
     if not oos:
-        return {"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0}
-    oos_m = float(np.mean(oos))
-    is_m = float(np.mean(is_))
-    oos_edge = max(oos_m - 0.5, 1e-6)
-    is_edge = max(is_m - 0.5, 0.0)
-    return {"hitRate": oos_m, "overfitRatio": float(is_edge / oos_edge),
-            "alpha": float(oos_m - 0.5), "folds": len(oos)}
+        return empty
+    skill = float(np.mean(oos_skill))
+    is_sk = float(np.mean(is_skill))
+    overfit = 99.0 if skill <= 0 else max(is_sk, 0.0) / skill
+    return {"hitRate": float(np.mean(oos)), "baseRate": float(np.mean(base)),
+            "skill": skill, "overfitRatio": float(overfit), "alpha": skill, "folds": len(oos)}
 
 
 def train_and_export_pooled(series_by_ticker: dict, cfg: TrainConfig = TrainConfig(),
