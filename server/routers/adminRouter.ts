@@ -635,4 +635,150 @@ export const adminRouter = router({
 
         return { runs: rows };
       }),
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Signal Performance Analytics (Admin only)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Aggregierte Signal-Performance-Metriken je Engine und Regime.
+     * Basis für Admin-Dashboard zur Optimierung des Signalmix.
+     */
+    getSignalPerformance: protectedProcedure
+      .input(z.object({
+        days: z.number().default(90),
+        engine: z.string().optional(),
+        regime: z.string().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+
+        const { getDb } = await import('../db');
+        const { signalHistory } = await import('../../drizzle/schema');
+        const { and, gte, isNotNull, sql, eq } = await import('drizzle-orm');
+        const db = await getDb();
+        if (!db) throw new Error('DB not available');
+
+        const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+
+        const conditions: any[] = [
+          gte(signalHistory.computedAt, since),
+          isNotNull(signalHistory.evaluatedAt),
+          isNotNull(signalHistory.directionCorrect),
+        ];
+        if (input.engine) conditions.push(eq(signalHistory.selectedEngine, input.engine));
+        if (input.regime) conditions.push(eq(signalHistory.regime, input.regime));
+
+        const rows = await db
+          .select()
+          .from(signalHistory)
+          .where(and(...conditions))
+          .orderBy(sql`${signalHistory.computedAt} DESC`)
+          .limit(2000);
+
+        // Aggregation je Engine
+        const engineMap: Record<string, {
+          engine: string; totalSignals: number; evaluatedSignals: number;
+          hitRateSum: number; returnSum: number; convictionSum: number;
+          byRegime: Record<string, { hitSum: number; count: number; retSum: number }>;
+          byAction: Record<string, { hitSum: number; count: number }>;
+        }> = {};
+
+        for (const row of rows) {
+          const eng = row.selectedEngine;
+          if (!engineMap[eng]) {
+            engineMap[eng] = { engine: eng, totalSignals: 0, evaluatedSignals: 0,
+              hitRateSum: 0, returnSum: 0, convictionSum: 0, byRegime: {}, byAction: {} };
+          }
+          const s = engineMap[eng];
+          s.totalSignals++;
+          s.evaluatedSignals++;
+          const correct = row.directionCorrect === 1;
+          s.hitRateSum += correct ? 1 : 0;
+          s.returnSum += parseFloat(row.actualReturnPct?.toString() ?? '0');
+          s.convictionSum += parseFloat(row.conviction.toString());
+
+          const reg = row.regime;
+          if (!s.byRegime[reg]) s.byRegime[reg] = { hitSum: 0, count: 0, retSum: 0 };
+          s.byRegime[reg].count++;
+          s.byRegime[reg].hitSum += correct ? 1 : 0;
+          s.byRegime[reg].retSum += parseFloat(row.actualReturnPct?.toString() ?? '0');
+
+          const act = row.action;
+          if (!s.byAction[act]) s.byAction[act] = { hitSum: 0, count: 0 };
+          s.byAction[act].count++;
+          s.byAction[act].hitSum += correct ? 1 : 0;
+        }
+
+        const engineStats = Object.values(engineMap).map(s => ({
+          engine: s.engine,
+          totalSignals: s.totalSignals,
+          evaluatedSignals: s.evaluatedSignals,
+          hitRate: s.evaluatedSignals > 0 ? s.hitRateSum / s.evaluatedSignals : 0,
+          avgReturn: s.evaluatedSignals > 0 ? s.returnSum / s.evaluatedSignals : 0,
+          avgConviction: s.evaluatedSignals > 0 ? s.convictionSum / s.evaluatedSignals : 0,
+          byRegime: Object.fromEntries(Object.entries(s.byRegime).map(([k, v]) => [k, {
+            hitRate: v.count > 0 ? v.hitSum / v.count : 0,
+            count: v.count,
+            avgReturn: v.count > 0 ? v.retSum / v.count : 0,
+          }])),
+          byAction: Object.fromEntries(Object.entries(s.byAction).map(([k, v]) => [k, {
+            hitRate: v.count > 0 ? v.hitSum / v.count : 0,
+            count: v.count,
+          }])),
+        }));
+
+        // Kalibrierungskurve
+        const buckets = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+        const calibration = buckets.slice(0, -1).map((min, i) => {
+          const max = buckets[i + 1];
+          const inBucket = rows.filter(r =>
+            parseFloat(r.conviction.toString()) >= min &&
+            parseFloat(r.conviction.toString()) < max
+          );
+          const hits = inBucket.filter(r => r.directionCorrect === 1).length;
+          return {
+            bucket: `${Math.round(min * 100)}-${Math.round(max * 100)}%`,
+            minConviction: min, maxConviction: max,
+            hitRate: inBucket.length > 0 ? hits / inBucket.length : 0,
+            count: inBucket.length,
+          };
+        });
+
+        // Letzte 50 Signale (alle, nicht nur evaluierte)
+        const recentSignals = await db
+          .select()
+          .from(signalHistory)
+          .where(gte(signalHistory.computedAt, since))
+          .orderBy(sql`${signalHistory.computedAt} DESC`)
+          .limit(50);
+
+        return {
+          engineStats,
+          calibration,
+          recentSignals,
+          totalEvaluated: rows.length,
+          overallHitRate: rows.length > 0
+            ? rows.filter(r => r.directionCorrect === 1).length / rows.length
+            : null,
+        };
+      }),
+
+    /** Manueller Trigger: Signal-Snapshot für alle Portfolio-Aktien */
+    triggerSignalSnapshot: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { snapshotSignalsForPortfolio } = await import('../cron/signalEvaluationCron');
+        snapshotSignalsForPortfolio().catch(console.error);
+        return { started: true, message: 'Signal-Snapshot gestartet (läuft im Hintergrund)' };
+      }),
+
+    /** Manueller Trigger: Lookback-Evaluation */
+    triggerSignalEvaluation: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { evaluatePendingSignals } = await import('../cron/signalEvaluationCron');
+        evaluatePendingSignals().catch(console.error);
+        return { started: true, message: 'Lookback-Evaluation gestartet' };
+      }),
 });

@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit } from "lucide-react";
+import { Database, Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -56,6 +56,13 @@ export default function AdminDashboard() {
       description: "Gradient-Boosting Modell trainieren, Metriken & Historie",
       path: "/admin/ml-trainer",
       color: "text-violet-500",
+    },
+    {
+      icon: Activity,
+      title: "Signal-Performance",
+      description: "Trefferquote, Rendite und Kalibrierung je Signal-Engine — Basis für Signalmix-Optimierung",
+      path: "/admin/signal-performance",
+      color: "text-teal-500",
     },
   ];
 
