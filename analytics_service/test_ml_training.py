@@ -111,11 +111,20 @@ def test_build_pooled_is_date_sorted_across_tickers():
 
 def test_train_and_export_pooled_learns_and_exports():
     s = {f"T{i}": _regime_series_with_dates(seed=i + 1) for i in range(4)}
-    res = mt.train_and_export_pooled(s, mt.TrainConfig())
+    # 'absolute' tests that the directional momentum signal is learnable.
+    res = mt.train_and_export_pooled(s, mt.TrainConfig(label_mode="absolute"))
     assert res.onnx_bytes is not None and len(res.onnx_bytes) > 0
     assert res.metrics["folds"] > 0
     assert res.metrics["hitRate"] > 0.55  # pooled regime signal is learnable
     assert [f["name"] for f in res.feature_spec["features"]] == mt.feature_names()
+
+
+def test_cross_sectional_labels_are_balanced():
+    # With many independent tickers, the 'beats the median' label is ~50/50.
+    s = {f"T{i}": _regime_series_with_dates(seed=i + 1, start_day=i) for i in range(10)}
+    X, y, _ = mt.build_pooled(s, lookahead=30, label_mode="cross_sectional")
+    rate = float(np.mean(y))
+    assert 0.4 < rate < 0.6  # balanced, unlike the bull-biased absolute label
 
 
 def test_pooled_onnx_roundtrip():

@@ -119,6 +119,7 @@ class TrainConfig:
     max_depth: int = 3
     learning_rate: float = 0.05
     random_state: int = 42
+    label_mode: str = "cross_sectional"  # "cross_sectional" (alpha) | "absolute" (direction)
 
 
 @dataclass
@@ -237,9 +238,20 @@ def train_and_export(prices: np.ndarray, cfg: TrainConfig = TrainConfig(),
 # Pooled (cross-sectional) training over a whole universe
 # ----------------------------------------------------------------------------
 def build_pooled(series_by_ticker: dict, lookahead: int = 30,
-                 fundamentals_by_ticker: Optional[dict] = None):
-    """Build a date-sorted pooled (X, y) across many tickers (point-in-time)."""
-    rows = []
+                 fundamentals_by_ticker: Optional[dict] = None,
+                 label_mode: str = "cross_sectional"):
+    """Build a date-sorted pooled (X, y) across many tickers (point-in-time).
+
+    label_mode:
+      - "absolute":        y=1 if the forward return is positive (direction). Imbalanced
+                           in bull markets and only weakly learnable.
+      - "cross_sectional": y=1 if the forward return beats the cross-sectional MEDIAN of
+                           all tickers on that date (relative outperformance). Balanced by
+                           construction (~50%) and targets alpha (which name beats the
+                           pack), which is exactly how the app ranks holdings.
+    """
+    # Collect raw rows with the forward return so labels can be computed per date.
+    raw = []  # (date, features, fwd)
     for tk, ser in series_by_ticker.items():
         prices = np.asarray(ser["prices"], dtype=np.float64)
         dates = ser["dates"]
@@ -249,7 +261,19 @@ def build_pooled(series_by_ticker: dict, lookahead: int = 30,
             if f is None:
                 continue
             fwd = prices[i + lookahead] / prices[i] - 1
-            rows.append((dates[i], f, 1 if fwd > 0 else 0))
+            raw.append((dates[i], f, fwd))
+
+    if label_mode == "cross_sectional":
+        # Median forward return per date across the universe.
+        from collections import defaultdict
+        by_date = defaultdict(list)
+        for d, _f, fwd in raw:
+            by_date[d].append(fwd)
+        median_by_date = {d: float(np.median(v)) for d, v in by_date.items()}
+        rows = [(d, f, 1 if fwd > median_by_date[d] else 0) for d, f, fwd in raw]
+    else:  # absolute
+        rows = [(d, f, 1 if fwd > 0 else 0) for d, f, fwd in raw]
+
     rows.sort(key=lambda r: r[0])  # global chronological order
     X = np.array([r[1] for r in rows], dtype=np.float64)
     y = np.array([r[2] for r in rows], dtype=np.int64)
@@ -309,7 +333,7 @@ def train_and_export_pooled(series_by_ticker: dict, cfg: TrainConfig = TrainConf
     """Universe-wide pooled training: features -> time-split eval -> final GB -> ONNX."""
     sample_fund = next(iter(fundamentals_by_ticker.values())) if fundamentals_by_ticker else None
     names = feature_names(sample_fund)
-    X, y, _dates = build_pooled(series_by_ticker, cfg.lookahead, fundamentals_by_ticker)
+    X, y, _dates = build_pooled(series_by_ticker, cfg.lookahead, fundamentals_by_ticker, cfg.label_mode)
     if len(X) < 100 or len(np.unique(y)) < 2:
         return TrainResult(metrics={"hitRate": 0.0, "overfitRatio": 99.0, "alpha": 0.0, "folds": 0},
                            feature_spec={"features": []}, passed_gate=False, notes=["insufficient pooled data"])
