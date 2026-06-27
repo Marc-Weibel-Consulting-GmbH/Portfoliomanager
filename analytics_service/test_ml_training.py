@@ -130,3 +130,15 @@ def test_pooled_onnx_roundtrip():
     sample = Xs[-40:].astype(np.float32)
     onnx_labels = sess.run(None, {"input": sample})[0].ravel().astype(int)
     assert np.mean(onnx_labels == model.predict(Xs[-40:]).astype(int)) >= 0.99
+
+
+def test_skill_is_measured_vs_base_rate():
+    """A no-skill model on imbalanced (bull-market-like) labels must score ~0 skill
+    and fail the gate — not look good just because the majority class is 'up'."""
+    rng = np.random.default_rng(3)
+    X = rng.normal(size=(800, 7))           # pure noise features
+    y = (rng.random(800) < 0.8).astype(int)  # 80% 'up' (imbalanced)
+    m = mt.time_split_evaluate(X, y, mt.TrainConfig())
+    assert m["baseRate"] > 0.7               # base rate reflects the imbalance
+    assert m["skill"] <= 0.03                # no genuine edge over the baseline
+    assert not mt.passes_gate(m, mt.GateConfig())

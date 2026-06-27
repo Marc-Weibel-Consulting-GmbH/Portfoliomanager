@@ -39,6 +39,26 @@ async function buildDeps(): Promise<TrainingJobDeps | null> {
       return tickers.slice(0, MAX_UNIVERSE);
     },
     async getSeries(tickers: string[]): Promise<Record<string, PriceSeries>> {
+      // Prefer EODHD for deep history (10y by default) so the model trains on many
+      // market regimes. The app DB only holds a short window — DB is the fallback.
+      const years = parseInt(process.env.ML_TRAIN_YEARS || "10", 10);
+      if (process.env.EODHD_API_KEY) {
+        const { fetchEodSeries } = await import("../jobs/importHistoricalPrices");
+        const today = new Date().toISOString().slice(0, 10);
+        const from = new Date(Date.now() - years * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+        const out: Record<string, PriceSeries> = {};
+        for (const ticker of tickers) {
+          let s = await fetchEodSeries(ticker, from, today);
+          // Retry with a US suffix if the bare symbol returned little (EODHD needs e.g. AAPL.US).
+          if (s.prices.length < 200 && !ticker.includes(".")) {
+            s = await fetchEodSeries(`${ticker}.US`, from, today);
+          }
+          if (s.prices.length) out[ticker] = s;
+        }
+        if (Object.keys(out).length) return out;
+        console.warn("[mlTraining] EODHD returned no series — falling back to DB");
+      }
+
       const { historicalPrices } = await import("../../drizzle/schema");
       const { eq, asc } = await import("drizzle-orm");
       const out: Record<string, PriceSeries> = {};
