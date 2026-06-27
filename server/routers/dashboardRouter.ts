@@ -1,6 +1,13 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 
+// Helper to safely parse float values - handles 'NA', null, undefined
+function safeParseFloat(value: string | null | undefined, fallback = 0): number {
+  if (!value || value === 'NA' || value === 'N/A' || value === 'null') return fallback;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? fallback : parsed;
+}
+
 // Helper to get YTD start date (January 1st of current year)
 function getYTDStartDate(): string {
   const now = new Date();
@@ -47,22 +54,23 @@ export const dashboardRouter = router({
           const stockData = await getStockByTicker(ticker);
           if (!stockData) continue;
           
-          const currentPrice = parseFloat(stockData.currentPrice || '0');
+          const currentPrice = safeParseFloat(stockData.currentPrice);
           const currency = stockData.currency || 'CHF';
           const weight = parseFloat(stock.weight || '0') / 100;
           
-          let shares = parseFloat(stock.shares || '0');
+          let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
             const allocationCHF = investmentAmount * weight;
             const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-            shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            shares = (priceCHF > 0 ? allocationCHF / priceCHF : 0) || 0;
           }
           
           const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-          totalValueCHF += shares * priceCHF;
+          const positionValue = (shares * priceCHF) || 0;
+          totalValueCHF += positionValue;
         }
         
-        const cashBalance = parseFloat(portfolio.cashBalance || '0');
+        const cashBalance = parseFloat(portfolio.cashBalance || '0') || 0;
         totalValueCHF += cashBalance;
         
         return totalValueCHF;
@@ -125,6 +133,12 @@ export const dashboardRouter = router({
     // OPTIMIZATION: Batch load ALL historical prices in ONE query
     const ytdPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), ytdStartDate);
     
+    // Load yesterday's prices for dayChange calculation
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), yesterdayStr);
+    
     // OPTIMIZATION: Pre-warm FX cache
     const uniqueCurrencies = new Set<string>();
     for (const stock of Array.from(stocksMap.values())) {
@@ -156,11 +170,12 @@ export const dashboardRouter = router({
     
     let totalValueCHF = 0;
     let totalValueYTDStartCHF = 0;
+    let totalValueYesterdayCHF = 0;
     let totalDividendsCHF = 0;
     let totalInvestedCHF = 0;
     
     // Helper: Calculate portfolio value at YTD start date using historical prices
-    const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string): Promise<number> => {
+    const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string, pricesMap?: Map<string, number>): Promise<number> => {
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         const stocks = portfolioData.stocks || portfolioData.positions || [];
@@ -168,6 +183,7 @@ export const dashboardRouter = router({
         
         let totalValueAtDate = 0;
         const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+        const usePricesMap = pricesMap || ytdPricesMap;
         
         for (const stock of stocks) {
           const ticker = stock.ticker;
@@ -180,22 +196,23 @@ export const dashboardRouter = router({
           const weight = parseFloat(stock.weight || '0') / 100;
           
           // Get historical price at the given date
-          const ytdStartPrice = ytdPricesMap.get(ticker);
-          if (!ytdStartPrice) continue;
+          const historicalPrice = usePricesMap.get(ticker);
+          if (!historicalPrice) continue;
           
-          let shares = parseFloat(stock.shares || '0');
+          let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
             // Calculate shares from weight and investment amount
             const allocationCHF = investmentAmount * weight;
-            const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
-            shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
+            shares = (priceCHF > 0 ? allocationCHF / priceCHF : 0) || 0;
           }
           
-          const priceCHF = await convertToCHF(ytdStartPrice, currency, dateStr);
-          totalValueAtDate += shares * priceCHF;
+          const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
+          const posValue = (shares * priceCHF) || 0;
+          totalValueAtDate += posValue;
         }
         
-        const cashBalance = parseFloat(portfolio.cashBalance || '0');
+        const cashBalance = parseFloat(portfolio.cashBalance || '0') || 0;
         totalValueAtDate += cashBalance;
         
         return totalValueAtDate;
@@ -227,8 +244,12 @@ export const dashboardRouter = router({
       // If we couldn't get historical prices, fall back to investmentAmount
       const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
       
+      // Calculate yesterday value for dayChange
+      const portfolioValueYesterdayCHF = await calculatePortfolioValueAtDate(portfolio, yesterdayStr, yesterdayPricesMap);
+      
       totalValueCHF += portfolioValueCHF;
       totalValueYTDStartCHF += portfolioValueYTDStartCHF;
+      totalValueYesterdayCHF += portfolioValueYesterdayCHF > 0 ? portfolioValueYesterdayCHF : portfolioValueCHF;
       totalInvestedCHF += investmentAmount;
     }
     
@@ -241,8 +262,12 @@ export const dashboardRouter = router({
       const ytdStartValue = await calculatePortfolioValueAtDate(portfolio, ytdStartDate);
       const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
       
+      // Calculate yesterday value for dayChange
+      const portfolioValueYesterdayCHF = await calculatePortfolioValueAtDate(portfolio, yesterdayStr, yesterdayPricesMap);
+      
       totalValueCHF += portfolioValueCHF;
       totalValueYTDStartCHF += portfolioValueYTDStartCHF;
+      totalValueYesterdayCHF += portfolioValueYesterdayCHF > 0 ? portfolioValueYesterdayCHF : portfolioValueCHF;
       totalInvestedCHF += investmentAmount;
     }
     
@@ -323,18 +348,24 @@ export const dashboardRouter = router({
     
     const avgDividendYield = stockCount > 0 ? totalDividendYield / stockCount : 0;
     
+    // Calculate day change
+    const dayChangeCHF = totalValueCHF - totalValueYesterdayCHF;
+    const dayChangePercent = totalValueYesterdayCHF > 0 ? (dayChangeCHF / totalValueYesterdayCHF) * 100 : 0;
+    
     return {
-      totalValue: totalValueCHF,
-      totalInvested: totalInvestedCHF,
-      totalPerformance: totalPerformanceCHF,
-      totalPerformancePercent: totalPerformancePercent,
-      totalDividends: totalDividendsCHF,
+      totalValue: isFinite(totalValueCHF) ? totalValueCHF : 0,
+      totalInvested: isFinite(totalInvestedCHF) ? totalInvestedCHF : 0,
+      totalPerformance: isFinite(totalPerformanceCHF) ? totalPerformanceCHF : 0,
+      totalPerformancePercent: isFinite(totalPerformancePercent) ? totalPerformancePercent : 0,
+      totalDividends: isFinite(totalDividendsCHF) ? totalDividendsCHF : 0,
       portfolioCount: portfolios.length,
       livePortfolioCount: livePortfolios.length,
-      benchmarkPerformance: benchmarkPerformance,
-      benchmarkSmiYtd: benchmarkSmiYtd,
-      benchmarkMsciYtd: benchmarkMsciYtd,
-      avgDividendYield: avgDividendYield,
+      benchmarkPerformance: isFinite(benchmarkPerformance) ? benchmarkPerformance : 0,
+      benchmarkSmiYtd: isFinite(benchmarkSmiYtd) ? benchmarkSmiYtd : 0,
+      benchmarkMsciYtd: isFinite(benchmarkMsciYtd) ? benchmarkMsciYtd : 0,
+      avgDividendYield: isFinite(avgDividendYield) ? avgDividendYield : 0,
+      dayChange: isFinite(dayChangeCHF) ? dayChangeCHF : 0,
+      dayChangePercent: isFinite(dayChangePercent) ? dayChangePercent : 0,
     };
   }),
   
@@ -345,6 +376,7 @@ export const dashboardRouter = router({
     const { convertToCHF } = await import("../fxHelper");
     
     const portfolios = await getSavedPortfolios(ctx.user.id);
+    console.log(`[getTopPortfolios] userId=${ctx.user.id}, found ${portfolios.length} portfolios`);
     if (portfolios.length === 0) return [];
 
     const ytdStartDate = getYTDStartDate();
@@ -410,7 +442,7 @@ export const dashboardRouter = router({
             const stock = stocksMap.get(ticker) as any;
             if (!stock) continue;
             const currency = stock.currency || 'CHF';
-            const currentPrice = parseFloat(stock.currentPrice || '0');
+            const currentPrice = safeParseFloat(stock.currentPrice);
             const ytdStartPrice = ytdPricesMap.get(ticker);
             const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
             portfolioValueCHF += shares * currentPriceCHF;
@@ -428,32 +460,81 @@ export const dashboardRouter = router({
             performancePercent = ((currentValueForPerf - ytdStartValueCHF) / ytdStartValueCHF) * 100;
           }
         } else {
-          // Demo portfolio: calculate from portfolioData
+          // Demo portfolio: calculate from portfolioData using historical prices for YTD
           const pd = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = pd.stocks || pd.positions || [];
           const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          
+          let currentValueForPerf = 0;
+          let ytdStartValueCHF = 0;
+          let hasHistoricalData = false;
+          
           for (const stock of stocks) {
             const ticker = stock.ticker;
             if (!ticker) continue;
             const stockData = stocksMap.get(ticker) as any;
             if (!stockData) continue;
-            const currentPrice = parseFloat(stockData.currentPrice || '0');
+            const currentPrice = safeParseFloat(stockData.currentPrice);
             const currency = stockData.currency || 'CHF';
             const weight = parseFloat(stock.weight || '0') / 100;
+            
+            // Determine shares: use stored shares, or derive from investmentAmount+weight
             let shares = parseFloat(stock.shares || '0');
-            if (shares === 0 && investmentAmount > 0 && weight > 0) {
-              const allocationCHF = investmentAmount * weight;
-              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-              shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+            const ytdStartPrice = ytdPricesMap.get(ticker);
+            
+            if (shares === 0 && weight > 0) {
+              // Derive shares from YTD start price (so performance is normalized to YTD start)
+              if (ytdStartPrice) {
+                const ytdPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                const allocationCHF = investmentAmount > 0 ? investmentAmount * weight : 100000 * weight;
+                shares = ytdPriceCHF > 0 ? allocationCHF / ytdPriceCHF : 0;
+              } else if (investmentAmount > 0) {
+                const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                const allocationCHF = investmentAmount * weight;
+                shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              }
             }
-            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-            portfolioValueCHF += shares * priceCHF;
+            
+            const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            portfolioValueCHF += shares * currentPriceCHF;
+            currentValueForPerf += shares * currentPriceCHF;
+            
+            if (ytdStartPrice && shares > 0) {
+              hasHistoricalData = true;
+              const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+              ytdStartValueCHF += shares * ytdStartPriceCHF;
+            }
           }
           const cashBalance = parseFloat(portfolio.cashBalance || '0');
           portfolioValueCHF += cashBalance;
-          if (investmentAmount > 0) {
+          
+          // Use historical YTD performance if available, otherwise fall back to investmentAmount
+          if (hasHistoricalData && ytdStartValueCHF > 0) {
+            performancePercent = ((currentValueForPerf - ytdStartValueCHF) / ytdStartValueCHF) * 100;
+          } else if (investmentAmount > 0) {
             performancePercent = ((portfolioValueCHF - investmentAmount) / investmentAmount) * 100;
           }
+        }
+
+        // Count positions
+        let positionCount = 0;
+        if (isLive) {
+          const transactions = transactionsByPortfolio.get(portfolio.id) || [];
+          const holdings: Record<string, number> = {};
+          transactions.forEach((tx: any) => {
+            const shares = parseFloat(tx.shares || '0');
+            const ticker = tx.ticker;
+            if (!ticker) return;
+            if (tx.transactionType === 'buy') holdings[ticker] = (holdings[ticker] || 0) + shares;
+            else if (tx.transactionType === 'sell') holdings[ticker] = (holdings[ticker] || 0) - shares;
+          });
+          positionCount = Object.values(holdings).filter(s => s > 0).length;
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            positionCount = stocks.length;
+          } catch {}
         }
 
         portfolioMetrics.push({
@@ -461,9 +542,11 @@ export const dashboardRouter = router({
           name: portfolio.name,
           description: portfolio.description,
           isLive,
-          value: portfolioValueCHF,
-          performance: Number(performancePercent.toFixed(2)),
-          performanceCHF: Number((portfolioValueCHF - parseFloat(portfolio.investmentAmount || '0')).toFixed(2)),
+          value: isFinite(portfolioValueCHF) ? portfolioValueCHF : 0,
+          performance: isFinite(performancePercent) ? Number(performancePercent.toFixed(2)) : 0,
+          performanceCHF: isFinite(portfolioValueCHF) ? Number((portfolioValueCHF - parseFloat(portfolio.investmentAmount || '0')).toFixed(2)) : 0,
+          positionCount,
+          strategy: (portfolio as any).strategy || null,
         });
       } catch (error) {
         console.error(`[dashboard.getTopPortfolios] Error for portfolio ${portfolio.id}:`, error);
@@ -485,7 +568,7 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
-      const { convertToCHF } = await import("../fxHelper");
+      const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
@@ -680,7 +763,7 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
-      const { convertToCHF } = await import("../fxHelper");
+      const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
@@ -711,7 +794,7 @@ export const dashboardRouter = router({
         case '1J': startDate.setFullYear(startDate.getFullYear() - 1); break;
         case '3J': startDate.setFullYear(startDate.getFullYear() - 3); break;
         case '5J': startDate.setFullYear(startDate.getFullYear() - 5); break;
-        case 'Max': startDate = new Date('2020-01-01'); break;
+        case 'Max': startDate.setFullYear(startDate.getFullYear() - 3); break; // 3 years max for performance
       }
       let startDateStr = startDate.toISOString().split('T')[0];
 
@@ -721,10 +804,13 @@ export const dashboardRouter = router({
       const demoHoldingsByPortfolio = new Map<number, Array<{ticker: string; shares: number}>>();
 
       let earliestTransactionDate = todayStr;
+      let latestLiveStartDate = '2000-01-01'; // Track the LATEST start date among live portfolios for comparability
       for (const p of targetPortfolios) {
         if (p.isLive === 1 && p.liveStartDate) {
           const txs = await getPortfolioTransactions(p.id);
           txByPortfolio.set(p.id, txs);
+          const liveStartStr = new Date(p.liveStartDate).toISOString().split('T')[0];
+          if (liveStartStr > latestLiveStartDate) latestLiveStartDate = liveStartStr;
           txs.forEach((tx: any) => {
             if (tx.ticker) allTickers.add(tx.ticker);
             if (tx.transactionDate && tx.transactionType === 'buy') {
@@ -752,21 +838,47 @@ export const dashboardRouter = router({
               }
             }
             demoHoldingsByPortfolio.set(p.id, demoHoldings);
-            // For demo portfolios, use portfolio creation date or a reasonable start
-            if (p.createdAt) {
+            // For demo portfolios: do NOT limit by createdAt for Max range
+            // They represent hypothetical allocations that can be backtested further back
+            if (p.createdAt && input.range !== 'Max') {
               const createdStr = new Date(p.createdAt).toISOString().split('T')[0];
               if (createdStr < earliestTransactionDate) earliestTransactionDate = createdStr;
             }
+            // For Max range on demo portfolios, allow going back to the full available history
           } catch {}
         }
       }
       if (allTickers.size === 0) return { range: input.range, scope: input.scope, points: [] };
 
-      // For live portfolios: ensure startDate is not before the first transaction
-      // This prevents showing flat line periods where no holdings existed
-      if (startDateStr < earliestTransactionDate) {
-        startDateStr = earliestTransactionDate;
+      // Determine the effective start date based on portfolio type and range
+      const hasLivePortfolios = targetPortfolios.some(p => p.isLive === 1);
+      const hasDemoPortfolios = targetPortfolios.some(p => p.isLive !== 1);
+
+      if (input.scope === 'aggregate' && hasLivePortfolios && input.range === 'Max') {
+        // Aggregated Max with live portfolios: use the LATEST start date for comparability
+        if (latestLiveStartDate > '2000-01-01' && startDateStr < latestLiveStartDate) {
+          startDateStr = latestLiveStartDate;
+        }
+      } else if (hasLivePortfolios && !hasDemoPortfolios) {
+        // Pure live portfolio(s): ensure startDate is not before the first transaction
+        if (startDateStr < earliestTransactionDate) {
+          startDateStr = earliestTransactionDate;
+        }
+      } else if (hasDemoPortfolios && !hasLivePortfolios) {
+        // Pure demo portfolio(s): for Max, use the full available history (startDate from switch)
+        // For other ranges, limit to createdAt (already handled above via earliestTransactionDate)
+        if (input.range !== 'Max' && startDateStr < earliestTransactionDate) {
+          startDateStr = earliestTransactionDate;
+        }
+        // For Max range: keep startDateStr as 2020-01-01 (from switch statement)
+      } else {
+        // Mixed: fallback to earliest transaction date
+        if (startDateStr < earliestTransactionDate) {
+          startDateStr = earliestTransactionDate;
+        }
       }
+
+      console.log(`[getPerformanceTimeseries] scope=${input.scope} range=${input.range} startDateStr=${startDateStr} hasLive=${hasLivePortfolios} hasDemo=${hasDemoPortfolios} earliestTx=${earliestTransactionDate} tickers=${Array.from(allTickers).join(',')}`);
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -789,6 +901,7 @@ export const dashboardRouter = router({
         for (const d of Array.from(tp.keys())) allDates.add(d);
       }
       const sortedDates = Array.from(allDates).sort();
+      console.log(`[getPerformanceTimeseries] pricesResult=${pricesResult.length} sortedDates=${sortedDates.length} firstDate=${sortedDates[0]} lastDate=${sortedDates[sortedDates.length-1]}`);
       if (sortedDates.length === 0) return { range: input.range, scope: input.scope, points: [] };
 
       // Get benchmark data (SMI + MSCI World)
@@ -797,18 +910,70 @@ export const dashboardRouter = router({
       const smiMap = new Map(smiData.map(d => [d.date, parseFloat(d.close)]));
       const msciMap = new Map(msciData.map(d => [d.date, parseFloat(d.close)]));
 
-      // Pre-warm FX
+      // Pre-warm FX cache: trigger one async call per currency to bulk-load all historical rates
       const uniqueCurrencies = new Set<string>();
       for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        getFxRate(todayStr, `${c}CHF`)
       ));
+
+      // Pre-compute sorted date arrays per ticker (avoid repeated sort inside the hot loop)
+      const sortedTickerDates = new Map<string, string[]>();
+      for (const [ticker, tp] of Array.from(priceMap.entries())) {
+        sortedTickerDates.set(ticker, Array.from(tp.keys()).sort());
+      }
+
+      // Helper: binary-search for the nearest price on or before a given date
+      const getNearestPrice = (ticker: string, date: string): number | undefined => {
+        const tp = priceMap.get(ticker);
+        if (!tp) return undefined;
+        const exact = tp.get(date);
+        if (exact !== undefined) return exact;
+        const dates = sortedTickerDates.get(ticker)!;
+        // Binary search for last date <= target
+        let lo = 0, hi = dates.length - 1, best = -1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (dates[mid] <= date) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
+        }
+        return best >= 0 ? tp.get(dates[best]) : undefined;
+      };
+
+      // Pre-compute shares for demo portfolios (avoid repeated JSON.parse + sort inside the hot loop)
+      const demoSharesCache = new Map<string, Map<string, number>>(); // portfolioId -> ticker -> shares
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        const demoHoldings = demoHoldingsByPortfolio.get(portfolio.id) || [];
+        const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+        const sharesMap = new Map<string, number>();
+        const pd = JSON.parse(portfolio.portfolioData || '{}');
+        const stockDefs = pd.stocks || pd.positions || [];
+        for (const dh of demoHoldings) {
+          let shares = dh.shares;
+          if (shares <= 0 && investmentAmount > 0) {
+            const stockDef = stockDefs.find((s: any) => s.ticker === dh.ticker);
+            const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
+            const allocationCHF = investmentAmount * weight;
+            const stock = stocksMap.get(dh.ticker) as any;
+            const currency = stock?.currency || 'CHF';
+            const startPrice = getNearestPrice(dh.ticker, startDateStr);
+            if (startPrice && startPrice > 0) {
+              const startPriceCHF = convertToCHFSync(startPrice, currency, startDateStr);
+              shares = startPriceCHF > 0 ? allocationCHF / startPriceCHF : 0;
+            }
+          }
+          if (shares > 0) sharesMap.set(dh.ticker, shares);
+        }
+        demoSharesCache.set(String(portfolio.id), sharesMap);
+      }
 
       // Downsample to max 60 points
       const step = Math.max(1, Math.floor(sortedDates.length / 60));
       const sampledDates = sortedDates.filter((_, i) => i % step === 0 || i === sortedDates.length - 1);
+      console.log(`[getPerformanceTimeseries] sampledDates=${sampledDates.length} step=${step} demoSharesCache sizes=${JSON.stringify(Array.from(demoSharesCache.entries()).map(([k,v]) => ({id:k, shares:v.size})))}`);
 
       // Calculate portfolio value for sampled dates
+      const t0 = Date.now();
       let startingValue = 0;
 
       // Helper: find nearest value from a map for a given date (look back up to 5 days)
@@ -842,7 +1007,6 @@ export const dashboardRouter = router({
         for (const portfolio of targetPortfolios) {
           if (portfolio.isLive === 1 && portfolio.liveStartDate) {
             // Live portfolio: calculate from transactions
-            // Skip this portfolio entirely for dates before its first transaction
             const liveStart = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
             if (date < liveStart) continue;
             const transactions = txByPortfolio.get(portfolio.id) || [];
@@ -860,58 +1024,24 @@ export const dashboardRouter = router({
               const stock = stocksMap.get(ticker) as any;
               if (!stock) continue;
               const currency = stock.currency || 'CHF';
-              const tickerPrices = priceMap.get(ticker);
-              if (!tickerPrices) continue;
-              let price = tickerPrices.get(date);
-              if (!price) {
-                const avail = Array.from(tickerPrices.keys()).sort();
-                for (let j = avail.length - 1; j >= 0; j--) {
-                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-                }
-              }
+              const price = getNearestPrice(ticker, date);
               if (!price) continue;
-              const priceCHF = await convertToCHF(price, currency, date);
-              totalValueCHF += shares * priceCHF;
+              totalValueCHF += shares * convertToCHFSync(price, currency, date);
             }
             totalValueCHF += parseFloat(portfolio.cashBalance || '0');
           } else {
-            // Demo portfolio: use fixed holdings from portfolioData
-            const demoHoldings = demoHoldingsByPortfolio.get(portfolio.id) || [];
-            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            // Demo portfolio: use pre-computed shares from demoSharesCache
+            const sharesMap = demoSharesCache.get(String(portfolio.id));
+            if (!sharesMap || sharesMap.size === 0) continue;
             let hasAnyDemoValue = false;
-            for (const dh of demoHoldings) {
-              const stock = stocksMap.get(dh.ticker) as any;
-              if (!stock) continue;
-              const currency = stock.currency || 'CHF';
-              const tickerPrices = priceMap.get(dh.ticker);
-              if (!tickerPrices) continue;
-              let price = tickerPrices.get(date);
-              if (!price) {
-                const avail = Array.from(tickerPrices.keys()).sort();
-                for (let j = avail.length - 1; j >= 0; j--) {
-                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-                }
-              }
+            for (const [ticker, shares] of Array.from(sharesMap.entries())) {
+              const stock = stocksMap.get(ticker) as any;
+              const currency = stock?.currency || 'CHF';
+              const price = getNearestPrice(ticker, date);
               if (!price) continue;
-              // Calculate shares from weight if not stored
-              let shares = dh.shares;
-              if (shares <= 0 && investmentAmount > 0) {
-                const pd = JSON.parse(portfolio.portfolioData || '{}');
-                const stocks = pd.stocks || pd.positions || [];
-                const stockDef = stocks.find((s: any) => s.ticker === dh.ticker);
-                const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
-                const allocationCHF = investmentAmount * weight;
-                // Use first available price to estimate shares
-                const firstAvail = Array.from(tickerPrices.values())[0] || price;
-                const firstPriceCHF = await convertToCHF(firstAvail, currency, date);
-                shares = firstPriceCHF > 0 ? allocationCHF / firstPriceCHF : 0;
-              }
-              if (shares <= 0) continue;
-              const priceCHF = await convertToCHF(price, currency, date);
-              totalValueCHF += shares * priceCHF;
+              totalValueCHF += shares * convertToCHFSync(price, currency, date);
               hasAnyDemoValue = true;
             }
-            // Only add cash balance if demo portfolio has value on this date
             if (hasAnyDemoValue) totalValueCHF += parseFloat(portfolio.cashBalance || '0');
           }
         }
@@ -932,6 +1062,8 @@ export const dashboardRouter = router({
         const label = d.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' });
         points.push({ label, portfolio: Number(portfolioPerf.toFixed(2)), smi: Number(smiPerf.toFixed(2)), msci: Number(msciPerf.toFixed(2)) });
       }
+
+      console.log(`[getPerformanceTimeseries] calculation loop took ${Date.now()-t0}ms for ${sampledDates.length} dates`);
 
       // Filter out leading zero points (where no portfolio data exists yet)
       const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0);
@@ -1034,7 +1166,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1062,7 +1194,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;
@@ -1078,9 +1210,17 @@ export const dashboardRouter = router({
         const ytdStartPrice = ytdPricesMap.get(ticker) as number | undefined;
         const ytd = ytdStartPrice && ytdStartPrice > 0 ? ((currentPrice - ytdStartPrice) / ytdStartPrice) * 100 : 0;
 
-        // 1d change from previousClose or ytdPerformance
-        const prevClose = parseFloat(stock.week52Low || '0'); // approximate
-        const change1d = stock.ytdPerformance ? parseFloat(stock.ytdPerformance) / 252 : 0; // rough daily
+        // 1d change: use ytdPerformance as a rough proxy if no real-time data
+        // The real-time change will be fetched via EODHD in getHoldings1dChange below
+        let change1d = 0;
+        if (stock.ytdPerformance) {
+          // Rough daily: ytd% / trading days elapsed this year
+          const now = new Date();
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          const daysSinceYearStart = Math.max(1, Math.floor((now.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)));
+          const tradingDays = Math.floor(daysSinceYearStart * 5 / 7); // approximate
+          change1d = parseFloat(stock.ytdPerformance) / Math.max(tradingDays, 1);
+        }
 
         holdings.push({
           ticker,
@@ -1106,6 +1246,23 @@ export const dashboardRouter = router({
           weight: 0, value: totalCash, shares: 0, currentPrice: 1, currency: 'CHF',
           change1d: 0, ytd: 0,
         });
+      }
+
+      // Fetch real-time 1d change from EODHD for top holdings (limit to avoid rate limits)
+      try {
+        const { fetchEODHDRealTime } = await import("../_core/eodhdApi");
+        const tickersToFetch = holdings.filter(h => h.ticker !== 'CASH').slice(0, 20);
+        const realTimeResults = await Promise.allSettled(
+          tickersToFetch.map(h => fetchEODHDRealTime(h.ticker))
+        );
+        for (let i = 0; i < tickersToFetch.length; i++) {
+          const result = realTimeResults[i];
+          if (result.status === 'fulfilled' && result.value.changePercent !== null) {
+            tickersToFetch[i].change1d = Number(result.value.changePercent.toFixed(2));
+          }
+        }
+      } catch (e) {
+        // Silently fall back to approximation
       }
 
       // Calculate weights
@@ -1209,7 +1366,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1232,7 +1389,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;
@@ -1346,7 +1503,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1368,7 +1525,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;
@@ -1402,7 +1559,7 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
-      const { convertToCHF } = await import("../fxHelper");
+      const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
@@ -1502,7 +1659,7 @@ export const dashboardRouter = router({
             const stockDef = stocks.find((s: any) => s.ticker === dh.ticker);
             const weight = stockDef ? parseFloat(stockDef.weight || '0') / 100 : 0;
             const allocationCHF = investmentAmount * weight;
-            const currentPrice = parseFloat(stock.currentPrice || '0');
+            const currentPrice = safeParseFloat(stock.currentPrice);
             const currency = stock.currency || 'CHF';
             const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
             shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
@@ -1660,7 +1817,7 @@ export const dashboardRouter = router({
         if (shares <= 0) continue;
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const price = parseFloat(stock.currentPrice || '0');
+        const price = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(price, currency, todayStr);
         const val = shares * priceCHF;
@@ -1686,42 +1843,56 @@ export const dashboardRouter = router({
   // ──────────────────────────────────────────────────────────────────────
   // LPPL Bubble indicator
   // ──────────────────────────────────────────────────────────────────────
-  getBubbleIndicator: protectedProcedure
+    getBubbleIndicator: protectedProcedure
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx }) => {
+      // ── Primary: Sornette Finance API (FCO/ETH Zurich LPPLS data) ──────────
+      try {
+        const { getMarketBubbleScore, formatBubbleIndicatorResponse } = await import("../analytics/sornetteApi");
+        const sornetteScore = await getMarketBubbleScore();
+        if (sornetteScore) {
+          const formatted = formatBubbleIndicatorResponse(sornetteScore);
+          return {
+            score: formatted.score,
+            label: formatted.label,
+            history: [] as number[],
+            interpretation: formatted.interpretation,
+            source: 'sornette_api' as const,
+            dataDate: formatted.dataDate,
+            longTermBubble: formatted.longTermBubble,
+            bestPositiveT1_2_6y: formatted.bestPositiveT1_2_6y,
+            positiveByScale: formatted.positiveByScale,
+            negativeByScale: formatted.negativeByScale,
+          };
+        }
+      } catch (err) {
+        console.warn('[getBubbleIndicator] Sornette API failed, falling back to DB:', err);
+      }
+      // ── Fallback: local DB (lpplResults from own LPPL engine) ─────────────
       const { getDb } = await import("../db");
       const { lpplResults } = await import("../../drizzle/schema");
       const { desc, eq } = await import("drizzle-orm");
-
       const db = await getDb();
-      if (!db) return { score: 0, label: "Niedrig" as const, history: [] as number[], interpretation: "Keine Daten verfügbar." };
-
-      // Get latest LPPL result for S&P 500 (most representative)
+      if (!db) return { score: 50, label: "Mittel" as const, history: [] as number[], interpretation: "Keine Daten verfügbar.", source: 'fallback' as const };
       const latest = await db.select().from(lpplResults)
         .where(eq(lpplResults.indexSymbol, '^GSPC'))
         .orderBy(desc(lpplResults.checkedAt))
         .limit(1);
-
-      // Get last 8 results for history sparkline
       const history = await db.select().from(lpplResults)
         .where(eq(lpplResults.indexSymbol, '^GSPC'))
         .orderBy(desc(lpplResults.checkedAt))
         .limit(8);
-
       if (latest.length === 0) {
-        return { score: 0, label: "Niedrig" as const, history: [] as number[], interpretation: "Noch kein LPPL-Check durchgeführt. Starte einen Live-Check im Monitoring-Tab." };
+        return { score: 50, label: "Mittel" as const, history: [] as number[], interpretation: "Keine Sornette API-Verbindung. Kein lokaler LPPL-Check verfügbar.", source: 'fallback' as const };
       }
-
       const score = latest[0].bubbleConfidence;
       const label = score < 33 ? "Niedrig" : score < 66 ? "Mittel" : "Hoch";
       const historyScores = history.reverse().map(r => r.bubbleConfidence);
-
       let interpretation = "";
       if (score < 33) interpretation = "Markt zeigt keine Überhitzung. Strategie kann beibehalten werden.";
       else if (score < 66) interpretation = "Moderate Überhitzungssignale. Risikomanagement überprüfen.";
       else interpretation = "Starke Bubble-Signale erkannt. Defensive Positionierung empfohlen.";
-
-      return { score, label: label as "Niedrig" | "Mittel" | "Hoch", history: historyScores, interpretation };
+      return { score, label: label as "Niedrig" | "Mittel" | "Hoch", history: historyScores, interpretation, source: 'local_db' as const };
     }),
 
   // ──────────────────────────────────────────────────────────────────────
@@ -1813,7 +1984,7 @@ export const dashboardRouter = router({
             if (currentShares !== undefined && currentShares < 0) {
               const stock = stocksMap.get(stockDef.ticker) as any;
               if (!stock) continue;
-              const currentPrice = parseFloat(stock.currentPrice || '0');
+              const currentPrice = safeParseFloat(stock.currentPrice);
               const currency = stock.currency || 'CHF';
               const weight = parseFloat(stockDef.weight || '0') / 100;
               const allocationCHF = investmentAmount * weight;
@@ -1835,7 +2006,7 @@ export const dashboardRouter = router({
       for (const [ticker, shares] of Array.from(holdingsAgg.entries())) {
         const stock = stocksMap.get(ticker) as any;
         if (!stock) continue;
-        const currentPrice = parseFloat(stock.currentPrice || '0');
+        const currentPrice = safeParseFloat(stock.currentPrice);
         const currency = stock.currency || 'CHF';
         const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
         const value = shares * priceCHF;
@@ -1930,12 +2101,29 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           const parsed = JSON.parse(typeof content === 'string' ? content : '');
           if (parsed.insights && Array.isArray(parsed.insights)) {
             for (const insight of parsed.insights.slice(0, 4)) {
+              // Derive actionHref from the insight content/action text
+              const actionText = (insight.action || '').toLowerCase();
+              const titleText = (insight.title || '').toLowerCase();
+              const bodyText = (insight.body || '').toLowerCase();
+              let actionHref = '/portfolios'; // default fallback
+              if (actionText.includes('diversif') || titleText.includes('sektor') || titleText.includes('konzentration') || bodyText.includes('sektor')) {
+                actionHref = '/portfolios';
+              } else if (actionText.includes('position') || titleText.includes('klumpen') || titleText.includes('einzeltitel')) {
+                actionHref = '/portfolios';
+              } else if (actionText.includes('cash') || titleText.includes('liquidit') || titleText.includes('cash')) {
+                actionHref = '/portfolios';
+              } else if (actionText.includes('markt') || actionText.includes('global') || titleText.includes('region')) {
+                actionHref = '/markt';
+              } else if (actionText.includes('optim') || actionText.includes('anpass')) {
+                actionHref = '/portfolios';
+              }
               insights.push({
                 id: `llm-${insights.length}`,
                 severity: insight.severity || 'info',
                 title: insight.title || 'Empfehlung',
                 body: insight.body || '',
                 action: insight.action || 'Details',
+                actionHref,
               });
             }
           }

@@ -764,3 +764,37 @@ export const modelArtifacts = mysqlTable("modelArtifacts", {
 
 export type ModelArtifact = typeof modelArtifacts.$inferSelect;
 export type InsertModelArtifact = typeof modelArtifacts.$inferInsert;
+
+// ============================================
+// Signal History — Persistierte Signale für Lookback-Evaluation
+// ============================================
+export const signalHistory = mysqlTable("signal_history", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 20 }).notNull(),
+  action: varchar("action", { length: 20 }).notNull(),
+  selectedEngine: varchar("selectedEngine", { length: 30 }).notNull(),
+  regime: varchar("regime", { length: 30 }).notNull(),
+  regimeConfidence: decimal("regimeConfidence", { precision: 5, scale: 3 }),
+  conviction: decimal("conviction", { precision: 5, scale: 3 }).notNull(),
+  rawScore: decimal("rawScore", { precision: 6, scale: 4 }).notNull(),
+  adjustedScore: decimal("adjustedScore", { precision: 6, scale: 4 }).notNull(),
+  direction: int("direction").notNull(),
+  holdingPeriodHint: int("holdingPeriodHint"),
+  stopLossPct: decimal("stopLossPct", { precision: 6, scale: 3 }),
+  takeProfitPct: decimal("takeProfitPct", { precision: 6, scale: 3 }),
+  priceAtSignal: decimal("priceAtSignal", { precision: 12, scale: 4 }),
+  priceAtEvaluation: decimal("priceAtEvaluation", { precision: 12, scale: 4 }),
+  engineScores: json("engineScores"),
+  evaluatedAt: timestamp("evaluatedAt"),
+  actualReturnPct: decimal("actualReturnPct", { precision: 7, scale: 4 }),
+  directionCorrect: tinyint("directionCorrect"),
+  riskDecision: varchar("riskDecision", { length: 20 }),
+  computedAt: timestamp("computedAt").defaultNow().notNull(),
+}, (t) => ({
+  tickerIdx: index("ix_signal_history_ticker").on(t.ticker),
+  computedAtIdx: index("ix_signal_history_computed_at").on(t.computedAt),
+  engineRegimeIdx: index("ix_signal_history_engine_regime").on(t.selectedEngine, t.regime),
+}));
+
+export type SignalHistoryRow = typeof signalHistory.$inferSelect;
+export type InsertSignalHistory = typeof signalHistory.$inferInsert;

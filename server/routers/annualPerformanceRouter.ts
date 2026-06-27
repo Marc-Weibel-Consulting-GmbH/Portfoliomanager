@@ -97,7 +97,9 @@ export const annualPerformanceRouter = router({
         for (const [ticker, shares] of Object.entries(holdings)) {
           if (shares > 0) {
             const stock = await getStockByTicker(ticker);
-            const currentPrice = stock ? parseFloat(stock.currentPrice || '0') : 0;
+            const rawStockPrice = stock?.currentPrice || '0';
+            const currentPrice = (rawStockPrice === 'NA' || rawStockPrice === 'N/A') ? 0 : (stock ? parseFloat(rawStockPrice) : 0);
+            if (isNaN(currentPrice)) continue;
             const currency = await getStockCurrency(ticker);
             
             const currentValueLocal = shares * currentPrice;

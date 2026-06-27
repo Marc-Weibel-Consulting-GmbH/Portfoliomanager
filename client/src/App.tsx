@@ -57,6 +57,9 @@ import AdminWatchlist from "./pages/AdminWatchlist";
 import AdminOptimizer from "./pages/AdminOptimizer";
 import AdminLogs from "./pages/AdminLogs";
 import AdminSecrets from "./pages/AdminSecrets";
+import AdminMlTrainer from "./pages/AdminMlTrainer";
+import AdminSignalPerformance from "./pages/AdminSignalPerformance";
+import AdminWikifolio from "./pages/AdminWikifolio";
 
 // ─── Legacy (für Redirects) ───
 import DebugTest from "./pages/DebugTest";
@@ -132,6 +135,7 @@ function Router() {
 
       {/* ═══ EINSTELLUNGEN ═══ */}
       <Route path="/einstellungen" component={Einstellungen} />
+      <Route path="/settings" component={Einstellungen} />
       <Route path="/settings/notifications" component={NotificationSettings} />
 
       {/* ═══ ADMIN ═══ */}
@@ -145,6 +149,9 @@ function Router() {
       <Route path="/admin/watchlist" component={AdminWatchlist} />
       <Route path="/admin/optimizer" component={AdminOptimizer} />
       <Route path="/admin/logs" component={AdminLogs} />
+      <Route path="/admin/ml-trainer" component={AdminMlTrainer} />
+      <Route path="/admin/signal-performance" component={AdminSignalPerformance} />
+      <Route path="/admin/wikifolio" component={AdminWikifolio} />
 
       {/* ═══ Legacy Redirects (alte Routen → neue Struktur) ═══ */}
       <Route path="/home">
@@ -202,6 +209,7 @@ function Router() {
         <Redirect to="/dashboard" />
       </Route>
       <Route path="/backtesting" component={StrategyBacktest} />
+      <Route path="/backtest" component={StrategyBacktest} />
       <Route path="/import">{() => <Import />}</Route>
       <Route path="/prediction">
         <Redirect to="/copilot" />

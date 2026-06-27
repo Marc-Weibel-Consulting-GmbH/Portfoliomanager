@@ -530,4 +530,330 @@ export const adminRouter = router({
         clearBackfillCache();
         return { success: true, message: 'Backfill cache cleared' };
       }),
+
+    // ─── ML Trainer ───────────────────────────────────────────────────────────
+
+    /**
+     * Get the current status of the ML model:
+     * latest artifact metadata, metrics, and whether a model is active.
+     */
+    mlGetStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+
+        const { getDb } = await import('../db');
+        const { modelArtifacts } = await import('../../drizzle/schema');
+        const { desc } = await import('drizzle-orm');
+        const db = await getDb();
+        if (!db) return { hasModel: false, artifacts: [] };
+
+        const rows = await db
+          .select({
+            id: modelArtifacts.id,
+            kind: modelArtifacts.kind,
+            version: modelArtifacts.version,
+            status: modelArtifacts.status,
+            format: modelArtifacts.format,
+            trainStart: modelArtifacts.trainStart,
+            trainEnd: modelArtifacts.trainEnd,
+            universeSize: modelArtifacts.universeSize,
+            metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt,
+            createdAt: modelArtifacts.createdAt,
+            // modelBlob intentionally omitted (large)
+          })
+          .from(modelArtifacts)
+          .orderBy(desc(modelArtifacts.createdAt))
+          .limit(1);
+
+        const active = await db
+          .select({
+            id: modelArtifacts.id,
+            kind: modelArtifacts.kind,
+            version: modelArtifacts.version,
+            status: modelArtifacts.status,
+            trainStart: modelArtifacts.trainStart,
+            trainEnd: modelArtifacts.trainEnd,
+            universeSize: modelArtifacts.universeSize,
+            metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt,
+            createdAt: modelArtifacts.createdAt,
+          })
+          .from(modelArtifacts)
+          .where((await import('drizzle-orm')).eq(modelArtifacts.status, 'active'))
+          .limit(1);
+
+        const analyticsUrl = process.env.ANALYTICS_SERVICE_URL;
+        let serviceOnline = false;
+        if (analyticsUrl) {
+          try {
+            const r = await fetch(`${analyticsUrl.replace(/\/$/, '')}/health`, { signal: AbortSignal.timeout(3000) });
+            serviceOnline = r.ok;
+          } catch { /* offline */ }
+        }
+
+        return {
+          hasModel: active.length > 0,
+          activeModel: active[0] ?? null,
+          latestRun: rows[0] ?? null,
+          serviceOnline,
+          analyticsServiceConfigured: !!analyticsUrl,
+        };
+      }),
+
+    /**
+     * Get full training history (all artifacts, newest first).
+     */
+    mlGetHistory: protectedProcedure
+      .input(z.object({ limit: z.number().min(1).max(100).optional().default(20) }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+
+        const { getDb } = await import('../db');
+        const { modelArtifacts } = await import('../../drizzle/schema');
+        const { desc } = await import('drizzle-orm');
+        const db = await getDb();
+        if (!db) return { runs: [] };
+
+        const rows = await db
+          .select({
+            id: modelArtifacts.id,
+            kind: modelArtifacts.kind,
+            version: modelArtifacts.version,
+            status: modelArtifacts.status,
+            format: modelArtifacts.format,
+            trainStart: modelArtifacts.trainStart,
+            trainEnd: modelArtifacts.trainEnd,
+            universeSize: modelArtifacts.universeSize,
+            metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt,
+            createdAt: modelArtifacts.createdAt,
+          })
+          .from(modelArtifacts)
+          .orderBy(desc(modelArtifacts.createdAt))
+          .limit(input.limit);
+
+        return { runs: rows };
+      }),
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Signal Performance Analytics (Admin only)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Aggregierte Signal-Performance-Metriken je Engine und Regime.
+     * Basis für Admin-Dashboard zur Optimierung des Signalmix.
+     */
+    getSignalPerformance: protectedProcedure
+      .input(z.object({
+        days: z.number().default(90),
+        engine: z.string().optional(),
+        regime: z.string().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+
+        const { getDb } = await import('../db');
+        const { signalHistory } = await import('../../drizzle/schema');
+        const { and, gte, isNotNull, sql, eq } = await import('drizzle-orm');
+        const db = await getDb();
+        if (!db) throw new Error('DB not available');
+
+        const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+
+        const conditions: any[] = [
+          gte(signalHistory.computedAt, since),
+          isNotNull(signalHistory.evaluatedAt),
+          isNotNull(signalHistory.directionCorrect),
+        ];
+        if (input.engine) conditions.push(eq(signalHistory.selectedEngine, input.engine));
+        if (input.regime) conditions.push(eq(signalHistory.regime, input.regime));
+
+        const rows = await db
+          .select()
+          .from(signalHistory)
+          .where(and(...conditions))
+          .orderBy(sql`${signalHistory.computedAt} DESC`)
+          .limit(2000);
+
+        // Aggregation je Engine
+        const engineMap: Record<string, {
+          engine: string; totalSignals: number; evaluatedSignals: number;
+          hitRateSum: number; returnSum: number; convictionSum: number;
+          byRegime: Record<string, { hitSum: number; count: number; retSum: number }>;
+          byAction: Record<string, { hitSum: number; count: number }>;
+        }> = {};
+
+        for (const row of rows) {
+          const eng = row.selectedEngine;
+          if (!engineMap[eng]) {
+            engineMap[eng] = { engine: eng, totalSignals: 0, evaluatedSignals: 0,
+              hitRateSum: 0, returnSum: 0, convictionSum: 0, byRegime: {}, byAction: {} };
+          }
+          const s = engineMap[eng];
+          s.totalSignals++;
+          s.evaluatedSignals++;
+          const correct = row.directionCorrect === 1;
+          s.hitRateSum += correct ? 1 : 0;
+          s.returnSum += parseFloat(row.actualReturnPct?.toString() ?? '0');
+          s.convictionSum += parseFloat(row.conviction.toString());
+
+          const reg = row.regime;
+          if (!s.byRegime[reg]) s.byRegime[reg] = { hitSum: 0, count: 0, retSum: 0 };
+          s.byRegime[reg].count++;
+          s.byRegime[reg].hitSum += correct ? 1 : 0;
+          s.byRegime[reg].retSum += parseFloat(row.actualReturnPct?.toString() ?? '0');
+
+          const act = row.action;
+          if (!s.byAction[act]) s.byAction[act] = { hitSum: 0, count: 0 };
+          s.byAction[act].count++;
+          s.byAction[act].hitSum += correct ? 1 : 0;
+        }
+
+        const engineStats = Object.values(engineMap).map(s => ({
+          engine: s.engine,
+          totalSignals: s.totalSignals,
+          evaluatedSignals: s.evaluatedSignals,
+          hitRate: s.evaluatedSignals > 0 ? s.hitRateSum / s.evaluatedSignals : 0,
+          avgReturn: s.evaluatedSignals > 0 ? s.returnSum / s.evaluatedSignals : 0,
+          avgConviction: s.evaluatedSignals > 0 ? s.convictionSum / s.evaluatedSignals : 0,
+          byRegime: Object.fromEntries(Object.entries(s.byRegime).map(([k, v]) => [k, {
+            hitRate: v.count > 0 ? v.hitSum / v.count : 0,
+            count: v.count,
+            avgReturn: v.count > 0 ? v.retSum / v.count : 0,
+          }])),
+          byAction: Object.fromEntries(Object.entries(s.byAction).map(([k, v]) => [k, {
+            hitRate: v.count > 0 ? v.hitSum / v.count : 0,
+            count: v.count,
+          }])),
+        }));
+
+        // Kalibrierungskurve
+        const buckets = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+        const calibration = buckets.slice(0, -1).map((min, i) => {
+          const max = buckets[i + 1];
+          const inBucket = rows.filter(r =>
+            parseFloat(r.conviction.toString()) >= min &&
+            parseFloat(r.conviction.toString()) < max
+          );
+          const hits = inBucket.filter(r => r.directionCorrect === 1).length;
+          return {
+            bucket: `${Math.round(min * 100)}-${Math.round(max * 100)}%`,
+            minConviction: min, maxConviction: max,
+            hitRate: inBucket.length > 0 ? hits / inBucket.length : 0,
+            count: inBucket.length,
+          };
+        });
+
+        // Letzte 50 Signale (alle, nicht nur evaluierte)
+        const recentSignals = await db
+          .select()
+          .from(signalHistory)
+          .where(gte(signalHistory.computedAt, since))
+          .orderBy(sql`${signalHistory.computedAt} DESC`)
+          .limit(50);
+
+        return {
+          engineStats,
+          calibration,
+          recentSignals,
+          totalEvaluated: rows.length,
+          overallHitRate: rows.length > 0
+            ? rows.filter(r => r.directionCorrect === 1).length / rows.length
+            : null,
+        };
+      }),
+
+    /** Manueller Trigger: Signal-Snapshot für alle Portfolio-Aktien */
+    triggerSignalSnapshot: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { snapshotSignalsForPortfolio } = await import('../cron/signalEvaluationCron');
+        snapshotSignalsForPortfolio().catch(console.error);
+        return { started: true, message: 'Signal-Snapshot gestartet (läuft im Hintergrund)' };
+      }),
+
+    /** Manueller Trigger: Lookback-Evaluation */
+    triggerSignalEvaluation: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { evaluatePendingSignals } = await import('../cron/signalEvaluationCron');
+        evaluatePendingSignals().catch(console.error);
+        return { started: true, message: 'Lookback-Evaluation gestartet' };
+      }),
+
+    // ── Phase 3: Risk Threshold Kalibrierung ─────────────────────────────────
+
+    /** Kalibrierungsstatus: Cache-Stats und kalibrierte Ticker anzeigen */
+    getRiskCalibrationStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { getCacheStats } = await import('../lib/signals/riskThresholdCalibrator');
+        const stats = getCacheStats();
+        return {
+          cachedTickers: stats.tickers,
+          cacheSize: stats.size,
+          description: 'Kalibrierte Schwellenwerte im In-Memory Cache (TTL: 24h)',
+        };
+      }),
+
+    /** Kalibrierung für einen einzelnen Ticker triggern */
+    calibrateRiskThresholdsForTicker: protectedProcedure
+      .input(z.object({ ticker: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const yahooFinance = (await import('yahoo-finance2')).default;
+        const { calibrateRiskThresholds, setCachedThresholds } = await import('../lib/signals/riskThresholdCalibrator');
+
+        const ticker = input.ticker;
+        try {
+          const chartResult = await (yahooFinance as any).chart(ticker, {
+            period1: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            period2: new Date().toISOString().split('T')[0],
+            interval: '1d',
+          });
+          const prices: number[] = ((chartResult as any).quotes ?? [])
+            .map((q: any) => q.close)
+            .filter((c: any) => c != null && c > 0);
+
+          if (prices.length < 100) {
+            return { success: false, message: `Zu wenig Daten: ${prices.length} Preispunkte (mind. 100 nötig)` };
+          }
+
+          const start = Date.now();
+          const thresholds = calibrateRiskThresholds(ticker, prices);
+          setCachedThresholds(ticker, thresholds);
+          const durationMs = Date.now() - start;
+
+          return {
+            success: true,
+            ticker,
+            durationMs,
+            dataPoints: prices.length,
+            numFolds: thresholds.meta.numFolds,
+            confidence: thresholds.meta.confidence,
+            avgOosImprovement: thresholds.meta.avgOosImprovement,
+            calibratedAt: thresholds.meta.calibratedAt,
+            thresholds: {
+              volDampLevel1: thresholds.vol.dampLevel1,
+              volDampLevel2: thresholds.vol.dampLevel2,
+              volBlockLevel: thresholds.vol.blockLevel,
+              ddDampLevel1: thresholds.drawdown.dampLevel1,
+              ddDampLevel2: thresholds.drawdown.dampLevel2,
+            },
+            regimeMultipliers: thresholds.regimeMultipliers,
+          };
+        } catch (e) {
+          return { success: false, message: `Fehler: ${(e as Error).message}` };
+        }
+      }),
+
+    /** Cache leeren (erzwingt Neukalibrierung beim nächsten Request) */
+    clearRiskCalibrationCache: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { clearThresholdCache } = await import('../lib/signals/riskThresholdCalibrator');
+        clearThresholdCache();
+        return { success: true, message: 'Kalibrierungs-Cache geleert' };
+      }),
 });

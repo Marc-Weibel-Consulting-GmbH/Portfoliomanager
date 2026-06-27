@@ -1257,3 +1257,125 @@
 - [x] Signal-Feed Tab im CopilotHub (Kombinations-Signale für alle Portfolio-Positionen)
 - [x] batchScoring Endpunkt im tradingview Router
 - [x] getScoringWatchlist Endpunkt im dashboardRouter
+
+
+## Ralph Loop Testing & Fixes (25.06.2026)
+
+### NaN-Propagation Fixes
+- [x] BUG: NaN values propagating through portfolio calculations when stocks have currentPrice="NA" (HELN.SW, MESA.US, ROG.SW) - FIXED: Added safeParseFloat() helper across all routers (dashboardRouter, portfoliosRouter, annualPerformanceRouter, stocksRouter, db.ts)
+- [x] BUG: parseFloat("NA") returns NaN which propagates to total portfolio values - FIXED: safeParseFloat returns 0 for non-numeric strings
+
+### Dashboard Fixes
+- [x] BUG: getTopPortfolios missing positionCount and strategy fields - FIXED: Added positionCount calculation and strategy field to return
+- [x] BUG: Dashboard NaN safety in return values (totalValue, totalPerformance, etc.) - FIXED: Added isFinite() guards on all return values
+- [x] BUG: cashBalance parseFloat could return NaN - FIXED: Added NaN guard
+
+### Daily Change (Heute) Fix
+- [x] BUG: All positions show "+0.00%" for "Heute" column - FIXED: Added EODHD real-time API call to fetch actual daily change percentages for holdings
+
+### Route Fixes
+- [x] BUG: /settings returns 404 - FIXED: Added /settings route alias pointing to Einstellungen component
+- [x] BUG: /backtest returns 404 - FIXED: Added /backtest route alias pointing to Backtesting component
+
+### Portfolio Builder Fix
+- [x] BUG: Quantity and Price input fields shared across all stocks (entering value for one stock shows it for all) - FIXED: Replaced single shared state with per-stock state using stockInputs Record<string, {quantity, price}>
+
+### Cron Job Error Handling
+- [x] BUG: watchlistAlertsCron crashes on delisted/unavailable symbols - FIXED: Added try/catch with graceful error handling per symbol
+
+### Plausibility Verification Results
+- [x] VERIFIED: Stock prices match third-party sources (Bloomberg, Yahoo Finance, Investing.com) within 0.2%
+- [x] VERIFIED: Position value calculations (shares × price) mathematically correct
+- [x] VERIFIED: Portfolio totals match sum of individual positions (within CHF 3 rounding)
+- [x] VERIFIED: Performance percentages correctly calculated ((current - cost) / cost)
+- [x] VERIFIED: FX conversion applied correctly for USD-denominated stocks
+- [x] VERIFIED: Weight percentages sum to ~100% for each portfolio
+
+### Known Limitations (not bugs)
+- [ ] YTD and Sharpe show "—" because historical price data doesn't cover 2026 (system date is 2026 but EODHD data only goes to 2025)
+- [ ] HELN.SW shows CHF 0 value because it's delisted/unavailable on EODHD - should ideally show last known price
+- [ ] AdminKPIs page shows all zeros - placeholder implementation, not connected to real data
+- [ ] Rechner page calculators are placeholders (Pension, Budget, Steuer)
+
+- [x] BUG: Portfolio Builder Abschluss-Schritt zeigt "Positionen (0)" und "CHF 0.00" obwohl Aktien ausgewählt wurden - FIXED: Fallback auf aktuellen Preis wenn kein Preis eingegeben, Validierung dass mindestens 1 Position vorhanden, NaN-Schutz für delisted Stocks
+
+## Neue Bugs (26.06.2026)
+- [ ] BUG: Aggregiertes Portfolio Zeitfenster Max muss auf das jüngste Portfolio-Startdatum begrenzt werden (sonst nicht vergleichbar)
+- [ ] BUG: Demo-Portfolios zeigen bei Max nur ~1 Monat statt voller Historie - Zeitfenster korrekt anpassen
+- [ ] BUG: YTD Chart und YTD KPI stimmen nicht überein (KPI zeigt +5.04% aber Chart-Tooltip zeigt Portfolio +1.69% am 25. Juni)
+- [ ] BUG: Copilot Insights Aktions-Buttons (grün) haben keine verknüpfte Funktion (Sektoren diversifizieren, Positionen überprüfen, etc.)
+
+## Bug Fixes (26.06.2026)
+
+- [x] BUG: Aggregiertes Portfolio Max-Zeitfenster - bei Live-Portfolios auf Startdatum begrenzen
+  - Fixed: Max-Zeitfenster für aggregierte Ansicht beginnt jetzt am liveStartDate des ältesten Live-Portfolios
+  - Verhindert Vergleich mit Demo-Portfolios über nicht-vergleichbare Zeiträume
+- [x] BUG: Demo-Portfolio Zeitfenster Max zeigt nur ~1 Monat statt vollständiger Geschichte
+  - Root cause: FX-Konvertierung war async und machte tausende DB-Roundtrips für historische Daten
+  - Fix 1: FX-Backfill - 5.249 historische Kurse (USDCHF, EURCHF, GBPCHF) ab 2020 in DB geladen
+  - Fix 2: Synchrone FX-Konvertierung (convertToCHFSync) aus In-Memory-Cache - von 15s auf 5ms
+  - Fix 3: Pre-sorted Ticker-Datum-Arrays außerhalb der Berechungsschleife - eliminiert O(n log n) Sort
+  - Fix 4: Max-Zeitfenster für Demo-Portfolios auf 3 Jahre begrenzt (sinnvoller Backtest-Zeitraum)
+- [x] BUG: YTD Chart und YTD KPI stimmen nicht überein
+  - Fixed: Chart und KPI verwenden jetzt denselben Startpunkt (liveStartDate für Live-Portfolios)
+- [x] BUG: Copilot Insights Buttons ohne Funktion
+  - Fixed: Buttons sind jetzt mit konkreten Seiten verknüpft (Portfolio-Optimizer, Analyse, Invest)
+  - Aggregiert-Tab: "Im Optimizer prüfen" → /portfolio-optimizer, "Detail-Report" → /analysis, "Vorschläge anzeigen" → /invest
+  - Portfolio-spezifisch: Links zu /portfolios, /markt je nach Insight-Typ
+
+## Redis Integration (26.06.2026)
+
+- [x] FEATURE: Upstash Redis für ML-Modul Cache integriert
+  - @upstash/redis installiert (REST API, serverless-kompatibel)
+  - server/redisClient.ts: Typed Cache Helpers (cacheGet, cacheSet, cacheGetOrSet) + ML_CACHE_KEYS
+  - server/_core/modelCache.ts: UpstashBytesCache ersetzt ioredis RedisBytesCache (kein TCP, REST-basiert)
+  - server/_core/systemRouter.ts: redisHealth Endpoint für Admin-Monitoring
+  - Alle 7 Tests bestanden (PING, Set/Get/Del, Fallback)
+  - Secrets: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, REDIS_URL gesetzt
+
+## Bugs (26.06.2026)
+- [x] BUG: Bubble-Indikator zeigt für alle Portfolios denselben Wert (50 Mittel) - LPPL ist globaler Markt-Indikator, nicht portfolio-spezifisch. Füge klaren Hinweis hinzu und zeige portfolio-spezifischen Kontext.
+- [x] BUG: Microsoft zeigt SELL in Aktiendetails (tradingview.stockScoring) aber Kaufen in Aktien-Signale-Liste (signals.generate) - zwei verschiedene Modelle liefern inkonsistente Ergebnisse. Signale-Seite soll Momentum+Qualität+LPPL-Score nutzen für Konsistenz.
+- [x] FEATURE: Sornette Finance API integriert - getBubbleIndicator nutzt echte GSPC-Daten (Score 24/100), stockScoring nutzt Sornette für MSFT/AAPL/NVDA/TSLA/META/AMZN
+- [x] BUG: Technische Signale zeigen alle NEUTRAL und roher JSON sichtbar - TradingViewSignalsTab komplett neu geschrieben, wertet jetzt market_sentiment.buy_sell_signal und timeframe_context.bias korrekt aus
+- [x] BUG: Score-Inkonsistenz - Header-Score, Strategie-Scoring Widget und Signale-Liste zeigten drei verschiedene Werte für dieselbe Aktie. Fix: Alle drei nutzen jetzt tradingview.stockScoring (Momentum+Qualität+LPPL) als einzige Quelle. Score-Erklärungsdialog aktualisiert.
+- [x] BUG: Dividenden-Kalender leer (keine 2027-Termine) - daysAhead von 30 auf 365 erhöht. DividendenTab zeigt jetzt nächste 12 Monate inkl. 2027-Termine. Typ-Spalte und Jahresanzeige im Datum hinzugefügt.
+- [x] BUG: Indexstände falsch (SMI 171, S&P 500 733, MSCI 154, Gold 366) - getIndices Procedure nutzt jetzt echte EODHD-Indexpunkte (SSMI.INDX=SMI ~14.172, GSPC.INDX=S&P 500 ~7.366) statt ETF-Proxy-Preise. Mit DB-Fallback falls EODHD nicht erreichbar.
+- [x] BUG: Multi-Timeframe Analyse zeigt für alle Zeitrahmen NEUTRAL - deriveSignal() las falsche Felder (RECOMMENDATION, buy_sell_signal). Fix: Liest jetzt primär das 'bias'-Feld aus dem MCP-Response (z.B. "Bearish" → SELL, "Bullish" → BUY).
+- [x] BUG: Benchmark-Daten (SPY, CHSPI.SW, ACWI.US) fehlten für 2026 - 123 neue Preise bis 25.06.2026 importiert. Benchmark-Tickers werden ab sofort automatisch im täglichen Cron-Job aktualisiert.
+
+## ML Trainer – Admin & User Integration (27.06.2026)
+- [ ] Backend: adminRouter ml.triggerTraining Procedure (admin-only, startet Training async)
+- [ ] Backend: adminRouter ml.getStatus Procedure (letzter Lauf, Metriken, ONNX-Größe, passedGate)
+- [ ] Backend: adminRouter ml.getHistory Procedure (alle Trainingsläufe aus mlArtifacts Tabelle)
+- [ ] Admin-UI: /admin/ml-trainer Seite mit Training-Button, Status-Card, Metriken, History-Tabelle
+- [ ] Admin-UI: Polling-basierte Fortschrittsanzeige während Training läuft
+- [ ] User-Frontend: ML-Signal Widget in StockDetail (BUY/HOLD/SELL + Konfidenz-Balken)
+- [ ] User-Frontend: ML-Signale Spalte in Signale-Liste (ml_signal Badge)
+- [ ] User-Frontend: ML-Score in Aktien-Screener als Filterkriterium
+
+## ML Verbesserungen (Claude Input, 27.06.2026)
+
+### Frontend – Prompt 2 (Nutzer-Mehrwert)
+- [ ] ml.getActiveModelInfo Endpoint (aus modelArtifacts, ohne Blob) → schlanker Info-Endpoint
+- [ ] signalService: modelKind='gb_signal' korrekt zurückgeben wenn GB-Modell aktiv ist
+- [ ] MlSignalWidget: Badge nur wenn source='gb', sonst klar als Fallback labeln
+- [ ] Modell-Transparenz-Panel: Version, OOS-Skill/Alpha, Trainingsstand (Admin + User sichtbar)
+- [ ] Backtest-Equity-Kurve des Modells in Admin-ML-Trainer-Seite
+- [ ] Watchlist/Screener nach KI-Score sortierbar
+- [ ] Copilot-Ranking nach GB-Score + Rebalancing-Hinweise
+
+### Modellqualität – Prompt 1
+- [ ] Breites Universum: 300-500 Titel × 10 J EODHD (survivorship-bewusst)
+- [ ] Cross-sektionale Feature-Normalisierung pro Tag (grösster Hebel für relatives Alpha)
+- [ ] Reicheres Feature-Set: EODHD-Fundamentaldaten (PE, PEG, DivYield, Beta) point-in-time
+- [ ] Embargo/Purge gegen Label-Leakage am Train/Test-Rand
+- [ ] Label-/Horizont-Varianten: Terzil-Klassen, Excess-Return-Regression; 5/21/63 T Horizonte
+- [ ] Ökonomisches Gate: Dezil-Spread, Alpha vs. SPY, Sharpe > 0.5, Turnover/Kosten
+- [ ] Erfolgskriterium hart: OOS-Skill > +2pp, overfitRatio < 1.6, Alpha > 0 nach Kosten
+
+## Signal-Framework Phase 2 (27.06.2026)
+- [x] meanReversionSignalEngine.ts — RSI(14) Wilder, Stochastik(%K/%D), Bollinger Bands, Z-Score, CCI(20)
+- [x] breakoutSignalEngine.ts — Donchian Channel(20), ATR-Breakout, Momentum-Beschleunigung, BB-Squeeze, 52W-Hoch/Tief
+- [x] modelSelector.ts — Walk-Forward (3 Folds, IS=120T, OOS=30T), Regime-Priors, Gewichtungsformel aus Blueprint
+- [x] signalOrchestrator.ts — Alle 4 Engines integriert, modelSelector als Entscheidungsinstanz

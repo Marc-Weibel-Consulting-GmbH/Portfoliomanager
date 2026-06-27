@@ -156,8 +156,21 @@ export async function checkWatchlistAlerts() {
             previousScore,
           });
         }
-      } catch (err) {
-        console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}:`, err);
+      } catch (err: any) {
+        const errMsg = err?.message || String(err);
+        // Only log once for known delisted/not-found symbols
+        if (errMsg.includes('not found') || errMsg.includes('No fundamentals') || errMsg.includes('404')) {
+          console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}: ${errMsg}`);
+          // Mark as inactive if consistently failing
+          try {
+            await db.update(watchlistStocks).set({
+              signalType: 'hold' as const,
+              lastMetricsUpdate: new Date(),
+            }).where(eq(watchlistStocks.id, stock.id));
+          } catch {}
+        } else {
+          console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}:`, err);
+        }
       }
 
       // Rate limiting

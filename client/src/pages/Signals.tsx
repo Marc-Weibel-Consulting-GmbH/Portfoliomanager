@@ -155,13 +155,26 @@ export default function Signals() {
                               <span className="font-semibold text-lg">{signal.ticker}</span>
                               {getSignalBadge(signal.type)}
                               {getStrengthBadge(signal.strength)}
+                              {signal.overallGrade && (
+                                <Badge variant="outline" className="text-xs font-mono">{signal.overallGrade}</Badge>
+                              )}
                             </div>
                             <p className="text-sm text-muted-foreground">{signal.companyName}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Aktueller Kurs</p>
-                          <p className="text-lg font-bold">{signal.currentPrice?.toFixed(2)} CHF</p>
+                          {signal.combinedScore !== undefined && (
+                            <div className="mb-1">
+                              <p className="text-xs text-muted-foreground">Score (M+Q+LPPL)</p>
+                              <p className={`text-lg font-bold font-mono ${
+                                signal.combinedScore >= 70 ? 'text-emerald-500' :
+                                signal.combinedScore >= 55 ? 'text-[#00CFC1]' :
+                                signal.combinedScore >= 45 ? 'text-yellow-500' : 'text-red-500'
+                              }`}>{signal.combinedScore}<span className="text-sm text-muted-foreground">/100</span></p>
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground">Aktueller Kurs</p>
+                          <p className="text-base font-bold">{signal.currentPrice?.toFixed(2)}</p>
                         </div>
                       </div>
 

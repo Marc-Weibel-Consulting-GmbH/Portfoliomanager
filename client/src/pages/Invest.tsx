@@ -142,12 +142,24 @@ export default function Invest() {
     };
   }, [universe]);
 
+  // Sorting state (must be declared before visibleUniverse useMemo)
+  const [sortBy, setSortBy] = useState<'score' | 'dividend' | 'pe' | null>('score');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const toggleSort = (col: 'score' | 'dividend' | 'pe') => {
+    if (sortBy === col) {
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(col);
+      setSortDir('desc');
+    }
+  };
+
   // Apply the active chip value to the loaded universe (client-side). The
   // backend already filters by Sektor/Kategorie via the Select dropdowns; the
   // chips provide quick, URL-persisted filtering on top of the loaded list.
   const visibleUniverse = useMemo(() => {
-    if (activeValue === "all") return universe;
-    return universe.filter((s) => {
+    let filtered = activeValue === "all" ? universe : universe.filter((s) => {
       const field =
         activeDimension === "sektor"
           ? s.sector
@@ -156,7 +168,17 @@ export default function Invest() {
           : s.country;
       return field === activeValue;
     });
-  }, [universe, activeDimension, activeValue]);
+    if (sortBy) {
+      filtered = [...filtered].sort((a, b) => {
+        let av = 0, bv = 0;
+        if (sortBy === 'score') { av = Number(a.signalScore ?? 0); bv = Number(b.signalScore ?? 0); }
+        else if (sortBy === 'dividend') { av = parseFloat(a.dividendYield ?? '0') || 0; bv = parseFloat(b.dividendYield ?? '0') || 0; }
+        else if (sortBy === 'pe') { av = parseFloat(a.peRatio ?? '0') || 0; bv = parseFloat(b.peRatio ?? '0') || 0; }
+        return sortDir === 'desc' ? bv - av : av - bv;
+      });
+    }
+    return filtered;
+  }, [universe, activeDimension, activeValue, sortBy, sortDir]);
 
   const getSignalBadge = (type: string | null) => {
     if (type === "buy") return <Badge className="bg-green-500/10 text-green-600 border-green-500/20"><TrendingUp className="w-3 h-3 mr-1" />Kaufen</Badge>;
@@ -408,10 +430,26 @@ export default function Invest() {
                       <th className="text-left p-3 font-medium">Sektor</th>
                       <th className="text-left p-3 font-medium">Kategorie</th>
                       <th className="text-right p-3 font-medium">Kurs</th>
-                      <th className="text-right p-3 font-medium">P/E</th>
-                      <th className="text-right p-3 font-medium">Div.%</th>
+                      <th
+                        className="text-right p-3 font-medium cursor-pointer hover:text-foreground select-none"
+                        onClick={() => toggleSort('pe')}
+                      >
+                        P/E {sortBy === 'pe' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
+                      </th>
+                      <th
+                        className="text-right p-3 font-medium cursor-pointer hover:text-foreground select-none"
+                        onClick={() => toggleSort('dividend')}
+                      >
+                        Div.% {sortBy === 'dividend' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
+                      </th>
                       <th className="text-center p-3 font-medium">Signal</th>
-                      <th className="text-center p-3 font-medium">Score</th>
+                      <th
+                        className="text-center p-3 font-medium cursor-pointer hover:text-foreground select-none"
+                        onClick={() => toggleSort('score')}
+                        title="Nach KI-Score sortieren"
+                      >
+                        Score {sortBy === 'score' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
+                      </th>
                       <th className="text-right p-3 font-medium"></th>
                     </tr>
                   </thead>

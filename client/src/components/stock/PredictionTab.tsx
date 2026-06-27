@@ -15,6 +15,8 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain, TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
+import MlSignalWidget from "./MlSignalWidget";
+import SignalDashboard from "./SignalDashboard";
 import {
   AreaChart,
   Area,
@@ -249,23 +251,21 @@ export default function PredictionTab({ ticker, stock }: Props) {
         </div>
       )}
 
-      {/* RF signal summary (if available) */}
-      {!isLoading && data?.rfSignal && (
-        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white">Random-Forest-Signal</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-3">
-            <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30 text-sm px-3 py-1">
-              {data.rfSignal.signal}
-            </Badge>
-            <span className="text-xl font-bold text-white font-mono">{data.rfSignal.score}/100</span>
-            <span className="text-xs text-gray-400 ml-auto">
-              Konfidenz {(data.rfSignal.confidence * 100).toFixed(0)}%
-            </span>
-          </CardContent>
-        </Card>
-      )}
+      {/* Signal Dashboard — vollständiger Transparenz-Trail */}
+      <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-white flex items-center gap-2">
+            <span className="text-[#00CFC1]">⚡</span>
+            Signal-Framework
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SignalDashboard ticker={ticker} />
+        </CardContent>
+      </Card>
+
+      {/* ML Signal Widget */}
+      <MlSignalWidget ticker={ticker} />
 
       {!isLoading && data?.prediction && (
         <p className="text-xs text-gray-500 text-center">

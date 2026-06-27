@@ -286,6 +286,9 @@ export interface RFSignalResult {
   score: number; // 0-100
   featureImportance: { feature: string; importance: number }[];
   reasons: string[];
+  /** 'gb' when the promoted Gradient-Boosting model is used, 'rf' for the RandomForest fallback */
+  source?: 'gb' | 'rf';
+  modelVersion?: number;
 }
 
 /**
@@ -417,6 +420,7 @@ export function randomForestSignal(
       score: 50,
       featureImportance: [],
       reasons: ['Nicht genügend historische Daten für ML-Analyse (min. 100 Tage benötigt)'],
+      source: 'rf' as const,
     };
   }
 
@@ -449,6 +453,7 @@ export function randomForestSignal(
       score: 50,
       featureImportance: [],
       reasons: ['Nicht genügend Trainingsdaten für Random Forest'],
+      source: 'rf' as const,
     };
   }
 
@@ -560,6 +565,7 @@ export function randomForestSignal(
       score,
       featureImportance: featureImportance.slice(0, 5), // Top 5
       reasons: reasons.slice(0, 5),
+      source: 'rf' as const,
     };
   } catch (error) {
     console.error('[ML] Random Forest error:', error);
@@ -569,6 +575,7 @@ export function randomForestSignal(
       score: 50,
       featureImportance: [],
       reasons: ['ML-Modell konnte nicht trainiert werden: ' + (error as Error).message],
+      source: 'rf' as const,
     };
   }
 }

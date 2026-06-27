@@ -28,6 +28,7 @@ const TICKER_MAPPING: Record<string, string> = {
   'HELN.SW': 'HELNF',       // Helvetia Baloise Holding (OTC)
   'MONC.MI': 'MONRY',       // Moncler ADR (US OTC)
   'MESA': 'RJET',           // Mesa Air -> RJET after reverse split Nov 2025
+  'MESA.US': 'RJET',        // Mesa Air -> RJET (with .US suffix)
   'APPLE': 'AAPL',          // User typo correction
 };
 

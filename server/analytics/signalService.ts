@@ -85,6 +85,8 @@ export function gbSignalResult(pred: OnnxPrediction, version: number): RFSignalR
     score: Math.round(pUp * 100),
     featureImportance: [],
     reasons: [`GB-Modell v${version}: Aufwärts-Wahrscheinlichkeit ${(pUp * 100).toFixed(0)}%`],
+    source: 'gb' as const,
+    modelVersion: version,
   };
 }
 

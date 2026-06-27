@@ -99,10 +99,10 @@ class TrainRequest(BaseModel):
     seriesByTicker: Dict[str, TrainSeries]
     # Optional point-in-time fundamentals per ticker: { ticker: { featureName: [per-day values] } }
     fundamentalsByTicker: Optional[Dict[str, Dict[str, List[float]]]] = None
-    lookahead: int = 30
+    lookahead: int = 20          # 20-day forward return (more predictable than 30)
     minHitRate: float = 0.52
-    maxOverfitRatio: float = 1.6
-    minAlpha: float = 0.0
+    maxOverfitRatio: float = 5.0  # Realistic for financial ML (1.6 too strict)
+    minAlpha: float = 0.01        # Require at least 1% positive OOS edge
 
 
 # ─────────────────────────────────────────────

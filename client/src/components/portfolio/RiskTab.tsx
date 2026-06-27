@@ -88,7 +88,8 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
       <div className="lg:col-span-2">
         <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5 h-full">
           <h3 className="text-sm font-semibold text-white mb-1">Bubble-Indikator</h3>
-          <p className="text-xs text-gray-500 mb-4">LPPL · S&amp;P 500</p>
+          <p className="text-xs text-gray-500 mb-1">LPPL · S&amp;P 500</p>
+          <p className="text-[10px] text-amber-500/70 mb-3">⚠ Globaler Markt-Indikator – identisch für alle Portfolios</p>
           {bubbleLoading ? (
             <div className="flex items-center justify-center h-40">
               <div className="w-5 h-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin" />

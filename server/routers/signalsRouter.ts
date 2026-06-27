@@ -21,6 +21,8 @@ import { analyzeSentiment, sentimentToSignalScore } from '../analytics/sentiment
 import { getActiveWeights, type WeightConfig } from '../analytics/optimizerWorker';
 import { detectBubble } from '../analytics/lpplsEngine';
 import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
+import { runSignalOrchestrator } from '../lib/signals/signalOrchestrator';
+import type { PortfolioAction } from '../lib/signals/types';
 
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
@@ -54,6 +56,12 @@ interface Signal {
   qualityScore?: number;
   momentumGrade?: string;
   momentumScore?: number;
+  // Combined Momentum+Quality+LPPL score (same model as tradingview.stockScoring)
+  combinedScore?: number;
+  combinedSignal?: string;
+  overallGrade?: string;
+  // Regime-based signal from the new signal framework
+  regimeSignal?: PortfolioAction;
 }
 
 // Per-stock timeout: 12 seconds max per individual stock processing
@@ -574,6 +582,55 @@ async function processStock(
       }
     }
 
+    // Step 8a: Compute combined Momentum+Quality+LPPL score (same formula as tradingview.stockScoring)
+    // This ensures consistency between the Signals page and StockDetail page
+    if (signal.momentumScore !== undefined && signal.qualityScore !== undefined) {
+      try {
+        const mNorm = (signal.momentumScore + 1) / 2; // -1..1 → 0..1
+        const qNorm = (signal.qualityScore + 1) / 2;  // -1..1 → 0..1
+        const bScore = signal.bubbleScore ?? 0;
+        const bRegime = signal.bubbleRegime ?? 'normal';
+        const lpplPenalty = bRegime === 'bubble' ? bScore * 0.5 : 0;
+        const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+        signal.combinedScore = parseFloat((combined * 100).toFixed(1));
+        signal.overallGrade = combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F';
+        signal.combinedSignal = combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL';
+        // Override the legacy signal type with the combined model for consistency
+        if (signal.combinedSignal === 'STRONG BUY' || signal.combinedSignal === 'BUY') {
+          signal.type = 'buy';
+          signal.strength = signal.combinedSignal === 'STRONG BUY' ? 'strong' : 'moderate';
+        } else if (signal.combinedSignal === 'STRONG SELL' || signal.combinedSignal === 'SELL') {
+          signal.type = 'sell';
+          signal.strength = signal.combinedSignal === 'STRONG SELL' ? 'strong' : 'moderate';
+        } else {
+          signal.type = 'hold';
+          signal.strength = 'moderate';
+        }
+      } catch (e) {
+        // Combined scoring failed silently
+      }
+    }
+
+    // Step 8b: Regime-based signal via signalOrchestrator
+    if (prices.length >= 60) {
+      try {
+        const lpplRisk = signal.bubbleScore !== undefined
+          ? { bubbleScore: signal.bubbleScore, regime: signal.bubbleRegime ?? 'normal', confidence: 0.6 }
+          : null;
+        signal.regimeSignal = runSignalOrchestrator({
+          ticker,
+          marketType: 'single_stock',
+          prices,
+          dates: [],
+          lpplRisk: signal.bubbleScore ?? null,
+          qualityScore: signal.qualityScore ?? null,
+          momentumScore: signal.momentumScore ?? null,
+        });
+      } catch (e) {
+        // Regime signal failed silently
+      }
+    }
+
     // Step 8: Sentiment analysis (only if enabled for this stock)
     if (enableSentiment) {
       try {
@@ -601,6 +658,43 @@ async function processStock(
 }
 
 export const signalsRouter = router({
+  /**
+   * Get regime-based signal for a single ticker (on-demand, for StockDetail page)
+   */
+  getRegimeSignal: protectedProcedure
+    .input(z.object({ ticker: z.string() }))
+    .query(async ({ input }) => {
+      const ticker = input.ticker;
+      const normalizedTicker = normalizeTicker(ticker);
+      try {
+        const chartResult = await yahooFinance.chart(normalizedTicker, {
+          period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          period2: new Date().toISOString().split('T')[0],
+          interval: '1d',
+        }) as any;
+        const quotes = chartResult.quotes ?? [];
+        const prices: number[] = quotes.map((q: any) => q.close).filter((c: any) => c != null);
+        if (prices.length < 60) return null;
+
+        // Quick quality + momentum for regime context
+        const { score: momentumScore } = calculateMomentumScore({ prices });
+        const bubbleResult = detectBubble({ prices });
+
+        return runSignalOrchestrator({
+          ticker,
+          marketType: 'single_stock',
+          prices,
+          dates: [],
+          lpplRisk: bubbleResult.bubbleScore ?? null,
+          momentumScore,
+          qualityScore: null,
+        });
+      } catch (e) {
+        console.warn(`[signals.getRegimeSignal] Failed for ${ticker}:`, (e as Error).message);
+        return null;
+      }
+    }),
+
   /**
    * Generate trading signals for a portfolio using LIVE Yahoo Finance data
    * 

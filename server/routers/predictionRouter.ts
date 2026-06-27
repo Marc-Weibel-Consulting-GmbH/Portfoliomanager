@@ -291,6 +291,64 @@ export const predictionRouter = router({
     }),
 
   /**
+   * Get active ML model info (no blob) - for transparency panel shown to all users.
+   * Returns null if no model is promoted yet.
+   */
+  getActiveModelInfo: protectedProcedure
+    .query(async () => {
+      try {
+        const { getDb } = await import('../db');
+        const { modelArtifacts } = await import('../../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const db = await getDb();
+        if (!db) return { model: null };
+
+        const rows = await db
+          .select({
+            id: modelArtifacts.id,
+            kind: modelArtifacts.kind,
+            version: modelArtifacts.version,
+            status: modelArtifacts.status,
+            trainStart: modelArtifacts.trainStart,
+            trainEnd: modelArtifacts.trainEnd,
+            universeSize: modelArtifacts.universeSize,
+            metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt,
+            createdAt: modelArtifacts.createdAt,
+            // modelBlob intentionally omitted
+          })
+          .from(modelArtifacts)
+          .where(eq(modelArtifacts.status, 'active'))
+          .limit(1);
+
+        if (rows.length === 0) return { model: null };
+
+        const row = rows[0];
+        // Parse metrics JSON if stored as string
+        let metrics: Record<string, number> = {};
+        try {
+          metrics = typeof row.metrics === 'string' ? JSON.parse(row.metrics) : (row.metrics as any) ?? {};
+        } catch { /* ignore */ }
+
+        return {
+          model: {
+            version: row.version,
+            kind: row.kind,
+            trainStart: row.trainStart,
+            trainEnd: row.trainEnd,
+            universeSize: row.universeSize,
+            promotedAt: row.promotedAt,
+            hitRate: metrics.hit_rate ?? metrics.hitRate ?? null,
+            alpha: metrics.alpha ?? null,
+            overfitRatio: metrics.overfit_ratio ?? metrics.overfitRatio ?? null,
+          },
+        };
+      } catch (e) {
+        return { model: null };
+      }
+    }),
+
+  /**
    * Batch prediction for portfolio stocks
    */
   portfolioPredictions: protectedProcedure

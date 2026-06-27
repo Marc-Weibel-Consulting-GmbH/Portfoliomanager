@@ -28,6 +28,26 @@ export const systemRouter = router({
       } as const;
     }),
 
+  redisHealth: adminProcedure
+    .query(async () => {
+      const { redisPing } = await import('../redisClient');
+      const ok = await redisPing();
+      return {
+        connected: ok,
+        url: process.env.UPSTASH_REDIS_REST_URL
+          ? process.env.UPSTASH_REDIS_REST_URL.replace(/\/\/.*@/, '//***@')
+          : null,
+      };
+    }),
+
+  triggerMlTraining: adminProcedure
+    .mutation(async () => {
+      const { runMlTrainingOnce } = await import('../cron/mlTrainingCron');
+      // Run in background, return immediately
+      runMlTrainingOnce().catch((e: Error) => console.error('[mlTraining] manual trigger failed:', e?.message));
+      return { started: true, timestamp: new Date().toISOString() };
+    }),
+
   importHistoricalData: adminProcedure
     .input(
       z.object({

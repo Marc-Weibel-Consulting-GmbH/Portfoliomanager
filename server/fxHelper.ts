@@ -20,6 +20,7 @@ const fxRateCache = new Map<string, number>();
 // of per-date DB roundtrips that made the risk/performance engines slow even on
 // a cold first request.
 let fxPrewarmed = false;
+
 async function ensureFxRatesPrewarmed(): Promise<void> {
   if (fxPrewarmed) return;
   fxPrewarmed = true; // set first so concurrent calls don't all query
@@ -30,6 +31,7 @@ async function ensureFxRatesPrewarmed(): Promise<void> {
     for (const r of all) {
       fxRateCache.set(`${r.date}:${r.currencyPair}`, parseFloat(r.rate as any));
     }
+    console.log(`[FxHelper] Prewarmed ${all.length} FX rates into memory cache`);
   } catch (error) {
     console.error('[FxHelper] FX prewarm failed:', error);
   }
@@ -103,7 +105,7 @@ export async function getFxRate(date: string, currencyPair: string): Promise<num
       return parsed;
     }
     
-    console.error(`[FxHelper] No FX rate found for ${currencyPair} on ${date}`);
+    console.warn(`[FxHelper] No FX rate found for ${currencyPair} on ${date}`);
     return 1.0;
   } catch (error) {
     console.error(`[FxHelper] Error fetching FX rate:`, error);
@@ -167,6 +169,37 @@ export async function convertToCHF(amount: number, currency: string, date: strin
   const fxRate = await getFxRate(date, currencyPair);
   
   return amount * fxRate;
+}
+
+/**
+ * Synchronous version of getFxRate — reads only from the in-memory cache.
+ * MUST call ensureFxRatesPrewarmed() (via any async getFxRate call) before using this.
+ * Falls back to 1.0 if the cache is not yet populated or the rate is missing.
+ */
+export function getFxRateSync(date: string, currencyPair: string): number {
+  if (currencyPair === 'CHFCHF') return 1.0;
+  const key = `${date}:${currencyPair}`;
+  const cached = fxRateCache.get(key);
+  if (cached !== undefined) return cached;
+  // Weekend/holiday fallback: look back up to 5 days
+  const d = new Date(date);
+  for (let i = 1; i <= 5; i++) {
+    d.setDate(d.getDate() - 1);
+    const fallbackKey = `${d.toISOString().split('T')[0]}:${currencyPair}`;
+    const fallback = fxRateCache.get(fallbackKey);
+    if (fallback !== undefined) return fallback;
+  }
+  return 1.0;
+}
+
+/**
+ * Synchronous CHF conversion using the in-memory cache.
+ * Requires the cache to be prewarmed first (call any async getFxRate to trigger).
+ */
+export function convertToCHFSync(amount: number, currency: string, date: string): number {
+  if (currency === 'CHF') return amount;
+  const rate = getFxRateSync(date, `${currency}CHF`);
+  return amount * rate;
 }
 
 /**
