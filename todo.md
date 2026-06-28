@@ -1497,3 +1497,28 @@
 - [x] Risiko: Grüne Boxen zeigen echte Bewertung (Ausgewogen/Niedrig/Verbesserungswürdig)
 - [x] Optimieren AI: Diversifikationsregeln durchsetzen (max 10%, min 1%, min CHF 3'000, min 15 Titel) - Score 2/4
 - [ ] Effizienzgrenze: Prüfen ob hardcoded oder echt berechnet, ggf. durch Konstellation-Tab ersetzen
+
+## Dashboard & KI-Verbesserungen (28.06.2026 - Abend)
+
+### Layout
+- [x] Dashboard Boxen breiter machen - volle Breite ausnutzen (max-w entfernen/vergrössern)
+
+### KI-Diversifikationsregeln (Backend + Admin)
+- [x] Diversifikationsregeln als Admin-Einstellungen in DB speichern (max 10%, min 1%, min CHF 3'000, min 15-20 Titel)
+- [x] Admin-Bereich: Einstellungsseite für Diversifikationsregeln
+- [x] LLM-Prompt für Umschichtungsvorschläge: Regeln einbauen (keine Extrem-Positionen)
+- [x] LLM soll auch zusätzliche Positionen aus der Aktienliste vorschlagen können
+
+### CopilotInsights Popup-Aktionen (funktional)
+- [x] "Sektoren überprüfen": KI-Vorschläge für untervertretene Sektoren + Reduktion übervertretener
+- [x] "Top-Positionen analysieren": Vorschläge für Reduktion/Ergänzung mit besserer Rendite-/Risikostruktur
+- [x] Aktions-Flow: Vorschläge übernehmen → anpassen → umsetzen
+- [x] Demo-Portfolios: Nur Positionen ändern (keine echten Transaktionen)
+- [x] Live-Portfolios: Transaktionen erstellen mit automatischer Gebührenberechnung
+- [x] Gebührenstruktur unter Einstellungen hinterlegbar (sonst Default-Gebühren)
+
+### Performance-Attribution
+- [x] Toggle für YTD und "seit Kauf" in der Performance-Attribution
+
+### Copilot Endlos-Schlaufe
+- [x] "Im Copilot analysieren" / "Portfolio überprüfen" Button führt nicht zurück zur gleichen Seite

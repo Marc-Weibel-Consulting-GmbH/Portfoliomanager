@@ -71,6 +71,7 @@ const adminMenuItems = [
   { icon: Shield, label: "Admin", path: "/admin" },
   { icon: Eye, label: "Watchlist", path: "/admin/watchlist" },
   { icon: Zap, label: "Signal-Optimizer", path: "/admin/optimizer" },
+  { icon: Settings, label: "Einstellungen", path: "/admin/settings" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

@@ -323,12 +323,17 @@ function optimizeWeights(
   cov: number[][],
   method: string,
   riskFreeRate: number,
-  dividendYields?: number[]
+  dividendYields?: number[],
+  constraints?: { minWeight: number; maxWeight: number }
 ): number[] {
   const n = mu.length;
   const x0 = new Array(n).fill(1 / n);
 
   if (method === "equal_weight") return x0;
+
+  // Apply diversification constraints (default: min 1%, max 10%)
+  const minW = constraints?.minWeight ?? 0.01;
+  const maxW = constraints?.maxWeight ?? 0.10;
 
   // For max_dividend: maximize weighted dividend yield with volatility penalty
   // This produces different results from max_sharpe because it uses dividend yield
@@ -352,18 +357,33 @@ function optimizeWeights(
     return 0;
   }
 
+  // Generate constrained random weights (respecting min/max per position)
+  function generateConstrainedWeights(): number[] {
+    const raw = Array.from({ length: n }, () => minW + Math.random() * (maxW - minW));
+    const sum = raw.reduce((s, v) => s + v, 0);
+    return raw.map((v) => Math.max(minW, Math.min(maxW, v / sum)));
+  }
+
+  function normalizeWithConstraints(w: number[]): number[] {
+    // Clip to bounds
+    let clipped = w.map(v => Math.max(minW, Math.min(maxW, v)));
+    // Normalize to sum=1 while respecting bounds (iterative)
+    for (let iter = 0; iter < 20; iter++) {
+      const sum = clipped.reduce((s, v) => s + v, 0);
+      if (Math.abs(sum - 1) < 0.001) break;
+      clipped = clipped.map(v => v / sum);
+      clipped = clipped.map(v => Math.max(minW, Math.min(maxW, v)));
+    }
+    return clipped;
+  }
+
   // Gradient-free optimization using random search + local refinement
   const numTrials = 5000;
-  let bestWeights = [...x0];
-  let bestScore = score(x0);
-
-  const rng = () => Math.random();
+  let bestWeights = normalizeWithConstraints([...x0]);
+  let bestScore = score(bestWeights);
 
   for (let trial = 0; trial < numTrials; trial++) {
-    const raw = Array.from({ length: n }, () => rng());
-    const sum = raw.reduce((s, v) => s + v, 0);
-    const w = raw.map((v) => v / sum);
-
+    const w = normalizeWithConstraints(generateConstrainedWeights());
     const s = score(w);
     if (s > bestScore) {
       bestScore = s;
@@ -371,20 +391,22 @@ function optimizeWeights(
     }
   }
 
-  // Refine with local search
+  // Refine with local search (respecting constraints)
   const stepSizes = [0.05, 0.02, 0.01, 0.005];
   for (const step of stepSizes) {
     let improved = true;
-    while (improved) {
+    let maxIter = 200;
+    while (improved && maxIter-- > 0) {
       improved = false;
       for (let i = 0; i < n; i++) {
         for (let j = 0; j < n; j++) {
           if (i === j) continue;
           const w = [...bestWeights];
-          const delta = Math.min(step, w[j]);
+          const delta = Math.min(step, w[j] - minW);
+          if (delta <= 0) continue;
           w[i] += delta;
           w[j] -= delta;
-          if (w[i] > 1 || w[j] < 0) continue;
+          if (w[i] > maxW || w[j] < minW) continue;
 
           const s = score(w);
           if (s > bestScore) {
@@ -397,7 +419,7 @@ function optimizeWeights(
     }
   }
 
-  return bestWeights;
+  return normalizeWithConstraints(bestWeights);
 }
 
 function buildEfficientFrontier(

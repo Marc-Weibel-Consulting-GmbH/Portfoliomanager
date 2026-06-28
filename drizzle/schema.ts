@@ -829,3 +829,19 @@ export const marketAnalysis = mysqlTable("market_analysis", {
 }));
 export type MarketAnalysisRow = typeof marketAnalysis.$inferSelect;
 export type InsertMarketAnalysis = typeof marketAnalysis.$inferInsert;
+
+
+// ============================================
+// App Settings (Admin-configurable diversification rules, fee structure, etc.)
+// Key-value store for application-wide settings
+// ============================================
+export const appSettings = mysqlTable("appSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: json("value").notNull(), // JSON value for flexibility
+  description: text("description"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;
+export type InsertAppSetting = typeof appSettings.$inferInsert;

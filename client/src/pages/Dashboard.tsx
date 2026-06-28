@@ -530,7 +530,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
         {/* Header */}
         <div className="mb-2">
           <div className="text-[10px] text-[#00CFC1] uppercase tracking-wider mb-1">{todayFormatted}</div>

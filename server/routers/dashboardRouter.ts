@@ -2627,4 +2627,381 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       await runMarketAnalysis(input.period);
       return { success: true };
     }),
+
+  /** Analyse eines Copilot-Insights: generiert konkrete Vorschläge */
+  analyzeInsight: protectedProcedure
+    .input(z.object({
+      insightType: z.enum(['sector_check', 'top_positions', 'diversification', 'cash_management', 'general']),
+      portfolioId: z.number().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { getSavedPortfolios, getPortfolioTransactions } = await import('../db');
+      const { batchGetStocks, batchGetHistoricalPrices } = await import('../db-optimized');
+      const { convertToCHF } = await import('../fxHelper');
+      const { runCopilotAnalysis, calculateRebalancingSuggestions, calculateRankings } = await import('../analytics/portfolioCopilot');
+      const { getDb } = await import('../db');
+      const { appSettings } = await import('../../drizzle/schema');
+      const { invokeLLM } = await import('../_core/llm');
+
+      // Load diversification rules from admin settings
+      let maxWeight = 0.10, minWeight = 0.01, minTitles = 15;
+      try {
+        const db = await getDb();
+        if (db) {
+          const rows = await db.select().from(appSettings);
+          const divRow = rows.find((r: any) => r.key === 'diversification_rules');
+          if (divRow?.value) {
+            const rules = divRow.value as any;
+            maxWeight = (rules.maxPositionPercent || 10) / 100;
+            minWeight = (rules.minPositionPercent || 1) / 100;
+            minTitles = rules.minTitles || 15;
+          }
+        }
+      } catch {}
+
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      let targetPortfolios = portfolios;
+      if (input.portfolioId) {
+        targetPortfolios = portfolios.filter(p => p.id === input.portfolioId);
+      }
+      if (targetPortfolios.length === 0) {
+        return { suggestions: [], summary: 'Kein Portfolio gefunden.', newTickers: [] };
+      }
+
+      // Build holdings
+      const holdingsMap = new Map<string, number>();
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          const transactions = await getPortfolioTransactions(portfolio.id);
+          for (const tx of transactions) {
+            if (!tx.ticker) continue;
+            const shares = parseFloat(tx.shares || '0');
+            if (tx.transactionType === 'buy') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) + shares);
+            else if (tx.transactionType === 'sell') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) - shares);
+          }
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            for (const stock of stocks) {
+              if (!stock.ticker) continue;
+              // Store weight directly (0-1) for demo portfolios; we'll handle in value calc
+              const weight = parseFloat(stock.weight || '0') / 100;
+              holdingsMap.set(stock.ticker, weight); // store weight as placeholder
+            }
+          } catch {}
+        }
+      }
+
+      // Remove zero/negative holdings
+      for (const [t, s] of Array.from(holdingsMap.entries())) {
+        if (s <= 0) holdingsMap.delete(t);
+      }
+
+      const allTickers = Array.from(holdingsMap.keys());
+      if (allTickers.length === 0) {
+        return { suggestions: [], summary: 'Keine Positionen gefunden.', newTickers: [] };
+      }
+
+      const stocksMap = await batchGetStocks(allTickers);
+
+      // Calculate current values and weights
+      let totalValue = 0;
+      const holdingValues: Array<{ ticker: string; value: number; sector: string; name: string }> = [];
+
+      // For demo portfolios, holdingsMap stores weights (0-1); for live, actual shares
+      const isLivePortfolio = targetPortfolios.some(p => p.isLive === 1);
+      for (const [ticker, sharesOrWeight] of Array.from(holdingsMap.entries())) {
+        const stock = stocksMap.get(ticker) as any;
+        if (!stock) continue;
+        const price = parseFloat(stock.currentPrice || '0');
+        if (!price || isNaN(price)) continue;
+        const currency = stock.currency || 'CHF';
+        const priceCHF = await convertToCHF(price, currency, todayStr);
+        let value: number;
+        if (isLivePortfolio) {
+          value = sharesOrWeight * priceCHF;
+        } else {
+          // sharesOrWeight is actually a weight (0-1), use investmentAmount
+          const investmentAmount = parseFloat(targetPortfolios[0]?.investmentAmount || '100000');
+          value = sharesOrWeight * investmentAmount;
+        }
+        totalValue += value;
+        holdingValues.push({ ticker, value, sector: stock.sector || 'Other', name: stock.companyName || ticker });
+      }
+
+      for (const h of holdingValues) {
+        (h as any).weight = totalValue > 0 ? h.value / totalValue : 0;
+      }
+
+      // Sector analysis
+      const sectorWeights = new Map<string, number>();
+      for (const h of holdingValues) {
+        const w = (h as any).weight;
+        sectorWeights.set(h.sector, (sectorWeights.get(h.sector) || 0) + w);
+      }
+
+      // Use LLM to generate specific suggestions based on insight type
+      const portfolioContext = holdingValues.map(h => 
+        `${h.ticker} (${h.name}): ${((h as any).weight * 100).toFixed(1)}%, Sektor: ${h.sector}`
+      ).join('\n');
+      const sectorContext = Array.from(sectorWeights.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([s, w]) => `${s}: ${(w * 100).toFixed(1)}%`)
+        .join(', ');
+
+
+      let prompt = '';
+      if (input.insightType === 'sector_check') {
+        prompt = `Analysiere die Sektorverteilung dieses Portfolios und schlage konkrete Umschichtungen vor.
+Sektoren: ${sectorContext}
+Positionen:\n${portfolioContext}\n\nRegeln: Max ${(maxWeight*100).toFixed(0)}% pro Position, Min ${(minWeight*100).toFixed(0)}% pro Position, Min ${minTitles} Titel.
+Schlage vor: Welche Sektoren sind über-/untervertreten? Welche Positionen reduzieren? Welche NEUEN Aktien aus untervertretenen Sektoren aufnehmen?`;
+      } else if (input.insightType === 'top_positions') {
+        prompt = `Analysiere die Top-Positionen dieses Portfolios auf Klumpenrisiken.
+Positionen:\n${portfolioContext}\n\nRegeln: Max ${(maxWeight*100).toFixed(0)}% pro Position, Min ${(minWeight*100).toFixed(0)}% pro Position, Min ${minTitles} Titel.
+Schlage vor: Welche Positionen sind zu gross? Welche neuen Titel mit ähnlichem/besserem Rendite-Risiko-Profil können zur Diversifikation aufgenommen werden?`;
+      } else if (input.insightType === 'diversification') {
+        prompt = `Analysiere die Diversifikation dieses Portfolios.
+Sektoren: ${sectorContext}
+Positionen:\n${portfolioContext}\n\nRegeln: Max ${(maxWeight*100).toFixed(0)}% pro Position, Min ${(minWeight*100).toFixed(0)}% pro Position, Min ${minTitles} Titel.
+Aktuell ${holdingValues.length} Positionen. Minimum sind ${minTitles}. Schlage konkrete neue Titel vor, die die Diversifikation verbessern.`;
+      } else {
+        prompt = `Analysiere dieses Portfolio und gib konkrete Optimierungsvorschläge.
+Sektoren: ${sectorContext}
+Positionen:\n${portfolioContext}\n\nRegeln: Max ${(maxWeight*100).toFixed(0)}% pro Position, Min ${(minWeight*100).toFixed(0)}% pro Position, Min ${minTitles} Titel.`;
+      }
+
+      try {
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: 'system',
+              content: `Du bist ein Schweizer Portfolio-Berater. Gib konkrete, umsetzbare Vorschläge als JSON.
+Jeder Vorschlag hat: ticker, action ("reduce", "increase", "add_new", "exit"), currentWeightPercent (0 für neue), targetWeightPercent, reason (1 Satz).
+Bei "add_new" verwende echte Ticker von der Schweizer Börse (SIX: .SW) oder US-Börsen.
+Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
+            },
+            { role: 'user', content: prompt }
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'portfolio_suggestions',
+              strict: true,
+              schema: {
+                type: 'object',
+                properties: {
+                  summary: { type: 'string', description: 'Zusammenfassung in 2-3 Sätzen' },
+                  suggestions: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        ticker: { type: 'string' },
+                        companyName: { type: 'string' },
+                        action: { type: 'string', enum: ['reduce', 'increase', 'add_new', 'exit'] },
+                        currentWeightPercent: { type: 'number' },
+                        targetWeightPercent: { type: 'number' },
+                        reason: { type: 'string' }
+                      },
+                      required: ['ticker', 'companyName', 'action', 'currentWeightPercent', 'targetWeightPercent', 'reason'],
+                      additionalProperties: false
+                    }
+                  }
+                },
+                required: ['summary', 'suggestions'],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        const content = response.choices?.[0]?.message?.content;
+        if (content) {
+          const parsed = JSON.parse(typeof content === 'string' ? content : '');
+          return {
+            summary: parsed.summary || '',
+            suggestions: (parsed.suggestions || []).map((s: any) => ({
+              ticker: s.ticker,
+              companyName: s.companyName || s.ticker,
+              action: s.action,
+              currentWeightPercent: s.currentWeightPercent,
+              targetWeightPercent: s.targetWeightPercent,
+              reason: s.reason,
+            })),
+            newTickers: (parsed.suggestions || []).filter((s: any) => s.action === 'add_new').map((s: any) => s.ticker),
+          };
+        }
+      } catch (e: any) {
+        console.error('[analyzeInsight] LLM error:', e?.message || e);
+        return { suggestions: [], summary: `Fehler bei der KI-Analyse: ${e?.message || 'Unbekannter Fehler'}`, newTickers: [] };
+      }
+
+      return { suggestions: [], summary: 'Analyse konnte nicht durchgeführt werden.', newTickers: [] };
+    }),
+
+  /** Vorschläge umsetzen: Positionen im Portfolio anpassen */
+  applySuggestions: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number(),
+      suggestions: z.array(z.object({
+        ticker: z.string(),
+        action: z.enum(['reduce', 'increase', 'add_new', 'exit']),
+        targetWeightPercent: z.number(),
+      })),
+      autoCalculateFees: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { getSavedPortfolios, getPortfolioTransactions } = await import('../db');
+      const { getDb } = await import('../db');
+      const { savedPortfolios, portfolioTransactions, appSettings } = await import('../../drizzle/schema');
+      const { eq } = await import('drizzle-orm');
+      const { batchGetStocks } = await import('../db-optimized');
+      const { convertToCHF } = await import('../fxHelper');
+
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      const portfolio = portfolios.find(p => p.id === input.portfolioId);
+      if (!portfolio) throw new Error('Portfolio nicht gefunden');
+
+      const isLive = portfolio.isLive === 1 && portfolio.liveStartDate;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+
+      // Load fee structure
+      let fees = { buyFeePercent: 0.25, sellFeePercent: 0.25, minFeeCHF: 9.90, maxFeeCHF: 50, stampDutyPercent: 0.075, fxSpreadPercent: 0.5 };
+      if (input.autoCalculateFees) {
+        try {
+          const rows = await db.select().from(appSettings);
+          const feeRow = rows.find((r: any) => r.key === 'fee_structure');
+          if (feeRow?.value) fees = { ...fees, ...(feeRow.value as any) };
+        } catch {}
+      }
+
+      if (isLive) {
+        // Live portfolio: create actual transactions
+        const allTickers = input.suggestions.map(s => s.ticker);
+        const stocksMap = await batchGetStocks(allTickers);
+
+        // Get current holdings
+        const transactions = await getPortfolioTransactions(portfolio.id);
+        const holdingsMap = new Map<string, number>();
+        for (const tx of transactions) {
+          if (!tx.ticker) continue;
+          const shares = parseFloat(tx.shares || '0');
+          if (tx.transactionType === 'buy') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) + shares);
+          else if (tx.transactionType === 'sell') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) - shares);
+        }
+
+        // Calculate total portfolio value
+        let totalValue = 0;
+        for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
+          const stock = stocksMap.get(ticker) as any;
+          if (!stock) continue;
+          const price = parseFloat(stock.currentPrice || '0');
+          const currency = stock.currency || 'CHF';
+          const priceCHF = await convertToCHF(price, currency, todayStr);
+          totalValue += shares * priceCHF;
+        }
+        totalValue += parseFloat(portfolio.cashBalance || '0');
+
+        const createdTransactions: string[] = [];
+
+        for (const suggestion of input.suggestions) {
+          const stock = stocksMap.get(suggestion.ticker) as any;
+          if (!stock) continue;
+          const price = parseFloat(stock.currentPrice || '0');
+          if (!price) continue;
+          const currency = stock.currency || 'CHF';
+          const priceCHF = await convertToCHF(price, currency, todayStr);
+
+          const currentShares = holdingsMap.get(suggestion.ticker) || 0;
+          const currentValue = currentShares * priceCHF;
+          const targetValue = totalValue * (suggestion.targetWeightPercent / 100);
+          const deltaValue = targetValue - currentValue;
+          const deltaShares = Math.abs(deltaValue / priceCHF);
+
+          if (deltaShares < 0.01) continue;
+
+          const txType = deltaValue > 0 ? 'buy' : 'sell';
+          const shares = deltaShares.toFixed(4);
+          const total = Math.abs(deltaValue);
+
+          // Calculate fees
+          let fee = 0;
+          if (input.autoCalculateFees) {
+            const feePercent = txType === 'buy' ? fees.buyFeePercent : fees.sellFeePercent;
+            fee = Math.max(fees.minFeeCHF, Math.min(fees.maxFeeCHF, total * feePercent / 100));
+            fee += total * fees.stampDutyPercent / 100;
+            if (currency !== 'CHF') fee += total * fees.fxSpreadPercent / 100;
+          }
+
+          await db.insert(portfolioTransactions).values({
+            portfolioId: portfolio.id,
+            transactionType: txType,
+            ticker: suggestion.ticker,
+            shares,
+            pricePerShare: price.toString(),
+            totalAmount: total.toFixed(2),
+            currency,
+            fees: fee > 0 ? fee.toFixed(2) : null,
+            transactionDate: todayStr,
+            notes: `KI-Vorschlag: ${suggestion.action}`,
+          } as any);
+
+          createdTransactions.push(`${txType.toUpperCase()} ${shares} ${suggestion.ticker}`);
+        }
+
+        return { success: true, mode: 'live', transactions: createdTransactions };
+      } else {
+        // Demo portfolio: just update the portfolioData weights
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+
+          for (const suggestion of input.suggestions) {
+            if (suggestion.action === 'add_new') {
+              // Add new position
+              stocks.push({
+                ticker: suggestion.ticker,
+                weight: suggestion.targetWeightPercent.toString(),
+              });
+            } else if (suggestion.action === 'exit') {
+              // Remove position
+              const idx = stocks.findIndex((s: any) => s.ticker === suggestion.ticker);
+              if (idx >= 0) stocks.splice(idx, 1);
+            } else {
+              // Update weight
+              const existing = stocks.find((s: any) => s.ticker === suggestion.ticker);
+              if (existing) {
+                existing.weight = suggestion.targetWeightPercent.toString();
+              }
+            }
+          }
+
+          // Normalize weights to 100%
+          const totalWeight = stocks.reduce((sum: number, s: any) => sum + parseFloat(s.weight || '0'), 0);
+          if (totalWeight > 0 && Math.abs(totalWeight - 100) > 1) {
+            const scale = 100 / totalWeight;
+            for (const s of stocks) {
+              s.weight = (parseFloat(s.weight || '0') * scale).toFixed(2);
+            }
+          }
+
+          pd.stocks = stocks;
+          pd.positions = stocks;
+
+          await db.update(savedPortfolios)
+            .set({ portfolioData: JSON.stringify(pd) })
+            .where(eq(savedPortfolios.id, portfolio.id));
+
+          return { success: true, mode: 'demo', updatedPositions: stocks.length };
+        } catch (e) {
+          throw new Error(`Fehler beim Aktualisieren: ${(e as Error).message}`);
+        }
+      }
+    }),
 });

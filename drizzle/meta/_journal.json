@@ -43,6 +43,13 @@
       "when": 1782642689313,
       "tag": "0005_robust_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1782667995707,
+      "tag": "0006_bitter_elektra",
+      "breakpoints": true
     }
   ]
 }

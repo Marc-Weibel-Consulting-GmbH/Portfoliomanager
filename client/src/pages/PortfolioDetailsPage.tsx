@@ -85,38 +85,46 @@ function PerformanceTab({
   transactions: any[];
 }) {
   const [showRealizedGains, setShowRealizedGains] = useState(false);
+  const [attributionPeriod, setAttributionPeriod] = useState<'ytd' | 'since_buy'>('ytd');
   const entry = (multiPeriod as any[] | undefined)?.find((p: any) => p.portfolioId === portfolioId);
   const ytd = entry?.performance?.YTD ?? null;
   const seitKauf = investmentAmount > 0 ? ((totalValueCHF - investmentAmount) / investmentAmount) * 100 : null;
   const gv = totalValueCHF - investmentAmount;
 
-  // Build sector attribution from holdings
+  // Build sector attribution from holdings (supports YTD and since-buy toggle)
   const sectorAttribution = useMemo(() => {
-    const sectors: Record<string, { weight: number; ytd: number }> = {};
+    const sectors: Record<string, { weight: number; perf: number }> = {};
     holdings.forEach((h: any) => {
       const s = h.sector || 'Andere';
       const w = parseFloat(h.weight || '0') / 100;
-      const y = parseFloat(h.ytdPerformance || '0');
-      if (!sectors[s]) sectors[s] = { weight: 0, ytd: 0 };
+      const y = attributionPeriod === 'ytd'
+        ? parseFloat(h.ytdPerformance || '0')
+        : parseFloat(h.totalReturn || h.ytdPerformance || '0');
+      if (!sectors[s]) sectors[s] = { weight: 0, perf: 0 };
       sectors[s].weight += w;
-      sectors[s].ytd += w * y; // weighted contribution
+      sectors[s].perf += w * y; // weighted contribution
     });
     return Object.entries(sectors)
-      .map(([name, v]) => ({ name, contribution: parseFloat((v.ytd).toFixed(2)) }))
+      .map(([name, v]) => ({ name, contribution: parseFloat((v.perf).toFixed(2)) }))
       .sort((a, b) => b.contribution - a.contribution);
-  }, [holdings]);
+  }, [holdings, attributionPeriod]);
 
   // Build top-title attribution
   const titleAttribution = useMemo(() => {
     return holdings
-      .map((h: any) => ({
-        name: h.ticker,
-        label: h.companyName?.slice(0, 18) || h.ticker,
-        contribution: parseFloat(((parseFloat(h.weight || '0') / 100) * parseFloat(h.ytdPerformance || '0')).toFixed(2)),
-      }))
+      .map((h: any) => {
+        const perf = attributionPeriod === 'ytd'
+          ? parseFloat(h.ytdPerformance || '0')
+          : parseFloat(h.totalReturn || h.ytdPerformance || '0');
+        return {
+          name: h.ticker,
+          label: h.companyName?.slice(0, 18) || h.ticker,
+          contribution: parseFloat(((parseFloat(h.weight || '0') / 100) * perf).toFixed(2)),
+        };
+      })
       .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
       .slice(0, 8);
-  }, [holdings]);
+  }, [holdings, attributionPeriod]);
 
   const maxAbs = Math.max(...sectorAttribution.map(s => Math.abs(s.contribution)), 0.01);
 
@@ -142,6 +150,33 @@ function PerformanceTab({
       </div>
 
       {/* Attribution Waterfall */}
+      <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-white">Performance-Attribution</h3>
+          <div className="flex items-center gap-1 bg-[#0a0f1a] rounded-lg p-0.5">
+            <button
+              onClick={() => setAttributionPeriod('ytd')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                attributionPeriod === 'ytd'
+                  ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-semibold'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              YTD
+            </button>
+            <button
+              onClick={() => setAttributionPeriod('since_buy')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                attributionPeriod === 'since_buy'
+                  ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-semibold'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Seit Kauf
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="grid md:grid-cols-2 gap-4">
         {/* Sektor-Attribution */}
         <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">

@@ -856,4 +856,36 @@ export const adminRouter = router({
         clearThresholdCache();
         return { success: true, message: 'Kalibrierungs-Cache geleert' };
       }),
+
+    // ─── App Settings (Diversifikationsregeln, Gebühren) ───────────────
+    getAppSettings: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { getDb } = await import("../db");
+        const { appSettings } = await import("../../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const rows = await db.select().from(appSettings);
+        return rows;
+      }),
+
+    updateAppSetting: protectedProcedure
+      .input(z.object({
+        key: z.string(),
+        value: z.any(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { getDb } = await import("../db");
+        const { appSettings } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        await db.insert(appSettings)
+          .values({ key: input.key, value: input.value, description: input.description })
+          .onDuplicateKeyUpdate({ set: { value: input.value, description: input.description } });
+        return { success: true };
+      }),
 });

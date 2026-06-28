@@ -347,10 +347,10 @@ interface RebalancingConfig {
 }
 
 const DEFAULT_CONFIG: RebalancingConfig = {
-  maxPositionSize: 0.15,
-  minPositionSize: 0.02,
-  maxSectorWeight: 0.35,
-  tradingCostBps: 10,
+  maxPositionSize: 0.10,  // Max 10% per position
+  minPositionSize: 0.01,  // Min 1% per position
+  maxSectorWeight: 0.30,  // Max 30% per sector
+  tradingCostBps: 25,     // 0.25% trading cost
   rebalanceThreshold: 0.01,
 };
 
