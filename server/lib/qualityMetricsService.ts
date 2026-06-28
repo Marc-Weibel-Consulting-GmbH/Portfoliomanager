@@ -165,10 +165,33 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
       ? trailingPE * (eps / epsEstimateNextYear)
       : null);
 
-  // ── EPS-Wachstum (TTM) ────────────────────────────────────────────────────
-  const epsGrowthTTM = parseFloatOrNull(highlights.QuarterlyEarningsGrowthYOY) !== null
-    ? (highlights.QuarterlyEarningsGrowthYOY as number) * 100
-    : null;
+  // ── EPS-Wachstum (TTM) — korrekt aus Quartals-EPS berechnen ─────────────
+  // TTM EPS = Summe der letzten 4 Quartale
+  // EPS-Wachstum = (TTM EPS - TTM EPS Vorjahr) / |TTM EPS Vorjahr|
+  let epsGrowthTTM: number | null = null;
+  const qHistoryForTTM = earnings.History || {};
+  const qAllKeys = Object.keys(qHistoryForTTM).sort();
+  if (qAllKeys.length >= 8) {
+    const last4 = qAllKeys.slice(-4);
+    const prev4 = qAllKeys.slice(-8, -4);
+    const ttmEps = last4.reduce((sum, k) => {
+      const v = parseFloatOrNull(qHistoryForTTM[k]?.epsActual);
+      return v !== null ? sum + v : sum;
+    }, 0);
+    const prevTtmEps = prev4.reduce((sum, k) => {
+      const v = parseFloatOrNull(qHistoryForTTM[k]?.epsActual);
+      return v !== null ? sum + v : sum;
+    }, 0);
+    if (Math.abs(prevTtmEps) > 0.001) {
+      epsGrowthTTM = ((ttmEps - prevTtmEps) / Math.abs(prevTtmEps)) * 100;
+    }
+  }
+  // Fallback: QuarterlyEarningsGrowthYOY wenn nicht genug Quartale
+  if (epsGrowthTTM === null) {
+    const qGrowth = parseFloatOrNull(highlights.QuarterlyEarningsGrowthYOY);
+    if (qGrowth !== null) epsGrowthTTM = qGrowth * 100;
+  }
+
   const revenueGrowthTTM = parseFloatOrNull(highlights.QuarterlyRevenueGrowthYOY) !== null
     ? (highlights.QuarterlyRevenueGrowthYOY as number) * 100
     : null;
@@ -336,11 +359,14 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
   }
 
   // ── Forward PEG ──────────────────────────────────────────────────────────
+  // Konzeptionell korrekt: Forward PE / zukunftsgerichtetes Wachstum (5Y CAGR)
+  // Nicht: Forward PE / historisches TTM-Wachstum (Vergangenheit ≠ Zukunft)
   let forwardPeg: number | null = null;
-  if (forwardPE !== null && epsGrowthTTM !== null && epsGrowthTTM > 0) {
-    forwardPeg = forwardPE / epsGrowthTTM;
-  } else if (forwardPE !== null && epsGrowth5y !== null && epsGrowth5y > 0) {
+  if (forwardPE !== null && epsGrowth5y !== null && epsGrowth5y > 0) {
     forwardPeg = forwardPE / epsGrowth5y;
+  } else if (forwardPE !== null && epsGrowthTTM !== null && epsGrowthTTM > 0) {
+    // Fallback: TTM als Wachstumsschätzung, nur wenn kein 5Y CAGR verfügbar
+    forwardPeg = forwardPE / epsGrowthTTM;
   }
 
   // ── PEG-Quadrant ─────────────────────────────────────────────────────────

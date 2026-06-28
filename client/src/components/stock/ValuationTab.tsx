@@ -140,10 +140,7 @@ export default function ValuationTab({ ticker, stock }: Props) {
               label="KBV (P/B)"
               value={(stock as any)?.pbRatio || "-"}
             />
-            <MetricBox
-              label="PEG Ratio"
-              value={stock?.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : "-"}
-            />
+            {/* PEG Ratio: wird in PegContextCard (EODHD-Quelle) unten detailliert angezeigt */}
             <MetricBox
               label="Div. Rendite"
               value={stock?.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(2)}%` : "-"}
