@@ -40,6 +40,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useMemo } from "react";
+import { Bell, AlertTriangle, BarChart3 as BarChart3Icon, Target, MinusCircle } from "lucide-react";
+import { Link } from "wouter";
+import { CopilotInsights } from "@/components/dashboard/CopilotInsights";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("de-CH", {
@@ -234,6 +237,20 @@ export default function Portfolios() {
   const liveCount = portfolios.filter((p: any) => p.isLive === 1).length;
   const testCount = portfolios.length - liveCount;
 
+  // Sidebar data
+  const { data: alerts } = trpc.priceAlerts.list.useQuery();
+  const activeAlerts = alerts?.filter((a: any) => a.status === 'active').slice(0, 3) || [];
+
+  const { data: copilotInsights = [], isLoading: insightsLoading } = trpc.dashboard.getCopilotInsights.useQuery(
+    { scope: 'aggregate' },
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  const { data: scoringData, isLoading: scoringLoading } = trpc.dashboard.getScoringWatchlist.useQuery(
+    undefined,
+    { staleTime: 5 * 60 * 1000, retry: false }
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-4">
@@ -421,7 +438,10 @@ export default function Portfolios() {
           </div>
         </div>
 
-        {/* Portfolio Grid - Compact Cards */}
+        {/* Two-column layout: Portfolio Grid + Sidebar */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          {/* Left: Portfolio Grid (2/3 width) */}
+          <div className="xl:col-span-2">
         {isLoading ? (
           <div className="text-center py-8 text-gray-400">
             Portfolios werden geladen...
@@ -601,6 +621,100 @@ export default function Portfolios() {
             })}
           </div>
         )}
+          </div>
+
+          {/* Right Sidebar (1/3 width) */}
+          <div className="space-y-4">
+            {/* Copilot Insights */}
+            <CopilotInsights insights={copilotInsights as any[]} loading={insightsLoading} />
+
+            {/* Aktive Preisalarme */}
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+              <div className="px-4 pt-4 pb-2">
+                <div className="text-sm font-semibold text-white flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-[#00CFC1]" />
+                  Aktive Alarme
+                  {activeAlerts.length > 0 && (
+                    <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">
+                      {activeAlerts.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="px-4 pb-4 space-y-2">
+                {activeAlerts.length === 0 ? (
+                  <div className="text-center py-3 text-gray-500 text-xs">Keine aktiven Alarme</div>
+                ) : (
+                  activeAlerts.map((alert: any) => (
+                    <div key={alert.id} className="flex items-center gap-2 bg-[#0f1420]/50 border border-white/5 rounded-lg p-2">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        alert.alertType === 'below_price' ? 'bg-amber-500/20' : 'bg-emerald-500/20'
+                      }`}>
+                        <AlertTriangle className={`h-3.5 w-3.5 ${
+                          alert.alertType === 'below_price' ? 'text-amber-400' : 'text-emerald-400'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white text-xs font-semibold">{alert.ticker}</div>
+                        <div className="text-gray-500 text-[10px]">
+                          {alert.alertType === 'below_price' ? 'Unter' : 'Über'} CHF {parseFloat(alert.targetPrice || '0').toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <Link href="/price-alerts">
+                  <div className="text-center pt-1">
+                    <span className="text-[#00CFC1] text-xs hover:underline cursor-pointer">Alle Alarme verwalten →</span>
+                  </div>
+                </Link>
+              </div>
+            </Card>
+
+            {/* Strategie-Scoring */}
+            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+              <div className="px-4 pt-4 pb-2">
+                <div className="text-sm font-semibold text-white flex items-center gap-2">
+                  <BarChart3Icon className="h-4 w-4 text-[#00CFC1]" />
+                  Strategie-Scoring
+                  <span className="text-[10px] text-gray-500 font-normal ml-auto">Top 5</span>
+                </div>
+              </div>
+              <div className="px-4 pb-4 space-y-1.5">
+                {scoringLoading ? (
+                  <div className="text-gray-400 text-xs text-center py-3">Wird berechnet...</div>
+                ) : !scoringData || (scoringData as any[]).length === 0 ? (
+                  <div className="text-gray-500 text-xs text-center py-3">Keine Daten verfügbar</div>
+                ) : (
+                  (scoringData as any[]).slice(0, 5).map((item: any) => (
+                    <div key={item.symbol} className="flex items-center justify-between bg-white/5 rounded-lg px-2.5 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <Link href={`/stocks/${item.symbol}`}>
+                          <span className="text-[#00CFC1] font-mono text-xs font-semibold hover:underline cursor-pointer">{item.symbol}</span>
+                        </Link>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white text-xs font-mono font-bold">{item.score?.toFixed(0) ?? '–'}</span>
+                        <span className={`text-xs font-semibold ${
+                          item.signal === 'BUY' ? 'text-emerald-400' :
+                          item.signal === 'SELL' ? 'text-red-400' : 'text-gray-400'
+                        }`}>{item.signal}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <Link href="/backtesting">
+                  <div className="text-center pt-1">
+                    <span className="text-[#00CFC1] text-xs hover:underline cursor-pointer flex items-center justify-center gap-1">
+                      <Target className="w-3 h-3" />
+                      Strategie-Backtest öffnen
+                    </span>
+                  </div>
+                </Link>
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}

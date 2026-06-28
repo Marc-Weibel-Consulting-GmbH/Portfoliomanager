@@ -15,8 +15,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus, RefreshCw, Bell, Briefcase, TrendingUp, TrendingDown,
   ChevronRight, ArrowUpRight, ArrowDownRight,
-  Calendar, Bot, Activity, Sparkles, Loader2
+  Calendar, Bot, Activity, Sparkles, Loader2, Info, ChevronDown
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 
@@ -122,14 +133,19 @@ function QuickActions() {
   );
 }
 
-function PortfolioCompact({ portfolios, metrics }: {
+function PortfolioCompact({ portfolios, metrics, risk, bubble }: {
   portfolios: { id: number; name: string; isLive: number; investmentAmount: number; livePerformance: number | null; numberOfPositions: number; benchmark: string | null }[];
   metrics: any;
+  risk: any;
+  bubble: any;
 }) {
   const [, setLocation] = useLocation();
   const totalValue = metrics?.totalValue ?? 0;
   const dayChangePct = metrics?.dayChangePercent ?? 0;
   const ytdPct = metrics?.totalPerformancePercent ?? 0;
+  const sharpe = risk?.sharpeRatio ?? null;
+  const bubbleScore = bubble?.score ?? null;
+  const bubbleLabel = bubble?.label ?? "–";
 
   return (
     <Card className="bg-[#0d1220] border-[#1e2840] mb-4">
@@ -149,54 +165,133 @@ function PortfolioCompact({ portfolios, metrics }: {
               </span>
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => setLocation("/portfolio-builder")}
-            className="h-8 px-3 bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30 text-xs"
-            variant="outline"
-          >
-            <Plus className="h-3 w-3 mr-1" /> Neu
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Sharpe KPI mit Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-col items-center px-2 py-1 bg-[#111827] rounded-lg border border-[#1e2840] cursor-help">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-500 uppercase tracking-wide">Sharpe</span>
+                    <Info className="h-2.5 w-2.5 text-gray-600" />
+                  </div>
+                  <span className="text-xs font-mono font-semibold text-white">
+                    {sharpe !== null ? sharpe.toFixed(2) : "–"}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[240px] text-xs bg-[#0d1220] border-[#1e2840]">
+                <p className="font-semibold mb-1 text-white">Sharpe Ratio</p>
+                <p className="text-gray-300">Misst die risikobereinigte Rendite. Berechnet als (Portfolio-Rendite − risikofreier Zinssatz) / Volatilität.</p>
+                <p className="mt-1 text-gray-400">Werte &gt; 1.0 gelten als gut, &gt; 2.0 als sehr gut.</p>
+              </TooltipContent>
+            </Tooltip>
+            {/* Bubble KPI mit Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-col items-center px-2 py-1 bg-[#111827] rounded-lg border border-[#1e2840] cursor-help">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-500 uppercase tracking-wide">Bubble</span>
+                    <Info className="h-2.5 w-2.5 text-gray-600" />
+                  </div>
+                  <span className={`text-xs font-mono font-semibold ${
+                    bubbleScore === null ? "text-gray-400" :
+                    bubbleScore < 33 ? "text-emerald-400" :
+                    bubbleScore < 66 ? "text-amber-400" : "text-red-400"
+                  }`}>
+                    {bubbleScore !== null ? `${bubbleScore}/100` : "–"}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[260px] text-xs bg-[#0d1220] border-[#1e2840]">
+                <p className="font-semibold mb-1 text-white">Bubble-Indikator (LPPLS)</p>
+                <p className="text-gray-300">Basiert auf dem Log-Periodic Power Law Singularity Modell von Prof. Didier Sornette (ETH Zürich). Misst Überhitzungssignale im Markt.</p>
+                <p className="mt-1 text-gray-400">Aktuell: <span className={bubbleScore !== null && bubbleScore >= 66 ? "text-red-400" : bubbleScore !== null && bubbleScore >= 33 ? "text-amber-400" : "text-emerald-400"}>{bubbleLabel}</span> ({bubbleScore ?? "–"}/100)</p>
+                <p className="mt-1 text-gray-500">0–33: Niedrig · 34–66: Mittel · 67–100: Hoch</p>
+              </TooltipContent>
+            </Tooltip>
+            <Button
+              size="sm"
+              onClick={() => setLocation("/portfolio-builder")}
+              className="h-8 px-3 bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30 text-xs"
+              variant="outline"
+            >
+              <Plus className="h-3 w-3 mr-1" /> Neu
+            </Button>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-4 flex flex-col gap-1.5">
+      <CardContent className="px-4 pb-4">
         {portfolios.length === 0 && (
           <div className="text-center py-4 text-sm text-gray-500">Noch keine Portfolios</div>
         )}
-        {portfolios.map(p => {
-          const ytd = p.livePerformance;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setLocation(`/portfolios/${p.id}`)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#111827]/60 hover:bg-[#1a2235] rounded-lg transition-colors text-left group"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-white truncate">{p.name}</span>
-                  {p.isLive === 1 && (
-                    <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">LIVE</Badge>
+        {/* Aggregiert-Zeile */}
+        <div className="flex items-center justify-between px-3 py-2 mb-1.5">
+          <span className="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Alle Portfolios</span>
+          {/* Portfolio-Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 text-[10px] text-[#00CFC1] hover:text-[#00CFC1]/80 transition-colors">
+                Einzeln anzeigen <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-[#0d1220] border-[#1e2840] min-w-[200px]">
+              {portfolios.map(p => (
+                <DropdownMenuItem
+                  key={p.id}
+                  onClick={() => setLocation(`/portfolios/${p.id}`)}
+                  className="flex items-center justify-between cursor-pointer hover:bg-[#1a2235] text-white"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">{p.name}</span>
+                    {p.isLive === 1 && (
+                      <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">LIVE</Badge>
+                    )}
+                  </div>
+                  <span className={`text-[11px] font-mono ${changeColor(p.livePerformance)}`}>
+                    {fmtPct(p.livePerformance)}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {/* Portfolio-Zeilen */}
+        <div className="flex flex-col gap-1.5">
+          {portfolios.map(p => {
+            const ytd = p.livePerformance;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setLocation(`/portfolios/${p.id}`)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#111827]/60 hover:bg-[#1a2235] rounded-lg transition-colors text-left group"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-white truncate">{p.name}</span>
+                    {p.isLive === 1 && (
+                      <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">LIVE</Badge>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">
+                    {p.numberOfPositions} Positionen
+                    {p.benchmark && ` · ${p.benchmark}`}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs font-mono text-gray-300">
+                    {fmtCHF(p.investmentAmount)}
+                  </div>
+                  {ytd !== null && (
+                    <div className={`text-[11px] font-mono ${changeColor(ytd)}`}>
+                      {fmtPct(ytd)}
+                    </div>
                   )}
                 </div>
-                <div className="text-[11px] text-gray-500 mt-0.5">
-                  {p.numberOfPositions} Positionen
-                  {p.benchmark && ` · ${p.benchmark}`}
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="text-xs font-mono text-gray-300">
-                  {fmtCHF(p.investmentAmount)}
-                </div>
-                {ytd !== null && (
-                  <div className={`text-[11px] font-mono ${changeColor(ytd)}`}>
-                    {fmtPct(ytd)}
-                  </div>
-                )}
-              </div>
-              <ChevronRight className="h-3.5 w-3.5 text-gray-600 group-hover:text-[#00CFC1] shrink-0" />
-            </button>
-          );
-        })}
+                <ChevronRight className="h-3.5 w-3.5 text-gray-600 group-hover:text-[#00CFC1] shrink-0" />
+              </button>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
@@ -388,6 +483,12 @@ export default function Dashboard() {
   const { data: metrics, isLoading: metricsLoading } =
     trpc.dashboard.getAggregatedMetrics.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
+  const { data: riskMetrics } =
+    trpc.dashboard.getRiskMetrics.useQuery({ scope: "aggregate" }, { staleTime: 10 * 60 * 1000 });
+
+  const { data: bubbleIndicator } =
+    trpc.dashboard.getBubbleIndicator.useQuery({ scope: "aggregate" }, { staleTime: 10 * 60 * 1000 });
+
   const today = new Date();
   const dateStr = today.toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
@@ -420,7 +521,7 @@ export default function Dashboard() {
         {/* Portfolio Compact */}
         {portfoliosLoading || metricsLoading
           ? <Skeleton className="h-48 mb-4 bg-[#111827]" />
-          : <PortfolioCompact portfolios={portfolioCompact} metrics={metrics} />
+          : <PortfolioCompact portfolios={portfolioCompact} metrics={metrics} risk={riskMetrics} bubble={bubbleIndicator} />
         }
 
         {/* Markt-Puls */}

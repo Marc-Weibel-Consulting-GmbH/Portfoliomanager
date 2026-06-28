@@ -2422,6 +2422,94 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     }));
   }),
 
+  /** KI-Insight-Aktion ausführen: Sektoren überprüfen / Top-Positionen analysieren */
+  executeInsightAction: protectedProcedure
+    .input(z.object({
+      actionType: z.enum(['sektoren', 'top_positionen', 'diversifikation', 'rebalancing', 'generic']),
+      portfolioId: z.number().optional(),
+      context: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { getSavedPortfolios, getPortfolioTransactions } = await import('../db');
+      const { batchGetStocks } = await import('../db-optimized');
+      const { invokeLLM } = await import('../_core/llm');
+
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      const targetPortfolios = input.portfolioId
+        ? portfolios.filter(p => p.id === input.portfolioId)
+        : portfolios;
+
+      if (targetPortfolios.length === 0) {
+        return { result: 'Kein Portfolio gefunden.', holdingsCount: 0 };
+      }
+
+      // Collect holdings across all target portfolios
+      const holdingsMap = new Map<string, { shares: number; portfolioName: string }>();
+      for (const portfolio of targetPortfolios) {
+        try {
+          let stocks: any[] = [];
+          if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+            const txs = await getPortfolioTransactions(portfolio.id);
+            const sharesMap = new Map<string, number>();
+            for (const tx of txs) {
+              if (!tx.ticker) continue;
+              const s = parseFloat(tx.shares || '0');
+              if (tx.transactionType === 'buy') sharesMap.set(tx.ticker, (sharesMap.get(tx.ticker) || 0) + s);
+              else if (tx.transactionType === 'sell') sharesMap.set(tx.ticker, (sharesMap.get(tx.ticker) || 0) - s);
+            }
+            stocks = Array.from(sharesMap.entries()).filter(([, s]) => s > 0).map(([ticker, shares]) => ({ ticker, shares }));
+          } else {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            stocks = (pd.stocks || pd.positions || []).filter((s: any) => s.ticker);
+          }
+          for (const stock of stocks) {
+            if (!stock.ticker) continue;
+            const existing = holdingsMap.get(stock.ticker);
+            holdingsMap.set(stock.ticker, {
+              shares: (existing?.shares || 0) + parseFloat(stock.shares || '1'),
+              portfolioName: portfolio.name,
+            });
+          }
+        } catch {}
+      }
+
+      const allTickers = Array.from(holdingsMap.keys()).slice(0, 30);
+      const stocksMap = allTickers.length > 0 ? await batchGetStocks(allTickers) : new Map();
+
+      // Build holdings summary for LLM
+      const holdingsSummary = allTickers.map(ticker => {
+        const stock = stocksMap.get(ticker) as any;
+        return `${ticker} (${stock?.name || ticker}, Sektor: ${stock?.sector || 'unbekannt'}, Branche: ${stock?.industry || 'unbekannt'})`;
+      }).join('\n');
+
+      let systemPrompt = '';
+      let userPrompt = '';
+
+      if (input.actionType === 'sektoren') {
+        systemPrompt = 'Du bist ein erfahrener Portfolio-Manager. Analysiere die Sektorverteilung und gib konkrete Empfehlungen auf Deutsch. Antworte strukturiert mit Markdown.';
+        userPrompt = `Analysiere die Sektorverteilung dieses Portfolios und gib konkrete Empfehlungen:\n\nPositionen:\n${holdingsSummary}\n\nStrukturiere deine Antwort:\n## Aktuelle Sektorverteilung (geschätzt)\n## Über-/Untergewichtungen\n## Empfehlungen (welche Sektoren erhöhen/reduzieren)\n## Konkrete Titel-Vorschläge für untervertretene Sektoren`;
+      } else if (input.actionType === 'top_positionen') {
+        systemPrompt = 'Du bist ein erfahrener Portfolio-Manager. Analysiere die Top-Positionen und gib konkrete Kauf/Verkauf-Empfehlungen auf Deutsch. Antworte strukturiert mit Markdown.';
+        userPrompt = `Analysiere die Positionen dieses Portfolios:\n\nPositionen:\n${holdingsSummary}\n\nStrukturiere deine Antwort:\n## Positionen zum Reduzieren\n## Positionen zum Erhöhen\n## Neue Titel-Vorschläge\n## Risiko-Hinweise`;
+      } else if (input.actionType === 'diversifikation') {
+        systemPrompt = 'Du bist ein erfahrener Portfolio-Manager. Analysiere die Diversifikation und gib Empfehlungen auf Deutsch. Antworte strukturiert mit Markdown.';
+        userPrompt = `Analysiere die Diversifikation dieses Portfolios:\n\nPositionen:\n${holdingsSummary}\n\nStrukturiere deine Antwort:\n## Klumpenrisiken\n## Korrelationsrisiken\n## Empfehlungen zur Verbesserung\n## Konkrete Titel-Vorschläge`;
+      } else {
+        systemPrompt = 'Du bist ein erfahrener Portfolio-Manager. Beantworte auf Deutsch mit Markdown-Formatierung.';
+        userPrompt = `Portfolio-Analyse:\n\nPositionen:\n${holdingsSummary}\n\nKontext: ${input.context || 'Allgemeine Analyse'}\n\nGib 3-5 konkrete Handlungsempfehlungen.`;
+      }
+
+      const response = await invokeLLM({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      });
+
+      const content = response.choices?.[0]?.message?.content || 'Keine Antwort erhalten.';
+      return { result: content, holdingsCount: allTickers.length };
+    }),
+
   /** KI-Marktanalyse manuell triggern (Admin) */
   triggerMarketAnalysis: protectedProcedure
     .input(z.object({ period: z.enum(['day', 'week']).default('day') }))

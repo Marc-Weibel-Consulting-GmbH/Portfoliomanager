@@ -1388,3 +1388,60 @@
 - [x] StockDetail.tsx: PEG-Badge mit Quadrant-Farbe
 - [x] Invest.tsx: PEG-Spalte mit Quadrant-Farbe
 - [x] signalEvaluationCron.ts: Yahoo Finance v3 Import-Fix
+
+## Überarbeitung Teil 1 – Dashboard und Portfolios (28.06.2026)
+
+### 1. Dashboard (Heute-Dashboard – Feinschliff)
+- [x] Portfolio-Auswahl im Header: Dropdown statt separate Buttons (Platzmangel)
+- [x] Hover-Tooltips für Sharpe und Bubble KPI im Dashboard-Header
+- [x] Tagesveränderung prüfen und korrigieren (kann noch nicht stimmen)
+
+### 2. Portfolios-Übersicht (komplett neu)
+- [x] Altes Dashboard-Layout (vor Redesign) als neue Portfolio-Übersicht verwenden
+- [x] KPIs aus alter Portfolio-Übersicht in neue Übersicht integrieren (Aggregiert + pro Portfolio)
+
+### 3. Copilot Insights – Grüne Buttons mit echten Pop-ups
+- [x] "Sektoren überprüfen" → Pop-up mit KI-Vorschlägen für untervertretene/übervertretene Sektoren
+  - Aktion: Vorschläge übernehmen/anpassen → Positionen im Portfolio anpassen
+  - Demo-Portfolio: nur Positionen ändern (keine echten Transaktionen)
+  - Live-Portfolio: Transaktionen erstellen mit optionaler Gebührenberechnung
+- [x] "Top-Positionen analysieren" → Pop-up mit Reduktions- und Ergänzungsvorschlägen
+  - Gleiche Aktionslogik wie Sektoren (Demo vs. Live)
+- [ ] Gebührenstruktur unter Einstellungen hinterlegbar (Default-Gebühren als Fallback) [AUSSTEHEND]
+- [x] Alle weiteren grünen Copilot-Buttons mit eigenen Pop-ups versehen
+
+### 4. Portfolio-Detailseite – Übersicht
+- [x] Top-Positionen klickbar machen → Navigation zu Aktiendetails
+
+### 5. Portfolio-Detailseite – Konstellation
+- [ ] Ausreisser (z.B. Holcim) näher an die Gruppe bringen
+- [ ] Pfeil/Annotation für Titel ausserhalb der Skala (andeuten dass ausserhalb)
+- [ ] Holcim-Daten prüfen (können laut User nicht stimmen)
+
+### 6. Portfolio-Detailseite – Transaktionen
+- [ ] Bei Demo-Portfolios: keine Transaktionen erlaubt (Hinweis anzeigen)
+- [x] Löschen-Button für einzelne Transaktionen hinzufügen
+- [ ] Bulk-Löschen-Button für mehrere Transaktionen [AUSSTEHEND]
+
+### 7. Portfolio-Detailseite – Performance
+- [x] Realisierte Gewinne als aufklappbare Box (bei Demo-Portfolio leer)
+- [ ] Performance-Attribution neue Box mit Grafik:
+  - Beitrag nach Aktien-Sektoren
+  - Beitrag nach Assetklassen (Aktien, Obligationen, Gold, etc.)
+  - Beitrag nach Einzeltiteln
+  - Beitrag der Fremdwährungen
+  - Wasserfall-Diagramm als bevorzugtes Format
+
+### 8. Portfolio-Detailseite – Risiko
+- [x] Tooltips für alle Risiko-KPIs
+- [x] Bubble-Indikator Info-Button → Pop-up mit detaillierter Zusammensetzung und Gewichtung
+- [x] Grüne Boxen unten im Risiko-Tab füllen (Gesamtbewertung, Volatilität, Rendite/Risiko)
+
+### 9. Portfolio-Detailseite – Optimieren
+- [x] Diversifikationsregeln implementieren:
+  - [x] Einzel-Position max. 10% und min. 1%
+  - [x] Mindest-Positionsgrösse CHF 3'000.-
+  - [x] Minimum Anzahl Titel: 15
+- [x] KI-Empfehlungen dürfen keine Extrem-Positionen vorschlagen (Regeln durchsetzen)
+- [ ] Effizienzgrenze prüfen: hardcoded oder echt berechnet?
+- [ ] Entscheiden: Effizienzgrenze beibehalten oder durch Konstellation-Tab ersetzen

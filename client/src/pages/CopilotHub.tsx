@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -195,7 +196,75 @@ function InsightsTab() {
   );
 }
 
+// Map action text to actionType for the modal
+function getActionType(action: string): 'sektoren' | 'top_positionen' | 'diversifikation' | 'rebalancing' | 'generic' {
+  const a = action?.toLowerCase() || '';
+  if (a.includes('sektor')) return 'sektoren';
+  if (a.includes('position') || a.includes('top-pos')) return 'top_positionen';
+  if (a.includes('diversif')) return 'diversifikation';
+  if (a.includes('rebalanc')) return 'rebalancing';
+  return 'generic';
+}
+
+function InsightActionModal({ open, onClose, insight }: { open: boolean; onClose: () => void; insight: any }) {
+  const actionType = getActionType(insight?.action || '');
+  const [result, setResult] = useState<string | null>(null);
+  const executeAction = trpc.dashboard.executeInsightAction.useMutation({
+    onSuccess: (data) => setResult(typeof data.result === 'string' ? data.result : String(data.result)),
+    onError: (err) => { toast.error('Fehler: ' + err.message); onClose(); },
+  });
+
+  useEffect(() => {
+    if (open && !result && !executeAction.isPending) {
+      setResult(null);
+      executeAction.mutate({ actionType, context: insight?.title });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const handleClose = () => { setResult(null); onClose(); };
+
+  const titleMap: Record<string, string> = {
+    sektoren: 'Sektoren überprüfen',
+    top_positionen: 'Top-Positionen analysieren',
+    diversifikation: 'Diversifikation prüfen',
+    rebalancing: 'Rebalancing-Vorschläge',
+    generic: 'KI-Analyse',
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="bg-[#0f1420] border-[#00CFC1]/30 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-white flex items-center gap-2">
+            <Brain className="w-5 h-5 text-[#00CFC1]" />
+            {titleMap[actionType]}
+          </DialogTitle>
+          <DialogDescription className="text-gray-400 text-xs">
+            {insight?.title} — KI-Analyse Ihres Portfolios
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-2">
+          {executeAction.isPending && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Loader2 className="w-8 h-8 text-[#00CFC1] animate-spin" />
+              <p className="text-gray-400 text-sm">KI analysiert Ihr Portfolio...</p>
+              <p className="text-gray-500 text-xs">Dauert ca. 10–30 Sekunden</p>
+            </div>
+          )}
+          {result && (
+            <div className="prose prose-invert prose-sm max-w-none text-gray-300 [&_h2]:text-[#00CFC1] [&_h2]:text-sm [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2 [&_ul]:text-gray-300 [&_li]:text-gray-300 [&_strong]:text-white">
+              <ReactMarkdown>{result}</ReactMarkdown>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function InsightCard({ insight }: { insight: any }) {
+  const [modalOpen, setModalOpen] = useState(false);
   const severityConfig: Record<string, { icon: any; color: string; borderColor: string; label: string }> = {
     warning: { icon: AlertTriangle, color: 'text-amber-400', borderColor: 'border-l-amber-400', label: 'WARNUNG' },
     watch: { icon: AlertTriangle, color: 'text-amber-400', borderColor: 'border-l-amber-400', label: 'BEOBACHTEN' },
@@ -208,32 +277,54 @@ function InsightCard({ insight }: { insight: any }) {
   const config = severityConfig[severity] ?? severityConfig.info;
   const Icon = config.icon;
   const bodyText = insight.body ?? insight.description;
+  const actionType = getActionType(insight?.action || '');
+  const isModalAction = ['sektoren', 'top_positionen', 'diversifikation', 'rebalancing'].includes(actionType);
 
   return (
-    <div className={`bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 border-l-4 ${config.borderColor} rounded-lg p-4`}>
-      <div className="flex items-start gap-3 mb-3">
-        <div className="p-1.5 rounded-lg bg-white/5 mt-0.5">
-          <Icon className={`w-4 h-4 ${config.color}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-[9px] font-bold tracking-widest ${config.color}`}>{config.label}</span>
+    <>
+      <div className={`bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 border-l-4 ${config.borderColor} rounded-lg p-4`}>
+        <div className="flex items-start gap-3 mb-3">
+          <div className="p-1.5 rounded-lg bg-white/5 mt-0.5">
+            <Icon className={`w-4 h-4 ${config.color}`} />
           </div>
-          <h3 className="text-sm font-semibold text-white leading-snug">{insight.title}</h3>
-          <p className="text-xs text-gray-400 mt-1.5 leading-relaxed line-clamp-3">{bodyText}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-[9px] font-bold tracking-widest ${config.color}`}>{config.label}</span>
+            </div>
+            <h3 className="text-sm font-semibold text-white leading-snug">{insight.title}</h3>
+            <p className="text-xs text-gray-400 mt-1.5 leading-relaxed line-clamp-3">{bodyText}</p>
+          </div>
         </div>
+        {insight.action && (
+          isModalAction ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModalOpen(true)}
+              className="text-[#00CFC1] border-[#00CFC1]/40 hover:bg-[#00CFC1]/10 hover:text-[#00CFC1] text-xs h-7 px-3"
+            >
+              <Sparkles className="w-3 h-3 mr-1" />
+              {insight.action}
+            </Button>
+          ) : insight.actionHref ? (
+            <Link href={insight.actionHref}>
+              <Button variant="outline" size="sm" className="text-[#00CFC1] border-[#00CFC1]/40 hover:bg-[#00CFC1]/10 hover:text-[#00CFC1] text-xs h-7 px-3">
+                <ArrowRight className="w-3 h-3 mr-1" />
+                {insight.action}
+              </Button>
+            </Link>
+          ) : (
+            <Button variant="outline" size="sm" className="text-[#00CFC1] border-[#00CFC1]/40 hover:bg-[#00CFC1]/10 hover:text-[#00CFC1] text-xs h-7 px-3">
+              <ArrowRight className="w-3 h-3 mr-1" />
+              {insight.action}
+            </Button>
+          )
+        )}
       </div>
-      {insight.action && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-[#00CFC1] border-[#00CFC1]/40 hover:bg-[#00CFC1]/10 hover:text-[#00CFC1] text-xs h-7 px-3"
-        >
-          <ArrowRight className="w-3 h-3 mr-1" />
-          {insight.action}
-        </Button>
+      {isModalAction && (
+        <InsightActionModal open={modalOpen} onClose={() => setModalOpen(false)} insight={insight} />
       )}
-    </div>
+    </>
   );
 }
 

@@ -72,6 +72,193 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// ─── Performance Tab with Attribution Waterfall ───
+function PerformanceTab({
+  portfolioId, holdings, multiPeriod, totalValueCHF, investmentAmount, realizedGains, transactions
+}: {
+  portfolioId: number;
+  holdings: any[];
+  multiPeriod: any;
+  totalValueCHF: number;
+  investmentAmount: number;
+  realizedGains: any[];
+  transactions: any[];
+}) {
+  const [showRealizedGains, setShowRealizedGains] = useState(false);
+  const entry = (multiPeriod as any[] | undefined)?.find((p: any) => p.portfolioId === portfolioId);
+  const ytd = entry?.performance?.YTD ?? null;
+  const seitKauf = investmentAmount > 0 ? ((totalValueCHF - investmentAmount) / investmentAmount) * 100 : null;
+  const gv = totalValueCHF - investmentAmount;
+
+  // Build sector attribution from holdings
+  const sectorAttribution = useMemo(() => {
+    const sectors: Record<string, { weight: number; ytd: number }> = {};
+    holdings.forEach((h: any) => {
+      const s = h.sector || 'Andere';
+      const w = parseFloat(h.weight || '0') / 100;
+      const y = parseFloat(h.ytdPerformance || '0');
+      if (!sectors[s]) sectors[s] = { weight: 0, ytd: 0 };
+      sectors[s].weight += w;
+      sectors[s].ytd += w * y; // weighted contribution
+    });
+    return Object.entries(sectors)
+      .map(([name, v]) => ({ name, contribution: parseFloat((v.ytd).toFixed(2)) }))
+      .sort((a, b) => b.contribution - a.contribution);
+  }, [holdings]);
+
+  // Build top-title attribution
+  const titleAttribution = useMemo(() => {
+    return holdings
+      .map((h: any) => ({
+        name: h.ticker,
+        label: h.companyName?.slice(0, 18) || h.ticker,
+        contribution: parseFloat(((parseFloat(h.weight || '0') / 100) * parseFloat(h.ytdPerformance || '0')).toFixed(2)),
+      }))
+      .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+      .slice(0, 8);
+  }, [holdings]);
+
+  const maxAbs = Math.max(...sectorAttribution.map(s => Math.abs(s.contribution)), 0.01);
+
+  return (
+    <div className="space-y-4">
+      {/* KPI Row */}
+      <div className="grid grid-cols-3 gap-0 border border-white/10 rounded-lg overflow-hidden">
+        <div className="bg-[#0f1420] p-4 border-r border-white/10">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">YTD</p>
+          <p className={`text-2xl font-bold font-mono ${(ytd ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{ytd !== null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(2)}%` : '–'}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Seit Jahresanfang</p>
+        </div>
+        <div className="bg-[#0f1420] p-4 border-r border-white/10">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">SEIT KAUF</p>
+          <p className={`text-2xl font-bold font-mono ${(seitKauf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{seitKauf !== null ? `${seitKauf >= 0 ? '+' : ''}${seitKauf.toFixed(2)}%` : '–'}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Gesamtrendite</p>
+        </div>
+        <div className="bg-[#0f1420] p-4">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">G/V ABSOLUT</p>
+          <p className={`text-2xl font-bold font-mono ${gv >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{`${gv >= 0 ? '+' : '-'}${formatCurrency(Math.abs(gv), 'CHF')}`}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Wert − Kapital</p>
+        </div>
+      </div>
+
+      {/* Attribution Waterfall */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Sektor-Attribution */}
+        <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-white mb-3">Performance-Attribution nach Sektor</h3>
+          <div className="space-y-2">
+            {sectorAttribution.map((s) => (
+              <div key={s.name}>
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs text-gray-400 truncate max-w-[140px]">{s.name}</span>
+                  <span className={`text-xs font-mono font-semibold ${s.contribution >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                    {s.contribution >= 0 ? '+' : ''}{s.contribution.toFixed(2)}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${s.contribution >= 0 ? 'bg-[#00CFC1]' : 'bg-red-500'}`}
+                    style={{ width: `${Math.min(100, (Math.abs(s.contribution) / maxAbs) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            {sectorAttribution.length === 0 && <p className="text-xs text-gray-500">Keine Daten verfügbar</p>}
+          </div>
+        </div>
+
+        {/* Titel-Attribution */}
+        <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-white mb-3">Top-Beiträger & Belaster</h3>
+          <div className="space-y-2">
+            {titleAttribution.map((t) => (
+              <div key={t.name} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[#00CFC1] w-14">{t.name}</span>
+                  <span className="text-gray-500 truncate max-w-[100px]">{t.label}</span>
+                </div>
+                <span className={`font-mono font-semibold ${t.contribution >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                  {t.contribution >= 0 ? '+' : ''}{t.contribution.toFixed(2)}%
+                </span>
+              </div>
+            ))}
+            {titleAttribution.length === 0 && <p className="text-xs text-gray-500">Keine Daten verfügbar</p>}
+          </div>
+        </div>
+      </div>
+
+      {/* Realisierte Gewinne — aufklappbar */}
+      <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg overflow-hidden">
+        <button
+          onClick={() => setShowRealizedGains(!showRealizedGains)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-white">Realisierte Gewinne</span>
+            {realizedGains.length > 0 && (
+              <span className="text-[10px] bg-[#00CFC1]/20 text-[#00CFC1] px-1.5 py-0.5 rounded">{realizedGains.length}</span>
+            )}
+          </div>
+          <span className="text-gray-400 text-xs">{showRealizedGains ? '▲ Schließen' : '▼ Aufklappen'}</span>
+        </button>
+        {showRealizedGains && (
+          <div className="border-t border-white/10 p-4">
+            {realizedGains.length > 0 ? (
+              <RealizedGainsTable gains={realizedGains} />
+            ) : (
+              <p className="text-gray-400 text-sm text-center py-4">Keine realisierten Gewinne vorhanden</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Kosten & Gebühren */}
+      {transactions.length > 0 && (
+        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Kosten & Gebühren</CardTitle></CardHeader>
+          <CardContent><CostFeesReport transactions={transactions} portfolioId={portfolioId} /></CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// Inline delete button for individual transactions
+function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId: number; portfolioId: number }) {
+  const utils = trpc.useUtils();
+  const [confirming, setConfirming] = useState(false);
+  const deleteTx = trpc.portfolioTransactions.delete.useMutation({
+    onSuccess: () => {
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      toast.success('Transaktion gelöscht');
+      setConfirming(false);
+    },
+    onError: (err) => { toast.error('Fehler: ' + err.message); setConfirming(false); },
+  });
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-1">
+        <button onClick={() => deleteTx.mutate({ transactionId })} className="text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20">
+          {deleteTx.isPending ? '...' : 'Ja'}
+        </button>
+        <button onClick={() => setConfirming(false)} className="text-[10px] text-gray-400 hover:text-white px-1.5 py-0.5 rounded bg-white/5">
+          Nein
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all"
+      title="Transaktion löschen"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
 const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   dividends: { label: "Dividenden", icon: <DollarSign className="h-4 w-4" />, color: "bg-blue-500" },
   growth: { label: "Wachstum", icon: <TrendingUp className="h-4 w-4" />, color: "bg-green-500" },
@@ -673,8 +860,12 @@ export default function PortfolioDetailsPage() {
                       .map((h: any) => (
                         <div key={h.ticker} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-[#00CFC1] text-xs w-16">{h.ticker}</span>
-                            <span className="text-gray-400 text-xs truncate max-w-[100px]">{h.companyName}</span>
+                            <Link href={`/stocks/${h.ticker}`}>
+                              <span className="font-mono text-[#00CFC1] text-xs w-16 hover:underline cursor-pointer">{h.ticker}</span>
+                            </Link>
+                            <Link href={`/stocks/${h.ticker}`}>
+                              <span className="text-gray-400 text-xs truncate max-w-[100px] hover:text-white cursor-pointer">{h.companyName}</span>
+                            </Link>
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
                             <span className="text-gray-300 text-xs">{parseFloat(h.weight || '0').toFixed(1)}%</span>
@@ -971,6 +1162,7 @@ export default function PortfolioDetailsPage() {
                                   <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Stk.</th>
                                   <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Preis</th>
                                   <th className="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                                  {!isDemo && <th className="px-3 py-3 w-8"></th>}
                                 </tr>
                               </thead>
                               <tbody>
@@ -995,6 +1187,11 @@ export default function PortfolioDetailsPage() {
                                       <td className="px-3 py-3 text-right text-sm text-white">{t.shares || t.quantity || '—'}</td>
                                       <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(t.price || t.pricePerShare || 0, t.currency || 'CHF')}</td>
                                       <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency((t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), t.currency || 'CHF')}</td>
+                                      {!isDemo && (
+                                        <td className="px-2 py-3">
+                                          <DeleteTransactionButton transactionId={t.id} portfolioId={portfolioId} />
+                                        </td>
+                                      )}
                                     </tr>
                                   );
                                 })}
@@ -1012,55 +1209,15 @@ export default function PortfolioDetailsPage() {
 
           {/* PERFORMANCE TAB */}
           <TabsContent value="performance" className="mt-6">
-            {(() => {
-              // Use the same canonical sources as the header/list ("eine Quelle der
-              // Wahrheit"): weight-based YTD + value-based Seit-Kauf/G-V. The raw
-              // TTWROR/IRR engine is currently unreliable and intentionally not shown.
-              const entry = (multiPeriod as any[] | undefined)?.find(p => p.portfolioId === portfolioId);
-              const ytd = entry?.performance?.YTD ?? null;
-              const invested = Number(portfolio?.investmentAmount || 0);
-              const seitKauf = invested > 0 ? ((totalValueCHF - invested) / invested) * 100 : null;
-              const gv = totalValueCHF - invested;
-              return (
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Performance YTD</CardTitle></CardHeader>
-                <CardContent>
-                  <div className={`text-3xl font-bold font-mono ${(ytd ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{ytd !== null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(2)}%` : '–'}</div>
-                  <p className="text-xs text-gray-500 mt-1">Seit Jahresanfang (gewichtet)</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Seit Kauf</CardTitle></CardHeader>
-                <CardContent>
-                  <div className={`text-3xl font-bold font-mono ${(seitKauf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{seitKauf !== null ? `${seitKauf >= 0 ? '+' : ''}${seitKauf.toFixed(2)}%` : '–'}</div>
-                  <p className="text-xs text-gray-500 mt-1">Gesamtrendite seit Erstinvestition</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Absoluter Gewinn</CardTitle></CardHeader>
-                <CardContent>
-                  <div className={`text-3xl font-bold font-mono ${gv >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
-                    {`${gv >= 0 ? '+' : '-'}${formatCurrency(Math.abs(gv), 'CHF')}`}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Wert − investiertes Kapital</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Realisierte Gewinne</CardTitle></CardHeader>
-                <CardContent>
-                  {realizedGains.length > 0 ? <RealizedGainsTable gains={realizedGains} /> : <p className="text-gray-400 text-sm">Keine realisierten Gewinne</p>}
-                </CardContent>
-              </Card>
-            </div>
-              );
-            })()}
-            {transactions.length > 0 && (
-              <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30 mt-4">
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-400">Kosten & Gebühren</CardTitle></CardHeader>
-                <CardContent><CostFeesReport transactions={transactions} portfolioId={portfolioId} /></CardContent>
-              </Card>
-            )}
+            <PerformanceTab
+              portfolioId={portfolioId}
+              holdings={holdings}
+              multiPeriod={multiPeriod}
+              totalValueCHF={totalValueCHF}
+              investmentAmount={Number(portfolio?.investmentAmount || 0)}
+              realizedGains={realizedGains}
+              transactions={transactions}
+            />
           </TabsContent>
 
           {/* RISK TAB — echte Kennzahlen + LPPL-Bubble-Indikator (S.05) */}
@@ -1070,7 +1227,7 @@ export default function PortfolioDetailsPage() {
 
           {/* OPTIMIZE TAB — KI-Re-Allocation + Effizienzgrenze (S.06) */}
           <TabsContent value="optimieren" className="mt-6">
-            <OptimierenTab portfolioId={portfolioId} holdings={holdings} />
+            <OptimierenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} />
           </TabsContent>
         </Tabs>
 
