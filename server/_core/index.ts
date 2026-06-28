@@ -23,6 +23,7 @@ import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
 import { initLpplBubbleAlertCron } from "../cron/lpplBubbleAlertCron";
 import { initMlTrainingCron } from "../cron/mlTrainingCron";
 import { initSignalEvaluationCron } from "../cron/signalEvaluationCron";
+import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
 import { handleWalkForwardWeekly, handleLPPLMonitoring, handleEvaluateRecommendations } from "../scheduled/copilotScheduled";
 import { handlePriceAlertsCheck } from "../scheduled/priceAlertsScheduled";
@@ -286,6 +287,8 @@ async function startServer() {
     initMlTrainingCron();
     // Start signal evaluation cron (daily lookback + snapshot)
     initSignalEvaluationCron();
+    // Start market analysis cron (daily 08:00 CET = 07:00 UTC)
+    initMarketAnalysisCron();
   });
 }
 

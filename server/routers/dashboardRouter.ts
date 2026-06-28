@@ -2249,7 +2249,186 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         results.push({ ticker, combinedScore: 0, overallGrade: 'F', signal: 'ERROR', error: (err as Error).message });
       }
     }
-    return results.sort((a, b) => b.combinedScore - a.combinedScore);
+        return results.sort((a, b) => b.combinedScore - a.combinedScore);
   }),
-});
 
+  // ============================================================
+  // HEUTE DASHBOARD — neue Prozeduren
+  // ============================================================
+
+  /** Markt-Snapshot: Indizes + Sektor-Heatmap + Top-Movers */
+  getMarketSnapshot: protectedProcedure.query(async ({ ctx }) => {
+    const { fetchEODHDRealTime } = await import('../_core/eodhdApi');
+
+    // Indizes via EODHD
+    const indexDefs = [
+      { key: 'smi',    label: 'SMI',     ticker: 'SSMI.INDX',  currency: 'CHF' },
+      { key: 'sp500',  label: 'S&P 500', ticker: 'GSPC.INDX',  currency: 'USD' },
+      { key: 'nasdaq', label: 'Nasdaq',  ticker: 'IXIC.INDX',  currency: 'USD' },
+      { key: 'dax',    label: 'DAX',     ticker: 'GDAXI.INDX', currency: 'EUR' },
+      { key: 'gold',   label: 'Gold',    ticker: 'GLD.US',     currency: 'USD' },
+    ];
+    const indexResults = await Promise.allSettled(
+      indexDefs.map(async (def) => {
+        const rt = await fetchEODHDRealTime(def.ticker);
+        return { key: def.key, label: def.label, currency: def.currency, price: rt.close, change: rt.changePercent };
+      })
+    );
+    const indices = indexResults.map((r, i) =>
+      r.status === 'fulfilled' ? r.value : { ...indexDefs[i], price: null, change: null }
+    );
+
+    // Sektor-ETF Heatmap (11 GICS Sektoren)
+    const sectorDefs = [
+      { key: 'XLK',  label: 'Technologie' },
+      { key: 'XLF',  label: 'Finanzen' },
+      { key: 'XLV',  label: 'Gesundheit' },
+      { key: 'XLE',  label: 'Energie' },
+      { key: 'XLI',  label: 'Industrie' },
+      { key: 'XLY',  label: 'Konsum zyklisch' },
+      { key: 'XLP',  label: 'Konsum defensiv' },
+      { key: 'XLU',  label: 'Versorger' },
+      { key: 'XLRE', label: 'Immobilien' },
+      { key: 'XLB',  label: 'Materialien' },
+      { key: 'XLC',  label: 'Kommunikation' },
+    ];
+    const sectorResults = await Promise.allSettled(
+      sectorDefs.map(async (def) => {
+        const rt = await fetchEODHDRealTime(`${def.key}.US`);
+        return { key: def.key, label: def.label, change: rt.changePercent };
+      })
+    );
+    const sectors = sectorResults.map((r, i) =>
+      r.status === 'fulfilled' ? r.value : { ...sectorDefs[i], change: null }
+    );
+
+    // Top-Movers aus Watchlist/Portfolio des Users
+    const { getSavedPortfolios, getDb } = await import('../db');
+    const { watchlistStocks } = await import('../../drizzle/schema');
+    const portfolios = await getSavedPortfolios(ctx.user.id);
+    const db2 = await getDb();
+    const watchlist = db2 ? await db2.select({ ticker: watchlistStocks.ticker }).from(watchlistStocks).limit(50) : [];
+    const portfolioTickers = new Set<string>();
+    portfolios.forEach(p => {
+      try {
+        const data = JSON.parse(p.portfolioData || '{}');
+        const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
+        stocks.forEach((s: any) => { if (s.ticker) portfolioTickers.add(s.ticker); });
+      } catch {}
+    });
+    watchlist.forEach((w: any) => { if (w.ticker) portfolioTickers.add(w.ticker); });
+    const tickerList = Array.from(portfolioTickers).slice(0, 30);
+    const moverResults = await Promise.allSettled(
+      tickerList.map(async (ticker) => {
+        const rt = await fetchEODHDRealTime(ticker);
+        return { ticker, change: rt.changePercent, price: rt.close };
+      })
+    );
+    const movers = moverResults
+      .filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value.change !== null)
+      .map(r => (r as PromiseFulfilledResult<any>).value)
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    const gainers = movers.filter(m => m.change > 0).slice(0, 3);
+    const losers = movers.filter(m => m.change < 0).slice(0, 3);
+
+    return { indices, sectors, gainers, losers, asOf: new Date().toISOString() };
+  }),
+
+  /** Letzter KI-Marktbericht aus DB */
+  getLatestMarketAnalysis: protectedProcedure
+    .input(z.object({ period: z.enum(['day', 'week']).default('day') }))
+    .query(async ({ input }) => {
+      const { getDb } = await import('../db');
+      const { marketAnalysis } = await import('../../drizzle/schema');
+      const { eq, desc } = await import('drizzle-orm');
+      const db = await getDb();
+      if (!db) return null;
+      const rows = await db
+        .select()
+        .from(marketAnalysis)
+        .where(eq(marketAnalysis.period, input.period))
+        .orderBy(desc(marketAnalysis.generatedAt))
+        .limit(1);
+      return rows[0] ?? null;
+    }),
+
+  /** Anstehende Termine: Earnings + Dividenden für Portfolio-Aktien (nächste 14 Tage) */
+  getUpcomingEvents: protectedProcedure.query(async ({ ctx }) => {
+    const { getSavedPortfolios } = await import('../db');
+    const portfolios = await getSavedPortfolios(ctx.user.id);
+    const tickers = new Set<string>();
+    portfolios.forEach(p => {
+      try {
+        const data = JSON.parse(p.portfolioData || '{}');
+        const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
+        stocks.forEach((s: any) => { if (s.ticker) tickers.add(s.ticker); });
+      } catch {}
+    });
+    const tickerList = Array.from(tickers).slice(0, 30);
+    const today = new Date();
+    const in14 = new Date(today);
+    in14.setDate(in14.getDate() + 14);
+    const todayStr = today.toISOString().split('T')[0];
+    const in14Str = in14.toISOString().split('T')[0];
+    const EODHD_API_KEY = process.env.EODHD_API_KEY;
+    const events: Array<{ type: string; ticker: string; date: string; label: string; amount?: number }> = [];
+    if (EODHD_API_KEY && tickerList.length > 0) {
+      try {
+        const url = `https://eodhd.com/api/calendar/earnings?api_token=${EODHD_API_KEY}&from=${todayStr}&to=${in14Str}&symbols=${tickerList.join(',')}&fmt=json`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json() as any;
+          const earningsArr = data?.earnings ?? data ?? [];
+          if (Array.isArray(earningsArr)) {
+            earningsArr.forEach((e: any) => {
+              if (e.code && e.report_date) {
+                events.push({ type: 'earnings', ticker: e.code, date: e.report_date, label: 'Earnings' });
+              }
+            });
+          }
+        }
+      } catch {}
+      try {
+        const url = `https://eodhd.com/api/calendar/dividends?api_token=${EODHD_API_KEY}&from=${todayStr}&to=${in14Str}&symbols=${tickerList.join(',')}&fmt=json`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json() as any;
+          const divArr = data?.dividends ?? data ?? [];
+          if (Array.isArray(divArr)) {
+            divArr.forEach((d: any) => {
+              if (d.code && d.ex_dividend_date) {
+                events.push({ type: 'dividend', ticker: d.code, date: d.ex_dividend_date, label: 'Ex-Dividende', amount: d.amount });
+              }
+            });
+          }
+        }
+      } catch {}
+    }
+    return events.sort((a, b) => a.date.localeCompare(b.date));
+  }),
+
+  /** Portfolio-Kompakt-Übersicht für Dashboard-Header */
+  getPortfolioCompact: protectedProcedure.query(async ({ ctx }) => {
+    const { getSavedPortfolios } = await import('../db');
+    const portfolios = await getSavedPortfolios(ctx.user.id);
+    return portfolios.map(p => ({
+      id: p.id,
+      name: p.name,
+      isLive: p.isLive,
+      investmentAmount: parseFloat(p.investmentAmount || '0'),
+      livePerformance: p.livePerformance ? parseFloat(p.livePerformance) : null,
+      numberOfPositions: p.numberOfPositions,
+      benchmark: p.benchmark,
+    }));
+  }),
+
+  /** KI-Marktanalyse manuell triggern (Admin) */
+  triggerMarketAnalysis: protectedProcedure
+    .input(z.object({ period: z.enum(['day', 'week']).default('day') }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') throw new Error('Nur Admins können die KI-Analyse triggern');
+      const { runMarketAnalysis } = await import('../cron/marketAnalysisCron');
+      await runMarketAnalysis(input.period);
+      return { success: true };
+    }),
+});

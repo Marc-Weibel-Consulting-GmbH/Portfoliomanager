@@ -305,18 +305,9 @@ function DashboardLayoutContent({
                         </button>
                       )}
                     </div>
-                    {/* Portfolio submenu — matches design: Übersicht + portfolio names + Neues Portfolio */}
+                    {/* Portfolio submenu — matches design: portfolio names + Neues Portfolio */}
                     {showPortfolioSubmenu && portfolioSubmenuOpen && (
                       <SidebarMenuSub>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            isActive={location === '/portfolios'}
-                            onClick={() => setLocation('/portfolios')}
-                            className="text-xs"
-                          >
-                            <span>Übersicht</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
                         {portfolios.slice(0, 6).map((portfolio: any) => (
                           <SidebarMenuSubItem key={portfolio.id}>
                             <SidebarMenuSubButton

@@ -798,3 +798,26 @@ export const signalHistory = mysqlTable("signal_history", {
 
 export type SignalHistoryRow = typeof signalHistory.$inferSelect;
 export type InsertSignalHistory = typeof signalHistory.$inferInsert;
+
+// ============================================
+// Market Analysis — KI-Tages/Wochenbericht (Dashboard)
+// ============================================
+export const marketAnalysis = mysqlTable("market_analysis", {
+  id: int("id").autoincrement().primaryKey(),
+  period: mysqlEnum("period", ["day", "week"]).notNull(),
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  // MarketTake: Gesamtbild
+  regime: varchar("regime", { length: 60 }).notNull(),
+  regimeTone: mysqlEnum("regimeTone", ["good", "warn", "bad"]).notNull().default("warn"),
+  headline: text("headline").notNull(),
+  body: text("body").notNull(),
+  scenarios: json("scenarios").notNull(), // { label, prob, tone }[]
+  // SectorNews: je Sektor eine Karte
+  sectorData: json("sectorData").notNull(), // SectorNews[]
+  // Meta
+  dataDate: varchar("dataDate", { length: 10 }).notNull(), // YYYY-MM-DD
+}, (t) => ({
+  periodDateIdx: index("ix_market_analysis_period_date").on(t.period, t.dataDate),
+}));
+export type MarketAnalysisRow = typeof marketAnalysis.$inferSelect;
+export type InsertMarketAnalysis = typeof marketAnalysis.$inferInsert;
