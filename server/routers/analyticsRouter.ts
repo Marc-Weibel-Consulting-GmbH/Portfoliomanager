@@ -9,6 +9,8 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory } from "../analytics/engine";
+import { getQualityMetrics } from "../lib/qualityMetricsService";
+import { invokeLLM } from "../_core/llm";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -164,6 +166,112 @@ export const analyticsRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: err.message ?? "Technical analysis failed",
+        });
+      }
+    }),
+
+  /**
+   * Quality Metrics: ROIC, EPS-CV, Adjusted PEG, Surprise-Rate via EODHD
+   */
+  qualityMetrics: protectedProcedure
+    .input(z.object({ ticker: z.string() }))
+    .query(async ({ input }) => {
+      try {
+        return await getQualityMetrics(input.ticker);
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Quality metrics calculation failed",
+        });
+      }
+    }),
+
+  /**
+   * KI-Interpretation der Qualitätskennzahlen
+   */
+  interpretQualityMetrics: protectedProcedure
+    .input(z.object({
+      ticker: z.string(),
+      companyName: z.string().optional(),
+      sector: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const metrics = await getQualityMetrics(input.ticker);
+        const fmt = (v: number | null, suffix = "", decimals = 1) =>
+          v !== null ? `${v.toFixed(decimals)}${suffix}` : "n/v";
+        const prompt = `Analysiere folgende Kennzahlen für ${input.companyName || input.ticker} (${input.ticker}${input.sector ? `, Sektor: ${input.sector}` : ""}):
+
+BEWERTUNG:
+- Trailing PEG: ${fmt(metrics.trailingPeg, "", 2)}
+- Forward PEG: ${fmt(metrics.forwardPeg, "", 2)}
+- Adjusted PEG (volatilitätskorrigiert): ${fmt(metrics.adjustedPeg, "", 2)}
+- KGV (trailing): ${fmt(metrics.trailingPE, "x")}
+- Forward KGV: ${fmt(metrics.forwardPE, "x")}
+- PEG-Quadrant: ${metrics.pegQuadrantLabel}
+
+QUALITÄT:
+- ROIC: ${fmt(metrics.roic, "%")}
+- ROE: ${fmt(metrics.returnOnEquity, "%")}
+- Bruttomarge: ${fmt(metrics.grossMargin, "%")}
+- Betriebsmarge: ${fmt(metrics.operatingMargin, "%")}
+- Quality-Score: ${metrics.qualityScore}/100
+
+WACHSTUM:
+- EPS-Wachstum TTM: ${fmt(metrics.epsGrowthTTM, "%")}
+- EPS-CAGR 5J: ${fmt(metrics.epsGrowth5y, "% p.a.")}
+- Umsatzwachstum TTM: ${fmt(metrics.revenueGrowthTTM, "%")}
+
+RISIKO:
+- EPS-Volatilität (CV): ${metrics.epsVolatility !== null ? metrics.epsVolatility.toFixed(2) : "n/v"}
+- EPS-Stabilitäts-Score: ${metrics.epsStabilityScore}/100
+- EPS Surprise-Rate: ${fmt(metrics.surpriseRate, "% der letzten 8Q")}
+- Net Debt/EBITDA: ${fmt(metrics.netDebtToEbitda, "x", 2)}
+
+Gib eine strukturierte Analyse zurück.`;
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: "Du bist ein erfahrener Finanzanalyst. Analysiere die Kennzahlen präzise und strukturiert auf Deutsch. Sei konkret, vermeide Floskeln. Maximal 250 Wörter.",
+            },
+            { role: "user", content: prompt as string },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "quality_interpretation",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  bewertung: { type: "string", description: "2-3 Sätze zur Bewertung (PEG, KGV, Adjusted PEG)" },
+                  qualitaet: { type: "string", description: "2-3 Sätze zur Unternehmensqualität (ROIC, Margen, ROE)" },
+                  risiko: { type: "string", description: "2-3 Sätze zum Risiko (EPS-Volatilität, Verschuldung, Stabilität)" },
+                  fazit: { type: "string", description: "1 Satz Gesamtfazit mit klarer Einschätzung" },
+                  ampel: { type: "string", enum: ["gruen", "gelb", "rot"], description: "Gesamteinschätzung" },
+                },
+                required: ["bewertung", "qualitaet", "risiko", "fazit", "ampel"],
+                additionalProperties: false,
+              },
+            },
+          } as any,
+        });
+        const rawContent = response.choices?.[0]?.message?.content;
+        const content = typeof rawContent === "string" ? rawContent : null;
+        if (!content) throw new Error("Keine Antwort vom LLM");
+        return JSON.parse(content) as {
+          bewertung: string;
+          qualitaet: string;
+          risiko: string;
+          fazit: string;
+          ampel: "gruen" | "gelb" | "rot";
+        };
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "KI-Interpretation fehlgeschlagen",
         });
       }
     }),

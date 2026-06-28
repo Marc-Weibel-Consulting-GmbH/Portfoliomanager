@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Search, TrendingUp, TrendingDown, Minus, Filter, X, ArrowRight, BarChart3, Loader2 } from "lucide-react";
+import { getPegQuadrant } from "@/components/stock/PegContextCard";
 import { useLocation, useSearch } from "wouter";
 
 // Filter dimension types persisted via the ?filter= URL param
@@ -450,6 +451,7 @@ export default function Invest() {
                       >
                         Score {sortBy === 'score' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
                       </th>
+                      <th className="text-right p-3 font-medium" title="PEG Ratio">PEG</th>
                       <th className="text-right p-3 font-medium"></th>
                     </tr>
                   </thead>
@@ -469,6 +471,15 @@ export default function Invest() {
                           {stock.currency && <span className="text-xs text-muted-foreground ml-1">{stock.currency}</span>}
                         </td>
                         <td className="p-3 text-right font-mono">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "—"}</td>
+                        <td className="p-3 text-right font-mono">
+                          {(stock as any).pegRatio ? (() => {
+                            const peg = parseFloat((stock as any).pegRatio);
+                            const q = getPegQuadrant(peg, null);
+                            const color = q === 'value_growth' ? 'text-emerald-400' : q === 'growth_premium' ? 'text-yellow-400' : q === 'value_slow' ? 'text-blue-400' : q === 'expensive_slow' ? 'text-red-400' : 'text-gray-400';
+                            const label = q === 'value_growth' ? 'Value + Wachstum' : q === 'growth_premium' ? 'Wachstumsprämie' : q === 'value_slow' ? 'Value / Langsam' : 'Teuer / Langsam';
+                            return <span className={color} title={label}>{peg.toFixed(2)}</span>;
+                          })() : "—"}
+                        </td>
                         <td className="p-3 text-right font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(1)}%` : "—"}</td>
                         <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
                         <td className="p-3 text-center">

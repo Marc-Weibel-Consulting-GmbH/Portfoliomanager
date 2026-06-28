@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calculator, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
+import PegContextCard from "./PegContextCard";
 
 interface Props {
   ticker: string;
@@ -179,6 +180,13 @@ export default function ValuationTab({ ticker, stock }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {/* PEG-Analyse & Qualitätsbewertung */}
+      <PegContextCard
+        ticker={ticker}
+        companyName={stock?.name || stock?.shortName}
+        sector={stock?.sector}
+      />
 
       {/* Loading */}
       {isFetching && (

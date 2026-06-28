@@ -125,11 +125,13 @@ export async function snapshotSignalsForPortfolio(): Promise<void> {
       .from(stocksTable)
       .limit(100);
 
+    // Yahoo Finance Instanz einmalig erstellen (v3 API)
+    const YahooFinanceClass = (await import('yahoo-finance2')).default;
+    const yahooFinance = new (YahooFinanceClass as any)();
+
     let saved = 0;
     for (const stock of allStocks) {
       try {
-        // Preise via Yahoo Finance laden (gleiche Logik wie getRegimeSignal)
-        const yahooFinance = (await import('yahoo-finance2')).default;
         const normTicker = stock.ticker.replace('.SW', '.SW').replace('.US', '');
         const chartResult = await (yahooFinance as any).chart(normTicker, {
           period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],

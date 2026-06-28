@@ -1379,3 +1379,12 @@
 - [x] breakoutSignalEngine.ts — Donchian Channel(20), ATR-Breakout, Momentum-Beschleunigung, BB-Squeeze, 52W-Hoch/Tief
 - [x] modelSelector.ts — Walk-Forward (3 Folds, IS=120T, OOS=30T), Regime-Priors, Gewichtungsformel aus Blueprint
 - [x] signalOrchestrator.ts — Alle 4 Engines integriert, modelSelector als Entscheidungsinstanz
+
+## PEG-Redesign (abgeschlossen)
+- [x] qualityMetricsService.ts: ROIC, EPS-CV, Adjusted PEG, Surprise-Rate (EODHD)
+- [x] analyticsRouter.ts: getQualityMetrics + interpretQualityMetrics (KI-Interpretation)
+- [x] PegContextCard.tsx: Quadrant-Visualisierung, Adjusted PEG, EPS-CV, ROIC, KI-Button
+- [x] ValuationTab.tsx: PegContextCard integriert
+- [x] StockDetail.tsx: PEG-Badge mit Quadrant-Farbe
+- [x] Invest.tsx: PEG-Spalte mit Quadrant-Farbe
+- [x] signalEvaluationCron.ts: Yahoo Finance v3 Import-Fix

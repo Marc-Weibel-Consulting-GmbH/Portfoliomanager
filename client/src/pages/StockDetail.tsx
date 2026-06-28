@@ -17,6 +17,7 @@ import ValuationTab from "@/components/stock/ValuationTab";
 import PredictionTab from "@/components/stock/PredictionTab";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
+import { PegBadge } from "@/components/stock/PegContextCard";
 import {
   ComposedChart,
   Line,
@@ -759,11 +760,10 @@ export default function StockDetail() {
                     value={stock.peRatio || "-"} 
                     rating={getRating("peRatio", stock.peRatio)}
                   />
-                  <MetricCard 
-                    label="PEG Ratio" 
-                    value={stock.pegRatio ? parseFloat(stock.pegRatio).toFixed(2) : "-"} 
-                    rating={getRating("pegRatio", stock.pegRatio)}
-                  />
+                  <div className="bg-[#1a1f2e] rounded-lg p-3 border border-white/10">
+                    <div className="text-xs text-gray-400 mb-1">PEG Ratio</div>
+                    <PegBadge ticker={stock.ticker} />
+                  </div>
                   <MetricCard 
                     label="Dividendenrendite" 
                     value={stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(2) : "-"} 
