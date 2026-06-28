@@ -553,4 +553,31 @@ export const portfolioTransactionsRouter = router({
       
       return results;
     }),
+
+  bulkDelete: protectedProcedure
+    .input((val: unknown) => {
+      if (typeof val === "object" && val !== null && "transactionIds" in val && Array.isArray((val as any).transactionIds)) {
+        return { transactionIds: (val as any).transactionIds as number[] };
+      }
+      throw new Error("Invalid transaction IDs");
+    })
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        });
+      }
+      if (input.transactionIds.length === 0) return { deleted: 0 };
+      const { getDb } = await import("../db");
+      const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
+      const { inArray } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      // Delete associated realized gains first
+      await db.delete(realizedGains).where(inArray(realizedGains.transactionId, input.transactionIds));
+      // Delete the transactions
+      await db.delete(portfolioTransactions).where(inArray(portfolioTransactions.id, input.transactionIds));
+      return { deleted: input.transactionIds.length };
+    }),
 });

@@ -121,10 +121,22 @@ export default function OptimierenTab({
     ? { x: +(result.currentPortfolio.volatility * 100).toFixed(2), y: +(result.currentPortfolio.expectedReturn * 100).toFixed(2) }
     : null;
 
-  // KI-Vorschläge: grösste Abweichungen optimal vs. aktuell
+  // KI-Vorschläge: grösste Abweichungen optimal vs. aktuell (Diversifikationsregeln erzwingen)
   const suggestions = useMemo(() => {
     if (!result?.weights) return [];
-    const optimal = result.weights as Record<string, number>;
+    const rawOptimal = result.weights as Record<string, number>;
+    // Enforce: max 10%, min 1% per position
+    const tickerList = Object.keys(rawOptimal);
+    const capped: Record<string, number> = {};
+    for (const t of tickerList) {
+      capped[t] = Math.min(0.10, Math.max(0.01, rawOptimal[t]));
+    }
+    // Renormalize to sum to 1
+    const totalCapped = Object.values(capped).reduce((a, b) => a + b, 0);
+    const optimal: Record<string, number> = {};
+    for (const t of tickerList) {
+      optimal[t] = totalCapped > 0 ? capped[t] / totalCapped : 1 / tickerList.length;
+    }
     const all = new Set([...Object.keys(optimal), ...Object.keys(currentWeights)]);
     return Array.from(all)
       .map((ticker) => {
@@ -275,8 +287,14 @@ export default function OptimierenTab({
               </div>
               <p className="text-xs text-gray-500 mb-3">Rendite vs. Risiko · Aktuell vs. Optimum</p>
               {frontierData.length < 2 ? (
-                <div className="flex items-center justify-center h-52 text-gray-500 text-sm">
-                  <span>Zu wenige Datenpunkte für Effizienzgrenze</span>
+                <div className="flex flex-col items-center justify-center h-52 gap-3 text-center">
+                  <AlertTriangle className="w-8 h-8 text-amber-500/50" />
+                  <div>
+                    <p className="text-gray-400 text-sm font-medium">Effizienzgrenze nicht verfügbar</p>
+                    <p className="text-gray-600 text-xs mt-1 max-w-48">
+                      Zu wenige historische Preisdaten. Mindestens 60 Handelstage pro Titel erforderlich.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <>

@@ -42,6 +42,7 @@ import { marketRegimeRouter } from "./routers/marketRegimeRouter";
 import { copilotRouter } from "./routers/copilotRouter";
 import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
+import { userSettingsRouter } from "./routers/userSettingsRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -232,6 +233,7 @@ export const appRouter = router({
   marketRegime: marketRegimeRouter,
   copilot: copilotRouter,
   pdfImport: pdfImportRouter,
+  userSettings: userSettingsRouter,
 
   // TradingView Analytics Bridge (Railway microservice)
   tradingview: tradingviewRouter,

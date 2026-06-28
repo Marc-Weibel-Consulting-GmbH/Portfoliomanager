@@ -386,6 +386,16 @@ export default function PortfolioDetailsPage() {
   const [selectedBenchmark, setSelectedBenchmark] = useState("SPY");
   // Performance view: stocks-only vs. total portfolio incl. cash drag.
   const [includeCash, setIncludeCash] = useState(false);
+  // Bulk delete state for transactions tab (must be at top level, not inside JSX)
+  const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
+  const bulkDeleteMutation = trpc.portfolioTransactions.bulkDelete.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${data.deleted} Transaktion${data.deleted === 1 ? '' : 'en'} gelöscht`);
+      setSelectedTxIds(new Set());
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+    },
+    onError: () => toast.error('Fehler beim Löschen'),
+  });
   
   const benchmarkOptions = [
     { value: "SPY", label: "S&P 500" },
@@ -1122,19 +1132,32 @@ export default function PortfolioDetailsPage() {
                       toast.success('Export erstellt');
                     };
 
+                    const allTxIds = filteredTx.map((t: any) => t.id as number);
+                    const allSelected = allTxIds.length > 0 && allTxIds.every((id: number) => selectedTxIds.has(id));
+                    const toggleAll = () => { if (allSelected) setSelectedTxIds(new Set()); else setSelectedTxIds(new Set(allTxIds)); };
+                    const toggleOne = (id: number) => { const next = new Set(selectedTxIds); if (next.has(id)) next.delete(id); else next.add(id); setSelectedTxIds(next); };
                     return (
                       <div className="bg-[#0f1420] border border-white/10 rounded-lg">
                         <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10">
                           {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden'], ['realisierte', 'Realisierte Gewinne']].map(([key, label]) => (
                             <button
                               key={key}
-                              onClick={() => setTxFilter(key)}
+                              onClick={() => { setTxFilter(key); setSelectedTxIds(new Set()); }}
                               className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
                                 txFilter === key ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium' : 'text-gray-400 hover:text-white hover:bg-white/5'
                               }`}
                             >{label}</button>
                           ))}
                           <span className="ml-auto text-xs text-gray-500">{isRealized ? realizedGains.length : filteredTx.length} Einträge</span>
+                          {!isDemo && !isRealized && selectedTxIds.size > 0 && (
+                            <button
+                              onClick={() => { if (confirm(`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} wirklich löschen?`)) { bulkDeleteMutation.mutate({ transactionIds: Array.from(selectedTxIds) }); } }}
+                              disabled={bulkDeleteMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-md bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-40"
+                            >
+                              <Trash2 className="h-3 w-3" /> {selectedTxIds.size} löschen
+                            </button>
+                          )}
                           <button
                             onClick={handleExport}
                             disabled={isRealized ? realizedGains.length === 0 : filteredTx.length === 0}
@@ -1156,6 +1179,11 @@ export default function PortfolioDetailsPage() {
                             <table className="w-full">
                               <thead>
                                 <tr className="border-b border-white/10">
+                                  {!isDemo && (
+                                    <th className="px-3 py-3 w-8">
+                                      <input type="checkbox" checked={allSelected} onChange={toggleAll} className="accent-[#00CFC1] cursor-pointer" />
+                                    </th>
+                                  )}
                                   <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Datum</th>
                                   <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Typ</th>
                                   <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Ticker</th>
@@ -1172,7 +1200,12 @@ export default function PortfolioDetailsPage() {
                                   const isSell = txType === 'SELL' || txType === 'sell';
                                   const isDiv = txType === 'dividend';
                                   return (
-                                    <tr key={t.id} className="border-b border-white/5 hover:bg-white/[0.03]">
+                                    <tr key={t.id} className={`border-b border-white/5 hover:bg-white/[0.03] ${selectedTxIds.has(t.id) ? 'bg-red-500/5' : ''}`}>
+                                      {!isDemo && (
+                                        <td className="px-3 py-3">
+                                          <input type="checkbox" checked={selectedTxIds.has(t.id)} onChange={() => toggleOne(t.id)} className="accent-[#00CFC1] cursor-pointer" />
+                                        </td>
+                                      )}
                                       <td className="px-5 py-3 text-sm text-gray-400">{new Date(t.date || t.transactionDate).toLocaleDateString('de-CH')}</td>
                                       <td className="px-3 py-3">
                                         <span className={`text-xs font-medium px-2 py-0.5 rounded ${

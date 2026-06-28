@@ -694,11 +694,19 @@ export const walkForwardResults = mysqlTable("walkForwardResults", {
 export type WalkForwardResult = typeof walkForwardResults.$inferSelect;
 export type InsertWalkForwardResult = typeof walkForwardResults.$inferInsert;
 
-// ============ User Settings (LPPL threshold, etc.) ============
+// ============ User Settings (LPPL threshold, broker fees, etc.) ============
 export const userSettings = mysqlTable("userSettings", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique(),
   lpplThreshold: int("lpplThreshold").notNull().default(70), // 50-95, default 70%
+  // Broker fee structure
+  brokerName: varchar("brokerName", { length: 100 }),
+  feePerTrade: decimal("feePerTrade", { precision: 10, scale: 2 }),
+  feePercent: decimal("feePercent", { precision: 6, scale: 4 }),
+  minFeePerTrade: decimal("minFeePerTrade", { precision: 10, scale: 2 }),
+  maxFeePerTrade: decimal("maxFeePerTrade", { precision: 10, scale: 2 }),
+  stampDutyPercent: decimal("stampDutyPercent", { precision: 6, scale: 4 }),
+  currencyConversionFee: decimal("currencyConversionFee", { precision: 6, scale: 4 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({

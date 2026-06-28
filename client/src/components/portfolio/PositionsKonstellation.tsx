@@ -107,15 +107,31 @@ function KonstChart({
   const padL = 56, padR = 20, padT = 16, padB = 44;
   const iw = W - padL - padR, ih = H - padT - padB;
 
-  // Dynamic domain so real PE/growth values stay in view (mock used 0..30 / 8..40).
+  // Dynamic domain so real PE/growth values stay in view.
+  // We cap the domain at reasonable limits to avoid extreme outliers distorting the chart.
+  // Outliers are detected and shown with arrows pointing to their true position.
   const gs = positions.map((p) => p.g);
   const pes = positions.map((p) => p.pe);
-  const xMax = Math.max(30, Math.ceil(Math.max(1, ...gs) / 5) * 5);
-  const yMin = Math.min(8, Math.floor(Math.min(99, ...pes) / 5) * 5);
-  const yMax = Math.max(40, Math.ceil(Math.max(1, ...pes) / 5) * 5);
+  // Use 90th percentile to avoid outliers dominating the scale
+  const sortedGs = [...gs].filter(Number.isFinite).sort((a, b) => a - b);
+  const sortedPes = [...pes].filter(Number.isFinite).sort((a, b) => a - b);
+  const p90g = sortedGs[Math.floor(sortedGs.length * 0.9)] ?? 30;
+  const p90pe = sortedPes[Math.floor(sortedPes.length * 0.9)] ?? 40;
+  const p10pe = sortedPes[Math.floor(sortedPes.length * 0.1)] ?? 8;
+  const xMax = Math.max(30, Math.ceil(Math.max(1, p90g) / 5) * 5 + 5);
+  const yMin = Math.min(8, Math.floor(Math.min(99, p10pe) / 5) * 5);
+  const yMax = Math.max(40, Math.ceil(Math.max(1, p90pe) / 5) * 5 + 5);
   const X_DOM = [0, xMax], Y_DOM = [yMin, yMax];
   const sx = (v: number) => padL + ((v - X_DOM[0]) / (X_DOM[1] - X_DOM[0])) * iw;
   const sy = (v: number) => padT + ih - ((v - Y_DOM[0]) / (Y_DOM[1] - Y_DOM[0])) * ih;
+  
+  // Detect outliers: positions outside the visible domain
+  const isOutlierX = (v: number) => v < X_DOM[0] || v > X_DOM[1];
+  const isOutlierY = (v: number) => v < Y_DOM[0] || v > Y_DOM[1];
+  const isOutlier = (p: KPos) => isOutlierX(p.g) || isOutlierY(p.pe);
+  // Clamp to boundary for rendering, but mark as outlier
+  const sxC = (v: number) => sx(Math.max(X_DOM[0], Math.min(X_DOM[1], v)));
+  const syC = (v: number) => sy(Math.max(Y_DOM[0], Math.min(Y_DOM[1], v)));
 
   const maxR = Math.max(1, ...positions.map((d) => Math.sqrt(d.mcap)));
   const rOf = (m: number) => 13 + (Math.sqrt(m) / maxR) * 30;
@@ -140,6 +156,11 @@ function KonstChart({
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#fbbf24" opacity="0.9" />
+        </marker>
+      </defs>
       {/* quadrant tints */}
       <rect x={padL} y={padT} width={Math.max(0, qx - padL)} height={Math.max(0, qy - padT)} fill="#f87171" opacity="0.045" />
       <rect x={qx} y={qy} width={Math.max(0, padL + iw - qx)} height={Math.max(0, padT + ih - qy)} fill="#16a34a" opacity="0.07" />
@@ -168,32 +189,58 @@ function KonstChart({
 
       {/* bubbles */}
       {positions.map((d) => {
-        const cx = sx(Math.max(X_DOM[0], Math.min(X_DOM[1], d.g)));
-        const cy = sy(Math.max(Y_DOM[0], Math.min(Y_DOM[1], d.pe)));
+        const cx = sxC(d.g);
+        const cy = syC(d.pe);
         const r = rOf(d.mcap) * (d.flag === "reduce" ? 0.6 : 1);
         const on = hov?.ticker === d.ticker;
         const dim = d.flag === "out" || d.flag === "reduce";
         const isUp = d.flag === "up";
+        const outlier = isOutlier(d);
+        // Arrow direction for outliers
+        const arrowDx = d.g > X_DOM[1] ? 1 : d.g < X_DOM[0] ? -1 : 0;
+        const arrowDy = d.pe > Y_DOM[1] ? -1 : d.pe < Y_DOM[0] ? 1 : 0;
         return (
           <g key={d.ticker} style={{ cursor: "pointer" }}
              onMouseEnter={() => onHover(d)} onMouseLeave={() => onHover(null)}>
+            {/* Outlier: dashed border + arrow indicating true direction */}
+            {outlier && (
+              <>
+                <circle cx={cx} cy={cy} r={r + 4} fill="none" stroke={T.warn} strokeWidth="1.5" strokeDasharray="4 3" opacity="0.7" />
+                {/* Arrow pointing towards true position */}
+                <line
+                  x1={cx + arrowDx * (r + 6)}
+                  y1={cy + arrowDy * (r + 6)}
+                  x2={cx + arrowDx * (r + 20)}
+                  y2={cy + arrowDy * (r + 20)}
+                  stroke={T.warn} strokeWidth="2" markerEnd="url(#arrowhead)" opacity="0.9"
+                />
+                <text
+                  x={cx + arrowDx * (r + 26)}
+                  y={cy + arrowDy * (r + 26) + 4}
+                  textAnchor={arrowDx > 0 ? "start" : arrowDx < 0 ? "end" : "middle"}
+                  fill={T.warn} fontSize="9" fontFamily={T.mono} opacity="0.85"
+                >
+                  {d.g > X_DOM[1] ? `g=${d.g.toFixed(0)}%` : d.pe > Y_DOM[1] ? `PE=${d.pe.toFixed(0)}` : d.pe < Y_DOM[0] ? `PE=${d.pe.toFixed(0)}` : ""}
+                </text>
+              </>
+            )}
             <circle cx={cx} cy={cy} r={r} fill={scoreColor(d.score)}
-              opacity={dim ? 0.3 : on ? 0.97 : 0.82}
-              stroke={isUp ? T.accent : d.flag === "out" ? T.bad : "rgba(0,0,0,0.35)"}
-              strokeWidth={isUp ? 2.4 : on ? 2 : 1}
-              strokeDasharray={d.flag === "out" ? "3 3" : "0"} />
+              opacity={outlier ? 0.65 : dim ? 0.3 : on ? 0.97 : 0.82}
+              stroke={outlier ? T.warn : isUp ? T.accent : d.flag === "out" ? T.bad : "rgba(0,0,0,0.35)"}
+              strokeWidth={outlier ? 2 : isUp ? 2.4 : on ? 2 : 1}
+              strokeDasharray={outlier ? "4 3" : d.flag === "out" ? "3 3" : "0"} />
             <text x={cx} y={cy + 5} textAnchor="middle" fill="#0a0f1a" fontSize={r > 22 ? 15 : 12} fontWeight="800" fontFamily={T.mono} opacity={dim ? 0.55 : 1}>{d.score}</text>
-            <text x={cx} y={cy + r + 13} textAnchor="middle" fill={isUp ? T.accent : T.textMuted} fontSize="10" fontWeight={isUp ? 700 : 600}>{d.ticker.split(".")[0]}</text>
-            {isUp && <g transform={`translate(${cx + r - 4}, ${cy - r - 2})`}><circle r="8" fill={T.accent} /><text y="4" textAnchor="middle" fill="#0a0f1a" fontSize="12" fontWeight="800">↑</text></g>}
-            {d.flag === "out" && <g transform={`translate(${cx + r - 4}, ${cy - r - 2})`}><circle r="8" fill={T.bad} /><text y="4.5" textAnchor="middle" fill="#0a0f1a" fontSize="13" fontWeight="800">×</text></g>}
-            {d.flag === "reduce" && <g transform={`translate(${cx + r - 2}, ${cy - r})`}><circle r="8" fill={T.warn} /><text y="4.5" textAnchor="middle" fill="#0a0f1a" fontSize="13" fontWeight="800">−</text></g>}
+            <text x={cx} y={cy + r + 13} textAnchor="middle" fill={outlier ? T.warn : isUp ? T.accent : T.textMuted} fontSize="10" fontWeight={isUp || outlier ? 700 : 600}>{d.ticker.split(".")[0]}</text>
+            {isUp && !outlier && <g transform={`translate(${cx + r - 4}, ${cy - r - 2})`}><circle r="8" fill={T.accent} /><text y="4" textAnchor="middle" fill="#0a0f1a" fontSize="12" fontWeight="800">↑</text></g>}
+            {d.flag === "out" && !outlier && <g transform={`translate(${cx + r - 4}, ${cy - r - 2})`}><circle r="8" fill={T.bad} /><text y="4.5" textAnchor="middle" fill="#0a0f1a" fontSize="13" fontWeight="800">×</text></g>}
+            {d.flag === "reduce" && !outlier && <g transform={`translate(${cx + r - 2}, ${cy - r})`}><circle r="8" fill={T.warn} /><text y="4.5" textAnchor="middle" fill="#0a0f1a" fontSize="13" fontWeight="800">−</text></g>}
           </g>
         );
       })}
 
       {/* tooltip */}
       {hov && (() => {
-        const cx = sx(Math.max(X_DOM[0], Math.min(X_DOM[1], hov.g)));
+        const cx = sxC(hov.g);
         const cy = sy(Math.max(Y_DOM[0], Math.min(Y_DOM[1], hov.pe)));
         const tw = 172, th = 92;
         const tx = Math.min(W - tw - 4, cx + 18);
