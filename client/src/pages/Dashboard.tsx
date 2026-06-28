@@ -24,13 +24,13 @@ function TickerBar() {
 
   const items = (indicesData && 'indices' in indicesData ? indicesData.indices : Array.isArray(indicesData) ? indicesData : []) as any[];
   return (
-    <div className="bg-[#0d1220] border border-[#1e2840] rounded-xl px-4 py-3 flex items-center gap-6 overflow-x-auto">
+    <div className="bg-[#0d1220] border border-[#1e2840] rounded-xl px-4 py-3 flex items-center justify-between">
       {items.map((idx: any) => {
         const change = idx.dayChange ?? idx.changePercent ?? 0;
         const isPositive = change >= 0;
         const price = idx.value ?? idx.price ?? 0;
         return (
-          <div key={idx.label} className="flex items-center gap-2 min-w-[140px]">
+          <div key={idx.label} className="flex items-center gap-2">
             <div>
               <div className="text-[10px] text-gray-400 uppercase tracking-wide">{idx.label}</div>
               <div className="text-white font-bold text-sm">
@@ -71,17 +71,17 @@ function QuickActions() {
   const [, navigate] = useLocation();
 
   const actions = [
-    { label: "Portfolio erstellen", icon: Plus, href: "/portfolios/create", primary: true },
+    { label: "Portfolio erstellen", icon: Plus, href: "/portfolio-builder/new", primary: true },
     { label: "Meine Portfolios", icon: FolderOpen, href: "/portfolios" },
-    { label: "Aktienempfehlungen", icon: Target, href: "/empfehlungen" },
-    { label: "Aktiensuche", icon: Search, href: "/aktiensuche" },
-    { label: "Portfolio optimieren", icon: Sparkles, href: "/portfolios" },
+    { label: "Aktienempfehlungen", icon: Target, href: "/aktien" },
+    { label: "Aktiensuche", icon: Search, href: "/aktien" },
+    { label: "Portfolio optimieren", icon: Sparkles, href: "/copilot" },
     { label: "Copilot fragen", icon: MessageCircle, href: "/copilot" },
-    { label: "Preisalarm setzen", icon: Bell, href: "/preisalarme" },
+    { label: "Preisalarm setzen", icon: Bell, href: "/price-alerts" },
   ];
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+    <div className="flex items-center gap-2 flex-wrap">
       {actions.map((a) => (
         <Button
           key={a.label}
@@ -137,7 +137,7 @@ function PortfolioCompact() {
         {/* Day Change + YTD */}
         <div className="flex items-center gap-2 text-xs mb-4">
           <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>
-            {isPositiveDay ? '+' : ''}CHF {Math.abs(dayChange).toLocaleString('de-CH', { maximumFractionDigits: 0 })} {new Date().getDay() === 0 || new Date().getDay() === 6 ? 'Fr' : 'heute'}
+            {isPositiveDay ? '+' : ''}CHF {Math.abs(dayChange).toLocaleString('de-CH', { maximumFractionDigits: 0 })}
           </span>
           <span className="text-gray-500">·</span>
           <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>
@@ -172,7 +172,7 @@ function PortfolioCompact() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-semibold text-white">
-                    CHF {(p.investmentAmount ?? 0).toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+                    CHF {(p.currentValue ?? p.investmentAmount ?? 0).toLocaleString('de-CH', { maximumFractionDigits: 0 })}
                   </div>
                   {perf !== null && perf !== undefined && perf !== 0 ? (
                     <div className={`text-[10px] ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>

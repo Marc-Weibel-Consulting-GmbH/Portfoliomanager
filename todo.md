@@ -1449,7 +1449,7 @@
 ## Dashboard-Korrekturen gemäss Mockup (28.06.2026)
 - [x] Schnellbuttons im Header: Portfolio erstellen, Meine Portfolios, Aktienempfehlungen, Aktiensuche, Portfolio optimieren, Copilot fragen, Preisalarm setzen
 - [x] KI-Analyse Szenarien NEBENEINANDER statt untereinander (Rebound-Rally 40%, Konsolidierung 35%, Weiterer Selloff 25%)
-- [ ] Tagesperformance-Berechnung korrigieren (-9% kann nicht stimmen)
+- [x] Tagesperformance-Berechnung korrigieren (-9% kann nicht stimmen) → jetzt +CHF 7'622 · +0.6%
 - [x] Sektoren: Nur die wichtigsten (5-7) basierend auf aktueller Lage, NICHT alle
 - [x] Sektoren: Detaillierte Beschreibung (4-5 Sätze) pro Sektor
 - [x] Sektoren: 3 wichtigste Aktientitel mit Performance pro Sektor
@@ -1461,3 +1461,9 @@
 - [x] Backend: getIndices in marketRegimeRouter.ts gibt jetzt series-Daten (letzte 20 Datenpunkte) pro Index zurück
 - [x] Frontend: SVG-Sparklines in TickerBar rendern echte Kursdaten (nicht mehr Platzhalter-Balken)
 - [x] Verifiziert: 6 Polyline-SVGs im DOM vorhanden (4 rot, 2 grün), API liefert 20 Datenpunkte pro Index
+
+## Dashboard Bugs (28.06.2026 - User-Report)
+- [x] BUG: TickerBar zu breit - horizontales Scrollen nötig, muss ohne Scroll in volle Breite passen
+- [x] BUG: Tagesperformance komplett falsch (-8.9% / CHF 123'900 stimmt nicht) → NaN-Guard + originalPrice-Fix
+- [x] BUG: Portfolios zeigen Investitionssumme statt aktuellem Marktwert → HELN.SW NaN-Bug gefixt
+- [x] BUG: Schnellbuttons (Quick Actions) funktionieren alle nicht → Routen korrigiert, alle 7 navigieren

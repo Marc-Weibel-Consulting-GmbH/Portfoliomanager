@@ -55,6 +55,7 @@ export const dashboardRouter = router({
           if (!stockData) continue;
           
           const currentPrice = safeParseFloat(stockData.currentPrice);
+          if (!currentPrice || isNaN(currentPrice)) continue; // Skip stocks with invalid prices
           const currency = stockData.currency || 'CHF';
           const weight = parseFloat(stock.weight || '0') / 100;
           
@@ -181,7 +182,8 @@ export const dashboardRouter = router({
     let totalDividendsCHF = 0;
     let totalInvestedCHF = 0;
     
-    // Helper: Calculate portfolio value at YTD start date using historical prices
+    // Helper: Calculate portfolio value at a specific date using historical prices
+    // Uses FIXED shares (calculated from current price) to ensure consistent comparison
     const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string, pricesMap?: Map<string, number>): Promise<number> => {
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
@@ -191,12 +193,13 @@ export const dashboardRouter = router({
         let totalValueAtDate = 0;
         const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
         const usePricesMap = pricesMap || ytdPricesMap;
+        const todayForFx = new Date().toISOString().split('T')[0];
         
         for (const stock of stocks) {
           const ticker = stock.ticker;
           if (!ticker) continue;
           
-          const stockData = stocksMap.get(ticker);
+          const stockData = stocksMap.get(ticker) as any;
           if (!stockData) continue;
           
           const currency = stockData.currency || 'CHF';
@@ -206,12 +209,13 @@ export const dashboardRouter = router({
           const historicalPrice = usePricesMap.get(ticker);
           if (!historicalPrice) continue;
           
+          // Calculate shares using CURRENT price (same as calculatePortfolioValueFromData)
+          // This ensures dayChange reflects actual price movement, not share count differences
           let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
-            // Calculate shares from weight and investment amount
-            const allocationCHF = investmentAmount * weight;
-            const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
-            shares = (priceCHF > 0 ? allocationCHF / priceCHF : 0) || 0;
+            const currentPrice = parseFloat(stockData.currentPrice || '0');
+            const currentPriceCHF = await convertToCHF(currentPrice, currency, todayForFx);
+            shares = (currentPriceCHF > 0 ? (investmentAmount * weight) / currentPriceCHF : 0) || 0;
           }
           
           const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
@@ -2463,25 +2467,67 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
 
   /** Portfolio-Kompakt-Übersicht für Dashboard-Header */
   getPortfolioCompact: protectedProcedure.query(async ({ ctx }) => {
-    const { getSavedPortfolios } = await import('../db');
+    const { getSavedPortfolios, getStockByTicker } = await import('../db');
+    const { convertToCHF } = await import('../fxHelper');
     const portfolios = await getSavedPortfolios(ctx.user.id);
-    return portfolios.map(p => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    const results = await Promise.all(portfolios.map(async (p) => {
       let numberOfPositions = 0;
+      let currentValue = 0;
       try {
         const data = JSON.parse(p.portfolioData || '{}');
         const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
         numberOfPositions = stocks.length;
-      } catch {}
+        const investmentAmount = parseFloat(p.investmentAmount || '0');
+        
+        for (const stock of stocks) {
+          const ticker = stock.ticker;
+          if (!ticker) continue;
+          const stockData = await getStockByTicker(ticker);
+          if (!stockData) {
+            console.warn(`[getPortfolioCompact] ${p.name}: ticker ${ticker} not found in stocks table`);
+            continue;
+          }
+          const currentLivePrice = parseFloat(stockData.currentPrice || '0');
+          if (!currentLivePrice || isNaN(currentLivePrice)) continue; // Skip stocks with invalid prices
+          const currency = stockData.currency || 'CHF';
+          const weight = parseFloat(stock.weight || '0') / 100;
+          let shares = parseFloat(stock.shares || '0') || 0;
+          if (shares === 0 && investmentAmount > 0 && weight > 0) {
+            // Use ORIGINAL price from portfolioData for share calculation (purchase price)
+            const originalPrice = parseFloat(stock.currentPrice || stock.purchasePrice || '0');
+            const originalPriceCHF = originalPrice > 0 ? await convertToCHF(originalPrice, stock.currency || currency, todayStr) : 0;
+            if (originalPriceCHF > 0) {
+              shares = (investmentAmount * weight) / originalPriceCHF;
+            } else {
+              // Fallback: use current price (will result in value = investmentAmount * weight)
+              const priceCHF = await convertToCHF(currentLivePrice, currency, todayStr);
+              shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
+            }
+          }
+          // Value shares at CURRENT live price
+          const priceCHF = await convertToCHF(currentLivePrice, currency, todayStr);
+          currentValue += shares * priceCHF;
+
+        }
+        const cashBalance = parseFloat(p.cashBalance || '0') || 0;
+        currentValue += cashBalance;
+      } catch (err: any) {
+        console.error(`[getPortfolioCompact] Error for ${p.name}:`, err?.message || err);
+      }
       return {
         id: p.id,
         name: p.name,
         isLive: p.isLive,
         investmentAmount: parseFloat(p.investmentAmount || '0'),
+        currentValue: currentValue > 0 ? currentValue : parseFloat(p.investmentAmount || '0'),
         livePerformance: p.livePerformance ? parseFloat(p.livePerformance) : null,
         numberOfPositions,
         benchmark: p.benchmark,
       };
-    });
+    }));
+    return results;
   }),
 
   /** KI-Insight-Aktion ausführen: Sektoren überprüfen / Top-Positionen analysieren */
