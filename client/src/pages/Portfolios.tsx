@@ -27,6 +27,7 @@ import {
   Percent,
   ArrowUpRight,
   ArrowDownRight,
+  Scale,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -40,9 +41,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useMemo } from "react";
-import { Bell, AlertTriangle, BarChart3 as BarChart3Icon, Target, MinusCircle } from "lucide-react";
+import { Bell, AlertTriangle, BarChart3 as BarChart3Icon, Target, MinusCircle, Activity, Shield, Info, X, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { CopilotInsights } from "@/components/dashboard/CopilotInsights";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("de-CH", {
@@ -108,6 +122,15 @@ export default function Portfolios() {
   
   // Fetch aggregated metrics for live portfolios only
   const { data: metrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
+  
+  // Fetch risk metrics (Sharpe, Bubble) for KPI tooltips
+  const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: false });
+  const { data: bubbleData } = trpc.dashboard.getBubbleIndicator.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: false });
+  
+  // State for action popup dialogs
+  const [actionDialog, setActionDialog] = useState<{ open: boolean; title: string; body: string; insightId: string }>({ open: false, title: '', body: '', insightId: '' });
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionResult, setActionResult] = useState<string | null>(null);
   
   // Fetch multi-period performance data for all portfolios (V2 uses same logic as detail page)
   const { data: multiPeriodData } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
@@ -274,88 +297,162 @@ export default function Portfolios() {
 
         {/* Compact Statistics Header */}
         <div className="bg-gradient-to-r from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-3">
-          <div className="grid grid-cols-6 gap-4">
+          <div className="grid grid-cols-4 xl:grid-cols-8 gap-3">
             {/* Portfolios Count */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
-                <Briefcase className="h-4 w-4 text-[#00CFC1]" />
+              <div className="w-7 h-7 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
+                <Briefcase className="h-3.5 w-3.5 text-[#00CFC1]" />
               </div>
               <div>
-                <div className="text-xs text-gray-400">Portfolios</div>
-                <div className="text-lg font-bold text-white">{portfolios.length}</div>
-                <div className="text-[10px] text-gray-500">{liveCount} Live, {testCount} Test</div>
+                <div className="text-[10px] text-gray-400">Portfolios</div>
+                <div className="text-base font-bold text-white">{portfolios.length}</div>
+                <div className="text-[9px] text-gray-500">{liveCount} Live, {testCount} Test</div>
               </div>
             </div>
 
             {/* Total Value */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
-                <DollarSign className="h-4 w-4 text-[#00CFC1]" />
+              <div className="w-7 h-7 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
+                <DollarSign className="h-3.5 w-3.5 text-[#00CFC1]" />
               </div>
               <div>
-                <div className="text-xs text-gray-400">Gesamtwert</div>
-                <div className="text-lg font-bold text-white">{formatCurrency(metrics?.totalValue || 0)}</div>
-                <div className="text-[10px] text-gray-500">Live Portfolios</div>
+                <div className="text-[10px] text-gray-400">Gesamtwert</div>
+                <div className="text-base font-bold text-white">{formatCurrency(metrics?.totalValue || 0)}</div>
+                <div className="text-[9px] text-gray-500">Alle Portfolios</div>
+              </div>
+            </div>
+
+            {/* Tagesveränderung */}
+            <div className="flex items-center gap-2">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                ((metrics as any)?.dayChange || 0) >= 0 ? 'bg-[#00CFC1]/20' : 'bg-red-500/20'
+              }`}>
+                <Activity className={`h-3.5 w-3.5 ${
+                  ((metrics as any)?.dayChange || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
+                }`} />
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-400">Tagesveränderung</div>
+                <div className={`text-base font-bold ${
+                  ((metrics as any)?.dayChange || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
+                }`}>
+                  {((metrics as any)?.dayChange || 0) >= 0 ? '+' : ''}{formatCurrency((metrics as any)?.dayChange || 0)}
+                </div>
+                <div className={`text-[9px] ${
+                  ((metrics as any)?.dayChangePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
+                }`}>
+                  {((metrics as any)?.dayChangePercent || 0) >= 0 ? '+' : ''}{((metrics as any)?.dayChangePercent || 0).toFixed(2)}%
+                </div>
               </div>
             </div>
 
             {/* YTD Performance */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
-                <BarChart3 className="h-4 w-4 text-[#00CFC1]" />
+              <div className="w-7 h-7 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
+                <BarChart3 className="h-3.5 w-3.5 text-[#00CFC1]" />
               </div>
               <div>
-                <div className="text-xs text-gray-400">Performance YTD</div>
-                <div className={`text-lg font-bold ${(metrics?.totalPerformancePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                <div className="text-[10px] text-gray-400">Performance YTD</div>
+                <div className={`text-base font-bold ${(metrics?.totalPerformancePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
                   {formatPercent(metrics?.totalPerformancePercent || 0)}
                 </div>
-                <div className="text-[10px] text-gray-500">Ø Live Portfolios</div>
+                <div className="text-[9px] text-gray-500">Ø Portfolios</div>
               </div>
             </div>
 
             {/* vs Benchmark */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
                 {((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? (
-                  <ArrowUpRight className="h-4 w-4 text-[#00CFC1]" />
+                  <ArrowUpRight className="h-3.5 w-3.5 text-[#00CFC1]" />
                 ) : (
-                  <ArrowDownRight className="h-4 w-4 text-red-500" />
+                  <ArrowDownRight className="h-3.5 w-3.5 text-red-500" />
                 )}
               </div>
               <div>
-                <div className="text-xs text-gray-400">vs. Benchmark</div>
-                <div className={`text-lg font-bold ${((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                <div className="text-[10px] text-gray-400">vs. Benchmark</div>
+                <div className={`text-base font-bold ${((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
                   {formatPercent((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0))}
                 </div>
-                <div className="text-[10px] text-gray-500">S&P 500</div>
+                <div className="text-[9px] text-gray-500">S&P 500</div>
               </div>
             </div>
 
-            {/* Dividend Yield */}
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0">
-                <Percent className="h-4 w-4 text-purple-400" />
-              </div>
-              <div>
-                <div className="text-xs text-gray-400">Div. Rendite</div>
-                <div className="text-lg font-bold text-purple-400">
-                  {((metrics as any)?.avgDividendYield || 0).toFixed(2)}%
+            {/* Sharpe Ratio with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 cursor-help">
+                  <div className="w-7 h-7 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0">
+                    <Scale className="h-3.5 w-3.5 text-purple-400" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-gray-400">Sharpe Ratio</div>
+                    <div className="text-base font-bold text-purple-400">
+                      {((riskMetrics as any)?.sharpeRatio ?? 0).toFixed(2)}
+                    </div>
+                    <div className="text-[9px] text-gray-500">Risikoadj. Rendite</div>
+                  </div>
                 </div>
-                <div className="text-[10px] text-gray-500">Durchschnitt</div>
-              </div>
-            </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[250px] p-3">
+                <p className="text-xs font-semibold mb-1">Sharpe Ratio</p>
+                <p className="text-[11px] text-gray-300">Misst die risikoadjustierte Rendite. Werte {'>'} 1.0 gelten als gut, {'>'} 2.0 als sehr gut. Berechnet als (Rendite − risikofreier Zins) / Volatilität.</p>
+                <p className="text-[10px] text-gray-500 mt-1">Benchmark (SMI): {((riskMetrics as any)?.sharpeBenchmark ?? 0).toFixed(2)}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Bubble Indicator with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 cursor-help">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                    ((bubbleData as any)?.level ?? 0) >= 70 ? 'bg-red-500/20' :
+                    ((bubbleData as any)?.level ?? 0) >= 40 ? 'bg-amber-500/20' : 'bg-emerald-500/20'
+                  }`}>
+                    <Shield className={`h-3.5 w-3.5 ${
+                      ((bubbleData as any)?.level ?? 0) >= 70 ? 'text-red-400' :
+                      ((bubbleData as any)?.level ?? 0) >= 40 ? 'text-amber-400' : 'text-emerald-400'
+                    }`} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-gray-400">Bubble-Indikator</div>
+                    <div className={`text-base font-bold ${
+                      ((bubbleData as any)?.level ?? 0) >= 70 ? 'text-red-400' :
+                      ((bubbleData as any)?.level ?? 0) >= 40 ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
+                      {(bubbleData as any)?.level ?? 0}/100
+                    </div>
+                    <div className="text-[9px] text-gray-500">{(bubbleData as any)?.label || 'Normal'}</div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[280px] p-3">
+                <p className="text-xs font-semibold mb-1">Bubble-Indikator (Sornette)</p>
+                <p className="text-[11px] text-gray-300">Basiert auf dem Log-Periodic Power Law (LPPL) Modell. Misst die Wahrscheinlichkeit einer Marktblase. 0-30: Normal, 30-60: Erhöht, 60-80: Hoch, 80-100: Kritisch.</p>
+                {(bubbleData as any)?.components && (
+                  <div className="mt-1.5 space-y-0.5">
+                    {Object.entries((bubbleData as any).components || {}).slice(0, 4).map(([key, val]: [string, any]) => (
+                      <div key={key} className="flex justify-between text-[10px]">
+                        <span className="text-gray-400">{key}</span>
+                        <span className="text-white font-mono">{typeof val === 'number' ? val.toFixed(1) : val}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TooltipContent>
+            </Tooltip>
 
             {/* Best Performer */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center shrink-0">
-                <Trophy className="h-4 w-4 text-yellow-400" />
+              <div className="w-7 h-7 bg-yellow-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <Trophy className="h-3.5 w-3.5 text-yellow-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs text-gray-400">Bestes Portfolio (YTD)</div>
+                <div className="text-[10px] text-gray-400">Bestes (YTD)</div>
                 <div className="text-sm font-bold text-yellow-400 truncate" title={bestPerformer?.name || ''}>
                   {bestPerformer?.name || '-'}
                 </div>
-                <div className={`text-[10px] ${(() => {
+                <div className={`text-[9px] ${(() => {
                   const perf = multiPeriodData?.find((p: any) => p.portfolioId === bestPerformer?.id);
                   return (perf?.outperformance?.['YTD'] || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500';
                 })()}`}>
@@ -363,7 +460,7 @@ export default function Portfolios() {
                     const perf = multiPeriodData?.find((p: any) => p.portfolioId === bestPerformer?.id);
                     return bestPerformer && perf?.outperformance?.['YTD'] !== undefined 
                       ? `Outperf: ${formatPercent(perf.outperformance['YTD'])}` 
-                      : (bestPerformer ? 'Lädt...' : '-');
+                      : (bestPerformer ? '...' : '-');
                   })()}
                 </div>
               </div>
@@ -626,7 +723,14 @@ export default function Portfolios() {
           {/* Right Sidebar (1/3 width) */}
           <div className="space-y-4">
             {/* Copilot Insights */}
-            <CopilotInsights insights={copilotInsights as any[]} loading={insightsLoading} />
+            <CopilotInsights 
+              insights={copilotInsights as any[]} 
+              loading={insightsLoading}
+              onAction={(insight) => {
+                setActionDialog({ open: true, title: insight.title, body: insight.body, insightId: insight.id });
+                setActionResult(null);
+              }}
+            />
 
             {/* Aktive Preisalarme */}
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
@@ -752,6 +856,55 @@ export default function Portfolios() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Copilot Insight Action Dialog */}
+      <Dialog open={actionDialog.open} onOpenChange={(open) => setActionDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="bg-[#1a1f2e] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Info className="h-5 w-5 text-[#00CFC1]" />
+              {actionDialog.title}
+            </DialogTitle>
+            <DialogDescription className="text-gray-300 text-sm leading-relaxed mt-2">
+              {actionDialog.body}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 p-3 bg-[#0a0f1a] rounded-lg border border-white/5">
+            <div className="text-xs text-gray-400 mb-2">Empfohlene Aktion:</div>
+            {actionResult ? (
+              <div className="text-sm text-[#00CFC1]">{actionResult}</div>
+            ) : (
+              <div className="text-sm text-gray-300">
+                {actionDialog.insightId.includes('concentration') || actionDialog.insightId.includes('sector') 
+                  ? 'Diversifikation pr\u00fcfen: Positionen reduzieren oder neue Sektoren hinzuf\u00fcgen.'
+                  : actionDialog.insightId.includes('cash')
+                  ? 'Staffel-Einstieg in defensive Werte mit hoher Dividendenrendite pr\u00fcfen.'
+                  : 'Details im Portfolio-Optimizer oder Copilot analysieren lassen.'}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/20 text-gray-300 hover:bg-white/10"
+              onClick={() => setActionDialog(prev => ({ ...prev, open: false }))}
+            >
+              Schliessen
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black font-semibold"
+              onClick={() => {
+                setActionDialog(prev => ({ ...prev, open: false }));
+                setLocation('/copilot');
+              }}
+            >
+              Im Copilot analysieren
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

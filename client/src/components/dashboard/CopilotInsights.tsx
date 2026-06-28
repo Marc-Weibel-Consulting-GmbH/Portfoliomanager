@@ -13,6 +13,7 @@ interface CopilotInsightsProps {
   insights: CopilotInsight[];
   loading?: boolean;
   onRefresh?: () => void;
+  onAction?: (insight: CopilotInsight) => void;
 }
 
 const ICON_BY_SEVERITY = {
@@ -27,7 +28,7 @@ const COLOR_BY_SEVERITY = {
   info: { bg: "bg-[#00CFC1]/15", border: "border-[#00CFC1]", text: "text-[#00CFC1]", icon: "text-[#00CFC1]" },
 };
 
-export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsightsProps) {
+export function CopilotInsights({ insights, loading, onRefresh, onAction }: CopilotInsightsProps) {
   return (
     <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -112,7 +113,11 @@ export function CopilotInsights({ insights, loading, onRefresh }: CopilotInsight
             </div>
           );
 
-          return insight.actionHref ? (
+          return onAction ? (
+            <div key={insight.id} className="block hover:opacity-90 transition-opacity cursor-pointer" onClick={() => onAction(insight)}>
+              {body}
+            </div>
+          ) : insight.actionHref ? (
             <Link key={insight.id} href={insight.actionHref} className="block hover:opacity-90 transition-opacity">
               {body}
             </Link>

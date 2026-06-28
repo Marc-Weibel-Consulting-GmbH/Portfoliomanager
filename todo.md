@@ -1467,3 +1467,33 @@
 - [x] BUG: Tagesperformance komplett falsch (-8.9% / CHF 123'900 stimmt nicht) → NaN-Guard + originalPrice-Fix
 - [x] BUG: Portfolios zeigen Investitionssumme statt aktuellem Marktwert → HELN.SW NaN-Bug gefixt
 - [x] BUG: Schnellbuttons (Quick Actions) funktionieren alle nicht → Routen korrigiert, alle 7 navigieren
+
+## User Review - Verbesserungen (28.06.2026)
+
+### 2. Portfolios Übersicht (Dashboard unter Portfolios)
+- [x] Portfolio-Selektor: Einzelne Portfolios als Dropdown statt separate Buttons (Platzgründe)
+- [x] Hover-Tooltip für Sharpe-Ratio und Bubble-KPI
+- [x] Tagesveränderung: Berechnung nochmals prüfen und korrigieren
+- [x] KPI aus alter Portfolio-Übersicht in neues Dashboard integrieren
+- [x] Grüne Buttons: Jeder Button öffnet eigenes Pop-Up mit Aktionsmöglichkeiten (nicht einfach zur Übersicht navigieren)
+  - [ ] "Sektoren überprüfen": Vorschläge für untervertretene Sektoren, Reduktion übervertretener → Aktion übernehmen/anpassen/umsetzen
+  - [ ] "Top-Positionen analysieren": Vorschläge für Reduktion/Ergänzung mit besserer Rendite-/Risikostruktur
+  - [ ] Demo-Portfolios: Nur Positionen ändern (keine echten Transaktionen)
+  - [ ] Live-Portfolios: Transaktionen erstellen mit automatischer Gebührenberechnung
+  - [ ] Gebührenstruktur unter Einstellungen hinterlegbar (sonst Default-Gebühren)
+
+### 3. Portfolio Detailseite
+- [x] Übersicht: Top-Positionen klickbar machen für Aktiendetails
+- [ ] Konstellation: Ausreisser (z.B. Holcim) mit Pfeil nach oben rechts andeuten statt Skala verzerren
+- [x] Transaktionen: Löschen-Button (einzeln/Bulk) funktioniert
+- [x] Performance: Realisierte Gewinne als aufklappbare Box (leer bei Demo-Portfolios)
+- [ ] Performance: Neue Box mit Performance-Attribution Grafik (Wasserfall-Diagramm):
+  - [ ] Welche Aktien-Sektoren haben zur Performance beigetragen
+  - [ ] Welche Assetklassen haben beigetragen (Aktien, Obligationen, Gold, etc.)
+  - [ ] Welche Titel haben beigetragen
+  - [ ] Was haben Fremdwährungen beigetragen
+- [x] Risiko: Tooltips für KPI (6 Info-Buttons mit Erklärungen)
+- [x] Risiko: Bubble-Indikator Info-Button → Pop-Up mit LPPL/Sornette Details und Verlauf
+- [x] Risiko: Grüne Boxen zeigen echte Bewertung (Ausgewogen/Niedrig/Verbesserungswürdig)
+- [x] Optimieren AI: Diversifikationsregeln durchsetzen (max 10%, min 1%, min CHF 3'000, min 15 Titel) - Score 2/4
+- [ ] Effizienzgrenze: Prüfen ob hardcoded oder echt berechnet, ggf. durch Konstellation-Tab ersetzen
