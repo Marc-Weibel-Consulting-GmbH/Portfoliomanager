@@ -399,10 +399,12 @@ export const marketRegimeRouter = router({
 
     // Real index tickers on EODHD
     const indexKeys: { key: string; label: string; eodhdTicker: string; currency: string }[] = [
-      { key: "smi",   label: "SMI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
-      { key: "sp500", label: "S&P 500",    eodhdTicker: "GSPC.INDX",  currency: "USD" },
-      { key: "msci",  label: "MSCI WORLD", eodhdTicker: "URTH.US",    currency: "USD" },
-      { key: "gold",  label: "GOLD (USD)", eodhdTicker: "GLD.US",     currency: "USD" },
+      { key: "smi",     label: "SMI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
+      { key: "sp500",   label: "S&P 500",    eodhdTicker: "GSPC.INDX",  currency: "USD" },
+      { key: "nasdaq",  label: "NASDAQ",     eodhdTicker: "IXIC.INDX",  currency: "USD" },
+      { key: "sox",     label: "SOX",        eodhdTicker: "SOXX.US",    currency: "USD" },
+      { key: "gold",    label: "GOLD",       eodhdTicker: "GLD.US",     currency: "USD" },
+      { key: "btc",     label: "BTC",        eodhdTicker: "BTC-USD.CC", currency: "USD" },
     ];
 
     const results = await Promise.all(
@@ -452,8 +454,8 @@ export const marketRegimeRouter = router({
 
     const indices = finalResults.map((b) =>
       b.summary
-        ? { key: b.key, label: b.label, currency: b.currency, value: b.summary.value, dayChange: +b.summary.dayChange.toFixed(2), ytd: +b.summary.ytd.toFixed(2) }
-        : { key: b.key, label: b.label, currency: b.currency, value: null, dayChange: null, ytd: null }
+        ? { key: b.key, label: b.label, currency: b.currency, value: b.summary.value, dayChange: +b.summary.dayChange.toFixed(2), ytd: +b.summary.ytd.toFixed(2), series: b.summary.series.slice(-20) }
+        : { key: b.key, label: b.label, currency: b.currency, value: null, dayChange: null, ytd: null, series: [] as { date: string; close: number }[] }
     );
 
     // Merge YTD-normalisierte Serien (wöchentlich gesampelt) für das Chart

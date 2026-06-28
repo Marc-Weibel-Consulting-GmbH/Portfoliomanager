@@ -133,10 +133,17 @@ export const dashboardRouter = router({
     // OPTIMIZATION: Batch load ALL historical prices in ONE query
     const ytdPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), ytdStartDate);
     
-    // Load yesterday's prices for dayChange calculation
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    // Load last trading day's prices for dayChange calculation
+    // Skip weekends: if today is Monday use Friday, if Sunday use Friday, if Saturday use Friday
+    const getLastTradingDay = (): string => {
+      const d = new Date();
+      const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      if (dayOfWeek === 0) d.setDate(d.getDate() - 2); // Sunday → Friday
+      else if (dayOfWeek === 1) d.setDate(d.getDate() - 3); // Monday → Friday
+      else d.setDate(d.getDate() - 1); // Tue-Sat → previous day
+      return d.toISOString().split('T')[0];
+    };
+    const yesterdayStr = getLastTradingDay();
     const yesterdayPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), yesterdayStr);
     
     // OPTIMIZATION: Pre-warm FX cache
@@ -2371,7 +2378,43 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     const todayStr = today.toISOString().split('T')[0];
     const in14Str = in14.toISOString().split('T')[0];
     const EODHD_API_KEY = process.env.EODHD_API_KEY;
-    const events: Array<{ type: string; ticker: string; date: string; label: string; amount?: number }> = [];
+    const events: Array<{ type: string; ticker?: string; date: string; label: string; description?: string; time?: string; importance?: string; amount?: number }> = [];
+
+    // 1. Fetch ECONOMIC CALENDAR (macro events like PMI, NFP, etc.)
+    if (EODHD_API_KEY) {
+      try {
+        const url = `https://eodhd.com/api/economic-events?api_token=${EODHD_API_KEY}&from=${todayStr}&to=${in14Str}&country=US&fmt=json`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json() as any;
+          const ecoArr = Array.isArray(data) ? data : [];
+          ecoArr.forEach((e: any) => {
+            const eventName = e.type || e.event;
+            if (eventName && e.date) {
+              // EODHD uses 'type' field for event name, importance is not provided so we infer
+              const highImportance = ['Non-Farm', 'NFP', 'CPI', 'GDP', 'FOMC', 'Fed Interest', 'PMI', 'Unemployment', 'Retail Sales', 'Consumer Confidence', 'ISM'];
+              const medImportance = ['ADP', 'Jobless Claims', 'PPI', 'Housing', 'Durable Goods', 'Trade Balance', 'Industrial Production'];
+              const isHigh = highImportance.some(k => eventName.includes(k));
+              const isMed = medImportance.some(k => eventName.includes(k));
+              const importance = isHigh ? 'HOCH' : isMed ? 'MITTEL' : 'INFO';
+              // Date format from EODHD: "2026-07-09 17:00:00"
+              const datePart = e.date.split(' ')[0];
+              const timePart = e.date.includes(' ') ? e.date.split(' ')[1]?.substring(0, 5) : undefined;
+              events.push({
+                type: 'macro',
+                date: datePart,
+                label: eventName,
+                description: e.comparison || (e.period ? `Periode: ${e.period}` : ''),
+                time: timePart,
+                importance,
+              });
+            }
+          });
+        }
+      } catch {}
+    }
+
+    // 2. Fetch EARNINGS calendar for portfolio tickers
     if (EODHD_API_KEY && tickerList.length > 0) {
       try {
         const url = `https://eodhd.com/api/calendar/earnings?api_token=${EODHD_API_KEY}&from=${todayStr}&to=${in14Str}&symbols=${tickerList.join(',')}&fmt=json`;
@@ -2382,12 +2425,14 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           if (Array.isArray(earningsArr)) {
             earningsArr.forEach((e: any) => {
               if (e.code && e.report_date) {
-                events.push({ type: 'earnings', ticker: e.code, date: e.report_date, label: 'Earnings' });
+                events.push({ type: 'earnings', ticker: e.code, date: e.report_date, label: `${e.code} Earnings`, importance: 'MITTEL' });
               }
             });
           }
         }
       } catch {}
+
+      // 3. Fetch DIVIDENDS calendar
       try {
         const url = `https://eodhd.com/api/calendar/dividends?api_token=${EODHD_API_KEY}&from=${todayStr}&to=${in14Str}&symbols=${tickerList.join(',')}&fmt=json`;
         const res = await fetch(url);
@@ -2397,29 +2442,46 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           if (Array.isArray(divArr)) {
             divArr.forEach((d: any) => {
               if (d.code && d.ex_dividend_date) {
-                events.push({ type: 'dividend', ticker: d.code, date: d.ex_dividend_date, label: 'Ex-Dividende', amount: d.amount });
+                events.push({ type: 'dividend', ticker: d.code, date: d.ex_dividend_date, label: `${d.code} Ex-Dividende`, amount: d.amount, importance: 'INFO' });
               }
             });
           }
         }
       } catch {}
     }
-    return events.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Sort by date, then importance
+    const importanceOrder: Record<string, number> = { 'HOCH': 0, 'MITTEL': 1, 'INFO': 2 };
+    return events
+      .sort((a, b) => {
+        const dateCmp = a.date.localeCompare(b.date);
+        if (dateCmp !== 0) return dateCmp;
+        return (importanceOrder[a.importance || 'INFO'] ?? 2) - (importanceOrder[b.importance || 'INFO'] ?? 2);
+      })
+      .slice(0, 15); // Limit to 15 most relevant events
   }),
 
   /** Portfolio-Kompakt-Übersicht für Dashboard-Header */
   getPortfolioCompact: protectedProcedure.query(async ({ ctx }) => {
     const { getSavedPortfolios } = await import('../db');
     const portfolios = await getSavedPortfolios(ctx.user.id);
-    return portfolios.map(p => ({
-      id: p.id,
-      name: p.name,
-      isLive: p.isLive,
-      investmentAmount: parseFloat(p.investmentAmount || '0'),
-      livePerformance: p.livePerformance ? parseFloat(p.livePerformance) : null,
-      numberOfPositions: p.numberOfPositions,
-      benchmark: p.benchmark,
-    }));
+    return portfolios.map(p => {
+      let numberOfPositions = 0;
+      try {
+        const data = JSON.parse(p.portfolioData || '{}');
+        const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
+        numberOfPositions = stocks.length;
+      } catch {}
+      return {
+        id: p.id,
+        name: p.name,
+        isLive: p.isLive,
+        investmentAmount: parseFloat(p.investmentAmount || '0'),
+        livePerformance: p.livePerformance ? parseFloat(p.livePerformance) : null,
+        numberOfPositions,
+        benchmark: p.benchmark,
+      };
+    });
   }),
 
   /** KI-Insight-Aktion ausführen: Sektoren überprüfen / Top-Positionen analysieren */

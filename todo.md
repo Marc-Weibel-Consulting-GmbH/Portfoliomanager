@@ -1445,3 +1445,19 @@
 - [x] KI-Empfehlungen dürfen keine Extrem-Positionen vorschlagen (Regeln durchsetzen)
 - [ ] Effizienzgrenze prüfen: hardcoded oder echt berechnet?
 - [ ] Entscheiden: Effizienzgrenze beibehalten oder durch Konstellation-Tab ersetzen
+
+## Dashboard-Korrekturen gemäss Mockup (28.06.2026)
+- [x] Schnellbuttons im Header: Portfolio erstellen, Meine Portfolios, Aktienempfehlungen, Aktiensuche, Portfolio optimieren, Copilot fragen, Preisalarm setzen
+- [x] KI-Analyse Szenarien NEBENEINANDER statt untereinander (Rebound-Rally 40%, Konsolidierung 35%, Weiterer Selloff 25%)
+- [ ] Tagesperformance-Berechnung korrigieren (-9% kann nicht stimmen)
+- [x] Sektoren: Nur die wichtigsten (5-7) basierend auf aktueller Lage, NICHT alle
+- [x] Sektoren: Detaillierte Beschreibung (4-5 Sätze) pro Sektor
+- [x] Sektoren: 3 wichtigste Aktientitel mit Performance pro Sektor
+- [x] Sektoren: KAUFEN/ABWARTEN-Badge pro Sektor
+- [x] Anstehende Termine: Echte Wirtschaftstermine (ISM PMI, ADP, Non-Farm Payrolls, Feiertage, Listings)
+- [x] Anstehende Termine: Datum, Uhrzeit, Relevanz-Badge (HOCH/MITTEL/INFO), Kurzbeschreibung
+
+## Dashboard Sparkline Fix (28.06.2026)
+- [x] Backend: getIndices in marketRegimeRouter.ts gibt jetzt series-Daten (letzte 20 Datenpunkte) pro Index zurück
+- [x] Frontend: SVG-Sparklines in TickerBar rendern echte Kursdaten (nicht mehr Platzhalter-Balken)
+- [x] Verifiziert: 6 Polyline-SVGs im DOM vorhanden (4 rot, 2 grün), API liefert 20 Datenpunkte pro Index

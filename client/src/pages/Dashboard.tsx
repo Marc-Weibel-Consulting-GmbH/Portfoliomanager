@@ -1,294 +1,186 @@
-/**
- * Dashboard "Heute" — einspaltiger Feed
- * Gemäss Design-Handoff: TickerBar, Quick-Actions, PortfolioCompact,
- * Markt-Puls (SektorHeatmap + Movers), KI-Analyse (MarketTakeHero + SectorNewsCards),
- * Anstehende Termine.
- */
-import * as React from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import { trpc } from "@/lib/trpc";
-import { useLocation } from "wouter";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Plus, RefreshCw, Bell, Briefcase, TrendingUp, TrendingDown,
-  ChevronRight, ArrowUpRight, ArrowDownRight,
-  Calendar, Bot, Activity, Sparkles, Loader2, Info, ChevronDown
-} from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Plus, FolderOpen, Target, Search, Sparkles, MessageCircle, Bell,
+  TrendingUp, TrendingDown, Calendar, ArrowUpRight, ArrowDownRight, Info, RefreshCw
+} from "lucide-react";
+import { useLocation } from "wouter";
+import { useState } from "react";
 import { toast } from "sonner";
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
-function fmtPct(v: number | null | undefined, decimals = 2): string {
-  if (v === null || v === undefined) return "–";
-  const sign = v >= 0 ? "+" : "";
-  return `${sign}${v.toFixed(decimals)}%`;
-}
-function fmtCHF(v: number): string {
-  return new Intl.NumberFormat("de-CH", { style: "currency", currency: "CHF", maximumFractionDigits: 0 }).format(v);
-}
-function isMarketOpen(): boolean {
-  const now = new Date();
-  const hour = now.getUTCHours();
-  const day = now.getUTCDay();
-  if (day === 0 || day === 6) return false;
-  return hour >= 8 && hour < 22;
-}
-function toneColor(tone: string | null | undefined): string {
-  if (tone === "good") return "text-emerald-400";
-  if (tone === "bad") return "text-red-400";
-  return "text-amber-400";
-}
-function toneBg(tone: string | null | undefined): string {
-  if (tone === "good") return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-  if (tone === "bad") return "bg-red-500/20 text-red-300 border-red-500/30";
-  return "bg-amber-500/20 text-amber-300 border-amber-500/30";
-}
-function changeColor(v: number | null | undefined): string {
-  if (v === null || v === undefined) return "text-gray-400";
-  return v >= 0 ? "text-emerald-400" : "text-red-400";
-}
-function heatmapColor(v: number | null | undefined): string {
-  if (v === null || v === undefined) return "bg-gray-800 text-gray-400";
-  if (v >= 2) return "bg-emerald-600/80 text-white";
-  if (v >= 1) return "bg-emerald-500/60 text-white";
-  if (v >= 0.3) return "bg-emerald-400/40 text-emerald-200";
-  if (v >= -0.3) return "bg-gray-700/60 text-gray-300";
-  if (v >= -1) return "bg-red-400/40 text-red-200";
-  if (v >= -2) return "bg-red-500/60 text-white";
-  return "bg-red-600/80 text-white";
-}
+// ----------------------------------------------------------------
+// TickerBar – Indizes mit Sparkline-Platzhalter
+// ----------------------------------------------------------------
+function TickerBar() {
+  const { data: indicesData, isLoading } = trpc.marketRegime.getIndices.useQuery();
 
-// ─────────────────────────────────────────────────────────────
-// Sub-Components
-// ─────────────────────────────────────────────────────────────
+  if (isLoading) return <Skeleton className="h-16 bg-[#111827] rounded-xl" />;
 
-function TickerBar({ indices }: { indices: { key: string; label: string; price: number | null; change: number | null }[] }) {
-  const items = indices.filter(i => i.price !== null || i.change !== null);
-  if (items.length === 0) return null;
+  const items = (indicesData && 'indices' in indicesData ? indicesData.indices : Array.isArray(indicesData) ? indicesData : []) as any[];
   return (
-    <div className="w-full overflow-hidden bg-[#0d1220] border-b border-[#1e2840] py-1.5">
-      <div className="flex gap-6 px-4 overflow-x-auto scrollbar-none whitespace-nowrap">
-        {items.map(idx => (
-          <div key={idx.key} className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] text-gray-400 font-medium">{idx.label}</span>
-            {idx.price !== null && (
-              <span className="text-[11px] font-mono text-white">
-                {idx.price.toLocaleString("de-CH", { maximumFractionDigits: 0 })}
-              </span>
-            )}
-            <span className={`text-[11px] font-mono ${changeColor(idx.change)}`}>
-              {fmtPct(idx.change, 2)}
+    <div className="bg-[#0d1220] border border-[#1e2840] rounded-xl px-4 py-3 flex items-center gap-6 overflow-x-auto">
+      {items.map((idx: any) => {
+        const change = idx.dayChange ?? idx.changePercent ?? 0;
+        const isPositive = change >= 0;
+        const price = idx.value ?? idx.price ?? 0;
+        return (
+          <div key={idx.label} className="flex items-center gap-2 min-w-[140px]">
+            <div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide">{idx.label}</div>
+              <div className="text-white font-bold text-sm">
+                {price ? Number(price).toLocaleString('de-CH', { maximumFractionDigits: 0 }) : '—'}
+              </div>
+            </div>
+            {/* Mini SVG sparkline from real series data */}
+            {(() => {
+              const series = (idx.series ?? []).slice(-20).map((s: any) => s.close ?? s);
+              if (series.length < 2) return null;
+              const min = Math.min(...series);
+              const max = Math.max(...series);
+              const range = max - min || 1;
+              const w = 48, h = 20;
+              const points = series.map((v: number, i: number) => 
+                `${(i / (series.length - 1)) * w},${h - ((v - min) / range) * h}`
+              ).join(' ');
+              return (
+                <svg width={w} height={h} className="shrink-0">
+                  <polyline fill="none" stroke={isPositive ? '#10b981' : '#ef4444'} strokeWidth="1.5" points={points} />
+                </svg>
+              );
+            })()}
+            <span className={`text-xs font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {isPositive ? '+' : ''}{change.toFixed(2)}%
             </span>
           </div>
-        ))}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full ${isMarketOpen() ? "bg-emerald-500/20 text-emerald-400" : "bg-gray-700/50 text-gray-400"}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isMarketOpen() ? "bg-emerald-400 animate-pulse" : "bg-gray-500"}`} />
-            {isMarketOpen() ? "Markt offen" : "Markt geschlossen"}
-          </span>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }
 
+// ----------------------------------------------------------------
+// QuickActions – Horizontal scrollbare Buttons
+// ----------------------------------------------------------------
 function QuickActions() {
-  const [, setLocation] = useLocation();
-  const scrollToKI = () => document.getElementById("ki-analyse")?.scrollIntoView({ behavior: "smooth" });
+  const [, navigate] = useLocation();
+
   const actions = [
-    { icon: Plus, label: "Transaktion", action: () => setLocation("/portfolios") },
-    { icon: Bell, label: "Kurs-Alarm", action: () => setLocation("/price-alerts") },
-    { icon: Bot, label: "KI-Analyse", action: scrollToKI },
-    { icon: Briefcase, label: "Watchlist", action: () => setLocation("/admin/watchlist") },
+    { label: "Portfolio erstellen", icon: Plus, href: "/portfolios/create", primary: true },
+    { label: "Meine Portfolios", icon: FolderOpen, href: "/portfolios" },
+    { label: "Aktienempfehlungen", icon: Target, href: "/empfehlungen" },
+    { label: "Aktiensuche", icon: Search, href: "/aktiensuche" },
+    { label: "Portfolio optimieren", icon: Sparkles, href: "/portfolios" },
+    { label: "Copilot fragen", icon: MessageCircle, href: "/copilot" },
+    { label: "Preisalarm setzen", icon: Bell, href: "/preisalarme" },
   ];
+
   return (
-    <div className="grid grid-cols-4 gap-2 mb-4">
-      {actions.map(a => (
-        <button
+    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      {actions.map((a) => (
+        <Button
           key={a.label}
-          onClick={a.action}
-          className="flex flex-col items-center gap-1.5 py-3 px-2 bg-[#111827] hover:bg-[#1a2235] border border-[#1e2840] hover:border-[#00CFC1]/30 rounded-xl transition-all group"
+          variant={a.primary ? "default" : "outline"}
+          size="sm"
+          className={`whitespace-nowrap shrink-0 ${
+            a.primary
+              ? 'bg-[#00CFC1] hover:bg-[#00b3a6] text-black font-semibold'
+              : 'bg-[#1a2332] border-[#2a3a4e] text-gray-200 hover:bg-[#243044]'
+          }`}
+          onClick={() => navigate(a.href)}
         >
-          <a.icon className="h-4 w-4 text-[#00CFC1] group-hover:scale-110 transition-transform" />
-          <span className="text-[10px] text-gray-400 group-hover:text-white transition-colors">{a.label}</span>
-        </button>
+          <a.icon className="h-3.5 w-3.5 mr-1.5" />
+          {a.label}
+        </Button>
       ))}
     </div>
   );
 }
 
-function PortfolioCompact({ portfolios, metrics, risk, bubble }: {
-  portfolios: { id: number; name: string; isLive: number; investmentAmount: number; livePerformance: number | null; numberOfPositions: number; benchmark: string | null }[];
-  metrics: any;
-  risk: any;
-  bubble: any;
-}) {
-  const [, setLocation] = useLocation();
+// ----------------------------------------------------------------
+// PortfolioCompact – Gesamtwert + Portfolios
+// ----------------------------------------------------------------
+function PortfolioCompact() {
+  const { data: metrics, isLoading: metricsLoading } = trpc.dashboard.getAggregatedMetrics.useQuery();
+  const { data: portfolios, isLoading: portfoliosLoading } = trpc.dashboard.getPortfolioCompact.useQuery();
+  const [, navigate] = useLocation();
+
+  if (metricsLoading || portfoliosLoading) return <Skeleton className="h-48 bg-[#111827] rounded-xl" />;
+
   const totalValue = metrics?.totalValue ?? 0;
-  const dayChangePct = metrics?.dayChangePercent ?? 0;
-  const ytdPct = metrics?.totalPerformancePercent ?? 0;
-  const sharpe = risk?.sharpeRatio ?? null;
-  const bubbleScore = bubble?.score ?? null;
-  const bubbleLabel = bubble?.label ?? "–";
+  const dayChange = metrics?.dayChange ?? 0;
+  const dayChangePercent = metrics?.dayChangePercent ?? 0;
+  const ytdPercent = metrics?.totalPerformancePercent ?? 0;
+  const isPositiveDay = dayChange >= 0;
 
   return (
-    <Card className="bg-[#0d1220] border-[#1e2840] mb-4">
-      <CardHeader className="pb-3 pt-4 px-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[22px] font-mono font-bold text-white tracking-tight">
-              {totalValue > 0 ? fmtCHF(totalValue) : "–"}
-            </div>
-            <div className="flex items-center gap-3 mt-0.5">
-              <span className={`text-xs font-mono ${changeColor(dayChangePct)}`}>
-                {dayChangePct >= 0 ? <ArrowUpRight className="inline h-3 w-3" /> : <ArrowDownRight className="inline h-3 w-3" />}
-                {fmtPct(dayChangePct)} heute
-              </span>
-              <span className={`text-xs font-mono ${changeColor(ytdPct)}`}>
-                YTD {fmtPct(ytdPct)}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Sharpe KPI mit Tooltip */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex flex-col items-center px-2 py-1 bg-[#111827] rounded-lg border border-[#1e2840] cursor-help">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-wide">Sharpe</span>
-                    <Info className="h-2.5 w-2.5 text-gray-600" />
-                  </div>
-                  <span className="text-xs font-mono font-semibold text-white">
-                    {sharpe !== null ? sharpe.toFixed(2) : "–"}
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[240px] text-xs bg-[#0d1220] border-[#1e2840]">
-                <p className="font-semibold mb-1 text-white">Sharpe Ratio</p>
-                <p className="text-gray-300">Misst die risikobereinigte Rendite. Berechnet als (Portfolio-Rendite − risikofreier Zinssatz) / Volatilität.</p>
-                <p className="mt-1 text-gray-400">Werte &gt; 1.0 gelten als gut, &gt; 2.0 als sehr gut.</p>
-              </TooltipContent>
-            </Tooltip>
-            {/* Bubble KPI mit Tooltip */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex flex-col items-center px-2 py-1 bg-[#111827] rounded-lg border border-[#1e2840] cursor-help">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-wide">Bubble</span>
-                    <Info className="h-2.5 w-2.5 text-gray-600" />
-                  </div>
-                  <span className={`text-xs font-mono font-semibold ${
-                    bubbleScore === null ? "text-gray-400" :
-                    bubbleScore < 33 ? "text-emerald-400" :
-                    bubbleScore < 66 ? "text-amber-400" : "text-red-400"
-                  }`}>
-                    {bubbleScore !== null ? `${bubbleScore}/100` : "–"}
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[260px] text-xs bg-[#0d1220] border-[#1e2840]">
-                <p className="font-semibold mb-1 text-white">Bubble-Indikator (LPPLS)</p>
-                <p className="text-gray-300">Basiert auf dem Log-Periodic Power Law Singularity Modell von Prof. Didier Sornette (ETH Zürich). Misst Überhitzungssignale im Markt.</p>
-                <p className="mt-1 text-gray-400">Aktuell: <span className={bubbleScore !== null && bubbleScore >= 66 ? "text-red-400" : bubbleScore !== null && bubbleScore >= 33 ? "text-amber-400" : "text-emerald-400"}>{bubbleLabel}</span> ({bubbleScore ?? "–"}/100)</p>
-                <p className="mt-1 text-gray-500">0–33: Niedrig · 34–66: Mittel · 67–100: Hoch</p>
-              </TooltipContent>
-            </Tooltip>
-            <Button
-              size="sm"
-              onClick={() => setLocation("/portfolio-builder")}
-              className="h-8 px-3 bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30 text-xs"
-              variant="outline"
-            >
-              <Plus className="h-3 w-3 mr-1" /> Neu
-            </Button>
-          </div>
+    <Card className="bg-[#0d1220] border-[#1e2840]">
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Gesamtwert · Aggregiert</span>
+          <Button size="sm" variant="outline" className="h-6 text-[10px] bg-[#00CFC1] text-black border-none hover:bg-[#00b3a6] font-semibold" onClick={() => navigate('/portfolios/create')}>
+            + Neu
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4">
-        {portfolios.length === 0 && (
-          <div className="text-center py-4 text-sm text-gray-500">Noch keine Portfolios</div>
-        )}
-        {/* Aggregiert-Zeile */}
-        <div className="flex items-center justify-between px-3 py-2 mb-1.5">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Alle Portfolios</span>
-          {/* Portfolio-Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 text-[10px] text-[#00CFC1] hover:text-[#00CFC1]/80 transition-colors">
-                Einzeln anzeigen <ChevronDown className="h-3 w-3" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#0d1220] border-[#1e2840] min-w-[200px]">
-              {portfolios.map(p => (
-                <DropdownMenuItem
-                  key={p.id}
-                  onClick={() => setLocation(`/portfolios/${p.id}`)}
-                  className="flex items-center justify-between cursor-pointer hover:bg-[#1a2235] text-white"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs">{p.name}</span>
-                    {p.isLive === 1 && (
-                      <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">LIVE</Badge>
-                    )}
-                  </div>
-                  <span className={`text-[11px] font-mono ${changeColor(p.livePerformance)}`}>
-                    {fmtPct(p.livePerformance)}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+        {/* Total Value */}
+        <div className="text-3xl font-bold text-white mb-1">
+          CHF {totalValue.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
         </div>
-        {/* Portfolio-Zeilen */}
-        <div className="flex flex-col gap-1.5">
-          {portfolios.map(p => {
-            const ytd = p.livePerformance;
+
+        {/* Day Change + YTD */}
+        <div className="flex items-center gap-2 text-xs mb-4">
+          <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>
+            {isPositiveDay ? '+' : ''}CHF {Math.abs(dayChange).toLocaleString('de-CH', { maximumFractionDigits: 0 })} {new Date().getDay() === 0 || new Date().getDay() === 6 ? 'Fr' : 'heute'}
+          </span>
+          <span className="text-gray-500">·</span>
+          <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>
+            {isPositiveDay ? '+' : ''}{dayChangePercent.toFixed(1)}%
+          </span>
+          <span className="text-gray-500">·</span>
+          <span className={ytdPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+            YTD {ytdPercent >= 0 ? '+' : ''}{ytdPercent.toFixed(1)}%
+          </span>
+        </div>
+
+        {/* Portfolio List */}
+        <div className="space-y-2">
+          {(portfolios ?? []).map((p: any) => {
+            const perf = p.livePerformance;
+            const perfNum = perf ?? 0;
+            const isPos = perfNum >= 0;
             return (
-              <button
+              <div
                 key={p.id}
-                onClick={() => setLocation(`/portfolios/${p.id}`)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#111827]/60 hover:bg-[#1a2235] rounded-lg transition-colors text-left group"
+                className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#111827] hover:bg-[#162032] cursor-pointer transition-colors"
+                onClick={() => navigate(`/portfolios/${p.id}`)}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-white truncate">{p.name}</span>
-                    {p.isLive === 1 && (
-                      <Badge className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">LIVE</Badge>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    {p.numberOfPositions} Positionen
-                    {p.benchmark && ` · ${p.benchmark}`}
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-white">{p.name}</span>
+                  {p.isLive ? (
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] px-1 py-0">LIVE</Badge>
+                  ) : null}
+                  <span className="text-[10px] text-gray-500">
+                    {p.benchmark || 'Diversifiziert'} · {p.numberOfPositions ?? '?'} Pos.
+                  </span>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-xs font-mono text-gray-300">
-                    {fmtCHF(p.investmentAmount)}
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-white">
+                    CHF {(p.investmentAmount ?? 0).toLocaleString('de-CH', { maximumFractionDigits: 0 })}
                   </div>
-                  {ytd !== null && (
-                    <div className={`text-[11px] font-mono ${changeColor(ytd)}`}>
-                      {fmtPct(ytd)}
+                  {perf !== null && perf !== undefined && perf !== 0 ? (
+                    <div className={`text-[10px] ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {isPos ? '+' : ''}{perfNum.toFixed(1)}%
                     </div>
-                  )}
+                  ) : null}
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 text-gray-600 group-hover:text-[#00CFC1] shrink-0" />
-              </button>
+              </div>
             );
           })}
         </div>
@@ -297,328 +189,371 @@ function PortfolioCompact({ portfolios, metrics, risk, bubble }: {
   );
 }
 
-function SektorHeatmap({ sectors }: { sectors: { key: string; label: string; change: number | null }[] }) {
-  return (
-    <div className="grid grid-cols-4 gap-1.5 mb-2">
-      {sectors.map(s => (
-        <div key={s.key} className={`rounded-lg px-2 py-2 text-center ${heatmapColor(s.change)}`}>
-          <div className="text-[10px] font-medium truncate">{s.label}</div>
-          <div className="text-[11px] font-mono font-bold mt-0.5">{fmtPct(s.change, 1)}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// ----------------------------------------------------------------
+// MarktPuls – Sektor-Heatmap + Top Gewinner/Verlierer
+// ----------------------------------------------------------------
+function MarktPuls() {
+  const { data: snapshot, isLoading } = trpc.dashboard.getMarketSnapshot.useQuery();
 
-function MoversPanel({ gainers, losers }: {
-  gainers: { ticker: string; change: number; price: number | null }[];
-  losers: { ticker: string; change: number; price: number | null }[];
-}) {
-  const [, setLocation] = useLocation();
-  const Row = ({ m, isGainer }: { m: typeof gainers[0]; isGainer: boolean }) => (
-    <button
-      onClick={() => setLocation(`/aktien/${m.ticker}`)}
-      className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-[#1a2235] rounded-lg transition-colors"
-    >
-      <span className="text-xs font-semibold text-white">{m.ticker}</span>
-      <span className={`text-xs font-mono ${isGainer ? "text-emerald-400" : "text-red-400"}`}>
-        {isGainer ? <TrendingUp className="inline h-3 w-3 mr-0.5" /> : <TrendingDown className="inline h-3 w-3 mr-0.5" />}
-        {fmtPct(m.change)}
-      </span>
-    </button>
-  );
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      <div>
-        <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wide mb-1 px-2">Top Gewinner</div>
-        {gainers.length === 0 ? <div className="text-xs text-gray-600 px-2">–</div> : gainers.map(m => <Row key={m.ticker} m={m} isGainer />)}
-      </div>
-      <div>
-        <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wide mb-1 px-2">Top Verlierer</div>
-        {losers.length === 0 ? <div className="text-xs text-gray-600 px-2">–</div> : losers.map(m => <Row key={m.ticker} m={m} isGainer={false} />)}
-      </div>
-    </div>
-  );
-}
+  if (isLoading) return <Skeleton className="h-48 bg-[#111827] rounded-xl" />;
 
-function MarketTakeHero({ analysis, period }: { analysis: any; period: "day" | "week" }) {
-  if (!analysis) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <Bot className="h-8 w-8 text-[#00CFC1]/40 mb-2" />
-        <div className="text-sm text-gray-400">KI-Analyse wird täglich um 08:00 Uhr erstellt</div>
-        <div className="text-xs text-gray-600 mt-1">Noch kein Bericht für heute verfügbar</div>
-      </div>
-    );
-  }
-  const scenarios: { label: string; prob: number; tone: string; description: string }[] = analysis.scenarios ?? [];
+  const sectors = snapshot?.sectors ?? [];
+  const topGainers = (snapshot as any)?.gainers ?? [];
+  const topLosers = (snapshot as any)?.losers ?? [];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <Badge className={`shrink-0 text-[10px] px-2 py-0.5 border ${toneBg(analysis.regimeTone)}`}>
-          {analysis.regime}
-        </Badge>
-        <div>
-          <div className="text-sm font-semibold text-white leading-snug">{analysis.headline}</div>
-          <div className="text-xs text-gray-400 mt-1 leading-relaxed">{analysis.body}</div>
+    <Card className="bg-[#0d1220] border-[#1e2840]">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-[#00CFC1]" />
+          <span className="text-sm font-semibold text-white">Markt-Puls</span>
+          <span className="text-[10px] text-gray-500">Sektoren heute</span>
         </div>
-      </div>
-      {scenarios.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-[10px] text-gray-500 uppercase tracking-wide font-medium">Szenarien</div>
-          {scenarios.map((s, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className={`text-[10px] font-medium w-12 shrink-0 ${toneColor(s.tone)}`}>{s.label}</div>
-              <div className="flex-1 bg-[#1a2235] rounded-full h-1.5 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${s.tone === "good" ? "bg-emerald-500" : s.tone === "bad" ? "bg-red-500" : "bg-amber-500"}`}
-                  style={{ width: `${s.prob}%` }}
-                />
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        {/* Sector Heatmap Grid */}
+        <div className="grid grid-cols-7 gap-1 mb-4">
+          {sectors.slice(0, 10).map((s: any) => {
+            const change = s.changePercent ?? 0;
+            const bgColor = change > 1 ? 'bg-emerald-600' : change > 0 ? 'bg-emerald-700/60' : change > -1 ? 'bg-red-700/60' : 'bg-red-600';
+            return (
+              <div key={s.label} className={`${bgColor} rounded px-2 py-1.5 text-center`}>
+                <div className="text-[9px] text-gray-200 truncate">{s.label}</div>
+                <div className={`text-xs font-bold ${change >= 0 ? 'text-emerald-200' : 'text-red-200'}`}>
+                  {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+                </div>
               </div>
-              <div className="text-[10px] font-mono text-gray-400 w-8 text-right shrink-0">{s.prob}%</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-      )}
-      <div className="text-[10px] text-gray-600">
-        Erstellt: {analysis.generatedAt ? new Date(analysis.generatedAt).toLocaleString("de-CH") : "–"}
-        {" · "}{period === "day" ? "Tagesbericht" : "Wochenbericht"}
-      </div>
-    </div>
-  );
-}
 
-function SectorNewsCards({ sectorData }: { sectorData: any[] }) {
-  if (!sectorData || sectorData.length === 0) return null;
-  return (
-    <div className="grid grid-cols-1 gap-2 mt-3">
-      {sectorData.map((s: any, i: number) => (
-        <div key={i} className="flex items-start gap-3 px-3 py-2.5 bg-[#111827]/60 rounded-lg">
-          <div className="shrink-0 mt-0.5">
-            {s.change !== null && s.change >= 0
-              ? <TrendingUp className="h-4 w-4 text-emerald-400" />
-              : <TrendingDown className="h-4 w-4 text-red-400" />
-            }
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xs font-semibold text-white">{s.label}</span>
-              {s.change !== null && (
-                <span className={`text-[10px] font-mono ${changeColor(s.change)}`}>{fmtPct(s.change, 1)}</span>
-              )}
+        {/* Top Gainers / Losers */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="flex items-center gap-1 mb-2">
+              <ArrowUpRight className="h-3 w-3 text-emerald-400" />
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Top-Gewinner</span>
             </div>
-            <div className="text-[11px] text-gray-400 leading-relaxed">{s.comment}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TermineList({ events }: { events: { type: string; ticker: string; date: string; label: string; amount?: number }[] }) {
-  const today = new Date().toISOString().split("T")[0];
-  if (events.length === 0) {
-    return <div className="text-xs text-gray-500 py-4 text-center">Keine anstehenden Termine in den nächsten 14 Tagen</div>;
-  }
-  return (
-    <div className="flex flex-col gap-1.5">
-      {events.map((e, i) => {
-        const isToday = e.date === today;
-        return (
-          <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isToday ? "bg-[#00CFC1]/10 border border-[#00CFC1]/20" : "bg-[#111827]/60"}`}>
-            <div className={`shrink-0 text-center w-10 ${isToday ? "text-[#00CFC1]" : "text-gray-500"}`}>
-              <div className="text-[10px] font-medium">{new Date(e.date).toLocaleDateString("de-CH", { weekday: "short" })}</div>
-              <div className="text-sm font-bold">{new Date(e.date).getDate()}</div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-white">{e.ticker}</span>
-                <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${e.type === "earnings" ? "bg-blue-500/20 text-blue-300 border-blue-500/30" : "bg-purple-500/20 text-purple-300 border-purple-500/30"}`}>
-                  {e.label}
-                </Badge>
-                {isToday && <Badge className="text-[9px] px-1.5 py-0 h-4 bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30">Heute</Badge>}
+            {topGainers.slice(0, 4).map((g: any) => (
+              <div key={g.ticker} className="flex items-center justify-between py-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-400 font-mono w-10">{g.ticker?.split('.')[0]}</span>
+                  <span className="text-xs text-gray-300 truncate max-w-[80px]">{g.name || g.ticker}</span>
+                </div>
+                <span className="text-xs text-emerald-400 font-medium">+{(g.changePercent ?? 0).toFixed(1)}%</span>
               </div>
-              {e.amount !== undefined && (
-                <div className="text-[11px] text-gray-500 mt-0.5">Dividende: {e.amount.toFixed(2)}</div>
-              )}
-            </div>
+            ))}
           </div>
-        );
-      })}
-    </div>
+          <div>
+            <div className="flex items-center gap-1 mb-2">
+              <ArrowDownRight className="h-3 w-3 text-red-400" />
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Top-Verlierer</span>
+            </div>
+            {topLosers.slice(0, 4).map((l: any) => (
+              <div key={l.ticker} className="flex items-center justify-between py-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-400 font-mono w-10">{l.ticker?.split('.')[0]}</span>
+                  <span className="text-xs text-gray-300 truncate max-w-[80px]">{l.name || l.ticker}</span>
+                </div>
+                <span className="text-xs text-red-400 font-medium">{(l.changePercent ?? 0).toFixed(1)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Main Dashboard
-// ─────────────────────────────────────────────────────────────
-export default function Dashboard() {
-  const [analysisPeriod, setAnalysisPeriod] = React.useState<"day" | "week">("day");
+// ----------------------------------------------------------------
+// KI-Analyse – Tages-/Wochenbericht mit Szenarien + Sektoren
+// ----------------------------------------------------------------
+function KIAnalyse() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
-  const utils = trpc.useUtils();
-
-  const triggerAnalysis = trpc.dashboard.triggerMarketAnalysis.useMutation({
-    onSuccess: () => {
-      toast.success("KI-Analyse erfolgreich erstellt!");
-      utils.dashboard.getLatestMarketAnalysis.invalidate();
-    },
-    onError: (err) => {
-      toast.error(`Fehler: ${err.message}`);
-    },
+  const [period, setPeriod] = useState<'day' | 'week'>('day');
+  const { data: analysis, isLoading, refetch } = trpc.dashboard.getLatestMarketAnalysis.useQuery({ period });
+  const triggerMutation = trpc.dashboard.triggerMarketAnalysis.useMutation({
+    onSuccess: () => { toast.success('KI-Analyse abgeschlossen'); refetch(); },
+    onError: (e) => toast.error(`Fehler: ${e.message}`),
   });
 
-  const { data: marketSnapshot, isLoading: snapshotLoading, refetch: refetchSnapshot } =
-    trpc.dashboard.getMarketSnapshot.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  if (isLoading) return <Skeleton className="h-64 bg-[#111827] rounded-xl" />;
 
-  const { data: marketAnalysis, isLoading: analysisLoading } =
-    trpc.dashboard.getLatestMarketAnalysis.useQuery({ period: analysisPeriod }, { staleTime: 10 * 60 * 1000 });
+  const regimeToneColors: Record<string, string> = {
+    good: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    warn: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    bad: 'bg-red-500/20 text-red-400 border-red-500/30',
+  };
 
-  const { data: upcomingEvents = [], isLoading: eventsLoading } =
-    trpc.dashboard.getUpcomingEvents.useQuery(undefined, { staleTime: 30 * 60 * 1000 });
+  const scenarioColors: Record<string, string> = {
+    good: 'text-emerald-400',
+    warn: 'text-yellow-400',
+    bad: 'text-red-400',
+  };
 
-  const { data: portfolioCompact = [], isLoading: portfoliosLoading } =
-    trpc.dashboard.getPortfolioCompact.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const actionColors: Record<string, string> = {
+    KAUFEN: 'bg-[#00CFC1] text-black',
+    ABWARTEN: 'bg-gray-600 text-gray-200',
+  };
 
-  const { data: metrics, isLoading: metricsLoading } =
-    trpc.dashboard.getAggregatedMetrics.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const todayFormatted = new Date().toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-  const { data: riskMetrics } =
-    trpc.dashboard.getRiskMetrics.useQuery({ scope: "aggregate" }, { staleTime: 10 * 60 * 1000 });
+  return (
+    <Card className="bg-[#0d1220] border-[#1e2840]">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-[#00CFC1]" />
+            <span className="text-sm font-semibold text-white">KI-Analyse</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {user?.role === 'admin' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[10px] text-gray-400 hover:text-white"
+                onClick={() => triggerMutation.mutate({ period })}
+                disabled={triggerMutation.isPending}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${triggerMutation.isPending ? 'animate-spin' : ''}`} />
+                {triggerMutation.isPending ? 'Analysiere…' : 'Jetzt analysieren'}
+              </Button>
+            )}
+            <div className="flex bg-[#1a2332] rounded-md p-0.5">
+              <button
+                className={`px-2 py-0.5 text-[10px] rounded ${period === 'day' ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400'}`}
+                onClick={() => setPeriod('day')}
+              >
+                Tagesbericht
+              </button>
+              <button
+                className={`px-2 py-0.5 text-[10px] rounded ${period === 'week' ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400'}`}
+                onClick={() => setPeriod('week')}
+              >
+                Wochenbericht
+              </button>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        {!analysis ? (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            Noch kein Bericht vorhanden. Klicken Sie "Jetzt analysieren" oder warten Sie auf den täglichen Cron um 08:00.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Header: Badge + Date */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30 text-[9px]">
+                  KI-{period === 'day' ? 'TAGESANALYSE' : 'WOCHENANALYSE'}
+                </Badge>
+                <Badge className={`text-[9px] ${regimeToneColors[analysis.regimeTone] || regimeToneColors.warn}`}>
+                  {analysis.regime}
+                </Badge>
+              </div>
+              <span className="text-[10px] text-gray-500">{todayFormatted}</span>
+            </div>
 
-  const { data: bubbleIndicator } =
-    trpc.dashboard.getBubbleIndicator.useQuery({ scope: "aggregate" }, { staleTime: 10 * 60 * 1000 });
+            {/* Headline */}
+            <h3 className="text-lg font-bold text-white leading-tight">{analysis.headline}</h3>
 
-  const today = new Date();
-  const dateStr = today.toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+            {/* Body */}
+            <p className="text-sm text-gray-300 leading-relaxed">{analysis.body}</p>
+
+            {/* Scenarios – NEBENEINANDER */}
+            {analysis.scenarios && (analysis.scenarios as any[]).length > 0 && (
+              <div className="flex items-center gap-4 pt-1">
+                {(analysis.scenarios as any[]).map((s: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">{s.label}</span>
+                    <span className={`text-sm font-bold ${scenarioColors[s.tone] || 'text-gray-300'}`}>
+                      {s.prob}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Sector Analysis – Detailed Cards */}
+            {analysis.sectorData && (analysis.sectorData as any[]).length > 0 && (
+              <div className="space-y-3 pt-2 border-t border-[#1e2840]">
+                {(analysis.sectorData as any[]).map((sector: any, i: number) => (
+                  <div key={i} className="py-3 border-b border-[#1e2840] last:border-b-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-white">{sector.label}</h4>
+                        {sector.subcategory && (
+                          <span className="text-[10px] text-gray-500">▲ {sector.subcategory}</span>
+                        )}
+                      </div>
+                      {sector.action && (
+                        <Badge className={`text-[9px] px-2 py-0 font-bold ${actionColors[sector.action] || actionColors.ABWARTEN}`}>
+                          {sector.action}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Detailed description (4-5 sentences) */}
+                    <p className="text-xs text-gray-300 leading-relaxed mb-2">{sector.comment}</p>
+
+                    {/* 3 Stock tickers with performance */}
+                    {sector.stocks && sector.stocks.length > 0 && (
+                      <div className="flex items-center gap-3">
+                        {sector.stocks.map((stock: any, j: number) => {
+                          const isPos = (stock.change ?? 0) >= 0;
+                          return (
+                            <span key={j} className="flex items-center gap-1">
+                              <span className="text-[10px] font-mono font-bold text-gray-300">{stock.ticker}</span>
+                              <span className={`text-[10px] font-medium ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {isPos ? '+' : ''}{(stock.change ?? 0).toFixed(1)}%
+                                {isPos ? ' ▲' : ' ▼'}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------
+// Anstehende Termine – Makro + Earnings + Dividenden
+// ----------------------------------------------------------------
+function AnstehendeTermine() {
+  const { data: events, isLoading } = trpc.dashboard.getUpcomingEvents.useQuery();
+
+  if (isLoading) return <Skeleton className="h-48 bg-[#111827] rounded-xl" />;
+
+  const importanceBadge: Record<string, string> = {
+    HOCH: 'bg-red-500/20 text-red-400 border-red-500/30',
+    MITTEL: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    INFO: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  };
+
+  const getDayLabel = (dateStr: string): { day: string; date: string; isToday: boolean } => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    const days = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA'];
+    return {
+      day: days[d.getDay()],
+      date: `${d.getDate()}.`,
+      isToday,
+    };
+  };
+
+  return (
+    <Card className="bg-[#0d1220] border-[#1e2840]">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-[#00CFC1]" />
+          <span className="text-sm font-semibold text-white">Anstehende Termine</span>
+          <span className="text-[10px] text-gray-500">Makro · diese Woche</span>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        {(!events || events.length === 0) ? (
+          <div className="text-center py-4 text-gray-500 text-xs">
+            Keine Termine in den nächsten 14 Tagen gefunden.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {events.map((event: any, i: number) => {
+              const { day, date, isToday } = getDayLabel(event.date);
+              return (
+                <div key={i} className="flex items-start gap-3 py-2 border-b border-[#1e2840] last:border-b-0">
+                  {/* Day + Date */}
+                  <div className="flex flex-col items-center min-w-[32px]">
+                    <span className="text-[9px] text-gray-500 uppercase">{day}</span>
+                    <span className="text-xs font-bold text-gray-300">{date}</span>
+                  </div>
+
+                  {/* Event Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-white truncate">{event.label}</span>
+                      {isToday && (
+                        <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30 text-[8px] px-1 py-0">HEUTE</Badge>
+                      )}
+                    </div>
+                    {event.description && (
+                      <p className="text-[10px] text-gray-500 mt-0.5 truncate">{event.description}</p>
+                    )}
+                  </div>
+
+                  {/* Time + Importance */}
+                  <div className="flex flex-col items-end gap-0.5">
+                    {event.time && <span className="text-[10px] text-gray-400">{event.time}</span>}
+                    <Badge className={`text-[8px] px-1 py-0 ${importanceBadge[event.importance || 'INFO']}`}>
+                      {event.importance || 'INFO'}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------
+// Main Dashboard Component
+// ----------------------------------------------------------------
+export default function Dashboard() {
+  const { user } = useAuth();
+
+  const getGreeting = (): string => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Guten Morgen';
+    if (hour < 18) return 'Guten Tag';
+    return 'Guten Abend';
+  };
+
+  const todayFormatted = new Date().toLocaleDateString('de-CH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).toUpperCase();
 
   return (
     <DashboardLayout>
-      {snapshotLoading
-        ? <div className="h-8 bg-[#0d1220] border-b border-[#1e2840]" />
-        : <TickerBar indices={marketSnapshot?.indices ?? []} />
-      }
-
-      <div className="max-w-2xl mx-auto px-4 py-5">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="text-xl font-bold text-white">Heute</h1>
-            <div className="text-xs text-gray-500 mt-0.5 capitalize">{dateStr}</div>
-          </div>
-          <button
-            onClick={() => refetchSnapshot()}
-            className="p-2 hover:bg-[#1a2235] rounded-lg transition-colors"
-            title="Aktualisieren"
-          >
-            <RefreshCw className={`h-4 w-4 text-gray-500 ${snapshotLoading ? "animate-spin" : ""}`} />
-          </button>
+        <div className="mb-2">
+          <div className="text-[10px] text-[#00CFC1] uppercase tracking-wider mb-1">{todayFormatted}</div>
+          <h1 className="text-2xl font-bold text-white">{getGreeting()}, {user?.name?.split(' ')[0] || 'Investor'}</h1>
         </div>
+
+        {/* TickerBar */}
+        <TickerBar />
 
         {/* Quick Actions */}
         <QuickActions />
 
         {/* Portfolio Compact */}
-        {portfoliosLoading || metricsLoading
-          ? <Skeleton className="h-48 mb-4 bg-[#111827]" />
-          : <PortfolioCompact portfolios={portfolioCompact} metrics={metrics} risk={riskMetrics} bubble={bubbleIndicator} />
-        }
+        <PortfolioCompact />
 
         {/* Markt-Puls */}
-        <Card className="bg-[#0d1220] border-[#1e2840] mb-4">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-[#00CFC1]" />
-              <span className="text-sm font-semibold text-white">Markt-Puls</span>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            {snapshotLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-24 bg-[#111827]" />
-                <Skeleton className="h-16 bg-[#111827]" />
-              </div>
-            ) : (
-              <>
-                <SektorHeatmap sectors={marketSnapshot?.sectors ?? []} />
-                <div className="mt-3 pt-3 border-t border-[#1e2840]">
-                  <MoversPanel gainers={marketSnapshot?.gainers ?? []} losers={marketSnapshot?.losers ?? []} />
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <MarktPuls />
 
         {/* KI-Analyse */}
-        <Card id="ki-analyse" className="bg-[#0d1220] border-[#1e2840] mb-4">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-[#00CFC1]" />
-                <span className="text-sm font-semibold text-white">KI-Analyse</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <button
-                    onClick={() => triggerAnalysis.mutate({ period: analysisPeriod })}
-                    disabled={triggerAnalysis.isPending}
-                    title="KI-Analyse jetzt auslösen"
-                    className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-lg bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border border-[#00CFC1]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {triggerAnalysis.isPending
-                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                      : <Sparkles className="h-3 w-3" />}
-                    {triggerAnalysis.isPending ? "Analysiere…" : "Jetzt analysieren"}
-                  </button>
-                )}
-                <div className="flex items-center bg-[#111827] rounded-lg p-0.5 border border-[#1e2840]">
-                  {(["day", "week"] as const).map(p => (
-                    <button
-                      key={p}
-                      onClick={() => setAnalysisPeriod(p)}
-                      className={`text-[10px] px-2.5 py-1 rounded-md transition-colors ${analysisPeriod === p ? "bg-[#00CFC1]/20 text-[#00CFC1] font-medium" : "text-gray-500 hover:text-gray-300"}`}
-                    >
-                      {p === "day" ? "Tagesbericht" : "Wochenbericht"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            {analysisLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-6 w-3/4 bg-[#111827]" />
-                <Skeleton className="h-12 bg-[#111827]" />
-                <Skeleton className="h-20 bg-[#111827]" />
-              </div>
-            ) : (
-              <>
-                <MarketTakeHero analysis={marketAnalysis} period={analysisPeriod} />
-                {marketAnalysis?.sectorData && (
-                  <SectorNewsCards sectorData={marketAnalysis.sectorData as any[]} />
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <KIAnalyse />
 
         {/* Anstehende Termine */}
-        <Card className="bg-[#0d1220] border-[#1e2840] mb-4">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-[#00CFC1]" />
-              <span className="text-sm font-semibold text-white">Anstehende Termine</span>
-              <span className="text-[10px] text-gray-500">nächste 14 Tage</span>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            {eventsLoading
-              ? <Skeleton className="h-24 bg-[#111827]" />
-              : <TermineList events={upcomingEvents} />
-            }
-          </CardContent>
-        </Card>
+        <AnstehendeTermine />
       </div>
     </DashboardLayout>
   );
