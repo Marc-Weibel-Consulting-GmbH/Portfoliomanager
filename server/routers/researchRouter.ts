@@ -465,14 +465,25 @@ export const researchRouter = router({
             .set({ responses, status: "synthesizing" })
             .where(eq(multiAgentSessions.id, sessionId));
 
+          // Filter successful responses for synthesis
+          const successfulResponses = responses.filter(r => !r.response.startsWith("[Fehler:"));
+          
+          if (successfulResponses.length === 0) {
+            await db.update(multiAgentSessions)
+              .set({ status: "error", errorMessage: "Alle Modelle haben Fehler zurückgegeben. Bitte API-Keys prüfen." })
+              .where(eq(multiAgentSessions.id, sessionId));
+            return;
+          }
+
           // Synthesis step: use Manus LLM as supervisor
-          const synthesisPrompt = `Du bist ein Senior-Analyst und Supervisor. Drei verschiedene KI-Modelle haben die folgende Frage beantwortet:
+          const modelCount = successfulResponses.length;
+          const synthesisPrompt = `Du bist ein Senior-Analyst und Supervisor. ${modelCount} KI-Modell${modelCount > 1 ? "e haben" : " hat"} die folgende Frage beantwortet:
 
 FRAGE: "${input.prompt}"
 
 ANTWORTEN:
-${responses.map((r, i) => `--- ${r.provider} (${r.model}) ---\n${r.response}\n`).join("\n")}
-
+${successfulResponses.map((r) => `--- ${r.provider} (${r.model}) ---\n${r.response}\n`).join("\n")}
+${responses.filter(r => r.response.startsWith("[Fehler:")).length > 0 ? `\nHinweis: ${responses.filter(r => r.response.startsWith("[Fehler:")).map(r => r.provider).join(", ")} konnte(n) nicht antworten.\n` : ""}
 Erstelle eine konsolidierte Best-Practice-Synthese:
 1. Identifiziere Übereinstimmungen und Widersprüche
 2. Bewerte die Qualität jeder Antwort
@@ -481,7 +492,23 @@ Erstelle eine konsolidierte Best-Practice-Synthese:
 
 Format: Strukturierte Antwort auf Deutsch mit klaren Abschnitten.`;
 
-          const synthesisResult = await callManusLLM(synthesisPrompt, "Du bist ein erfahrener Finanzanalyst der verschiedene Expertenmeinungen zu einer Best-Practice-Empfehlung konsolidiert.");
+          let synthesisResult;
+          try {
+            synthesisResult = await callManusLLM(synthesisPrompt, "Du bist ein erfahrener Finanzanalyst der verschiedene Expertenmeinungen zu einer Best-Practice-Empfehlung konsolidiert.");
+          } catch (synthError: any) {
+            // If synthesis fails, try with a shorter prompt (truncate responses)
+            console.warn(`[MultiAgent] Synthesis failed, retrying with truncated input:`, synthError.message);
+            const shortPrompt = `Fasse die folgenden Antworten zur Frage "${input.prompt}" zusammen:\n\n${successfulResponses.map(r => `${r.provider}: ${r.response.substring(0, 2000)}`).join("\n\n")}`;
+            try {
+              synthesisResult = await callManusLLM(shortPrompt, "Erstelle eine konsolidierte Zusammenfassung auf Deutsch.");
+            } catch (retryError: any) {
+              // Store partial results even if synthesis fails
+              await db.update(multiAgentSessions)
+                .set({ status: "error", errorMessage: `Synthese fehlgeschlagen: ${retryError.message}. Einzelantworten sind verfügbar.` })
+                .where(eq(multiAgentSessions.id, sessionId));
+              return;
+            }
+          }
           
           await db.update(multiAgentSessions)
             .set({
