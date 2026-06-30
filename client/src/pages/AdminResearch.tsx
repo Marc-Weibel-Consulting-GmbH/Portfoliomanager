@@ -12,7 +12,7 @@ import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
   Upload, FileText, Brain, Sparkles, Trash2, RefreshCw, Clock,
-  CheckCircle, AlertCircle, Loader2, Send, Bot, Eye, Plus, Key
+  CheckCircle, AlertCircle, Loader2, Send, Bot, Eye, Plus, Key, Download
 } from "lucide-react";
 
 // ============================================
@@ -294,6 +294,29 @@ function MultiAgentTab() {
   const [providers, setProviders] = useState<string[]>(["manus", "anthropic", "perplexity"]);
   const [running, setRunning] = useState(false);
   const [viewSession, setViewSession] = useState<any>(null);
+  const [expandedResponse, setExpandedResponse] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const exportMutation = trpc.researchAdmin.exportSession.useMutation();
+
+  const handleExport = async (sessionId: number) => {
+    setExporting(true);
+    try {
+      const result = await exportMutation.mutateAsync({ id: sessionId, format: "pptx" });
+      // Trigger download
+      const a = document.createElement("a");
+      a.href = result.url;
+      a.download = result.filename;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Präsentation wird heruntergeladen...");
+    } catch (e: any) {
+      toast.error(`Export fehlgeschlagen: ${e.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleRun = async () => {
     if (!prompt.trim()) {
@@ -465,41 +488,72 @@ function MultiAgentTab() {
             <DialogTitle>Multi-Agent Analyse</DialogTitle>
           </DialogHeader>
           {viewSession && (
-            <div className="space-y-6 pt-2">
-              <div className="bg-zinc-900 rounded-lg p-4">
-                <h4 className="font-medium text-sm text-muted-foreground mb-1">Prompt</h4>
-                <p className="text-sm">{viewSession.prompt}</p>
-              </div>
-
-              {viewSession.responses && (
-                <div className="space-y-4">
-                  <h4 className="font-medium">Einzelantworten</h4>
-                  {(viewSession.responses as any[]).map((r: any, i: number) => (
-                    <div key={i} className="border border-zinc-800 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge className={
-                          r.provider.includes("Anthropic") ? "bg-orange-600" :
-                          r.provider.includes("Perplexity") ? "bg-blue-600" : "bg-emerald-600"
-                        }>
-                          {r.provider}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {r.tokens} Tokens • {(r.durationMs / 1000).toFixed(1)}s
-                        </span>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap">{r.response}</p>
-                    </div>
-                  ))}
+            <div className="space-y-4 pt-2">
+              {/* Synthesis first - most important */}
+              {viewSession.synthesis && (
+                <div className="border-2 border-[#00CFC1]/30 rounded-lg p-4 bg-[#00CFC1]/5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-[#00CFC1]" />
+                      Best-Practice-Empfehlung
+                    </h4>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleExport(viewSession.id)}
+                      disabled={exporting}
+                      className="gap-2 border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10"
+                    >
+                      {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                      Als PPTX exportieren
+                    </Button>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{viewSession.synthesis}</p>
                 </div>
               )}
 
-              {viewSession.synthesis && (
-                <div className="border-2 border-[#00CFC1]/30 rounded-lg p-4 bg-[#00CFC1]/5">
-                  <h4 className="font-medium flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4 text-[#00CFC1]" />
-                    Konsolidierte Synthese (Best Practice)
-                  </h4>
-                  <p className="text-sm whitespace-pre-wrap">{viewSession.synthesis}</p>
+              {/* Prompt */}
+              <div className="bg-zinc-900 rounded-lg p-3">
+                <h4 className="font-medium text-xs text-muted-foreground mb-1">Frage</h4>
+                <p className="text-sm">{viewSession.prompt}</p>
+              </div>
+
+              {/* Individual responses - collapsed by default */}
+              {viewSession.responses && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm text-muted-foreground">Einzelantworten der Modelle</h4>
+                  {(viewSession.responses as any[]).map((r: any, i: number) => {
+                    const isExpanded = expandedResponse === i;
+                    const preview = r.response.replace(/[\*#]/g, "").substring(0, 280);
+                    return (
+                      <div key={i} className="border border-zinc-800 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <Badge className={
+                            r.provider.includes("Anthropic") ? "bg-orange-600" :
+                            r.provider.includes("Perplexity") ? "bg-blue-600" : "bg-emerald-600"
+                          }>
+                            {r.provider}
+                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {r.tokens} Tokens • {(r.durationMs / 1000).toFixed(1)}s
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => setExpandedResponse(isExpanded ? null : i)}
+                            >
+                              {isExpanded ? "Weniger" : "Mehr"}
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {isExpanded ? r.response : preview + (r.response.length > 280 ? "..." : "")}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

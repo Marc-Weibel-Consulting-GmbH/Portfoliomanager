@@ -93,6 +93,7 @@
     "officeparser": "^7.2.3",
     "onnxruntime-node": "^1.27.0",
     "pdf-parse": "1.1.1",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.1",
     "react-day-picker": "^9.11.1",

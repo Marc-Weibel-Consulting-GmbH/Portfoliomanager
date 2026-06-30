@@ -137,8 +137,8 @@ async function callAnthropic(prompt: string, systemPrompt: string): Promise<{ re
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 2048,
       system: systemPrompt,
       messages: [{ role: "user", content: prompt }],
     }),
@@ -457,8 +457,8 @@ export const researchRouter = router({
           if (input.providers.includes("anthropic")) {
             agentPromises.push(
               callAnthropic(input.prompt, systemPrompt)
-                .then(r => ({ provider: "Anthropic", model: "claude-sonnet-4-20250514", ...r }))
-                .catch(e => ({ provider: "Anthropic", model: "claude-sonnet-4-20250514", response: `[Fehler: ${e.message}]`, tokens: 0, durationMs: 0 }))
+                .then(r => ({ provider: "Anthropic", model: "claude-3-5-sonnet-20241022", ...r }))
+                .catch(e => ({ provider: "Anthropic", model: "claude-3-5-sonnet-20241022", response: `[Fehler: ${e.message}]`, tokens: 0, durationMs: 0 }))
             );
           }
           if (input.providers.includes("perplexity")) {
@@ -488,19 +488,19 @@ export const researchRouter = router({
 
           // Synthesis step: use Manus LLM as supervisor
           // Truncate each response to max 1500 chars to keep synthesis fast
-          const MAX_CHARS_PER_MODEL = 1500;
+          const MAX_CHARS_PER_MODEL = 1200;
           const failedProviders = responses.filter(r => r.response.startsWith("[Fehler:")).map(r => r.provider);
           const synthesisPrompt = `Frage: "${input.prompt}"
 
-Antworten der KI-Modelle (gekürzt):
+Expertenantworten:
 ${successfulResponses.map((r) => `[${r.provider}]: ${r.response.substring(0, MAX_CHARS_PER_MODEL)}${r.response.length > MAX_CHARS_PER_MODEL ? "..." : ""}`).join("\n\n")}
-${failedProviders.length > 0 ? `\n(${failedProviders.join(", ")} nicht verfügbar)\n` : ""}
-Aufgabe: Erstelle eine kurze, strukturierte Best-Practice-Synthese auf Deutsch:
-- Konsens: Was sind die Kernaussagen aller Modelle?
-- Unterschiede: Wo gibt es abweichende Einschätzungen?
-- Empfehlung: Optimale Schlussfolgerung
 
-Maximal 400 Wörter, prägnant und faktenbasiert.`;
+Erstelle eine kompakte Best-Practice-Empfehlung auf Deutsch (max. 200 Wörter):
+1. **Kernempfehlung** (2-3 Sätze): Was ist die optimale Handlungsempfehlung?
+2. **Wichtigste Erkenntnisse** (3-4 Bullet Points): Faktenbasierte Schlüsselaussagen
+3. **Risiken/Vorbehalt** (1-2 Sätze): Was ist zu beachten?
+
+Fokus auf Mehrwert für den Investor, keine Wiederholung der Einzelantworten.`;
 
           let synthesisResult;
           try {
@@ -547,5 +547,139 @@ Maximal 400 Wörter, prägnant und faktenbasiert.`;
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       await db.delete(multiAgentSessions).where(eq(multiAgentSessions.id, input.id));
       return { success: true };
+    }),
+
+  exportSession: adminProcedure
+    .input(z.object({ id: z.number(), format: z.enum(["pdf", "pptx"]).default("pptx") }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [session] = await db.select().from(multiAgentSessions).where(eq(multiAgentSessions.id, input.id));
+      if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+      if (session.status !== "completed") throw new TRPCError({ code: "BAD_REQUEST", message: "Session muss abgeschlossen sein" });
+
+      const responses: Array<{ provider: string; model: string; response: string; tokens: number; durationMs: number }> =
+        Array.isArray(session.responses) ? (session.responses as any[]) : [];
+      const synthesis = session.synthesis || "";
+      const prompt = session.prompt || "";
+      const createdAt = session.createdAt ? new Date(session.createdAt).toLocaleDateString("de-CH") : "";
+
+      // Parse synthesis into sections
+      const lines = synthesis.split("\n").filter(l => l.trim());
+      const kernLines: string[] = [];
+      const erkenntnisLines: string[] = [];
+      const risikoLines: string[] = [];
+      let section = "";
+      for (const line of lines) {
+        if (line.includes("Kernempfehlung") || line.match(/^1[.\)]/)) { section = "kern"; continue; }
+        if (line.includes("Erkenntnisse") || line.match(/^2[.\)]/)) { section = "erkenntnis"; continue; }
+        if (line.includes("Risiken") || line.includes("Vorbehalt") || line.match(/^3[.\)]/)) { section = "risiko"; continue; }
+        const clean = line.replace(/^[\*\-•]\s*/, "").trim();
+        if (!clean) continue;
+        if (section === "kern") kernLines.push(clean);
+        else if (section === "erkenntnis") erkenntnisLines.push(clean);
+        else if (section === "risiko") risikoLines.push(clean);
+        else kernLines.push(clean);
+      }
+      // Fallback: if no sections detected, split evenly
+      if (kernLines.length === 0 && erkenntnisLines.length === 0) {
+        kernLines.push(...lines.slice(0, 3).map(l => l.replace(/^[\*\-•]\s*/, "").trim()));
+        erkenntnisLines.push(...lines.slice(3, 7).map(l => l.replace(/^[\*\-•]\s*/, "").trim()));
+        risikoLines.push(...lines.slice(7, 9).map(l => l.replace(/^[\*\-•]\s*/, "").trim()));
+      }
+
+      // Build PPTX
+      const PptxGenJS = (await import("pptxgenjs")).default;
+      const pptx = new PptxGenJS();
+      pptx.layout = "LAYOUT_WIDE";
+      pptx.title = `Multi-Agent Analyse: ${prompt.substring(0, 60)}`;
+
+      const DARK_BG = "0d1117";
+      const TEAL = "00c9a7";
+      const WHITE = "ffffff";
+      const GRAY = "8b949e";
+      const LIGHT_BG = "161b22";
+
+      // Slide 1: Title
+      const s1 = pptx.addSlide();
+      s1.background = { color: DARK_BG };
+      s1.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.08, h: 5.63, fill: { color: TEAL } });
+      s1.addText("MULTI-AGENT ANALYSE", { x: 0.3, y: 0.4, w: 9.4, h: 0.5, fontSize: 12, color: TEAL, bold: true, fontFace: "Calibri" });
+      s1.addText(prompt.length > 120 ? prompt.substring(0, 120) + "..." : prompt, {
+        x: 0.3, y: 1.0, w: 9.4, h: 2.0, fontSize: 22, color: WHITE, bold: true, fontFace: "Calibri", wrap: true
+      });
+      s1.addText(`Analysiert am ${createdAt} • ${responses.length} KI-Modelle`, {
+        x: 0.3, y: 4.8, w: 9.4, h: 0.4, fontSize: 11, color: GRAY, fontFace: "Calibri"
+      });
+
+      // Slide 2: Kernempfehlung
+      const s2 = pptx.addSlide();
+      s2.background = { color: DARK_BG };
+      s2.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.08, fill: { color: TEAL } });
+      s2.addText("KERNEMPFEHLUNG", { x: 0.4, y: 0.3, w: 12.5, h: 0.5, fontSize: 11, color: TEAL, bold: true, fontFace: "Calibri" });
+      s2.addText(kernLines.join(" ") || synthesis.substring(0, 400), {
+        x: 0.4, y: 0.9, w: 12.5, h: 3.5, fontSize: 18, color: WHITE, fontFace: "Calibri", wrap: true, valign: "top"
+      });
+      s2.addText("Best-Practice-Synthese aus 3 KI-Modellen", {
+        x: 0.4, y: 5.0, w: 12.5, h: 0.4, fontSize: 10, color: GRAY, fontFace: "Calibri"
+      });
+
+      // Slide 3: Wichtigste Erkenntnisse
+      const s3 = pptx.addSlide();
+      s3.background = { color: DARK_BG };
+      s3.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.08, fill: { color: TEAL } });
+      s3.addText("WICHTIGSTE ERKENNTNISSE", { x: 0.4, y: 0.3, w: 12.5, h: 0.5, fontSize: 11, color: TEAL, bold: true, fontFace: "Calibri" });
+      const insights = erkenntnisLines.length > 0 ? erkenntnisLines : kernLines;
+      insights.slice(0, 5).forEach((ins, i) => {
+        s3.addShape(pptx.ShapeType.rect, { x: 0.4, y: 1.0 + i * 0.85, w: 0.06, h: 0.5, fill: { color: TEAL } });
+        s3.addText(ins, { x: 0.65, y: 1.0 + i * 0.85, w: 12.0, h: 0.7, fontSize: 14, color: WHITE, fontFace: "Calibri", wrap: true });
+      });
+
+      // Slide 4: Risiken & Vorbehalte
+      const s4 = pptx.addSlide();
+      s4.background = { color: DARK_BG };
+      s4.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.08, fill: { color: "e74c3c" } });
+      s4.addText("RISIKEN & VORBEHALTE", { x: 0.4, y: 0.3, w: 12.5, h: 0.5, fontSize: 11, color: "e74c3c", bold: true, fontFace: "Calibri" });
+      const risks = risikoLines.length > 0 ? risikoLines : ["Keine spezifischen Risiken identifiziert."];
+      risks.slice(0, 4).forEach((risk, i) => {
+        s4.addShape(pptx.ShapeType.rect, { x: 0.4, y: 1.0 + i * 1.0, w: 12.5, h: 0.8, fill: { color: LIGHT_BG } });
+        s4.addText(risk, { x: 0.6, y: 1.05 + i * 1.0, w: 12.1, h: 0.7, fontSize: 14, color: WHITE, fontFace: "Calibri", wrap: true });
+      });
+
+      // Slide 5: Modell-Übersicht (für Entwickler)
+      const s5 = pptx.addSlide();
+      s5.background = { color: DARK_BG };
+      s5.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.08, fill: { color: GRAY } });
+      s5.addText("MODELL-ÜBERSICHT", { x: 0.4, y: 0.3, w: 12.5, h: 0.5, fontSize: 11, color: GRAY, bold: true, fontFace: "Calibri" });
+      s5.addText("Verwendete KI-Modelle und Performance", { x: 0.4, y: 0.85, w: 12.5, h: 0.4, fontSize: 13, color: WHITE, fontFace: "Calibri" });
+      responses.forEach((r, i) => {
+        const col = i === 0 ? TEAL : i === 1 ? "f39c12" : "9b59b6";
+        const x = 0.4 + i * 4.3;
+        s5.addShape(pptx.ShapeType.rect, { x, y: 1.5, w: 4.0, h: 3.2, fill: { color: LIGHT_BG } });
+        s5.addShape(pptx.ShapeType.rect, { x, y: 1.5, w: 4.0, h: 0.08, fill: { color: col } });
+        s5.addText(r.provider, { x: x + 0.1, y: 1.65, w: 3.8, h: 0.4, fontSize: 13, color: col, bold: true, fontFace: "Calibri" });
+        s5.addText(r.model, { x: x + 0.1, y: 2.1, w: 3.8, h: 0.35, fontSize: 9, color: GRAY, fontFace: "Calibri" });
+        s5.addText(`${r.tokens.toLocaleString()} Tokens • ${(r.durationMs / 1000).toFixed(1)}s`, {
+          x: x + 0.1, y: 2.5, w: 3.8, h: 0.35, fontSize: 10, color: GRAY, fontFace: "Calibri"
+        });
+        const preview = r.response.substring(0, 150).replace(/[\*#]/g, "");
+        s5.addText(preview + (r.response.length > 150 ? "..." : ""), {
+          x: x + 0.1, y: 2.9, w: 3.8, h: 1.6, fontSize: 9, color: WHITE, fontFace: "Calibri", wrap: true
+        });
+      });
+
+      // Generate buffer
+      const buffer = await pptx.write({ outputType: "nodebuffer" }) as Buffer;
+      
+      // Upload to S3
+      const { storagePut } = await import("../storage");
+      const filename = `multiagent-${session.id}-${Date.now()}.pptx`;
+      const { url } = await storagePut(`exports/${filename}`, buffer, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      
+      // Get presigned download URL
+      const { storageGet } = await import("../storage");
+      const { url: downloadUrl } = await storageGet(`exports/${filename}`, 3600);
+      
+      return { url: downloadUrl, filename };
     }),
 });
