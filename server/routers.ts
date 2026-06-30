@@ -42,6 +42,7 @@ import { marketRegimeRouter } from "./routers/marketRegimeRouter";
 import { copilotRouter } from "./routers/copilotRouter";
 import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
+import { researchRouter } from "./routers/researchRouter";
 import { userSettingsRouter } from "./routers/userSettingsRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
@@ -1175,8 +1176,8 @@ export const appRouter = router({
   logs: logsRouter,
   notificationSettings: notificationSettingsRouter,
   
-  onboarding: onboardingRouter,
-
+    onboarding: onboardingRouter,
+  researchAdmin: researchRouter,
   // Logo service for stock logos
   logos: router({
     getLogoUrl: publicProcedure

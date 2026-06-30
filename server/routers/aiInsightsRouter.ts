@@ -7,6 +7,7 @@ import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { invokeLLM } from "../_core/llm";
+import { getResearchContextForLLM } from "../helpers/researchContext";
 
 export const aiInsightsRouter = router({
   /**
@@ -89,12 +90,14 @@ Gib deine Analyse als JSON zurück mit folgender Struktur (nur JSON, kein andere
 }`;
 
       try {
+        // Inject research context into AI insights
+        const researchCtx = await getResearchContextForLLM();
+        const sysContent = "Du bist ein erfahrener Schweizer Vermögensberater. Antworte immer auf Deutsch und gib ausschliesslich gültiges JSON zurück." + researchCtx.contextString;
         const response = await invokeLLM({
           messages: [
             {
               role: "system",
-              content:
-                "Du bist ein erfahrener Schweizer Vermögensberater. Antworte immer auf Deutsch und gib ausschliesslich gültiges JSON zurück.",
+              content: sysContent,
             },
             { role: "user", content: prompt },
           ],

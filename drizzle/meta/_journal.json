@@ -50,6 +50,13 @@
       "when": 1782667995707,
       "tag": "0006_bitter_elektra",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1782811568621,
+      "tag": "0007_solid_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

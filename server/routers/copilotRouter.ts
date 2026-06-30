@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
 import { invokeLLM } from '../_core/llm';
+import { getResearchContextForLLM } from '../helpers/researchContext';
 import { getSavedPortfolioById, getPortfolioTransactions, createPortfolioTransaction, getDb } from '../db';
 import {
   runCopilotAnalysis,
@@ -996,9 +997,12 @@ export const copilotRouter = router({
       try {
         const topSectors = sectorBreakdown.slice(0, 3).map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ');
         const prompt = `Erstelle eine pr\u00e4zise Portfolio-Zusammenfassung auf Deutsch (max. 180 W\u00f6rter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen: ${portfolioMetrics.positionCount}\nTop-Sektoren: ${topSectors}\nDurchschn. KGV: ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG: ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta: ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum: ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nBewerte: Ist das Portfolio g\u00fcnstig oder teuer bewertet? Defensiv oder aggressiv? Dividendenst\u00e4rke? Gib 2 konkrete Handlungsempfehlungen.`;
+        // Inject research context into AI recommendations
+        const researchCtx = await getResearchContextForLLM();
+        const systemContent = 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte pr\u00e4zise auf Deutsch.' + researchCtx.contextString;
         const response = await invokeLLM({
           messages: [
-            { role: 'system', content: 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte pr\u00e4zise auf Deutsch.' },
+            { role: 'system', content: systemContent },
             { role: 'user', content: prompt },
           ],
         });
@@ -1044,9 +1048,12 @@ ${highWarnings.slice(0, 3).map(w => `- ${w.title}: ${w.description}`).join('\n')
 
 Schreibe die Zusammenfassung auf Deutsch. Strukturiere sie in: 1) Gesamteinschätzung (1-2 Sätze), 2) Stärken, 3) Schwächen/Risiken, 4) Empfohlene Massnahmen. Verwende keine Markdown-Formatierung, nur Fliesstext mit Absätzen.`;
 
+  // Inject research context
+  const researchCtx2 = await getResearchContextForLLM();
+  const sysContent2 = 'Du bist ein Schweizer Portfolio-Analyst der prägnante, faktenbasierte Zusammenfassungen schreibt. Antworte immer auf Deutsch.' + researchCtx2.contextString;
   const result = await invokeLLM({
     messages: [
-      { role: 'system', content: 'Du bist ein Schweizer Portfolio-Analyst der prägnante, faktenbasierte Zusammenfassungen schreibt. Antworte immer auf Deutsch.' },
+      { role: 'system', content: sysContent2 },
       { role: 'user', content: prompt },
     ],
     maxTokens: 500,

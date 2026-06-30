@@ -1522,3 +1522,22 @@
 
 ### Copilot Endlos-Schlaufe
 - [x] "Im Copilot analysieren" / "Portfolio überprüfen" Button führt nicht zurück zur gleichen Seite
+
+## Research-Kachel & Multi-Agent-System (Admin) - 30.06.2026
+
+- [x] Admin Einstellungen: API-Verwaltung mit + Hinzufügen Funktion (Anthropic, Perplexity, etc.)
+- [x] DB Schema: researchDocuments Tabelle (id, title, filename, fileUrl, extractedText, analysis, insights JSON, uploadedAt)
+- [x] DB Schema: apiKeys via appSecrets mit secretsManager
+- [x] DB Schema: multiAgentSessions Tabelle (id, prompt, responses JSON, synthesis, status, createdAt)
+- [x] Backend: Research Upload Endpoint (PDF/Word/PPT/Excel → S3 + Text-Extraktion)
+- [x] Backend: LLM-Analyse nach Upload (Zusammenfassung, Schlüsselerkenntnisse, Aktien-Relevanz)
+- [x] Backend: Research-Erkenntnisse in CopilotInsights-Kontext integrieren
+- [x] Backend: Multi-Agent Orchestrator (Manus LLM + Anthropic + Perplexity parallel)
+- [x] Backend: Synthese-Schritt (Supervisor vergleicht und konsolidiert Antworten)
+- [x] Frontend: Admin Research-Kachel mit Drag&Drop Upload
+- [x] Frontend: Dokumentenliste mit Status (analysiert/pending) und Erkenntnisse-Anzeige
+- [x] Frontend: Admin API-Verwaltung Seite (Liste + Hinzufügen + Bearbeiten + Löschen)
+- [x] Frontend: Multi-Agent Prompt-Eingabe im Admin-Bereich
+- [x] Frontend: Multi-Agent Resultate-Anzeige (welches Modell hat was beigetragen + Synthese)
+- [x] Validierung: Anthropic API Key in DB gespeichert
+- [x] Validierung: Perplexity API Key in DB gespeichert

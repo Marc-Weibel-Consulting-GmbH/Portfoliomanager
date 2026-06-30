@@ -71,6 +71,7 @@ const adminMenuItems = [
   { icon: Shield, label: "Admin", path: "/admin" },
   { icon: Eye, label: "Watchlist", path: "/admin/watchlist" },
   { icon: Zap, label: "Signal-Optimizer", path: "/admin/optimizer" },
+  { icon: Brain, label: "Research & Multi-Agent", path: "/admin/research" },
   { icon: Settings, label: "Einstellungen", path: "/admin/settings" },
 ];
 

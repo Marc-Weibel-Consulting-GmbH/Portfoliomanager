@@ -845,3 +845,44 @@ export const appSettings = mysqlTable("appSettings", {
 
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = typeof appSettings.$inferInsert;
+
+// ============================================
+// Research Documents (Admin uploads for KI-Empfehlungen context)
+// ============================================
+export const researchDocuments = mysqlTable("researchDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 500 }).notNull(),
+  filename: varchar("filename", { length: 500 }).notNull(),
+  fileUrl: text("fileUrl").notNull(),
+  fileType: mysqlEnum("fileType", ["pdf", "word", "ppt", "excel", "other"]).notNull().default("pdf"),
+  fileSize: int("fileSize"),
+  extractedText: longtext("extractedText"),
+  summary: text("summary"),
+  keyInsights: json("keyInsights"),
+  relevantTickers: json("relevantTickers"),
+  status: mysqlEnum("status", ["uploading", "extracting", "analyzing", "ready", "error"]).notNull().default("uploading"),
+  errorMessage: text("errorMessage"),
+  uploadedBy: int("uploadedBy"),
+  uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
+  analyzedAt: timestamp("analyzedAt"),
+});
+export type ResearchDocument = typeof researchDocuments.$inferSelect;
+export type InsertResearchDocument = typeof researchDocuments.$inferInsert;
+
+// ============================================
+// Multi-Agent Sessions (Orchestrated LLM queries)
+// ============================================
+export const multiAgentSessions = mysqlTable("multiAgentSessions", {
+  id: int("id").autoincrement().primaryKey(),
+  prompt: text("prompt").notNull(),
+  context: text("context"),
+  responses: json("responses"),
+  synthesis: text("synthesis"),
+  status: mysqlEnum("status", ["pending", "running", "synthesizing", "completed", "error"]).notNull().default("pending"),
+  errorMessage: text("errorMessage"),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+export type MultiAgentSession = typeof multiAgentSessions.$inferSelect;
+export type InsertMultiAgentSession = typeof multiAgentSessions.$inferInsert;

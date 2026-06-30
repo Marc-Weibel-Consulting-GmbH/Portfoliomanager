@@ -61,6 +61,7 @@ import AdminMlTrainer from "./pages/AdminMlTrainer";
 import AdminSignalPerformance from "./pages/AdminSignalPerformance";
 import AdminWikifolio from "./pages/AdminWikifolio";
 import AdminSettings from "./pages/AdminSettings";
+import AdminResearch from "./pages/AdminResearch";
 
 // ─── Legacy (für Redirects) ───
 import DebugTest from "./pages/DebugTest";
@@ -154,6 +155,7 @@ function Router() {
       <Route path="/admin/signal-performance" component={AdminSignalPerformance} />
       <Route path="/admin/wikifolio" component={AdminWikifolio} />
       <Route path="/admin/settings" component={AdminSettings} />
+      <Route path="/admin/research" component={AdminResearch} />
 
       {/* ═══ Legacy Redirects (alte Routen → neue Struktur) ═══ */}
       <Route path="/home">
