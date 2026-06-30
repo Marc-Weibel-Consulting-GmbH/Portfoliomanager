@@ -296,13 +296,15 @@ function MultiAgentTab() {
   const [viewSession, setViewSession] = useState<any>(null);
   const [expandedResponse, setExpandedResponse] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [generatingPresentation, setGeneratingPresentation] = useState(false);
+  const [presentationHtml, setPresentationHtml] = useState<string | null>(null);
   const exportMutation = trpc.researchAdmin.exportSession.useMutation();
+  const presentationMutation = trpc.researchAdmin.generatePresentation.useMutation();
 
   const handleExport = async (sessionId: number) => {
     setExporting(true);
     try {
       const result = await exportMutation.mutateAsync({ id: sessionId, format: "pptx" });
-      // Trigger download
       const a = document.createElement("a");
       a.href = result.url;
       a.download = result.filename;
@@ -315,6 +317,31 @@ function MultiAgentTab() {
       toast.error(`Export fehlgeschlagen: ${e.message}`);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleGeneratePresentation = async (sessionId: number) => {
+    setGeneratingPresentation(true);
+    setPresentationHtml(null);
+    try {
+      const result = await presentationMutation.mutateAsync({ id: sessionId });
+      // Open in new tab
+      const blob = new Blob([result.html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (win) {
+        win.focus();
+        // Revoke after 60s
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        // Fallback: store in state for inline display
+        setPresentationHtml(result.html);
+      }
+      toast.success("Präsentation in neuem Tab geöffnet!");
+    } catch (e: any) {
+      toast.error(`Präsentation fehlgeschlagen: ${e.message}`);
+    } finally {
+      setGeneratingPresentation(false);
     }
   };
 
@@ -481,8 +508,42 @@ function MultiAgentTab() {
         </div>
       )}
 
+      {/* Full-screen Presentation Viewer */}
+      {presentationHtml && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800">
+            <span className="text-sm font-medium text-[#00CFC1]">Multi-Agent Präsentation</span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleExport(viewSession?.id)}
+                disabled={exporting}
+                className="gap-2 border-zinc-700 text-xs"
+              >
+                {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                PPTX
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPresentationHtml(null)}
+                className="border-zinc-700 text-xs"
+              >
+                × Schliessen
+              </Button>
+            </div>
+          </div>
+          <iframe
+            srcDoc={presentationHtml}
+            className="flex-1 w-full border-0"
+            title="Multi-Agent Präsentation"
+          />
+        </div>
+      )}
+
       {/* Session Detail Dialog */}
-      <Dialog open={!!viewSession} onOpenChange={() => setViewSession(null)}>
+      <Dialog open={!!viewSession} onOpenChange={() => { setViewSession(null); setPresentationHtml(null); }}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Multi-Agent Analyse</DialogTitle>
@@ -497,16 +558,28 @@ function MultiAgentTab() {
                       <Sparkles className="h-4 w-4 text-[#00CFC1]" />
                       Best-Practice-Empfehlung
                     </h4>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleExport(viewSession.id)}
-                      disabled={exporting}
-                      className="gap-2 border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10"
-                    >
-                      {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                      Als PPTX exportieren
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleGeneratePresentation(viewSession.id)}
+                        disabled={generatingPresentation}
+                        className="gap-2 border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10"
+                      >
+                        {generatingPresentation ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                        {generatingPresentation ? "Erstelle..." : "Präsentation"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleExport(viewSession.id)}
+                        disabled={exporting}
+                        className="gap-2 border-zinc-700"
+                      >
+                        {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                        PPTX
+                      </Button>
+                    </div>
                   </div>
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{viewSession.synthesis}</p>
                 </div>

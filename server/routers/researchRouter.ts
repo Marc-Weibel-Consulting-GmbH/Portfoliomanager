@@ -549,6 +549,227 @@ Fokus auf Mehrwert für den Investor, keine Wiederholung der Einzelantworten.`;
       return { success: true };
     }),
 
+  generatePresentation: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [session] = await db.select().from(multiAgentSessions).where(eq(multiAgentSessions.id, input.id));
+      if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+      if (session.status !== "completed") throw new TRPCError({ code: "BAD_REQUEST", message: "Session muss abgeschlossen sein" });
+
+      const synthesis = session.synthesis || "";
+      const prompt = session.prompt || "";
+      const createdAt = session.createdAt ? new Date(session.createdAt).toLocaleDateString("de-CH") : "";
+      const responses: any[] = Array.isArray(session.responses) ? (session.responses as any[]) : [];
+
+      // Use LLM to parse synthesis into structured slide data
+      const parsePrompt = `Analysiere diese Synthese und extrahiere strukturierte Daten für eine 5-Slide Präsentation.
+
+Frage: "${prompt}"
+
+Synthese:
+${synthesis}
+
+Gib NUR valides JSON zurück (kein Markdown, keine Erklärungen):
+{
+  "title": "Kurzer prägnanter Titel (max 8 Wörter)",
+  "subtitle": "Untertitel mit Datum ${createdAt}",
+  "recommendation": "Kernempfehlung in 2-3 Sätzen",
+  "verdict": "KAUFEN|HALTEN|VERKAUFEN|NEUTRAL",
+  "verdictColor": "#00c9a7|#f39c12|#e74c3c|#8b949e",
+  "insights": ["Erkenntnis 1", "Erkenntnis 2", "Erkenntnis 3", "Erkenntnis 4"],
+  "risks": ["Risiko 1", "Risiko 2", "Risiko 3"],
+  "conclusion": "Abschliessende Handlungsempfehlung in 1-2 Sätzen",
+  "tags": ["Tag1", "Tag2", "Tag3"]
+}`;
+
+      let slideData: any;
+      try {
+        const llmResult = await callManusLLM(parsePrompt, "Du bist ein Finanzanalyst der Daten für Präsentationen strukturiert. Antworte NUR mit validem JSON.");
+        const jsonStr = llmResult.response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        slideData = JSON.parse(jsonStr);
+      } catch (e) {
+        // Fallback: parse manually
+        const lines = synthesis.split("\n").filter(l => l.trim());
+        slideData = {
+          title: prompt.substring(0, 60),
+          subtitle: `Multi-Agent Analyse • ${createdAt}`,
+          recommendation: lines.slice(0, 3).join(" "),
+          verdict: "NEUTRAL",
+          verdictColor: "#8b949e",
+          insights: lines.slice(3, 7).map(l => l.replace(/^[\*\-•]\s*/, "").substring(0, 120)),
+          risks: lines.slice(7, 10).map(l => l.replace(/^[\*\-•]\s*/, "").substring(0, 100)),
+          conclusion: lines.slice(-2).join(" "),
+          tags: ["Multi-Agent", "KI-Analyse", "Best Practice"]
+        };
+      }
+
+      // Generate beautiful HTML presentation
+      const modelColors: Record<string, string> = { manus: "#00c9a7", anthropic: "#f39c12", perplexity: "#9b59b6" };
+      const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${slideData.title}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #fff; overflow: hidden; }
+  .slides { width: 100vw; height: 100vh; position: relative; }
+  .slide { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; padding: 60px 80px; }
+  .slide.active { display: flex; }
+  .slide-1 { background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%); }
+  .slide-2, .slide-3, .slide-4, .slide-5 { background: #0d1117; }
+  .accent-bar { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #00c9a7, #00a8ff); }
+  .slide-num { position: absolute; bottom: 30px; right: 40px; font-size: 12px; color: #444; }
+  .nav-dots { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 100; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #333; cursor: pointer; transition: all 0.3s; }
+  .dot.active { background: #00c9a7; transform: scale(1.3); }
+  .nav-arrows { position: fixed; bottom: 16px; right: 40px; display: flex; gap: 8px; z-index: 100; }
+  .nav-btn { background: #161b22; border: 1px solid #30363d; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+  .nav-btn:hover { background: #00c9a7; border-color: #00c9a7; }
+  .tag { display: inline-block; background: #00c9a722; color: #00c9a7; border: 1px solid #00c9a744; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin: 4px 4px 4px 0; }
+  .verdict-badge { display: inline-block; padding: 8px 24px; border-radius: 8px; font-size: 22px; font-weight: 700; letter-spacing: 2px; }
+  .insight-item { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-bottom: 1px solid #21262d; }
+  .insight-num { min-width: 32px; height: 32px; border-radius: 50%; background: #00c9a7; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .risk-item { background: #161b22; border-left: 3px solid #e74c3c; padding: 14px 18px; border-radius: 0 8px 8px 0; margin-bottom: 12px; font-size: 15px; color: #ccc; }
+  .model-card { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 20px; flex: 1; }
+  .model-cards { display: flex; gap: 20px; margin-top: 20px; }
+  h1 { font-size: 48px; font-weight: 800; line-height: 1.1; margin-bottom: 16px; }
+  h2 { font-size: 13px; color: #00c9a7; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 24px; }
+  h3 { font-size: 28px; font-weight: 700; margin-bottom: 20px; }
+  p { font-size: 17px; line-height: 1.7; color: #ccc; }
+  .logo { position: absolute; top: 24px; left: 40px; font-size: 13px; color: #444; font-weight: 600; letter-spacing: 1px; }
+  .glow { text-shadow: 0 0 40px #00c9a744; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .slide.active > * { animation: fadeIn 0.5s ease forwards; }
+</style>
+</head>
+<body>
+<div class="slides">
+
+  <!-- Slide 1: Title -->
+  <div class="slide slide-1 active" id="slide-1">
+    <div class="accent-bar"></div>
+    <div class="logo">PORTFOLIOMANAGER • MULTI-AGENT</div>
+    <div style="max-width: 800px">
+      <h2>${responses.length} KI-MODELLE • ${createdAt}</h2>
+      <h1 class="glow">${slideData.title}</h1>
+      <p style="margin-bottom: 28px; font-size: 18px">${slideData.subtitle}</p>
+      <div>${(slideData.tags || []).map((t: string) => `<span class="tag">${t}</span>`).join("")}</div>
+    </div>
+    <div class="slide-num">1 / 5</div>
+  </div>
+
+  <!-- Slide 2: Verdict + Recommendation -->
+  <div class="slide slide-2" id="slide-2">
+    <div class="accent-bar"></div>
+    <div class="logo">PORTFOLIOMANAGER • MULTI-AGENT</div>
+    <h2>KERNEMPFEHLUNG</h2>
+    <div style="display: flex; align-items: flex-start; gap: 40px">
+      <div style="flex: 1">
+        <h3 style="font-size: 32px; margin-bottom: 20px">${slideData.recommendation}</h3>
+      </div>
+      <div style="text-align: center; min-width: 160px">
+        <div style="font-size: 11px; color: #666; margin-bottom: 10px; letter-spacing: 2px">URTEIL</div>
+        <div class="verdict-badge" style="background: ${slideData.verdictColor}22; color: ${slideData.verdictColor}; border: 2px solid ${slideData.verdictColor}">${slideData.verdict}</div>
+      </div>
+    </div>
+    <div class="slide-num">2 / 5</div>
+  </div>
+
+  <!-- Slide 3: Key Insights -->
+  <div class="slide slide-3" id="slide-3">
+    <div class="accent-bar"></div>
+    <div class="logo">PORTFOLIOMANAGER • MULTI-AGENT</div>
+    <h2>WICHTIGSTE ERKENNTNISSE</h2>
+    <div>
+      ${(slideData.insights || []).slice(0, 4).map((ins: string, i: number) => `
+      <div class="insight-item">
+        <div class="insight-num">${i + 1}</div>
+        <p style="color: #e6edf3; font-size: 16px">${ins}</p>
+      </div>`).join("")}
+    </div>
+    <div class="slide-num">3 / 5</div>
+  </div>
+
+  <!-- Slide 4: Risks -->
+  <div class="slide slide-4" id="slide-4">
+    <div class="accent-bar" style="background: linear-gradient(90deg, #e74c3c, #c0392b)"></div>
+    <div class="logo">PORTFOLIOMANAGER • MULTI-AGENT</div>
+    <h2 style="color: #e74c3c">RISIKEN & VORBEHALTE</h2>
+    <div style="margin-bottom: 30px">
+      ${(slideData.risks || []).slice(0, 3).map((r: string) => `<div class="risk-item">${r}</div>`).join("")}
+    </div>
+    <div style="background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 20px">
+      <p style="color: #e6edf3; font-size: 16px"><strong style="color: #00c9a7">Fazit:</strong> ${slideData.conclusion}</p>
+    </div>
+    <div class="slide-num">4 / 5</div>
+  </div>
+
+  <!-- Slide 5: Model Overview -->
+  <div class="slide slide-5" id="slide-5">
+    <div class="accent-bar" style="background: linear-gradient(90deg, #8b949e, #444)"></div>
+    <div class="logo">PORTFOLIOMANAGER • MULTI-AGENT</div>
+    <h2 style="color: #8b949e">VERWENDETE KI-MODELLE</h2>
+    <div class="model-cards">
+      ${responses.map((r: any) => {
+        const col = r.provider.toLowerCase().includes("anthropic") ? "#f39c12" : r.provider.toLowerCase().includes("perplexity") ? "#9b59b6" : "#00c9a7";
+        return `<div class="model-card">
+          <div style="color: ${col}; font-weight: 700; font-size: 15px; margin-bottom: 6px">${r.provider}</div>
+          <div style="color: #666; font-size: 11px; margin-bottom: 12px">${r.model}</div>
+          <div style="color: #8b949e; font-size: 12px; margin-bottom: 10px">${r.tokens.toLocaleString()} Tokens • ${(r.durationMs / 1000).toFixed(1)}s</div>
+          <p style="font-size: 12px; color: #8b949e; line-height: 1.5">${r.response.replace(/[\*#]/g, "").substring(0, 200)}...</p>
+        </div>`;
+      }).join("")}
+    </div>
+    <div class="slide-num">5 / 5</div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav-dots">
+  <div class="dot active" onclick="goTo(1)"></div>
+  <div class="dot" onclick="goTo(2)"></div>
+  <div class="dot" onclick="goTo(3)"></div>
+  <div class="dot" onclick="goTo(4)"></div>
+  <div class="dot" onclick="goTo(5)"></div>
+</div>
+<div class="nav-arrows">
+  <button class="nav-btn" onclick="prev()">&#8592;</button>
+  <button class="nav-btn" onclick="next()">&#8594;</button>
+</div>
+
+<script>
+  let current = 1;
+  const total = 5;
+  function goTo(n) {
+    document.getElementById('slide-' + current).classList.remove('active');
+    document.querySelectorAll('.dot')[current-1].classList.remove('active');
+    current = n;
+    document.getElementById('slide-' + current).classList.add('active');
+    document.querySelectorAll('.dot')[current-1].classList.add('active');
+  }
+  function next() { if (current < total) goTo(current + 1); }
+  function prev() { if (current > 1) goTo(current - 1); }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') next();
+    if (e.key === 'ArrowLeft') prev();
+  });
+</script>
+</body>
+</html>`;
+
+      // Upload HTML to S3
+      const htmlFilename = `presentation-${session.id}-${Date.now()}.html`;
+      const { url } = await storagePut(`exports/${htmlFilename}`, Buffer.from(html, "utf-8"), "text/html");
+      const { url: viewUrl } = await storageGet(`exports/${htmlFilename}`, 86400);
+
+      return { url: viewUrl, html, filename: htmlFilename };
+    }),
+
   exportSession: adminProcedure
     .input(z.object({ id: z.number(), format: z.enum(["pdf", "pptx"]).default("pptx") }))
     .mutation(async ({ input }) => {
