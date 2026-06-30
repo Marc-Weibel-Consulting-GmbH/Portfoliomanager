@@ -240,23 +240,37 @@ function ResearchDocumentsTab() {
 
       {/* Document Detail Dialog */}
       <Dialog open={!!viewDoc} onOpenChange={() => setViewDoc(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{viewDoc?.title}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#00CFC1]" />
+              {viewDoc?.title}
+            </DialogTitle>
+            {viewDoc && (
+              <p className="text-xs text-muted-foreground">
+                {viewDoc.filename} • Analysiert am {viewDoc.analyzedAt ? new Date(viewDoc.analyzedAt).toLocaleString("de-CH") : "–"}
+              </p>
+            )}
           </DialogHeader>
           {viewDoc && (
-            <div className="space-y-4 pt-2">
-              <div>
-                <h4 className="font-medium mb-2">Zusammenfassung</h4>
-                <p className="text-sm text-muted-foreground">{viewDoc.summary}</p>
+            <div className="space-y-5 pt-2">
+              <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
+                <h4 className="font-semibold text-sm text-[#00CFC1] mb-3 flex items-center gap-2">
+                  <Brain className="h-4 w-4" /> Zusammenfassung
+                </h4>
+                <div className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+                  {viewDoc.summary}
+                </div>
               </div>
               {viewDoc.keyInsights && (viewDoc.keyInsights as string[]).length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-2">Schlüsselerkenntnisse</h4>
+                <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
+                  <h4 className="font-semibold text-sm text-[#00CFC1] mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Schlüsselerkenntnisse ({(viewDoc.keyInsights as string[]).length})
+                  </h4>
                   <ul className="space-y-2">
                     {(viewDoc.keyInsights as string[]).map((insight: string, i: number) => (
                       <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <Sparkles className="h-4 w-4 text-[#00CFC1] mt-0.5 shrink-0" />
+                        <span className="text-[#00CFC1] font-bold text-xs mt-0.5 shrink-0">{i+1}.</span>
                         {insight}
                       </li>
                     ))}
@@ -264,19 +278,96 @@ function ResearchDocumentsTab() {
                 </div>
               )}
               {viewDoc.relevantTickers && (viewDoc.relevantTickers as string[]).length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-2">Erwähnte Aktien</h4>
+                <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
+                  <h4 className="font-semibold text-sm text-[#00CFC1] mb-3">Erwähnte Aktien & Ticker</h4>
                   <div className="flex gap-1 flex-wrap">
                     {(viewDoc.relevantTickers as string[]).map((t: string) => (
-                      <Badge key={t} variant="outline">{t}</Badge>
+                      <Badge key={t} variant="outline" className="font-mono">{t}</Badge>
                     ))}
                   </div>
                 </div>
               )}
+              <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-700">
+                <h4 className="font-semibold text-sm text-amber-400 mb-2 flex items-center gap-2">
+                  ⚡ KI-Kontext-Integration
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Diese Erkenntnisse werden automatisch in alle KI-Empfehlungen injiziert: <strong>Copilot</strong>, <strong>AI Insights</strong> und <strong>Multi-Agent</strong>. Der Kontext wird bei jedem LLM-Aufruf als zusätzlicher System-Prompt mitgeschickt.
+                </p>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* KI-Kontext Transparenz Panel */}
+      <ResearchContextPanel />
+    </div>
+  );
+}
+
+// ============================================
+// Research Context Transparency Panel
+// ============================================
+function ResearchContextPanel() {
+  const { data: ctx, isLoading } = trpc.researchAdmin.getResearchContext.useQuery();
+  const [expanded, setExpanded] = useState(false);
+
+  if (isLoading) return null;
+  if (!ctx || ctx.documentCount === 0) return null;
+
+  return (
+    <div className="mt-6">
+      <Card className="border-amber-500/30 bg-amber-500/5">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-amber-400" />
+              <CardTitle className="text-base text-amber-400">KI-Kontext aktiv</CardTitle>
+              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+                {ctx.documentCount} {ctx.documentCount === 1 ? "Dokument" : "Dokumente"}
+              </Badge>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="text-xs text-muted-foreground">
+              {expanded ? "Weniger" : "Kontext anzeigen"}
+            </Button>
+          </div>
+          <CardDescription className="text-xs">
+            Diese Research-Erkenntnisse werden automatisch in Copilot, AI Insights und Multi-Agent injiziert.
+            {ctx.tickers.length > 0 && (
+              <span className="ml-1">Relevante Ticker: <strong>{ctx.tickers.slice(0, 10).join(", ")}</strong>{ctx.tickers.length > 10 ? ` +${ctx.tickers.length - 10} weitere` : ""}</span>
+            )}
+          </CardDescription>
+        </CardHeader>
+        {expanded && (
+          <CardContent className="pt-0">
+            <div className="space-y-2 mb-3">
+              {ctx.documents.map((doc: any) => (
+                <div key={doc.id} className="flex items-center justify-between text-xs bg-zinc-900 rounded px-3 py-2">
+                  <span className="font-medium truncate flex-1">{doc.title}</span>
+                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                    <span className="text-muted-foreground">{doc.insightCount} Erkenntnisse</span>
+                    {doc.tickers.length > 0 && (
+                      <div className="flex gap-1">
+                        {doc.tickers.slice(0, 3).map((t: string) => (
+                          <Badge key={t} variant="outline" className="text-xs py-0 h-4 font-mono">{t}</Badge>
+                        ))}
+                        {doc.tickers.length > 3 && <span className="text-muted-foreground">+{doc.tickers.length - 3}</span>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Exakter LLM-Kontext (wird bei jedem KI-Aufruf mitgeschickt):</p>
+              <pre className="text-xs bg-zinc-950 rounded p-3 overflow-x-auto text-zinc-400 whitespace-pre-wrap border border-zinc-800 max-h-48 overflow-y-auto">
+                {ctx.contextPreview}
+              </pre>
+            </div>
+          </CardContent>
+        )}
+      </Card>
     </div>
   );
 }

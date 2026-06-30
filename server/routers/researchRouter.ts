@@ -71,17 +71,17 @@ async function analyzeDocument(extractedText: string, title: string): Promise<{
   keyInsights: string[];
   relevantTickers: string[];
 }> {
-  const truncatedText = extractedText.slice(0, 8000); // Limit to ~8K chars for speed
+  const truncatedText = extractedText.slice(0, 16000); // Use up to 16K chars for thorough analysis
   
   const result = await invokeLLM({
     messages: [
       {
         role: "system",
-        content: "Du bist ein Finanzanalyst. Analysiere das Research-Dokument und antworte im vorgegebenen JSON-Format auf Deutsch."
+        content: "Du bist ein erfahrener Finanzanalyst und Portfolio-Manager. Analysiere Research-Dokumente präzise und strukturiert. Antworte ausschliesslich im vorgegebenen JSON-Format auf Deutsch."
       },
       {
         role: "user",
-        content: `Analysiere dieses Dokument:\n\nTitel: "${title}"\n\nInhalt (gekürzt):\n${truncatedText}\n\nErstelle:\n1. summary: Zusammenfassung max. 200 Wörter\n2. keyInsights: Array mit max. 6 wichtigsten Erkenntnissen (je 1 Satz)\n3. relevantTickers: Array mit erwähnten Aktien-Ticker-Symbolen (z.B. AAPL, NESN.SW)`
+        content: `Analysiere dieses Research-Dokument gründlich:\n\nTitel: "${title}"\n\nInhalt:\n${truncatedText}\n\nErstelle eine ausführliche Analyse mit:\n1. summary: Detaillierte Zusammenfassung (300-400 Wörter) mit folgenden Abschnitten: Überblick, Kernthesen, Markteinschätzung, Risiken & Chancen, Handlungsempfehlungen\n2. keyInsights: Array mit 8-10 konkreten, handlungsrelevanten Erkenntnissen (je 1-2 Sätze, spezifisch und präzise)\n3. relevantTickers: Array mit allen erwähnten Aktien-Ticker-Symbolen (z.B. AAPL, NESN.SW, NVDA)`
       }
     ],
     response_format: {
@@ -92,9 +92,9 @@ async function analyzeDocument(extractedText: string, title: string): Promise<{
         schema: {
           type: "object",
           properties: {
-            summary: { type: "string", description: "Zusammenfassung des Dokuments auf Deutsch" },
-            keyInsights: { type: "array", items: { type: "string" }, description: "Wichtigste Erkenntnisse" },
-            relevantTickers: { type: "array", items: { type: "string" }, description: "Erwähnte Aktien-Ticker" }
+            summary: { type: "string", description: "Ausführliche strukturierte Zusammenfassung (300-400 Wörter) auf Deutsch" },
+            keyInsights: { type: "array", items: { type: "string" }, description: "8-10 handlungsrelevante Erkenntnisse" },
+            relevantTickers: { type: "array", items: { type: "string" }, description: "Erwähnte Aktien-Ticker-Symbole" }
           },
           required: ["summary", "keyInsights", "relevantTickers"],
           additionalProperties: false
@@ -373,14 +373,16 @@ export const researchRouter = router({
   // Get all research insights for CopilotInsights context
   getResearchContext: adminProcedure.query(async () => {
     const db = await getDb();
-    if (!db) return { insights: [], tickers: [] };
+    if (!db) return { insights: [], tickers: [], contextPreview: "", documentCount: 0, documents: [] };
     
     const docs = await db.select({
+      id: researchDocuments.id,
+      title: researchDocuments.title,
       summary: researchDocuments.summary,
       keyInsights: researchDocuments.keyInsights,
       relevantTickers: researchDocuments.relevantTickers,
-      title: researchDocuments.title,
       analyzedAt: researchDocuments.analyzedAt,
+      status: researchDocuments.status,
     })
     .from(researchDocuments)
     .where(eq(researchDocuments.status, "ready"))
@@ -389,6 +391,7 @@ export const researchRouter = router({
 
     const allInsights: string[] = [];
     const allTickers: string[] = [];
+    const contextParts: string[] = [];
     
     for (const doc of docs) {
       if (doc.summary) allInsights.push(`[${doc.title}]: ${doc.summary}`);
@@ -398,9 +401,36 @@ export const researchRouter = router({
       if (Array.isArray(doc.relevantTickers)) {
         allTickers.push(...(doc.relevantTickers as string[]));
       }
+      // Build the exact context string that gets injected into LLM calls
+      let part = `[${doc.title}]`;
+      if (doc.summary) part += `: ${doc.summary.slice(0, 300)}...`;
+      if (doc.keyInsights && (doc.keyInsights as string[]).length > 0) {
+        const insights = (doc.keyInsights as string[]).slice(0, 3);
+        part += `\n  Erkenntnisse: ${insights.join(" | ")}`;
+      }
+      if (doc.relevantTickers && (doc.relevantTickers as string[]).length > 0) {
+        part += `\n  Relevante Ticker: ${(doc.relevantTickers as string[]).join(", ")}`;
+      }
+      contextParts.push(part);
     }
 
-    return { insights: allInsights, tickers: [...new Set(allTickers)] };
+    const contextPreview = docs.length > 0
+      ? `--- AKTUELLE RESEARCH-ERKENNTNISSE (${docs.length} Dokumente) ---\n${contextParts.join("\n\n")}\n--- ENDE RESEARCH ---`
+      : "(Noch keine Research-Dokumente analysiert)";
+
+    return {
+      insights: allInsights,
+      tickers: [...new Set(allTickers)],
+      contextPreview,
+      documentCount: docs.length,
+      documents: docs.map(d => ({
+        id: d.id,
+        title: d.title,
+        insightCount: Array.isArray(d.keyInsights) ? (d.keyInsights as string[]).length : 0,
+        tickers: Array.isArray(d.relevantTickers) ? d.relevantTickers as string[] : [],
+        analyzedAt: d.analyzedAt,
+      }))
+    };
   }),
 
   // --- Multi-Agent System ---
