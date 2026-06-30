@@ -476,21 +476,20 @@ export const researchRouter = router({
           }
 
           // Synthesis step: use Manus LLM as supervisor
-          const modelCount = successfulResponses.length;
-          const synthesisPrompt = `Du bist ein Senior-Analyst und Supervisor. ${modelCount} KI-Modell${modelCount > 1 ? "e haben" : " hat"} die folgende Frage beantwortet:
+          // Truncate each response to max 1500 chars to keep synthesis fast
+          const MAX_CHARS_PER_MODEL = 1500;
+          const failedProviders = responses.filter(r => r.response.startsWith("[Fehler:")).map(r => r.provider);
+          const synthesisPrompt = `Frage: "${input.prompt}"
 
-FRAGE: "${input.prompt}"
+Antworten der KI-Modelle (gekürzt):
+${successfulResponses.map((r) => `[${r.provider}]: ${r.response.substring(0, MAX_CHARS_PER_MODEL)}${r.response.length > MAX_CHARS_PER_MODEL ? "..." : ""}`).join("\n\n")}
+${failedProviders.length > 0 ? `\n(${failedProviders.join(", ")} nicht verfügbar)\n` : ""}
+Aufgabe: Erstelle eine kurze, strukturierte Best-Practice-Synthese auf Deutsch:
+- Konsens: Was sind die Kernaussagen aller Modelle?
+- Unterschiede: Wo gibt es abweichende Einschätzungen?
+- Empfehlung: Optimale Schlussfolgerung
 
-ANTWORTEN:
-${successfulResponses.map((r) => `--- ${r.provider} (${r.model}) ---\n${r.response}\n`).join("\n")}
-${responses.filter(r => r.response.startsWith("[Fehler:")).length > 0 ? `\nHinweis: ${responses.filter(r => r.response.startsWith("[Fehler:")).map(r => r.provider).join(", ")} konnte(n) nicht antworten.\n` : ""}
-Erstelle eine konsolidierte Best-Practice-Synthese:
-1. Identifiziere Übereinstimmungen und Widersprüche
-2. Bewerte die Qualität jeder Antwort
-3. Erstelle eine finale, optimale Antwort die das Beste aus allen kombiniert
-4. Markiere Unsicherheiten oder offene Punkte
-
-Format: Strukturierte Antwort auf Deutsch mit klaren Abschnitten.`;
+Maximal 400 Wörter, prägnant und faktenbasiert.`;
 
           let synthesisResult;
           try {
