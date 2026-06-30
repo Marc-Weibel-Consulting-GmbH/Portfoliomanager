@@ -15,7 +15,7 @@ async function extractTextFromBuffer(buffer: Buffer, fileType: string, filename:
   try {
     if (fileType === "pdf") {
       const pdfParseModule = await import("pdf-parse");
-      const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+      const pdfParse = (pdfParseModule as any).default;
       const data = await pdfParse(buffer);
       return data.text || "";
     }
@@ -308,16 +308,36 @@ export const researchRouter = router({
       
       const [doc] = await db.select().from(researchDocuments).where(eq(researchDocuments.id, input.id));
       if (!doc) throw new TRPCError({ code: "NOT_FOUND" });
-      if (!doc.extractedText) throw new TRPCError({ code: "BAD_REQUEST", message: "No extracted text available" });
 
       await db.update(researchDocuments)
-        .set({ status: "analyzing" })
+        .set({ status: "extracting", errorMessage: null })
         .where(eq(researchDocuments.id, input.id));
 
-      // Re-analyze async
+      // Re-extract and re-analyze async
       (async () => {
         try {
-          const analysis = await analyzeDocument(doc.extractedText!, doc.title);
+          let extractedText = doc.extractedText || "";
+          
+          // Re-extract if text is missing or was an error
+          if (!extractedText || extractedText.startsWith("[Extraction error")) {
+            if (!doc.fileUrl) throw new Error("No file URL available for re-extraction");
+            // Download file from S3
+            const response = await fetch(doc.fileUrl);
+            if (!response.ok) throw new Error(`Failed to download file: ${response.status}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            extractedText = await extractTextFromBuffer(buffer, doc.fileType || "pdf", doc.filename);
+            await db.update(researchDocuments)
+              .set({ extractedText, status: "analyzing" })
+              .where(eq(researchDocuments.id, input.id));
+          } else {
+            await db.update(researchDocuments)
+              .set({ status: "analyzing" })
+              .where(eq(researchDocuments.id, input.id));
+          }
+
+          // Analyze with LLM
+          const analysis = await analyzeDocument(extractedText, doc.title);
           await db.update(researchDocuments)
             .set({
               summary: analysis.summary,
@@ -327,7 +347,9 @@ export const researchRouter = router({
               analyzedAt: new Date(),
             })
             .where(eq(researchDocuments.id, input.id));
+          console.log(`[Research] Document ${input.id} re-analyzed successfully`);
         } catch (error: any) {
+          console.error(`[Research] Re-analysis failed for doc ${input.id}:`, error.message);
           await db.update(researchDocuments)
             .set({ status: "error", errorMessage: error.message })
             .where(eq(researchDocuments.id, input.id));

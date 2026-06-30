@@ -19,7 +19,8 @@
     "backfill:all": "tsx scripts/backfill-all.ts",
     "repopulate:logos": "tsx scripts/repopulate-logos.ts",
     "check:redis": "tsx scripts/check-redis.ts",
-    "ml:train": "tsx scripts/run-ml-training.ts"
+    "ml:train": "tsx scripts/run-ml-training.ts",
+    "postinstall": "mkdir -p test/data && echo \"%PDF-1.0\" > test/data/05-versions-space.pdf"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
@@ -91,7 +92,7 @@
     "numeric": "^1.2.6",
     "officeparser": "^7.2.3",
     "onnxruntime-node": "^1.27.0",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "1.1.1",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.1",
     "react-day-picker": "^9.11.1",
