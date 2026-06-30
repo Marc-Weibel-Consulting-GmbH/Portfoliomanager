@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet } from "lucide-react";
+import { Database, Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -70,6 +70,13 @@ export default function AdminDashboard() {
       description: "Portfoliopositionen aus Wikifolio abrufen, analysieren und in die Watchlist importieren",
       path: "/admin/wikifolio",
       color: "text-amber-500",
+    },
+    {
+      icon: Brain,
+      title: "Research & Multi-Agent",
+      description: "Dokumente hochladen, KI-Analyse und Multi-Agent-System (Anthropic + Perplexity + Manus)",
+      path: "/admin/research",
+      color: "text-pink-500",
     },
   ];
 
