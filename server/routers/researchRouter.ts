@@ -71,41 +71,52 @@ async function analyzeDocument(extractedText: string, title: string): Promise<{
   keyInsights: string[];
   relevantTickers: string[];
 }> {
-  const truncatedText = extractedText.slice(0, 15000); // Limit to avoid token overflow
+  const truncatedText = extractedText.slice(0, 8000); // Limit to ~8K chars for speed
   
   const result = await invokeLLM({
     messages: [
       {
         role: "system",
-        content: `Du bist ein Finanzanalyst. Analysiere das folgende Research-Dokument und extrahiere:
-1. Eine prägnante Zusammenfassung (max 300 Wörter) auf Deutsch
-2. Die wichtigsten Erkenntnisse als Array (max 8 Punkte, je 1-2 Sätze)
-3. Alle erwähnten Aktien-Ticker oder Firmennamen (als Array von Ticker-Symbolen, z.B. ["AAPL", "NOVN.SW", "NESN.SW"])
-
-Antworte AUSSCHLIESSLICH im JSON-Format:
-{
-  "summary": "...",
-  "keyInsights": ["...", "..."],
-  "relevantTickers": ["...", "..."]
-}`
+        content: "Du bist ein Finanzanalyst. Analysiere das Research-Dokument und antworte im vorgegebenen JSON-Format auf Deutsch."
       },
       {
         role: "user",
-        content: `Dokument-Titel: "${title}"\n\nInhalt:\n${truncatedText}`
+        content: `Analysiere dieses Dokument:\n\nTitel: "${title}"\n\nInhalt (gekürzt):\n${truncatedText}\n\nErstelle:\n1. summary: Zusammenfassung max. 200 Wörter\n2. keyInsights: Array mit max. 6 wichtigsten Erkenntnissen (je 1 Satz)\n3. relevantTickers: Array mit erwähnten Aktien-Ticker-Symbolen (z.B. AAPL, NESN.SW)`
       }
     ],
-    response_format: { type: "json_object" }
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "document_analysis",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            summary: { type: "string", description: "Zusammenfassung des Dokuments auf Deutsch" },
+            keyInsights: { type: "array", items: { type: "string" }, description: "Wichtigste Erkenntnisse" },
+            relevantTickers: { type: "array", items: { type: "string" }, description: "Erwähnte Aktien-Ticker" }
+          },
+          required: ["summary", "keyInsights", "relevantTickers"],
+          additionalProperties: false
+        }
+      }
+    }
   });
 
   try {
     const content = result.choices[0]?.message?.content;
-    const parsed = JSON.parse(typeof content === "string" ? content : "{}");
+    if (!content) throw new Error("Empty LLM response");
+    const parsed = typeof content === "string" ? JSON.parse(content) : content;
+    console.log(`[Research] Analysis complete for "${title}": ${parsed.summary?.length} chars summary, ${parsed.keyInsights?.length} insights`);
     return {
       summary: parsed.summary || "Keine Zusammenfassung verfügbar",
       keyInsights: Array.isArray(parsed.keyInsights) ? parsed.keyInsights : [],
       relevantTickers: Array.isArray(parsed.relevantTickers) ? parsed.relevantTickers : [],
     };
-  } catch {
+  } catch (err: any) {
+    const rawContent = result.choices[0]?.message?.content;
+    const preview = typeof rawContent === 'string' ? rawContent.substring(0, 200) : JSON.stringify(rawContent)?.substring(0, 200);
+    console.error(`[Research] Analysis parse error for "${title}":`, err.message, preview);
     return { summary: "Analyse fehlgeschlagen", keyInsights: [], relevantTickers: [] };
   }
 }
