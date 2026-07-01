@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Upload, FileText, Brain, Sparkles, Trash2, RefreshCw, Clock,
@@ -19,7 +19,19 @@ import {
 // Research Documents Tab
 // ============================================
 function ResearchDocumentsTab() {
-  const { data: documents, isLoading, refetch } = trpc.researchAdmin.listDocuments.useQuery();
+  const { data: documents, isLoading, refetch } = trpc.researchAdmin.listDocuments.useQuery(
+    undefined,
+    {
+      // Poll every 4 seconds when any document is still processing
+      refetchInterval: (data) => {
+        const docs = data?.state?.data as any[] | undefined;
+        const hasProcessing = docs?.some((d: any) =>
+          d.status === "extracting" || d.status === "analyzing" || d.status === "uploading"
+        );
+        return hasProcessing ? 4000 : false;
+      },
+    }
+  );
   const uploadMutation = trpc.researchAdmin.uploadDocument.useMutation();
   const deleteMutation = trpc.researchAdmin.deleteDocument.useMutation();
   const reanalyzeMutation = trpc.researchAdmin.reanalyzeDocument.useMutation();
@@ -86,11 +98,38 @@ function ResearchDocumentsTab() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ready": return <Badge className="bg-green-600"><CheckCircle className="h-3 w-3 mr-1" />Analysiert</Badge>;
-      case "analyzing": return <Badge className="bg-blue-600"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Analyse...</Badge>;
-      case "extracting": return <Badge className="bg-yellow-600"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Extraktion...</Badge>;
+      case "analyzing": return <Badge className="bg-blue-600"><Loader2 className="h-3 w-3 mr-1 animate-spin" />KI-Analyse läuft...</Badge>;
+      case "extracting": return <Badge className="bg-yellow-600"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Text wird extrahiert...</Badge>;
+      case "uploading": return <Badge className="bg-orange-600"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Wird hochgeladen...</Badge>;
       case "error": return <Badge className="bg-red-600"><AlertCircle className="h-3 w-3 mr-1" />Fehler</Badge>;
       default: return <Badge className="bg-gray-600"><Clock className="h-3 w-3 mr-1" />Warten</Badge>;
     }
+  };
+
+  const getProgressBar = (status: string) => {
+    const steps = ["uploading", "extracting", "analyzing", "ready"];
+    const idx = steps.indexOf(status);
+    if (idx < 0 || status === "ready" || status === "error") return null;
+    const pct = Math.round(((idx + 1) / 4) * 100);
+    const labels: Record<string, string> = {
+      uploading: "1/3 – Datei wird hochgeladen...",
+      extracting: "2/3 – Text wird extrahiert (kann bei grossen PDFs 30-60s dauern)...",
+      analyzing: "3/3 – KI analysiert Inhalt...",
+    };
+    return (
+      <div className="mt-2">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-muted-foreground">{labels[status] || status}</span>
+          <span className="text-xs text-[#00CFC1]">{pct}%</span>
+        </div>
+        <div className="w-full bg-zinc-800 rounded-full h-1.5">
+          <div
+            className="bg-[#00CFC1] h-1.5 rounded-full transition-all duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+    );
   };
 
   const getFileIcon = (fileType: string) => {
@@ -216,6 +255,7 @@ function ResearchDocumentsTab() {
                       {doc.status === "error" && doc.errorMessage && (
                         <p className="text-sm text-red-400 mt-2">{doc.errorMessage}</p>
                       )}
+                      {(doc.status === "extracting" || doc.status === "analyzing" || doc.status === "uploading") && getProgressBar(doc.status)}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 ml-2">
