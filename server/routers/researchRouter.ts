@@ -71,9 +71,11 @@ async function analyzeDocument(extractedText: string, title: string): Promise<{
   keyInsights: string[];
   relevantTickers: string[];
 }> {
-  const truncatedText = extractedText.slice(0, 16000); // Use up to 16K chars for thorough analysis
+  // Adaptive limit: small docs fully analyzed, large docs capped at 10K chars
+  const truncatedText = extractedText.slice(0, Math.min(extractedText.length, 10000));
   
-  const result = await invokeLLM({
+  // Add 60s timeout to prevent hanging in "analyzing" state
+  const llmPromise = invokeLLM({
     messages: [
       {
         role: "system",
@@ -102,6 +104,12 @@ async function analyzeDocument(extractedText: string, title: string): Promise<{
       }
     }
   });
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("LLM analysis timeout after 60s")), 60000)
+  );
+
+  const result = await Promise.race([llmPromise, timeoutPromise]);
 
   try {
     const content = result.choices[0]?.message?.content;
