@@ -456,7 +456,8 @@ function MultiAgentTab() {
     setPresentationHtml(null);
     try {
       const result = await presentationMutation.mutateAsync({ id: sessionId });
-      // Open in new tab
+      // Close the dialog first, then open in new tab
+      setViewSession(null);
       const blob = new Blob([result.html], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const win = window.open(url, '_blank');
