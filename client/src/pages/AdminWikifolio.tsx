@@ -6,15 +6,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import {
   RefreshCw, Download, ExternalLink, TrendingUp, TrendingDown,
   Minus, BarChart3, AlertCircle, CheckCircle2, Info, Search,
-  PieChart, ArrowUpDown
+  PieChart, ArrowUpDown, Trophy, Eye
 } from "lucide-react";
 
 type SortKey = "name" | "percentage" | "close" | "quantity" | "avgPrice";
+type TraderSortBy = "perf12m" | "sharperatio" | "aum";
+
+const TRADER_CRITERIA_LABELS: Record<TraderSortBy, string> = {
+  perf12m: "12-Monats-Performance",
+  sharperatio: "Sharpe Ratio",
+  aum: "Verwaltetes Vermögen",
+};
 
 export default function AdminWikifolio() {
   const { user } = useAuth();
@@ -24,8 +32,21 @@ export default function AdminWikifolio() {
   const [sortKey, setSortKey] = useState<SortKey>("percentage");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [importOverwrite, setImportOverwrite] = useState(false);
+  // F-15: Trader-Suche
+  const [traderSortBy, setTraderSortBy] = useState<TraderSortBy>("perf12m");
+  const [traderQueryInput, setTraderQueryInput] = useState("");
+  const [traderSearch, setTraderSearch] = useState<{ sortBy: TraderSortBy; query?: string } | null>(null);
 
   const utils = trpc.useUtils();
+
+  const {
+    data: traderSearchData,
+    isFetching: traderSearchLoading,
+    error: traderSearchError,
+  } = trpc.watchlist.searchWikifolios.useQuery(
+    traderSearch ?? { sortBy: "perf12m" },
+    { enabled: traderSearch !== null, retry: false }
+  );
 
   const { data: portfolioData, isLoading, error, refetch } = trpc.watchlist.getWikifolioPortfolio.useQuery(
     { symbol },
@@ -147,6 +168,132 @@ export default function AdminWikifolio() {
             </Button>
           </div>
         </div>
+
+        {/* F-15: Trader-Suche */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-primary" />
+              Erfolgreiche Trader suchen
+            </CardTitle>
+            <CardDescription>
+              Investierbare Real-Money-Wikifolios nach Kennzahl sortiert suchen und deren Portfolio laden
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Kriterium</Label>
+                <Select value={traderSortBy} onValueChange={v => setTraderSortBy(v as TraderSortBy)}>
+                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="perf12m">12-Monats-Performance</SelectItem>
+                    <SelectItem value="sharperatio">Sharpe Ratio</SelectItem>
+                    <SelectItem value="aum">Verwaltetes Vermögen</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Suchtext (optional)</Label>
+                <Input
+                  value={traderQueryInput}
+                  onChange={e => setTraderQueryInput(e.target.value)}
+                  placeholder="z.B. Dividende, Tech…"
+                  className="w-64"
+                  onKeyDown={e => e.key === "Enter" && setTraderSearch({ sortBy: traderSortBy, query: traderQueryInput.trim() || undefined })}
+                />
+              </div>
+              <Button
+                onClick={() => setTraderSearch({ sortBy: traderSortBy, query: traderQueryInput.trim() || undefined })}
+                disabled={traderSearchLoading}
+              >
+                {traderSearchLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Search className="w-4 h-4 mr-1" />}
+                Suchen
+              </Button>
+            </div>
+
+            {traderSearchError && (
+              <div className="flex items-start gap-2 text-sm text-destructive">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                {traderSearchError.message}
+              </div>
+            )}
+
+            {traderSearchData && !traderSearchLoading && (
+              <div className="overflow-x-auto border rounded-md">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Titel</th>
+                      <th className="text-left p-3 font-medium">Symbol</th>
+                      <th className="text-left p-3 font-medium">Trader</th>
+                      <th className="text-right p-3 font-medium">{TRADER_CRITERIA_LABELS[traderSearch?.sortBy ?? "perf12m"]}</th>
+                      <th className="text-right p-3 font-medium">Ø Perf./Jahr</th>
+                      <th className="text-right p-3 font-medium">Perf. gesamt</th>
+                      <th className="text-right p-3 font-medium">Max. Verlust</th>
+                      <th className="text-right p-3 font-medium">Aktionen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {traderSearchData.traders.map((t) => (
+                      <tr key={t.symbol} className="border-b hover:bg-muted/30 transition-colors">
+                        <td className="p-3">
+                          <div className="font-medium max-w-[220px] truncate" title={t.title}>{t.title}</div>
+                        </td>
+                        <td className="p-3 font-mono text-xs">{t.symbol}</td>
+                        <td className="p-3 text-muted-foreground">{t.traderName || "—"}</td>
+                        <td className="p-3 text-right font-mono">
+                          {t.rankValue !== null ? t.rankValue.toLocaleString("de-CH", { maximumFractionDigits: 1 }) : "—"}
+                        </td>
+                        <td className="p-3 text-right font-mono">
+                          {t.perfAnnually !== null ? `${t.perfAnnually.toFixed(1)}%` : "—"}
+                        </td>
+                        <td className="p-3 text-right font-mono">
+                          {t.perfEver !== null ? `${t.perfEver.toFixed(1)}%` : "—"}
+                        </td>
+                        <td className="p-3 text-right font-mono">
+                          {t.maxDrawdown !== null ? `${t.maxDrawdown.toFixed(1)}%` : "—"}
+                        </td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7"
+                              onClick={() => { setInputSymbol(t.symbol); setSymbol(t.symbol); }}
+                              title="Portfolio dieses Wikifolios laden"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              Portfolio anzeigen
+                            </Button>
+                            {t.wikifolioUrl && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => window.open(t.wikifolioUrl!, "_blank")}
+                                title="Auf Wikifolio öffnen"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {traderSearchData.traders.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                          Keine Wikifolios gefunden.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Symbol Input */}
         <Card>
@@ -305,9 +452,22 @@ export default function AdminWikifolio() {
                   </div>
                 </div>
                 {importMutation.isSuccess && (
-                  <div className="mt-3 flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                    {importMutation.data.message}
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {importMutation.data.imported} Positionen importiert, {importMutation.data.skipped.length} übersprungen
+                    </div>
+                    {importMutation.data.skipped.length > 0 && (
+                      <div className="text-xs border rounded-md divide-y bg-background/60">
+                        {importMutation.data.skipped.map((s, i) => (
+                          <div key={`${s.isin}-${i}`} className="flex flex-wrap items-center gap-2 px-3 py-1.5">
+                            <span className="font-medium max-w-[220px] truncate" title={s.name}>{s.name}</span>
+                            <span className="font-mono text-muted-foreground">{s.isin}</span>
+                            <span className="text-muted-foreground ml-auto">{s.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

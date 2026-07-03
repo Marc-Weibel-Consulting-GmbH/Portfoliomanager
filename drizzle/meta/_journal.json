@@ -57,6 +57,13 @@
       "when": 1782811568621,
       "tag": "0007_solid_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1783111409119,
+      "tag": "0008_acoustic_speed_demon",
+      "breakpoints": true
     }
   ]
 }

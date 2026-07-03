@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import { Database, Plus, Edit, Trash2, RefreshCw } from "lucide-react";
+import { Database, RefreshCw, ArrowRight, Info } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { AdminTopbar } from "@/components/AdminTopbar";
 
 export default function AdminStocks() {
@@ -45,13 +45,13 @@ export default function AdminStocks() {
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
               <Database className="h-8 w-8" />
-              Aktien-Verwaltung (Admin)
+              Stammdaten (stocks-Tabelle)
             </h1>
             <p className="text-muted-foreground mt-1">
-              Verwalten Sie die Aktiendatenbank
+              Nur-Lese-Ansicht der Aktien-Stammdaten (von Portfolios, Optimizer und Kursalarmen genutzt)
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => refreshMutation.mutate()}
             disabled={refreshMutation.isPending}
           >
@@ -60,22 +60,38 @@ export default function AdminStocks() {
           </Button>
         </div>
 
+        {/* F-13: Hinweis — Kuratierung erfolgt in der zusammengeführten Watchlist-Seite */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Die Kuratierung des Aktien-Universums (Empfehlungen und Watchlist) erfolgt auf der
+                  zusammengeführten Seite <span className="font-medium text-foreground">Aktienliste &amp; Watchlist</span>.
+                  Diese Ansicht zeigt nur die Stammdaten.
+                </p>
+              </div>
+              <Link href="/admin/watchlist">
+                <Button variant="outline" size="sm">
+                  Zur Aktienliste &amp; Watchlist
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Aktien ({filteredStocks.length})</CardTitle>
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Suchen..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-64"
-                />
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Hinzufügen
-                </Button>
-              </div>
+              <Input
+                placeholder="Suchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64"
+              />
             </div>
           </CardHeader>
           <CardContent>
@@ -95,7 +111,6 @@ export default function AdminStocks() {
                       <th className="text-right py-2 px-2 text-muted-foreground">YTD</th>
                       <th className="text-right py-2 px-2 text-muted-foreground">P/E</th>
                       <th className="text-right py-2 px-2 text-muted-foreground">Div. %</th>
-                      <th className="text-right py-2 px-2 text-muted-foreground">Aktionen</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -114,16 +129,6 @@ export default function AdminStocks() {
                         </td>
                         <td className="py-2 px-2 text-right">{stock.peRatio ? Number(stock.peRatio).toFixed(1) : 'N/A'}</td>
                         <td className="py-2 px-2 text-right">{stock.dividendYield ? Number(stock.dividendYield).toFixed(2) + '%' : 'N/A'}</td>
-                        <td className="py-2 px-2 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
                       </tr>
                     ))}
                   </tbody>

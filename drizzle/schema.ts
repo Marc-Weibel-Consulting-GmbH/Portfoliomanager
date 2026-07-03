@@ -576,7 +576,9 @@ export const watchlistStocks = mysqlTable("watchlistStocks", {
   country: varchar("country", { length: 50 }),
   currency: varchar("currency", { length: 10 }),
   marketCap: varchar("marketCap", { length: 50 }),
-  source: mysqlEnum("source", ["manual", "ai_recommended"]).notNull().default("manual"),
+  source: mysqlEnum("source", ["manual", "ai_recommended", "wikifolio"]).notNull().default("manual"),
+  // F-13: merged Aktienliste/Watchliste — "empfehlung" rows feed the user-facing /aktien page
+  listType: mysqlEnum("listType", ["empfehlung", "watchlist"]).notNull().default("watchlist"),
   aiReason: text("aiReason"), // Reason for AI recommendation
   peRatio: varchar("peRatio", { length: 50 }),
   pegRatio: varchar("pegRatio", { length: 50 }),
