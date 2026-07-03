@@ -13,6 +13,7 @@ export const annualPerformanceRouter = router({
       const { realizedGains, historicalPrices } = await import("../../drizzle/schema");
       const { eq, and, gte, lte } = await import("drizzle-orm");
       const { getStockCurrency, convertToCHF } = await import("../fxHelper");
+      const { getGrossAmountCHF, getSignedFlowCHF } = await import("../lib/transactionSemantics");
       
       // Get database instance
       const db = await getDb();
@@ -45,7 +46,7 @@ export const annualPerformanceRouter = router({
       
       transactions.forEach((tx: any) => {
         const shares = parseFloat(tx.shares || '0');
-        const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
+        const amount = getGrossAmountCHF(tx);
         const txDateStr = new Date(tx.transactionDate).toISOString().split('T')[0];
         const isInitialPosition = tx.transactionType === 'buy' && txDateStr <= liveStartDateStr;
         
@@ -76,10 +77,10 @@ export const annualPerformanceRouter = router({
             costBasis[tx.ticker].totalCost -= soldCost;
             costBasis[tx.ticker].totalShares -= shares;
           }
-        } else if (tx.transactionType === 'deposit') {
-          totalDeposits += amount;
-        } else if (tx.transactionType === 'withdrawal') {
-          totalDeposits -= Math.abs(amount);
+        } else if (tx.transactionType === 'deposit' || tx.transactionType === 'withdrawal') {
+          // R-01: getSignedFlowCHF liefert Deposits positiv, Withdrawals negativ —
+          // fachlich identisch zum bisherigen (korrekten) Math.abs-Verhalten hier.
+          totalDeposits += getSignedFlowCHF(tx);
         } else if (tx.transactionType === 'dividend') {
           totalDividends += amount;
         }

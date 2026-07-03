@@ -147,16 +147,20 @@ export const S2 = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Szenario 3 — Kauf mit Fees: «manuell» (Fees in totalAmountCHF) vs «CSV» (ohne)
-// Kauf 100 @95, Fees 50. Manuell: totalAmountCHF = 9550; CSV: totalAmountCHF = 9500.
-// Pinnt die pfadabhängige Kostenbasis R-02 (Konsumenten addieren Fees erneut).
+// Szenario 3 — Kauf mit Fees: «manuell» (TransactionModal) vs «CSV»
+// Kauf 100 @95, Fees 50.
+// vorher (R-02): der manuelle Pfad speicherte totalAmount(CHF) = "9550"
+// (Fees eingerechnet) → pfadabhängige Kostenbasis. Seit dem R-02-Fix speichert
+// TransactionModal brutto EXKL. Fees ("9500", identisch zum CSV-Pfad);
+// Bestandsdaten werden via scripts/migrate-fee-semantics.ts migriert.
+// Beide Pfade müssen jetzt zur identischen Kostenbasis konvergieren.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const S3_MANUAL = {
   transactions: [
     makeTx({
       id: 301, transactionType: "buy", date: D.mar03, ticker: "NESN",
-      shares: "100", pricePerShare: "95", totalAmount: "9550", totalAmountCHF: "9550", fees: "50",
+      shares: "100", pricePerShare: "95", totalAmount: "9500", totalAmountCHF: "9500", fees: "50",
     }),
   ],
   currentPrices: new Map([["NESN", 100]]),

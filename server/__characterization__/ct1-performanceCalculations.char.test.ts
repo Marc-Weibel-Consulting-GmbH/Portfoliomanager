@@ -43,19 +43,27 @@ describe("CT-1 calculatePerformanceMetrics", () => {
 
   it("Szenario 2: Auszahlung CHF 10'000 negativ gespeichert (R-01)", () => {
     const m = calculatePerformanceMetrics(S2.transactions, S2.currentPrices);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-01:
-    // totalInvested = 20'000 − (−10'000) = 30'000 — die Entnahme ERHÖHT das
-    // investierte Kapital statt es zu senken (korrekt wären 10'000).
-    expect(m.totalInvested).toBe(30000);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-01:
-    // totalReturn = 10'000 − 30'000 = −20'000 statt +500.
-    expect(m.totalReturn).toBe(-20000);
-    expect(m.totalReturnPercent).toBeCloseTo(-66.66666666666666, 10);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-01:
-    // TWR = −100 %: die negativ gespeicherte Entnahme wird in buildValuePoints
-    // als ZUFLUSS von +10'000 gezählt; adjustedValue = 10'000 − 10'000 = 0.
-    expect(m.timeWeightedReturn).toBe(-100);
-    expect(m.moneyWeightedReturn).toBeCloseTo(-6.47974607304036e-7, 10);
+    // vorher (R-01): 30'000 — die negativ gespeicherte Entnahme ERHÖHTE das
+    // investierte Kapital (20'000 − (−10'000)). Jetzt via getSignedFlowCHF
+    // normalisiert: 20'000 − 10'000 = 10'000.
+    expect(m.totalInvested).toBe(10000);
+    // vorher (R-01): −20'000 (aus totalInvested 30'000). Jetzt 0:
+    // currentValue 10'000 − totalInvested 10'000. (Dass die verbleibenden
+    // CHF 500 Cash fehlen, ist die R-04-Klasse-Limitierung dieses Moduls —
+    // es bewertet nur Aktienbestände, kein Cash.)
+    expect(m.totalReturn).toBe(0);
+    expect(m.totalReturnPercent).toBe(0);
+    // vorher (R-01): −100 % — die Entnahme wurde als Zufluss +10'000 gezählt
+    // (adjustedValue 0). Jetzt korrekt als Abfluss −10'000; weil die Serie
+    // aber weiterhin flach mit HEUTIGEN Kursen bewertet wird (R-04) und kein
+    // Cash enthält, ergibt sich +100 % statt der echten ~+3.97 % (vgl. CT-2).
+    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-04.
+    expect(m.timeWeightedReturn).toBe(100);
+    // vorher (R-01): ~0 %. Jetzt: die (korrekt positive) Entnahme +10'000 und
+    // der Endwert +10'000 sind die einzigen IRR-Flows (Initial-Deposit ist
+    // performance-neutral) → Gleichung unlösbar, Newton-Clamp rate=10,
+    // Hochrechnung auf < 1 Jahr → ~1'697 % (R-25 + R-16, unverändert offen).
+    expect(m.moneyWeightedReturn).toBeCloseTo(1696.7304893707496, 8);
     // Bestandsdaten selbst bleiben korrekt:
     expect(m.unrealizedGains).toBe(500);
     expect(m.currentValue).toBe(10000);
@@ -65,17 +73,19 @@ describe("CT-1 calculatePerformanceMetrics", () => {
     const manual = calculatePerformanceMetrics(S3_MANUAL.transactions, S3_MANUAL.currentPrices);
     const csv = calculatePerformanceMetrics(S3_CSV.transactions, S3_CSV.currentPrices);
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-02:
-    // Manueller Pfad: totalAmountCHF (9'550, inkl. Fees) + Fees (50) erneut
-    // → Kostenbasis 9'600, Fees doppelt gezählt.
-    expect(manual.unrealizedGains).toBe(400);
-    expect(manual.unrealizedGainsPercent).toBeCloseTo(4.166666666666666, 10);
+    // vorher (R-02): 400 — der manuelle Pfad speicherte totalAmountCHF inkl.
+    // Fees (9'550) und die Konsumenten addierten Fees erneut → Kostenbasis
+    // 9'600, Fees doppelt gezählt. Jetzt kanonische Semantik (totalAmountCHF
+    // = Brutto EXKL. Fees, Kostenbasis = Brutto + Fees) → 9'550 auf BEIDEN
+    // Pfaden (Fixture migriert, vgl. scripts/migrate-fee-semantics.ts).
+    expect(manual.unrealizedGains).toBe(450);
+    expect(manual.unrealizedGainsPercent).toBeCloseTo(4.712041884816754, 10);
     // CSV-Pfad: totalAmountCHF (9'500, exkl. Fees) + Fees (50) → Kostenbasis 9'550.
     expect(csv.unrealizedGains).toBe(450);
     expect(csv.unrealizedGainsPercent).toBeCloseTo(4.712041884816754, 10);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-02:
-    // Identischer wirtschaftlicher Vorgang, zwei verschiedene Ergebnisse:
-    expect(manual.unrealizedGains).not.toBe(csv.unrealizedGains);
+    // vorher (R-02): not.toBe — identischer wirtschaftlicher Vorgang lieferte
+    // zwei verschiedene Ergebnisse. Jetzt konvergieren beide Pfade:
+    expect(manual.unrealizedGains).toBe(csv.unrealizedGains);
 
     // Käufe ohne Deposit: totalInvested zählt nur deposits − withdrawals → 0,
     // totalReturn = currentValue − Fees = 9'950 (kein Bezug zum Einsatz).
@@ -85,22 +95,21 @@ describe("CT-1 calculatePerformanceMetrics", () => {
     expect(manual.feesPaid).toBe(50);
   });
 
-  it("Szenario 5: Dividende CHF 100 wird doppelt bestraft (R-05)", () => {
+  it("Szenario 5: Dividende CHF 100 wird nicht mehr doppelt bestraft (R-05)", () => {
     const base = calculatePerformanceMetrics(S1.transactions, S1.currentPrices);
     const m = calculatePerformanceMetrics(S5.transactions, S5.currentPrices);
     expect(m.dividendsReceived).toBe(100);
     expect(m.totalReturn).toBe(600); // 500 Kurs + 100 Dividende (hier korrekt)
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-05:
-    // TWR sinkt durch die Dividende von 0 % auf −1 % — die Dividende wird als
-    // externer Zufluss vom Periodenertrag ABGEZOGEN statt als Ertrag gezählt.
-    expect(m.timeWeightedReturn).toBeCloseTo(-1.0000000000000009, 10);
+    // vorher (R-05): −1 % — die Dividende wurde als externer Zufluss vom
+    // Periodenertrag ABGEZOGEN. Jetzt ist sie interner Ertrag (kein externer
+    // Flow) → TWR identisch zum dividendenlosen Basisfall.
+    expect(m.timeWeightedReturn).toBe(0);
     expect(base.timeWeightedReturn).toBe(0);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-05 + R-25 + R-16:
-    // MWR explodiert auf ~1'697 %: die Dividende wird als Einzahlung des
-    // Anlegers (−100) gegen den Endwert (+10'000) gerechnet; Newton-Raphson
-    // läuft in den Clamp rate=10 und wird stillschweigend zurückgegeben (R-25),
-    // danach Hochrechnung auf < 1 Jahr (R-16).
-    expect(m.moneyWeightedReturn).toBeCloseTo(1696.7304893707496, 8);
+    // vorher (R-05 + R-25 + R-16): ~1'697 % — die Dividende wurde als
+    // Einzahlung des Anlegers (−100) gegen den Endwert gerechnet und der
+    // Newton-Clamp rate=10 hochgerechnet. Jetzt kein externer Flow mehr →
+    // MWR = 0 wie im Basisfall (die flache R-04-Serie liefert ohnehin 0).
+    expect(m.moneyWeightedReturn).toBe(0);
   });
 
   it("Szenario 6: USD-Position ohne FX-Rate — Lokalbetrag als CHF (R-15/R-10)", () => {
@@ -157,24 +166,25 @@ describe("CT-1 buildValuePoints", () => {
     ]);
   });
 
-  it("Szenario 2: negative Entnahme wird als Zufluss +10'000 gezählt (R-01)", () => {
+  it("Szenario 2: negative Entnahme wird als Abfluss −10'000 gezählt (R-01)", () => {
     const points = buildValuePoints(S2.transactions, S2.currentPrices);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-01:
-    // cashFlows -= (−10'000) → +10'000: die Entnahme erscheint als Einzahlung.
+    // vorher (R-01): cashFlows +10'000 — `cashFlows -= (−10'000)` machte aus
+    // der negativ gespeicherten Entnahme eine Einzahlung. Jetzt normalisiert
+    // getSignedFlowCHF die Entnahme auf −10'000 (Geld verlässt das Portfolio).
     expect(points).toEqual([
       { date: D.mar03, value: 10000, cashFlows: 0 },
-      { date: D.mar05, value: 10000, cashFlows: 10000 },
+      { date: D.mar05, value: 10000, cashFlows: -10000 },
       { date: TODAY_STR, value: 10000, cashFlows: 0 },
     ]);
   });
 
-  it("Szenario 5: Dividende erscheint als externer Cashflow +100 (R-05)", () => {
+  it("Szenario 5: Dividende ist KEIN externer Cashflow mehr (R-05)", () => {
     const points = buildValuePoints(S5.transactions, S5.currentPrices);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-05:
-    // Die Dividende wird als externer Flow geführt und drückt so den TWR.
+    // vorher (R-05): cashFlows +100 am 05.03. — die Dividende wurde als
+    // externer Flow geführt und drückte so den TWR. Jetzt interner Ertrag:
     expect(points).toEqual([
       { date: D.mar03, value: 10000, cashFlows: 0 },
-      { date: D.mar05, value: 10000, cashFlows: 100 },
+      { date: D.mar05, value: 10000, cashFlows: 0 },
       { date: TODAY_STR, value: 10000, cashFlows: 0 },
     ]);
   });

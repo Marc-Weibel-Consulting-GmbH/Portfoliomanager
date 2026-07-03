@@ -20,14 +20,14 @@ describe("CT-2 extractPortfolioCashFlows (Flow-Klassifikation)", () => {
     expect(flows).toEqual([{ date: D.mar03, amount: 9500, type: "deposit" }]);
   });
 
-  it("Szenario 2: negativ gespeicherte Entnahme wird zum POSITIVEN Inflow (R-01)", () => {
+  it("Szenario 2: negativ gespeicherte Entnahme wird zum NEGATIVEN Outflow (R-01)", () => {
     const flows = extractPortfolioCashFlows(S2.transactions);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-01:
-    // amount = −(−10'000) = +10'000 — die Entnahme wird für TTWROR/IRR als
-    // Einzahlung klassifiziert (Typ bleibt 'withdrawal').
+    // vorher (R-01): amount = −(−10'000) = +10'000 — die Entnahme wurde für
+    // TTWROR/IRR als Einzahlung klassifiziert. Jetzt normalisiert
+    // getSignedFlowCHF beide Speicher-Konventionen auf −10'000.
     expect(flows).toEqual([
       { date: D.mar03, amount: 20000, type: "deposit" },
-      { date: D.mar05, amount: 10000, type: "withdrawal" },
+      { date: D.mar05, amount: -10000, type: "withdrawal" },
     ]);
   });
 
@@ -55,22 +55,25 @@ describe("CT-2 calculateTTWROR", () => {
     ]);
   });
 
-  it("Szenario 2: Entnahme als Inflow verzerrt TTWROR auf −48.3 % (R-01, Cap greift)", () => {
+  it("Szenario 2: Entnahme korrekt normalisiert → TTWROR +3.97 % (R-01 behoben)", () => {
     const result = calculateTTWROR(S2.valuations, extractPortfolioCashFlows(S2.transactions));
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-01 (+ R-08):
-    // Am 05.03. steht der sign-geflippte Inflow +10'000 im Nenner:
-    // r = 10'200 / (20'100 + 10'000) − 1 = −66.1 % → vom ±50-%-Cap auf −50 %
-    // gekappt. Kumuliert: −48.27 % statt +3.97 %.
-    expect(result.totalReturn).toBeCloseTo(-0.4827205882352943, 10);
-    expect(result.dailySeries[2]).toEqual({ date: D.mar05, cumulativeReturn: -0.49750000000000005 });
+    // vorher (R-01, + R-08): −0.4827205882352943 — der sign-geflippte Inflow
+    // +10'000 stand am 05.03. im Nenner (r = −66.1 %, vom ±50-%-Cap auf −50 %
+    // gekappt). Jetzt liefert extractPortfolioCashFlows den Abfluss −10'000 →
+    // Outflow in den Zähler, TTWROR = +3.97 % (entspricht dem früheren
+    // «Kontrast»-Sollwert mit handnormalisierten Flows).
+    expect(result.totalReturn).toBeCloseTo(0.039705882352941035, 10);
+    // vorher (R-01): {date: mar05, cumulativeReturn: −0.49750000000000005}.
+    expect(result.dailySeries[2]).toEqual({ date: D.mar05, cumulativeReturn: 0.010000000000000009 });
 
-    // Kontrast (Soll-Verhalten mit korrekt vorzeichen-normalisierten Flows):
+    // Gegenprobe: handnormalisierte Flows liefern dasselbe Resultat —
+    // die Normalisierung passiert jetzt bereits in extractPortfolioCashFlows.
     const correctFlows: CashFlow[] = [
       { date: D.mar03, amount: 20000, type: "deposit" },
       { date: D.mar05, amount: -10000, type: "withdrawal" },
     ];
     const correct = calculateTTWROR(S2.valuations, correctFlows);
-    expect(correct.totalReturn).toBeCloseTo(0.039705882352941035, 10);
+    expect(correct.totalReturn).toBeCloseTo(result.totalReturn, 12);
   });
 
   it("Szenario 13: Crash-Tag −20 % passiert die Engine ungekappt", () => {

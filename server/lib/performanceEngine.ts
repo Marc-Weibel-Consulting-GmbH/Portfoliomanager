@@ -19,6 +19,8 @@
  *   - CFA Institute GIPS Standards
  */
 
+import { getSignedFlowCHF } from './transactionSemantics';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & Interfaces
 // ─────────────────────────────────────────────────────────────────────────────
@@ -433,21 +435,23 @@ export function calculatePerformance(
   const mvb = periodValuations.length > 0 ? periodValuations[0].marketValue : 0;
   const mve = periodValuations.length > 0 ? periodValuations[periodValuations.length - 1].marketValue : 0;
 
-  // For IRR, cash flows are positive for inflows and negative for outflows
-  const irrCashFlows = externalCashFlows.map(cf => ({
-    ...cf,
-    amount: cf.type === 'withdrawal' ? -Math.abs(cf.amount) : Math.abs(cf.amount),
-  }));
+  // R-37: Flows am (oder vor dem) ersten Bewertungstag stecken bereits im MVB
+  // (Tagesend-Bewertung des ersten Tages) und dürfen nicht zusätzlich als
+  // IRR-Flow bzw. als «investiert» gezählt werden.
+  const firstValuationDate = periodValuations.length > 0 ? periodValuations[0].date : startDate;
+  const postBaselineFlows = externalCashFlows.filter(cf => cf.date > firstValuationDate);
 
-  const irr = calculateIRR(mvb, mve, irrCashFlows, startDate, endDate);
+  // Cash flows are already sign-normalized by extractPortfolioCashFlows
+  // (deposits positive, withdrawals negative — see lib/transactionSemantics.ts).
+  const irr = calculateIRR(mvb, mve, postBaselineFlows, startDate, endDate);
 
   // Calculate total invested
-  const totalInvested = mvb + periodCashFlows
+  const totalInvested = mvb + postBaselineFlows
     .filter(cf => cf.amount > 0)
     .reduce((sum, cf) => sum + cf.amount, 0);
 
   const currentValue = mve;
-  const totalWithdrawn = periodCashFlows
+  const totalWithdrawn = postBaselineFlows
     .filter(cf => cf.amount < 0)
     .reduce((sum, cf) => sum + Math.abs(cf.amount), 0);
 
@@ -546,6 +550,7 @@ export function extractPortfolioCashFlows(
     transactionDate: Date | string;
     totalAmountCHF?: string | null;
     totalAmount?: string | null;
+    fxRate?: string | null;
     ticker?: string | null;
   }>
 ): CashFlow[] {
@@ -556,17 +561,16 @@ export function extractPortfolioCashFlows(
       ? tx.transactionDate.split('T')[0]
       : tx.transactionDate.toISOString().split('T')[0];
 
-    const amountCHF = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
-
     switch (tx.transactionType) {
       case 'deposit':
       case 'entry':
-        // Money entering the portfolio from outside
-        cashFlows.push({ date, amount: amountCHF, type: tx.transactionType as any });
-        break;
       case 'withdrawal':
-        // Money leaving the portfolio
-        cashFlows.push({ date, amount: -amountCHF, type: 'withdrawal' });
+        // R-01: getSignedFlowCHF normalisiert die Vorzeichen-Konvention —
+        // Deposits/Entries immer positiv, Withdrawals immer negativ,
+        // unabhängig davon, wie die Zeile den Betrag gespeichert hat
+        // (vorher machte `-amountCHF` aus einer negativ gespeicherten
+        // Entnahme einen positiven Inflow).
+        cashFlows.push({ date, amount: getSignedFlowCHF(tx), type: tx.transactionType as any });
         break;
       // buy, sell, dividend are INTERNAL movements - not portfolio-level cash flows
       // They don't affect TTWROR at portfolio level

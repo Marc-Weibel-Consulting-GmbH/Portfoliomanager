@@ -28,23 +28,25 @@ describe("CT-6 calculateHoldingsPerformance", () => {
     ]);
   });
 
-  it("Szenario 3: Fees — manueller Pfad doppelt gezählt, CSV-Pfad einfach (R-02)", () => {
+  it("Szenario 3: Fees — manueller und CSV-Pfad konvergieren (R-02 behoben)", () => {
     const [manual] = calculateHoldingsPerformance(S3_MANUAL.transactions, S3_MANUAL.currentPrices);
     const [csv] = calculateHoldingsPerformance(S3_CSV.transactions, S3_CSV.currentPrices);
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-02:
-    // Manuell: totalAmountCHF enthält die Fees bereits (9'550), trotzdem wird
-    // fees (50) erneut addiert → Kostenbasis 96.00 statt 95.50.
-    expect(manual.totalInvested).toBe(9600);
-    expect(manual.avgCostBasis).toBe(96);
-    expect(manual.unrealizedGain).toBe(400);
+    // vorher (R-02): totalInvested 9'600 / avgCostBasis 96.00 / Gain 400 —
+    // der manuelle Pfad speicherte totalAmountCHF inkl. Fees (9'550) und die
+    // Fees (50) wurden erneut addiert (doppelt gezählt). Jetzt kanonische
+    // Semantik (Brutto exkl. Fees; Fixture migriert, vgl.
+    // scripts/migrate-fee-semantics.ts) → Kostenbasis 9'550 wie beim CSV-Pfad.
+    expect(manual.totalInvested).toBe(9550);
+    expect(manual.avgCostBasis).toBe(95.5);
+    expect(manual.unrealizedGain).toBe(450);
     // CSV: totalAmountCHF exkl. Fees (9'500) + 50 → 9'550 (fachlich korrekt):
     expect(csv.totalInvested).toBe(9550);
     expect(csv.avgCostBasis).toBe(95.5);
     expect(csv.unrealizedGain).toBe(450);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-02:
-    // Gleicher Trade, pfadabhängig unterschiedliche Kostenbasis:
-    expect(manual.avgCostBasis).not.toBe(csv.avgCostBasis);
+    // vorher (R-02): not.toBe — gleicher Trade, pfadabhängig unterschiedliche
+    // Kostenbasis. Jetzt identisch:
+    expect(manual.avgCostBasis).toBe(csv.avgCostBasis);
   });
 
   it("Szenario 4: Mehrfach-Verkauf — Endbestand 0, Position verschwindet", () => {
