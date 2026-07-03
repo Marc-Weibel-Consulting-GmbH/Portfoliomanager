@@ -318,6 +318,55 @@ function portfolioStats(
   return { ret, vol, sharpe };
 }
 
+/**
+ * R-34: make the configured bounds feasible for the actual number of titles.
+ * With n < 10 a 10 %-cap is infeasible (n·max < 1); raising the cap to 1.2/n
+ * keeps the sum-to-1 constraint reachable with 20 % slack. Mirrored guard for
+ * the floor (n > 1/min would make n·min > 1).
+ */
+function effectiveBounds(n: number, minWeight: number, maxWeight: number) {
+  return {
+    minW: Math.min(minWeight, 1 / n),
+    maxW: Math.max(maxWeight, 1.2 / n),
+  };
+}
+
+/**
+ * Project weights onto {minW ≤ w_i ≤ maxW, Σw = 1}: clip to bounds, then
+ * redistribute the deficit/surplus proportionally to the remaining headroom/
+ * slack of the non-saturated components until the sum is exactly 1 (R-34 —
+ * the old version divided by the sum and re-clipped, which never converged
+ * when the bounds were infeasible or tight).
+ */
+function normalizeWithBounds(w: number[], minW: number, maxW: number): number[] {
+  const x = w.map((v) => Math.max(minW, Math.min(maxW, v)));
+  for (let iter = 0; iter < 50; iter++) {
+    const sum = x.reduce((s, v) => s + v, 0);
+    const diff = 1 - sum;
+    if (Math.abs(diff) < 1e-12) break;
+    if (diff > 0) {
+      const headroom = x.map((v) => maxW - v);
+      const total = headroom.reduce((s, v) => s + v, 0);
+      if (total <= 0) break; // infeasible: everything at the cap
+      const scale = Math.min(1, diff / total);
+      for (let i = 0; i < x.length; i++) x[i] += headroom[i] * scale;
+    } else {
+      const slack = x.map((v) => v - minW);
+      const total = slack.reduce((s, v) => s + v, 0);
+      if (total <= 0) break; // infeasible: everything at the floor
+      const scale = Math.min(1, -diff / total);
+      for (let i = 0; i < x.length; i++) x[i] -= slack[i] * scale;
+    }
+  }
+  return x;
+}
+
+/** Random weight vector within [minW, maxW] summing to 1 (used by optimizer and frontier, R-34b). */
+function randomBoundedWeights(n: number, minW: number, maxW: number): number[] {
+  const raw = Array.from({ length: n }, () => minW + Math.random() * (maxW - minW));
+  return normalizeWithBounds(raw, minW, maxW);
+}
+
 function optimizeWeights(
   mu: number[],
   cov: number[][],
@@ -331,9 +380,13 @@ function optimizeWeights(
 
   if (method === "equal_weight") return x0;
 
-  // Apply diversification constraints (default: min 1%, max 10%)
-  const minW = constraints?.minWeight ?? 0.01;
-  const maxW = constraints?.maxWeight ?? 0.10;
+  // Apply diversification constraints (default: min 1%, max 10%),
+  // widened to a feasible range for small n (R-34a).
+  const { minW, maxW } = effectiveBounds(
+    n,
+    constraints?.minWeight ?? 0.01,
+    constraints?.maxWeight ?? 0.10
+  );
 
   // For max_dividend: maximize weighted dividend yield with volatility penalty
   // This produces different results from max_sharpe because it uses dividend yield
@@ -357,33 +410,13 @@ function optimizeWeights(
     return 0;
   }
 
-  // Generate constrained random weights (respecting min/max per position)
-  function generateConstrainedWeights(): number[] {
-    const raw = Array.from({ length: n }, () => minW + Math.random() * (maxW - minW));
-    const sum = raw.reduce((s, v) => s + v, 0);
-    return raw.map((v) => Math.max(minW, Math.min(maxW, v / sum)));
-  }
-
-  function normalizeWithConstraints(w: number[]): number[] {
-    // Clip to bounds
-    let clipped = w.map(v => Math.max(minW, Math.min(maxW, v)));
-    // Normalize to sum=1 while respecting bounds (iterative)
-    for (let iter = 0; iter < 20; iter++) {
-      const sum = clipped.reduce((s, v) => s + v, 0);
-      if (Math.abs(sum - 1) < 0.001) break;
-      clipped = clipped.map(v => v / sum);
-      clipped = clipped.map(v => Math.max(minW, Math.min(maxW, v)));
-    }
-    return clipped;
-  }
-
   // Gradient-free optimization using random search + local refinement
   const numTrials = 5000;
-  let bestWeights = normalizeWithConstraints([...x0]);
+  let bestWeights = normalizeWithBounds([...x0], minW, maxW);
   let bestScore = score(bestWeights);
 
   for (let trial = 0; trial < numTrials; trial++) {
-    const w = normalizeWithConstraints(generateConstrainedWeights());
+    const w = randomBoundedWeights(n, minW, maxW);
     const s = score(w);
     if (s > bestScore) {
       bestScore = s;
@@ -419,18 +452,23 @@ function optimizeWeights(
     }
   }
 
-  return normalizeWithConstraints(bestWeights);
+  return normalizeWithBounds(bestWeights, minW, maxW);
 }
 
 function buildEfficientFrontier(
   mu: number[],
   cov: number[][],
   riskFreeRate: number,
-  numPoints = 30
+  numPoints = 30,
+  minWeight = 0.01,
+  maxWeight = 0.10
 ): Array<{ expectedReturn: number; volatility: number; sharpe: number }> {
   const minRet = Math.min(...mu);
   const maxRet = Math.max(...mu);
   const n = mu.length;
+  // R-34b: the frontier must respect the SAME weight bounds as the optimizer,
+  // otherwise the constrained optimum is inconsistent with the displayed curve.
+  const { minW, maxW } = effectiveBounds(n, minWeight, maxWeight);
   const frontier: Array<{ expectedReturn: number; volatility: number; sharpe: number }> = [];
 
   for (let i = 0; i < numPoints; i++) {
@@ -442,9 +480,7 @@ function buildEfficientFrontier(
 
     // Random search for feasible portfolios near target return
     for (let trial = 0; trial < 500; trial++) {
-      const raw = Array.from({ length: n }, () => Math.random());
-      const sum = raw.reduce((s, v) => s + v, 0);
-      const w = raw.map((v) => v / sum);
+      const w = randomBoundedWeights(n, minW, maxW);
       const { ret, vol } = portfolioStats(w, mu, cov);
       if (Math.abs(ret - targetRet) < 0.05 * (maxRet - minRet) && vol < bestVol) {
         bestVol = vol;
@@ -880,13 +916,31 @@ async function fetchDCFFromYahoo(ticker: string): Promise<{
   }
 }
 
+// R-32: currency-aware risk-free base rates instead of the old flat 8 % WACC
+// floor. Approximate 10Y-government-bond / policy-rate neighborhoods (2025/26):
+// SNB policy rate ≈ 0–0.5 %, CHF Eidgenossen 10Y ≈ 0.5–1 % → 1.0 %;
+// ECB deposit rate ≈ 2 %, Bund 10Y ≈ 2.5 % → 2.5 %;
+// Fed funds ≈ 4 %, UST 10Y ≈ 4 % → 4.0 %.
+const DCF_RISK_FREE_BY_CURRENCY: Record<string, number> = {
+  CHF: 0.01,
+  EUR: 0.025,
+  USD: 0.04,
+};
+// Fallback for other currencies (GBP, SEK, …): between EUR and USD.
+const DCF_RISK_FREE_DEFAULT = 0.03;
+// WACC floor: one full equity risk premium (standard ERP ≈ 5.5 %, Damodaran).
+// Replaces the old flat 8 % floor that dominated CAPM for low-beta CHF titles.
+const DCF_MIN_WACC = 0.055;
+// Minimum WACC − g spread for the terminal value (was 3.5 %, which crushed
+// terminal values in low-rate currencies; 2 % still prevents TV explosion).
+const DCF_MIN_TERMINAL_SPREAD = 0.02;
+
 export async function calcDCF(input: DCFInput) {
   const {
     ticker,
-    riskFreeRate = DEFAULT_RISK_FREE_RATE,
     marketRiskPremium = 0.055,
     terminalGrowthRate = 0.025,
-    projectionYears = 5,
+    projectionYears = 10,
   } = input;
 
   // Try EODHD first (primary), then Yahoo Finance (fallback)
@@ -904,6 +958,7 @@ export async function calcDCF(input: DCFInput) {
   }
 
   const { currentPrice, fcf: rawFcf, shares, beta: betaVal, companyName, currency } = fundamentals;
+  const notes: string[] = [];
   let revenueGrowth = fundamentals.revenueGrowth;
   // Cap growth at realistic levels: max 15% for established companies
   // (30% was causing wildly inflated valuations for mature companies like Swiss Life)
@@ -915,22 +970,28 @@ export async function calcDCF(input: DCFInput) {
   let fcf = rawFcf;
   const fcfYield = rawFcf / marketCap;
   if (fcfYield > 0.08) {
-    // Cap FCF at 5% of market cap (sustainable level for most companies)
+    // Cap FCF at 5% of market cap (sustainable level for most companies) —
+    // flagged in `notes` instead of silently capping (R-32e).
     fcf = marketCap * 0.05;
+    notes.push(
+      `FCF-Yield ${(fcfYield * 100).toFixed(1)} % > 8 % — FCF von ${Math.round(rawFcf).toLocaleString("de-CH")} auf 5 % der Marktkapitalisierung (${Math.round(fcf).toLocaleString("de-CH")}) gekappt`
+    );
     console.warn(`[DCF] FCF yield ${(fcfYield*100).toFixed(1)}% too high for ${ticker}, capping at 5% of market cap`);
   }
 
-  // WACC estimate
+  // WACC estimate — risk-free base is currency-aware (R-32a); an explicitly
+  // provided input.riskFreeRate (DCF page slider) still takes precedence.
+  const riskFreeRate =
+    input.riskFreeRate ?? DCF_RISK_FREE_BY_CURRENCY[currency] ?? DCF_RISK_FREE_DEFAULT;
   const costOfEquity = riskFreeRate + betaVal * marketRiskPremium;
   const debtRatio = 0.3;
   const costOfDebt = 0.04;
   const taxRate = 0.21;
   const wacc = costOfEquity * (1 - debtRatio) + costOfDebt * (1 - taxRate) * debtRatio;
 
-  // Ensure WACC is at least 8% to prevent terminal value explosion
-  // (standard DCF practice: even low-beta companies should use 8%+ discount rate
-  //  to account for model uncertainty and illiquidity premium)
-  const effectiveWacc = Math.max(wacc, 0.08);
+  // WACC floor of 5.5 % (one full ERP) against model uncertainty — replaces
+  // the old flat 8 % floor that systematically depressed fair values (R-32a).
+  const effectiveWacc = Math.max(wacc, DCF_MIN_WACC);
 
   // Project FCF for N years with declining growth (mean-reversion to terminal growth)
   const projectedFCF: number[] = [];
@@ -946,12 +1007,12 @@ export async function calcDCF(input: DCFInput) {
   // Terminal value — use effectiveWacc to prevent division by near-zero
   const terminalFCF = projectedFCF[projectedFCF.length - 1] * (1 + terminalGrowthRate);
   const spreadWaccTerminal = effectiveWacc - terminalGrowthRate;
-  // Minimum spread of 3.5% to prevent terminal value explosion
-  // (academic standard: WACC-g spread should be at least 3-4% for mature companies)
-  const effectiveSpread = Math.max(spreadWaccTerminal, 0.035);
+  // Minimum WACC−g spread of 2 % to prevent terminal value explosion (R-32c;
+  // was 3.5 %, which understated terminal values in low-rate currencies)
+  const effectiveSpread = Math.max(spreadWaccTerminal, DCF_MIN_TERMINAL_SPREAD);
   const terminalValue = terminalFCF / effectiveSpread;
 
-  // Discount to present value using effectiveWacc (floor of 6%)
+  // Discount to present value using effectiveWacc
   const pvFCF = projectedFCF.reduce(
     (sum, cf, i) => sum + cf / (1 + effectiveWacc) ** (i + 1),
     0
@@ -959,19 +1020,10 @@ export async function calcDCF(input: DCFInput) {
   const pvTerminal = terminalValue / (1 + effectiveWacc) ** projectionYears;
 
   const intrinsicValueTotal = pvFCF + pvTerminal;
-  let intrinsicValuePerShare = intrinsicValueTotal / shares;
+  const intrinsicValuePerShare = intrinsicValueTotal / shares;
 
-  // Sanity check: cap intrinsic value at 2x current price to prevent absurd results
-  // (DCF models are inherently uncertain; >100% upside signals model error, not opportunity)
-  const maxReasonableValue = currentPrice * 2;
-  if (intrinsicValuePerShare > maxReasonableValue) {
-    console.warn(`[DCF] Sanity check: Intrinsic value ${intrinsicValuePerShare.toFixed(2)} capped at 2x price (${maxReasonableValue.toFixed(2)}) for ${ticker}`);
-    intrinsicValuePerShare = maxReasonableValue;
-  }
-  // Floor at 0 (negative intrinsic value doesn't make sense for equity)
-  if (intrinsicValuePerShare < 0) {
-    intrinsicValuePerShare = 0;
-  }
+  // R-32d: no display caps — the old code capped upside at +100 % (2× price)
+  // while leaving downside unbounded, an asymmetric bias. Report the number.
 
   const upsidePct = ((intrinsicValuePerShare - currentPrice) / currentPrice) * 100;
 
@@ -993,6 +1045,7 @@ export async function calcDCF(input: DCFInput) {
     currency,
     companyName,
     dataSource,
+    notes,
   };
 }
 

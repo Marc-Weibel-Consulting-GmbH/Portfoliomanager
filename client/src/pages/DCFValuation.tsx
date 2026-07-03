@@ -45,7 +45,7 @@ export default function DCFValuation() {
   const [selectedTicker, setSelectedTicker] = useState<string>("");
   const [riskFreeRate, setRiskFreeRate] = useState(2.0);
   const [terminalGrowthRate, setTerminalGrowthRate] = useState(2.5);
-  const [projectionYears, setProjectionYears] = useState(5);
+  const [projectionYears, setProjectionYears] = useState(10);
   const [isRunning, setIsRunning] = useState(false);
   const [queryEnabled, setQueryEnabled] = useState(false);
   const [queryParams, setQueryParams] = useState<any>(null);

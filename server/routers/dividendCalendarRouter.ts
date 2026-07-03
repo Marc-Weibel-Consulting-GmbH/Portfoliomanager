@@ -1,4 +1,51 @@
 import { router, protectedProcedure } from "../_core/trpc";
+import { convertToCHF } from "../fxHelper";
+
+/**
+ * Stückzahlen pro Ticker aus Transaktionen aggregieren: `buy` und `entry`
+ * addieren, `sell` subtrahiert — konsistent mit performanceEngine
+ * buildHoldingsTimeline (R-31: `entry` wurde bisher ignoriert, wodurch via
+ * toggleLive aktivierte Portfolios einen leeren Kalender hatten).
+ */
+export function aggregateHoldingsFromTransactions(
+  transactions: Array<{ ticker: string; transactionType: string; shares?: string | null }>,
+  holdings: Record<string, number> = {}
+): Record<string, number> {
+  for (const tx of transactions) {
+    if (!tx.ticker) continue;
+    const shares = parseFloat(tx.shares || "0");
+    if (!Number.isFinite(shares) || shares === 0) continue;
+    if (tx.transactionType === "buy" || tx.transactionType === "entry") {
+      holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
+    } else if (tx.transactionType === "sell") {
+      holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
+    }
+  }
+  return holdings;
+}
+
+/**
+ * Fallback ohne Transaktionen: Stückzahlen aus den portfolioData-Stocks.
+ * Positionen ohne Stückzahl ergeben 0 und werden später herausgefiltert —
+ * kein `|| 1`-Phantom-Bestand mehr (R-31).
+ */
+export function aggregateHoldingsFromPortfolioData(
+  stocks: any[],
+  holdings: Record<string, number> = {}
+): Record<string, number> {
+  for (const stock of stocks) {
+    if (!stock?.ticker || stock.ticker === "CASH") continue;
+    const shares = parseFloat(stock.shares || stock.quantity || "0") || 0;
+    if (shares > 0) holdings[stock.ticker] = (holdings[stock.ticker] || 0) + shares;
+  }
+  return holdings;
+}
+
+/** Dividendenbetrag in CHF via echte FX-Kurse statt hartkodierter 0.88/0.95 (R-31). */
+async function dividendAmountCHF(amount: number, currency: string | undefined): Promise<number> {
+  const today = new Date().toISOString().split("T")[0];
+  return convertToCHF(amount, currency || "CHF", today);
+}
 
 export const dividendCalendarRouter = router({
   /**
@@ -31,41 +78,25 @@ export const dividendCalendarRouter = router({
       const holdings: Record<string, number> = {};
 
       if (transactions.length > 0) {
-        // Use transaction-based holdings
-        transactions.forEach((tx: any) => {
-          if (!holdings[tx.ticker]) {
-            holdings[tx.ticker] = 0;
-          }
-          const shares = parseFloat(tx.shares || "0");
-          if (tx.transactionType === "buy") {
-            holdings[tx.ticker] += shares;
-          } else if (tx.transactionType === "sell") {
-            holdings[tx.ticker] -= shares;
-          }
-        });
+        // Use transaction-based holdings (buy/entry +, sell −; R-31)
+        aggregateHoldingsFromTransactions(transactions, holdings);
       } else {
         // Fallback: use portfolio data shares (for builder portfolios without transactions)
-        portfolioData.forEach((stock: any) => {
-          if (stock.ticker && stock.ticker !== "CASH") {
-            holdings[stock.ticker] = parseFloat(stock.shares || stock.quantity || "0") || 1;
-          }
-        });
+        aggregateHoldingsFromPortfolioData(portfolioData, holdings);
       }
 
       // Fetch upcoming dividends (365 days ahead)
       const dividends = await getPortfolioDividends(tickers, 365);
 
       // Enrich dividend data with company names and expected income
-      const enrichedDividends = dividends.map(div => {
+      const enrichedDividends = (await Promise.all(dividends.map(async div => {
         const stock = portfolioData.find((s: any) =>
           s.ticker.toUpperCase() === div.ticker.toUpperCase()
         );
         const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
 
-        // Convert to CHF if needed
-        const amountInCHF = div.currency === "USD" ? div.amount * 0.88
-          : div.currency === "EUR" ? div.amount * 0.95
-          : div.amount;
+        // Convert to CHF via echte FX-Kurse (R-31)
+        const amountInCHF = await dividendAmountCHF(div.amount, div.currency);
         const expectedIncome = shares * amountInCHF;
 
         return {
@@ -81,7 +112,7 @@ export const dividendCalendarRouter = router({
           shares,
           expectedAmount: expectedIncome,
         };
-      }).filter(div => div.shares > 0); // Only show dividends for stocks we actually hold
+      }))).filter(div => div.shares > 0); // Only show dividends for stocks we actually hold
 
       return enrichedDividends;
     }),
@@ -113,37 +144,21 @@ export const dividendCalendarRouter = router({
       const holdings: Record<string, number> = {};
 
       if (transactions.length > 0) {
-        transactions.forEach((tx: any) => {
-          if (!holdings[tx.ticker]) {
-            holdings[tx.ticker] = 0;
-          }
-          const shares = parseFloat(tx.shares || "0");
-          if (tx.transactionType === "buy") {
-            holdings[tx.ticker] += shares;
-          } else if (tx.transactionType === "sell") {
-            holdings[tx.ticker] -= shares;
-          }
-        });
+        aggregateHoldingsFromTransactions(transactions, holdings);
       } else {
         // Fallback: use portfolio data shares (for builder portfolios without transactions)
-        portfolioData2.forEach((stock: any) => {
-          if (stock.ticker && stock.ticker !== "CASH") {
-            holdings[stock.ticker] = parseFloat(stock.shares || stock.quantity || "0") || 1;
-          }
-        });
+        aggregateHoldingsFromPortfolioData(portfolioData2, holdings);
       }
 
       const dividends = await getAllPortfolioDividends(tickers);
 
-      const enrichedDividends = dividends.map(div => {
+      const enrichedDividends = (await Promise.all(dividends.map(async div => {
         const stock = portfolioData2.find((s: any) =>
           s.ticker.toUpperCase() === div.ticker.toUpperCase()
         );
         const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
 
-        const amountInCHF = div.currency === "USD" ? div.amount * 0.88
-          : div.currency === "EUR" ? div.amount * 0.95
-          : div.amount;
+        const amountInCHF = await dividendAmountCHF(div.amount, div.currency);
         const expectedIncome = shares * amountInCHF;
 
         return {
@@ -159,7 +174,7 @@ export const dividendCalendarRouter = router({
           shares,
           expectedAmount: expectedIncome,
         };
-      }).filter(div => div.shares > 0);
+      }))).filter(div => div.shares > 0);
 
       return enrichedDividends;
     }),
@@ -191,37 +206,21 @@ export const dividendCalendarRouter = router({
       const holdings: Record<string, number> = {};
 
       if (transactions.length > 0) {
-        transactions.forEach((tx: any) => {
-          if (!holdings[tx.ticker]) {
-            holdings[tx.ticker] = 0;
-          }
-          const shares = parseFloat(tx.shares || "0");
-          if (tx.transactionType === "buy") {
-            holdings[tx.ticker] += shares;
-          } else if (tx.transactionType === "sell") {
-            holdings[tx.ticker] -= shares;
-          }
-        });
+        aggregateHoldingsFromTransactions(transactions, holdings);
       } else {
         // Fallback: use portfolio data shares (for builder portfolios without transactions)
-        portfolioData3.forEach((stock: any) => {
-          if (stock.ticker && stock.ticker !== "CASH") {
-            holdings[stock.ticker] = parseFloat(stock.shares || stock.quantity || "0") || 1;
-          }
-        });
+        aggregateHoldingsFromPortfolioData(portfolioData3, holdings);
       }
 
       const dividends = await getPortfolioDividends(tickers, (input as any).daysAhead || 365);
 
-      const enrichedDividends = dividends.map(div => {
+      const enrichedDividends = (await Promise.all(dividends.map(async div => {
         const stock = portfolioData3.find((s: any) =>
           s.ticker.toUpperCase() === div.ticker.toUpperCase()
         );
         const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
 
-        const amountInCHF = div.currency === "USD" ? div.amount * 0.88
-          : div.currency === "EUR" ? div.amount * 0.95
-          : div.amount;
+        const amountInCHF = await dividendAmountCHF(div.amount, div.currency);
         const expectedIncome = shares * amountInCHF;
 
         return {
@@ -236,7 +235,7 @@ export const dividendCalendarRouter = router({
           shares,
           expectedIncome,
         };
-      }).filter(div => div.shares > 0);
+      }))).filter(div => div.shares > 0);
 
       return enrichedDividends;
     }),
@@ -268,15 +267,9 @@ export const dividendCalendarRouter = router({
         });
         const txs = await getPortfolioTransactions(p.id);
         if (txs.length > 0) {
-          txs.forEach((tx: any) => {
-            const sh = parseFloat(tx.shares || "0");
-            if (tx.transactionType === "buy") holdings[tx.ticker] = (holdings[tx.ticker] || 0) + sh;
-            else if (tx.transactionType === "sell") holdings[tx.ticker] = (holdings[tx.ticker] || 0) - sh;
-          });
+          aggregateHoldingsFromTransactions(txs, holdings);
         } else {
-          stocks.forEach((s: any) => {
-            if (s.ticker && s.ticker !== "CASH") holdings[s.ticker] = (holdings[s.ticker] || 0) + (parseFloat(s.shares || s.quantity || "0") || 0);
-          });
+          aggregateHoldingsFromPortfolioData(stocks, holdings);
         }
       }
 
@@ -287,10 +280,10 @@ export const dividendCalendarRouter = router({
       const startOfToday = new Date(new Date().toDateString());
       const horizon = new Date(startOfToday.getTime() + input.daysAhead * 86400000);
 
-      return dividends
-        .map((div) => {
+      return (await Promise.all(dividends
+        .map(async (div) => {
           const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
-          const amountCHF = div.currency === "USD" ? div.amount * 0.88 : div.currency === "EUR" ? div.amount * 0.95 : div.amount;
+          const amountCHF = await dividendAmountCHF(div.amount, div.currency);
           return {
             ticker: div.ticker,
             companyName: nameByTicker[div.ticker] || nameByTicker[div.ticker.toUpperCase()] || div.ticker,
@@ -303,7 +296,7 @@ export const dividendCalendarRouter = router({
             shares,
             expectedIncome: shares * amountCHF,
           };
-        })
+        })))
         .filter((d) => d.shares > 0 && d.exDividendDate && new Date(d.exDividendDate) >= startOfToday && new Date(d.exDividendDate) <= horizon)
         .sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
     }),

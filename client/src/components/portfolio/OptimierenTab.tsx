@@ -121,22 +121,13 @@ export default function OptimierenTab({
     ? { x: +(result.currentPortfolio.volatility * 100).toFixed(2), y: +(result.currentPortfolio.expectedReturn * 100).toFixed(2) }
     : null;
 
-  // KI-Vorschläge: grösste Abweichungen optimal vs. aktuell (Diversifikationsregeln erzwingen)
+  // KI-Vorschläge: grösste Abweichungen optimal vs. aktuell. Der Server
+  // garantiert seit R-34 Summe ≈ 1 innerhalb der (bei kleinen Portfolios
+  // aufgeweiteten) Bounds — clientseitiges Cappen/Renormalisieren würde die
+  // Bounds wieder verletzen und entfällt daher.
   const suggestions = useMemo(() => {
     if (!result?.weights) return [];
-    const rawOptimal = result.weights as Record<string, number>;
-    // Enforce: max 10%, min 1% per position
-    const tickerList = Object.keys(rawOptimal);
-    const capped: Record<string, number> = {};
-    for (const t of tickerList) {
-      capped[t] = Math.min(0.10, Math.max(0.01, rawOptimal[t]));
-    }
-    // Renormalize to sum to 1
-    const totalCapped = Object.values(capped).reduce((a, b) => a + b, 0);
-    const optimal: Record<string, number> = {};
-    for (const t of tickerList) {
-      optimal[t] = totalCapped > 0 ? capped[t] / totalCapped : 1 / tickerList.length;
-    }
+    const optimal = result.weights as Record<string, number>;
     const all = new Set([...Object.keys(optimal), ...Object.keys(currentWeights)]);
     return Array.from(all)
       .map((ticker) => {
