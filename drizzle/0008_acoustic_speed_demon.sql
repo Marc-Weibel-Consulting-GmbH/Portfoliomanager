@@ -1,0 +1,2 @@
+ALTER TABLE `watchlistStocks` MODIFY COLUMN `source` enum('manual','ai_recommended','wikifolio') NOT NULL DEFAULT 'manual';--> statement-breakpoint
+ALTER TABLE `watchlistStocks` ADD `listType` enum('empfehlung','watchlist') DEFAULT 'watchlist' NOT NULL;

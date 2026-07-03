@@ -9,6 +9,8 @@
 import { CookieJar } from 'tough-cookie';
 import { JSDOM } from 'jsdom';
 import got from 'got';
+import { Api as WikifolioApi, type Wikifolio, type WikifolioSearch } from 'wikifolio';
+import { getSecret } from '../_core/secretsManager';
 
 const BASE_URL = 'https://www.wikifolio.com/';
 const cookieJar = new CookieJar();
@@ -82,12 +84,9 @@ const groupTypeMap: Record<number, string> = {
 async function authenticate(): Promise<void> {
   if (sessionCookie) return; // Already authenticated
 
-  const email = process.env.WIKIFOLIO_EMAIL;
-  const password = process.env.WIKIFOLIO_PASSWORD;
-
-  if (!email || !password) {
-    throw new Error('WIKIFOLIO_EMAIL and WIKIFOLIO_PASSWORD must be set');
-  }
+  // F-15: read credentials via secretsManager (checks process.env first,
+  // then the encrypted appSecrets table maintained on the Admin-Secrets page)
+  const { email, password } = await getWikifolioCredentials();
 
   const loginUrl = `${BASE_URL}dynamic/de/de/login/login`;
 
@@ -258,4 +257,85 @@ export function clearWikifolioSession(): void {
   sessionCookie = undefined;
   if (sessionTimeout) clearTimeout(sessionTimeout);
   console.log('[wikifolioService] Session cleared');
+}
+
+// ─── Trader search (F-15) ────────────────────────────────────────────────────
+
+async function getWikifolioCredentials(): Promise<{ email: string; password: string }> {
+  const email = await getSecret('WIKIFOLIO_EMAIL');
+  const password = await getSecret('WIKIFOLIO_PASSWORD');
+  if (!email || !password) {
+    throw new Error(
+      'Wikifolio-Zugangsdaten fehlen — bitte WIKIFOLIO_EMAIL und WIKIFOLIO_PASSWORD in den Admin-Secrets hinterlegen.'
+    );
+  }
+  return { email, password };
+}
+
+export type WikifolioSearchSortBy = 'perf12m' | 'sharperatio' | 'aum';
+
+export interface WikifolioTraderResult {
+  symbol: string;
+  title: string;
+  traderName: string;
+  /** Value of the selected sort criterion (main ranking value of the search) */
+  rankValue: number | null;
+  perfAnnually: number | null;
+  perfEver: number | null;
+  maxDrawdown: number | null;
+  capital: number | null;
+  isin: string | null;
+  wikifolioUrl: string | null;
+}
+
+/**
+ * Map Wikifolio search results (class instances with circular api refs)
+ * to plain, serializable objects. Exported for unit tests.
+ */
+export function mapWikifolioSearchResults(wikis: Array<Partial<Wikifolio>>): WikifolioTraderResult[] {
+  return wikis
+    .filter(w => !!w.symbol)
+    .map(w => ({
+      symbol: w.symbol as string,
+      title: w.title || (w.symbol as string),
+      traderName: (w.user as any)?.name || '',
+      rankValue: typeof w.rank === 'number' && !Number.isNaN(w.rank) ? w.rank : null,
+      perfAnnually: typeof w.perfannually === 'number' && !Number.isNaN(w.perfannually) ? w.perfannually : null,
+      perfEver: typeof w.perfever === 'number' && !Number.isNaN(w.perfever) ? w.perfever : null,
+      maxDrawdown: typeof w.maxdraw === 'number' && !Number.isNaN(w.maxdraw) ? w.maxdraw : null,
+      capital: typeof w.capital === 'number' && !Number.isNaN(w.capital) ? w.capital : null,
+      isin: w.isin || null,
+      wikifolioUrl: w.wikifolioUrl || null,
+    }));
+}
+
+/**
+ * Search successful Wikifolio traders via the (unofficial) wikifolio npm package.
+ * Sorted descending by the given criterion; only investable real-money wikifolios.
+ */
+export async function searchWikifolios(params: {
+  sortBy: WikifolioSearchSortBy;
+  query?: string;
+  limit?: number;
+}): Promise<WikifolioTraderResult[]> {
+  const { email, password } = await getWikifolioCredentials();
+  const api = new WikifolioApi({ email, password });
+
+  const search: Partial<WikifolioSearch> = {
+    sortBy: params.sortBy,
+    sortOrder: 'desc',
+    investable: true,
+    realMoney: true,
+  };
+  if (params.query) search.query = params.query;
+
+  let wikis: Wikifolio[];
+  try {
+    wikis = await api.search(search);
+  } catch (err: any) {
+    console.error('[wikifolioService] Trader search failed:', err?.message || err);
+    throw new Error('Wikifolio-Anmeldung fehlgeschlagen — bitte Zugangsdaten in den Admin-Secrets prüfen.');
+  }
+
+  return mapWikifolioSearchResults(wikis).slice(0, params.limit ?? 25);
 }

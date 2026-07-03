@@ -9,14 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Minus, Eye, Users, Bot } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Minus, Eye, Users, Bot, Star, ListChecks } from "lucide-react";
 
 export default function AdminWatchlist() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  // F-13: merged view — Empfehlungen | Watchlist | Alle
+  const [listTypeFilter, setListTypeFilter] = useState<"empfehlung" | "watchlist" | "alle">("alle");
+  const [bulkMigrateOpen, setBulkMigrateOpen] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [signalFilter, setSignalFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -39,12 +44,14 @@ export default function AdminWatchlist() {
 
   const utils = trpc.useUtils();
 
-  const { data: watchlistData, isLoading } = trpc.watchlist.list.useQuery({
+  const listInput = {
     source: sourceFilter as any,
+    listType: listTypeFilter,
     signalType: signalFilter as any,
     category: categoryFilter === "all" ? undefined : categoryFilter,
     search: search || undefined,
-  });
+  };
+  const { data: watchlistData, isLoading } = trpc.watchlist.list.useQuery(listInput);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -121,6 +128,41 @@ export default function AdminWatchlist() {
     onError: (err) => toast.error(err.message),
   });
 
+  // F-13: per-row toggle Empfehlung ↔ Watchlist (optimistic)
+  const setListTypeMutation = trpc.watchlist.setListType.useMutation({
+    onMutate: async (vars) => {
+      if (!vars) return;
+      await utils.watchlist.list.cancel();
+      utils.watchlist.list.setData(listInput, (old) =>
+        old
+          ? { ...old, stocks: old.stocks.map((s: any) => (s.id === vars.id ? { ...s, listType: vars.listType } : s)) }
+          : old
+      );
+    },
+    onSuccess: (_data, vars) => {
+      toast.success(vars && vars.listType === "empfehlung" ? "Als Empfehlung markiert" : "In die Watchlist verschoben");
+    },
+    onError: (err) => toast.error(err.message),
+    onSettled: () => {
+      utils.watchlist.list.invalidate();
+      utils.watchlist.stats.invalidate();
+    },
+  });
+
+  // F-13: one-click migration of all active titles
+  const bulkMigrateMutation = trpc.watchlist.markAllActiveAsEmpfehlung.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setBulkMigrateOpen(false);
+      utils.watchlist.list.invalidate();
+      utils.watchlist.stats.invalidate();
+    },
+    onError: (err) => {
+      setBulkMigrateOpen(false);
+      toast.error(err.message);
+    },
+  });
+
   const aiMutation = trpc.watchlist.generateRecommendations.useMutation({
     onSuccess: (data) => {
       toast.success(data.message);
@@ -158,9 +200,9 @@ export default function AdminWatchlist() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Watchlist</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Aktienliste & Watchlist</h1>
             <p className="text-muted-foreground mt-1">
-              Aktien-Universum verwalten (max. 200 Titel)
+              Aktien-Universum verwalten (max. 200 Titel) — Empfehlungen erscheinen für Nutzer unter «Aktien»
             </p>
           </div>
           <div className="flex gap-2">
@@ -324,6 +366,34 @@ export default function AdminWatchlist() {
           </div>
         </div>
 
+        {/* F-13: Listen-Umschalter Empfehlungen | Watchlist | Alle */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Tabs value={listTypeFilter} onValueChange={(v) => setListTypeFilter(v as any)}>
+            <TabsList>
+              <TabsTrigger value="empfehlung">
+                <Star className="w-3.5 h-3.5 mr-1.5" />
+                Empfehlungen{stats ? ` (${stats.empfehlung})` : ""}
+              </TabsTrigger>
+              <TabsTrigger value="watchlist">
+                <ListChecks className="w-3.5 h-3.5 mr-1.5" />
+                Watchlist{stats ? ` (${stats.watchlistOnly})` : ""}
+              </TabsTrigger>
+              <TabsTrigger value="alle">
+                Alle{stats ? ` (${stats.total})` : ""}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkMigrateOpen(true)}
+            disabled={bulkMigrateMutation.isPending}
+          >
+            <Star className={`w-4 h-4 mr-2 ${bulkMigrateMutation.isPending ? "animate-pulse" : ""}`} />
+            Alle aktiven als Empfehlung markieren
+          </Button>
+        </div>
+
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -437,6 +507,7 @@ export default function AdminWatchlist() {
                         Score {sortColumn === "score" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
                       <th className="text-center p-3 font-medium">Quelle</th>
+                      <th className="text-center p-3 font-medium">Empfehlung</th>
                       <th className="text-right p-3 font-medium">Aktionen</th>
                     </tr>
                   </thead>
@@ -467,6 +538,16 @@ export default function AdminWatchlist() {
                           </span>
                         </td>
                         <td className="p-3 text-center">{getSourceBadge(stock.source)}</td>
+                        <td className="p-3 text-center">
+                          <Switch
+                            checked={(stock as any).listType === "empfehlung"}
+                            onCheckedChange={(checked) =>
+                              setListTypeMutation.mutate({ id: stock.id, listType: checked ? "empfehlung" : "watchlist" })
+                            }
+                            aria-label={`${stock.ticker} als Empfehlung markieren`}
+                            title={(stock as any).listType === "empfehlung" ? "Empfehlung (für Nutzer sichtbar)" : "Nur Watchlist"}
+                          />
+                        </td>
                         <td className="p-3 text-right">
                           <div className="flex gap-1 justify-end">
                             <Button
@@ -493,8 +574,10 @@ export default function AdminWatchlist() {
                     ))}
                     {sortedStocks.length === 0 && (
                       <tr>
-                        <td colSpan={11} className="p-8 text-center text-muted-foreground">
-                          Keine Titel in der Watchlist. Füge manuell Titel hinzu oder generiere KI-Empfehlungen.
+                        <td colSpan={12} className="p-8 text-center text-muted-foreground">
+                          {listTypeFilter === "empfehlung"
+                            ? "Keine Empfehlungen vorhanden. Markieren Sie Titel über den Schalter in der Spalte «Empfehlung»."
+                            : "Keine Titel in der Watchlist. Fügen Sie manuell Titel hinzu oder generieren Sie KI-Empfehlungen."}
                         </td>
                       </tr>
                     )}
@@ -514,6 +597,17 @@ export default function AdminWatchlist() {
           confirmLabel="Entfernen"
           onConfirm={() => { if (removingStock) removeMutation.mutate({ id: removingStock.id }); }}
           isPending={removeMutation.isPending}
+        />
+
+        {/* F-13: Bestätigung Bulk-Migration */}
+        <ConfirmDialog
+          open={bulkMigrateOpen}
+          onOpenChange={setBulkMigrateOpen}
+          title="Alle aktiven Titel als Empfehlung markieren?"
+          description="Alle aktiven Titel der Watchlist werden als Empfehlung markiert und erscheinen damit für Nutzer auf der Seite «Aktien». Einzelne Titel können danach jederzeit wieder in die Watchlist verschoben werden."
+          confirmLabel="Als Empfehlung markieren"
+          onConfirm={() => bulkMigrateMutation.mutate()}
+          isPending={bulkMigrateMutation.isPending}
         />
       </div>
     </DashboardLayout>

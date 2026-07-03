@@ -1,8 +1,10 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { watchlistStocks } from "../../drizzle/schema";
-import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession } from '../lib/wikifolioService';
+import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios } from '../lib/wikifolioService';
+import { resolveIsinToTicker } from '../lib/isinResolver';
+import { getUniverseListTypeFilter } from '../lib/watchlistUniverse';
 import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
 import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
@@ -79,7 +81,8 @@ export const watchlistRouter = router({
   // Get all watchlist stocks with optional filters
   list: protectedProcedure
     .input(z.object({
-      source: z.enum(["manual", "ai_recommended", "all"]).optional().default("all"),
+      source: z.enum(["manual", "ai_recommended", "wikifolio", "all"]).optional().default("all"),
+      listType: z.enum(["empfehlung", "watchlist", "alle"]).optional().default("alle"),
       category: z.string().optional(),
       sector: z.string().optional(),
       signalType: z.enum(["buy", "sell", "hold", "all"]).optional().default("all"),
@@ -99,7 +102,10 @@ export const watchlistRouter = router({
       const conditions: any[] = [];
 
       if (input.source && input.source !== "all") {
-        conditions.push(eq(watchlistStocks.source, input.source as "manual" | "ai_recommended"));
+        conditions.push(eq(watchlistStocks.source, input.source as "manual" | "ai_recommended" | "wikifolio"));
+      }
+      if (input.listType && input.listType !== "alle") {
+        conditions.push(eq(watchlistStocks.listType, input.listType));
       }
       if (input.category) {
         conditions.push(eq(watchlistStocks.category, input.category));
@@ -156,6 +162,9 @@ export const watchlistRouter = router({
     const aiRecommended = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.source, "ai_recommended"));
     const buySignals = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.signalType, "buy"));
     const sellSignals = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.signalType, "sell"));
+    // F-13: counts per listType for the merged Empfehlungen/Watchlist view
+    const empfehlung = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "empfehlung"));
+    const watchlistOnly = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "watchlist"));
 
     return {
       total: total[0]?.count || 0,
@@ -163,9 +172,44 @@ export const watchlistRouter = router({
       aiRecommended: aiRecommended[0]?.count || 0,
       buySignals: buySignals[0]?.count || 0,
       sellSignals: sellSignals[0]?.count || 0,
+      empfehlung: empfehlung[0]?.count || 0,
+      watchlistOnly: watchlistOnly[0]?.count || 0,
       maxAllowed: 200,
     };
   }),
+
+  // F-13: move a title between Empfehlungen and Watchlist
+  setListType: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      listType: z.enum(["empfehlung", "watchlist"]),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      await db.update(watchlistStocks).set({ listType: input.listType }).where(eq(watchlistStocks.id, input.id));
+      return { success: true };
+    }),
+
+  // F-13: one-click migration — mark all active titles as Empfehlung
+  markAllActiveAsEmpfehlung: adminProcedure
+    .mutation(async () => {
+      const { getDb } = await import("../db");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      await db.update(watchlistStocks)
+        .set({ listType: "empfehlung" })
+        .where(and(eq(watchlistStocks.isActive, 1), eq(watchlistStocks.listType, "watchlist")));
+      const empfehlung = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "empfehlung"));
+      return {
+        success: true,
+        empfehlungCount: empfehlung[0]?.count || 0,
+        message: `Alle aktiven Titel als Empfehlung markiert (${empfehlung[0]?.count || 0} Empfehlungen)`,
+      };
+    }),
 
   // Add a stock to watchlist (manual)
   add: protectedProcedure
@@ -579,6 +623,10 @@ export const watchlistRouter = router({
 
       const conditions: any[] = [eq(watchlistStocks.isActive, 1)];
 
+      // F-13: universe = Empfehlungen (fallback to all active rows while none are marked yet)
+      const universeType = await getUniverseListTypeFilter(db);
+      if (universeType) conditions.push(eq(watchlistStocks.listType, universeType));
+
       if (input.category) conditions.push(eq(watchlistStocks.category, input.category));
       if (input.sector) conditions.push(eq(watchlistStocks.sector, input.sector));
       if (input.search) {
@@ -656,6 +704,31 @@ export const watchlistRouter = router({
     }),
 
   /**
+   * F-15: search successful Wikifolio traders by performance criterion
+   */
+  searchWikifolios: adminProcedure
+    .input(z.object({
+      sortBy: z.enum(['perf12m', 'sharperatio', 'aum']).default('perf12m'),
+      query: z.string().optional(),
+      limit: z.number().min(1).max(50).optional().default(25),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const traders = await searchWikifolios({
+          sortBy: input.sortBy,
+          query: input.query,
+          limit: input.limit,
+        });
+        return { success: true, traders };
+      } catch (err: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: err?.message || 'Wikifolio-Suche fehlgeschlagen',
+        });
+      }
+    }),
+
+  /**
    * Clear Wikifolio session (force re-login)
    */
   clearWikifolioSession: protectedProcedure
@@ -688,21 +761,26 @@ export const watchlistRouter = router({
         item.groupName === 'equities' || item.groupName === 'etfs'
       );
 
-      let added = 0;
-      let skipped = 0;
-      let failed = 0;
-      const errors: string[] = [];
+      let imported = 0;
+      const skipped: Array<{ isin: string; name: string; reason: string }> = [];
 
       for (const item of equityItems) {
         try {
-          // Derive ticker from ISIN or name (best effort)
-          const ticker = item.isin || item.name.substring(0, 10).toUpperCase().replace(/\s/g, '');
+          // F-15: resolve ISIN → Yahoo ticker (ISINs as tickers produced junk rows)
+          const ticker = await resolveIsinToTicker(
+            (q: string) => yahooFinance.search(q, { quotesCount: 5, newsCount: 0 }, { validateResult: false }),
+            item.isin
+          );
+          if (!ticker) {
+            skipped.push({ isin: item.isin || '—', name: item.name, reason: 'Kein Yahoo-Ticker zur ISIN gefunden' });
+            continue;
+          }
 
           const existing = await db.select().from(watchlistStocks)
             .where(eq(watchlistStocks.ticker, ticker)).limit(1);
 
           if (existing.length > 0 && !input.overwriteExisting) {
-            skipped++;
+            skipped.push({ isin: item.isin || '—', name: item.name, reason: `Bereits in der Watchlist (${ticker})` });
             continue;
           }
 
@@ -713,33 +791,33 @@ export const watchlistRouter = router({
               notes: `Wikifolio ${input.symbol} | Anteil: ${item.percentage?.toFixed(2)}%`,
               lastMetricsUpdate: new Date(),
             }).where(eq(watchlistStocks.ticker, ticker));
-            added++;
+            imported++;
             continue;
           }
 
           await db.insert(watchlistStocks).values({
             ticker,
             companyName: item.name,
-            source: 'manual',
+            source: 'wikifolio',
+            listType: 'watchlist',
             currentPrice: item.close?.toString() || null,
-            notes: `Importiert aus Wikifolio ${input.symbol} | Anteil: ${item.percentage?.toFixed(2)}%`,
+            notes: `Importiert aus Wikifolio ${input.symbol} | ISIN: ${item.isin} | Anteil: ${item.percentage?.toFixed(2)}%`,
             lastMetricsUpdate: new Date(),
           });
-          added++;
+          imported++;
         } catch (err: any) {
-          failed++;
-          errors.push(`${item.name}: ${err?.message}`);
+          skipped.push({ isin: item.isin || '—', name: item.name, reason: err?.message || 'Unbekannter Fehler' });
         }
+        // Rate limiting for Yahoo search
+        await new Promise(r => setTimeout(r, 300));
       }
 
       return {
         success: true,
-        added,
+        imported,
         skipped,
-        failed,
         total: equityItems.length,
-        errors,
-        message: `${added} Positionen importiert, ${skipped} übersprungen, ${failed} Fehler`,
+        message: `${imported} Positionen importiert, ${skipped.length} übersprungen`,
       };
     }),
 });

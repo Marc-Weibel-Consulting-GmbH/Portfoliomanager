@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { watchlistStocks } from "../../drizzle/schema";
 import { eq, like, or, and, desc, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
+import { getUniverseListTypeFilter } from "../lib/watchlistUniverse";
 
 const yahooFinance: any = new (YahooFinanceClass as any)();
 
@@ -242,6 +243,10 @@ export const investRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
       const conditions: any[] = [eq(watchlistStocks.isActive, 1)];
+
+      // F-13: /aktien shows only Empfehlungen (fallback to all active rows while none are marked yet)
+      const universeType = await getUniverseListTypeFilter(db);
+      if (universeType) conditions.push(eq(watchlistStocks.listType, universeType));
 
       if (input.category) conditions.push(eq(watchlistStocks.category, input.category));
       if (input.sector) conditions.push(eq(watchlistStocks.sector, input.sector));
