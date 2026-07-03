@@ -10,7 +10,6 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { startPriceUpdater } from "../priceUpdater";
 import { initializeNewsUpdater } from "../newsUpdater";
-import { startChartDataUpdater } from "../chartDataUpdater";
 import { initializePEGUpdater } from "../pegUpdater";
 import { initYTDUpdater } from "../cron/ytdUpdater";
 import { initDividendCaptureJob } from "../dividendCaptureJob";
@@ -259,8 +258,6 @@ async function startServer() {
     
     // Start price updater
     startPriceUpdater().catch(console.error);
-    // Chart data updater disabled to prevent memory leaks
-    // startChartDataUpdater().catch(console.error);
     // News updater disabled to reduce memory usage
     // initializeNewsUpdater();
     // Start PEG ratio updater

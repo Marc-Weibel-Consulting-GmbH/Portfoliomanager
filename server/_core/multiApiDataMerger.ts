@@ -1,7 +1,7 @@
 /**
  * Multi-API Data Merger
  * Intelligently combines stock data from multiple APIs to ensure completeness
- * Fallback chain: EODHD → Yahoo Finance → FMP → Finnhub
+ * Fallback chain: EODHD → Yahoo Finance → Finnhub
  */
 
 import { fetchStockMetrics } from './stockDataApi';
@@ -38,7 +38,6 @@ export interface CompleteStockData {
 function getTickerVariants(ticker: string): {
   eodhd: string;
   yahoo: string;
-  fmp: string;
   finnhub: string;
 } {
   // Remove exchange suffix for base ticker
@@ -57,7 +56,6 @@ function getTickerVariants(ticker: string): {
   return {
     eodhd: ticker, // EODHD uses full ticker with suffix (e.g., VPBN.SW)
     yahoo: ticker, // Yahoo uses full ticker with suffix
-    fmp: baseTicker, // FMP uses base ticker without suffix (e.g., VPBN)
     finnhub: baseTicker, // Finnhub uses base ticker without suffix
   };
 }
@@ -300,7 +298,7 @@ async function mergeData(
   // Company Name: EODHD
   const companyName = eodhd.companyName ?? null;
 
-  // Logo URL: Use logo service with Clearbit + FMP fallback
+  // Logo URL: Use logo service (EODHD → Finnhub → generic fallback)
   let logoUrl: string | null = null;
   let logoSource: string | undefined = undefined;
   try {
