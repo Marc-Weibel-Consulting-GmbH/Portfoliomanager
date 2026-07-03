@@ -52,12 +52,18 @@ vi.mock("../db-optimized", () => ({
 }));
 
 vi.mock("../fxHelper", () => ({
-  // Emuliert convertToCHF inkl. des stillen 1.0-Fallbacks (R-10) auf Basis
-  // der Fixture-Raten — gleiche Datenbasis wie CT-7.
+  // Emuliert convertToCHF nach dem R-10-Fix: letzte bekannte Rate ≤ 30 Tage
+  // rückwärts, sonst 0 (kein stiller 1.0-Fallback mehr) — gleiche Datenbasis
+  // wie CT-7.
   convertToCHF: async (amount: number, currency: string, date: string) => {
     if (currency === "CHF") return amount;
-    const rate = h.fxLookup.get(`${date}:${currency}CHF`);
-    return amount * (rate ?? 1.0);
+    const d = new Date(date);
+    for (let i = 0; i <= 30; i++) {
+      const rate = h.fxLookup.get(`${d.toISOString().split("T")[0]}:${currency}CHF`);
+      if (rate !== undefined) return amount * rate;
+      d.setDate(d.getDate() - 1);
+    }
+    return 0;
   },
 }));
 
@@ -217,14 +223,17 @@ describe("CT-4 calculatePortfolioPerformance", () => {
     expect(manual.irr.iterations).toBe(0);
   });
 
-  it("Szenario 6: USD ohne FX-Rate → 1:1-Bewertung als CHF (R-10)", async () => {
+  it("Szenario 6: USD ohne FX-Rate → Position mit 0 bewertet, nicht 1:1 (R-10 behoben)", async () => {
     const r = await run(S6);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-10:
-    // Keine USDCHF-Rate vorhanden → USD-Kurse werden 1:1 als CHF bewertet;
-    // Endwert «CHF» 2'100 statt 1'932 (mit Rate 0.92).
-    expect(r.currentValueCHF).toBe(2100);
-    expect(r.totalInvestedCHF).toBe(2000); // R-15: totalAmount (USD) als CHF-MVB-Basis
-    expect(r.ttwror.totalReturn).toBeCloseTo(0.04999999999999982, 10);
+    // vorher (R-10): keine USDCHF-Rate vorhanden → USD-Kurse wurden 1:1 als
+    // CHF bewertet; Endwert «CHF» 2'100 statt 1'932 (mit Rate 0.92), TTWROR
+    // +5 % aus reinen USD-Zahlen. Jetzt liefert convertToCHF 0 → die Position
+    // fällt aus der Bewertung (Wert 0, keine erfundene Rendite). Der
+    // UI-Ausweis der fehlenden Daten läuft über die U-13-Flags.
+    expect(r.currentValueCHF).toBe(0);
+    expect(r.totalInvestedCHF).toBe(0);
+    expect(r.absoluteGainCHF).toBe(0);
+    expect(r.ttwror.totalReturn).toBe(0);
     // Nur 3 Handelstage (Preiszeilen definieren das Datumsraster):
     expect(r.dailySeries.map((p) => p.date)).toEqual([D.mar03, D.mar05, D.mar07]);
   });

@@ -1,16 +1,19 @@
 /**
  * CT-7 — Charakterisierungstests für getFxRate / getFxRateSync / convertToCHF(Sync)
+ * sowie die null-liefernden Varianten tryGetFxRate(Sync) / tryConvertToCHF(Sync)
  * (server/fxHelper.ts)
  *
- * Pinnt FX-Lookup inkl. Rückwärtssuche und den stillen 1.0-Fallback (R-10).
+ * Pinnt FX-Lookup inkl. Rückwärtssuche (≤ 30 Tage) und das R-10-Sollverhalten:
+ * fehlt ein Kurs im Lookback-Fenster, liefern die try*-Varianten `null` und die
+ * Legacy-number-Varianten 0 — nie mehr stillschweigend 1.0.
  *
  * Der In-Memory-Cache wird über den Prewarm-Pfad (ensureFxRatesPrewarmed) mit
  * den Fixture-Raten gefüllt: getDb ist gemockt und liefert die FX_RATES-Zeilen
  * für `db.select().from(exchangeRates)`. Die direkten Einzelabfragen (exaktes
  * Datum / nearest ≤ Datum) liefern im Mock leere Resultate — das entspricht
- * dem Zustand «Rate fehlt auch in der DB» und pinnt so den 1.0-Fallback.
- * Der DB-seitige Nearest-Date-Pfad (getFxRate:88–106) ist damit bewusst NICHT
- * charakterisiert (bräuchte Drizzle-Query-Interpretation im Mock).
+ * dem Zustand «Rate fehlt auch in der DB» und pinnt so das Missing-Verhalten.
+ * Der DB-seitige Nearest-Date-Pfad (tryGetFxRate, 30-Tage-Fenster) ist damit
+ * bewusst NICHT charakterisiert (bräuchte Drizzle-Query-Interpretation im Mock).
  */
 
 import { describe, it, expect, beforeAll, vi } from "vitest";
@@ -43,7 +46,16 @@ vi.mock("../db", () => {
   return { getDb: async () => db };
 });
 
-import { getFxRate, getFxRateSync, convertToCHF, convertToCHFSync } from "../fxHelper";
+import {
+  getFxRate,
+  getFxRateSync,
+  convertToCHF,
+  convertToCHFSync,
+  tryGetFxRate,
+  tryGetFxRateSync,
+  tryConvertToCHF,
+  tryConvertToCHFSync,
+} from "../fxHelper";
 
 beforeAll(async () => {
   h.fxRows = FX_RATES;
@@ -61,47 +73,71 @@ describe("CT-7 getFxRate (async)", () => {
 
   it("CHFCHF ist immer 1.0", async () => {
     expect(await getFxRate(D.mar03, "CHFCHF")).toBe(1.0);
+    expect(await tryGetFxRate(D.mar03, "CHFCHF")).toBe(1.0);
   });
 
-  it("fehlendes Paar → stiller 1.0-Fallback (R-10, Szenario 6)", async () => {
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-10:
-    // GBPCHF existiert weder im Cache noch in der (Mock-)DB — statt null/Fehler
-    // wird stillschweigend 1.0 geliefert (GBP-Beträge würden 1:1 als CHF gelten).
-    expect(await getFxRate(D.mar03, "GBPCHF")).toBe(1.0);
+  it("Lückentag: Rückwärtssuche ≤ 30 Tage findet die letzte Rate", async () => {
+    // vorher (R-10): der Async-Pfad kannte nur exakte Cache-Treffer bzw. den
+    // (hier leeren) DB-Lookup und fiel auf 1.0. Jetzt greift die Rückwärtssuche
+    // im geprewarmten Cache: 01.04. → letzte Rate vom 07.03. (0.92).
+    expect(await getFxRate("2025-04-01", "USDCHF")).toBeCloseTo(0.92, 10);
+    expect(await tryGetFxRate("2025-04-01", "USDCHF")).toBeCloseTo(0.92, 10);
+  });
+
+  it("fehlendes Paar → tryGetFxRate null, getFxRate 0 (R-10 behoben, Szenario 6)", async () => {
+    // vorher (R-10): GBPCHF existierte weder im Cache noch in der (Mock-)DB —
+    // statt null/Fehler wurde stillschweigend 1.0 geliefert (GBP-Beträge
+    // galten 1:1 als CHF). Jetzt: null bzw. 0 (Position fällt aus Summen).
+    expect(await tryGetFxRate(D.mar03, "GBPCHF")).toBeNull();
+    expect(await getFxRate(D.mar03, "GBPCHF")).toBe(0);
+  });
+
+  it("Lücke > 30 Tage → tryGetFxRate null, getFxRate 0 (R-10 behoben)", async () => {
+    // vorher (R-10): am 01.06. lag die letzte Rate (07.03.) ausser Reichweite —
+    // es wurde 1.0 geliefert (USD-Bewertung 1:1 als CHF). Jetzt null bzw. 0.
+    expect(await tryGetFxRate("2025-06-01", "USDCHF")).toBeNull();
+    expect(await getFxRate("2025-06-01", "USDCHF")).toBe(0);
   });
 });
 
-describe("CT-7 getFxRateSync", () => {
+describe("CT-7 getFxRateSync / tryGetFxRateSync", () => {
   it("liefert exakte Raten aus dem geprewarmten Cache", () => {
     expect(getFxRateSync(D.mar03, "USDCHF")).toBeCloseTo(0.88, 10);
     expect(getFxRateSync(D.mar05, "USDCHF")).toBeCloseTo(0.9, 10);
     expect(getFxRateSync(D.mar03, "EURCHF")).toBeCloseTo(0.95, 10);
     expect(getFxRateSync(D.mar03, "CHFCHF")).toBe(1.0);
+    expect(tryGetFxRateSync(D.mar03, "USDCHF")).toBeCloseTo(0.88, 10);
   });
 
-  it("Lückentag: Rückwärtssuche bis 5 Tage findet die letzte Rate", () => {
+  it("Lückentag: Rückwärtssuche bis 30 Tage findet die letzte Rate", () => {
     // 04.03. fehlt → 03.03. (0.88); 10.03. fehlt → 3 Tage zurück bis 07.03. (0.92).
     expect(getFxRateSync(D.mar04, "USDCHF")).toBeCloseTo(0.88, 10);
     expect(getFxRateSync("2025-03-10", "USDCHF")).toBeCloseTo(0.92, 10);
+    // vorher (R-10): Lookback nur 5 Tage — am 01.04. wurde 1.0 geliefert.
+    // Jetzt reicht das 30-Tage-Fenster bis zur letzten Rate vom 07.03. (0.92).
+    expect(getFxRateSync("2025-04-01", "USDCHF")).toBeCloseTo(0.92, 10);
+    expect(tryGetFxRateSync("2025-04-01", "USDCHF")).toBeCloseTo(0.92, 10);
   });
 
-  it("Lücke > 5 Tage → stiller 1.0-Fallback (R-10)", () => {
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-10:
-    // Am 01.06. liegt die letzte Rate (07.03.) ausserhalb des 5-Tage-Fensters —
-    // statt null/Fehler wird 1.0 geliefert (USD-Bewertung 1:1 als CHF).
-    expect(getFxRateSync("2025-06-01", "USDCHF")).toBe(1.0);
+  it("Lücke > 30 Tage → tryGetFxRateSync null, getFxRateSync 0 (R-10 behoben)", () => {
+    // vorher (R-10): stiller 1.0-Fallback (USD-Bewertung 1:1 als CHF).
+    expect(tryGetFxRateSync("2025-06-01", "USDCHF")).toBeNull();
+    expect(getFxRateSync("2025-06-01", "USDCHF")).toBe(0);
   });
 
-  it("unbekanntes Paar → stiller 1.0-Fallback (R-10)", () => {
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-10:
-    expect(getFxRateSync(D.mar03, "GBPCHF")).toBe(1.0);
+  it("unbekanntes Paar → tryGetFxRateSync null, getFxRateSync 0 (R-10 behoben)", () => {
+    // vorher (R-10): stiller 1.0-Fallback.
+    expect(tryGetFxRateSync(D.mar03, "GBPCHF")).toBeNull();
+    expect(getFxRateSync(D.mar03, "GBPCHF")).toBe(0);
   });
 });
 
-describe("CT-7 convertToCHF / convertToCHFSync", () => {
+describe("CT-7 convertToCHF / convertToCHFSync (+ try-Varianten)", () => {
   it("CHF-Beträge werden unverändert durchgereicht", async () => {
     expect(convertToCHFSync(2000, "CHF", D.mar03)).toBe(2000);
     expect(await convertToCHF(2000, "CHF", D.mar03)).toBe(2000);
+    expect(tryConvertToCHFSync(2000, "CHF", D.mar03)).toBe(2000);
+    expect(await tryConvertToCHF(2000, "CHF", D.mar03)).toBe(2000);
   });
 
   it("Szenario 7: USD-Kauf 2'000 mit Rate 0.88 → CHF 1'760", async () => {
@@ -111,10 +147,13 @@ describe("CT-7 convertToCHF / convertToCHFSync", () => {
     expect(convertToCHFSync(2000, "USD", D.mar05)).toBeCloseTo(1800, 10);
   });
 
-  it("Szenario 6: USD ohne erreichbare Rate → Betrag 1:1 als CHF (R-10)", () => {
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-10:
-    // Keine USDCHF-Rate in Reichweite (01.06.) → 2'000 USD werden als
-    // CHF 2'000 «konvertiert» (~12 % Bewertungsfehler), ohne Warnung.
-    expect(convertToCHFSync(2000, "USD", "2025-06-01")).toBe(2000);
+  it("Szenario 6: USD ohne erreichbare Rate → try null, legacy 0 (R-10 behoben)", async () => {
+    // vorher (R-10): keine USDCHF-Rate in Reichweite (01.06.) → 2'000 USD
+    // wurden als CHF 2'000 «konvertiert» (~12 % Bewertungsfehler), ohne
+    // Warnung. Jetzt: null (try) bzw. 0 (legacy — Position fällt aus Summen).
+    expect(tryConvertToCHFSync(2000, "USD", "2025-06-01")).toBeNull();
+    expect(await tryConvertToCHF(2000, "USD", "2025-06-01")).toBeNull();
+    expect(convertToCHFSync(2000, "USD", "2025-06-01")).toBe(0);
+    expect(await convertToCHF(2000, "USD", "2025-06-01")).toBe(0);
   });
 });
