@@ -370,3 +370,81 @@ export const S16 = {
   desc: [S16_SELL, S16_BUY],
   currentPrices: new Map([["ORD", 12]]),
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Szenario 11 — Split-artiger Kurssprung: −51 % über Nacht (2:1-Split-Fixture)
+// Für CT-8 (getRealTwrSeriesFromTransactions): Preissprünge > 50 % werden
+// verworfen und forward-gefüllt (R-08) — der Split wird für immer falsch bewertet.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const S11 = {
+  initialHoldings: { SPLT: 100 } as Record<string, number>,
+  initialCash: 0,
+  priceRows: [
+    { ticker: "SPLT", date: D.mar03, close: "100" },
+    { ticker: "SPLT", date: D.mar04, close: "49" },   // −51 % (Split-Tag)
+    { ticker: "SPLT", date: D.mar05, close: "49.5" }, // weiterhin > 50 % unter Forward-Fill 100
+  ] as PriceRow[],
+  stockRow: { ticker: "SPLT", currency: "CHF" },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Szenario 13 (TWR-Variante) — Crash-Tag −20 % als Preisreihe für CT-8
+// −20 % passiert den 50-%-Preisfilter, wird aber vom ±15-%-Smoothing gekappt (R-08).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const S13_TWR = {
+  initialHoldings: { CRSH: 100 } as Record<string, number>,
+  initialCash: 0,
+  priceRows: [
+    { ticker: "CRSH", date: D.mar03, close: "1000" },
+    { ticker: "CRSH", date: D.mar04, close: "800" }, // −20 %
+    { ticker: "CRSH", date: D.mar05, close: "820" }, // +2.5 %
+  ] as PriceRow[],
+  stockRow: { ticker: "CRSH", currency: "CHF" },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Szenario 15 — Verkauf mit zwei früheren Käufen zu unterschiedlichen FX-Kursen
+// Für CT-5 (db.ts Verkaufs-Zweig): FX-Split nutzt das Datum des ERSTEN Kaufs
+// statt gewichtet (R-19); realizedGainPercent bleibt in Lokalwährung (R-24).
+// Kauf 100@10 USD am 03.03. (Rate 0.88), Kauf 100@20 USD am 05.03. (Rate 0.90),
+// Verkauf 200@20 USD am 07.03. (Rate 0.92).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const S15 = {
+  buys: [
+    makeTx({
+      id: 1511, transactionType: "buy", date: D.mar03, ticker: "USTIT", currency: "USD",
+      shares: "100", pricePerShare: "10", totalAmount: "1000", fxRate: "0.88", totalAmountCHF: "880",
+    }),
+    makeTx({
+      id: 1512, transactionType: "buy", date: D.mar05, ticker: "USTIT", currency: "USD",
+      shares: "100", pricePerShare: "20", totalAmount: "2000", fxRate: "0.90", totalAmountCHF: "1800",
+    }),
+  ],
+  sell: makeTx({
+    id: 1513, transactionType: "sell", date: D.mar07, ticker: "USTIT", currency: "USD",
+    shares: "200", pricePerShare: "20", totalAmount: "4000", fxRate: "0.92", totalAmountCHF: "3680",
+  }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Szenario 19 — DCF-Referenzfall: stabiler CHF-Titel für CT-15 (R-32)
+// FCF-Yield 5 % (FCF 5 Mio auf MarketCap 100 Mio), Wachstum 4 %, Beta 0.8.
+// Als Yahoo-quoteSummary-Fixture (EODHD-Pfad ist ohne API-Key deaktiviert).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const S19 = {
+  quoteSummary: {
+    financialData: {
+      currentPrice: 100,
+      freeCashflow: 5_000_000,
+      revenueGrowth: 0.04,
+      currency: "CHF",
+    },
+    defaultKeyStatistics: { sharesOutstanding: 1_000_000, beta: 0.8 },
+    summaryDetail: {},
+    quoteType: { longName: "Stabil AG" },
+  },
+};
