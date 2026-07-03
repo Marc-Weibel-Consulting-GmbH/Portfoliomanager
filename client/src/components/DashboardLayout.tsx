@@ -37,14 +37,14 @@ import { FloatingChatButton } from "./FloatingChatButton";
 type NavItem = { icon: any; label: string; path: string };
 type NavGroup = { icon: any; label: string; items: NavItem[] };
 
-type NavItemWithBadge = NavItem & { badge?: string };
-
-const topLevelItems: NavItemWithBadge[] = [
+// U-09: Design-Artefakt-Badges («9 Pages» usw.) entfernt — nur Portfolios
+// zeigt einen Badge (Anzahl der eigenen Portfolios, s. unten).
+const topLevelItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Wallet, label: "Portfolios", path: "/portfolios" },
-  { icon: TrendingUp, label: "Aktien", path: "/aktien", badge: "9 Pages" },
-  { icon: Globe, label: "Markt", path: "/markt", badge: "5 Pages" },
-  { icon: Brain, label: "Copilot", path: "/copilot", badge: "3 Pages" },
+  { icon: TrendingUp, label: "Aktien", path: "/aktien" },
+  { icon: Globe, label: "Markt", path: "/markt" },
+  { icon: Brain, label: "Copilot", path: "/copilot" },
 ];
 
 const toolsGroup: NavGroup = {
@@ -128,7 +128,7 @@ export default function DashboardLayout({
             <div className="text-center space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">{APP_TITLE}</h1>
               <p className="text-sm text-muted-foreground">
-                Please sign in to continue
+                Bitte melden Sie sich an, um fortzufahren
               </p>
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function DashboardLayout({
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Sign in
+            Anmelden
           </Button>
         </div>
       </div>
@@ -274,7 +274,7 @@ function DashboardLayoutContent({
                 const isActive = location === item.path || location.startsWith(item.path + '/');
                 const isPortfolios = item.path === '/portfolios';
                 const showPortfolioSubmenu = isPortfolios && portfolios.length > 0 && !isCollapsed;
-                const portfolioBadge = isPortfolios && portfolios.length > 0 ? `${portfolios.length} Pages` : item.badge;
+                const portfolioBadge = isPortfolios && portfolios.length > 0 ? String(portfolios.length) : undefined;
 
                 return (
                   <SidebarMenuItem key={item.path}>
@@ -430,7 +430,10 @@ function DashboardLayoutContent({
                       {user?.username || user?.name || user?.email || "-"}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Premium</span>
+                      {/* U-15: echter Abo-Status statt hartkodiertem «Premium» */}
+                      <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                        {user?.subscriptionTier === 'premium' || user?.hasPaid === 1 ? 'Premium' : 'Free'}
+                      </span>
                     </div>
                   </div>
                 </button>

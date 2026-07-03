@@ -4,13 +4,11 @@ import { z } from "zod";
 export const portfolioPerformanceRouter = router({
     // YTD Performance using daily historical prices
     getYTDPerformance: protectedProcedure
-      .input((val: unknown) => {
-        // Accept tickers/weights for backwards compatibility, but ignore them
-        if (typeof val === "object" && val !== null) {
-          return val as { tickers?: string[]; weights?: number[] };
-        }
-        return {};
-      })
+      // Accept tickers/weights for backwards compatibility, but ignore them
+      .input(z.object({
+        tickers: z.array(z.string()).optional(),
+        weights: z.array(z.number()).optional(),
+      }).optional())
       .query(async () => {
         // Load all stocks from database (ignore input params)
         const { getAllStocks } = await import("../db");
@@ -26,12 +24,13 @@ export const portfolioPerformanceRouter = router({
       }),
 
     getHistoricalData: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "tickers" in val && Array.isArray((val as any).tickers)) {
-          return val as { tickers: string[]; weights: number[]; years?: number; ytd?: boolean; ytdStartPrices?: number[] };
-        }
-        throw new Error("Invalid input: tickers and weights arrays required");
-      })
+      .input(z.object({
+        tickers: z.array(z.string()),
+        weights: z.array(z.number()),
+        years: z.number().optional(),
+        ytd: z.boolean().optional(),
+        ytdStartPrices: z.array(z.number()).optional(),
+      }))
       .query(async ({ input }) => {
         const { tickers, weights, years = 5, ytd = false, ytdStartPrices = [] } = input;
         
@@ -217,12 +216,11 @@ export const portfolioPerformanceRouter = router({
       }),
 
     getBenchmarkData: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "benchmark" in val) {
-          return val as { benchmark: string; years?: number; ytd?: boolean };
-        }
-        throw new Error("Invalid input: benchmark required");
-      })
+      .input(z.object({
+        benchmark: z.string(),
+        years: z.number().optional(),
+        ytd: z.boolean().optional(),
+      }))
       .query(async ({ input }) => {
         const { benchmark, years = 5, ytd = false } = input;
 

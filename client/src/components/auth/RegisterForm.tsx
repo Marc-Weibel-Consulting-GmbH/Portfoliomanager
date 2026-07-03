@@ -25,8 +25,8 @@ export default function RegisterForm() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error("Passwort muss mindestens 6 Zeichen lang sein");
+    if (formData.password.length < 8) {
+      toast.error("Passwort muss mindestens 8 Zeichen lang sein");
       return;
     }
 
@@ -120,12 +120,12 @@ export default function RegisterForm() {
         </label>
         <Input
           type="password"
-          placeholder="Mindestens 6 Zeichen"
+          placeholder="Mindestens 8 Zeichen"
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           className="bg-slate-700 border-slate-600 text-white"
           required
-          minLength={6}
+          minLength={8}
         />
       </div>
 

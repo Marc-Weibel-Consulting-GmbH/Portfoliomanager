@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { Coins, TrendingUp, Scale, Clock, Rocket, BarChart3 } from "lucide-react";
+import { Coins, TrendingUp, Scale, Clock, Rocket, BarChart3, Wrench, Gift } from "lucide-react";
 import { toast } from "sonner";
 
 type InvestmentGoal = "dividends" | "growth" | "balanced";
@@ -17,9 +17,24 @@ export default function OnboardingWizard() {
   const [riskTolerance, setRiskTolerance] = useState<RiskTolerance | null>(null);
   const [investmentHorizon, setInvestmentHorizon] = useState<InvestmentHorizon | null>(null);
 
-  const completeOnboardingMutation = trpc.onboarding.completeOnboarding.useMutation();
-  const savePreferencesMutation = trpc.onboarding.savePreferences.useMutation();
+  // Fehler-Toasts als onError-Option, damit der globale Fallback-Toast
+  // (main.tsx, U-07) nicht zusätzlich feuert.
+  const completeOnboardingMutation = trpc.onboarding.completeOnboarding.useMutation({
+    onError: (error) => toast.error(error.message || "Fehler beim Abschliessen des Onboardings"),
+  });
+  const savePreferencesMutation = trpc.onboarding.savePreferences.useMutation({
+    onError: (error) => toast.error(error.message || "Die Angaben konnten nicht gespeichert werden."),
+  });
+  const createDemoPortfolioMutation = trpc.onboarding.createDemoPortfolio.useMutation({
+    onError: (error) =>
+      toast.error(
+        error.message ||
+          "Das Beispiel-Portfolio konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+      ),
+  });
+  const utils = trpc.useUtils();
 
+  // Schritte 1–4 = Wizard; Schritt 5 = Abschluss-Brücke zum ersten Portfolio (U-06)
   const totalSteps = 4;
 
   const handleNext = async () => {
@@ -46,15 +61,15 @@ export default function OnboardingWizard() {
       await completeOnboardingMutation.mutateAsync();
       setLocation("/dashboard");
     } catch (error) {
+      // Toast kommt aus den onError-Handlern der Mutationen
       console.error("Error skipping onboarding:", error);
-      toast.error("Fehler beim Überspringen");
     }
   };
 
   const handleComplete = async () => {
     try {
       if (!investmentGoal || !riskTolerance || !investmentHorizon) {
-        toast.error("Bitte wähle alle Optionen aus");
+        toast.error("Bitte wählen Sie alle Optionen aus");
         return;
       }
 
@@ -68,10 +83,27 @@ export default function OnboardingWizard() {
       // Then mark onboarding as completed
       await completeOnboardingMutation.mutateAsync();
 
-      toast.success("Willkommen! Dein Profil wurde erstellt.");
-      setLocation("/dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Fehler beim Abschließen des Onboardings");
+      toast.success("Willkommen! Ihr Profil wurde erstellt.");
+      // U-06: nicht auf ein leeres Dashboard werfen, sondern die Brücke
+      // zum ersten Portfolio anbieten (Schritt 5).
+      setCurrentStep(5);
+    } catch (error) {
+      // Toast kommt aus den onError-Handlern der Mutationen
+      console.error("Error completing onboarding:", error);
+    }
+  };
+
+  // U-06: Demo-Portfolio (Schweizer Blue Chips) anlegen und direkt öffnen.
+  // Fehler zeigt der onError-Handler der Mutation als Toast an.
+  const handleCreateDemoPortfolio = async () => {
+    try {
+      const result = await createDemoPortfolioMutation.mutateAsync();
+      await utils.portfolios.list.invalidate();
+      toast.success("Beispiel-Portfolio wurde erstellt.");
+      const portfolioId = result?.portfolioId;
+      setLocation(portfolioId ? `/portfolios/${portfolioId}` : "/portfolios");
+    } catch (error) {
+      console.error("Error creating demo portfolio:", error);
     }
   };
 
@@ -111,15 +143,17 @@ export default function OnboardingWizard() {
           <CardHeader>
             <CardTitle className="text-2xl text-white">
               {currentStep === 1 && "Willkommen bei Portfolio Analyzer!"}
-              {currentStep === 2 && "Was ist dein Anlageziel?"}
-              {currentStep === 3 && "Wie hoch ist deine Risikotoleranz?"}
-              {currentStep === 4 && "Wie lange möchtest du investieren?"}
+              {currentStep === 2 && "Was ist Ihr Anlageziel?"}
+              {currentStep === 3 && "Wie hoch ist Ihre Risikotoleranz?"}
+              {currentStep === 4 && "Wie lange möchten Sie investieren?"}
+              {currentStep === 5 && "Ihr Profil ist gespeichert – wie möchten Sie starten?"}
             </CardTitle>
             <CardDescription className="text-slate-400">
-              {currentStep === 1 && "Lass uns dein erstes Portfolio erstellen"}
-              {currentStep === 2 && "Wähle dein primäres Investmentziel"}
-              {currentStep === 3 && "Bestimme dein Risikoniveau"}
-              {currentStep === 4 && "Definiere deinen Anlagehorizont"}
+              {currentStep === 1 && "Erstellen wir gemeinsam Ihr erstes Portfolio"}
+              {currentStep === 2 && "Wählen Sie Ihr primäres Anlageziel"}
+              {currentStep === 3 && "Bestimmen Sie Ihr Risikoniveau"}
+              {currentStep === 4 && "Definieren Sie Ihren Anlagehorizont"}
+              {currentStep === 5 && "Wählen Sie einen der beiden Wege zu Ihrem ersten Portfolio"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -127,7 +161,7 @@ export default function OnboardingWizard() {
             {currentStep === 1 && (
               <div className="space-y-6 py-4">
                 <p className="text-slate-300 text-lg">
-                  Portfolio Analyzer hilft dir, deine Investitionen zu verwalten und zu optimieren.
+                  Portfolio Analyzer hilft Ihnen, Ihre Investitionen zu verwalten und zu optimieren.
                 </p>
                 <div className="grid gap-4">
                   <div className="flex items-start gap-3">
@@ -135,7 +169,7 @@ export default function OnboardingWizard() {
                     <div>
                       <h3 className="font-semibold text-white">Portfolio-Optimierung</h3>
                       <p className="text-sm text-slate-400">
-                        Erstelle optimierte Portfolios basierend auf historischen Daten
+                        Erstellen Sie optimierte Portfolios basierend auf historischen Daten
                       </p>
                     </div>
                   </div>
@@ -144,7 +178,7 @@ export default function OnboardingWizard() {
                     <div>
                       <h3 className="font-semibold text-white">Live-Tracking</h3>
                       <p className="text-sm text-slate-400">
-                        Verfolge die Performance deiner Investments in Echtzeit
+                        Verfolgen Sie die Performance Ihrer Anlagen in Echtzeit
                       </p>
                     </div>
                   </div>
@@ -374,7 +408,7 @@ export default function OnboardingWizard() {
                         Jetzt starten (Free)
                       </div>
                       <div className="text-sm opacity-90">
-                        Du kannst jederzeit upgraden
+                        Sie können jederzeit upgraden
                       </div>
                     </div>
                   </Button>
@@ -382,7 +416,57 @@ export default function OnboardingWizard() {
               </div>
             )}
 
-            {/* Navigation Buttons */}
+            {/* Step 5: Brücke zum ersten Portfolio (U-06) */}
+            {currentStep === 5 && (
+              <div className="space-y-4 py-2">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <button
+                    onClick={() => setLocation("/portfolio-builder")}
+                    disabled={createDemoPortfolioMutation.isPending}
+                    className="p-6 rounded-lg border-2 border-slate-700 bg-slate-700/30 hover:border-teal-500 transition-all text-left disabled:opacity-50"
+                  >
+                    <Wrench className="w-8 h-8 text-teal-500 mb-3" />
+                    <h3 className="font-semibold text-white text-lg mb-2">
+                      Eigenes Portfolio erstellen
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Stellen Sie im Portfolio-Builder Schritt für Schritt Ihr eigenes Portfolio
+                      zusammen – passend zu Ihrem Anlageprofil.
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={handleCreateDemoPortfolio}
+                    disabled={createDemoPortfolioMutation.isPending}
+                    className="p-6 rounded-lg border-2 border-slate-700 bg-slate-700/30 hover:border-teal-500 transition-all text-left disabled:opacity-50"
+                  >
+                    <Gift className="w-8 h-8 text-teal-500 mb-3" />
+                    <h3 className="font-semibold text-white text-lg mb-2">
+                      {createDemoPortfolioMutation.isPending
+                        ? "Wird erstellt …"
+                        : "Mit Beispiel-Portfolio starten"}
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Wir legen ein Beispiel-Portfolio mit Schweizer Blue Chips (Nestlé, Novartis,
+                      Roche u. a.) für Sie an. Sie können es jederzeit löschen.
+                    </p>
+                  </button>
+                </div>
+                <div className="text-center">
+                  <Button
+                    onClick={() => setLocation("/dashboard")}
+                    variant="ghost"
+                    className="text-slate-400"
+                    disabled={createDemoPortfolioMutation.isPending}
+                  >
+                    Später entscheiden – zum Dashboard
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons (nicht auf dem Abschluss-Schritt) */}
+            {currentStep <= totalSteps && (
             <div className="flex justify-between pt-6 border-t border-slate-700">
               <div>
                 {currentStep > 1 && (
@@ -402,6 +486,7 @@ export default function OnboardingWizard() {
                 )}
               </div>
             </div>
+            )}
           </CardContent>
         </Card>
       </div>

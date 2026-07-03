@@ -1,5 +1,9 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
+import { ENV } from "../_core/env";
+// D-01: unified holdings replay (buy/entry/sell, chronological, DESC-safe) —
+// replaces the previously inline re-implemented per-router replay loops.
+import { buildHoldings } from "../lib/holdings";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -436,7 +440,7 @@ export const dashboardRouter = router({
           const pd = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = pd.stocks || pd.positions || [];
           stocks.forEach((s: any) => { if (s.ticker) allTickers.add(s.ticker); });
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
       }
     }
 
@@ -464,20 +468,13 @@ export const dashboardRouter = router({
         if (isLive) {
           // Live portfolio: calculate from transactions with YTD historical prices
           const transactions = transactionsByPortfolio.get(portfolio.id) || [];
-          const holdings: Record<string, number> = {};
-          transactions.forEach((tx: any) => {
-            const shares = parseFloat(tx.shares || '0');
-            const ticker = tx.ticker;
-            if (!ticker) return;
-            if (tx.transactionType === 'buy') holdings[ticker] = (holdings[ticker] || 0) + shares;
-            else if (tx.transactionType === 'sell') holdings[ticker] = (holdings[ticker] || 0) - shares;
-          });
+          const holdings = buildHoldings(transactions);
 
           let currentValueForPerf = 0;
           let ytdStartValueCHF = 0;
           let hasHistoricalData = false;
 
-          for (const [ticker, shares] of Object.entries(holdings)) {
+          for (const [ticker, { shares }] of Array.from(holdings.entries())) {
             if (shares <= 0) continue;
             const stock = stocksMap.get(ticker) as any;
             if (!stock) continue;
@@ -560,21 +557,13 @@ export const dashboardRouter = router({
         let positionCount = 0;
         if (isLive) {
           const transactions = transactionsByPortfolio.get(portfolio.id) || [];
-          const holdings: Record<string, number> = {};
-          transactions.forEach((tx: any) => {
-            const shares = parseFloat(tx.shares || '0');
-            const ticker = tx.ticker;
-            if (!ticker) return;
-            if (tx.transactionType === 'buy') holdings[ticker] = (holdings[ticker] || 0) + shares;
-            else if (tx.transactionType === 'sell') holdings[ticker] = (holdings[ticker] || 0) - shares;
-          });
-          positionCount = Object.values(holdings).filter(s => s > 0).length;
+          positionCount = Array.from(buildHoldings(transactions).values()).filter(h => h.shares > 0).length;
         } else {
           try {
             const pd = JSON.parse(portfolio.portfolioData || '{}');
             const stocks = pd.stocks || pd.positions || [];
             positionCount = stocks.length;
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Positionszahl) fehlgeschlagen:', e); }
         }
 
         portfolioMetrics.push({
@@ -902,7 +891,7 @@ export const dashboardRouter = router({
               if (createdStr < earliestTransactionDate) earliestTransactionDate = createdStr;
             }
             // For Max range on demo portfolios, allow going back to the full available history
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (frühestes Datum) fehlgeschlagen:', e); }
         }
       }
       if (allTickers.size === 0) return { range: input.range, scope: input.scope, points: [] };
@@ -1067,16 +1056,8 @@ export const dashboardRouter = router({
             const liveStart = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
             if (date < liveStart) continue;
             const transactions = txByPortfolio.get(portfolio.id) || [];
-            const holdingsMap = new Map<string, number>();
-            for (const tx of transactions) {
-              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-              if (txDate > date) continue;
-              const ticker = tx.ticker;
-              if (!ticker) continue;
-              if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
-              else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
-            }
-            for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
+            const holdingsMap = buildHoldings(transactions, date);
+            for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
               if (shares <= 0) continue;
               const stock = stocksMap.get(ticker) as any;
               if (!stock) continue;
@@ -1159,12 +1140,8 @@ export const dashboardRouter = router({
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           // Live portfolio: from transactions
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           // Demo portfolio: from portfolioData
@@ -1187,7 +1164,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -1232,7 +1209,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
 
       // Now remove any remaining zero/negative
@@ -1363,12 +1340,8 @@ export const dashboardRouter = router({
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -1384,7 +1357,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -1427,7 +1400,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
 
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
@@ -1502,12 +1475,8 @@ export const dashboardRouter = router({
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -1523,7 +1492,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -1564,7 +1533,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
 
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
@@ -1617,7 +1586,7 @@ export const dashboardRouter = router({
       const { inArray, and, gte, lte } = await import("drizzle-orm");
 
       const db = await getDb();
-      if (!db) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (!db) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       // Support both live and demo portfolios
@@ -1627,7 +1596,7 @@ export const dashboardRouter = router({
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
-      if (targetPortfolios.length === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (targetPortfolios.length === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Get 1 year of data for risk calculation
       const today = new Date();
@@ -1658,11 +1627,11 @@ export const dashboardRouter = router({
               }
             }
             demoHoldingsByPortfolio.set(p.id, demoHoldings);
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen der Demo-Portfolio-Holdings fehlgeschlagen:', e); }
         }
       }
 
-      if (allTickers.size === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (allTickers.size === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -1728,16 +1697,8 @@ export const dashboardRouter = router({
         for (const portfolio of targetPortfolios) {
           if (portfolio.isLive === 1 && portfolio.liveStartDate) {
             const transactions = txByPortfolio.get(portfolio.id) || [];
-            const holdingsMap = new Map<string, number>();
-            for (const tx of transactions) {
-              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-              if (txDate > date) continue;
-              const ticker = tx.ticker;
-              if (!ticker) continue;
-              if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
-              else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
-            }
-            for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
+            const holdingsMap = buildHoldings(transactions, date);
+            for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
               if (shares <= 0) continue;
               const tickerPrices = priceMap.get(ticker);
               if (!tickerPrices) continue;
@@ -1786,7 +1747,7 @@ export const dashboardRouter = router({
         }
       }
 
-      if (dailyReturns.length < 10) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (dailyReturns.length < 10) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Volatility (annualized)
       const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
@@ -1855,12 +1816,8 @@ export const dashboardRouter = router({
       const holdingsAgg = new Map<string, number>();
       for (const portfolio of targetPortfolios) {
         const transactions = txByPortfolio.get(portfolio.id) || [];
-        for (const tx of transactions) {
-          const ticker = tx.ticker;
-          if (!ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+        for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+          holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
         }
       }
       const holdingValues: number[] = [];
@@ -1880,6 +1837,7 @@ export const dashboardRouter = router({
       const concentrationTop3 = totalVal > 0 ? (holdingValues.slice(0, 3).reduce((s, v) => s + v, 0) / totalVal) * 100 : 0;
 
       return {
+        dataAvailable: true,
         volatility: Number(volatility.toFixed(1)),
         volBenchmark: Number(volBenchmark.toFixed(1)),
         maxDrawdown: Number((maxDrawdown * 100).toFixed(1)),
@@ -1904,10 +1862,29 @@ export const dashboardRouter = router({
         const sornetteScore = await getMarketBubbleScore();
         if (sornetteScore) {
           const formatted = formatBubbleIndicatorResponse(sornetteScore);
+          // History best-effort from the same source as the DB fallback
+          // (lpplResults, own LPPL engine). If unavailable, [] — the client
+          // hides the sparkline for an empty history.
+          let sornetteHistory: number[] = [];
+          try {
+            const { getDb } = await import("../db");
+            const { lpplResults } = await import("../../drizzle/schema");
+            const { desc, eq } = await import("drizzle-orm");
+            const db = await getDb();
+            if (db) {
+              const rows = await db.select().from(lpplResults)
+                .where(eq(lpplResults.indexSymbol, '^GSPC'))
+                .orderBy(desc(lpplResults.checkedAt))
+                .limit(8);
+              sornetteHistory = rows.reverse().map(r => r.bubbleConfidence);
+            }
+          } catch (histErr) {
+            console.warn('[getBubbleIndicator] History-Fallback aus lpplResults fehlgeschlagen:', histErr);
+          }
           return {
             score: formatted.score,
             label: formatted.label,
-            history: [] as number[],
+            history: sornetteHistory,
             interpretation: formatted.interpretation,
             source: 'sornette_api' as const,
             dataDate: formatted.dataDate,
@@ -1983,12 +1960,8 @@ export const dashboardRouter = router({
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -2004,7 +1977,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -2045,7 +2018,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
         if (s <= 0) holdingsAgg.delete(t);
@@ -2249,7 +2222,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           const pd = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = pd.stocks || pd.positions || [];
           stocks.forEach((s: any) => { if (s.ticker) allTickers.add(s.ticker); });
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
       }
     }
     const symbols = Array.from(allTickers).slice(0, 15);
@@ -2276,13 +2249,13 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         try {
           const summary: any = await yahooFinance.quoteSummary(ticker, { modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'] });
           qualityMetrics = extractQualityFromYahoo(summary);
-        } catch (_) {}
+        } catch (e) { console.warn('[dashboardRouter] Yahoo quoteSummary (Quality-Metriken) fehlgeschlagen:', e); }
         let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral' };
-        if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (_) {} }
+        if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (e) { console.warn('[dashboardRouter] calculateMomentumScore fehlgeschlagen:', e); } }
         let qualityResult: any = { score: 0, grade: 'C' };
-        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
+        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (e) { console.warn('[dashboardRouter] calculateQualityScore fehlgeschlagen:', e); }
         let bubbleScore = 0, bubbleRegime = 'normal';
-        if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (_) {} }
+        if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (e) { console.warn('[dashboardRouter] detectBubble fehlgeschlagen:', e); } }
         const mNorm = (momentumResult.score + 1) / 2;
         const qNorm = (qualityResult.score + 1) / 2;
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
@@ -2366,7 +2339,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         const data = JSON.parse(p.portfolioData || '{}');
         const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
         stocks.forEach((s: any) => { if (s.ticker) portfolioTickers.add(s.ticker); });
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
     });
     watchlist.forEach((w: any) => { if (w.ticker) portfolioTickers.add(w.ticker); });
     const tickerList = Array.from(portfolioTickers).slice(0, 30);
@@ -2414,7 +2387,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         const data = JSON.parse(p.portfolioData || '{}');
         const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
         stocks.forEach((s: any) => { if (s.ticker) tickers.add(s.ticker); });
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
     });
     const tickerList = Array.from(tickers).slice(0, 30);
     const today = new Date();
@@ -2422,7 +2395,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     in14.setDate(in14.getDate() + 14);
     const todayStr = today.toISOString().split('T')[0];
     const in14Str = in14.toISOString().split('T')[0];
-    const EODHD_API_KEY = process.env.EODHD_API_KEY;
+    const EODHD_API_KEY = ENV.eodhdApiKey;
     const events: Array<{ type: string; ticker?: string; date: string; label: string; description?: string; time?: string; importance?: string; amount?: number }> = [];
 
     // 1. Fetch ECONOMIC CALENDAR (macro events like PMI, NFP, etc.)
@@ -2456,7 +2429,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             }
           });
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Wirtschaftskalender-Events fehlgeschlagen:', e); }
     }
 
     // 2. Fetch EARNINGS calendar for portfolio tickers
@@ -2475,7 +2448,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             });
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Earnings-Kalender-Events fehlgeschlagen:', e); }
 
       // 3. Fetch DIVIDENDS calendar
       try {
@@ -2492,7 +2465,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             });
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Dividenden-Kalender-Events fehlgeschlagen:', e); }
     }
 
     // Sort by date, then importance
@@ -2599,14 +2572,9 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           let stocks: any[] = [];
           if (portfolio.isLive === 1 && portfolio.liveStartDate) {
             const txs = await getPortfolioTransactions(portfolio.id);
-            const sharesMap = new Map<string, number>();
-            for (const tx of txs) {
-              if (!tx.ticker) continue;
-              const s = parseFloat(tx.shares || '0');
-              if (tx.transactionType === 'buy') sharesMap.set(tx.ticker, (sharesMap.get(tx.ticker) || 0) + s);
-              else if (tx.transactionType === 'sell') sharesMap.set(tx.ticker, (sharesMap.get(tx.ticker) || 0) - s);
-            }
-            stocks = Array.from(sharesMap.entries()).filter(([, s]) => s > 0).map(([ticker, shares]) => ({ ticker, shares }));
+            stocks = Array.from(buildHoldings(txs).entries())
+              .filter(([, h]) => h.shares > 0)
+              .map(([ticker, h]) => ({ ticker, shares: h.shares }));
           } else {
             const pd = JSON.parse(portfolio.portfolioData || '{}');
             stocks = (pd.stocks || pd.positions || []).filter((s: any) => s.ticker);
@@ -2619,7 +2587,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
               portfolioName: portfolio.name,
             });
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Holdings-Map) fehlgeschlagen:', e); }
       }
 
       const allTickers = Array.from(holdingsMap.keys()).slice(0, 30);
@@ -2698,7 +2666,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             minTitles = rules.minTitles || 15;
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Laden der Rebalancing-Regeln fehlgeschlagen:', e); }
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       let targetPortfolios = portfolios;
@@ -2716,11 +2684,8 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            if (!tx.ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -2732,7 +2697,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
               const weight = parseFloat(stock.weight || '0') / 100;
               holdingsMap.set(stock.ticker, weight); // store weight as placeholder
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen der Demo-Portfolio-Gewichte fehlgeschlagen:', e); }
         }
       }
 
@@ -2919,7 +2884,7 @@ Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
           const rows = await db.select().from(appSettings);
           const feeRow = rows.find((r: any) => r.key === 'fee_structure');
           if (feeRow?.value) fees = { ...fees, ...(feeRow.value as any) };
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Laden der Gebührenstruktur fehlgeschlagen:', e); }
       }
 
       if (isLive) {
@@ -2929,13 +2894,9 @@ Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
 
         // Get current holdings
         const transactions = await getPortfolioTransactions(portfolio.id);
-        const holdingsMap = new Map<string, number>();
-        for (const tx of transactions) {
-          if (!tx.ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) - shares);
-        }
+        const holdingsMap = new Map<string, number>(
+          Array.from(buildHoldings(transactions).entries()).map(([ticker, pos]) => [ticker, pos.shares])
+        );
 
         // Calculate total portfolio value
         let totalValue = 0;

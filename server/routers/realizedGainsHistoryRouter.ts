@@ -29,12 +29,7 @@ export function allocateBuyFees(
 
 export const realizedGainsHistoryRouter = router({
   getAll: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
-        return val as { portfolioId: number };
-      }
-      throw new Error("Invalid portfolioId");
-    })
+    .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { getDb } = await import("../db");
       const db = await getDb();

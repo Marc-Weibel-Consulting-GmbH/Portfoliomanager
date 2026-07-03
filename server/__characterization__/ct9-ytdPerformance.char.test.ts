@@ -10,7 +10,7 @@
  * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
  *
  * Daten-Mocking: das Modul baut seine DB-Verbindung lokal via
- * drizzle(process.env.DATABASE_URL) — der mysql2-Treiber ist durch ein Double
+ * drizzle(ENV.databaseUrl) — der mysql2-Treiber ist durch ein Double
  * ersetzt, das die Cache-Abfragen (eine pro Stock, in Array-Reihenfolge) aus
  * einer Queue bedient. Der EODHD-API-Pfad ist über getEodhdApiKey → ''
  * deaktiviert (liefert []). Systemzeit fixiert via vi.setSystemTime, da
@@ -37,7 +37,9 @@ vi.mock("drizzle-orm/mysql2", () => ({
 }));
 
 vi.mock("../_core/env", () => ({
-  ENV: {},
+  // databaseUrl gesetzt, damit getDb() die (gemockte) Drizzle-Instanz baut (A-10:
+  // das Modul liest die URL jetzt über ENV.databaseUrl statt process.env direkt).
+  ENV: { databaseUrl: "mysql://mock" },
   // Kein API-Key → fetchDailyPricesFromAPI liefert [] (kein Netzwerkzugriff).
   getEodhdApiKey: async () => "",
 }));

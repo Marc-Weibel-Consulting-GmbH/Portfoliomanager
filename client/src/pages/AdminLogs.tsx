@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, Info, RefreshCw, Trash2, FileText } from "lucide-react";
 import { useLocation } from "wouter";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 
 export default function AdminLogs() {
@@ -32,18 +33,21 @@ export default function AdminLogs() {
   const clearLogsMutation = trpc.logs.clear.useMutation({
     onSuccess: () => {
       toast.success("Alle Logs gelöscht");
+      setIsClearDialogOpen(false);
       utils.logs.list.invalidate();
       utils.logs.stats.invalidate();
     },
     onError: (error) => {
+      setIsClearDialogOpen(false);
       toast.error(`Fehler: ${error.message}`);
     },
   });
 
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+
   const handleClearLogs = () => {
-    if (confirm("Möchten Sie wirklich alle Logs löschen?")) {
-      clearLogsMutation.mutate();
-    }
+    setIsClearDialogOpen(true);
   };
 
   const getLevelIcon = (level: string) => {
@@ -155,12 +159,12 @@ export default function AdminLogs() {
             <CardContent>
               <div className="text-sm font-medium">
                 {stats.newestLog
-                  ? new Date(stats.newestLog).toLocaleTimeString("de-DE")
+                  ? new Date(stats.newestLog).toLocaleTimeString("de-CH")
                   : "Keine Logs"}
               </div>
               <p className="text-xs text-muted-foreground">
                 {stats.newestLog
-                  ? new Date(stats.newestLog).toLocaleDateString("de-DE")
+                  ? new Date(stats.newestLog).toLocaleDateString("de-CH")
                   : "-"}
               </p>
             </CardContent>
@@ -222,7 +226,7 @@ export default function AdminLogs() {
                       {log.level.toUpperCase()}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
-                      {new Date(log.timestamp).toLocaleString("de-DE")}
+                      {new Date(log.timestamp).toLocaleString("de-CH")}
                     </span>
                   </div>
                 </div>
@@ -246,6 +250,17 @@ export default function AdminLogs() {
           ))}
         </div>
       )}
+
+      {/* Löschbestätigung (U-08) */}
+      <ConfirmDialog
+        open={isClearDialogOpen}
+        onOpenChange={setIsClearDialogOpen}
+        title="Alle Logs löschen?"
+        description={`Alle ${logs.length} Server-Log-Einträge werden dauerhaft gelöscht.`}
+        confirmLabel="Alle Logs löschen"
+        onConfirm={() => clearLogsMutation.mutate()}
+        isPending={clearLogsMutation.isPending}
+      />
     </div>
   );
 }

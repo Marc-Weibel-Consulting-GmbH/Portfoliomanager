@@ -5,13 +5,14 @@
 
 import cron from 'node-cron';
 import { getAllStocks, updateStock } from '../db';
+import { ENV } from "../_core/env";
 
 /**
  * Fetch December 31st close price for a ticker from EODHD API
  */
 async function fetchDec31ClosePrice(ticker: string, year: number): Promise<number | null> {
   try {
-    const apiKey = process.env.EODHD_API_KEY;
+    const apiKey = ENV.eodhdApiKey;
     if (!apiKey) {
       console.warn('[YTD Updater] EODHD_API_KEY not set');
       return null;

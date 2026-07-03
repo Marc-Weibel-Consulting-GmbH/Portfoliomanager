@@ -45,7 +45,7 @@ function IndexKpiRow() {
             </p>
             <p className={`text-xs font-mono mt-1 ${idx.dayChange === null ? "text-gray-500" : positive ? "text-[#00CFC1]" : "text-red-400"}`}>
               {idx.dayChange === null ? "—" : `${positive ? "+" : ""}${idx.dayChange.toFixed(1)}%`}
-              {idx.ytd !== null && <span className="text-gray-600"> · YTD {idx.ytd >= 0 ? "+" : ""}{idx.ytd.toFixed(1)}%</span>}
+              {idx.ytd !== null && <span className="text-gray-400" title="YTD = seit Jahresbeginn"> · YTD {idx.ytd >= 0 ? "+" : ""}{idx.ytd.toFixed(1)}%</span>}
             </p>
           </div>
         );
@@ -61,7 +61,7 @@ function IndicesYtdChart() {
 
   return (
     <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-5">
-      <h3 className="text-sm font-semibold text-white mb-4">Indizes Performance YTD</h3>
+      <h3 className="text-sm font-semibold text-white mb-4" title="YTD = seit Jahresbeginn">Indizes – Performance seit Jahresbeginn (YTD)</h3>
       <div className="h-72">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">

@@ -1,3 +1,4 @@
+import { ENV } from "./env";
 // Ticker validator uses inline fetch logic to avoid circular dependencies
 
 export interface TickerValidationResult {
@@ -19,7 +20,7 @@ export interface TickerValidationResult {
  * Inline stock data fetching (simplified version from routers.ts)
  */
 async function fetchStockDataInline(ticker: string): Promise<any> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   console.log('[TickerValidator] EODHD_API_KEY check:', { exists: !!apiKey, type: typeof apiKey, length: apiKey?.length || 0 });
   if (!apiKey || apiKey.trim() === '') throw new Error("EODHD API key not configured");
 

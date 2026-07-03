@@ -11,6 +11,7 @@ import { eq, and } from 'drizzle-orm';
 import { alertRules, alertHistory, type InsertAlertHistory } from '../../drizzle/schema';
 import { notifyOwner } from './notification';
 
+import { ENV } from "./env";
 export interface MetricChange {
   ticker: string;
   metricName: string;
@@ -27,12 +28,12 @@ export async function checkAlerts(changes: MetricChange[]): Promise<void> {
   let connection: mysql.Connection | null = null;
 
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       console.warn('[AlertSystem] DATABASE_URL not configured');
       return;
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     // Get all active alert rules
@@ -200,11 +201,11 @@ export async function createAlertRule(rule: {
   let connection: mysql.Connection | null = null;
 
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       throw new Error('DATABASE_URL not configured');
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     const [result] = await db.insert(alertRules).values({
@@ -235,11 +236,11 @@ export async function getUserAlertRules(userId: number) {
   let connection: mysql.Connection | null = null;
 
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       throw new Error('DATABASE_URL not configured');
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     const rules = await db
@@ -263,11 +264,11 @@ export async function getUserAlertHistory(userId: number, limit: number = 50) {
   let connection: mysql.Connection | null = null;
 
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       throw new Error('DATABASE_URL not configured');
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     // Join with alertRules to filter by userId

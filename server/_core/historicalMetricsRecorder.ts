@@ -9,6 +9,7 @@ import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import { historicalMetrics, type InsertHistoricalMetric } from '../../drizzle/schema';
 
+import { ENV } from "./env";
 export interface MetricsSnapshot {
   ticker: string;
   sharpeRatio?: string | null;
@@ -27,12 +28,12 @@ export async function recordMetricsSnapshot(snapshot: MetricsSnapshot): Promise<
   let connection: mysql.Connection | null = null;
 
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       console.warn('[HistoricalMetrics] DATABASE_URL not configured');
       return;
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     const record: InsertHistoricalMetric = {
@@ -68,11 +69,11 @@ export async function getHistoricalMetrics(ticker: string, days: number = 30) {
   let connection: mysql.Connection | null = null;
 
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       throw new Error('DATABASE_URL not configured');
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     const { eq, gte, desc, and } = await import('drizzle-orm');

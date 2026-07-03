@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import RequireAdmin from "./components/RequireAdmin";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 // ─── Public Pages ───
@@ -123,8 +124,11 @@ function Router() {
       <Route path="/copilot" component={CopilotHub} />
 
       {/* ═══ 6. TOOLS ═══ */}
+      {/* U-12: /portfolio-builder ist die kanonische Builder-Route; Aliase redirecten */}
       <Route path="/portfolio-builder" component={PortfolioBuilderWizard} />
-      <Route path="/portfolio-builder/wizard" component={PortfolioBuilderWizard} />
+      <Route path="/portfolio-builder/wizard">
+        <Redirect to="/portfolio-builder" />
+      </Route>
       <Route path="/portfolio-builder/new">
         <Redirect to="/portfolio-builder" />
       </Route>
@@ -140,22 +144,22 @@ function Router() {
       <Route path="/settings" component={Einstellungen} />
       <Route path="/settings/notifications" component={NotificationSettings} />
 
-      {/* ═══ ADMIN ═══ */}
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/admin/stocks" component={AdminStocks} />
-      <Route path="/admin/categories" component={AdminCategories} />
-      <Route path="/admin/sectors" component={AdminSectors} />
-      <Route path="/admin/secrets" component={AdminSecretsManagement} />
-      <Route path="/admin/kpis" component={AdminKPIs} />
-      <Route path="/admin/data-import" component={AdminDataImport} />
-      <Route path="/admin/watchlist" component={AdminWatchlist} />
-      <Route path="/admin/optimizer" component={AdminOptimizer} />
-      <Route path="/admin/logs" component={AdminLogs} />
-      <Route path="/admin/ml-trainer" component={AdminMlTrainer} />
-      <Route path="/admin/signal-performance" component={AdminSignalPerformance} />
-      <Route path="/admin/wikifolio" component={AdminWikifolio} />
-      <Route path="/admin/settings" component={AdminSettings} />
-      <Route path="/admin/research" component={AdminResearch} />
+      {/* ═══ ADMIN ═══ (U-11: client-seitig via RequireAdmin geschützt) */}
+      <Route path="/admin"><RequireAdmin><AdminDashboard /></RequireAdmin></Route>
+      <Route path="/admin/stocks"><RequireAdmin><AdminStocks /></RequireAdmin></Route>
+      <Route path="/admin/categories"><RequireAdmin><AdminCategories /></RequireAdmin></Route>
+      <Route path="/admin/sectors"><RequireAdmin><AdminSectors /></RequireAdmin></Route>
+      <Route path="/admin/secrets"><RequireAdmin><AdminSecretsManagement /></RequireAdmin></Route>
+      <Route path="/admin/kpis"><RequireAdmin><AdminKPIs /></RequireAdmin></Route>
+      <Route path="/admin/data-import"><RequireAdmin><AdminDataImport /></RequireAdmin></Route>
+      <Route path="/admin/watchlist"><RequireAdmin><AdminWatchlist /></RequireAdmin></Route>
+      <Route path="/admin/optimizer"><RequireAdmin><AdminOptimizer /></RequireAdmin></Route>
+      <Route path="/admin/logs"><RequireAdmin><AdminLogs /></RequireAdmin></Route>
+      <Route path="/admin/ml-trainer"><RequireAdmin><AdminMlTrainer /></RequireAdmin></Route>
+      <Route path="/admin/signal-performance"><RequireAdmin><AdminSignalPerformance /></RequireAdmin></Route>
+      <Route path="/admin/wikifolio"><RequireAdmin><AdminWikifolio /></RequireAdmin></Route>
+      <Route path="/admin/settings"><RequireAdmin><AdminSettings /></RequireAdmin></Route>
+      <Route path="/admin/research"><RequireAdmin><AdminResearch /></RequireAdmin></Route>
 
       {/* ═══ Legacy Redirects (alte Routen → neue Struktur) ═══ */}
       <Route path="/home">

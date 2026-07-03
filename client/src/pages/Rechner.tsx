@@ -21,7 +21,7 @@ export default function Rechner() {
           </CardHeader>
           <CardContent>
             <p className="text-slate-300">
-              Berechne deine Altersvorsorge...
+              Berechnen Sie Ihre Altersvorsorge...
             </p>
           </CardContent>
         </Card>
@@ -32,7 +32,7 @@ export default function Rechner() {
           </CardHeader>
           <CardContent>
             <p className="text-slate-300">
-              Plane dein Budget...
+              Planen Sie Ihr Budget...
             </p>
           </CardContent>
         </Card>
@@ -43,7 +43,7 @@ export default function Rechner() {
           </CardHeader>
           <CardContent>
             <p className="text-slate-300">
-              Berechne deine Steuern...
+              Berechnen Sie Ihre Steuern...
             </p>
           </CardContent>
         </Card>

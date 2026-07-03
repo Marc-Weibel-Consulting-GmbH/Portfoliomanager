@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import DashboardLayout from "@/components/DashboardLayout";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 interface ImportProps {
   onBackClick?: () => void;
@@ -20,7 +22,10 @@ interface ImportResult {
 }
 
 export default function Import({ onBackClick }: ImportProps) {
-  const { isAuthenticated } = useAuth();
+  // U-01: Globaler Kursdaten-Import — serverseitig adminProcedure, daher auch
+  // clientseitig nur für Administratoren anzeigen.
+  const { user, isAuthenticated } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResults, setImportResults] = useState<ImportResult[]>([]);
@@ -37,7 +42,7 @@ export default function Import({ onBackClick }: ImportProps) {
     onError: (error: any) => {
       setIsProcessing(false);
       toast.error("Import fehlgeschlagen", {
-        description: error.message,
+        description: getUserErrorMessage(error),
       });
     },
   });
@@ -85,9 +90,12 @@ export default function Import({ onBackClick }: ImportProps) {
     }
   };
 
+  // U-09: Seite rendert innerhalb des App-Layouts (Sidebar/Navigation) statt als Sackgasse
   return (
+    <DashboardLayout>
     <div className="text-white">
       <div className="max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold text-white mb-6">Kursdaten-Import</h1>
 
         {!isAuthenticated && (
           <Card className="bg-slate-800 border-slate-700 mb-6">
@@ -98,7 +106,21 @@ export default function Import({ onBackClick }: ImportProps) {
           </Card>
         )}
 
-        {isAuthenticated && (
+        {isAuthenticated && !isAdmin && (
+          <Card className="bg-slate-800 border-slate-700 mb-6">
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+              <h2 className="text-white font-semibold text-lg mb-2">Nur für Administratoren</h2>
+              <p className="text-slate-300">
+                Diese Seite dient dem Import globaler Kursdaten und ist Administratoren vorbehalten.
+                Ihre eigenen Depot-Transaktionen importieren Sie in Ihrem Portfolio unter
+                «Transaktionen» mit «PDF importieren».
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAuthenticated && isAdmin && (
           <>
             <Card className="bg-slate-800 border-slate-700 mb-6">
               <CardHeader>
@@ -213,6 +235,7 @@ export default function Import({ onBackClick }: ImportProps) {
         )}
       </div>
     </div>
+    </DashboardLayout>
   );
 }
 

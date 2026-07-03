@@ -14,7 +14,6 @@ import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
 import TradingViewBacktestTab from "@/components/stock/TradingViewBacktestTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
 import ValuationTab from "@/components/stock/ValuationTab";
-import PredictionTab from "@/components/stock/PredictionTab";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
 import { PegBadge } from "@/components/stock/PegContextCard";
@@ -186,7 +185,8 @@ export default function StockDetail() {
   const searchParams = new URLSearchParams(searchString);
   const fromPortfolioId = searchParams.get('from');
   const urlTab = searchParams.get('tab') || 'overview';
-  const [activeStockTab, setActiveStockTab] = useState(urlTab);
+  // F-09: alte Deep-Links auf den ausgeblendeten KI-Prognose-Tab auf die Übersicht umleiten
+  const [activeStockTab, setActiveStockTab] = useState(urlTab === 'prediction' ? 'overview' : urlTab);
   
   const handleStockTabChange = (tab: string) => {
     setActiveStockTab(tab);
@@ -552,7 +552,9 @@ export default function StockDetail() {
           </div>
         </div>
 
-        {/* Tabs per IA-Optimierung: Übersicht | Signale | Chart & TA | Bewertung | KI-Prognose | Backtest | News */}
+        {/* Tabs per IA-Optimierung: Übersicht | Signale | Chart & TA | Bewertung | Backtest | News.
+            F-09: KI-Prognose-Tab ausgeblendet (Vorgabe Auftraggeber: unzuverlässig).
+            PredictionTab.tsx/predictionRouter bleiben für den Rückbau-Entscheid bestehen. */}
         <Tabs value={activeStockTab} onValueChange={handleStockTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none mb-6">
             {[
@@ -560,7 +562,6 @@ export default function StockDetail() {
               { value: 'signals', label: 'Signale', badge: newsData.length },
               { value: 'chart-ta', label: 'Chart & TA' },
               { value: 'valuation', label: 'Bewertung (DCF)' },
-              { value: 'prediction', label: 'KI-Prognose' },
               { value: 'backtest', label: 'Backtest' },
               { value: 'news', label: 'News', badge: newsData.length },
             ].map(tab => (
@@ -861,11 +862,6 @@ export default function StockDetail() {
           {/* Bewertung (DCF) Tab */}
           <TabsContent value="valuation">
             <ValuationTab ticker={ticker} stock={stock} />
-          </TabsContent>
-
-          {/* KI-Prognose Tab */}
-          <TabsContent value="prediction">
-            <PredictionTab ticker={ticker} stock={stock} />
           </TabsContent>
 
           {/* Backtest Tab */}

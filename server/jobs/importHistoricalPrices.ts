@@ -1,6 +1,8 @@
 import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { historicalPrices, transactions, savedPortfolios } from "../../drizzle/schema";
+import { eodhdEodResponseSchema, payloadSample, type EodhdEodRow } from "../_core/externalSchemas";
+import { getEodhdApiKey } from "../_core/env";
 
 /**
  * Batch job to import historical prices from EODHD API
@@ -8,7 +10,8 @@ import { historicalPrices, transactions, savedPortfolios } from "../../drizzle/s
  * and stores them in the historicalPrices table for hypothetical performance calculations.
  */
 
-const EODHD_API_KEY = process.env.EODHD_API_KEY;
+// A-10: key is resolved lazily per call via getEodhdApiKey() (env with DB-secret
+// fallback) — a module-load capture would defeat the DB fallback.
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
 /**
@@ -50,15 +53,7 @@ function toEodhdTicker(dbTicker: string): string | null {
   return TICKER_MAPPING[dbTicker] || dbTicker;
 }
 
-interface EODHDHistoricalPrice {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  adjusted_close: number;
-  volume: number;
-}
+type EODHDHistoricalPrice = EodhdEodRow;
 
 /**
  * Fetch historical prices from EODHD API
@@ -72,11 +67,12 @@ async function fetchHistoricalPrices(
   fromDate: string,
   toDate: string
 ): Promise<EODHDHistoricalPrice[]> {
-  if (!EODHD_API_KEY) {
+  const apiKey = await getEodhdApiKey();
+  if (!apiKey) {
     throw new Error("EODHD_API_KEY is not configured");
   }
 
-  const url = `${EODHD_BASE_URL}/eod/${ticker}?api_token=${EODHD_API_KEY}&fmt=json&from=${fromDate}&to=${toDate}`;
+  const url = `${EODHD_BASE_URL}/eod/${ticker}?api_token=${apiKey}&fmt=json&from=${fromDate}&to=${toDate}`;
 
   try {
     const response = await fetch(url);
@@ -86,7 +82,16 @@ async function fetchHistoricalPrices(
     }
 
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    // A-05: validate the provider response instead of trusting it blindly —
+    // an HTML error page or rate-limit JSON must not land in price columns.
+    const parsed = eodhdEodResponseSchema.safeParse(data);
+    if (!parsed.success) {
+      console.warn(
+        `[importHistoricalPrices] Unexpected EODHD EOD payload for ${ticker}, skipping. Sample: ${payloadSample(data)}`
+      );
+      return [];
+    }
+    return parsed.data;
   } catch (error) {
     console.error(`[importHistoricalPrices] Error fetching ${ticker}:`, error);
     return [];

@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Bell, Mail, MessageSquare, Edit, Trash2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type AlertType = "above_price" | "below_price" | "percent_change";
 type NotificationMethod = "email" | "whatsapp" | "both";
@@ -35,6 +36,8 @@ interface PriceAlert {
 export default function PriceAlerts() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [deletingAlert, setDeletingAlert] = useState<PriceAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [tickerFilter, setTickerFilter] = useState<string>("all");
   
@@ -86,6 +89,7 @@ export default function PriceAlerts() {
   const deleteMutation = trpc.priceAlerts.delete.useMutation({
     onSuccess: () => {
       toast.success("Alarm gelöscht");
+      setDeletingAlert(null);
       utils.priceAlerts.list.invalidate();
     },
     onError: (error) => {
@@ -147,17 +151,29 @@ export default function PriceAlerts() {
     }
   };
 
+  // U-17: eigener Mutation-Hook für den Schalter, damit ein spezifischer
+  // Erfolgs-Toast erscheint (statt des generischen «Alarm aktualisiert»,
+  // der zudem den Dialog-State zurücksetzt).
+  const toggleMutation = trpc.priceAlerts.update.useMutation({
+    onSuccess: (_data, variables) => {
+      const activated = !!(variables && variables.isActive);
+      toast.success(activated ? "Alarm aktiviert" : "Alarm deaktiviert");
+      utils.priceAlerts.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error(`Fehler: ${error.message}`);
+    },
+  });
+
   const toggleAlert = (id: number, currentStatus: number) => {
-    updateMutation.mutate({
+    toggleMutation.mutate({
       id,
       isActive: currentStatus ? 0 : 1,
     });
   };
 
-  const deleteAlert = (id: number) => {
-    if (confirm("Alarm wirklich löschen?")) {
-      deleteMutation.mutate({ id });
-    }
+  const deleteAlert = (alert: PriceAlert) => {
+    setDeletingAlert(alert);
   };
 
   const openEditDialog = (alert: PriceAlert) => {
@@ -471,7 +487,7 @@ export default function PriceAlerts() {
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button
-                              onClick={() => deleteAlert(alert.id)}
+                              onClick={() => deleteAlert(alert)}
                               variant="ghost"
                               size="sm"
                               className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
@@ -639,6 +655,17 @@ export default function PriceAlerts() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog (U-08) */}
+        <ConfirmDialog
+          open={deletingAlert !== null}
+          onOpenChange={(open) => { if (!open) setDeletingAlert(null); }}
+          title={`Alarm für ${deletingAlert?.ticker ?? ''} löschen?`}
+          description="Der Preisalarm wird dauerhaft entfernt. Sie erhalten dafür keine Benachrichtigungen mehr."
+          confirmLabel="Alarm löschen"
+          onConfirm={() => { if (deletingAlert) deleteMutation.mutate({ id: deletingAlert.id }); }}
+          isPending={deleteMutation.isPending}
+        />
       </div>
     </DashboardLayout>
   );

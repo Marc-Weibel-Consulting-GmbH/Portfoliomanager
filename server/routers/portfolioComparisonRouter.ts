@@ -1,14 +1,11 @@
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
+// D-01: unified holdings replay (buy/entry/sell, chronological, DESC-safe)
+import { buildHoldings } from "../lib/holdings";
 
 export const portfolioComparisonRouter = router({
     compare: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "portfolioIds" in val && Array.isArray(val.portfolioIds)) {
-          return val as { portfolioIds: number[] };
-        }
-        throw new Error("Invalid portfolio IDs");
-      })
+      .input(z.object({ portfolioIds: z.array(z.number()) }))
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getPortfolioTransactions, getDb } = await import("../db");
         const db = await getDb();
@@ -44,37 +41,25 @@ export const portfolioComparisonRouter = router({
 
             if (portfolio.isLive) {
               const transactions = await getPortfolioTransactions(portfolio.id);
-              
-              // Calculate holdings
-              const holdings: Record<string, { shares: number; totalInvested: number }> = {};
-              transactions.forEach((tx: any) => {
-                if (!holdings[tx.ticker]) {
-                  holdings[tx.ticker] = { shares: 0, totalInvested: 0 };
-                }
-                const shares = parseFloat(tx.shares || '0');
-                const price = parseFloat(tx.pricePerShare || '0');
-                const amount = shares * price;
 
-                if (tx.transactionType === 'buy') {
-                  holdings[tx.ticker].shares += shares;
-                  holdings[tx.ticker].totalInvested += amount;
-                } else if (tx.transactionType === 'sell') {
-                  const avgBuyPrice = holdings[tx.ticker].totalInvested / holdings[tx.ticker].shares;
-                  holdings[tx.ticker].shares -= shares;
-                  holdings[tx.ticker].totalInvested -= shares * avgBuyPrice;
-                }
-              });
+              // Calculate holdings (D-01: unified replay; shares x pricePerShare
+              // cost basis == buildHoldings.totalCostLocal, moving average with
+              // clamped oversell instead of the previous NaN on sell-before-buy)
+              const holdings = buildHoldings(transactions);
 
               // Calculate current value
-              const tickers = Object.keys(holdings).filter(t => holdings[t].shares > 0);
+              const tickers = Array.from(holdings.entries())
+                .filter(([, h]) => h.shares > 0)
+                .map(([ticker]) => ticker);
               if (tickers.length > 0) {
                 const stockData = await db.select().from(stocksTable).where(inArray(stocksTable.ticker, tickers));
-                
+
                 tickers.forEach((ticker) => {
                   const stock = stockData.find((s) => s.ticker === ticker);
                   const currentPrice = stock?.currentPrice ? parseFloat(stock.currentPrice) : 0;
-                  currentValue += holdings[ticker].shares * currentPrice;
-                  totalInvested += holdings[ticker].totalInvested;
+                  const holding = holdings.get(ticker)!;
+                  currentValue += holding.shares * currentPrice;
+                  totalInvested += holding.totalCostLocal;
                 });
               }
 

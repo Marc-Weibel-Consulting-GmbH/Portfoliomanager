@@ -60,7 +60,7 @@ export default function Auth() {
                 Login
               </CardTitle>
               <p className="text-slate-300 text-center mt-2">
-                Melde dich mit deinem Konto an
+                Melden Sie sich mit Ihrem Konto an
               </p>
             </CardHeader>
             <CardContent>
@@ -74,7 +74,7 @@ export default function Auth() {
                 Registrierung
               </CardTitle>
               <p className="text-slate-300 text-center mt-2">
-                Erstelle ein kostenloses Konto für Zugriff auf das Portfolio
+                Erstellen Sie ein kostenloses Konto für den Zugriff auf das Portfolio
               </p>
             </CardHeader>
             <CardContent>

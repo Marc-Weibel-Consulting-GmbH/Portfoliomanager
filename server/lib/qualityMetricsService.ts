@@ -115,7 +115,7 @@ export async function getQualityMetrics(ticker: string): Promise<QualityMetrics>
   if (cached && cached.expiresAt > Date.now()) return cached.data;
 
   const eodhdTicker = resolveEodhdTicker(ticker);
-  const apiKey = ENV.eodhdApiKey || process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
 
   if (!apiKey) {
     return buildFallback(ticker, "EODHD API Key fehlt");

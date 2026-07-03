@@ -16,6 +16,7 @@ import {
 } from "../analytics/mlTrainingJob";
 import { persistAndMaybePromote, createDbArtifactRepo } from "../analytics/modelStore";
 import { getModelCache } from "../_core/modelCache";
+import { ENV } from "../_core/env";
 
 const MAX_UNIVERSE = 80; // bound training cost / API load
 
@@ -42,7 +43,7 @@ async function buildDeps(): Promise<TrainingJobDeps | null> {
       // Prefer EODHD for deep history (10y by default) so the model trains on many
       // market regimes. The app DB only holds a short window — DB is the fallback.
       const years = parseInt(process.env.ML_TRAIN_YEARS || "10", 10);
-      if (process.env.EODHD_API_KEY) {
+      if (ENV.eodhdApiKey) {
         const { fetchEodSeries } = await import("../jobs/importHistoricalPrices");
         const today = new Date().toISOString().slice(0, 10);
         const from = new Date(Date.now() - years * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);

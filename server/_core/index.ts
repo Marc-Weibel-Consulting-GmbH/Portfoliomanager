@@ -4,9 +4,13 @@ import "./logMonitor"; // Start log monitoring
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { COOKIE_NAME } from "@shared/const";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { getSessionCookieOptions } from "./cookies";
+import { AuthError, loginSchema, loginUser, registerSchema, registerUser, SESSION_MAX_AGE_MS } from "./authService";
+import { getClientIp, isRateLimited, LOGIN_RATE_LIMIT, RATE_LIMIT_MESSAGE, REGISTER_RATE_LIMIT } from "./rateLimit";
 import { serveStatic, setupVite } from "./vite";
 import { startPriceUpdater } from "../priceUpdater";
 import { initializeNewsUpdater } from "../newsUpdater";
@@ -58,154 +62,69 @@ async function startServer() {
     await handleStripeWebhook(req, res);
   });
   
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  // Traditional login endpoint with server-side redirect for mobile compatibility
+  // Body-parser limit (A-04): the largest legitimate payload is the PDF import
+  // (pdfImportRouter caps files at 20 MB; sent as base64 → ~27 MB JSON), so
+  // 30 MB covers it with headroom. Previously 50 MB.
+  app.use(express.json({ limit: "30mb" }));
+  app.use(express.urlencoded({ limit: "30mb", extended: true }));
+  // Traditional login endpoint — thin delegate to the shared auth service (D-08).
+  // Cookie handling stays here in the transport layer; client expects { success: true }.
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
-      const { getDb } = await import("../db");
-      const { users } = await import("../../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
-      const bcrypt = await import("bcryptjs");
-      const { sdk } = await import("./sdk");
-      const { COOKIE_NAME } = await import("@shared/const");
-      const { getSessionCookieOptions } = await import("./cookies");
-      
-      const db = await getDb();
-      if (!db) {
-        return res.status(500).json({ error: "Database not available" });
+      if (isRateLimited(`login:${getClientIp(req)}`, LOGIN_RATE_LIMIT)) {
+        return res.status(429).json({ error: RATE_LIMIT_MESSAGE });
       }
-      
-      // Find user by email
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-      
-      if (!user) {
-        return res.status(401).json({ error: "E-Mail oder Passwort falsch" });
+
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Ungültige Eingabe: Bitte E-Mail und Passwort prüfen" });
       }
-      
-      // Verify password
-      const isValid = await bcrypt.default.compare(password, user.password || "");
-      if (!isValid) {
-        return res.status(401).json({ error: "E-Mail oder Passwort falsch" });
-      }
-      
-      // Ensure user has an openId (for email/password login users)
-      let userOpenId = user.openId;
-      if (!userOpenId) {
-        userOpenId = `email_${user.id}`;
-        // Update user with openId if missing
-        await db.update(users).set({ openId: userOpenId }).where(eq(users.id, user.id));
-      }
-      
-      // Create session token and set cookie
-      const sessionToken = await sdk.createSessionToken(userOpenId, {
-        name: user.name || `${user.firstName} ${user.lastName}`,
-        expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
-      
-      const cookieOptions = getSessionCookieOptions(req);
+
+      const { sessionToken } = await loginUser(parsed.data.email, parsed.data.password);
+
       res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        ...getSessionCookieOptions(req),
+        maxAge: SESSION_MAX_AGE_MS,
       });
-      
-      console.log("[Auth] Cookie set:", {
-        cookieName: COOKIE_NAME,
-        cookieOptions,
-        userAgent: req.headers['user-agent'],
-      });
-      
+
       // Return success - client will handle redirect
       res.json({ success: true });
     } catch (error: any) {
+      if (error instanceof AuthError) {
+        return res.status(error.status).json({ error: error.message });
+      }
       console.error("Login error:", error);
       res.status(500).json({ error: error.message || "Login failed" });
     }
   });
-  
-  // Traditional register endpoint with server-side redirect for mobile compatibility
+
+  // Traditional register endpoint — thin delegate to the shared auth service (D-08).
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { firstName, lastName, email, password, mobile } = req.body;
-      const { getDb } = await import("../db");
-      const { users, newsletter } = await import("../../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
-      const bcrypt = await import("bcryptjs");
-      const { sdk } = await import("./sdk");
-      const { COOKIE_NAME } = await import("@shared/const");
-      const { getSessionCookieOptions } = await import("./cookies");
-      
-      const db = await getDb();
-      if (!db) {
-        return res.status(500).json({ error: "Database not available" });
+      if (isRateLimited(`register:${getClientIp(req)}`, REGISTER_RATE_LIMIT)) {
+        return res.status(429).json({ error: RATE_LIMIT_MESSAGE });
       }
-      
-      // Check if email already exists
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-      
-      if (existingUser) {
-        return res.status(400).json({ error: "E-Mail bereits registriert" });
+
+      const parsed = registerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ error: "Ungültige Eingabe: Bitte alle Felder prüfen (Passwort mind. 8 Zeichen)" });
       }
-      
-      // Hash password
-      const hashedPassword = await bcrypt.default.hash(password, 10);
-      
-      // Create unique openId for guest user
-      const openId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      
-      // Insert user
-      await db.insert(users).values({
-        openId,
-        firstName,
-        lastName,
-        email,
-        password: hashedPassword,
-        mobile: mobile || null,
-        name: `${firstName} ${lastName}`,
-        loginMethod: "email",
-      });
-      
-      // Add to newsletter
-      try {
-        await db.insert(newsletter).values({
-          email,
-          isActive: 1,
-        });
-      } catch (error) {
-        console.error("Failed to add to newsletter:", error);
-      }
-      
-      // Create session token and set cookie
-      const sessionToken = await sdk.createSessionToken(openId, {
-        name: `${firstName} ${lastName}`,
-        expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
-      
-      const cookieOptions = getSessionCookieOptions(req);
+
+      const { sessionToken } = await registerUser(parsed.data);
+
       res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        ...getSessionCookieOptions(req),
+        maxAge: SESSION_MAX_AGE_MS,
       });
-      
-      console.log("[Auth] Cookie set:", {
-        cookieName: COOKIE_NAME,
-        cookieOptions,
-        userAgent: req.headers['user-agent'],
-      });
-      
+
       // Return success - client will handle redirect
       res.json({ success: true });
     } catch (error: any) {
+      if (error instanceof AuthError) {
+        return res.status(error.status).json({ error: error.message });
+      }
       console.error("Register error:", error);
       res.status(500).json({ error: error.message || "Registration failed" });
     }

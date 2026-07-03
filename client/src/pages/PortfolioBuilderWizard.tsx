@@ -12,7 +12,6 @@ import { ChevronLeft, ChevronRight, Check, Search, Plus, X, TrendingUp, DollarSi
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import Import from "./Import";
 
 type PortfolioType = "dividends" | "growth" | "balanced" | "etf";
 
@@ -41,7 +40,7 @@ const pathOptions: Array<{
     value: "import",
     label: "Import",
     icon: <Upload className="h-8 w-8" />,
-    description: "Importieren Sie Ihre Positionen aus einer CSV- oder Excel-Datei",
+    description: "Übernehmen Sie Ihr bestehendes Depot aus einer Swissquote-PDF-Abrechnung",
   },
 ];
 
@@ -242,6 +241,39 @@ export default function PortfolioBuilderWizard() {
     setCurrentStep(1);
   };
 
+  // U-02: Importpfad — legt ein leeres Live-Portfolio mit den Grunddaten an und
+  // führt direkt zum Swissquote-PDF-Import auf der Detailseite (?import=1
+  // öffnet den Import-Dialog dort automatisch). Live, weil der Import echte
+  // Transaktionen erfasst (Demo-Portfolios haben keine Transaktionen).
+  const handleCreateImportPortfolio = async () => {
+    if (!portfolioName.trim()) {
+      toast.error("Bitte geben Sie einen Portfolio-Namen ein");
+      return;
+    }
+    const capital = parseFloat(initialCapital);
+    if (!(capital > 0)) {
+      toast.error("Bitte geben Sie Ihr Startkapital ein");
+      return;
+    }
+    try {
+      const result = await createPortfolioMutation.mutateAsync({
+        name: portfolioName,
+        description: portfolioDescription || undefined,
+        portfolioData: JSON.stringify({ stocks: [] }),
+        investmentAmount: capital,
+        portfolioType: "live",
+      });
+      if (result?.portfolio?.id) {
+        toast.success("Portfolio erstellt — Sie können jetzt Ihr Swissquote-PDF hochladen");
+        navigate(`/portfolios/${result.portfolio.id}?tab=transaktionen&import=1`);
+      } else {
+        navigate("/portfolios");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Fehler beim Erstellen des Portfolios");
+    }
+  };
+
   const startTemplate = (profile: RiskProfile) => {
     const preset = riskProfiles.find((p) => p.value === profile);
     if (!preset) return;
@@ -367,9 +399,11 @@ export default function PortfolioBuilderWizard() {
         portfolioType: isLive ? "live" : "demo",
       });
       
+      // U-12: nur ein Erfolgs-Toast — kein ?onboarding=success mehr (löste auf
+      // der Detailseite einen zweiten Toast aus)
       toast.success("Portfolio erstellt 🎉");
       if (result?.portfolio?.id) {
-        navigate(`/portfolios/${result.portfolio.id}?onboarding=success`);
+        navigate(`/portfolios/${result.portfolio.id}`);
       } else {
         navigate('/portfolios');
       }
@@ -392,11 +426,22 @@ export default function PortfolioBuilderWizard() {
     return (
       <div className="min-h-screen bg-[#0a0f1a] p-4 md:p-8">
         <div className="max-w-5xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2 text-white">Wähle deinen Pfad</h1>
-            <p className="text-gray-400">
-              Wie möchten Sie Ihr Portfolio erstellen?
-            </p>
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2 text-white">Wählen Sie Ihren Pfad</h1>
+              <p className="text-gray-400">
+                Wie möchten Sie Ihr Portfolio erstellen?
+              </p>
+            </div>
+            {/* U-09: sichtbarer Ausstieg aus dem Builder (auch in Schritt 0) */}
+            <button
+              onClick={() => navigate("/portfolios")}
+              className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors shrink-0"
+              aria-label="Abbrechen und zurück zu den Portfolios"
+            >
+              <X className="h-4 w-4" />
+              Abbrechen
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -488,17 +533,64 @@ export default function PortfolioBuilderWizard() {
             </div>
           )}
 
-          {/* Import: embed the existing import component */}
+          {/* Import: Portfolio-Grunddaten anlegen, dann direkt zum Swissquote-PDF-Import (U-02) */}
           {path === "import" && (
             <Card className="bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
               <CardHeader>
-                <CardTitle className="text-white">Positionen importieren</CardTitle>
+                <CardTitle className="text-white">Depot aus Swissquote-PDF übernehmen</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Laden Sie eine CSV- oder Excel-Datei hoch, um Kursdaten zu importieren.
+                  So funktioniert es: Sie legen zuerst Ihr Portfolio mit den Grunddaten an.
+                  Direkt danach laden Sie Ihre Swissquote-Transaktionsbelege als PDF hoch —
+                  Käufe, Verkäufe, Dividenden und Einzahlungen werden automatisch erkannt
+                  und vor der Übernahme zur Überprüfung angezeigt.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Import />
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="import-name" className="text-gray-300">Portfolio-Name *</Label>
+                  <Input
+                    id="import-name"
+                    placeholder="z.B. Mein Swissquote-Depot"
+                    value={portfolioName}
+                    onChange={(e) => setPortfolioName(e.target.value)}
+                    className="bg-[#0f1420] border-white/10 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="import-capital" className="text-gray-300">Startkapital (CHF) *</Label>
+                  <Input
+                    id="import-capital"
+                    type="number"
+                    placeholder="z.B. 50000"
+                    value={initialCapital}
+                    onChange={(e) => setInitialCapital(e.target.value)}
+                    className="bg-[#0f1420] border-white/10 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Der Betrag, den Sie insgesamt in dieses Depot eingezahlt haben.
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="import-description" className="text-gray-300">Beschreibung (optional)</Label>
+                  <Textarea
+                    id="import-description"
+                    placeholder="z.B. Übertrag meines Swissquote-Depots"
+                    value={portfolioDescription}
+                    onChange={(e) => setPortfolioDescription(e.target.value)}
+                    rows={2}
+                    className="bg-[#0f1420] border-white/10 text-white"
+                  />
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button
+                    className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90"
+                    disabled={createPortfolioMutation.isPending}
+                    onClick={handleCreateImportPortfolio}
+                  >
+                    {createPortfolioMutation.isPending ? "Portfolio wird angelegt…" : "Portfolio anlegen & PDF importieren"}
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -511,13 +603,24 @@ export default function PortfolioBuilderWizard() {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Portfolio erstellen</h1>
-          <p className="text-muted-foreground">
-            {path === "template"
-              ? "Vorlage angepasst – verfeinern Sie Ihr Portfolio in 5 Schritten"
-              : "Erstellen Sie Ihr Portfolio in 5 einfachen Schritten"}
-          </p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Portfolio erstellen</h1>
+            <p className="text-muted-foreground">
+              {path === "template"
+                ? "Vorlage angepasst – verfeinern Sie Ihr Portfolio in 5 Schritten"
+                : "Erstellen Sie Ihr Portfolio in 5 einfachen Schritten"}
+            </p>
+          </div>
+          {/* U-09: sichtbarer Ausstieg aus dem Builder auf jedem Schritt */}
+          <button
+            onClick={() => navigate("/portfolios")}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            aria-label="Abbrechen und zurück zu den Portfolios"
+          >
+            <X className="h-4 w-4" />
+            Abbrechen
+          </button>
         </div>
 
         {/* Progress Bar */}

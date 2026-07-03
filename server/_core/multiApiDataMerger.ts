@@ -92,7 +92,7 @@ function calculateEarningsGrowth(quarterlyData: Record<string, any>): number | n
  */
 async function fetchFromEODHD(ticker: string): Promise<Partial<CompleteStockData>> {
   try {
-    const apiKey = process.env.EODHD_API_KEY;
+    const apiKey = ENV.eodhdApiKey;
     if (!apiKey) {
       console.warn('[MultiAPI] EODHD API key not configured');
       return {};

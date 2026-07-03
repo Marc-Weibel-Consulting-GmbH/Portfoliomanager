@@ -4,6 +4,7 @@
  */
 
 import { ENV } from './env';
+import { fiscalPEHistorySchema, payloadSample } from './externalSchemas';
 
 const FISCAL_API_KEY = ENV.fiscalApiKey;
 const FISCAL_API_BASE = 'https://api.fiscal.ai/v1';
@@ -48,9 +49,19 @@ export async function getFiscalPEHistory(ticker: string): Promise<FiscalPERatio[
       return null;
     }
 
-    const data: FiscalPERatio[] = await response.json();
-    
-    if (!Array.isArray(data) || data.length === 0) {
+    const raw = await response.json();
+
+    // A-05: validate instead of blindly casting — unexpected payloads
+    // (error objects, HTML) must not flow into median-P/E calculations.
+    const parsed = fiscalPEHistorySchema.safeParse(raw);
+    if (!parsed.success) {
+      console.warn(`[Fiscal.ai] Unexpected P/E payload for ${ticker}. Sample: ${payloadSample(raw)}`);
+      return null;
+    }
+
+    const data: FiscalPERatio[] = parsed.data;
+
+    if (data.length === 0) {
       console.log(`[Fiscal.ai] No data available for ${ticker}`);
       return null;
     }

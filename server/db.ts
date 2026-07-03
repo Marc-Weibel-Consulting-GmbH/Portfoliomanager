@@ -5,14 +5,22 @@ import { ENV } from './_core/env';
 import { roundRappen } from './lib/rounding';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+// A-07: memoize the first connection error so it is logged LOUDLY exactly
+// once (incl. cause) instead of silently retrying + warn-spamming on every
+// call. The null contract is kept — too many callers depend on it.
+let _dbInitError: unknown = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  if (!_db && !_dbInitError && process.env.DATABASE_URL) {
     try {
       _db = drizzle(process.env.DATABASE_URL);
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      _dbInitError = error;
+      console.error(
+        "[Database] FATAL: failed to initialize DB connection — all getDb() callers will receive null until restart. Cause:",
+        error
+      );
       _db = null;
     }
   }

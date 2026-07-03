@@ -1,3 +1,4 @@
+import { ENV } from "./env";
 /**
  * Timing test for secret initialization
  * Tests whether secrets become available after a delay
@@ -29,14 +30,14 @@ function checkSecrets(label: string): SecretTimingResult {
         prefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) || "N/A",
       },
       FINNHUB_API_KEY: {
-        available: !!process.env.FINNHUB_API_KEY,
-        length: process.env.FINNHUB_API_KEY?.length || 0,
-        prefix: process.env.FINNHUB_API_KEY?.substring(0, 7) || "N/A",
+        available: !!ENV.finnhubApiKey,
+        length: ENV.finnhubApiKey.length || 0,
+        prefix: ENV.finnhubApiKey.substring(0, 7) || "N/A",
       },
       EODHD_API_KEY: {
-        available: !!process.env.EODHD_API_KEY,
-        length: process.env.EODHD_API_KEY?.length || 0,
-        prefix: process.env.EODHD_API_KEY?.substring(0, 7) || "N/A",
+        available: !!ENV.eodhdApiKey,
+        length: ENV.eodhdApiKey.length || 0,
+        prefix: ENV.eodhdApiKey.substring(0, 7) || "N/A",
       },
     },
   };

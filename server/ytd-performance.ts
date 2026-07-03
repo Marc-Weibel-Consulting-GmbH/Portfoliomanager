@@ -18,10 +18,10 @@ interface DailyPrice {
  * Get database connection
  */
 function getDb() {
-  if (!process.env.DATABASE_URL) {
+  if (!ENV.databaseUrl) {
     return null;
   }
-  return drizzle(process.env.DATABASE_URL);
+  return drizzle(ENV.databaseUrl);
 }
 
 /**

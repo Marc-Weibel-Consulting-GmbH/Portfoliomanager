@@ -24,6 +24,7 @@ import { watchlistStocks, signalWeights } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 import { randomForestSignal } from "./mlEngine";
 
+import { ENV } from "../_core/env";
 export interface WeightConfig {
   pe: number;
   peg: number;
@@ -281,7 +282,7 @@ async function fetchFromEODHD(ticker: string): Promise<{
   prices: number[];
   volumes: number[];
 } | null> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   if (!apiKey) return null;
 
   try {

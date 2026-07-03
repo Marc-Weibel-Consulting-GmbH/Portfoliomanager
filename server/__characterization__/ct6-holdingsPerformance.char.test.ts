@@ -1,6 +1,7 @@
 /**
  * CT-6 — Charakterisierungstests für calculateHoldingsPerformance
- * (server/performanceCalculations.ts)
+ * (server/lib/holdingsPerformance.ts — bis D-01 Phase 5.1 in
+ * server/performanceCalculations.ts; verbatim verschoben, Pins unverändert)
  *
  * Pinnt Kostenbasis / unrealisierte Gewinne inkl. Oversell-Randfall (R-20),
  * Fee-Doppelzählung (R-02) und Sortier-Abhängigkeit (R-06-Klasse).
@@ -8,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { calculateHoldingsPerformance } from "../performanceCalculations";
+import { calculateHoldingsPerformance } from "../lib/holdingsPerformance";
 import { S1, S3_MANUAL, S3_CSV, S4, S6, S9_EMPTY, S9_NO_PRICE, S10, S16 } from "./fixtures";
 
 describe("CT-6 calculateHoldingsPerformance", () => {

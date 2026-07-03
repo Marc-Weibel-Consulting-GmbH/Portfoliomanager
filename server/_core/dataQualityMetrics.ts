@@ -15,6 +15,7 @@ import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import { stocks } from '../../drizzle/schema';
 
+import { ENV } from "./env";
 export interface DataQualityMetrics {
   totalStocks: number;
   sharpeRatioCompleteness: number; // percentage
@@ -42,11 +43,11 @@ export async function calculateDataQualityMetrics(): Promise<DataQualityMetrics>
   let connection: mysql.Connection | null = null;
 
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       throw new Error('DATABASE_URL not configured');
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     // Get all stocks

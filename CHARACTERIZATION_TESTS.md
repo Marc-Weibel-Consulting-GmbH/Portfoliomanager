@@ -16,12 +16,12 @@
 
 | # | Funktion | Datei | Was sie rechnet | Deckt Plan-IDs |
 |---|----------|-------|-----------------|----------------|
-| CT-1 | `calculatePerformanceMetrics` + `buildValuePoints` | `server/performanceCalculations.ts:262 / :341` | Legacy-TWR/MWR, investiertes Kapital, Fees | R-01, R-02, R-04, R-05, R-15, R-16 |
+| CT-1 | `calculatePerformanceMetrics` + `buildValuePoints` | ~~`server/performanceCalculations.ts:262 / :341`~~ **GELÖSCHT (Phase 5.1, D-01)** | Legacy-TWR/MWR, investiertes Kapital, Fees | R-01, R-02, R-04, R-05, R-15, R-16 |
 | CT-2 | `calculateTTWROR` | `server/lib/performanceEngine.ts:107` | Tägliche TTWROR inkl. Flow-Klassifikation und ±50-%-Cap | R-01, R-08 |
 | CT-3 | `calculateIRR` (+ `bisectionIRR`) | `server/lib/performanceEngine.ts:227 / :348` | Newton-Raphson-IRR mit Bisektion-Fallback | R-16, R-25 |
 | CT-4 | `calculatePortfolioPerformance` + `buildDailyValuations` + `buildCashTimeline` + `buildHoldingsTimeline` | `server/lib/performanceService.ts` / `performanceEngine.ts:488/600` | End-to-End-Pipeline: Preise → CHF → Tagesbewertungen → TTWROR/IRR | R-01, R-02, R-11, R-20 |
 | CT-5 | Verkaufs-Zweig von `createPortfolioTransaction` (Realized-Gains-Berechnung) | `server/db.ts:880–986` | Realisierter Gewinn, FX-Split, Kostenbasis — **höchster Geld-Impact** | R-03, R-19, R-24 |
-| CT-6 | `calculateHoldingsPerformance` | `server/performanceCalculations.ts:189` | Kostenbasis / unrealisierte Gewinne inkl. Oversell-Randfall | R-02, R-20, R-27 |
+| CT-6 | `calculateHoldingsPerformance` | `server/lib/holdingsPerformance.ts` (bis Phase 5.1: `server/performanceCalculations.ts:189`) | Kostenbasis / unrealisierte Gewinne inkl. Oversell-Randfall | R-02, R-20, R-27 |
 | CT-7 | `getFxRate` / `getFxRateSync` / `convertToCHF` | `server/fxHelper.ts:46/163/179/199` | FX-Lookup inkl. Rückwärtssuche und 1.0-Fallback | R-10 |
 | CT-8 | `getRealTwrSeriesFromTransactions` + `stitchSeries` | `server/performanceHypothetical.ts:286 / :525` | Chart-TWR inkl. Smoothing/Forward-Fill (erst pinnen, dann Smoothing entfernen) | R-08 |
 | CT-9 | `calculateYTDPerformance` (+ `generateFallbackPerformance`) | `server/ytd-performance.ts:183 / :283` | YTD-Serie (hartkodiertes Jahr, statische Gewichte, Fake-Fallback) | R-09, R-18, R-08 |
@@ -34,6 +34,8 @@
 | CT-16 | `optimizeWeights` + `buildEfficientFrontier` | `server/analytics/engine.ts:334–466` | Gewichts-Bounds inkl. Infeasibility bei < 10 Titeln; Frontier ohne Constraints | R-34 |
 
 Ergänzend (kein Geld, aber angrenzend): `calculateStockScore` (`server/scoring.ts`) hat erst 3 Tests — auf Schwellen-Randfälle erweitern (R-26).
+
+**Status-Notiz CT-1 (Phase 5.1, D-01):** `server/performanceCalculations.ts` wurde gelöscht — und damit die von CT-1 gepinnten Funktionen (`calculatePerformanceMetrics`, `buildValuePoints`, `calculateTimeWeightedReturn`, `calculateMoneyWeightedReturn`; dazu das importerlose `calculatePortfolioValueAtDate`). `ct1-performanceCalculations.char.test.ts` wurde als **dokumentierte Ausnahme** von der Nie-löschen-Regel entfernt: Die gepinnten Funktionen existieren nicht mehr, es gibt kein Ist-Verhalten mehr zu schützen (kein User-facing-Konsument seit Phase 2.7/R-04; `portfolioPerformanceRouter` läuft auf `performanceService`). Die von CT-1 abgedeckten Fehlerklassen bleiben über CT-2/CT-4 (Live-Engine) und CT-6 gepinnt. **CT-6 wurde NICHT gelöscht**, sondern nur der Import auf das neue Modul `server/lib/holdingsPerformance.ts` umgestellt (Funktion verbatim verschoben, alle Assertions unverändert).
 
 ---
 

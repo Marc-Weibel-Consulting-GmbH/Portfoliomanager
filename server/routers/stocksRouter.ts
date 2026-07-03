@@ -5,6 +5,7 @@ import { fetchEODHDFundamentals } from "../_core/eodhdApi";
 import { fetchDividendYieldWithFallback } from "../_core/dividendYieldHelper";
 import { recalculateWeights } from "../_core/portfolioWeightHelper";
 import { getStockLogoUrl } from "../_core/stockLogo";
+import { ENV } from "../_core/env";
 
 export const stocksRouter = router({
     getAll: publicProcedure.query(async () => {
@@ -89,12 +90,7 @@ export const stocksRouter = router({
     }),
 
     getByTicker: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "ticker" in val && typeof val.ticker === "string") {
-          return { ticker: val.ticker };
-        }
-        throw new Error("Invalid ticker");
-      })
+      .input(z.object({ ticker: z.string() }))
       .query(async ({ input }) => {
         const { getStockByTicker } = await import("../db");
         return await getStockByTicker(input.ticker);
@@ -133,30 +129,20 @@ export const stocksRouter = router({
       }),
 
     getHistoricalPE: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
-        const input = val as any;
-        if (typeof input.ticker !== 'string') throw new Error('Invalid ticker');
-        return {
-          ticker: input.ticker,
-          years: typeof input.years === 'number' ? input.years : 5,
-        };
-      })
+      .input(z.object({
+        ticker: z.string(),
+        years: z.number().default(5),
+      }))
       .query(async ({ input }) => {
         const { calculateHistoricalPE } = await import("../historical-pe");
         return await calculateHistoricalPE(input.ticker, input.years);
       }),
 
     getHistoricalMetrics: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
-        const input = val as any;
-        if (typeof input.ticker !== 'string') throw new Error('Invalid ticker');
-        return {
-          ticker: input.ticker,
-          days: typeof input.days === 'number' ? input.days : 30,
-        };
-      })
+      .input(z.object({
+        ticker: z.string(),
+        days: z.number().default(30),
+      }))
       .query(async ({ input }) => {
         const { getHistoricalMetrics, getTrendSummary } = await import("../_core/historicalMetricsRecorder");
         const history = await getHistoricalMetrics(input.ticker, input.days);
@@ -168,10 +154,7 @@ export const stocksRouter = router({
         };
       }),
     refreshStock: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid ticker");
-      })
+      .input(z.string())
       .mutation(async ({ input: ticker }) => {
         const { fetchCompleteStockData } = await import("../_core/multiApiDataMerger");
         const { getDb } = await import("../db");
@@ -240,13 +223,10 @@ export const stocksRouter = router({
         return updatedStock[0] || null;
       }),
     searchTicker: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid search query");
-      })
+      .input(z.string())
       .query(async ({ input }) => {
         try {
-          const apiKey = process.env.EODHD_API_KEY;
+          const apiKey = ENV.eodhdApiKey;
           if (!apiKey) return [];
           
           const searchUrl = `https://eodhd.com/api/search/${encodeURIComponent(input)}?api_token=${apiKey}&limit=10`;
@@ -266,10 +246,7 @@ export const stocksRouter = router({
         }
       }),
     fetchStockData: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid ticker");
-      })
+      .input(z.string())
       .mutation(async ({ input: ticker }) => {
         try {
           const { fetchCompleteStockData } = await import("../_core/multiApiDataMerger");
@@ -298,7 +275,7 @@ export const stocksRouter = router({
           let ytdStartPrice = null;
           let ytdPerformance = null;
           try {
-            const apiKey = process.env.EODHD_API_KEY;
+            const apiKey = ENV.eodhdApiKey;
             if (apiKey) {
               // R-09: baseline window derived from the current year (was
               // hardcoded 2024-12-27…2024-12-31) — last trading days of the
@@ -356,19 +333,13 @@ export const stocksRouter = router({
       return { USDCHF, EURCHF, GBPCHF };
     }),
     byCategory: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid category");
-      })
+      .input(z.string())
       .query(async ({ input }) => {
         const { getStocksByCategory } = await import("../db");
         return await getStocksByCategory(input);
       }),
     byTicker: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid ticker");
-      })
+      .input(z.string())
       .query(async ({ input }) => {
         const { getStockByTicker } = await import("../db");
         const dbStock = await getStockByTicker(input);
@@ -453,16 +424,32 @@ export const stocksRouter = router({
       };
     }),
     add: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) return val;
-        throw new Error("Invalid input");
-      })
+      // .passthrough(): stockData is forwarded wholesale to insertStock;
+      // extra columns (e.g. sector, week52High) must survive validation.
+      .input(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+        currentPrice: z.string().optional(),
+        peRatio: z.string().optional(),
+        pegRatio: z.string().optional(),
+        dividendYield: z.string().optional(),
+        currency: z.string().optional(),
+        logoUrl: z.string().optional(),
+        portfolioWeight: z.string().optional(),
+        ytdStartPrice: z.string().optional(),
+        ytdPerformance: z.string().optional(),
+        moat1: z.string().optional(),
+        moat2: z.string().optional(),
+        moat3: z.string().optional(),
+        category: z.string().optional(),
+        comment: z.string().optional(),
+      }).passthrough())
       .mutation(async ({ input, ctx }) => {
         const { insertStock, getAllStocks, logTransaction, updateStock } = await import("../db");
         const { notifyTransaction } = await import("../services/whatsapp");
         const { invokeLLM } = await import("../_core/llm");
         const { fetchCompleteStockData } = await import("../_core/multiApiDataMerger");
-        const stockData = input as any;
+        const stockData: any = { ...input };
         
         // Fetch complete data using multi-API fallback
         console.log(`[AddStock] Fetching complete data for ${stockData.ticker}...`);
@@ -599,14 +586,13 @@ export const stocksRouter = router({
         return { success: true };
       }),
     update: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "ticker" in val) return val;
-        throw new Error("Invalid input");
-      })
+      // .passthrough(): updates are forwarded wholesale to updateStock —
+      // any stock column may be patched by the admin UI.
+      .input(z.object({ ticker: z.string() }).passthrough())
       .mutation(async ({ input, ctx }) => {
         const { updateStock, getStockByTicker, logTransaction } = await import("../db");
         const { notifyTransaction } = await import("../services/whatsapp");
-        const { ticker, ...updates } = input as any;
+        const { ticker, ...updates } = input as { ticker: string } & Record<string, any>;
         
         // Get old values before update
         const oldStock = await getStockByTicker(ticker);
@@ -695,14 +681,14 @@ export const stocksRouter = router({
         return { success: true };
       }),
     delete: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "ticker" in val) return val;
-        throw new Error("Invalid input");
-      })
+      .input(z.object({
+        ticker: z.string(),
+        comment: z.string().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { deleteStock, getStockByTicker, logTransaction } = await import("../db");
         const { notifyTransaction } = await import("../services/whatsapp");
-        const { ticker, comment } = input as { ticker: string; comment?: string };
+        const { ticker, comment } = input;
         
         // Get stock data before deletion
         const stock = await getStockByTicker(ticker);
@@ -897,10 +883,7 @@ export const stocksRouter = router({
       };
     }),
     refreshStockData: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "string") return val;
-        throw new Error("Invalid ticker");
-      })
+      .input(z.string())
       .mutation(async ({ input: ticker }) => {
         console.log(`[RefreshStockData] Refreshing data for ${ticker}`);
         const { getStockByTicker, updateStock } = await import("../db");
@@ -1045,12 +1028,11 @@ export const stocksRouter = router({
       return performance;
     }),
     findCompetitors: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "ticker" in val && "name" in val && "category" in val) {
-          return val as { ticker: string; name: string; category: string };
-        }
-        throw new Error("Invalid input: ticker, name, and category required");
-      })
+      .input(z.object({
+        ticker: z.string(),
+        name: z.string(),
+        category: z.string(),
+      }))
       .mutation(async ({ input }) => {
         const { findCompetitors } = await import("../_core/competitorAnalyzer");
         const { getAllStocks } = await import("../db");
@@ -1065,24 +1047,24 @@ export const stocksRouter = router({
         return analysis;
       }),
     dailyNews: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "ticker" in val && "companyName" in val) {
-          return val as { ticker: string; companyName: string };
-        }
-        throw new Error("Invalid input: ticker and companyName required");
-      })
+      .input(z.object({
+        ticker: z.string(),
+        companyName: z.string(),
+      }))
       .query(async ({ input }) => {
         const { generateDailyNews } = await import("../_core/aiDailyNews");
         return await generateDailyNews(input.ticker, input.companyName);
       }),
     importPrices: adminProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) return val;
-        throw new Error("Invalid input");
-      })
+      .input(z.object({
+        fileData: z.string(),
+        fileName: z.string(),
+        // 'ytd' updates ytdStartPrice, anything else updates currentPrice
+        importType: z.string().optional(),
+      }))
       .mutation(async ({ input }) => {
         const { getAllStocks, updateStock, getStockByTicker } = await import("../db");
-        const data = input as any;
+        const data = input;
         
         // Parse Excel/CSV file from base64
         const base64Data = data.fileData.split(',')[1];

@@ -1,4 +1,3 @@
-// Bewusst behalten (aktuell nicht geroutet): wird in Phase 4 wieder angeschlossen — siehe OPTIMIZATION_PLAN.md U-03
 import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";

@@ -18,8 +18,9 @@
 import { getDb } from "../db";
 import { historicalPrices, watchlistStocks, walkForwardResults } from "../../drizzle/schema";
 import { eq, and, gte, lte, asc, desc, inArray, sql } from "drizzle-orm";
+import { getEodhdApiKey } from "../_core/env";
 
-const EODHD_API_KEY = process.env.EODHD_API_KEY;
+// A-10: key resolved lazily per call (env with DB-secret fallback)
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
 // ============ TYPES ============
@@ -104,7 +105,8 @@ interface ScreenerResult {
  * Screen stocks from EODHD Screener API based on criteria
  */
 export async function screenStocksFromEODHD(criteria: ScreeningCriteria): Promise<string[]> {
-  if (!EODHD_API_KEY) {
+  const apiKey = await getEodhdApiKey();
+  if (!apiKey) {
     throw new Error("EODHD_API_KEY not configured");
   }
 
@@ -143,9 +145,9 @@ export async function screenStocksFromEODHD(criteria: ScreeningCriteria): Promis
   try {
     // Use EODHD stock screener endpoint
     const filterStr = filters.length > 0 ? `&filters_json=${encodeURIComponent(JSON.stringify(filters))}` : '';
-    const url = `${EODHD_BASE_URL}/screener?api_token=${EODHD_API_KEY}&sort=market_capitalization.desc&limit=${maxTickers}&offset=0&exchange=${exchange}${filterStr}`;
+    const url = `${EODHD_BASE_URL}/screener?api_token=${apiKey}&sort=market_capitalization.desc&limit=${maxTickers}&offset=0&exchange=${exchange}${filterStr}`;
     
-    console.log(`[WalkForward] Screening stocks from EODHD: ${url.replace(EODHD_API_KEY, '***')}`);
+    console.log(`[WalkForward] Screening stocks from EODHD: ${url.replace(apiKey, '***')}`);
     
     const response = await fetch(url);
     if (!response.ok) {

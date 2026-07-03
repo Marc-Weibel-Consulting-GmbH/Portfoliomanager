@@ -16,6 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+// Alias, weil recharts oben bereits einen `Tooltip` exportiert (U-13)
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -35,6 +41,8 @@ import {
   PieChart,
   Bell,
   Play,
+  Plus,
+  FileText,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -42,6 +50,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
+import { TransactionModal } from "@/components/TransactionModal";
+import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
@@ -61,6 +71,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 import {
   Dialog,
   DialogContent,
@@ -133,19 +145,19 @@ function PerformanceTab({
       {/* KPI Row */}
       <div className="grid grid-cols-3 gap-0 border border-white/10 rounded-lg overflow-hidden">
         <div className="bg-[#0f1420] p-4 border-r border-white/10">
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">YTD</p>
-          <p className={`text-2xl font-bold font-mono ${(ytd ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{ytd !== null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(2)}%` : '–'}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Seit Jahresanfang</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1" title="YTD = seit Jahresbeginn">YTD</p>
+          <p className={`text-2xl font-bold font-mono ${(ytd ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>{ytd !== null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(2)}%` : '–'}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Seit Jahresanfang</p>
         </div>
         <div className="bg-[#0f1420] p-4 border-r border-white/10">
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">SEIT KAUF</p>
-          <p className={`text-2xl font-bold font-mono ${(seitKauf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{seitKauf !== null ? `${seitKauf >= 0 ? '+' : ''}${seitKauf.toFixed(2)}%` : '–'}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Gesamtrendite</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">SEIT KAUF</p>
+          <p className={`text-2xl font-bold font-mono ${(seitKauf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>{seitKauf !== null ? `${seitKauf >= 0 ? '+' : ''}${seitKauf.toFixed(2)}%` : '–'}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Gesamtrendite</p>
         </div>
         <div className="bg-[#0f1420] p-4">
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">G/V ABSOLUT</p>
-          <p className={`text-2xl font-bold font-mono ${gv >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{formatCHF(gv, { signDisplay: 'always' })}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Wert − Kapital</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">G/V ABSOLUT</p>
+          <p className={`text-2xl font-bold font-mono ${gv >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>{formatCHF(gv, { signDisplay: 'always' })}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Wert − Kapital</p>
         </div>
       </div>
 
@@ -186,19 +198,19 @@ function PerformanceTab({
               <div key={s.name}>
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-xs text-gray-400 truncate max-w-[140px]">{s.name}</span>
-                  <span className={`text-xs font-mono font-semibold ${s.contribution >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                  <span className={`text-xs font-mono font-semibold ${s.contribution >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                     {s.contribution >= 0 ? '+' : ''}{s.contribution.toFixed(2)}%
                   </span>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full ${s.contribution >= 0 ? 'bg-[#00CFC1]' : 'bg-red-500'}`}
+                    className={`h-full rounded-full ${s.contribution >= 0 ? 'bg-[#00CFC1]' : 'bg-negative'}`}
                     style={{ width: `${Math.min(100, (Math.abs(s.contribution) / maxAbs) * 100)}%` }}
                   />
                 </div>
               </div>
             ))}
-            {sectorAttribution.length === 0 && <p className="text-xs text-gray-500">Keine Daten verfügbar</p>}
+            {sectorAttribution.length === 0 && <p className="text-xs text-gray-400">Keine Daten verfügbar</p>}
           </div>
         </div>
 
@@ -210,14 +222,14 @@ function PerformanceTab({
               <div key={t.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[#00CFC1] w-14">{t.name}</span>
-                  <span className="text-gray-500 truncate max-w-[100px]">{t.label}</span>
+                  <span className="text-gray-400 truncate max-w-[100px]">{t.label}</span>
                 </div>
-                <span className={`font-mono font-semibold ${t.contribution >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                <span className={`font-mono font-semibold ${t.contribution >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                   {t.contribution >= 0 ? '+' : ''}{t.contribution.toFixed(2)}%
                 </span>
               </div>
             ))}
-            {titleAttribution.length === 0 && <p className="text-xs text-gray-500">Keine Daten verfügbar</p>}
+            {titleAttribution.length === 0 && <p className="text-xs text-gray-400">Keine Daten verfügbar</p>}
           </div>
         </div>
       </div>
@@ -231,10 +243,10 @@ function PerformanceTab({
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white">Realisierte Gewinne</span>
             {realizedGains.length > 0 && (
-              <span className="text-[10px] bg-[#00CFC1]/20 text-[#00CFC1] px-1.5 py-0.5 rounded">{realizedGains.length}</span>
+              <span className="text-xs bg-[#00CFC1]/20 text-[#00CFC1] px-1.5 py-0.5 rounded">{realizedGains.length}</span>
             )}
           </div>
-          <span className="text-gray-400 text-xs">{showRealizedGains ? '▲ Schließen' : '▼ Aufklappen'}</span>
+          <span className="text-gray-400 text-xs">{showRealizedGains ? '▲ Schliessen' : '▼ Aufklappen'}</span>
         </button>
         {showRealizedGains && (
           <div className="border-t border-white/10 p-4">
@@ -269,15 +281,15 @@ function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId
       toast.success('Transaktion gelöscht');
       setConfirming(false);
     },
-    onError: (err) => { toast.error('Fehler: ' + err.message); setConfirming(false); },
+    onError: (err) => { toast.error('Fehler beim Löschen', { description: getUserErrorMessage(err) }); setConfirming(false); },
   });
   if (confirming) {
     return (
       <div className="flex items-center gap-1">
-        <button onClick={() => deleteTx.mutate({ transactionId })} className="text-[10px] text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20">
+        <button onClick={() => deleteTx.mutate({ transactionId })} className="text-xs text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20">
           {deleteTx.isPending ? '...' : 'Ja'}
         </button>
-        <button onClick={() => setConfirming(false)} className="text-[10px] text-gray-400 hover:text-white px-1.5 py-0.5 rounded bg-white/5">
+        <button onClick={() => setConfirming(false)} className="text-xs text-gray-400 hover:text-white px-1.5 py-0.5 rounded bg-white/5">
           Nein
         </button>
       </div>
@@ -286,8 +298,9 @@ function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId
   return (
     <button
       onClick={() => setConfirming(true)}
-      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all"
+      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all"
       title="Transaktion löschen"
+      aria-label="Transaktion löschen"
     >
       <Trash2 className="h-3.5 w-3.5" />
     </button>
@@ -323,14 +336,6 @@ export default function PortfolioDetailsPage() {
     navigate(`/portfolios/${portfolioId}${newSearch}`, { replace: true });
   };
 
-  // Erfolgs-Toast nach dem Portfolio-Builder (redirect mit ?onboarding=success)
-  useEffect(() => {
-    if (searchParams.get('onboarding') === 'success') {
-      toast.success('Portfolio erstellt 🎉');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
   // State for transactions filter
   const [txFilter, setTxFilter] = useState<string>('alle');
   
@@ -343,6 +348,10 @@ export default function PortfolioDetailsPage() {
   
   // State for share
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+
+  // U-03: Transaktion erfassen + Swissquote-PDF-Import (Transaktionen-Tab)
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [isPdfImportOpen, setIsPdfImportOpen] = useState(false);
   
   // State for activation modal (Demo -> Live)
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
@@ -373,6 +382,16 @@ export default function PortfolioDetailsPage() {
     setIsEditPositionModalOpen(true);
   };
   
+  // U-02: Einstieg aus dem Portfolio-Builder-Importpfad (?import=1) —
+  // PDF-Import einmalig automatisch öffnen, dann den Query-Param entfernen.
+  useEffect(() => {
+    if (searchParams.get('import') === '1') {
+      setIsPdfImportOpen(true);
+      navigate(`/portfolios/${portfolioId}?tab=transaktionen`, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch portfolio data with currency information
   const { data: portfolio, isLoading, refetch } = trpc.portfolios.getWithCurrency.useQuery(
     portfolioId,
@@ -399,7 +418,7 @@ export default function PortfolioDetailsPage() {
       refetch();
     },
     onError: (error) => {
-      toast.error(`Fehler beim Aktivieren: ${error.message}`);
+      toast.error('Fehler beim Aktivieren', { description: getUserErrorMessage(error) });
     },
   });
   
@@ -409,13 +428,16 @@ export default function PortfolioDetailsPage() {
   const [includeCash, setIncludeCash] = useState(false);
   // Bulk delete state for transactions tab (must be at top level, not inside JSX)
   const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
+  // U-08: Bestätigung über AlertDialog statt Browser-confirm()
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const bulkDeleteMutation = trpc.portfolioTransactions.bulkDelete.useMutation({
     onSuccess: (data) => {
       toast.success(`${data.deleted} Transaktion${data.deleted === 1 ? '' : 'en'} gelöscht`);
       setSelectedTxIds(new Set());
+      setIsBulkDeleteDialogOpen(false);
       utils.portfolioTransactions.list.invalidate({ portfolioId });
     },
-    onError: () => toast.error('Fehler beim Löschen'),
+    onError: () => { setIsBulkDeleteDialogOpen(false); toast.error('Fehler beim Löschen'); },
   });
   
   const benchmarkOptions = [
@@ -427,6 +449,10 @@ export default function PortfolioDetailsPage() {
   
   // Use enriched stocks from the API (must be before conditional returns)
   const holdings = portfolio?.enrichedStocks || [];
+
+  // U-13: Positionen ohne aktuellen Kurs bzw. Wechselkurs werden mit Wert 0
+  // gerechnet — im UI ausweisen statt still falsche Summen zeigen.
+  const missingDataCount = holdings.filter((h: any) => h.priceMissing || h.fxMissing).length;
   
   // Calculate sector allocation
   const sectorWeights: Record<string, number> = useMemo(() => {
@@ -592,7 +618,7 @@ export default function PortfolioDetailsPage() {
       toast.success("Portfolio gelöscht");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || "Fehler beim Löschen");
+      toast.error('Fehler beim Löschen', { description: getUserErrorMessage(error) });
     }
     setIsDeleteDialogOpen(false);
   };
@@ -605,6 +631,18 @@ export default function PortfolioDetailsPage() {
     // Invalidate and refetch data
     utils.portfolios.list.invalidate();
     utils.portfolios.getWithCurrency.invalidate(portfolioId);
+    utils.portfolios.getHistoricalPerformance.invalidate({ portfolioId });
+    refetch();
+  };
+
+  // U-03: Nach neuer Transaktion / PDF-Import alle abhängigen Daten neu laden
+  const handleTransactionsChanged = () => {
+    utils.portfolioTransactions.list.invalidate({ portfolioId });
+    utils.realizedGainsHistory.getAll.invalidate({ portfolioId });
+    utils.portfolios.list.invalidate();
+    utils.portfolios.getWithCurrency.invalidate(portfolioId);
+    utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+    utils.portfolios.getPerformanceMetrics.invalidate({ portfolioId });
     utils.portfolios.getHistoricalPerformance.invalidate({ portfolioId });
     refetch();
   };
@@ -632,12 +670,12 @@ export default function PortfolioDetailsPage() {
         {/* Header — matches design PDF: breadcrumb + title + subtitle + action buttons */}
         <div>
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <button onClick={() => navigate('/portfolios')} className="hover:text-[#00CFC1] transition-colors">Portfolios</button>
             <span>›</span>
             <span className="text-gray-300">{portfolio.name}</span>
             {portfolio.isLive === 1 && (
-              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5 py-0 h-4">
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs px-1.5 py-0 h-4">
                 <span className="relative flex h-1.5 w-1.5 mr-1">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-400"></span>
@@ -675,6 +713,16 @@ export default function PortfolioDetailsPage() {
                 <Edit className="h-4 w-4 mr-1" />
                 Bearbeiten
               </Button>
+              {/* U-09/W6: Share-Dialog war fertig gebaut, aber nie öffenbar */}
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label="Portfolio teilen"
+                title="Portfolio teilen"
+                onClick={() => setIsShareDialogOpen(true)}
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
               <Button size="sm" onClick={() => handleTabChange('optimieren')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                 Optimieren
               </Button>
@@ -685,9 +733,9 @@ export default function PortfolioDetailsPage() {
         {/* Portfolio Switcher — compact */}
         {allPortfolios && allPortfolios.length > 1 && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Portfolio wechseln:</span>
+            <span className="text-xs text-gray-400">Portfolio wechseln:</span>
             <Select value={portfolioId.toString()} onValueChange={handlePortfolioSwitch}>
-              <SelectTrigger className="w-48 h-7 text-xs bg-[#1a1f2e] border-white/10">
+              <SelectTrigger className="w-48 h-8 text-xs bg-[#1a1f2e] border-white/10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-[#1a1f2e] border-white/10">
@@ -696,7 +744,7 @@ export default function PortfolioDetailsPage() {
                     <div className="flex items-center gap-2">
                       <span>{p.name}</span>
                       {p.isLive === 1 && (
-                        <Badge variant="default" className="bg-green-500 text-white text-[9px] px-1 py-0">Live</Badge>
+                        <Badge variant="default" className="bg-green-500 text-white text-xs px-1 py-0">Live</Badge>
                       )}
                     </div>
                   </SelectItem>
@@ -710,18 +758,36 @@ export default function PortfolioDetailsPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
           {/* WERT */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">WERT</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">WERT</p>
             <p className="text-2xl font-bold font-mono text-white">
               CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(totalValueCHF)}
             </p>
             {portfolio?.investmentAmount && (
-              <p className="text-xs text-gray-500 mt-1">Cost CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Number(portfolio.investmentAmount))}</p>
+              <p className="text-xs text-gray-400 mt-1">Einstand CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Number(portfolio.investmentAmount))}</p>
+            )}
+            {/* U-13: Hinweis, wenn Positionen wegen fehlender Kurs-/FX-Daten
+                nicht im Gesamtwert enthalten sind */}
+            {missingDataCount > 0 && (
+              <UiTooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-xs text-amber-400 mt-1 cursor-help">
+                    ohne {missingDataCount} Position{missingDataCount > 1 ? 'en' : ''} mit fehlenden Daten
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                  <p className="text-xs">
+                    Für {missingDataCount} Position{missingDataCount > 1 ? 'en' : ''} fehlen aktuelle Kurs-
+                    oder Wechselkursdaten. Diese Positionen sind im angezeigten Wert nicht enthalten
+                    (siehe Markierung in der Positionsliste).
+                  </p>
+                </TooltipContent>
+              </UiTooltip>
             )}
           </div>
 
           {/* YTD — kanonische Quelle: getMultiPeriodPerformanceV2 (identisch zur Portfolios-Liste) */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">YTD</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="YTD = seit Jahresbeginn">YTD</p>
             {(() => {
               const entry = (multiPeriod as any[] | undefined)?.find(p => p.portfolioId === portfolioId);
               const ytdStocks = entry?.performance?.YTD ?? null;
@@ -730,13 +796,13 @@ export default function PortfolioDetailsPage() {
               const benchPerf = entry?.benchmarkPerformance?.YTD ?? null;
               return (
                 <>
-                  <p className={`text-2xl font-bold font-mono ${(ytdPerf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                  <p className={`text-2xl font-bold font-mono ${(ytdPerf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                     {ytdPerf !== null ? `${ytdPerf >= 0 ? '+' : ''}${ytdPerf.toFixed(1)}%` : '—'}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     S&amp;P 500 {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
                   </p>
-                  <p className="text-[9px] text-gray-600 mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     in CHF · gewichtete Rendite · {includeCash ? 'inkl. Cash' : 'nur Aktien'}
                   </p>
                 </>
@@ -746,17 +812,17 @@ export default function PortfolioDetailsPage() {
 
           {/* SEIT KAUF — Gesamtrendite seit Erstinvestition */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">SEIT KAUF</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">SEIT KAUF</p>
             {(() => {
               const invested = Number(portfolio?.investmentAmount || 0);
               const gain = totalValueCHF - invested;
               const pct = invested > 0 ? (gain / invested) * 100 : 0;
               return (
                 <>
-                  <p className={`text-2xl font-bold font-mono ${pct >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                  <p className={`text-2xl font-bold font-mono ${pct >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                     {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
                   </p>
-                  <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-500' : 'text-red-400'}`}>
+                  <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-400' : 'text-negative'}`}>
                     G/V {formatCHF(gain, { decimals: 0, signDisplay: 'always' })}
                   </p>
                 </>
@@ -766,11 +832,11 @@ export default function PortfolioDetailsPage() {
 
           {/* SHARPE */}
           <div className="bg-[#0f1420] p-5">
-            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">SHARPE</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
               {riskMetrics?.sharpeRatio !== undefined ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               Bench {riskMetrics?.sharpeBenchmark !== undefined ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
             </p>
           </div>
@@ -794,10 +860,10 @@ export default function PortfolioDetailsPage() {
               >
                 {tab.label}
                 {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[10px] px-1.5 py-0.5 rounded-full">{tab.badge}</span>
+                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-xs px-1.5 py-0.5 rounded-full">{tab.badge}</span>
                 )}
                 {tab.aiBadge && (
-                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-wider">AI</span>
+                  <span className="bg-[#00CFC1]/20 text-[#00CFC1] text-xs px-1.5 py-0.5 rounded-full uppercase tracking-wider">KI</span>
                 )}
               </TabsTrigger>
             ))}
@@ -811,7 +877,7 @@ export default function PortfolioDetailsPage() {
                 <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h3 className="text-sm font-semibold text-white">Wertentwicklung seit Erstauf</h3>
+                      <h3 className="text-sm font-semibold text-white">Wertentwicklung seit Ersterfassung</h3>
                     </div>
                     <div className="flex gap-2 items-center">
                       <div className="flex gap-1">
@@ -823,7 +889,7 @@ export default function PortfolioDetailsPage() {
                             className={`px-2 py-1 text-xs rounded transition-colors ${
                               (includeCash ? v === 'total' : v === 'stocks')
                                 ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
-                                : 'text-gray-500 hover:text-gray-300'
+                                : 'text-gray-400 hover:text-gray-300'
                             }`}
                           >{v === 'total' ? 'Gesamt' : 'Aktien'}</button>
                         ))}
@@ -836,7 +902,7 @@ export default function PortfolioDetailsPage() {
                             className={`px-2 py-1 text-xs rounded transition-colors ${
                               (selectedPeriod === p || (p === '1J' && selectedPeriod === '1Y') || (p === 'Max' && selectedPeriod === 'All'))
                                 ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'
-                                : 'text-gray-500 hover:text-gray-300'
+                                : 'text-gray-400 hover:text-gray-300'
                             }`}
                           >{p}</button>
                         ))}
@@ -850,7 +916,7 @@ export default function PortfolioDetailsPage() {
                       </div>
                     ) : chartData.data.length === 0 ? (
                       <div className="flex items-center justify-center h-full">
-                        <p className="text-gray-500 text-sm">Keine historischen Daten verfügbar</p>
+                        <p className="text-gray-400 text-sm">Keine historischen Daten verfügbar</p>
                       </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
@@ -900,7 +966,7 @@ export default function PortfolioDetailsPage() {
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
                             <span className="text-gray-300 text-xs">{parseFloat(h.weight || '0').toFixed(1)}%</span>
-                            <span className={`text-xs font-mono ${parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                            <span className={`text-xs font-mono ${parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                               {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%
                             </span>
                           </div>
@@ -923,19 +989,19 @@ export default function PortfolioDetailsPage() {
                       return (
                         <div key={tx.id} className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-500 w-12">{dateLabel}</span>
-                            <span className={`${isDividend ? 'text-[#00CFC1]' : isBuy ? 'text-blue-400' : 'text-red-400'}`}>
+                            <span className="text-gray-400 w-12">{dateLabel}</span>
+                            <span className={`${isDividend ? 'text-[#00CFC1]' : isBuy ? 'text-blue-400' : 'text-negative'}`}>
                               {isDividend ? 'Dividende' : isBuy ? 'Kauf' : 'Verkauf'} {tx.ticker}
                             </span>
                           </div>
-                          <span className={`font-mono ${isDividend || isBuy ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                          <span className={`font-mono ${isDividend || isBuy ? 'text-[#00CFC1]' : 'text-negative'}`}>
                             {isDividend || isBuy ? '+' : '-'}{tx.shares ? `${Math.abs(parseFloat(tx.shares)).toFixed(0)} Stk.` : `CHF ${Math.abs(parseFloat(tx.totalAmount || '0')).toFixed(0)}`}
                           </span>
                         </div>
                       );
                     })}
                     {transactions.length === 0 && (
-                      <p className="text-xs text-gray-500">Keine Transaktionen vorhanden</p>
+                      <p className="text-xs text-gray-400">Keine Transaktionen vorhanden</p>
                     )}
                   </div>
                 </div>
@@ -950,7 +1016,7 @@ export default function PortfolioDetailsPage() {
                 {posView === 'konstellation' ? <div /> : (
                   <div>
                     <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
-                    {posView === 'tabelle' && <p className="text-xs text-gray-500">sortiert nach Gewicht</p>}
+                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach Gewicht</p>}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -975,13 +1041,13 @@ export default function PortfolioDetailsPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-white/10">
-                      <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Ticker</th>
-                      <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Sektor</th>
-                      <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Gewicht</th>
-                      <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Wert</th>
-                      <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Heute</th>
-                      <th className="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">YTD</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticker</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Sektor</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Gewicht</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Wert</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Heute</th>
+                      <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="YTD = seit Jahresbeginn">YTD</th>
                       <th className="w-8"></th>
                     </tr>
                   </thead>
@@ -995,25 +1061,68 @@ export default function PortfolioDetailsPage() {
                         const weight = parseFloat(h.weight || '0');
                         const value = (h.shares || 0) * (h.currentPriceCHF || 0);
                         return (
-                          <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer" onClick={() => navigate(`/aktien/${h.ticker}?from=${portfolioId}`)}>  
+                          <tr
+                            key={h.ticker}
+                            role="link"
+                            tabIndex={0}
+                            aria-label={`${h.companyName || h.ticker} öffnen`}
+                            className="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer focus-visible:outline-none focus-visible:bg-white/[0.06]"
+                            onClick={() => navigate(`/aktien/${h.ticker}?from=${portfolioId}`)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                navigate(`/aktien/${h.ticker}?from=${portfolioId}`);
+                              }
+                            }}
+                          >
                             <td className="px-5 py-3.5">
                               <span className="font-mono text-xs font-semibold text-gray-300 tracking-wide">{h.ticker}</span>
                             </td>
-                            <td className="px-3 py-3.5 text-sm text-white">{h.companyName}</td>
+                            <td className="px-3 py-3.5 text-sm text-white">
+                              <div className="flex items-center gap-2">
+                                <span>{h.companyName}</span>
+                                {/* U-13: fehlender Kurs/Wechselkurs → Badge statt stiller CHF 0 */}
+                                {(h.priceMissing || h.fxMissing) && (
+                                  <UiTooltip>
+                                    <TooltipTrigger asChild>
+                                      <span onClick={(e) => e.stopPropagation()}>
+                                        <Badge
+                                          className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs px-1.5 py-0 cursor-help shrink-0"
+                                          aria-label={h.priceMissing ? 'Kurs fehlt' : 'Wechselkurs fehlt'}
+                                        >
+                                          {h.priceMissing ? 'Kurs fehlt' : 'Wechselkurs fehlt'}
+                                        </Badge>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                                      <p className="text-xs">
+                                        Für diese Position ist derzeit kein aktueller{' '}
+                                        {h.priceMissing ? 'Kurs' : 'Wechselkurs'} verfügbar. Ihr Wert ist
+                                        deshalb nicht im Gesamtwert des Portfolios enthalten.
+                                      </p>
+                                    </TooltipContent>
+                                  </UiTooltip>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-3 py-3.5">
                               <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>
                             </td>
                             <td className="px-3 py-3.5 text-right text-sm text-gray-300">{weight.toFixed(1)}%</td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className="text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(value)}</span>
+                              {(h.priceMissing || h.fxMissing) ? (
+                                <span className="text-sm text-gray-400" aria-label="Wert nicht verfügbar">—</span>
+                              ) : (
+                                <span className="text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(value)}</span>
+                              )}
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono ${today >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                              <span className={`text-sm font-mono ${today >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                                 {today >= 0 ? '+' : ''}{today.toFixed(2)}%
                               </span>
                             </td>
                             <td className="px-5 py-3.5 text-right">
-                              <span className={`text-sm font-mono ${ytd >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                              <span className={`text-sm font-mono ${ytd >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                                 {ytd >= 0 ? '+' : ''}{ytd.toFixed(1)}%
                               </span>
                             </td>
@@ -1025,13 +1134,13 @@ export default function PortfolioDetailsPage() {
                       })}
                     {portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && (
                       <tr className="border-b border-white/5">
-                        <td className="px-5 py-3.5"><span className="font-mono text-xs text-gray-500">CASH</span></td>
+                        <td className="px-5 py-3.5"><span className="font-mono text-xs text-gray-400">CASH</span></td>
                         <td className="px-3 py-3.5 text-sm text-gray-400">Cash (CHF)</td>
-                        <td className="px-3 py-3.5"><span className="text-xs text-gray-600">—</span></td>
+                        <td className="px-3 py-3.5"><span className="text-xs text-gray-400">—</span></td>
                         <td className="px-3 py-3.5 text-right text-sm text-gray-400">{((parseFloat(portfolio.cashBalance) / totalValueCHF) * 100).toFixed(1)}%</td>
                         <td className="px-3 py-3.5 text-right text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(parseFloat(portfolio.cashBalance))}</td>
-                        <td className="px-3 py-3.5 text-right text-gray-500 text-sm">—</td>
-                        <td className="px-5 py-3.5 text-right text-gray-500 text-sm">—</td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="px-5 py-3.5 text-right text-gray-400 text-sm">—</td>
                         <td></td>
                       </tr>
                     )}
@@ -1078,6 +1187,29 @@ export default function PortfolioDetailsPage() {
 
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
           <TabsContent value="transaktionen" className="mt-6">
+            {/* U-03: Transaktion erfassen + PDF-Import — nur für Live-Portfolios
+                (konsistent zu den Lösch-Guards weiter unten) */}
+            {!isDemo && (
+              <div className="flex justify-end gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPdfImportOpen(true)}
+                  className="border-[#00CFC1]/30 text-[#00CFC1] hover:bg-[#00CFC1]/10"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF importieren
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setIsTransactionModalOpen(true)}
+                  className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Transaktion erfassen
+                </Button>
+              </div>
+            )}
             {(() => {
               const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
@@ -1093,26 +1225,26 @@ export default function PortfolioDetailsPage() {
                   {/* 4 KPI Cards */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden mb-6">
                     <div className="bg-[#0f1420] p-4 border-r border-white/10">
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">KÄUFE</p>
-                      <p className="text-xl font-bold font-mono text-emerald-400">{buys.length}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Vol. CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(buyVolume)}</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">KÄUFE</p>
+                      <p className="text-xl font-bold font-mono text-positive">{buys.length}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Vol. CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(buyVolume)}</p>
                     </div>
                     <div className="bg-[#0f1420] p-4 border-r border-white/10">
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">VERKÄUFE</p>
-                      <p className="text-xl font-bold font-mono text-red-400">{sells.length}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Vol. CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(sellVolume)}</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">VERKÄUFE</p>
+                      <p className="text-xl font-bold font-mono text-negative">{sells.length}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Vol. CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(sellVolume)}</p>
                     </div>
                     <div className="bg-[#0f1420] p-4 border-r border-white/10">
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">DIVIDENDEN</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">DIVIDENDEN</p>
                       <p className="text-xl font-bold font-mono text-[#00CFC1]">{dividends.length}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(divTotal)}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(divTotal)}</p>
                     </div>
                     <div className="bg-[#0f1420] p-4">
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">REAL. G/V</p>
-                      <p className={`text-xl font-bold font-mono ${realizedTotal >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">REAL. G/V</p>
+                      <p className={`text-xl font-bold font-mono ${realizedTotal >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                         {formatCHF(realizedTotal, { decimals: 0, signDisplay: 'always' })}
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5">{realizedGains.length} Positionen</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{realizedGains.length} Positionen</p>
                     </div>
                   </div>
 
@@ -1169,10 +1301,10 @@ export default function PortfolioDetailsPage() {
                               }`}
                             >{label}</button>
                           ))}
-                          <span className="ml-auto text-xs text-gray-500">{isRealized ? realizedGains.length : filteredTx.length} Einträge</span>
+                          <span className="ml-auto text-xs text-gray-400">{isRealized ? realizedGains.length : filteredTx.length} Einträge</span>
                           {!isDemo && !isRealized && selectedTxIds.size > 0 && (
                             <button
-                              onClick={() => { if (confirm(`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} wirklich löschen?`)) { bulkDeleteMutation.mutate({ transactionIds: Array.from(selectedTxIds) }); } }}
+                              onClick={() => setIsBulkDeleteDialogOpen(true)}
                               disabled={bulkDeleteMutation.isPending}
                               className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-md bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-40"
                             >
@@ -1205,12 +1337,12 @@ export default function PortfolioDetailsPage() {
                                       <input type="checkbox" checked={allSelected} onChange={toggleAll} className="accent-[#00CFC1] cursor-pointer" />
                                     </th>
                                   )}
-                                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Datum</th>
-                                  <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Typ</th>
-                                  <th className="text-left px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Ticker</th>
-                                  <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Stk.</th>
-                                  <th className="text-right px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Preis</th>
-                                  <th className="text-right px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Datum</th>
+                                  <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Typ</th>
+                                  <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticker</th>
+                                  <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Stk.</th>
+                                  <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Preis</th>
+                                  <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Total</th>
                                   {!isDemo && <th className="px-3 py-3 w-8"></th>}
                                 </tr>
                               </thead>
@@ -1230,9 +1362,9 @@ export default function PortfolioDetailsPage() {
                                       <td className="px-5 py-3 text-sm text-gray-400">{new Date(t.date || t.transactionDate).toLocaleDateString('de-CH')}</td>
                                       <td className="px-3 py-3">
                                         <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                                          isBuy ? 'bg-emerald-500/10 text-emerald-400' :
+                                          isBuy ? 'bg-emerald-500/10 text-positive' :
                                           isDiv ? 'bg-[#00CFC1]/10 text-[#00CFC1]' :
-                                          'bg-red-500/10 text-red-400'
+                                          'bg-red-500/10 text-negative'
                                         }`}>
                                           {isBuy ? 'Kauf' : isSell ? 'Verkauf' : isDiv ? 'Dividende' : txType}
                                         </span>
@@ -1292,7 +1424,7 @@ export default function PortfolioDetailsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate('/price-alerts')}>
                 <Bell className="h-4 w-4 mr-2" />
                 Alarm erstellen
               </Button>
@@ -1348,7 +1480,41 @@ export default function PortfolioDetailsPage() {
           setIsEditPositionModalOpen(false);
         }}
       />
-      
+
+      {/* U-03: Transaktion erfassen (nur Live-Portfolios) */}
+      {!isDemo && (
+        <TransactionModal
+          open={isTransactionModalOpen}
+          onClose={() => setIsTransactionModalOpen(false)}
+          portfolioId={portfolioId}
+          portfolioStocks={holdings.map((h: any) => ({
+            ticker: h.ticker,
+            companyName: h.companyName || h.ticker,
+            shares: parseFloat(h.shares || '0'),
+          }))}
+          onSuccess={handleTransactionsChanged}
+        />
+      )}
+
+      {/* U-03: Swissquote-PDF-Import (nur Live-Portfolios) */}
+      {!isDemo && (
+        <Dialog open={isPdfImportOpen} onOpenChange={setIsPdfImportOpen}>
+          <DialogContent
+            className="max-w-2xl p-0 bg-transparent border-none shadow-none max-h-[90vh] overflow-y-auto"
+            aria-describedby={undefined}
+          >
+            <DialogHeader className="sr-only">
+              <DialogTitle>Swissquote-PDF importieren</DialogTitle>
+            </DialogHeader>
+            <SwissquotePDFImport
+              portfolioId={portfolioId}
+              portfolioName={portfolio.name}
+              onImportComplete={handleTransactionsChanged}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Activation Modal (Demo -> Live) */}
       <Dialog open={isActivationModalOpen} onOpenChange={setIsActivationModalOpen}>
         <DialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30 text-white">
@@ -1462,6 +1628,17 @@ export default function PortfolioDetailsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog (U-08) */}
+      <ConfirmDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        title={`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} löschen?`}
+        description={`Die ${selectedTxIds.size === 1 ? 'ausgewählte Transaktion wird' : `${selectedTxIds.size} ausgewählten Transaktionen werden`} unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.`}
+        confirmLabel={`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} löschen`}
+        onConfirm={() => bulkDeleteMutation.mutate({ transactionIds: Array.from(selectedTxIds) })}
+        isPending={bulkDeleteMutation.isPending}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

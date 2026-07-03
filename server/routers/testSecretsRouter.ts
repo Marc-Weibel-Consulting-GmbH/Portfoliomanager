@@ -8,6 +8,7 @@ import {
   getTwilioCredentials 
 } from "../_core/env";
 import { getTimingResults, getCurrentSecretStatus } from "../_core/secretsTimingTest";
+import { ENV } from "../_core/env";
 
 /**
  * Test router to verify database-backed secrets functionality
@@ -76,7 +77,7 @@ export const testSecretsRouter = router({
           results.finnhub = { 
             status: 'success', 
             message: 'API call successful', 
-            source: process.env.FINNHUB_API_KEY ? 'environment' : 'database' 
+            source: ENV.finnhubApiKey ? 'environment' : 'database' 
           };
         } else {
           results.finnhub = { status: 'error', message: `API returned ${response.status}` };
@@ -99,7 +100,7 @@ export const testSecretsRouter = router({
           results.eodhd = { 
             status: 'success', 
             message: 'API call successful', 
-            source: process.env.EODHD_API_KEY ? 'environment' : 'database' 
+            source: ENV.eodhdApiKey ? 'environment' : 'database' 
           };
         } else {
           results.eodhd = { status: 'error', message: `API returned ${response.status}` };
@@ -118,7 +119,7 @@ export const testSecretsRouter = router({
         results.resend = { 
           status: 'success', 
           message: 'Key found (send test email to verify)', 
-          source: process.env.RESEND_API_KEY ? 'environment' : 'database' 
+          source: ENV.resendApiKey ? 'environment' : 'database' 
         };
       } else {
         results.resend = { status: 'missing', message: 'Key not configured' };

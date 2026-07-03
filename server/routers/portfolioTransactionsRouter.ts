@@ -1,5 +1,6 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 
 async function assertPortfolioOwnership(portfolioId: number, userId: number) {
   const { getSavedPortfolioById } = await import("../db");
@@ -32,22 +33,23 @@ async function assertTransactionOwnership(transactionIds: number[], userId: numb
 
 export const portfolioTransactionsRouter = router({
   create: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && "transactionType" in val) {
-        return val as {
-          portfolioId: number;
-          transactionType: "buy" | "sell" | "dividend" | "deposit" | "withdrawal" | "entry";
-          ticker: string | null;
-          shares: string | null;
-          pricePerShare: string | null;
-          totalAmount: string;
-          fees: string;
-          notes: string | null;
-          transactionDate: string | Date;
-        };
-      }
-      throw new Error("Invalid transaction data");
-    })
+    // .passthrough(): the handler spreads the whole input into
+    // createPortfolioTransaction (db.ts), which also consumes currency,
+    // fxRate and totalAmountCHF sent by TransactionModal.tsx.
+    .input(z.object({
+      portfolioId: z.number(),
+      transactionType: z.enum(["buy", "sell", "dividend", "deposit", "withdrawal", "entry"]),
+      ticker: z.string().nullable(),
+      shares: z.string().nullable(),
+      pricePerShare: z.string().nullable(),
+      totalAmount: z.string(),
+      fees: z.string(),
+      notes: z.string().nullable(),
+      transactionDate: z.union([z.string(), z.date()]),
+      currency: z.string().optional(),
+      fxRate: z.string().optional(),
+      totalAmountCHF: z.string().optional(),
+    }).passthrough())
     .mutation(async ({ input, ctx }) => {
       // HARD AUTH GUARD: No fallback, fail-fast on missing user
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
@@ -76,12 +78,7 @@ export const portfolioTransactionsRouter = router({
     }),
 
   list: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
-        return { portfolioId: val.portfolioId };
-      }
-      throw new Error("Invalid portfolio ID");
-    })
+    .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
       await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getPortfolioTransactions } = await import("../db");
@@ -89,18 +86,13 @@ export const portfolioTransactionsRouter = router({
     }),
 
   listFiltered: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val) {
-        return val as {
-          portfolioId: number;
-          transactionType?: "buy" | "sell" | "dividend" | "deposit" | "withdrawal" | null;
-          ticker?: string | null;
-          startDate?: string | null;
-          endDate?: string | null;
-        };
-      }
-      throw new Error("Invalid filter parameters");
-    })
+    .input(z.object({
+      portfolioId: z.number(),
+      transactionType: z.enum(["buy", "sell", "dividend", "deposit", "withdrawal"]).nullish(),
+      ticker: z.string().nullish(),
+      startDate: z.string().nullish(),
+      endDate: z.string().nullish(),
+    }))
     .query(async ({ input, ctx }) => {
       await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getDb } = await import("../db");
@@ -141,12 +133,7 @@ export const portfolioTransactionsRouter = router({
     }),
 
   exportToCsv: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
-        return { portfolioId: val.portfolioId };
-      }
-      throw new Error("Invalid portfolio ID");
-    })
+    .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
       await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getPortfolioTransactions } = await import("../db");
@@ -179,12 +166,7 @@ export const portfolioTransactionsRouter = router({
     }),
 
   deleteInitialTransactions: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
-        return { portfolioId: val.portfolioId };
-      }
-      throw new Error("Invalid portfolio ID");
-    })
+    .input(z.object({ portfolioId: z.number() }))
     .mutation(async ({ input, ctx }) => {
       await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getDb } = await import("../db");
@@ -230,12 +212,7 @@ export const portfolioTransactionsRouter = router({
     }),
 
   delete: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "transactionId" in val && typeof val.transactionId === "number") {
-        return { transactionId: val.transactionId };
-      }
-      throw new Error("Invalid transaction ID");
-    })
+    .input(z.object({ transactionId: z.number() }))
     .mutation(async ({ input, ctx }) => {
       // HARD AUTH GUARD: No fallback, fail-fast on missing user
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
@@ -266,21 +243,16 @@ export const portfolioTransactionsRouter = router({
     }),
 
   update: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "transactionId" in val) {
-        return val as {
-          transactionId: number;
-          transactionDate?: string;
-          shares?: string;
-          pricePerShare?: string;
-          totalAmount?: string;
-          currency?: string;
-          fees?: string;
-          notes?: string;
-        };
-      }
-      throw new Error("Invalid update data");
-    })
+    .input(z.object({
+      transactionId: z.number(),
+      transactionDate: z.string().optional(),
+      shares: z.string().optional(),
+      pricePerShare: z.string().optional(),
+      totalAmount: z.string().optional(),
+      currency: z.string().optional(),
+      fees: z.string().optional(),
+      notes: z.string().optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       // HARD AUTH GUARD: No fallback, fail-fast on missing user
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
@@ -427,15 +399,10 @@ export const portfolioTransactionsRouter = router({
     }),
 
   importFromCsv: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && "csvData" in val) {
-        return val as {
-          portfolioId: number;
-          csvData: string;
-        };
-      }
-      throw new Error("Invalid CSV import data");
-    })
+    .input(z.object({
+      portfolioId: z.number(),
+      csvData: z.string(),
+    }))
     .mutation(async ({ input, ctx }) => {
       const { getDb } = await import("../db");
       const { portfolioTransactions, historicalPrices } = await import("../../drizzle/schema");
@@ -580,12 +547,7 @@ export const portfolioTransactionsRouter = router({
     }),
 
   bulkDelete: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "transactionIds" in val && Array.isArray((val as any).transactionIds)) {
-        return { transactionIds: (val as any).transactionIds as number[] };
-      }
-      throw new Error("Invalid transaction IDs");
-    })
+    .input(z.object({ transactionIds: z.array(z.number()) }))
     .mutation(async ({ input, ctx }) => {
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
         throw new TRPCError({
