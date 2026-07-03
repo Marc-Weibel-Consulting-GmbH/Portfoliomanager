@@ -183,7 +183,10 @@ async function fetchDailyPrices(ticker: string, fromDate: string, toDate: string
 export async function calculateYTDPerformance(stocks: any[]): Promise<{ date: string; performance: number }[]> {
   console.log(`[YTD] Calculating daily performance for ${stocks.length} stocks`);
 
-  const ytdStartDate = '2025-01-01';
+  // R-09: derive YTD start dynamically (was hardcoded '2025-01-01').
+  // The baseline price stays `stocks.ytdStartPrice` (last trading day of the
+  // previous year, maintained by cron/ytdUpdater) — consistent with this window.
+  const ytdStartDate = `${new Date().getFullYear()}-01-01`;
   const today = new Date().toISOString().split('T')[0];
 
   console.log(`[YTD] Fetching daily prices from ${ytdStartDate} to ${today}`);
@@ -283,7 +286,9 @@ export async function calculateYTDPerformance(stocks: any[]): Promise<{ date: st
 function generateFallbackPerformance(): { date: string; performance: number }[] {
   console.log('[YTD] Using fallback linear interpolation');
 
-  const startDate = new Date('2025-01-01');
+  // R-09: dynamic YTD start (was hardcoded '2025-01-01'). The invented linear
+  // +13.32 % ramp itself is R-08 and deliberately left in place for now.
+  const startDate = new Date(`${new Date().getFullYear()}-01-01`);
   const endDate = new Date();
   const days = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
