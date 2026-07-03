@@ -399,9 +399,11 @@ export default function PortfolioBuilderWizard() {
         portfolioType: isLive ? "live" : "demo",
       });
       
+      // U-12: nur ein Erfolgs-Toast — kein ?onboarding=success mehr (löste auf
+      // der Detailseite einen zweiten Toast aus)
       toast.success("Portfolio erstellt 🎉");
       if (result?.portfolio?.id) {
-        navigate(`/portfolios/${result.portfolio.id}?onboarding=success`);
+        navigate(`/portfolios/${result.portfolio.id}`);
       } else {
         navigate('/portfolios');
       }
@@ -424,11 +426,22 @@ export default function PortfolioBuilderWizard() {
     return (
       <div className="min-h-screen bg-[#0a0f1a] p-4 md:p-8">
         <div className="max-w-5xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2 text-white">Wähle deinen Pfad</h1>
-            <p className="text-gray-400">
-              Wie möchten Sie Ihr Portfolio erstellen?
-            </p>
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2 text-white">Wähle deinen Pfad</h1>
+              <p className="text-gray-400">
+                Wie möchten Sie Ihr Portfolio erstellen?
+              </p>
+            </div>
+            {/* U-09: sichtbarer Ausstieg aus dem Builder (auch in Schritt 0) */}
+            <button
+              onClick={() => navigate("/portfolios")}
+              className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors shrink-0"
+              aria-label="Abbrechen und zurück zu den Portfolios"
+            >
+              <X className="h-4 w-4" />
+              Abbrechen
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -590,13 +603,24 @@ export default function PortfolioBuilderWizard() {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Portfolio erstellen</h1>
-          <p className="text-muted-foreground">
-            {path === "template"
-              ? "Vorlage angepasst – verfeinern Sie Ihr Portfolio in 5 Schritten"
-              : "Erstellen Sie Ihr Portfolio in 5 einfachen Schritten"}
-          </p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Portfolio erstellen</h1>
+            <p className="text-muted-foreground">
+              {path === "template"
+                ? "Vorlage angepasst – verfeinern Sie Ihr Portfolio in 5 Schritten"
+                : "Erstellen Sie Ihr Portfolio in 5 einfachen Schritten"}
+            </p>
+          </div>
+          {/* U-09: sichtbarer Ausstieg aus dem Builder auf jedem Schritt */}
+          <button
+            onClick={() => navigate("/portfolios")}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            aria-label="Abbrechen und zurück zu den Portfolios"
+          >
+            <X className="h-4 w-4" />
+            Abbrechen
+          </button>
         </div>
 
         {/* Progress Bar */}

@@ -71,6 +71,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 import {
   Dialog,
   DialogContent,
@@ -279,7 +281,7 @@ function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId
       toast.success('Transaktion gelöscht');
       setConfirming(false);
     },
-    onError: (err) => { toast.error('Fehler: ' + err.message); setConfirming(false); },
+    onError: (err) => { toast.error('Fehler beim Löschen', { description: getUserErrorMessage(err) }); setConfirming(false); },
   });
   if (confirming) {
     return (
@@ -333,14 +335,6 @@ export default function PortfolioDetailsPage() {
     navigate(`/portfolios/${portfolioId}${newSearch}`, { replace: true });
   };
 
-  // Erfolgs-Toast nach dem Portfolio-Builder (redirect mit ?onboarding=success)
-  useEffect(() => {
-    if (searchParams.get('onboarding') === 'success') {
-      toast.success('Portfolio erstellt 🎉');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
   // State for transactions filter
   const [txFilter, setTxFilter] = useState<string>('alle');
   
@@ -423,7 +417,7 @@ export default function PortfolioDetailsPage() {
       refetch();
     },
     onError: (error) => {
-      toast.error(`Fehler beim Aktivieren: ${error.message}`);
+      toast.error('Fehler beim Aktivieren', { description: getUserErrorMessage(error) });
     },
   });
   
@@ -433,13 +427,16 @@ export default function PortfolioDetailsPage() {
   const [includeCash, setIncludeCash] = useState(false);
   // Bulk delete state for transactions tab (must be at top level, not inside JSX)
   const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
+  // U-08: Bestätigung über AlertDialog statt Browser-confirm()
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const bulkDeleteMutation = trpc.portfolioTransactions.bulkDelete.useMutation({
     onSuccess: (data) => {
       toast.success(`${data.deleted} Transaktion${data.deleted === 1 ? '' : 'en'} gelöscht`);
       setSelectedTxIds(new Set());
+      setIsBulkDeleteDialogOpen(false);
       utils.portfolioTransactions.list.invalidate({ portfolioId });
     },
-    onError: () => toast.error('Fehler beim Löschen'),
+    onError: () => { setIsBulkDeleteDialogOpen(false); toast.error('Fehler beim Löschen'); },
   });
   
   const benchmarkOptions = [
@@ -620,7 +617,7 @@ export default function PortfolioDetailsPage() {
       toast.success("Portfolio gelöscht");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || "Fehler beim Löschen");
+      toast.error('Fehler beim Löschen', { description: getUserErrorMessage(error) });
     }
     setIsDeleteDialogOpen(false);
   };
@@ -714,6 +711,16 @@ export default function PortfolioDetailsPage() {
               <Button variant="outline" size="sm" onClick={() => setIsSettingsModalOpen(true)}>
                 <Edit className="h-4 w-4 mr-1" />
                 Bearbeiten
+              </Button>
+              {/* U-09/W6: Share-Dialog war fertig gebaut, aber nie öffenbar */}
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label="Portfolio teilen"
+                title="Portfolio teilen"
+                onClick={() => setIsShareDialogOpen(true)}
+              >
+                <Share2 className="h-4 w-4" />
               </Button>
               <Button size="sm" onClick={() => handleTabChange('optimieren')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                 Optimieren
@@ -1283,7 +1290,7 @@ export default function PortfolioDetailsPage() {
                           <span className="ml-auto text-xs text-gray-500">{isRealized ? realizedGains.length : filteredTx.length} Einträge</span>
                           {!isDemo && !isRealized && selectedTxIds.size > 0 && (
                             <button
-                              onClick={() => { if (confirm(`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} wirklich löschen?`)) { bulkDeleteMutation.mutate({ transactionIds: Array.from(selectedTxIds) }); } }}
+                              onClick={() => setIsBulkDeleteDialogOpen(true)}
                               disabled={bulkDeleteMutation.isPending}
                               className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-md bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-40"
                             >
@@ -1403,7 +1410,7 @@ export default function PortfolioDetailsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate('/price-alerts')}>
                 <Bell className="h-4 w-4 mr-2" />
                 Alarm erstellen
               </Button>
@@ -1607,6 +1614,17 @@ export default function PortfolioDetailsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog (U-08) */}
+      <ConfirmDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        title={`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} löschen?`}
+        description={`Die ${selectedTxIds.size === 1 ? 'ausgewählte Transaktion wird' : `${selectedTxIds.size} ausgewählten Transaktionen werden`} unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.`}
+        confirmLabel={`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} löschen`}
+        onConfirm={() => bulkDeleteMutation.mutate({ transactionIds: Array.from(selectedTxIds) })}
+        isPending={bulkDeleteMutation.isPending}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

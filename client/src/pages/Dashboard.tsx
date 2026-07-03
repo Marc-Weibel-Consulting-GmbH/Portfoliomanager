@@ -72,7 +72,7 @@ function QuickActions() {
   const [, navigate] = useLocation();
 
   const actions = [
-    { label: "Portfolio erstellen", icon: Plus, href: "/portfolio-builder/new", primary: true },
+    { label: "Portfolio erstellen", icon: Plus, href: "/portfolio-builder", primary: true },
     { label: "Meine Portfolios", icon: FolderOpen, href: "/portfolios" },
     { label: "Aktienempfehlungen", icon: Target, href: "/aktien" },
     { label: "Aktiensuche", icon: Search, href: "/aktien" },
@@ -137,6 +137,32 @@ function PortfolioCompact() {
     );
   }
 
+  // U-10: hilfreicher Leerzustand statt «CHF 0» ohne Kontext
+  if ((portfolios ?? []).length === 0) {
+    return (
+      <Card className="bg-[#0d1220] border-[#1e2840]">
+        <CardContent className="p-6 text-center">
+          <FolderOpen className="h-10 w-10 text-gray-600 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-white mb-2">
+            Noch kein Portfolio vorhanden
+          </h3>
+          <p className="text-gray-400 mb-4 text-sm">
+            Erstellen Sie Ihr erstes Portfolio, um Wert und Entwicklung Ihrer
+            Anlagen hier im Überblick zu sehen.
+          </p>
+          <Button
+            size="sm"
+            className="bg-[#00CFC1] hover:bg-[#00b3a6] text-black font-semibold"
+            onClick={() => navigate('/portfolio-builder')}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Erstes Portfolio erstellen
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const totalValue = metrics?.totalValue ?? 0;
   const dayChange = metrics?.dayChange ?? 0;
   const dayChangePercent = metrics?.dayChangePercent ?? 0;
@@ -149,7 +175,7 @@ function PortfolioCompact() {
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] text-gray-400 uppercase tracking-wider">Gesamtwert · Aggregiert</span>
-          <Button size="sm" variant="outline" className="h-6 text-[10px] bg-[#00CFC1] text-black border-none hover:bg-[#00b3a6] font-semibold" onClick={() => navigate('/portfolios/create')}>
+          <Button size="sm" variant="outline" className="h-6 text-[10px] bg-[#00CFC1] text-black border-none hover:bg-[#00b3a6] font-semibold" onClick={() => navigate('/portfolio-builder')}>
             + Neu
           </Button>
         </div>

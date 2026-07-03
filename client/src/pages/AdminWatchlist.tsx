@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
@@ -33,6 +34,8 @@ export default function AdminWatchlist() {
   const [aiCurrency, setAiCurrency] = useState<string>("all");
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [removingStock, setRemovingStock] = useState<{ id: number; ticker: string } | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -103,10 +106,11 @@ export default function AdminWatchlist() {
   const removeMutation = trpc.watchlist.remove.useMutation({
     onSuccess: () => {
       toast.success("Titel entfernt");
+      setRemovingStock(null);
       utils.watchlist.list.invalidate();
       utils.watchlist.stats.invalidate();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => { setRemovingStock(null); toast.error(err.message); },
   });
 
   const refreshMutation = trpc.watchlist.refreshMetrics.useMutation({
@@ -478,11 +482,7 @@ export default function AdminWatchlist() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => {
-                                if (confirm(`${stock.ticker} wirklich entfernen?`)) {
-                                  removeMutation.mutate({ id: stock.id });
-                                }
-                              }}
+                              onClick={() => setRemovingStock({ id: stock.id, ticker: stock.ticker })}
                               title="Entfernen"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -504,6 +504,17 @@ export default function AdminWatchlist() {
             )}
           </CardContent>
         </Card>
+
+        {/* Löschbestätigung (U-08) */}
+        <ConfirmDialog
+          open={removingStock !== null}
+          onOpenChange={(open) => { if (!open) setRemovingStock(null); }}
+          title={`${removingStock?.ticker ?? ''} aus der Watchlist entfernen?`}
+          description="Der Titel wird inklusive seiner Kennzahlen aus der Watchlist entfernt."
+          confirmLabel="Entfernen"
+          onConfirm={() => { if (removingStock) removeMutation.mutate({ id: removingStock.id }); }}
+          isPending={removeMutation.isPending}
+        />
       </div>
     </DashboardLayout>
   );

@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpLink, TRPCClientError } from "@trpc/client";
@@ -46,11 +47,11 @@ queryClient.getMutationCache().subscribe(event => {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
     console.error("[API Mutation Error]", error);
-    // U-07: Mutationen ohne eigenes onError-Handling schlugen bisher stumm
-    // fehl (nur console). Generischer deutscher Fehler-Toast als Fallback.
+    // U-07/U-14: Mutationen ohne eigenes onError-Handling schlugen bisher stumm
+    // fehl (nur console). Deutscher Fehlertext via zentralem Mapping als Fallback.
     if (!event.mutation.options.onError) {
       toast.error("Aktion fehlgeschlagen", {
-        description: "Die Änderung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+        description: getUserErrorMessage(error),
       });
     }
   }

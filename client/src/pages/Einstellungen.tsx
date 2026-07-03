@@ -11,6 +11,7 @@ import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info } 
 import GuidedTourModal from "@/components/GuidedTourModal";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 const VALID_TABS = ["profil", "gebuehren", "benachrichtigungen", "sicherheit", "api", "hilfe"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
@@ -67,7 +68,7 @@ function GebührenTab() {
   const { data: settings, isLoading } = trpc.userSettings.get.useQuery();
   const updateMutation = trpc.userSettings.updateBrokerFees.useMutation({
     onSuccess: () => toast.success("Gebührenstruktur gespeichert"),
-    onError: (e) => toast.error(`Fehler: ${e.message}`),
+    onError: (e) => toast.error("Fehler beim Speichern", { description: getUserErrorMessage(e) }),
   });
 
   const [form, setForm] = useState({

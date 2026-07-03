@@ -37,14 +37,14 @@ import { FloatingChatButton } from "./FloatingChatButton";
 type NavItem = { icon: any; label: string; path: string };
 type NavGroup = { icon: any; label: string; items: NavItem[] };
 
-type NavItemWithBadge = NavItem & { badge?: string };
-
-const topLevelItems: NavItemWithBadge[] = [
+// U-09: Design-Artefakt-Badges («9 Pages» usw.) entfernt — nur Portfolios
+// zeigt einen Badge (Anzahl der eigenen Portfolios, s. unten).
+const topLevelItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Wallet, label: "Portfolios", path: "/portfolios" },
-  { icon: TrendingUp, label: "Aktien", path: "/aktien", badge: "9 Pages" },
-  { icon: Globe, label: "Markt", path: "/markt", badge: "5 Pages" },
-  { icon: Brain, label: "Copilot", path: "/copilot", badge: "3 Pages" },
+  { icon: TrendingUp, label: "Aktien", path: "/aktien" },
+  { icon: Globe, label: "Markt", path: "/markt" },
+  { icon: Brain, label: "Copilot", path: "/copilot" },
 ];
 
 const toolsGroup: NavGroup = {
@@ -274,7 +274,7 @@ function DashboardLayoutContent({
                 const isActive = location === item.path || location.startsWith(item.path + '/');
                 const isPortfolios = item.path === '/portfolios';
                 const showPortfolioSubmenu = isPortfolios && portfolios.length > 0 && !isCollapsed;
-                const portfolioBadge = isPortfolios && portfolios.length > 0 ? `${portfolios.length} Pages` : item.badge;
+                const portfolioBadge = isPortfolios && portfolios.length > 0 ? String(portfolios.length) : undefined;
 
                 return (
                   <SidebarMenuItem key={item.path}>

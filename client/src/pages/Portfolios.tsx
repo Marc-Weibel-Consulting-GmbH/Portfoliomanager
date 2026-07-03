@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { 
   Plus, 
   TrendingUp, 
@@ -60,6 +61,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { formatCHF, formatDate, formatPercent } from "@/lib/format";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 // Compact Outperformance Table Component
 const OutperformanceTable = ({ performanceData }: { performanceData: any }) => {
@@ -93,7 +95,10 @@ export default function Portfolios() {
   const [selectedPortfolios, setSelectedPortfolios] = useState<Set<number>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+  // U-08: Einzel-Löschung über AlertDialog statt Browser-confirm()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+
+  const utils = trpc.useUtils();
   // Fetch portfolios from database
   const { data: portfolios = [], refetch, isLoading } = trpc.portfolios.list.useQuery();
   const deleteMutation = trpc.portfolios.delete.useMutation({
@@ -101,9 +106,17 @@ export default function Portfolios() {
       // Refresh will happen after all deletions
     },
     onError: (error) => {
-      toast.error('Fehler beim Löschen', { description: error.message });
+      toast.error('Fehler beim Löschen', { description: getUserErrorMessage(error) });
     }
   });
+
+  // U-08: Nach dem Löschen abhängige Queries invalidieren statt window.location.reload()
+  const invalidateAfterDelete = () => {
+    utils.portfolios.list.invalidate();
+    utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+    utils.dashboard.getAggregatedMetrics.invalidate();
+    utils.dashboard.getPortfolioCompact.invalidate();
+  };
   
   // Fetch aggregated metrics for live portfolios only
   const { data: metrics, isLoading: metricsLoading, isError: metricsError, refetch: refetchMetrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
@@ -195,21 +208,28 @@ export default function Portfolios() {
     
     if (deletedCount > 0) {
       toast.success(`${deletedCount} Portfolio${deletedCount > 1 ? 's' : ''} gelöscht`);
-      await refetch();
-      window.location.reload();
+      invalidateAfterDelete();
     }
   };
 
-  // Handle single delete
-  const handleDelete = async (e: React.MouseEvent, id: number, name: string) => {
+  // Handle single delete (confirmed via ConfirmDialog)
+  const handleDelete = (e: React.MouseEvent, id: number, name: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(`Möchten Sie das Portfolio "${name}" wirklich löschen?`)) {
-      return;
+    setDeleteTarget({ id, name });
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteMutation.mutateAsync({ id: deleteTarget.id });
+      toast.success(`Portfolio «${deleteTarget.name}» gelöscht`);
+      invalidateAfterDelete();
+    } catch {
+      // Fehler-Toast kommt aus deleteMutation.onError
+    } finally {
+      setDeleteTarget(null);
     }
-    await deleteMutation.mutateAsync({ id });
-    await refetch();
-    window.location.reload();
   };
 
   const handleViewPortfolio = (portfolio: any) => {
@@ -287,7 +307,7 @@ export default function Portfolios() {
             </p>
           </div>
           <Button
-            onClick={() => setLocation("/portfolio-builder/new")}
+            onClick={() => setLocation("/portfolio-builder")}
             size="sm"
             className="gap-2 bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white"
           >
@@ -585,7 +605,7 @@ export default function Portfolios() {
                 Erstellen Sie Ihr erstes Portfolio, um mit der Analyse zu beginnen.
               </p>
               <Button
-                onClick={() => setLocation("/portfolio-builder/new")}
+                onClick={() => setLocation("/portfolio-builder")}
                 size="sm"
                 className="bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white"
               >
@@ -880,6 +900,17 @@ export default function Portfolios() {
           </div>
         </div>
       </div>
+
+      {/* Single Delete Confirmation Dialog (U-08) */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={`Portfolio «${deleteTarget?.name ?? ''}» löschen?`}
+        description="Diese Aktion kann nicht rückgängig gemacht werden. Alle Positionen und Transaktionen dieses Portfolios werden unwiderruflich gelöscht."
+        confirmLabel="Portfolio löschen"
+        onConfirm={handleDeleteConfirmed}
+        isPending={deleteMutation.isPending}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

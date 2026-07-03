@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import DashboardLayout from "@/components/DashboardLayout";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 interface ImportProps {
   onBackClick?: () => void;
@@ -40,7 +42,7 @@ export default function Import({ onBackClick }: ImportProps) {
     onError: (error: any) => {
       setIsProcessing(false);
       toast.error("Import fehlgeschlagen", {
-        description: error.message,
+        description: getUserErrorMessage(error),
       });
     },
   });
@@ -88,9 +90,12 @@ export default function Import({ onBackClick }: ImportProps) {
     }
   };
 
+  // U-09: Seite rendert innerhalb des App-Layouts (Sidebar/Navigation) statt als Sackgasse
   return (
+    <DashboardLayout>
     <div className="text-white">
       <div className="max-w-6xl mx-auto">
+        <h1 className="text-2xl font-bold text-white mb-6">Kursdaten-Import</h1>
 
         {!isAuthenticated && (
           <Card className="bg-slate-800 border-slate-700 mb-6">
@@ -230,6 +235,7 @@ export default function Import({ onBackClick }: ImportProps) {
         )}
       </div>
     </div>
+    </DashboardLayout>
   );
 }
 

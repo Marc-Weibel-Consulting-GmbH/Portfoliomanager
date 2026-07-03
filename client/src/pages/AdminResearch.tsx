@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { trpc } from "@/lib/trpc";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
@@ -41,6 +42,8 @@ function ResearchDocumentsTab() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewDoc, setViewDoc] = useState<any>(null);
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [deletingDocId, setDeletingDocId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async () => {
@@ -75,13 +78,14 @@ function ResearchDocumentsTab() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Dokument wirklich löschen?")) return;
     try {
       await deleteMutation.mutateAsync({ id });
       toast.success("Dokument gelöscht");
       refetch();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeletingDocId(null);
     }
   };
 
@@ -267,7 +271,7 @@ function ResearchDocumentsTab() {
                     <Button variant="ghost" size="sm" onClick={() => handleReanalyze(doc.id)}>
                       <RefreshCw className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(doc.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => setDeletingDocId(doc.id)}>
                       <Trash2 className="h-4 w-4 text-red-400" />
                     </Button>
                   </div>
@@ -339,6 +343,17 @@ function ResearchDocumentsTab() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Löschbestätigung (U-08) */}
+      <ConfirmDialog
+        open={deletingDocId !== null}
+        onOpenChange={(open) => { if (!open) setDeletingDocId(null); }}
+        title="Dokument löschen?"
+        description="Das Research-Dokument und seine KI-Analyse werden dauerhaft gelöscht."
+        confirmLabel="Dokument löschen"
+        onConfirm={() => { if (deletingDocId !== null) handleDelete(deletingDocId); }}
+        isPending={deleteMutation.isPending}
+      />
 
       {/* KI-Kontext Transparenz Panel */}
       <ResearchContextPanel />
@@ -425,6 +440,8 @@ function MultiAgentTab() {
   const [providers, setProviders] = useState<string[]>(["manus", "anthropic", "perplexity"]);
   const [running, setRunning] = useState(false);
   const [viewSession, setViewSession] = useState<any>(null);
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
   const [expandedResponse, setExpandedResponse] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
   const [generatingPresentation, setGeneratingPresentation] = useState(false);
@@ -504,13 +521,14 @@ function MultiAgentTab() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Session wirklich löschen?")) return;
     try {
       await deleteMutation.mutateAsync({ id });
       toast.success("Session gelöscht");
       refetch();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeletingSessionId(null);
     }
   };
 
@@ -629,7 +647,7 @@ function MultiAgentTab() {
                         <Eye className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(session.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => setDeletingSessionId(session.id)}>
                       <Trash2 className="h-4 w-4 text-red-400" />
                     </Button>
                   </div>
@@ -765,6 +783,17 @@ function MultiAgentTab() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Löschbestätigung (U-08) */}
+      <ConfirmDialog
+        open={deletingSessionId !== null}
+        onOpenChange={(open) => { if (!open) setDeletingSessionId(null); }}
+        title="Session löschen?"
+        description="Die Multi-Agent-Session inklusive aller Antworten wird dauerhaft gelöscht."
+        confirmLabel="Session löschen"
+        onConfirm={() => { if (deletingSessionId !== null) handleDelete(deletingSessionId); }}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   );
 }
@@ -781,6 +810,8 @@ function ApiKeysTab() {
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
   const handleAdd = async () => {
     if (!newKey.trim() || !newValue.trim()) {
@@ -805,13 +836,14 @@ function ApiKeysTab() {
   };
 
   const handleDelete = async (key: string) => {
-    if (!confirm(`Secret "${key}" wirklich löschen?`)) return;
     try {
       await deleteSecretMutation.mutateAsync({ key });
       toast.success(`Secret "${key}" gelöscht`);
       refetch();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeletingKey(null);
     }
   };
 
@@ -895,7 +927,7 @@ function ApiKeysTab() {
                     Aktualisiert: {new Date(s.updatedAt).toLocaleString("de-CH")}
                   </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(s.key)}>
+                <Button variant="ghost" size="sm" onClick={() => setDeletingKey(s.key)}>
                   <Trash2 className="h-4 w-4 text-red-400" />
                 </Button>
               </CardContent>
@@ -903,6 +935,17 @@ function ApiKeysTab() {
           ))}
         </div>
       )}
+
+      {/* Löschbestätigung (U-08) */}
+      <ConfirmDialog
+        open={deletingKey !== null}
+        onOpenChange={(open) => { if (!open) setDeletingKey(null); }}
+        title={`Secret «${deletingKey ?? ''}» löschen?`}
+        description="Der gespeicherte API-Schlüssel wird dauerhaft entfernt. Dienste, die ihn verwenden, funktionieren danach nicht mehr."
+        confirmLabel="Secret löschen"
+        onConfirm={() => { if (deletingKey !== null) handleDelete(deletingKey); }}
+        isPending={deleteSecretMutation.isPending}
+      />
     </div>
   );
 }

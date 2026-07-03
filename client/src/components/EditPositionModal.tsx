@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,8 @@ export function EditPositionModal({
   onSuccess 
 }: EditPositionModalProps) {
   const [editingTxId, setEditingTxId] = useState<number | null>(null);
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [deletingTxId, setDeletingTxId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({
     transactionDate: "",
     shares: "",
@@ -129,9 +132,7 @@ export function EditPositionModal({
   };
 
   const handleDeleteTx = (txId: number) => {
-    if (confirm("Möchten Sie diese Transaktion wirklich löschen?")) {
-      deleteTransaction.mutate({ transactionId: txId });
-    }
+    setDeletingTxId(txId);
   };
 
   const formatDate = (date: string | Date) => {
@@ -142,6 +143,19 @@ export function EditPositionModal({
   if (!position) return null;
 
   return (
+    <>
+    <ConfirmDialog
+      open={deletingTxId !== null}
+      onOpenChange={(dialogOpen) => { if (!dialogOpen) setDeletingTxId(null); }}
+      title="Transaktion löschen?"
+      description={`Möchten Sie diese Transaktion von ${position.ticker} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+      confirmLabel="Transaktion löschen"
+      onConfirm={() => {
+        if (deletingTxId !== null) deleteTransaction.mutate({ transactionId: deletingTxId });
+        setDeletingTxId(null);
+      }}
+      isPending={deleteTransaction.isPending}
+    />
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
@@ -325,5 +339,6 @@ export function EditPositionModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
