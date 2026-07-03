@@ -881,48 +881,85 @@ export async function createPortfolioTransaction(transaction: any) {
     if (transaction.transactionType === 'sell' && transaction.ticker) {
       console.log("[DB] Calculating realized gain/loss for sell transaction...");
       
-      // Get all buy transactions for this ticker in this portfolio
-      const buyTransactions = await db
+      // R-03: Moving-average cost basis over the FULL buy+sell ledger of this
+      // ticker (chronological), so prior sells consume their share of the
+      // basis instead of every buy ever counting forever (phantom gains).
+      const ledgerRows = await db
         .select()
         .from(portfolioTransactions)
         .where(
           and(
             eq(portfolioTransactions.portfolioId, transaction.portfolioId),
-            eq(portfolioTransactions.ticker, transaction.ticker),
-            eq(portfolioTransactions.transactionType, 'buy')
+            eq(portfolioTransactions.ticker, transaction.ticker)
           )
         );
-      
-      // Calculate average cost basis (weighted average of all buys)
-      let totalShares = 0;
-      let totalCost = 0;
-      
-      for (const buy of buyTransactions) {
-        const shares = parseFloat(buy.shares || '0');
-        const price = parseFloat(buy.pricePerShare || '0');
-        totalShares += shares;
-        totalCost += shares * price;
-      }
-      
-      const avgCostBasis = totalShares > 0 ? totalCost / totalShares : 0;
-      const sellPrice = parseFloat(transaction.pricePerShare || '0');
-      const sharesSold = parseFloat(transaction.shares || '0');
-      
+
       // Get stock currency and FX rates for gain/loss breakdown
       const { getStockCurrency, getFxRate } = await import("./fxHelper");
       const currency = await getStockCurrency(transaction.ticker);
-      
-      // Get average buy date (weighted by shares) for FX rate calculation
-      const avgBuyDate = buyTransactions.length > 0 
-        ? buyTransactions[0].transactionDate 
-        : transaction.transactionDate;
-      const avgBuyDateStr = new Date(avgBuyDate).toISOString().split('T')[0];
-      const sellDateStr = new Date(transaction.transactionDate).toISOString().split('T')[0];
-      
+
       // Get FX rates (currency pair format: USDCHF, EURCHF, etc.)
       const currencyPair = currency === 'CHF' ? 'CHFCHF' : currency + 'CHF';
-      const buyFxRate = await getFxRate(avgBuyDateStr, currencyPair);
+
+      // Only trades strictly before this sell (by date, then id) count — the
+      // sell itself was already inserted above and must not consume itself.
+      const sellTime = new Date(transaction.transactionDate).getTime();
+      const priorTrades = ledgerRows
+        .filter((row) => {
+          if (row.transactionType !== 'buy' && row.transactionType !== 'sell') return false;
+          if (row.id === transactionId) return false;
+          const t = new Date(row.transactionDate).getTime();
+          return t < sellTime || (t === sellTime && row.id < transactionId);
+        })
+        .sort(
+          (a, b) =>
+            new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime() ||
+            a.id - b.id
+        );
+
+      // Running moving-average position. Local-currency basis EXCLUDES fees
+      // (unchanged — fee treatment in the basis stays open, see R-24/E3).
+      // totalCostChf tracks the same basis in CHF so the remaining position
+      // carries a cost-weighted average buy FX rate (R-19).
+      let totalShares = 0;
+      let totalCost = 0; // local currency, excl. fees
+      let totalCostChf = 0; // basis converted at each buy's FX rate
+
+      for (const trade of priorTrades) {
+        const shares = parseFloat(trade.shares || '0');
+        if (shares <= 0) continue;
+        if (trade.transactionType === 'buy') {
+          const price = parseFloat(trade.pricePerShare || '0');
+          // R-19: prefer the stored per-transaction fxRate; fall back to the
+          // historical rate at the buy date.
+          const storedFx = parseFloat(trade.fxRate || '');
+          const buyFx =
+            Number.isFinite(storedFx) && storedFx > 0
+              ? storedFx
+              : await getFxRate(new Date(trade.transactionDate).toISOString().split('T')[0], currencyPair);
+          totalShares += shares;
+          totalCost += shares * price;
+          totalCostChf += shares * price * buyFx;
+        } else {
+          // Prior sell consumes basis proportionally (avg cost stays constant).
+          // R-20 stays open: an oversell just clamps the position to zero here.
+          const factor = totalShares > 0 ? Math.max(0, (totalShares - shares) / totalShares) : 0;
+          totalCost *= factor;
+          totalCostChf *= factor;
+          totalShares = Math.max(0, totalShares - shares);
+        }
+      }
+
+      // Guard: no remaining position (oversell / no prior buys) → basis 0 (R-20 stays open).
+      const avgCostBasis = totalShares > 0 ? totalCost / totalShares : 0;
+      const sellPrice = parseFloat(transaction.pricePerShare || '0');
+      const sharesSold = parseFloat(transaction.shares || '0');
+
+      const sellDateStr = new Date(transaction.transactionDate).toISOString().split('T')[0];
       const sellFxRate = await getFxRate(sellDateStr, currencyPair);
+      // R-19: cost-weighted average buy FX rate of the REMAINING position
+      // (was: FX rate at the FIRST buy's date). Empty basis → neutral (sell rate).
+      const buyFxRate = totalCost > 0 ? totalCostChf / totalCost : sellFxRate;
       
       // Calculate stock gain in local currency
       const stockGainLocal = (sellPrice - avgCostBasis) * sharesSold;
