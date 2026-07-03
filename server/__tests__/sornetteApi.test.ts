@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 const SORNETTE_AUTH_URL = 'https://api.sornette.finance/v1/auth/token';
 const SORNETTE_API_BASE = 'https://api.sornette.finance';
 
-describe('Sornette Finance API', () => {
+describe.skipIf(!process.env.SORNETTE_USERNAME || !process.env.SORNETTE_PASSWORD)('Sornette Finance API', () => {
   it('should authenticate with valid credentials', async () => {
     const username = process.env.SORNETTE_USERNAME;
     const password = process.env.SORNETTE_PASSWORD;
