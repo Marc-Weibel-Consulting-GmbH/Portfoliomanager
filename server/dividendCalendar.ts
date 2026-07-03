@@ -212,23 +212,27 @@ export async function checkDividendNotifications(portfolioId: number, notificati
 }
 
 /**
- * Calculate expected dividend income for a portfolio
+ * Calculate expected dividend income for a portfolio.
+ * FX via fxHelper.convertToCHF (D-02) — dividends without a resolvable rate
+ * contribute 0 (R-10 convention) instead of a hardcoded conversion.
  */
-export function calculateExpectedDividendIncome(
+export async function calculateExpectedDividendIncome(
   holdings: Record<string, number>,
   dividends: DividendEvent[]
-): number {
+): Promise<number> {
+  const { convertToCHF } = await import("./fxHelper");
+  const today = new Date().toISOString().split("T")[0];
   let totalIncome = 0;
 
-  dividends.forEach(div => {
+  for (const div of dividends) {
     const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
     if (shares > 0) {
-      const amountInCHF = div.currency === "USD" ? div.amount * 0.88
-        : div.currency === "EUR" ? div.amount * 0.95
-        : div.amount; // CHF stays as is
+      // Future payment dates have no FX rate yet — use today's rate as estimate.
+      const fxDate = div.paymentDate && div.paymentDate <= today ? div.paymentDate : today;
+      const amountInCHF = await convertToCHF(div.amount, div.currency, fxDate);
       totalIncome += shares * amountInCHF;
     }
-  });
+  }
 
   return totalIncome;
 }

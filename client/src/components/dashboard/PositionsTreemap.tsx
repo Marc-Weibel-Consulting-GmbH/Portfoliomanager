@@ -7,7 +7,7 @@
 // monospaced label tagging we want here.
 
 import type { Holding } from "./types";
-import { formatPercent } from "./format";
+import { formatPercent } from "@/lib/format";
 import { useLocation } from "wouter";
 
 interface TreemapTile extends Holding {
@@ -148,7 +148,7 @@ export function PositionsTreemap({
                       fontWeight="600"
                       fontFamily="ui-monospace, monospace"
                     >
-                      {formatPercent(t.ytd, 1)}
+                      {formatPercent(t.ytd, { decimals: 1 })}
                     </text>
                   )}
                 </>

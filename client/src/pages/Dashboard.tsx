@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { formatCHF } from "@/lib/format";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -131,13 +132,14 @@ function PortfolioCompact() {
 
         {/* Total Value */}
         <div className="text-3xl font-bold text-white mb-1">
-          CHF {totalValue.toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+          {formatCHF(totalValue, { decimals: 0 })}
         </div>
 
         {/* Day Change + YTD */}
         <div className="flex items-center gap-2 text-xs mb-4">
           <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>
-            {isPositiveDay ? '+' : ''}CHF {Math.abs(dayChange).toLocaleString('de-CH', { maximumFractionDigits: 0 })}
+            {/* G-01: echtes Minuszeichen statt Math.abs + Farbe */}
+            {formatCHF(dayChange, { decimals: 0, signDisplay: 'always' })}
           </span>
           <span className="text-gray-500">·</span>
           <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>

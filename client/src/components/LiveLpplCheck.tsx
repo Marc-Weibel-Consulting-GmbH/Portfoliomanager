@@ -1,3 +1,4 @@
+// Bewusst behalten (aktuell nicht geroutet): wird in Phase 4 wieder angeschlossen — siehe OPTIMIZATION_PLAN.md R-36/F-02/F-14 (Abhängigkeit von PortfolioCopilot via MonitoringStatus)
 /**
  * LiveLpplCheck Component
  * Echtzeit-LPPL Bubble-Score-Berechnung für S&P 500 und NASDAQ.

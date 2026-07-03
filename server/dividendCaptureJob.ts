@@ -98,8 +98,16 @@ async function captureDividends() {
             continue;
           }
           
-          // Convert to CHF if needed (simplified - would need real exchange rates)
-          const amountInCHF = dividend.currency === 'USD' ? dividend.amount * 0.88 : dividend.amount;
+          // Convert to CHF via real FX rates (fxHelper, D-02). Persistence
+          // path: skip the row when no rate exists instead of writing a
+          // mis-converted amount (R-10).
+          const { tryConvertToCHF } = await import('./fxHelper');
+          const amountInCHFOrNull = await tryConvertToCHF(dividend.amount, dividend.currency, today);
+          if (amountInCHFOrNull === null) {
+            console.warn(`[DividendCapture] No FX rate for ${dividend.currency}CHF on ${today} — skipping dividend for ${ticker}`);
+            continue;
+          }
+          const amountInCHF = amountInCHFOrNull;
           const totalAmount = shares * amountInCHF;
           
           // Create dividend transaction

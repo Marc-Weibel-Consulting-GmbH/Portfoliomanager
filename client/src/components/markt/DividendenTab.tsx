@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { Calendar } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/format";
 
 // Dividenden-Kalender (Mockup S.17): nächste 12 Monate, nur eigene Positionen
 // (aggregiert über alle Portfolios via dividendCalendar.upcomingAll).
@@ -7,8 +8,6 @@ export default function DividendenTab() {
   const { data: dividends = [], isLoading } = trpc.dividendCalendar.upcomingAll.useQuery({ daysAhead: 365 });
 
   const totalIncome = dividends.reduce((s: number, d: any) => s + (d.expectedIncome || 0), 0);
-  const fmt = (v: number, cur = "CHF") =>
-    new Intl.NumberFormat("de-CH", { style: "currency", currency: cur, maximumFractionDigits: 2 }).format(v);
 
   return (
     <div className="bg-[#0f1420] border border-white/10 rounded-lg">
@@ -20,7 +19,7 @@ export default function DividendenTab() {
         {dividends.length > 0 && (
           <div className="text-right">
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Erwartet (12M)</p>
-            <p className="text-lg font-bold font-mono text-[#00CFC1]">{fmt(totalIncome)}</p>
+            <p className="text-lg font-bold font-mono text-[#00CFC1]">{formatCurrency(totalIncome)}</p>
           </div>
         )}
       </div>
@@ -52,9 +51,7 @@ export default function DividendenTab() {
               {dividends.map((d: any, i: number) => (
                 <tr key={`${d.ticker}-${i}`} className="border-b border-white/5 hover:bg-white/[0.03]">
                   <td className="px-5 py-3 text-sm text-gray-400">
-                    {d.exDividendDate
-                      ? new Date(d.exDividendDate).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" })
-                      : "—"}
+                    {d.exDividendDate ? formatDate(d.exDividendDate) : "—"}
                     {d.type === "estimated" && (
                       <span className="ml-1 text-[10px] text-yellow-500/70">~</span>
                     )}
@@ -66,9 +63,9 @@ export default function DividendenTab() {
                   <td className="px-3 py-3 text-right hidden sm:table-cell">
                     <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">{d.period || "—"}</span>
                   </td>
-                  <td className="px-3 py-3 text-right text-sm text-gray-300">{fmt(d.amount, d.currency)}</td>
+                  <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(d.amount, d.currency)}</td>
                   <td className="px-3 py-3 text-right text-sm text-gray-300 hidden sm:table-cell">{d.shares}</td>
-                  <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">{fmt(d.expectedIncome)}</td>
+                  <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">{formatCurrency(d.expectedIncome)}</td>
                 </tr>
               ))}
             </tbody>

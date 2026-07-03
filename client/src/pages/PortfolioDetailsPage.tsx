@@ -49,7 +49,7 @@ import RiskTab from "@/components/portfolio/RiskTab";
 import OptimierenTab from "@/components/portfolio/OptimierenTab";
 import PositionsKonstellation from "@/components/portfolio/PositionsKonstellation";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
-import { SECTOR_COLOR } from "@/components/dashboard/format";
+import { SECTOR_COLOR, formatCHF, formatCurrency } from "@/lib/format";
 import { StockLogo } from "@/components/StockLogo";
 import {
   AlertDialog,
@@ -144,7 +144,7 @@ function PerformanceTab({
         </div>
         <div className="bg-[#0f1420] p-4">
           <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">G/V ABSOLUT</p>
-          <p className={`text-2xl font-bold font-mono ${gv >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{`${gv >= 0 ? '+' : '-'}${formatCurrency(Math.abs(gv), 'CHF')}`}</p>
+          <p className={`text-2xl font-bold font-mono ${gv >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>{formatCHF(gv, { signDisplay: 'always' })}</p>
           <p className="text-xs text-gray-500 mt-0.5">Wert − Kapital</p>
         </div>
       </div>
@@ -299,20 +299,6 @@ const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode
   growth: { label: "Wachstum", icon: <TrendingUp className="h-4 w-4" />, color: "bg-green-500" },
   balanced: { label: "Balanced", icon: <Scale className="h-4 w-4" />, color: "bg-purple-500" },
   etf: { label: "ETF", icon: <PieChart className="h-4 w-4" />, color: "bg-orange-500" },
-};
-
-const formatDate = (date: Date | string) => {
-  const d = new Date(date);
-  return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-};
-
-const formatCurrency = (value: number, currency: string = 'CHF') => {
-  return new Intl.NumberFormat('de-CH', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 };
 
 export default function PortfolioDetailsPage() {
@@ -771,7 +757,7 @@ export default function PortfolioDetailsPage() {
                     {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
                   </p>
                   <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-500' : 'text-red-400'}`}>
-                    G/V CHF {gain >= 0 ? '+' : '-'}{new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(gain))}
+                    G/V {formatCHF(gain, { decimals: 0, signDisplay: 'always' })}
                   </p>
                 </>
               );
@@ -1124,7 +1110,7 @@ export default function PortfolioDetailsPage() {
                     <div className="bg-[#0f1420] p-4">
                       <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">REAL. G/V</p>
                       <p className={`text-xl font-bold font-mono ${realizedTotal >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>
-                        {realizedTotal >= 0 ? '+' : '-'}CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.abs(realizedTotal))}
+                        {formatCHF(realizedTotal, { decimals: 0, signDisplay: 'always' })}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">{realizedGains.length} Positionen</p>
                     </div>

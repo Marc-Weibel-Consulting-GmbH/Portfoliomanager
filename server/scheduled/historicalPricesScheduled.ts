@@ -8,7 +8,8 @@
  */
 import { Request, Response } from "express";
 import { sdk } from "../_core/sdk";
-import { importHistoricalPrices } from "../jobs/importHistoricalPrices";
+import { importHistoricalPrices, HISTORICAL_PRICES_JOB_NAME, HISTORICAL_PRICES_MIN_INTERVAL_MINUTES } from "../jobs/importHistoricalPrices";
+import { runIfNotRecent } from "../lib/jobLock";
 
 export async function handleHistoricalPricesUpdate(req: Request, res: Response) {
   try {
@@ -29,7 +30,16 @@ export async function handleHistoricalPricesUpdate(req: Request, res: Response) 
 
     console.log(`[Scheduled] Fetching prices from ${fromDate} to ${toDate}`);
 
-    const result = await importHistoricalPrices(fromDate, toDate, false);
+    // D-03: shared job lock with cron/historicalPricesCron.ts — skip when the
+    // in-process cron (or a previous Heartbeat call) ran within the window.
+    const run = await runIfNotRecent(HISTORICAL_PRICES_JOB_NAME, HISTORICAL_PRICES_MIN_INTERVAL_MINUTES, () =>
+      importHistoricalPrices(fromDate, toDate, false)
+    );
+    if (!run.ran) {
+      console.log(`[Scheduled] Historical prices update skipped (${run.reason})`);
+      return res.json({ ok: true, skipped: true, reason: run.reason });
+    }
+    const result = run.result!;
 
     if (result.success) {
       console.log(

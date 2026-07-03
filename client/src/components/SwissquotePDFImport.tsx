@@ -1,3 +1,4 @@
+// Bewusst behalten (aktuell nicht geroutet): wird in Phase 4 wieder angeschlossen — siehe OPTIMIZATION_PLAN.md U-03
 /**
  * SwissquotePDFImport Component
  * Allows users to upload Swissquote PDF statements and import transactions
@@ -5,6 +6,7 @@
 
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -201,13 +203,8 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
 
   const deselectAll = () => setSelectedIndices(new Set());
 
-  const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat("de-CH", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
+  // Zentrale Formatierung (lib/format, D-06)
+  const formatAmount = (amount: number, currency: string) => formatCurrency(amount, currency);
 
   // ── Upload Step ──────────────────────────────────────────────────────────
   if (step === "upload") {

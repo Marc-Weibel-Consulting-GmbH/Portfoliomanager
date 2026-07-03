@@ -12,7 +12,7 @@ import {
   updateUserPassword,
   markEmailAsVerified,
 } from "../db";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { Resend } from "resend";
 import { ENV } from "../_core/env";
 

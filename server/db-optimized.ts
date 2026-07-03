@@ -206,32 +206,6 @@ export async function batchGetHistoricalPrices(tickers: string[], targetDate: st
   }
 }
 
-/**
- * In-memory cache for FX rates
- * Reduces API calls significantly
- */
-const fxRateCache = new Map<string, { rate: number; timestamp: number }>();
-const FX_CACHE_TTL = 3600000; // 1 hour in milliseconds
-
-export function getCachedFxRate(currency: string, date: string): number | null {
-  const key = `${currency}_${date}`;
-  const cached = fxRateCache.get(key);
-  
-  if (cached && Date.now() - cached.timestamp < FX_CACHE_TTL) {
-    return cached.rate;
-  }
-  
-  return null;
-}
-
-export function setCachedFxRate(currency: string, date: string, rate: number) {
-  const key = `${currency}_${date}`;
-  fxRateCache.set(key, { rate, timestamp: Date.now() });
-}
-
-/**
- * Clear FX rate cache (useful for testing or manual refresh)
- */
-export function clearFxRateCache() {
-  fxRateCache.clear();
-}
+// FX rate caching lives in fxHelper.ts (in-memory cache + one-time prewarm of
+// the exchangeRates table). The duplicate cache that used to live here was
+// removed (D-02, OPTIMIZATION_PLAN.md) — use fxHelper's convertToCHF/getFxRate.

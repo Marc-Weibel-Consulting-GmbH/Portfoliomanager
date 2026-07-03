@@ -1,52 +1,49 @@
-import { importHistoricalPrices } from "../jobs/importHistoricalPrices";
+import { importHistoricalPrices, HISTORICAL_PRICES_JOB_NAME, HISTORICAL_PRICES_MIN_INTERVAL_MINUTES } from "../jobs/importHistoricalPrices";
+import { runIfNotRecent } from "../lib/jobLock";
 
 /**
  * Daily cron job to update historical prices
  * This job runs once per day to fetch the latest historical prices
  * for all tickers in user portfolios.
- * 
+ *
  * Schedule: Every day at 2:00 AM UTC
+ *
+ * D-03: guarded by the shared job lock together with
+ * scheduled/historicalPricesScheduled.ts so the import doesn't run twice
+ * daily while both scheduling mechanisms are wired.
  */
 
-let isRunning = false;
-
 export async function dailyHistoricalPricesUpdate() {
-  if (isRunning) {
-    console.log("[historicalPricesCron] Job already running, skipping...");
-    return;
-  }
-
-  isRunning = true;
-  console.log("[historicalPricesCron] Starting daily historical prices update...");
-
   try {
-    // Get yesterday's date (to fetch the most recent complete trading day)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    await runIfNotRecent(HISTORICAL_PRICES_JOB_NAME, HISTORICAL_PRICES_MIN_INTERVAL_MINUTES, async () => {
+      console.log("[historicalPricesCron] Starting daily historical prices update...");
 
-    // Get date from 7 days ago (to fill any gaps)
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekAgoStr = weekAgo.toISOString().split("T")[0];
+      // Get yesterday's date (to fetch the most recent complete trading day)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-    // Import prices for the last 7 days (to fill gaps and get latest data)
-    const result = await importHistoricalPrices(weekAgoStr, yesterdayStr, false);
+      // Get date from 7 days ago (to fill any gaps)
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgoStr = weekAgo.toISOString().split("T")[0];
 
-    if (result.success) {
-      console.log(
-        `[historicalPricesCron] Daily update completed: ${result.tickersProcessed} tickers, ${result.pricesImported} prices imported`
-      );
-      if (result.errors.length > 0) {
-        console.warn(`[historicalPricesCron] Errors during update:`, result.errors);
+      // Import prices for the last 7 days (to fill gaps and get latest data)
+      const result = await importHistoricalPrices(weekAgoStr, yesterdayStr, false);
+
+      if (result.success) {
+        console.log(
+          `[historicalPricesCron] Daily update completed: ${result.tickersProcessed} tickers, ${result.pricesImported} prices imported`
+        );
+        if (result.errors.length > 0) {
+          console.warn(`[historicalPricesCron] Errors during update:`, result.errors);
+        }
+      } else {
+        console.error("[historicalPricesCron] Daily update failed:", result.errors);
       }
-    } else {
-      console.error("[historicalPricesCron] Daily update failed:", result.errors);
-    }
+    });
   } catch (error) {
     console.error("[historicalPricesCron] Fatal error during daily update:", error);
-  } finally {
-    isRunning = false;
   }
 }
 
