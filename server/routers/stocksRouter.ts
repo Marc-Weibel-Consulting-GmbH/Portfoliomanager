@@ -345,29 +345,15 @@ export const stocksRouter = router({
       return await getAllStocks();
     }),
     getFxRates: publicProcedure.query(async () => {
-      const db = await (await import("../db")).getDb();
-      if (!db) return { USDCHF: 0.88, EURCHF: 0.93, GBPCHF: 1.12 };
-      
-      const { exchangeRates } = await import("../../drizzle/schema");
-      const { eq, desc } = await import("drizzle-orm");
-      
-      // Get latest rates for each currency pair
-      const rates = await db.select().from(exchangeRates)
-        .orderBy(desc(exchangeRates.date))
-        .limit(10);
-      
-      const ratesMap: Record<string, number> = {};
-      for (const rate of rates) {
-        if (!ratesMap[rate.currencyPair]) {
-          ratesMap[rate.currencyPair] = parseFloat(rate.rate);
-        }
-      }
-      
-      return {
-        USDCHF: ratesMap.USDCHF || 0.88,
-        EURCHF: ratesMap.EURCHF || 0.93,
-        GBPCHF: ratesMap.GBPCHF || 1.12
-      };
+      // D-02: canonical fxHelper lookup (DB-backed, 30d lookback). Missing
+      // rates yield 0 (R-10 convention) — no hardcoded fallback rates.
+      const { getCurrentFxRate } = await import("../fxHelper");
+      const [USDCHF, EURCHF, GBPCHF] = await Promise.all([
+        getCurrentFxRate('USDCHF'),
+        getCurrentFxRate('EURCHF'),
+        getCurrentFxRate('GBPCHF'),
+      ]);
+      return { USDCHF, EURCHF, GBPCHF };
     }),
     byCategory: publicProcedure
       .input((val: unknown) => {

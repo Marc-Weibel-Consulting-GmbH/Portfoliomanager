@@ -1,6 +1,20 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
-import { convertCurrency, getFXRate, getMultipleFXRates } from "../fxRates";
+import { getCurrentFxRate } from "../fxHelper";
+
+/**
+ * FX rates via the canonical fxHelper (DB-backed exchangeRates table, D-02).
+ * Only CHF crosses are stored (USDCHF, EURCHF, GBPCHF); arbitrary pairs are
+ * derived via CHF. Missing rates yield 0 (R-10 convention) — no hardcoded
+ * fallback rates.
+ */
+async function getRateViaChf(from: string, to: string): Promise<number> {
+  if (from === to) return 1.0;
+  const fromChf = from === "CHF" ? 1.0 : await getCurrentFxRate(`${from}CHF`);
+  const toChf = to === "CHF" ? 1.0 : await getCurrentFxRate(`${to}CHF`);
+  if (fromChf === 0 || toChf === 0) return 0;
+  return fromChf / toChf;
+}
 
 export const fxRatesRouter = router({
   /**
@@ -14,7 +28,7 @@ export const fxRatesRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const rate = await getFXRate(input.from, input.to);
+      const rate = await getRateViaChf(input.from, input.to);
       return {
         from: input.from,
         to: input.to,
@@ -34,16 +48,12 @@ export const fxRatesRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const convertedAmount = await convertCurrency(
-        input.amount,
-        input.from,
-        input.to
-      );
+      const rate = await getRateViaChf(input.from, input.to);
       return {
         amount: input.amount,
         from: input.from,
         to: input.to,
-        convertedAmount,
+        convertedAmount: input.amount * rate,
       };
     }),
 
@@ -62,13 +72,12 @@ export const fxRatesRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const pairs: [string, string][] = input.pairs.map((p) => [p.from, p.to]);
-      const rates = await getMultipleFXRates(pairs);
-      
-      return input.pairs.map((p) => ({
-        from: p.from,
-        to: p.to,
-        rate: rates.get(`${p.from}/${p.to}`) || 1.0,
-      }));
+      return Promise.all(
+        input.pairs.map(async (p) => ({
+          from: p.from,
+          to: p.to,
+          rate: await getRateViaChf(p.from, p.to),
+        }))
+      );
     }),
 });

@@ -18,7 +18,7 @@ export const dashboardPerformanceRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios } = await import("../db");
-      const { batchGetPortfolioTransactions, batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetPortfolioTransactions, batchGetStocks } = await import("../db-optimized");
       const { convertToCHF } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
@@ -151,18 +151,12 @@ export const dashboardPerformanceRouter = router({
         if (stock.currency) uniqueCurrencies.add(stock.currency);
       }
       
+      // Pre-warm fxHelper's in-memory FX cache (D-02)
       const fxPromises = [];
       for (const currency of Array.from(uniqueCurrencies)) {
         if (currency !== 'CHF') {
           for (const date of [sortedDates[0], todayStr]) {
-            if (!getCachedFxRate(currency, date)) {
-              fxPromises.push(
-                convertToCHF(1, currency, date).then(rate => {
-                  setCachedFxRate(currency, date, rate);
-                  return rate;
-                })
-              );
-            }
+            fxPromises.push(convertToCHF(1, currency, date));
           }
         }
       }

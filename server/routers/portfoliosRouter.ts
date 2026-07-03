@@ -28,7 +28,7 @@ function getYTDStartDate(): string {
 export const portfoliosRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const { getSavedPortfolios, getStockByTicker } = await import("../db");
-      const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices } = await import("../db-optimized");
       const { convertToCHF, tryConvertToCHF } = await import("../fxHelper");
 
       // Step 1: Get all portfolios for user
@@ -166,30 +166,16 @@ export const portfoliosRouter = router({
         if (stock.currency) uniqueCurrencies.add(stock.currency);
       }
       
-      // Pre-warm FX cache
+      // Pre-warm FX cache (fxHelper caches in-memory; the first call bulk-loads
+      // the exchangeRates table — D-02)
       const fxPromises = [];
       for (const currency of Array.from(uniqueCurrencies)) {
         if (currency !== 'CHF') {
-          // Check cache first
-          if (!getCachedFxRate(currency, todayStr)) {
-            fxPromises.push(
-              convertToCHF(1, currency, todayStr).then(rate => {
-                setCachedFxRate(currency, todayStr, rate);
-                return rate;
-              })
-            );
-          }
-          if (!getCachedFxRate(currency, ytdStartDate)) {
-            fxPromises.push(
-              convertToCHF(1, currency, ytdStartDate).then(rate => {
-                setCachedFxRate(currency, ytdStartDate, rate);
-                return rate;
-              })
-            );
-          }
+          fxPromises.push(convertToCHF(1, currency, todayStr));
+          fxPromises.push(convertToCHF(1, currency, ytdStartDate));
         }
       }
-      
+
       // Wait for all FX rates to be cached
       await Promise.all(fxPromises);
       

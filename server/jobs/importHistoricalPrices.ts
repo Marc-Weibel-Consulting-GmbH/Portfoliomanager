@@ -12,6 +12,15 @@ const EODHD_API_KEY = process.env.EODHD_API_KEY;
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
 /**
+ * Shared job-lock identity (D-03): the daily import is triggered both by the
+ * in-process cron (cron/historicalPricesCron.ts) and the Heartbeat endpoint
+ * (scheduled/historicalPricesScheduled.ts). Both wrap the import in
+ * runIfNotRecent with these constants so it runs at most once per window.
+ */
+export const HISTORICAL_PRICES_JOB_NAME = "historicalPricesImport";
+export const HISTORICAL_PRICES_MIN_INTERVAL_MINUTES = 6 * 60; // 6h
+
+/**
  * Ticker mapping: DB ticker -> EODHD ticker
  * Some tickers in the DB use different formats than EODHD expects.
  * 

@@ -20,7 +20,7 @@ export const dashboardRouter = router({
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).optional().default("aggregate") }).optional().default({ scope: "aggregate" }))
     .query(async ({ ctx, input }) => {
     const { getSavedPortfolios, getStockByTicker } = await import("../db");
-    const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+    const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices } = await import("../db-optimized");
     const { convertToCHF } = await import("../fxHelper");
     
     const portfolios = await getSavedPortfolios(ctx.user.id);
@@ -139,31 +139,17 @@ export const dashboardRouter = router({
     // OPTIMIZATION: Batch load ALL historical prices in ONE query
     const ytdPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), ytdStartDate);
     
-    // OPTIMIZATION: Pre-warm FX cache
+    // OPTIMIZATION: Pre-warm FX cache (fxHelper caches in-memory, D-02)
     const uniqueCurrencies = new Set<string>();
     for (const stock of Array.from(stocksMap.values())) {
       if (stock.currency) uniqueCurrencies.add(stock.currency);
     }
-    
+
     const fxPromises = [];
     for (const currency of Array.from(uniqueCurrencies)) {
       if (currency !== 'CHF') {
-        if (!getCachedFxRate(currency, today)) {
-          fxPromises.push(
-            convertToCHF(1, currency, today).then(rate => {
-              setCachedFxRate(currency, today, rate);
-              return rate;
-            })
-          );
-        }
-        if (!getCachedFxRate(currency, ytdStartDate)) {
-          fxPromises.push(
-            convertToCHF(1, currency, ytdStartDate).then(rate => {
-              setCachedFxRate(currency, ytdStartDate, rate);
-              return rate;
-            })
-          );
-        }
+        fxPromises.push(convertToCHF(1, currency, today));
+        fxPromises.push(convertToCHF(1, currency, ytdStartDate));
       }
     }
     await Promise.all(fxPromises);
@@ -393,7 +379,7 @@ export const dashboardRouter = router({
         const fxRateByCurrency = new Map<string, number>();
         for (const currency of Array.from(uniqueCurrencies)) {
           if (currency === 'CHF') continue;
-          const rate = getCachedFxRate(currency, today) ?? await convertToCHF(1, currency, today);
+          const rate = await convertToCHF(1, currency, today);
           fxRateByCurrency.set(currency, rate);
         }
 
@@ -426,7 +412,7 @@ export const dashboardRouter = router({
   // Get all portfolios with YTD performance
   getTopPortfolios: protectedProcedure.query(async ({ ctx }) => {
     const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
-    const { batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+    const { batchGetStocks, batchGetHistoricalPrices } = await import("../db-optimized");
     const { convertToCHF } = await import("../fxHelper");
     
     const portfolios = await getSavedPortfolios(ctx.user.id);
@@ -463,8 +449,8 @@ export const dashboardRouter = router({
       if ((stock as any).currency) uniqueCurrencies.add((stock as any).currency);
     }
     await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').flatMap(c => [
-      !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve(),
-      !getCachedFxRate(c, ytdStartDate) ? convertToCHF(1, c, ytdStartDate).then(r => setCachedFxRate(c, ytdStartDate, r)) : Promise.resolve(),
+      convertToCHF(1, c, todayStr),
+      convertToCHF(1, c, ytdStartDate),
     ]));
 
     const portfolioMetrics = [];
@@ -621,7 +607,7 @@ export const dashboardRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
-      const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetStocks } = await import("../db-optimized");
       const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
@@ -731,7 +717,7 @@ export const dashboardRouter = router({
       const uniqueCurrencies = new Set<string>();
       for (const c of currencyByTicker.values()) if (c !== 'CHF') uniqueCurrencies.add(c);
       await Promise.all(Array.from(uniqueCurrencies).map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        convertToCHF(1, c, todayStr)
       ));
 
       const pricesCHF = new Map<string, Map<string, number>>();
@@ -741,7 +727,7 @@ export const dashboardRouter = router({
         if (currency === 'CHF') {
           for (const [date, price] of datePrices.entries()) chfPrices.set(date, price);
         } else {
-          const fxRate = getCachedFxRate(currency, todayStr) || await convertToCHF(1, currency, todayStr);
+          const fxRate = await convertToCHF(1, currency, todayStr);
           for (const [date, price] of datePrices.entries()) chfPrices.set(date, price * fxRate);
         }
         pricesCHF.set(ticker, chfPrices);
@@ -833,7 +819,7 @@ export const dashboardRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
-      const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetStocks } = await import("../db-optimized");
       const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
@@ -1150,7 +1136,7 @@ export const dashboardRouter = router({
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
-      const { batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetStocks, batchGetHistoricalPrices } = await import("../db-optimized");
       const { convertToCHF } = await import("../fxHelper");
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
@@ -1221,7 +1207,7 @@ export const dashboardRouter = router({
       const uniqueCurrencies = new Set<string>();
       for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        convertToCHF(1, c, todayStr)
       ));
 
       // For demo portfolios with -1 placeholder shares, calculate actual shares from weight
@@ -1348,7 +1334,7 @@ export const dashboardRouter = router({
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
-      const { batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetStocks, batchGetHistoricalPrices } = await import("../db-optimized");
       const { convertToCHF } = await import("../fxHelper");
 
       const SECTOR_COLORS: Record<string, string> = {
@@ -1416,7 +1402,7 @@ export const dashboardRouter = router({
       const uniqueCurrencies = new Set<string>();
       for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        convertToCHF(1, c, todayStr)
       ));
 
       // Calculate shares for demo portfolios with placeholder -1
@@ -1493,7 +1479,7 @@ export const dashboardRouter = router({
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
-      const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetStocks } = await import("../db-optimized");
       const { convertToCHF } = await import("../fxHelper");
 
       const REGION_COLORS: Record<string, string> = {
@@ -1553,7 +1539,7 @@ export const dashboardRouter = router({
       const uniqueCurrencies = new Set<string>();
       for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        convertToCHF(1, c, todayStr)
       ));
 
       // Calculate shares for demo portfolios with placeholder -1
@@ -1624,7 +1610,7 @@ export const dashboardRouter = router({
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
-      const { batchGetStocks, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetStocks } = await import("../db-optimized");
       const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
@@ -1705,7 +1691,7 @@ export const dashboardRouter = router({
       const uniqueCurrencies = new Set<string>();
       for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        convertToCHF(1, c, todayStr)
       ));
 
       // Pre-calculate demo portfolio shares (using first available price)
@@ -1968,7 +1954,7 @@ export const dashboardRouter = router({
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
-      const { batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
+      const { batchGetStocks, batchGetHistoricalPrices } = await import("../db-optimized");
       const { convertToCHF } = await import("../fxHelper");
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
@@ -2034,7 +2020,7 @@ export const dashboardRouter = router({
       const uniqueCurrencies = new Set<string>();
       for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
-        !getCachedFxRate(c, todayStr) ? convertToCHF(1, c, todayStr).then(r => setCachedFxRate(c, todayStr, r)) : Promise.resolve()
+        convertToCHF(1, c, todayStr)
       ));
 
       // Calculate shares for demo portfolios with placeholder -1
