@@ -148,6 +148,7 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid portfolio ID");
     })
     .query(async ({ input, ctx }) => {
+      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getPortfolioTransactions } = await import("../db");
       const transactions = await getPortfolioTransactions(input.portfolioId);
       
@@ -185,6 +186,7 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid portfolio ID");
     })
     .mutation(async ({ input, ctx }) => {
+      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getDb } = await import("../db");
       const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
       const { eq, and, like } = await import("drizzle-orm");
@@ -293,13 +295,13 @@ export const portfolioTransactionsRouter = router({
       const { getDb } = await import("../db");
       const { portfolioTransactions } = await import("../../drizzle/schema");
       const { eq, and } = await import("drizzle-orm");
-      const { getFxRate } = await import("../fxHelper");
-      
+      const { tryGetFxRate } = await import("../fxHelper");
+
       const db = await getDb();
       if (!db) {
         throw new Error("Database not available");
       }
-      
+
       // Get current transaction first to check if it's a buy and get ticker
       const [currentTx] = await db.select().from(portfolioTransactions).where(eq(portfolioTransactions.id, input.transactionId)).limit(1);
       if (!currentTx) {
@@ -377,9 +379,13 @@ export const portfolioTransactionsRouter = router({
         const date = input.transactionDate ? new Date(input.transactionDate) : currentTx.transactionDate;
         const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
         
-        // Calculate CHF amount with FX rate
+        // Calculate CHF amount with FX rate (R-10: fehlt der Kurs, wird die
+        // Änderung abgelehnt statt fxRate 1.0/0 zu persistieren)
         if (currency !== 'CHF') {
-          const fxRate = await getFxRate(dateStr, `${currency}CHF`);
+          const fxRate = await tryGetFxRate(dateStr, `${currency}CHF`);
+          if (fxRate === null) {
+            throw new Error(`Kein ${currency}/CHF-Wechselkurs für ${dateStr} verfügbar — Transaktion nicht gespeichert`);
+          }
           updates.fxRate = fxRate.toFixed(4);
           updates.totalAmountCHF = (parseFloat(input.totalAmount) * fxRate).toFixed(2);
         } else {
@@ -398,9 +404,12 @@ export const portfolioTransactionsRouter = router({
         
         updates.totalAmount = (shares * price).toFixed(2);
         
-        // Get FX rate for the transaction date
+        // Get FX rate for the transaction date (R-10: ablehnen statt 1.0/0)
         if (currency !== 'CHF') {
-          const fxRate = await getFxRate(dateStr, `${currency}CHF`);
+          const fxRate = await tryGetFxRate(dateStr, `${currency}CHF`);
+          if (fxRate === null) {
+            throw new Error(`Kein ${currency}/CHF-Wechselkurs für ${dateStr} verfügbar — Transaktion nicht gespeichert`);
+          }
           updates.fxRate = fxRate.toFixed(4);
           updates.totalAmountCHF = (shares * price * fxRate).toFixed(2);
         } else {
@@ -431,7 +440,7 @@ export const portfolioTransactionsRouter = router({
       const { getDb } = await import("../db");
       const { portfolioTransactions, historicalPrices } = await import("../../drizzle/schema");
       const { eq, and } = await import("drizzle-orm");
-      const { getFxRate } = await import("../fxHelper");
+      const { tryGetFxRate } = await import("../fxHelper");
       const { getSavedPortfolioById } = await import("../db");
       
       const db = await getDb();
@@ -529,11 +538,16 @@ export const portfolioTransactionsRouter = router({
             currency = 'USD';
           }
           
-          // Get FX rate for the transaction date
+          // Get FX rate for the transaction date (R-10: Zeile ablehnen statt
+          // fehlenden Kurs als 1.0/0 zu persistieren)
           const dateStrFormatted = transactionDate.toISOString().split('T')[0];
           let fxRate = 1.0;
           if (currency !== 'CHF') {
-            fxRate = await getFxRate(dateStrFormatted, `${currency}CHF`);
+            const rate = await tryGetFxRate(dateStrFormatted, `${currency}CHF`);
+            if (rate === null) {
+              throw new Error(`Kein ${currency}/CHF-Wechselkurs für ${dateStrFormatted} verfügbar`);
+            }
+            fxRate = rate;
           }
           
           const totalAmount = shares * price;

@@ -107,13 +107,29 @@ export const pdfImportRouter = router({
       const imported: number[] = [];
       const errors: string[] = [];
 
+      const { tryGetFxRate } = await import("../fxHelper");
+
       for (const tx of input.transactions) {
         try {
-          // Convert total to CHF if needed
+          // Convert total to CHF if needed (R-13: nie unkonvertierte Beträge
+          // als CHF persistieren — fehlt der Kurs im PDF, wird er zum
+          // Transaktionsdatum nachgeschlagen; gibt es auch dort keinen,
+          // wird die Zeile mit Fehler abgelehnt).
           let totalAmountCHF = tx.totalAmount;
-          if (tx.totalCurrency !== "CHF" && tx.fxRate) {
-            // fxRate is e.g. 0.8912 for USD/CHF
-            totalAmountCHF = tx.totalAmount * tx.fxRate;
+          let fxRate = tx.fxRate;
+          if (tx.totalCurrency !== "CHF") {
+            if (!fxRate) {
+              // fxRate is e.g. 0.8912 for USD/CHF
+              fxRate = await tryGetFxRate(tx.date, `${tx.totalCurrency}CHF`);
+            }
+            if (!fxRate) {
+              errors.push(
+                `${tx.type} vom ${tx.date}${tx.ticker ? ` (${tx.ticker})` : ""}: ` +
+                `kein ${tx.totalCurrency}/CHF-Wechselkurs für dieses Datum verfügbar — Zeile nicht importiert`
+              );
+              continue;
+            }
+            totalAmountCHF = tx.totalAmount * fxRate;
           }
 
           // Map import type to schema enum (fee/interest -> entry as fallback)
@@ -129,7 +145,7 @@ export const pdfImportRouter = router({
             pricePerShare: tx.pricePerShare ? tx.pricePerShare.toString() : null,
             currency: tx.priceCurrency || tx.totalCurrency,
             totalAmount: tx.totalAmount.toString(),
-            fxRate: tx.fxRate ? tx.fxRate.toString() : null,
+            fxRate: fxRate ? fxRate.toString() : null,
             totalAmountCHF: totalAmountCHF.toString(),
             fees: tx.fees.toString(),
             transactionDate: new Date(tx.date),

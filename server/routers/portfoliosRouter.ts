@@ -29,71 +29,90 @@ export const portfoliosRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const { getSavedPortfolios, getStockByTicker } = await import("../db");
       const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices, getCachedFxRate, setCachedFxRate } = await import("../db-optimized");
-      const { convertToCHF } = await import("../fxHelper");
-      
+      const { convertToCHF, tryConvertToCHF } = await import("../fxHelper");
+
       // Step 1: Get all portfolios for user
       const portfolios = await getSavedPortfolios(ctx.user.id);
       const livePortfolios = portfolios.filter(p => p.isLive && p.liveStartDate);
-      
+
+      // U-13: Datenqualität je Position — Kurs fehlt (priceMissing) bzw. kein
+      // FX-Kurs auffindbar (fxMissing). Positionen mit fehlenden Daten werden
+      // (wie bisher) mit 0 bewertet, aber geflaggt, damit das UI sie ausweisen
+      // kann (Client-Badges: Phase 4). Rein additive Felder.
+      type HoldingDataQuality = { ticker: string; priceMissing: boolean; fxMissing: boolean };
+
       // Helper function to calculate portfolio value from portfolioData
-      const calculatePortfolioValueFromData = async (portfolio: any): Promise<{ currentValue: number; positionCount: number; livePerformance: number }> => {
+      const calculatePortfolioValueFromData = async (portfolio: any): Promise<{ currentValue: number; positionCount: number; livePerformance: number; dataQuality: HoldingDataQuality[] }> => {
+        const dataQuality: HoldingDataQuality[] = [];
         try {
           const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = portfolioData.stocks || portfolioData.positions || [];
-          
+
           if (stocks.length === 0) {
-            return { currentValue: 0, positionCount: 0, livePerformance: 0 };
+            return { currentValue: 0, positionCount: 0, livePerformance: 0, dataQuality };
           }
-          
+
           let totalValueCHF = 0;
           const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
           const todayStr = new Date().toISOString().split('T')[0];
-          
+
           for (const stock of stocks) {
             const ticker = stock.ticker;
             if (!ticker) continue;
-            
+
             // Get current stock data
             const stockData = await getStockByTicker(ticker);
-            if (!stockData) continue;
-            
+            if (!stockData) {
+              dataQuality.push({ ticker, priceMissing: true, fxMissing: false });
+              continue;
+            }
+
             const rawPrice = stockData.currentPrice;
             const currentPrice = (rawPrice && rawPrice !== 'NA') ? parseFloat(rawPrice) : 0;
-            if (isNaN(currentPrice) || currentPrice <= 0) continue;
+            if (isNaN(currentPrice) || currentPrice <= 0) {
+              dataQuality.push({ ticker, priceMissing: true, fxMissing: false });
+              continue;
+            }
             const currency = stockData.currency || 'CHF';
             const weight = parseFloat(stock.weight || '0') / 100;
-            
+
+            // Calculate value in CHF (U-13: fehlender FX-Kurs → Wert 0 wie
+            // bisher, aber mit fxMissing-Flag statt stillschweigend)
+            const priceCHFOrNull = await tryConvertToCHF(currentPrice, currency, todayStr);
+            if (priceCHFOrNull === null) {
+              dataQuality.push({ ticker, priceMissing: false, fxMissing: true });
+              continue;
+            }
+            const priceCHF = priceCHFOrNull;
+
             // Calculate shares from weight and investment amount
             let shares = parseFloat(stock.shares || '0');
             if (shares === 0 && investmentAmount > 0 && weight > 0) {
-              const allocationCHF = investmentAmount * weight;
-              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-              shares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
             }
-            
-            // Calculate value in CHF
-            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+
             totalValueCHF += shares * priceCHF;
           }
-          
+
           // Add cash balance if exists
           const cashBalance = parseFloat(portfolio.cashBalance || '0');
           totalValueCHF += cashBalance;
-          
+
           // Calculate performance
           let performance = 0;
           if (investmentAmount > 0) {
             performance = ((totalValueCHF - investmentAmount) / investmentAmount) * 100;
           }
-          
+
           return {
             currentValue: totalValueCHF,
             positionCount: stocks.length,
-            livePerformance: performance
+            livePerformance: performance,
+            dataQuality
           };
         } catch (error) {
           console.error(`[portfolios.list] Error calculating value from portfolioData for portfolio ${portfolio.id}:`, error);
-          return { currentValue: 0, positionCount: 0, livePerformance: 0 };
+          return { currentValue: 0, positionCount: 0, livePerformance: 0, dataQuality };
         }
       };
       
@@ -300,7 +319,7 @@ export const portfoliosRouter = router({
       .input(z.number().int().positive())
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getStockByTicker } = await import("../db");
-        const { getStockCurrency, convertToCHF } = await import("../fxHelper");
+        const { getStockCurrency, tryConvertToCHF } = await import("../fxHelper");
         const { calculateStockScore } = await import("../scoring");
 
         const portfolio = await getSavedPortfolioById(input, ctx.user.id);
@@ -329,7 +348,20 @@ export const portfoliosRouter = router({
             // portfolios.list and dashboard.getAggregatedMetrics so the WERT
             // matches across list, detail and dashboard.
             const currentPrice = safeParseFloat(dbStock?.currentPrice || stock.currentPrice);
-            const priceCHF = currency === 'CHF' ? currentPrice : await convertToCHF(currentPrice, currency, todayStr);
+            // U-13: fehlender Kurs/FX-Kurs → Wert 0 (wie bisher), aber mit
+            // Datenqualitäts-Flags, damit das UI die Position ausweisen kann.
+            const priceMissing = !(currentPrice > 0);
+            let priceCHF = currentPrice;
+            let fxMissing = false;
+            if (currency !== 'CHF') {
+              const converted = await tryConvertToCHF(currentPrice, currency, todayStr);
+              if (converted === null) {
+                fxMissing = true;
+                priceCHF = 0;
+              } else {
+                priceCHF = converted;
+              }
+            }
             const fxRate = currentPrice > 0 ? priceCHF / currentPrice : 1;
             
             // Calculate weight - for test portfolios, use equal weight if not specified
@@ -365,6 +397,9 @@ export const portfoliosRouter = router({
               currentPriceLocal: currentPrice,
               priceCHF,
               currentPriceCHF: priceCHF,
+              // U-13: Datenqualitäts-Flags (additiv, Client-Badges Phase 4)
+              priceMissing,
+              fxMissing,
               weight: parseFloat(weight.toFixed(2)),
               shares: shares.toFixed(2),
               avgBuyPrice: avgBuyPrice.toFixed(2),
@@ -1016,7 +1051,7 @@ export const portfoliosRouter = router({
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker } = await import("../db");
-        const { getStockCurrency, convertToCHF, getHistoricalPrice } = await import("../fxHelper");
+        const { getStockCurrency, tryConvertToCHF, getHistoricalPrice } = await import("../fxHelper");
         
         const portfolio = await getSavedPortfolioById(input.id, ctx.user.id);
         if (!portfolio || !portfolio.isLive) return [];
@@ -1064,10 +1099,15 @@ export const portfoliosRouter = router({
           const currency = stock.currency || 'CHF';
           const currentPrice = safeParseFloat(stock.currentPrice);
           const ytdStartPrice = await getHistoricalPrice(ticker, ytdStartDate) || currentPrice;
-          
-          const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-          const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
-          
+
+          // U-13: fehlender Kurs/FX-Kurs → Wert 0 (wie bisher), aber geflaggt.
+          const priceMissing = !(currentPrice > 0);
+          const currentPriceCHFOrNull = await tryConvertToCHF(currentPrice, currency, todayStr);
+          const ytdStartPriceCHFOrNull = await tryConvertToCHF(ytdStartPrice, currency, ytdStartDate);
+          const fxMissing = currentPriceCHFOrNull === null || ytdStartPriceCHFOrNull === null;
+          const currentPriceCHF = currentPriceCHFOrNull ?? 0;
+          const ytdStartPriceCHF = ytdStartPriceCHFOrNull ?? 0;
+
           const currentValueCHF = holding.shares * currentPriceCHF;
           const ytdStartValueCHF = holding.shares * ytdStartPriceCHF;
           const performanceCHF = currentValueCHF - ytdStartValueCHF;
@@ -1086,6 +1126,9 @@ export const portfoliosRouter = router({
             totalInvestedCHF: holding.totalInvestedCHF,
             performanceCHF,
             performancePercent,
+            // U-13: Datenqualitäts-Flags (additiv, Client-Badges Phase 4)
+            priceMissing,
+            fxMissing,
           });
         }
         
@@ -2049,12 +2092,14 @@ export const portfoliosRouter = router({
         }
         
         // Helper function to convert using cached rates
+        // W7/R-10: fehlender Kurs → 0 (Position fällt aus der Bewertung) statt
+        // hartkodiertem 1:1-Fallback.
         const convertToCHFCached = (price: number, currency: string, date: string): number => {
           if (currency === 'CHF') return price;
-          const rate = fxRatesCache[currency]?.[date] || 1;
+          const rate = fxRatesCache[currency]?.[date] ?? 0;
           return price * rate;
         };
-        
+
         // Sample dates to reduce data points (max 100 points for chart)
         const maxDataPoints = 100;
         const sampleInterval = Math.max(1, Math.floor(sortedDates.length / maxDataPoints));
@@ -2423,12 +2468,13 @@ export const portfoliosRouter = router({
           }
         }
         
+        // W7/R-10: fehlender Kurs → 0 statt hartkodiertem 1:1-Fallback.
         const convertToCHFCached = (price: number, currency: string, date: string): number => {
           if (currency === 'CHF') return price;
-          const rate = fxRatesCache[currency]?.[date] || 1;
+          const rate = fxRatesCache[currency]?.[date] ?? 0;
           return price * rate;
         };
-        
+
         // Sample dates to reduce data points
         const maxDataPoints = 100;
         const sampleInterval = Math.max(1, Math.floor(sortedDates.length / maxDataPoints));

@@ -1,12 +1,37 @@
 /**
  * FX Helper Functions
- * 
+ *
  * Utility functions for currency conversion using historical exchange rates.
+ *
+ * ── Missing-rate design (R-10, OPTIMIZATION_PLAN.md) ────────────────────────
+ * Vorher lieferten getFxRate/getFxRateSync bei fehlendem Kurs stillschweigend
+ * 1.0 — Fremdwährungsbeträge wurden 1:1 als CHF bewertet (~12 % Fehler bei
+ * USD), ohne jede Warnung. Neues Design:
+ *
+ * 1. Kern-API `tryGetFxRate` / `tryGetFxRateSync` / `tryConvertToCHF(Sync)`:
+ *    liefert `null`, wenn innerhalb von FX_LOOKBACK_DAYS (30 Tagen) rückwärts
+ *    kein Kurs existiert. CHF→CHF bleibt 1.0. Neue Aufrufer (Importe,
+ *    Persistenz, Datenqualitäts-Flags) nutzen diese Varianten und behandeln
+ *    `null` explizit (Zeile ablehnen bzw. fxMissing-Flag setzen, → R-13/U-13).
+ *
+ * 2. Legacy-API `getFxRate` / `getFxRateSync` / `convertToCHF(Sync)` behält
+ *    die number-Signatur (Dutzende Bewertungs-Callsites): bei einem Kurs
+ *    innerhalb des 30-Tage-Lookbacks kommt der letzte bekannte (ggf. leicht
+ *    veraltete) Kurs zurück; existiert NICHTS, wird einmal pro (Datum, Paar)
+ *    gewarnt und 0 geliefert. Damit fällt eine Position in Bewertungspfaden
+ *    auf Wert 0 (aus Summen ausgeschlossen, wie bei fehlendem Kurs — U-13)
+ *    statt fälschlich 1:1 als CHF bewertet zu werden. Persistenzpfade, die
+ *    fxRate=0 schreiben würden, werden vom täglichen transactionFxUpdateJob
+ *    (fxRate '0'-Scan) repariert bzw. validieren selbst auf > 0 (db.ts
+ *    createPortfolioTransaction).
  */
 
 import { getDb } from './db';
 import { exchangeRates, stocks } from '../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
+
+/** Maximaler Rückwärts-Lookback für fehlende Kurstage (Wochenenden/Feiertage/Lücken). */
+const FX_LOOKBACK_DAYS = 30;
 
 // In-memory cache for resolved FX rates. Historical rates are immutable, so
 // caching (date, pair) -> rate avoids thousands of repeated DB lookups inside
@@ -38,33 +63,62 @@ async function ensureFxRatesPrewarmed(): Promise<void> {
 }
 
 /**
- * Get exchange rate for a specific date and currency pair
+ * In-Memory-Rückwärtssuche: exaktes Datum, dann bis zu FX_LOOKBACK_DAYS Tage
+ * zurück (Wochenenden/Feiertage/Lücken). `null`, wenn nichts im Fenster liegt.
+ */
+function lookupCachedRateWithLookback(date: string, currencyPair: string): number | null {
+  const exact = fxRateCache.get(`${date}:${currencyPair}`);
+  if (exact !== undefined) return exact;
+  const d = new Date(date);
+  for (let i = 1; i <= FX_LOOKBACK_DAYS; i++) {
+    d.setDate(d.getDate() - 1);
+    const fallback = fxRateCache.get(`${d.toISOString().split('T')[0]}:${currencyPair}`);
+    if (fallback !== undefined) return fallback;
+  }
+  return null;
+}
+
+// Einmal-pro-(Datum, Paar)-Warnung, damit Bewertungs-Loops das Log nicht fluten.
+const warnedMissingFx = new Set<string>();
+function warnMissingFx(date: string, currencyPair: string): void {
+  const key = `${date}:${currencyPair}`;
+  if (warnedMissingFx.has(key)) return;
+  warnedMissingFx.add(key);
+  console.warn(
+    `[FxHelper] No FX rate for ${currencyPair} within ${FX_LOOKBACK_DAYS} days of ${date} — ` +
+    `returning 0 (position wird mit 0 bewertet statt 1:1 als CHF, R-10)`
+  );
+}
+
+/**
+ * Get exchange rate for a specific date and currency pair, or `null` when no
+ * rate exists within FX_LOOKBACK_DAYS looking back (R-10: no silent 1.0).
  * @param date - Date in YYYY-MM-DD format
  * @param currencyPair - Currency pair (e.g., 'USDCHF', 'EURCHF')
- * @returns Exchange rate or 1.0 if not found (CHF is base currency)
  */
-export async function getFxRate(date: string, currencyPair: string): Promise<number> {
+export async function tryGetFxRate(date: string, currencyPair: string): Promise<number | null> {
   if (currencyPair === 'CHFCHF') {
     return 1.0;
   }
 
   const cacheKey = `${date}:${currencyPair}`;
-  let cachedRate = fxRateCache.get(cacheKey);
+  const cachedRate = fxRateCache.get(cacheKey);
   if (cachedRate !== undefined) {
     return cachedRate;
   }
 
-  // First miss after process start: bulk-load all rates, then re-check.
+  // First miss after process start: bulk-load all rates, then re-check
+  // (inkl. Rückwärtssuche im geprewarmten Cache).
   await ensureFxRatesPrewarmed();
-  cachedRate = fxRateCache.get(cacheKey);
-  if (cachedRate !== undefined) {
-    return cachedRate;
+  const cachedLookback = lookupCachedRateWithLookback(date, currencyPair);
+  if (cachedLookback !== null) {
+    return cachedLookback;
   }
 
   const db = await getDb();
   if (!db) {
     console.error('[FxHelper] Database not available');
-    return 1.0;
+    return null;
   }
 
   try {
@@ -84,33 +138,63 @@ export async function getFxRate(date: string, currencyPair: string): Promise<num
       fxRateCache.set(cacheKey, parsed);
       return parsed;
     }
-    
-    // If exact date not found, try to find nearest previous date
-    const { desc, lte } = await import('drizzle-orm');
+
+    // If exact date not found, try nearest previous date — but only within
+    // the lookback window (older rates are treated as missing, R-10).
+    const { desc, lte, gte } = await import('drizzle-orm');
+    const minDate = new Date(date);
+    minDate.setDate(minDate.getDate() - FX_LOOKBACK_DAYS);
+    const minDateStr = minDate.toISOString().split('T')[0];
     const [nearestRate] = await db
       .select()
       .from(exchangeRates)
       .where(
         and(
           eq(exchangeRates.currencyPair, currencyPair),
-          lte(exchangeRates.date, date)
+          lte(exchangeRates.date, date),
+          gte(exchangeRates.date, minDateStr)
         )
       )
       .orderBy(desc(exchangeRates.date))
       .limit(1);
-    
+
     if (nearestRate) {
       const parsed = parseFloat(nearestRate.rate);
       fxRateCache.set(cacheKey, parsed);
       return parsed;
     }
-    
-    console.warn(`[FxHelper] No FX rate found for ${currencyPair} on ${date}`);
-    return 1.0;
+
+    return null;
   } catch (error) {
     console.error(`[FxHelper] Error fetching FX rate:`, error);
-    return 1.0;
+    return null;
   }
+}
+
+/**
+ * Legacy number-returning variant (viele Bewertungs-Callsites).
+ * @returns Exchange rate (ggf. letzter bekannter Kurs ≤ 30 Tage zurück) oder
+ *          0, wenn kein Kurs existiert — nie mehr stillschweigend 1.0 (R-10).
+ */
+export async function getFxRate(date: string, currencyPair: string): Promise<number> {
+  const rate = await tryGetFxRate(date, currencyPair);
+  if (rate === null) {
+    warnMissingFx(date, currencyPair);
+    return 0;
+  }
+  return rate;
+}
+
+/**
+ * Convert amount to CHF, or `null` when no FX rate exists within the lookback
+ * window (R-10). CHF amounts pass through unchanged.
+ */
+export async function tryConvertToCHF(amount: number, currency: string, date: string): Promise<number | null> {
+  if (currency === 'CHF') {
+    return amount;
+  }
+  const fxRate = await tryGetFxRate(date, `${currency}CHF`);
+  return fxRate === null ? null : amount * fxRate;
 }
 
 /**
@@ -154,46 +238,60 @@ export async function getStockCurrency(ticker: string): Promise<string> {
 }
 
 /**
- * Convert amount from one currency to CHF
+ * Convert amount from one currency to CHF (legacy number-returning variant).
  * @param amount - Amount in original currency
  * @param currency - Original currency code
  * @param date - Date for exchange rate lookup
- * @returns Amount in CHF
+ * @returns Amount in CHF — 0, wenn kein Kurs existiert (nie 1:1, R-10)
  */
 export async function convertToCHF(amount: number, currency: string, date: string): Promise<number> {
   if (currency === 'CHF') {
     return amount;
   }
-  
+
   const currencyPair = `${currency}CHF`;
   const fxRate = await getFxRate(date, currencyPair);
-  
+
   return amount * fxRate;
 }
 
 /**
- * Synchronous version of getFxRate — reads only from the in-memory cache.
+ * Synchronous version of tryGetFxRate — reads only from the in-memory cache.
  * MUST call ensureFxRatesPrewarmed() (via any async getFxRate call) before using this.
- * Falls back to 1.0 if the cache is not yet populated or the rate is missing.
+ * `null` if the cache is not yet populated or no rate exists within the
+ * FX_LOOKBACK_DAYS window (R-10).
  */
-export function getFxRateSync(date: string, currencyPair: string): number {
+export function tryGetFxRateSync(date: string, currencyPair: string): number | null {
   if (currencyPair === 'CHFCHF') return 1.0;
-  const key = `${date}:${currencyPair}`;
-  const cached = fxRateCache.get(key);
-  if (cached !== undefined) return cached;
-  // Weekend/holiday fallback: look back up to 5 days
-  const d = new Date(date);
-  for (let i = 1; i <= 5; i++) {
-    d.setDate(d.getDate() - 1);
-    const fallbackKey = `${d.toISOString().split('T')[0]}:${currencyPair}`;
-    const fallback = fxRateCache.get(fallbackKey);
-    if (fallback !== undefined) return fallback;
-  }
-  return 1.0;
+  return lookupCachedRateWithLookback(date, currencyPair);
 }
 
 /**
- * Synchronous CHF conversion using the in-memory cache.
+ * Synchronous legacy variant: letzter bekannter Kurs ≤ 30 Tage zurück, sonst 0
+ * (vorher: stiller 1.0-Fallback nach 5 Tagen Lookback, R-10).
+ */
+export function getFxRateSync(date: string, currencyPair: string): number {
+  const rate = tryGetFxRateSync(date, currencyPair);
+  if (rate === null) {
+    warnMissingFx(date, currencyPair);
+    return 0;
+  }
+  return rate;
+}
+
+/**
+ * Synchronous CHF conversion, `null` when no rate exists (R-10).
+ * Requires the cache to be prewarmed first (call any async getFxRate to trigger).
+ */
+export function tryConvertToCHFSync(amount: number, currency: string, date: string): number | null {
+  if (currency === 'CHF') return amount;
+  const rate = tryGetFxRateSync(date, `${currency}CHF`);
+  return rate === null ? null : amount * rate;
+}
+
+/**
+ * Synchronous CHF conversion using the in-memory cache (legacy variant — 0
+ * statt 1:1 bei fehlendem Kurs, R-10).
  * Requires the cache to be prewarmed first (call any async getFxRate to trigger).
  */
 export function convertToCHFSync(amount: number, currency: string, date: string): number {
