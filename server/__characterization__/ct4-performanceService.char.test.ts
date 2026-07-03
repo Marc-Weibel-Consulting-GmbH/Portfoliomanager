@@ -65,6 +65,21 @@ vi.mock("../fxHelper", () => ({
     }
     return 0;
   },
+  // R-15: performanceService löst fehlende totalAmountCHF via tryGetFxRate
+  // (Rate zum Transaktionsdatum) auf. Gleiche Datenbasis, `null` statt 0 bei
+  // fehlender Rate — S6 (keine Raten) fällt damit weiter auf den Lokalbetrag
+  // zurück, die gepinnten Werte ändern sich nicht.
+  tryGetFxRate: async (date: string, currencyPair: string) => {
+    if (currencyPair === "CHFCHF") return 1.0;
+    const currency = currencyPair.replace(/CHF$/, "");
+    const d = new Date(date);
+    for (let i = 0; i <= 30; i++) {
+      const rate = h.fxLookup.get(`${d.toISOString().split("T")[0]}:${currency}CHF`);
+      if (rate !== undefined) return rate;
+      d.setDate(d.getDate() - 1);
+    }
+    return null;
+  },
 }));
 
 function loadScenario(s: {

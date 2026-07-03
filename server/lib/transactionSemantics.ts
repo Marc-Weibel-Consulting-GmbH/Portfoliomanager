@@ -20,11 +20,16 @@
  * 3. Dividends are INTERNAL income of the portfolio, NOT external flows
  *    (R-05). They affect cash, never TWR/IRR flow lists.
  *
- * Residual risk R-15 (documented, deliberately NOT fixed here): when
- * `totalAmountCHF` is missing we fall back to `totalAmount × fxRate` if an
- * fxRate is stored, else to the raw local-currency `totalAmount` — the last
- * step still mixes currencies (local amount treated as CHF). A proper fix
- * needs an FX lookup at the transaction date (see plan R-15).
+ * R-15 (fixed for async consumers): when `totalAmountCHF` is missing we fall
+ * back to `totalAmount × fxRate` if an fxRate is stored. Without a stored
+ * fxRate, `resolveGrossAmountCHF` performs an FX lookup at the TRANSACTION
+ * DATE (via an injected lookup fn, keeping this module pure/testable) before
+ * resorting to the last-resort fallback. Async consumers where amounts
+ * materially matter (performanceService, dashboardRouter.getPerformanceMetrics,
+ * annualPerformanceRouter) pre-resolve rows via `withResolvedGrossAmountCHF`.
+ * Only SYNC contexts still hit the old last-resort fallback in
+ * `getGrossAmountCHF` (raw local amount treated as CHF) — that path now logs
+ * a warning (once per process).
  */
 
 /** Minimal structural shape of a transaction row as read from the DB. */
@@ -42,11 +47,25 @@ function parseNum(value: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// R-15: einmal-pro-Prozess-Warnung, damit Bewertungs-Loops das Log nicht fluten.
+let warnedR15Fallback = false;
+function warnR15Fallback(context: string): void {
+  if (warnedR15Fallback) return;
+  warnedR15Fallback = true;
+  console.warn(
+    `[transactionSemantics] R-15 fallback hit (${context}): totalAmountCHF and ` +
+    `fxRate missing — raw local totalAmount treated as CHF. Async consumers ` +
+    `should pre-resolve via resolveGrossAmountCHF/withResolvedGrossAmountCHF.`
+  );
+}
+
 /**
  * Gross trade value in CHF, EXCLUDING fees (canonical meaning of
  * `totalAmountCHF`). Fallback chain when the CHF column is missing:
  * `totalAmount × fxRate` if fxRate is present, else raw `totalAmount`
- * (residual R-15 risk — see module header).
+ * (residual R-15 risk in SYNC contexts — see module header; async consumers
+ * use `resolveGrossAmountCHF` which looks up the FX rate at the transaction
+ * date first).
  */
 export function getGrossAmountCHF(tx: TransactionAmountFields): number {
   const chf = parseNum(tx.totalAmountCHF);
@@ -58,7 +77,84 @@ export function getGrossAmountCHF(tx: TransactionAmountFields): number {
   const fxRate = parseNum(tx.fxRate);
   if (fxRate !== null && fxRate > 0) return local * fxRate;
 
-  return local; // R-15: local amount treated as CHF (no fxRate available)
+  // R-15: local amount treated as CHF (no fxRate available, sync context)
+  warnR15Fallback("getGrossAmountCHF");
+  return local;
+}
+
+/**
+ * Row shape for the async R-15 resolution path: additionally carries the
+ * transaction currency and date needed for an FX lookup.
+ */
+export interface ResolvableTransactionFields extends TransactionAmountFields {
+  currency?: string | null;
+  transactionDate?: Date | string | null;
+}
+
+/**
+ * Injected FX lookup: rate `currency`→CHF valid at `date` (YYYY-MM-DD), or
+ * `null` when no rate is available (mirrors fxHelper.tryGetFxRate semantics).
+ */
+export type FxRateForDateLookup = (currency: string, date: string) => Promise<number | null>;
+
+function txDateToIso(date: Date | string | null | undefined): string | null {
+  if (date == null) return null;
+  if (typeof date === "string") return date.split("T")[0] || null;
+  return date.toISOString().split("T")[0];
+}
+
+/**
+ * Async variant of `getGrossAmountCHF` that closes the R-15 gap: when both
+ * `totalAmountCHF` and `fxRate` are missing on a non-CHF row, the FX rate is
+ * looked up at the TRANSACTION DATE via the injected `getRateForDate` before
+ * falling back to the raw local amount. Rows with `totalAmountCHF` present
+ * never trigger a lookup; CHF rows are returned as-is (no currency mixing).
+ */
+export async function resolveGrossAmountCHF(
+  tx: ResolvableTransactionFields,
+  getRateForDate: FxRateForDateLookup
+): Promise<number> {
+  const chf = parseNum(tx.totalAmountCHF);
+  if (chf !== null) return chf;
+
+  const local = parseNum(tx.totalAmount);
+  if (local === null) return 0;
+
+  const fxRate = parseNum(tx.fxRate);
+  if (fxRate !== null && fxRate > 0) return local * fxRate;
+
+  const currency = tx.currency || null;
+  if (!currency || currency === "CHF") return local; // local IS CHF — correct, not R-15
+
+  const date = txDateToIso(tx.transactionDate);
+  if (date) {
+    const rate = await getRateForDate(currency, date);
+    if (rate !== null && rate > 0) return local * rate;
+  }
+
+  // Last resort: lookup failed too — same residual risk as the sync path.
+  warnR15Fallback("resolveGrossAmountCHF");
+  return local;
+}
+
+/**
+ * Batch helper for async consumers: returns copies of the rows where a
+ * missing `totalAmountCHF` has been filled from `resolveGrossAmountCHF`, so
+ * downstream SYNC readers (`getGrossAmountCHF`/`getSignedFlowCHF`) see the
+ * date-correct CHF amount instead of hitting the R-15 fallback. Rows that
+ * already carry `totalAmountCHF` are passed through unchanged.
+ */
+export async function withResolvedGrossAmountCHF<T extends ResolvableTransactionFields>(
+  transactions: T[],
+  getRateForDate: FxRateForDateLookup
+): Promise<T[]> {
+  return Promise.all(
+    transactions.map(async (tx) => {
+      if (parseNum(tx.totalAmountCHF) !== null) return tx;
+      const gross = await resolveGrossAmountCHF(tx, getRateForDate);
+      return { ...tx, totalAmountCHF: String(gross) };
+    })
+  );
 }
 
 /** Fees in CHF; missing/unparsable fees count as 0. */

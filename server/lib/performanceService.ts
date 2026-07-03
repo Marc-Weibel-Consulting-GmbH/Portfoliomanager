@@ -20,7 +20,7 @@ import {
   type IRRResult,
   type PerformanceMetrics,
 } from './performanceEngine';
-import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF } from './transactionSemantics';
+import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF, withResolvedGrossAmountCHF, type FxRateForDateLookup } from './transactionSemantics';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -53,6 +53,11 @@ export interface PortfolioPerformanceResult {
   absoluteGainCHF: number;
   /** Daily performance series for charting (cumulative % returns) */
   dailySeries: Array<{ date: string; cumulativeReturn: number }>;
+  /**
+   * Daily portfolio market values in CHF (stocks + cash), valued with
+   * HISTORICAL prices (R-04) — the value-history counterpart to dailySeries.
+   */
+  dailyValuations: DailyValuation[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +83,7 @@ export async function calculatePortfolioPerformance(
 ): Promise<PortfolioPerformanceResult> {
   const { getDb, getPortfolioTransactions, getSavedPortfolioById } = await import('../db');
   const { batchGetStocks } = await import('../db-optimized');
-  const { convertToCHF } = await import('../fxHelper');
+  const { convertToCHF, tryGetFxRate } = await import('../fxHelper');
   const { historicalPrices } = await import('../../drizzle/schema');
   const { inArray, and, gte, lte } = await import('drizzle-orm');
 
@@ -88,10 +93,16 @@ export async function calculatePortfolioPerformance(
   }
 
   // 1. Load transactions
-  const transactions = await getPortfolioTransactions(input.portfolioId);
-  if (transactions.length === 0) {
+  const rawTransactions = await getPortfolioTransactions(input.portfolioId);
+  if (rawTransactions.length === 0) {
     return emptyResult(input.startDate, input.endDate);
   }
+
+  // R-15: Zeilen ohne totalAmountCHF/fxRate werden mit dem FX-Kurs zum
+  // TRANSAKTIONSDATUM aufgelöst, bevor Cash-Timeline und Flows sie lesen
+  // (vorher: Lokalbetrag stillschweigend als CHF).
+  const fxLookup: FxRateForDateLookup = (currency, date) => tryGetFxRate(date, `${currency}CHF`);
+  const transactions = await withResolvedGrossAmountCHF(rawTransactions as any[], fxLookup);
 
   // 2. Get all unique tickers from transactions
   const allTickers = new Set<string>();
@@ -202,7 +213,12 @@ export async function calculatePortfolioPerformance(
   const firstValuationDate = valuations.length > 0 ? valuations[0].date : input.startDate;
   const postBaselineFlows: CashFlow[] = cashFlows.filter(cf => cf.date > firstValuationDate);
 
-  const irr = calculateIRR(mvb, mve, postBaselineFlows, input.startDate, input.endDate);
+  // R-17: IRR-Periode an die tatsächlich BEWERTETEN Stichtage koppeln (erster/
+  // letzter Preisstand). Vorher lief die Periode bis input.endDate (bei
+  // Aufrufern oft «heute» via new Date()), obwohl MVE am letzten Preisdatum
+  // steht — die Periode war zu lang, die annualisierte IRR zu tief.
+  const lastValuationDate = valuations.length > 0 ? valuations[valuations.length - 1].date : input.endDate;
+  const irr = calculateIRR(mvb, mve, postBaselineFlows, firstValuationDate, lastValuationDate);
 
   // 13. Calculate totals
   const totalInvested = postBaselineFlows
@@ -225,6 +241,7 @@ export async function calculatePortfolioPerformance(
     totalInvestedCHF: totalInvested,
     absoluteGainCHF,
     dailySeries: ttwror.dailySeries,
+    dailyValuations: valuations,
   };
 }
 
@@ -238,7 +255,7 @@ export async function calculateAggregatedPerformance(
 ): Promise<PortfolioPerformanceResult> {
   const { getDb, getPortfolioTransactions } = await import('../db');
   const { batchGetStocks } = await import('../db-optimized');
-  const { convertToCHF } = await import('../fxHelper');
+  const { convertToCHF, tryGetFxRate } = await import('../fxHelper');
   const { historicalPrices } = await import('../../drizzle/schema');
   const { inArray, and, gte, lte } = await import('drizzle-orm');
 
@@ -248,20 +265,24 @@ export async function calculateAggregatedPerformance(
   }
 
   // Collect all transactions from all portfolios
-  const allTransactions: any[] = [];
+  const rawAllTransactions: any[] = [];
   const allTickers = new Set<string>();
 
   for (const pid of portfolioIds) {
     const txs = await getPortfolioTransactions(pid);
-    allTransactions.push(...txs);
+    rawAllTransactions.push(...txs);
     for (const tx of txs) {
       if (tx.ticker) allTickers.add(tx.ticker);
     }
   }
 
-  if (allTransactions.length === 0 || allTickers.size === 0) {
+  if (rawAllTransactions.length === 0 || allTickers.size === 0) {
     return emptyResult(startDate, endDate);
   }
+
+  // R-15: fehlende totalAmountCHF mit FX-Kurs zum Transaktionsdatum auflösen.
+  const fxLookup: FxRateForDateLookup = (currency, date) => tryGetFxRate(date, `${currency}CHF`);
+  const allTransactions = await withResolvedGrossAmountCHF(rawAllTransactions, fxLookup);
 
   // Get stock metadata
   const stocksMap = await batchGetStocks(Array.from(allTickers));
@@ -345,7 +366,10 @@ export async function calculateAggregatedPerformance(
   // vorzeichen-normalisiert, R-01 — siehe lib/transactionSemantics.ts).
   const firstValuationDate = valuations.length > 0 ? valuations[0].date : startDate;
   const postBaselineFlows: CashFlow[] = cashFlows.filter(cf => cf.date > firstValuationDate);
-  const irr = calculateIRR(mvb, mve, postBaselineFlows, startDate, endDate);
+  // R-17: IRR-Periode an die bewerteten Stichtage koppeln (s. o. in
+  // calculatePortfolioPerformance).
+  const lastValuationDate = valuations.length > 0 ? valuations[valuations.length - 1].date : endDate;
+  const irr = calculateIRR(mvb, mve, postBaselineFlows, firstValuationDate, lastValuationDate);
 
   // Totals
   const totalInvested = postBaselineFlows
@@ -366,6 +390,7 @@ export async function calculateAggregatedPerformance(
     totalInvestedCHF: totalInvested,
     absoluteGainCHF,
     dailySeries: ttwror.dailySeries,
+    dailyValuations: valuations,
   };
 }
 
@@ -474,5 +499,6 @@ function emptyResult(startDate: string, endDate: string): PortfolioPerformanceRe
     totalInvestedCHF: 0,
     absoluteGainCHF: 0,
     dailySeries: [],
+    dailyValuations: [],
   };
 }

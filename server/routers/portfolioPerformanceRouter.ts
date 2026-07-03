@@ -1,17 +1,99 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
-import {
-  calculatePerformanceMetrics,
-  calculateHoldingsPerformance,
-  buildValuePoints,
-  calculateTimeWeightedReturn,
-  calculateMoneyWeightedReturn,
-} from "../performanceCalculations";
+import { calculateHoldingsPerformance } from "../performanceCalculations";
+import { calculatePortfolioPerformance } from "../lib/performanceService";
+import { extractPortfolioCashFlows } from "../lib/performanceEngine";
+import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF } from "../lib/transactionSemantics";
+import type { PortfolioTransaction } from "../../drizzle/schema";
 
 /**
  * Portfolio Performance Router
  * Provides accurate performance calculations using TWR, MWR/IRR, and comprehensive metrics
+ *
+ * R-04: TWR/MWR and the value history come from the historical-price pipeline
+ * (lib/performanceService.calculatePortfolioPerformance). The legacy engine
+ * (performanceCalculations.buildValuePoints/calculatePerformanceMetrics) valued
+ * PAST dates with CURRENT prices and is retired here — only its point-in-time
+ * pieces (calculateHoldingsPerformance cost basis, fee/dividend/flow sums via
+ * transactionSemantics) remain in use.
  */
+
+/** First transaction date (YYYY-MM-DD) — start of the measurement period. */
+function firstTransactionDate(transactions: PortfolioTransaction[]): string {
+  let min: string | null = null;
+  for (const tx of transactions) {
+    const d = new Date(tx.transactionDate).toISOString().split("T")[0];
+    if (min === null || d < min) min = d;
+  }
+  return min ?? new Date().toISOString().split("T")[0];
+}
+
+/**
+ * Comprehensive metrics in the legacy response shape (see PERFORMANCE_API.md).
+ * Point-in-time fields use the same formulas as the retired
+ * calculatePerformanceMetrics; timeWeightedReturn/moneyWeightedReturn now come
+ * from the historical-price pipeline (R-04) instead of a flat current-price
+ * series. Both are percentages; TWR annualized only for periods > 1 year,
+ * MWR always annualized — matching the legacy field semantics.
+ */
+async function computePortfolioMetrics(
+  portfolioId: number,
+  transactions: PortfolioTransaction[],
+  currentPrices: Map<string, number>,
+  totalRealizedGains: number
+) {
+  const holdings = calculateHoldingsPerformance(transactions, currentPrices);
+  const currentValue = holdings.reduce((sum, h) => sum + h.currentValue, 0);
+  const unrealizedGains = holdings.reduce((sum, h) => sum + h.unrealizedGain, 0);
+  const totalInvestedInHoldings = holdings.reduce((sum, h) => sum + h.totalInvested, 0);
+
+  let totalDeposits = 0;
+  let totalWithdrawals = 0;
+  let dividendsReceived = 0;
+  let feesPaid = 0;
+
+  for (const tx of transactions) {
+    if (tx.transactionType === "deposit") {
+      totalDeposits += getSignedFlowCHF(tx); // immer positiv
+    } else if (tx.transactionType === "withdrawal") {
+      // R-01: getSignedFlowCHF normalisiert beide Speicher-Konventionen.
+      totalWithdrawals += -getSignedFlowCHF(tx);
+    } else if (tx.transactionType === "dividend") {
+      dividendsReceived += getGrossAmountCHF(tx);
+    }
+    feesPaid += getFeesCHF(tx);
+  }
+
+  const totalInvested = totalDeposits - totalWithdrawals;
+  const totalReturn = currentValue + totalRealizedGains + dividendsReceived - totalInvested - feesPaid;
+  const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+  const unrealizedGainsPercent = totalInvestedInHoldings > 0
+    ? (unrealizedGains / totalInvestedInHoldings) * 100
+    : 0;
+
+  // R-04: TWR/MWR aus der historisch korrekten Pipeline (statt buildValuePoints,
+  // das vergangene Stichtage mit HEUTIGEN Kursen bewertete).
+  const perf = await calculatePortfolioPerformance({
+    portfolioId,
+    startDate: firstTransactionDate(transactions),
+    endDate: new Date().toISOString().split("T")[0],
+  });
+
+  return {
+    totalReturn,
+    totalReturnPercent,
+    timeWeightedReturn: perf.ttwror.annualizedReturn * 100,
+    moneyWeightedReturn: perf.irr.annualizedIRR * 100,
+    unrealizedGains,
+    unrealizedGainsPercent,
+    realizedGains: totalRealizedGains,
+    totalInvested,
+    currentValue,
+    dividendsReceived,
+    feesPaid,
+  };
+}
+
 export const portfolioMetricsRouter = router({
   /**
    * Get comprehensive performance metrics for a portfolio
@@ -69,15 +151,8 @@ export const portfolioMetricsRouter = router({
         0
       );
 
-      // Calculate comprehensive metrics with portfolio creation date
-      const metrics = calculatePerformanceMetrics(
-        transactions,
-        currentPrices,
-        totalRealizedGains,
-        portfolio.createdAt // Pass portfolio creation date for initial investment handling
-      );
-
-      return metrics;
+      // Calculate comprehensive metrics (TWR/MWR via historical pipeline, R-04)
+      return computePortfolioMetrics(portfolioId, transactions, currentPrices, totalRealizedGains);
     }),
 
   /**
@@ -110,7 +185,7 @@ export const portfolioMetricsRouter = router({
 
       const currentPrices = new Map<string, number>();
       const stockDetails = new Map<string, any>();
-      
+
       for (const ticker of Array.from(tickers)) {
         const stock = await getStockByTicker(ticker);
         if (stock) {
@@ -121,7 +196,8 @@ export const portfolioMetricsRouter = router({
         }
       }
 
-      // Calculate holdings performance
+      // Calculate holdings performance (point-in-time cost basis — no history
+      // involved, so the legacy function stays; R-04)
       const holdings = calculateHoldingsPerformance(transactions, currentPrices);
 
       // Enrich with stock details
@@ -142,6 +218,13 @@ export const portfolioMetricsRouter = router({
 
   /**
    * Get portfolio value over time for charting
+   *
+   * R-04: previously built from buildValuePoints, which valued every PAST date
+   * with TODAY's prices (a flat series). Now each point is the portfolio's
+   * market value (stocks + cash, CHF) on that date using HISTORICAL prices.
+   * Response shape is unchanged: Array<{ date, value, cashFlows }>, where
+   * cashFlows is the net EXTERNAL flow (deposits positive, withdrawals
+   * negative) on that date — buys/sells no longer appear as flows.
    */
   getValueHistory: protectedProcedure
     .input(
@@ -154,7 +237,6 @@ export const portfolioMetricsRouter = router({
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolioById } = await import("../db");
       const { getPortfolioTransactions } = await import("../db");
-      const { getStockByTicker } = await import("../db");
 
       // Verify portfolio ownership
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
@@ -162,41 +244,32 @@ export const portfolioMetricsRouter = router({
         throw new Error("Portfolio not found");
       }
 
-      // Get all transactions
-      let transactions = await getPortfolioTransactions(input.portfolioId);
-      
-      // Filter by date range if provided
-      if (input.startDate) {
-        const startDate = new Date(input.startDate);
-        transactions = transactions.filter((tx) => tx.transactionDate >= startDate);
-      }
-      if (input.endDate) {
-        const endDate = new Date(input.endDate);
-        transactions = transactions.filter((tx) => tx.transactionDate <= endDate);
-      }
-
+      const transactions = await getPortfolioTransactions(input.portfolioId);
       if (transactions.length === 0) {
         return [];
       }
 
-      // Get current prices for all holdings
-      const tickers = new Set<string>();
-      transactions.forEach((tx) => {
-        if (tx.ticker) tickers.add(tx.ticker);
+      const startDate = input.startDate ?? firstTransactionDate(transactions);
+      const endDate = input.endDate ?? new Date().toISOString().split("T")[0];
+
+      const perf = await calculatePortfolioPerformance({
+        portfolioId: input.portfolioId,
+        startDate,
+        endDate,
       });
 
-      const currentPrices = new Map<string, number>();
-      for (const ticker of Array.from(tickers)) {
-        const stock = await getStockByTicker(ticker);
-        if (stock && stock.currentPrice) {
-          currentPrices.set(ticker, parseFloat(stock.currentPrice));
-        }
+      // Net external flows per date (sign-normalized, R-01)
+      const flowsByDate = new Map<string, number>();
+      for (const cf of extractPortfolioCashFlows(transactions as any)) {
+        if (cf.date < startDate || cf.date > endDate) continue;
+        flowsByDate.set(cf.date, (flowsByDate.get(cf.date) || 0) + cf.amount);
       }
 
-      // Build value points
-      const valuePoints = buildValuePoints(transactions, currentPrices);
-
-      return valuePoints;
+      return perf.dailyValuations.map((v) => ({
+        date: v.date,
+        value: v.marketValue,
+        cashFlows: flowsByDate.get(v.date) || 0,
+      }));
     }),
 
   /**
@@ -256,12 +329,12 @@ export const portfolioMetricsRouter = router({
           0
         );
 
-        // Calculate metrics with portfolio creation date
-        const metrics = calculatePerformanceMetrics(
+        // Calculate metrics (TWR/MWR via historical pipeline, R-04)
+        const metrics = await computePortfolioMetrics(
+          portfolioId,
           transactions,
           currentPrices,
-          totalRealizedGains,
-          portfolio.createdAt
+          totalRealizedGains
         );
 
         comparisons.push({
@@ -293,26 +366,24 @@ export const portfolioMetricsRouter = router({
 
       // Get all transactions
       const transactions = await getPortfolioTransactions(portfolioId);
-      
-      // Calculate components
+
+      // Calculate components (kanonische Semantik, lib/transactionSemantics.ts:
+      // Vorzeichen via Transaktionstyp normalisiert, R-01/R-15)
       let dividends = 0;
       let fees = 0;
       let deposits = 0;
       let withdrawals = 0;
 
       transactions.forEach((tx) => {
-        const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || "0");
-        const txFees = parseFloat(tx.fees || "0");
-
         if (tx.transactionType === "dividend") {
-          dividends += amount;
+          dividends += getGrossAmountCHF(tx);
         } else if (tx.transactionType === "deposit") {
-          deposits += amount;
+          deposits += getSignedFlowCHF(tx); // immer positiv
         } else if (tx.transactionType === "withdrawal") {
-          withdrawals += amount;
+          withdrawals += -getSignedFlowCHF(tx); // immer positiver Entnahmebetrag
         }
 
-        fees += txFees;
+        fees += getFeesCHF(tx);
       });
 
       // Get realized gains

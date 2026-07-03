@@ -77,7 +77,10 @@ function calcSubscore(
     color = 'yellow';
   } else {
     // Green zone - interpolate from yellow to green
-    const progress = Math.min((effectiveValue - y) / (g - y), 1);
+    // R-26: Guard gegen Division durch 0 bei greenMin === yellowMax (vorher
+    // rettete nur Math.min die entstehende Infinity) bzw. negative progress
+    // bei invertierten/fehlkonfigurierten Schwellen.
+    const progress = g > y ? Math.min((effectiveValue - y) / (g - y), 1) : 1;
     score = 62.5 + progress * 25;
     color = 'green';
   }
