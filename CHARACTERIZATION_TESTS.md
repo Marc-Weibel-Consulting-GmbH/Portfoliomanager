@@ -28,6 +28,10 @@
 | CT-10 | Inline-Berechnung in `annualPerformanceRouter.getSummary` | `server/routers/annualPerformanceRouter.ts:11–241` | Jahresreport (Einlagen/Cash/Dividenden/ROI) — **vorher als pure Function extrahieren**, sonst nicht testbar | R-01, R-15, R-17 |
 | CT-11 | `parseSwissquotePDF` (bzw. Hauptexport) | `server/lib/swissquoteParser.ts` | Bank-PDF-Parsing (Fixture-basiert: echte anonymisierte Swissquote-Auszüge) | R-13, A-05 |
 | CT-12 | Holdings-Aufbau des Dashboard-Charts | `server/routers/dashboardPerformanceRouter.ts:150–250` (als Function extrahieren) | Tageswertserie des Dashboards (DESC/`break`-Bug, fehlende Flows) | R-06, R-07 |
+| CT-13 | Tagesveränderungs-Berechnung in `getAggregatedMetrics` | `server/routers/dashboardRouter.ts:39–82, 137–250, 363–364` (als Function extrahieren) | «Heute vs. Gestern»-Wert inkl. asymmetrischem Skipping und FX-Mix | R-29 |
+| CT-14 | YTD-Berechnung des Preis-Updaters | `server/priceUpdater.ts:90–93` + `server/cron/ytdUpdater.ts:40–75` | `ytdPerformance` aus `ytdStartPrice` (roher Dez-31-Close) | R-30, R-09 |
+| CT-15 | `calcDCF` | `server/analytics/engine.ts:883–997` | Fair Value / Über-/Unterbewertung (WACC-Floor, Spread-Floor, Caps) | R-32 |
+| CT-16 | `optimizeWeights` + `buildEfficientFrontier` | `server/analytics/engine.ts:334–466` | Gewichts-Bounds inkl. Infeasibility bei < 10 Titeln; Frontier ohne Constraints | R-34 |
 
 Ergänzend (kein Geld, aber angrenzend): `calculateStockScore` (`server/scoring.ts`) hat erst 3 Tests — auf Schwellen-Randfälle erweitern (R-26).
 
@@ -53,6 +57,9 @@ Diese Szenarien decken gezielt die im Audit gefundenen Fehlerklassen ab. Jedes S
 14. **YTD über den Jahreswechsel** — pinnt das hartkodierte `2025-01-01` (R-09).
 15. **Verkauf mit zwei früheren Käufen zu unterschiedlichen FX-Kursen** — pinnt den FX-Split mit Erstkauf-Datum (R-19) und `netProfit`-Fee-Doppelabzug.
 16. **Transaktionsreihenfolge DESC vs. ASC** als Input — pinnt R-06 (`break`-Bug) und die Sortier-Abhängigkeit von `calculateHoldingsPerformance`.
+17. **Tagesveränderung mit einem Titel ohne Preishistorie** (hat `currentPrice`, aber keine `historicalPrices`-Zeile) — pinnt R-29: der komplette Positionswert erscheint heute als Tagesgewinn.
+18. **YTD über einen Spin-off** (Fixture: Kurs −50 % am Ex-Tag, `adjustedClose` korrekt, `ytdStartPrice` = roher Dez-31-Close) — pinnt R-30 (Holcim-Fall): `ytdPerformance` ≈ −50 % statt real positiv.
+19. **DCF-Referenzfall** (stabiler CHF-Titel: FCF-Yield 5 %, Wachstum 4 %, Beta 0.8) — pinnt R-32: Fair Value unter Kurs trotz konservativer Inputs (WACC-Floor 8 % greift).
 
 ## Organisation
 
