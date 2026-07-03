@@ -410,8 +410,9 @@ export const S13_TWR = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Szenario 15 — Verkauf mit zwei früheren Käufen zu unterschiedlichen FX-Kursen
-// Für CT-5 (db.ts Verkaufs-Zweig): FX-Split nutzt das Datum des ERSTEN Kaufs
-// statt gewichtet (R-19); realizedGainPercent bleibt in Lokalwährung (R-24).
+// Für CT-5 (db.ts Verkaufs-Zweig): seit dem R-19-Fix kostengewichteter FX-Split
+// aus den gespeicherten fxRate-Spalten (vorher: Datum des ERSTEN Kaufs);
+// realizedGainPercent bleibt in Lokalwährung (R-24 offen).
 // Kauf 100@10 USD am 03.03. (Rate 0.88), Kauf 100@20 USD am 05.03. (Rate 0.90),
 // Verkauf 200@20 USD am 07.03. (Rate 0.92).
 // ─────────────────────────────────────────────────────────────────────────────

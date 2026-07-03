@@ -1,6 +1,32 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 
+/**
+ * R-19: allocate a ticker's buy fees proportionally to one sale.
+ *
+ * Convention (approximation, no lot tracking): buy fees of all buys executed
+ * up to and including the sale date are spread evenly over the shares those
+ * buys acquired; the sale carries soldShares / totalBoughtSharesUpToSale of
+ * them (capped at 100%). Previously the FULL sum of all buy fees ever was
+ * subtracted from EVERY sale's netProfit.
+ */
+export function allocateBuyFees(
+  buys: Array<{ transactionDate: Date | string; fees: number; shares: number }>,
+  sale: { transactionDate: Date | string; shares: number }
+): number {
+  const saleTime = new Date(sale.transactionDate).getTime();
+  let feesUpTo = 0;
+  let sharesUpTo = 0;
+  for (const buy of buys) {
+    if (new Date(buy.transactionDate).getTime() <= saleTime) {
+      feesUpTo += buy.fees;
+      sharesUpTo += buy.shares;
+    }
+  }
+  if (sharesUpTo <= 0 || sale.shares <= 0) return 0;
+  return feesUpTo * Math.min(1, sale.shares / sharesUpTo);
+}
+
 export const realizedGainsHistoryRouter = router({
   getAll: protectedProcedure
     .input((val: unknown) => {
@@ -42,12 +68,15 @@ export const realizedGainsHistoryRouter = router({
         .where(eq(realizedGains.portfolioId, input.portfolioId))
         .orderBy(desc(realizedGains.transactionDate));
 
-      // Get buy fees for each ticker (sum of all buy transaction fees)
-      const buyFeesMap = new Map<string, number>();
+      // Get buy fees + shares per ticker so each sale only carries its
+      // proportional share of buy fees (R-19; see allocateBuyFees).
+      const buysByTicker = new Map<string, Array<{ transactionDate: Date; fees: number; shares: number }>>();
       const buyTransactions = await db
         .select({
           ticker: portfolioTransactions.ticker,
           fees: portfolioTransactions.fees,
+          shares: portfolioTransactions.shares,
+          transactionDate: portfolioTransactions.transactionDate,
         })
         .from(portfolioTransactions)
         .where(
@@ -59,8 +88,13 @@ export const realizedGainsHistoryRouter = router({
 
       buyTransactions.forEach(tx => {
         if (tx.ticker) {
-          const currentFees = buyFeesMap.get(tx.ticker) || 0;
-          buyFeesMap.set(tx.ticker, currentFees + parseFloat(tx.fees || "0"));
+          const list = buysByTicker.get(tx.ticker) || [];
+          list.push({
+            transactionDate: tx.transactionDate,
+            fees: parseFloat(tx.fees || "0"),
+            shares: parseFloat(tx.shares || "0"),
+          });
+          buysByTicker.set(tx.ticker, list);
         }
       });
 
@@ -83,7 +117,12 @@ export const realizedGainsHistoryRouter = router({
       // Calculate net profit for each gain
       const result = gains.map(gain => {
         const sellFees = parseFloat(gain.sellFees || "0");
-        const buyFees = buyFeesMap.get(gain.ticker) || 0;
+        // R-19: proportional buy-fee allocation instead of subtracting ALL
+        // buy fees ever from every sale.
+        const buyFees = allocateBuyFees(buysByTicker.get(gain.ticker) || [], {
+          transactionDate: gain.transactionDate,
+          shares: parseFloat(gain.shares || "0"),
+        });
         const totalFees = buyFees + sellFees;
         const totalGain = parseFloat(gain.realizedGain || "0");
         const netProfit = totalGain - totalFees;

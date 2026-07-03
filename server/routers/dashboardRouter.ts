@@ -36,7 +36,11 @@ export const dashboardRouter = router({
     const demoPortfolios = targetPortfolios.filter(p => p.isLive !== 1);
     
     // Helper function to calculate portfolio value from portfolioData (for consistent values)
-    const calculatePortfolioValueFromData = async (portfolio: any): Promise<number> => {
+    // Optionally collects the resolved positions (for the day-change calculation, R-29).
+    const calculatePortfolioValueFromData = async (
+      portfolio: any,
+      holdingsOut?: Array<{ ticker: string; shares: number; currency: string }>
+    ): Promise<number> => {
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         const stocks = portfolioData.stocks || portfolioData.positions || [];
@@ -69,6 +73,7 @@ export const dashboardRouter = router({
           const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
           const positionValue = (shares * priceCHF) || 0;
           totalValueCHF += positionValue;
+          holdingsOut?.push({ ticker, shares, currency });
         }
         
         const cashBalance = parseFloat(portfolio.cashBalance || '0') || 0;
@@ -134,19 +139,6 @@ export const dashboardRouter = router({
     // OPTIMIZATION: Batch load ALL historical prices in ONE query
     const ytdPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), ytdStartDate);
     
-    // Load last trading day's prices for dayChange calculation
-    // Skip weekends: if today is Monday use Friday, if Sunday use Friday, if Saturday use Friday
-    const getLastTradingDay = (): string => {
-      const d = new Date();
-      const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-      if (dayOfWeek === 0) d.setDate(d.getDate() - 2); // Sunday → Friday
-      else if (dayOfWeek === 1) d.setDate(d.getDate() - 3); // Monday → Friday
-      else d.setDate(d.getDate() - 1); // Tue-Sat → previous day
-      return d.toISOString().split('T')[0];
-    };
-    const yesterdayStr = getLastTradingDay();
-    const yesterdayPricesMap = await batchGetHistoricalPrices(Array.from(allTickers), yesterdayStr);
-    
     // OPTIMIZATION: Pre-warm FX cache
     const uniqueCurrencies = new Set<string>();
     for (const stock of Array.from(stocksMap.values())) {
@@ -178,13 +170,14 @@ export const dashboardRouter = router({
     
     let totalValueCHF = 0;
     let totalValueYTDStartCHF = 0;
-    let totalValueYesterdayCHF = 0;
     let totalDividendsCHF = 0;
     let totalInvestedCHF = 0;
-    
+    // Positions across all portfolios, for the day-change calculation (R-29)
+    const dayChangeHoldings: Array<{ ticker: string; shares: number; currency: string }> = [];
+
     // Helper: Calculate portfolio value at a specific date using historical prices
     // Uses FIXED shares (calculated from current price) to ensure consistent comparison
-    const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string, pricesMap?: Map<string, number>): Promise<number> => {
+    const calculatePortfolioValueAtDate = async (portfolio: any, dateStr: string): Promise<number> => {
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         const stocks = portfolioData.stocks || portfolioData.positions || [];
@@ -192,7 +185,7 @@ export const dashboardRouter = router({
         
         let totalValueAtDate = 0;
         const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
-        const usePricesMap = pricesMap || ytdPricesMap;
+        const usePricesMap = ytdPricesMap;
         const todayForFx = new Date().toISOString().split('T')[0];
         
         for (const stock of stocks) {
@@ -247,38 +240,30 @@ export const dashboardRouter = router({
       totalDividendsCHF += dividendIncome;
       
       // Calculate CURRENT value from portfolioData for consistency
-      const portfolioValueCHF = await calculatePortfolioValueFromData(portfolio);
+      const portfolioValueCHF = await calculatePortfolioValueFromData(portfolio, dayChangeHoldings);
       const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
-      
+
       // Calculate YTD start value using actual historical prices (same method as portfoliosRouter.list)
       const ytdStartValue = await calculatePortfolioValueAtDate(portfolio, ytdStartDate);
       // If we couldn't get historical prices, fall back to investmentAmount
       const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
-      
-      // Calculate yesterday value for dayChange
-      const portfolioValueYesterdayCHF = await calculatePortfolioValueAtDate(portfolio, yesterdayStr, yesterdayPricesMap);
-      
+
       totalValueCHF += portfolioValueCHF;
       totalValueYTDStartCHF += portfolioValueYTDStartCHF;
-      totalValueYesterdayCHF += portfolioValueYesterdayCHF > 0 ? portfolioValueYesterdayCHF : portfolioValueCHF;
       totalInvestedCHF += investmentAmount;
     }
-    
+
     // Also calculate values for demo portfolios
     for (const portfolio of demoPortfolios) {
-      const portfolioValueCHF = await calculatePortfolioValueFromData(portfolio);
+      const portfolioValueCHF = await calculatePortfolioValueFromData(portfolio, dayChangeHoldings);
       const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
-      
+
       // Calculate YTD start value using actual historical prices
       const ytdStartValue = await calculatePortfolioValueAtDate(portfolio, ytdStartDate);
       const portfolioValueYTDStartCHF = ytdStartValue > 0 ? ytdStartValue : (investmentAmount || portfolioValueCHF);
-      
-      // Calculate yesterday value for dayChange
-      const portfolioValueYesterdayCHF = await calculatePortfolioValueAtDate(portfolio, yesterdayStr, yesterdayPricesMap);
-      
+
       totalValueCHF += portfolioValueCHF;
       totalValueYTDStartCHF += portfolioValueYTDStartCHF;
-      totalValueYesterdayCHF += portfolioValueYesterdayCHF > 0 ? portfolioValueYesterdayCHF : portfolioValueCHF;
       totalInvestedCHF += investmentAmount;
     }
     
@@ -292,7 +277,7 @@ export const dashboardRouter = router({
     const benchmarkTicker = 'SPY';
     const { getDb } = await import("../db");
     const { historicalPrices } = await import("../../drizzle/schema");
-    const { eq, and, lte, desc } = await import("drizzle-orm");
+    const { eq, and, lte, gte, desc, inArray } = await import("drizzle-orm");
     
     let benchmarkPerformance = 0;
     let benchmarkSmiYtd = 0;
@@ -359,9 +344,67 @@ export const dashboardRouter = router({
     
     const avgDividendYield = stockCount > 0 ? totalDividendYield / stockCount : 0;
     
-    // Calculate day change
-    const dayChangeCHF = totalValueCHF - totalValueYesterdayCHF;
-    const dayChangePercent = totalValueYesterdayCHF > 0 ? (dayChangeCHF / totalValueYesterdayCHF) * 100 : 0;
+    // Calculate day change (R-29): per ticker close(last trading day) vs
+    // close(previous trading day), both from historicalPrices, symmetric
+    // skipping and ONE FX rate per currency — see server/lib/dayChange.ts.
+    // vorher: totalValue (stocks.currentPrice) minus totalValueYesterday
+    // (historicalPrices, asymmetrisch geskippt) — ein Titel mit currentPrice
+    // aber ohne Historie erschien mit vollem Positionswert als Tagesgewinn.
+    let dayChangeCHF = 0;
+    let dayChangePercent = 0;
+    try {
+      const db = await getDb();
+      if (db && dayChangeHoldings.length > 0) {
+        // Fetch recent closes (14 calendar days cover weekends + holidays)
+        const lookbackStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const tickerVariants = new Set<string>();
+        for (const h of dayChangeHoldings) {
+          tickerVariants.add(h.ticker);
+          if (h.ticker.endsWith('.US')) tickerVariants.add(h.ticker.slice(0, -3));
+          else tickerVariants.add(h.ticker + '.US');
+        }
+        const priceRows = await db
+          .select()
+          .from(historicalPrices)
+          .where(and(
+            inArray(historicalPrices.ticker, Array.from(tickerVariants)),
+            gte(historicalPrices.date, lookbackStart),
+            lte(historicalPrices.date, today)
+          ));
+
+        const rowsByDbTicker = new Map<string, Array<{ date: string; close: number }>>();
+        for (const row of priceRows) {
+          const close = parseFloat(row.close || '0');
+          if (!(close > 0)) continue;
+          const date = typeof row.date === 'string' ? row.date : new Date(row.date as any).toISOString().split('T')[0];
+          if (!rowsByDbTicker.has(row.ticker)) rowsByDbTicker.set(row.ticker, []);
+          rowsByDbTicker.get(row.ticker)!.push({ date, close });
+        }
+        // Map DB ticker variants (with/without .US) back to the holding tickers
+        const priceRowsByTicker = new Map<string, Array<{ date: string; close: number }>>();
+        for (const h of dayChangeHoldings) {
+          if (priceRowsByTicker.has(h.ticker)) continue;
+          const variant = h.ticker.endsWith('.US') ? h.ticker.slice(0, -3) : h.ticker + '.US';
+          const rows = rowsByDbTicker.get(h.ticker) ?? rowsByDbTicker.get(variant);
+          if (rows) priceRowsByTicker.set(h.ticker, rows);
+        }
+
+        // One FX rate per currency, applied to both sides (pure price movement)
+        const fxRateByCurrency = new Map<string, number>();
+        for (const currency of Array.from(uniqueCurrencies)) {
+          if (currency === 'CHF') continue;
+          const rate = getCachedFxRate(currency, today) ?? await convertToCHF(1, currency, today);
+          fxRateByCurrency.set(currency, rate);
+        }
+
+        const { computeDayChange } = await import("../lib/dayChange");
+        const dayChange = computeDayChange(dayChangeHoldings, priceRowsByTicker, fxRateByCurrency);
+        dayChangeCHF = dayChange.dayChangeCHF;
+        dayChangePercent = dayChange.dayChangePercent;
+      }
+    } catch (error) {
+      console.error('[dashboard.getAggregatedMetrics] Error calculating day change:', error);
+    }
     
     return {
       totalValue: isFinite(totalValueCHF) ? totalValueCHF : 0,
@@ -1221,17 +1264,12 @@ export const dashboardRouter = router({
         const ytdStartPrice = ytdPricesMap.get(ticker) as number | undefined;
         const ytd = ytdStartPrice && ytdStartPrice > 0 ? ((currentPrice - ytdStartPrice) / ytdStartPrice) * 100 : 0;
 
-        // 1d change: use ytdPerformance as a rough proxy if no real-time data
-        // The real-time change will be fetched via EODHD in getHoldings1dChange below
-        let change1d = 0;
-        if (stock.ytdPerformance) {
-          // Rough daily: ytd% / trading days elapsed this year
-          const now = new Date();
-          const yearStart = new Date(now.getFullYear(), 0, 1);
-          const daysSinceYearStart = Math.max(1, Math.floor((now.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)));
-          const tradingDays = Math.floor(daysSinceYearStart * 5 / 7); // approximate
-          change1d = parseFloat(stock.ytdPerformance) / Math.max(tradingDays, 1);
-        }
+        // 1d change: real value comes from the EODHD real-time fetch below;
+        // until then stay neutral (0).
+        // vorher (R-29): Fake-Proxy ytdPerformance / geschätzte Handelstage —
+        // erfand eine "Tagesveränderung" aus der YTD-Zahl; entfernt. Der
+        // Client (PositionsView) rendert 0 als neutrales ±0.00 %.
+        const change1d = 0;
 
         holdings.push({
           ticker,

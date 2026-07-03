@@ -3,7 +3,8 @@
  * (+ generateFallbackPerformance, nur via Fallback-Pfad erreichbar)
  * (server/ytd-performance.ts)
  *
- * Pinnt das hartkodierte YTD-Startdatum '2025-01-01' (R-09), die Kombination
+ * Pinnt das YTD-Startdatum (seit dem R-09-Fix dynamisch: 1. Januar des
+ * laufenden Jahres; vorher hartkodiert '2025-01-01'), die Kombination
  * mit statischen aktuellen Gewichten inkl. Renormalisierung bei totalWeight <
  * 100 (R-18) und die hartkodierte, erfundene +13.32-%-Fallback-Rampe (R-08).
  * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
@@ -118,8 +119,8 @@ describe("CT-9 calculateYTDPerformance — statische Gewichte (R-18)", () => {
 });
 
 describe("CT-9 Fallback-Pfad — generateFallbackPerformance (R-08, R-09)", () => {
-  it("ohne Kursdaten: erfundene lineare +13.32-%-Rampe ab hartkodiertem 2025-01-01", async () => {
-    // Systemzeit 03.07.2026 — «YTD» müsste am 01.01.2026 beginnen.
+  it("ohne Kursdaten: erfundene lineare +13.32-%-Rampe ab dynamischem Jahresanfang", async () => {
+    // Systemzeit 03.07.2026 — «YTD» beginnt am 01.01.2026.
     vi.setSystemTime(new Date("2026-07-03T12:00:00Z"));
     h.queue = [[]]; // Cache leer; API-Pfad liefert [] (kein Key) → Fallback
 
@@ -127,19 +128,19 @@ describe("CT-9 Fallback-Pfad — generateFallbackPerformance (R-08, R-09)", () =
       { ticker: "NODATA", portfolioWeight: "100", ytdStartPrice: "100" },
     ]);
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-09:
-    // Start hartkodiert '2025-01-01' — die «YTD»-Serie umfasst am 03.07.2026
-    // volle 18 Monate (549 Tagespunkte).
-    expect(series[0]).toEqual({ date: "2025-01-01", performance: 0 });
-    expect(series).toHaveLength(549);
+    // vorher (R-09): Start hartkodiert '2025-01-01' — die «YTD»-Serie umfasste
+    // am 03.07.2026 volle 18 Monate (549 Tagespunkte, series[0].date
+    // '2025-01-01'). Jetzt dynamisch: 1. Januar des laufenden Jahres.
+    expect(series[0]).toEqual({ date: "2026-01-01", performance: 0 });
+    expect(series).toHaveLength(184); // 01.01.–03.07.2026, inkl. beider Enden
     expect(series[series.length - 1].date).toBe("2026-07-03");
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-08:
-    // generateFallbackPerformance ERFINDET eine linear interpolierte Rendite
-    // mit hartkodiertem Endwert +13.32 % («From database calculation») —
-    // unabhängig von Portfolio, Titeln und Zeitraum.
+    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-08 (heute NICHT
+    // im Scope, Pin bleibt): generateFallbackPerformance ERFINDET eine linear
+    // interpolierte Rendite mit hartkodiertem Endwert +13.32 % («From database
+    // calculation») — unabhängig von Portfolio, Titeln und Zeitraum.
     expect(series[series.length - 1].performance).toBeCloseTo(13.32, 10);
-    expect(series[274].performance).toBeCloseTo(13.32 * 274 / 548, 10); // exakt linear
-    expect(series[137].performance).toBeCloseTo(13.32 * 137 / 548, 10);
+    expect(series[91].performance).toBeCloseTo(13.32 * 91 / 183, 10); // exakt linear
+    expect(series[45].performance).toBeCloseTo(13.32 * 45 / 183, 10);
   });
 });

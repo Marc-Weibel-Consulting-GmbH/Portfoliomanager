@@ -167,90 +167,22 @@ export const dashboardPerformanceRouter = router({
       }
       await Promise.all(fxPromises);
       
-      // Calculate portfolio value for each date
-      const dateValues: number[] = [];
-      const datePerformance: number[] = [];
-      let startingValue = 0;
-      
-      for (let i = 0; i < sortedDates.length; i++) {
-        const date = sortedDates[i];
-        let totalValueCHF = 0;
-        
-        // For each portfolio, calculate holdings at this date
-        for (const portfolio of livePortfolios) {
-          const transactions = transactionsByPortfolio.get(portfolio.id) || [];
-          
-          // Calculate holdings up to this date
-          const holdingsMap = new Map<string, number>();
-          
-          for (const tx of transactions) {
-            const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-            if (txDate > date) break; // Only process transactions before or on this date
-            
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            
-            if (tx.transactionType === 'buy') {
-              const shares = parseFloat(tx.shares || '0');
-              holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + shares);
-            } else if (tx.transactionType === 'sell') {
-              const shares = parseFloat(tx.shares || '0');
-              holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - shares);
-            }
-          }
-          
-          // Calculate value of holdings at this date
-          for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
-            if (shares <= 0) continue;
-            
-            const stock = stocksMap.get(ticker);
-            if (!stock) continue;
-            
-            const currency = stock.currency || 'CHF';
-            
-            // Get price for this date (or most recent available)
-            const tickerPrices = priceMap.get(ticker);
-            if (!tickerPrices) continue;
-            
-            let price = tickerPrices.get(date);
-            if (!price) {
-              // Find most recent price before this date
-              const availableDates = Array.from(tickerPrices.keys()).sort();
-              for (let j = availableDates.length - 1; j >= 0; j--) {
-                if (availableDates[j] <= date) {
-                  price = tickerPrices.get(availableDates[j]);
-                  break;
-                }
-              }
-            }
-            
-            if (!price) continue;
-            
-            // Convert to CHF
-            const priceCHF = await convertToCHF(price, currency, date);
-            totalValueCHF += shares * priceCHF;
-          }
-        }
-        
-        dateValues.push(totalValueCHF);
-        
-        // Calculate performance relative to starting value
-        if (i === 0) {
-          startingValue = totalValueCHF;
-          datePerformance.push(0);
-        } else {
-          const performance = startingValue > 0 
-            ? ((totalValueCHF - startingValue) / startingValue) * 100 
-            : 0;
-          datePerformance.push(performance);
-        }
-      }
-      
+      // Calculate portfolio value + performance for each date (extracted for CT-12)
+      const { buildDashboardValueSeries } = await import("../lib/dashboardValueSeries");
+      const transactionLists = livePortfolios.map(p => transactionsByPortfolio.get(p.id) || []);
+      const series = await buildDashboardValueSeries(
+        transactionLists,
+        stocksMap,
+        priceMap,
+        sortedDates,
+        convertToCHF
+      );
+
       return {
         dates: sortedDates,
-        values: dateValues,
-        performance: datePerformance,
-        startingValue,
+        values: series.values,
+        performance: series.performance,
+        startingValue: series.startingValue,
       };
     }),
 });
