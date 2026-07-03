@@ -797,6 +797,11 @@ export const signalHistory = mysqlTable("signal_history", {
   engineScores: json("engineScores"),
   evaluatedAt: timestamp("evaluatedAt"),
   actualReturnPct: decimal("actualReturnPct", { precision: 7, scale: 4 }),
+  // F-14: Alpha-Messung — Benchmark-Return (SMI) über dasselbe Fenster,
+  // Alpha = actualReturnPct − benchmarkReturnPct. Daten akkumulieren erst
+  // ab Deployment (bestehende Zeilen bleiben NULL).
+  benchmarkReturnPct: decimal("benchmarkReturnPct", { precision: 7, scale: 4 }),
+  alphaPct: decimal("alphaPct", { precision: 7, scale: 4 }),
   directionCorrect: tinyint("directionCorrect"),
   riskDecision: varchar("riskDecision", { length: 20 }),
   computedAt: timestamp("computedAt").defaultNow().notNull(),

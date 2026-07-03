@@ -685,15 +685,18 @@ export const adminRouter = router({
         const engineMap: Record<string, {
           engine: string; totalSignals: number; evaluatedSignals: number;
           hitRateSum: number; returnSum: number; convictionSum: number;
+          // F-14: Alpha nur über Zeilen mit Benchmark-Daten aggregieren
+          alphaSum: number; alphaCount: number; alphaHitSum: number;
           byRegime: Record<string, { hitSum: number; count: number; retSum: number }>;
-          byAction: Record<string, { hitSum: number; count: number }>;
+          byAction: Record<string, { hitSum: number; count: number; alphaSum: number; alphaCount: number; alphaHitSum: number }>;
         }> = {};
 
         for (const row of rows) {
           const eng = row.selectedEngine;
           if (!engineMap[eng]) {
             engineMap[eng] = { engine: eng, totalSignals: 0, evaluatedSignals: 0,
-              hitRateSum: 0, returnSum: 0, convictionSum: 0, byRegime: {}, byAction: {} };
+              hitRateSum: 0, returnSum: 0, convictionSum: 0,
+              alphaSum: 0, alphaCount: 0, alphaHitSum: 0, byRegime: {}, byAction: {} };
           }
           const s = engineMap[eng];
           s.totalSignals++;
@@ -703,6 +706,13 @@ export const adminRouter = router({
           s.returnSum += parseFloat(row.actualReturnPct?.toString() ?? '0');
           s.convictionSum += parseFloat(row.conviction.toString());
 
+          const alpha = row.alphaPct != null ? parseFloat(row.alphaPct.toString()) : null;
+          if (alpha != null && !isNaN(alpha)) {
+            s.alphaSum += alpha;
+            s.alphaCount++;
+            s.alphaHitSum += alpha > 0 ? 1 : 0;
+          }
+
           const reg = row.regime;
           if (!s.byRegime[reg]) s.byRegime[reg] = { hitSum: 0, count: 0, retSum: 0 };
           s.byRegime[reg].count++;
@@ -710,9 +720,14 @@ export const adminRouter = router({
           s.byRegime[reg].retSum += parseFloat(row.actualReturnPct?.toString() ?? '0');
 
           const act = row.action;
-          if (!s.byAction[act]) s.byAction[act] = { hitSum: 0, count: 0 };
+          if (!s.byAction[act]) s.byAction[act] = { hitSum: 0, count: 0, alphaSum: 0, alphaCount: 0, alphaHitSum: 0 };
           s.byAction[act].count++;
           s.byAction[act].hitSum += correct ? 1 : 0;
+          if (alpha != null && !isNaN(alpha)) {
+            s.byAction[act].alphaSum += alpha;
+            s.byAction[act].alphaCount++;
+            s.byAction[act].alphaHitSum += alpha > 0 ? 1 : 0;
+          }
         }
 
         const engineStats = Object.values(engineMap).map(s => ({
@@ -722,6 +737,10 @@ export const adminRouter = router({
           hitRate: s.evaluatedSignals > 0 ? s.hitRateSum / s.evaluatedSignals : 0,
           avgReturn: s.evaluatedSignals > 0 ? s.returnSum / s.evaluatedSignals : 0,
           avgConviction: s.evaluatedSignals > 0 ? s.convictionSum / s.evaluatedSignals : 0,
+          // F-14 (additiv): Ø Alpha & Alpha-Trefferquote (Alpha > 0), nur wo Benchmark-Daten existieren
+          avgAlpha: s.alphaCount > 0 ? s.alphaSum / s.alphaCount : null,
+          alphaHitRate: s.alphaCount > 0 ? s.alphaHitSum / s.alphaCount : null,
+          alphaCount: s.alphaCount,
           byRegime: Object.fromEntries(Object.entries(s.byRegime).map(([k, v]) => [k, {
             hitRate: v.count > 0 ? v.hitSum / v.count : 0,
             count: v.count,
@@ -730,6 +749,9 @@ export const adminRouter = router({
           byAction: Object.fromEntries(Object.entries(s.byAction).map(([k, v]) => [k, {
             hitRate: v.count > 0 ? v.hitSum / v.count : 0,
             count: v.count,
+            avgAlpha: v.alphaCount > 0 ? v.alphaSum / v.alphaCount : null,
+            alphaHitRate: v.alphaCount > 0 ? v.alphaHitSum / v.alphaCount : null,
+            alphaCount: v.alphaCount,
           }])),
         }));
 

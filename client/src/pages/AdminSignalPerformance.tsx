@@ -272,7 +272,7 @@ export default function AdminSignalPerformance() {
                   Engine-Performance
                 </CardTitle>
                 <CardDescription className="text-zinc-500 text-xs">
-                  Trefferquote, Ø-Rendite und Ø-Überzeugung je Signal-Engine
+                  Trefferquote, Ø-Rendite, Ø-Alpha (vs. SMI) und Ø-Überzeugung je Signal-Engine
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -291,7 +291,7 @@ export default function AdminSignalPerformance() {
                             {ENGINE_LABELS[stat.engine] ?? stat.engine}
                           </span>
                         </div>
-                        <div className="flex-1 grid grid-cols-3 gap-4">
+                        <div className="flex-1 grid grid-cols-5 gap-4">
                           <div>
                             <div className="text-xs text-zinc-500 mb-0.5">Trefferquote</div>
                             <HitRateBadge rate={stat.hitRate} />
@@ -301,6 +301,28 @@ export default function AdminSignalPerformance() {
                             <span className={`text-sm font-medium ${stat.avgReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                               {fmtReturn(stat.avgReturn)}
                             </span>
+                          </div>
+                          {/* F-14: Alpha vs. SMI (nur Signale mit Benchmark-Daten) */}
+                          <div>
+                            <div className="text-xs text-zinc-500 mb-0.5">Ø Alpha</div>
+                            {stat.avgAlpha != null ? (
+                              <span className={`text-sm font-medium ${stat.avgAlpha >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {fmtReturn(stat.avgAlpha)}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-zinc-600">–</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs text-zinc-500 mb-0.5">Alpha-Quote</div>
+                            {stat.alphaHitRate != null ? (
+                              <span className="text-sm text-zinc-300">
+                                <HitRateBadge rate={stat.alphaHitRate} />{" "}
+                                <span className="text-zinc-600">({stat.alphaCount})</span>
+                              </span>
+                            ) : (
+                              <span className="text-sm text-zinc-600">–</span>
+                            )}
                           </div>
                           <div>
                             <div className="text-xs text-zinc-500 mb-0.5">Ø Überzeugung</div>
@@ -364,6 +386,16 @@ export default function AdminSignalPerformance() {
                                     </div>
                                     <span className="text-xs text-zinc-300 w-12 text-right shrink-0">
                                       {pct(as_.hitRate)} <span className="text-zinc-600">({as_.count})</span>
+                                    </span>
+                                    {/* F-14: Ø Alpha je Aktion (falls Benchmark-Daten vorhanden) */}
+                                    <span className="text-xs w-16 text-right shrink-0">
+                                      {as_.avgAlpha != null ? (
+                                        <span className={as_.avgAlpha >= 0 ? "text-emerald-400" : "text-red-400"}>
+                                          α {fmtReturn(as_.avgAlpha)}
+                                        </span>
+                                      ) : (
+                                        <span className="text-zinc-700">α –</span>
+                                      )}
                                     </span>
                                   </div>
                                 ))}

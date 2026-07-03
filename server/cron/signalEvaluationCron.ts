@@ -6,13 +6,15 @@
  *   1. Der aktuelle Preis aus der DB gelesen
  *   2. Die tatsächliche Rendite berechnet
  *   3. directionCorrect gesetzt (Signal-Richtung korrekt?)
- *   4. evaluatedAt gesetzt
+ *   4. F-14: Benchmark-Return (SMI) über dasselbe Fenster + Alpha berechnet
+ *   5. evaluatedAt gesetzt
  *
- * Zusätzlich: Speichert neue Signale aus dem SignalOrchestrator für alle
- * Aktien im Portfolio (täglich, nach Marktschluss).
+ * Zusätzlich: Speichert neue Signale aus dem SignalOrchestrator für die
+ * aktiven Watchlist-Titel (täglich, nach Marktschluss).
  */
 
 import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import { computeAlpha, computeWindowReturn, type DailyClose } from "../lib/signals/benchmarkAlpha";
 
 let isRunning = false;
 
@@ -69,6 +71,28 @@ export async function evaluatePendingSignals(): Promise<void> {
       if (row.currentPrice) priceMap.set(row.ticker, parseFloat(row.currentPrice));
     }
 
+    // F-14: Benchmark-Kurse (SMI) einmalig für das breiteste Fenster laden.
+    // getBenchmarkData nutzt die benchmarkData-Tabelle und fällt auf
+    // historical_prices-Proxy-Ticker (CHSPI.SW) zurück.
+    const todayStr = now.toISOString().split("T")[0];
+    let benchmarkRows: DailyClose[] = [];
+    try {
+      const { getBenchmarkData } = await import("../db");
+      const oldestComputedAt = pending.reduce(
+        (min, s) => (s.computedAt < min ? s.computedAt : min),
+        pending[0].computedAt
+      );
+      const fetchStart = new Date(oldestComputedAt.getTime() - 10 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      benchmarkRows = (await getBenchmarkData("SMI", fetchStart, todayStr)).map((r) => ({
+        date: r.date,
+        close: r.close,
+      }));
+    } catch (e) {
+      console.warn("[signalEvalCron] Benchmark data unavailable, skipping alpha:", (e as Error).message);
+    }
+
     let evaluated = 0;
     for (const signal of pending) {
       const currentPrice = priceMap.get(signal.ticker);
@@ -77,6 +101,13 @@ export async function evaluatePendingSignals(): Promise<void> {
       const entryPrice = parseFloat(signal.priceAtSignal.toString());
       const actualReturn = (currentPrice - entryPrice) / entryPrice;
       const direction = signal.direction ?? 0;
+
+      // F-14: Benchmark-Return über dasselbe Fenster + Alpha
+      const signalDateStr = signal.computedAt.toISOString().split("T")[0];
+      const benchmarkReturn = benchmarkRows.length
+        ? computeWindowReturn(benchmarkRows, signalDateStr, todayStr)
+        : null;
+      const alpha = computeAlpha(actualReturn, benchmarkReturn);
 
       // Richtung korrekt: buy/add (dir=1) → positiver Return; sell/reduce (dir=-1) → negativer Return
       let directionCorrect: number | null = null;
@@ -90,6 +121,8 @@ export async function evaluatePendingSignals(): Promise<void> {
           evaluatedAt: now,
           priceAtEvaluation: currentPrice.toString() as any,
           actualReturnPct: actualReturn.toFixed(4) as any,
+          benchmarkReturnPct: benchmarkReturn !== null ? (benchmarkReturn.toFixed(4) as any) : null,
+          alphaPct: alpha !== null ? (alpha.toFixed(4) as any) : null,
           directionCorrect: directionCorrect as any,
         })
         .where(eq(signalHistory.id, signal.id));
@@ -110,19 +143,20 @@ export async function evaluatePendingSignals(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function snapshotSignalsForPortfolio(): Promise<void> {
-  console.log("[signalEvalCron] Snapshotting signals for all portfolio stocks...");
+  console.log("[signalEvalCron] Snapshotting signals for active watchlist stocks...");
 
   try {
     const { getDb } = await import("../db");
-    const { stocks: stocksTable, signalHistory } = await import("../../drizzle/schema");
+    const { watchlistStocks, signalHistory } = await import("../../drizzle/schema");
     const { runSignalOrchestrator } = await import("../lib/signals/signalOrchestrator");
     const db = await getDb();
     if (!db) return;
 
-    // Alle aktiven Aktien laden
+    // F-14: Aktive Watchlist-Titel statt der stocks-Tabelle (Cap: 100)
     const allStocks = await db
-      .select({ ticker: stocksTable.ticker, currentPrice: stocksTable.currentPrice })
-      .from(stocksTable)
+      .select({ ticker: watchlistStocks.ticker, currentPrice: watchlistStocks.currentPrice })
+      .from(watchlistStocks)
+      .where(eq(watchlistStocks.isActive, 1))
       .limit(100);
 
     // Yahoo Finance Instanz einmalig erstellen (v3 API)
