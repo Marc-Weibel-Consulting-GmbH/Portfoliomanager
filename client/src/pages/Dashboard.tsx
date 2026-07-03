@@ -33,7 +33,7 @@ function TickerBar() {
         return (
           <div key={idx.label} className="flex items-center gap-2">
             <div>
-              <div className="text-[10px] text-gray-400 uppercase tracking-wide">{idx.label}</div>
+              <div className="text-xs text-gray-400 uppercase tracking-wide">{idx.label}</div>
               <div className="text-white font-bold text-sm">
                 {price ? Number(price).toLocaleString('de-CH', { maximumFractionDigits: 0 }) : '—'}
               </div>
@@ -55,7 +55,7 @@ function TickerBar() {
                 </svg>
               );
             })()}
-            <span className={`text-xs font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`text-sm font-medium ${isPositive ? 'text-positive' : 'text-negative'}`}>
               {isPositive ? '+' : ''}{change.toFixed(2)}%
             </span>
           </div>
@@ -118,7 +118,7 @@ function PortfolioCompact() {
     return (
       <Card className="bg-[#0d1220] border-[#1e2840]">
         <CardContent className="p-4">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Gesamtwert · Aggregiert</span>
+          <span className="text-xs text-gray-400 uppercase tracking-wider">Gesamtwert · Aggregiert</span>
           <div className="flex items-center gap-2 mt-3 mb-3">
             <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" aria-hidden="true" />
             <span className="text-sm text-gray-300">Daten derzeit nicht verfügbar</span>
@@ -126,7 +126,7 @@ function PortfolioCompact() {
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs bg-[#1a2332] border-[#2a3a4e] text-gray-200 hover:bg-[#243044]"
+            className="h-8 text-xs bg-[#1a2332] border-[#2a3a4e] text-gray-200 hover:bg-[#243044]"
             onClick={() => { if (metricsError) refetchMetrics(); if (portfoliosError) refetchPortfolios(); }}
           >
             <RefreshCw className="h-3 w-3 mr-1.5" aria-hidden="true" />
@@ -174,8 +174,8 @@ function PortfolioCompact() {
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Gesamtwert · Aggregiert</span>
-          <Button size="sm" variant="outline" className="h-6 text-[10px] bg-[#00CFC1] text-black border-none hover:bg-[#00b3a6] font-semibold" onClick={() => navigate('/portfolio-builder')}>
+          <span className="text-xs text-gray-400 uppercase tracking-wider">Gesamtwert · Aggregiert</span>
+          <Button size="sm" variant="outline" className="h-8 text-xs bg-[#00CFC1] text-black border-none hover:bg-[#00b3a6] font-semibold" onClick={() => navigate('/portfolio-builder')}>
             + Neu
           </Button>
         </div>
@@ -186,17 +186,17 @@ function PortfolioCompact() {
         </div>
 
         {/* Day Change + YTD */}
-        <div className="flex items-center gap-2 text-xs mb-4">
-          <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>
+        <div className="flex items-center gap-2 text-sm mb-4">
+          <span className={isPositiveDay ? 'text-positive' : 'text-negative'}>
             {/* G-01: echtes Minuszeichen statt Math.abs + Farbe */}
             {formatCHF(dayChange, { decimals: 0, signDisplay: 'always' })}
           </span>
           <span className="text-gray-500">·</span>
-          <span className={isPositiveDay ? 'text-emerald-400' : 'text-red-400'}>
+          <span className={isPositiveDay ? 'text-positive' : 'text-negative'}>
             {isPositiveDay ? '+' : ''}{dayChangePercent.toFixed(1)}%
           </span>
           <span className="text-gray-500">·</span>
-          <span className={ytdPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+          <span title="YTD = seit Jahresbeginn" className={ytdPercent >= 0 ? 'text-positive' : 'text-negative'}>
             YTD {ytdPercent >= 0 ? '+' : ''}{ytdPercent.toFixed(1)}%
           </span>
         </div>
@@ -210,15 +210,24 @@ function PortfolioCompact() {
             return (
               <div
                 key={p.id}
-                className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#111827] hover:bg-[#162032] cursor-pointer transition-colors"
+                role="button"
+                tabIndex={0}
+                aria-label={`Portfolio ${p.name} öffnen`}
+                className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#111827] hover:bg-[#162032] cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-[#00CFC1] focus-visible:outline-none"
                 onClick={() => navigate(`/portfolios/${p.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/portfolios/${p.id}`);
+                  }
+                }}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-white">{p.name}</span>
                   {p.isLive ? (
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] px-1 py-0">LIVE</Badge>
+                    <Badge className="bg-emerald-500/20 text-positive border-emerald-500/30 text-xs px-1 py-0">LIVE</Badge>
                   ) : null}
-                  <span className="text-[10px] text-gray-500">
+                  <span className="text-xs text-gray-400">
                     {p.benchmark || 'Diversifiziert'} · {p.numberOfPositions ?? '?'} Pos.
                   </span>
                 </div>
@@ -227,7 +236,7 @@ function PortfolioCompact() {
                     CHF {(p.currentValue ?? p.investmentAmount ?? 0).toLocaleString('de-CH', { maximumFractionDigits: 0 })}
                   </div>
                   {perf !== null && perf !== undefined && perf !== 0 ? (
-                    <div className={`text-[10px] ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <div className={`text-sm ${isPos ? 'text-positive' : 'text-negative'}`}>
                       {isPos ? '+' : ''}{perfNum.toFixed(1)}%
                     </div>
                   ) : null}
@@ -259,7 +268,7 @@ function MarktPuls() {
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-[#00CFC1]" />
           <span className="text-sm font-semibold text-white">Markt-Puls</span>
-          <span className="text-[10px] text-gray-500">Sektoren heute</span>
+          <span className="text-xs text-gray-400">Sektoren heute</span>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
@@ -267,12 +276,14 @@ function MarktPuls() {
         <div className="grid grid-cols-7 gap-1 mb-4">
           {sectors.slice(0, 10).map((s: any) => {
             const change = s.changePercent ?? 0;
-            const bgColor = change > 1 ? 'bg-emerald-600' : change > 0 ? 'bg-emerald-700/60' : change > -1 ? 'bg-red-700/60' : 'bg-red-600';
+            // G-04: Neutralfall bei exakt 0.0 % — Kachel und Text grau, kein Widerspruch
+            const bgColor = change > 1 ? 'bg-emerald-600' : change > 0 ? 'bg-emerald-700/60' : change === 0 ? 'bg-gray-600/60' : change > -1 ? 'bg-red-700/60' : 'bg-red-600';
+            const textColor = change > 0 ? 'text-emerald-200' : change === 0 ? 'text-gray-200' : 'text-red-200';
             return (
               <div key={s.label} className={`${bgColor} rounded px-2 py-1.5 text-center`}>
-                <div className="text-[9px] text-gray-200 truncate">{s.label}</div>
-                <div className={`text-xs font-bold ${change >= 0 ? 'text-emerald-200' : 'text-red-200'}`}>
-                  {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+                <div className="text-xs text-gray-200 truncate">{s.label}</div>
+                <div className={`text-xs font-bold ${textColor}`}>
+                  {change > 0 ? '+' : ''}{change.toFixed(1)}%
                 </div>
               </div>
             );
@@ -283,31 +294,31 @@ function MarktPuls() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="flex items-center gap-1 mb-2">
-              <ArrowUpRight className="h-3 w-3 text-emerald-400" />
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Top-Gewinner</span>
+              <ArrowUpRight className="h-3 w-3 text-positive" />
+              <span className="text-xs text-gray-400 uppercase tracking-wide">Top-Gewinner</span>
             </div>
             {topGainers.slice(0, 4).map((g: any) => (
               <div key={g.ticker} className="flex items-center justify-between py-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-400 font-mono w-10">{g.ticker?.split('.')[0]}</span>
+                  <span className="text-xs text-gray-400 font-mono w-10">{g.ticker?.split('.')[0]}</span>
                   <span className="text-xs text-gray-300 truncate max-w-[80px]">{g.name || g.ticker}</span>
                 </div>
-                <span className="text-xs text-emerald-400 font-medium">+{(g.changePercent ?? 0).toFixed(1)}%</span>
+                <span className="text-xs text-positive font-medium">+{(g.changePercent ?? 0).toFixed(1)}%</span>
               </div>
             ))}
           </div>
           <div>
             <div className="flex items-center gap-1 mb-2">
-              <ArrowDownRight className="h-3 w-3 text-red-400" />
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Top-Verlierer</span>
+              <ArrowDownRight className="h-3 w-3 text-negative" />
+              <span className="text-xs text-gray-400 uppercase tracking-wide">Top-Verlierer</span>
             </div>
             {topLosers.slice(0, 4).map((l: any) => (
               <div key={l.ticker} className="flex items-center justify-between py-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-400 font-mono w-10">{l.ticker?.split('.')[0]}</span>
+                  <span className="text-xs text-gray-400 font-mono w-10">{l.ticker?.split('.')[0]}</span>
                   <span className="text-xs text-gray-300 truncate max-w-[80px]">{l.name || l.ticker}</span>
                 </div>
-                <span className="text-xs text-red-400 font-medium">{(l.changePercent ?? 0).toFixed(1)}%</span>
+                <span className="text-xs text-negative font-medium">{(l.changePercent ?? 0).toFixed(1)}%</span>
               </div>
             ))}
           </div>
@@ -363,7 +374,7 @@ function KIAnalyse() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 text-[10px] text-gray-400 hover:text-white"
+                className="h-8 text-xs text-gray-400 hover:text-white"
                 onClick={() => triggerMutation.mutate({ period })}
                 disabled={triggerMutation.isPending}
               >
@@ -373,13 +384,13 @@ function KIAnalyse() {
             )}
             <div className="flex bg-[#1a2332] rounded-md p-0.5">
               <button
-                className={`px-2 py-0.5 text-[10px] rounded ${period === 'day' ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400'}`}
+                className={`px-2 py-1 text-xs rounded ${period === 'day' ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400'}`}
                 onClick={() => setPeriod('day')}
               >
                 Tagesbericht
               </button>
               <button
-                className={`px-2 py-0.5 text-[10px] rounded ${period === 'week' ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400'}`}
+                className={`px-2 py-1 text-xs rounded ${period === 'week' ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400'}`}
                 onClick={() => setPeriod('week')}
               >
                 Wochenbericht
@@ -390,7 +401,7 @@ function KIAnalyse() {
       </CardHeader>
       <CardContent className="px-4 pb-4">
         {!analysis ? (
-          <div className="text-center py-8 text-gray-500 text-sm">
+          <div className="text-center py-8 text-gray-400 text-sm">
             Noch kein Bericht vorhanden. Der Bericht wird täglich um 08:00 Uhr erstellt.
           </div>
         ) : (
@@ -398,14 +409,14 @@ function KIAnalyse() {
             {/* Header: Badge + Date */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30 text-[9px]">
+                <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30 text-xs">
                   KI-{period === 'day' ? 'TAGESANALYSE' : 'WOCHENANALYSE'}
                 </Badge>
-                <Badge className={`text-[9px] ${regimeToneColors[analysis.regimeTone] || regimeToneColors.warn}`}>
+                <Badge className={`text-xs ${regimeToneColors[analysis.regimeTone] || regimeToneColors.warn}`}>
                   {analysis.regime}
                 </Badge>
               </div>
-              <span className="text-[10px] text-gray-500">{todayFormatted}</span>
+              <span className="text-xs text-gray-400">{todayFormatted}</span>
             </div>
 
             {/* Headline */}
@@ -437,11 +448,11 @@ function KIAnalyse() {
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-semibold text-white">{sector.label}</h4>
                         {sector.subcategory && (
-                          <span className="text-[10px] text-gray-500">▲ {sector.subcategory}</span>
+                          <span className="text-xs text-gray-400">▲ {sector.subcategory}</span>
                         )}
                       </div>
                       {sector.action && (
-                        <Badge className={`text-[9px] px-2 py-0 font-bold ${actionColors[sector.action] || actionColors.ABWARTEN}`}>
+                        <Badge className={`text-xs px-2 py-0 font-bold ${actionColors[sector.action] || actionColors.ABWARTEN}`}>
                           {sector.action}
                         </Badge>
                       )}
@@ -457,8 +468,8 @@ function KIAnalyse() {
                           const isPos = (stock.change ?? 0) >= 0;
                           return (
                             <span key={j} className="flex items-center gap-1">
-                              <span className="text-[10px] font-mono font-bold text-gray-300">{stock.ticker}</span>
-                              <span className={`text-[10px] font-medium ${isPos ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <span className="text-xs font-mono font-bold text-gray-300">{stock.ticker}</span>
+                              <span className={`text-xs font-medium ${isPos ? 'text-positive' : 'text-negative'}`}>
                                 {isPos ? '+' : ''}{(stock.change ?? 0).toFixed(1)}%
                                 {isPos ? ' ▲' : ' ▼'}
                               </span>
@@ -510,12 +521,12 @@ function AnstehendeTermine() {
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-[#00CFC1]" />
           <span className="text-sm font-semibold text-white">Anstehende Termine</span>
-          <span className="text-[10px] text-gray-500">Makro · diese Woche</span>
+          <span className="text-xs text-gray-400">Makro · diese Woche</span>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
         {(!events || events.length === 0) ? (
-          <div className="text-center py-4 text-gray-500 text-xs">
+          <div className="text-center py-4 text-gray-400 text-xs">
             Keine Termine in den nächsten 14 Tagen gefunden.
           </div>
         ) : (
@@ -526,7 +537,7 @@ function AnstehendeTermine() {
                 <div key={i} className="flex items-start gap-3 py-2 border-b border-[#1e2840] last:border-b-0">
                   {/* Day + Date */}
                   <div className="flex flex-col items-center min-w-[32px]">
-                    <span className="text-[9px] text-gray-500 uppercase">{day}</span>
+                    <span className="text-xs text-gray-400 uppercase">{day}</span>
                     <span className="text-xs font-bold text-gray-300">{date}</span>
                   </div>
 
@@ -535,18 +546,18 @@ function AnstehendeTermine() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-white truncate">{event.label}</span>
                       {isToday && (
-                        <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30 text-[8px] px-1 py-0">HEUTE</Badge>
+                        <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30 text-xs px-1 py-0">HEUTE</Badge>
                       )}
                     </div>
                     {event.description && (
-                      <p className="text-[10px] text-gray-500 mt-0.5 truncate">{event.description}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{event.description}</p>
                     )}
                   </div>
 
                   {/* Time + Importance */}
                   <div className="flex flex-col items-end gap-0.5">
-                    {event.time && <span className="text-[10px] text-gray-400">{event.time}</span>}
-                    <Badge className={`text-[8px] px-1 py-0 ${importanceBadge[event.importance || 'INFO']}`}>
+                    {event.time && <span className="text-xs text-gray-400">{event.time}</span>}
+                    <Badge className={`text-xs px-1 py-0 ${importanceBadge[event.importance || 'INFO']}`}>
                       {event.importance || 'INFO'}
                     </Badge>
                   </div>
@@ -585,7 +596,7 @@ export default function Dashboard() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
         {/* Header */}
         <div className="mb-2">
-          <div className="text-[10px] text-[#00CFC1] uppercase tracking-wider mb-1">{todayFormatted}</div>
+          <div className="text-xs text-[#00CFC1] uppercase tracking-wider mb-1">{todayFormatted}</div>
           <h1 className="text-2xl font-bold text-white">{getGreeting()}, {user?.name?.split(' ')[0] || 'Investor'}</h1>
         </div>
 

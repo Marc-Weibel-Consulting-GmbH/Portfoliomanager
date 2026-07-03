@@ -77,8 +77,8 @@ const OutperformanceTable = ({ performanceData }: { performanceData: any }) => {
         
         return (
           <div key={period} className="text-center">
-            <div className="text-gray-500 text-xs mb-0.5">{period}</div>
-            <div className={`text-sm font-medium ${isPositive ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+            <div className="text-gray-400 text-xs mb-0.5" title={period === 'YTD' ? 'YTD = seit Jahresbeginn' : undefined}>{period}</div>
+            <div className={`text-sm font-medium ${isPositive ? 'text-[#00CFC1]' : 'text-negative'}`}>
               {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(1)}%
             </div>
           </div>
@@ -325,9 +325,9 @@ export default function Portfolios() {
                 <Briefcase className="h-3.5 w-3.5 text-[#00CFC1]" />
               </div>
               <div>
-                <div className="text-[10px] text-gray-400">Portfolios</div>
+                <div className="text-xs text-gray-400">Portfolios</div>
                 <div className="text-base font-bold text-white">{portfolios.length}</div>
-                <div className="text-[9px] text-gray-500">{liveCount} Live, {testCount} Test</div>
+                <div className="text-xs text-gray-400">{liveCount} Live, {testCount} Test</div>
               </div>
             </div>
 
@@ -350,7 +350,7 @@ export default function Portfolios() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-6 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+                  className="h-8 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
                   onClick={() => refetchMetrics()}
                 >
                   <RefreshCw className="h-3 w-3 mr-1" aria-hidden="true" />
@@ -365,9 +365,9 @@ export default function Portfolios() {
                 <DollarSign className="h-3.5 w-3.5 text-[#00CFC1]" />
               </div>
               <div>
-                <div className="text-[10px] text-gray-400">Gesamtwert</div>
+                <div className="text-xs text-gray-400">Gesamtwert</div>
                 <div className="text-base font-bold text-white">{formatCHF(metrics?.totalValue || 0, { decimals: 0 })}</div>
-                <div className="text-[9px] text-gray-500">Alle Portfolios</div>
+                <div className="text-xs text-gray-400">Alle Portfolios</div>
               </div>
             </div>
 
@@ -377,18 +377,18 @@ export default function Portfolios() {
                 ((metrics as any)?.dayChange || 0) >= 0 ? 'bg-[#00CFC1]/20' : 'bg-red-500/20'
               }`}>
                 <Activity className={`h-3.5 w-3.5 ${
-                  ((metrics as any)?.dayChange || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
+                  ((metrics as any)?.dayChange || 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'
                 }`} />
               </div>
               <div>
-                <div className="text-[10px] text-gray-400">Tagesveränderung</div>
+                <div className="text-xs text-gray-400">Tagesveränderung</div>
                 <div className={`text-base font-bold ${
-                  ((metrics as any)?.dayChange || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
+                  ((metrics as any)?.dayChange || 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'
                 }`}>
                   {formatCHF((metrics as any)?.dayChange || 0, { decimals: 0, signDisplay: 'always' })}
                 </div>
-                <div className={`text-[9px] ${
-                  ((metrics as any)?.dayChangePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
+                <div className={`text-xs ${
+                  ((metrics as any)?.dayChangePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'
                 }`}>
                   {((metrics as any)?.dayChangePercent || 0) >= 0 ? '+' : ''}{((metrics as any)?.dayChangePercent || 0).toFixed(2)}%
                 </div>
@@ -401,11 +401,11 @@ export default function Portfolios() {
                 <BarChart3 className="h-3.5 w-3.5 text-[#00CFC1]" />
               </div>
               <div>
-                <div className="text-[10px] text-gray-400">Performance YTD</div>
-                <div className={`text-base font-bold ${(metrics?.totalPerformancePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                <div className="text-xs text-gray-400" title="YTD = seit Jahresbeginn">Performance YTD</div>
+                <div className={`text-base font-bold ${(metrics?.totalPerformancePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                   {formatPercent(metrics?.totalPerformancePercent || 0)}
                 </div>
-                <div className="text-[9px] text-gray-500">Ø Portfolios</div>
+                <div className="text-xs text-gray-400">Ø Portfolios</div>
               </div>
             </div>
 
@@ -415,15 +415,15 @@ export default function Portfolios() {
                 {((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? (
                   <ArrowUpRight className="h-3.5 w-3.5 text-[#00CFC1]" />
                 ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5 text-red-500" />
+                  <ArrowDownRight className="h-3.5 w-3.5 text-negative" />
                 )}
               </div>
               <div>
-                <div className="text-[10px] text-gray-400">vs. Benchmark</div>
-                <div className={`text-base font-bold ${((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
+                <div className="text-xs text-gray-400">vs. Benchmark</div>
+                <div className={`text-base font-bold ${((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0)) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                   {formatPercent((metrics?.totalPerformancePercent || 0) - ((metrics as any)?.benchmarkPerformance || 0))}
                 </div>
-                <div className="text-[9px] text-gray-500">S&P 500</div>
+                <div className="text-xs text-gray-400">S&P 500</div>
               </div>
             </div>
             </>
@@ -437,18 +437,18 @@ export default function Portfolios() {
                     <Scale className="h-3.5 w-3.5 text-purple-400" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-gray-400">Sharpe Ratio</div>
+                    <div className="text-xs text-gray-400">Sharpe Ratio</div>
                     <div className="text-base font-bold text-purple-400">
                       {((riskMetrics as any)?.sharpeRatio ?? 0).toFixed(2)}
                     </div>
-                    <div className="text-[9px] text-gray-500">Risikoadj. Rendite</div>
+                    <div className="text-xs text-gray-400">Risikoadj. Rendite</div>
                   </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[250px] p-3">
                 <p className="text-xs font-semibold mb-1">Sharpe Ratio</p>
-                <p className="text-[11px] text-gray-300">Misst die risikoadjustierte Rendite. Werte {'>'} 1.0 gelten als gut, {'>'} 2.0 als sehr gut. Berechnet als (Rendite − risikofreier Zins) / Volatilität.</p>
-                <p className="text-[10px] text-gray-500 mt-1">Benchmark (SMI): {((riskMetrics as any)?.sharpeBenchmark ?? 0).toFixed(2)}</p>
+                <p className="text-xs text-gray-300">Misst die risikoadjustierte Rendite. Werte {'>'} 1.0 gelten als gut, {'>'} 2.0 als sehr gut. Berechnet als (Rendite − risikofreier Zins) / Volatilität.</p>
+                <p className="text-xs text-gray-400 mt-1">Benchmark (SMI): {((riskMetrics as any)?.sharpeBenchmark ?? 0).toFixed(2)}</p>
               </TooltipContent>
             </Tooltip>
 
@@ -466,24 +466,24 @@ export default function Portfolios() {
                     }`} />
                   </div>
                   <div>
-                    <div className="text-[10px] text-gray-400">Bubble-Indikator</div>
+                    <div className="text-xs text-gray-400">Bubble-Indikator</div>
                     <div className={`text-base font-bold ${
                       ((bubbleData as any)?.level ?? 0) >= 70 ? 'text-red-400' :
                       ((bubbleData as any)?.level ?? 0) >= 40 ? 'text-amber-400' : 'text-emerald-400'
                     }`}>
                       {(bubbleData as any)?.level ?? 0}/100
                     </div>
-                    <div className="text-[9px] text-gray-500">{(bubbleData as any)?.label || 'Normal'}</div>
+                    <div className="text-xs text-gray-400">{(bubbleData as any)?.label || 'Normal'}</div>
                   </div>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[280px] p-3">
                 <p className="text-xs font-semibold mb-1">Bubble-Indikator (Sornette)</p>
-                <p className="text-[11px] text-gray-300">Basiert auf dem Log-Periodic Power Law (LPPL) Modell. Misst die Wahrscheinlichkeit einer Marktblase. 0-30: Normal, 30-60: Erhöht, 60-80: Hoch, 80-100: Kritisch.</p>
+                <p className="text-xs text-gray-300">Basiert auf dem Log-Periodic Power Law (LPPL) Modell. Misst die Wahrscheinlichkeit einer Marktblase. 0-30: Normal, 30-60: Erhöht, 60-80: Hoch, 80-100: Kritisch.</p>
                 {(bubbleData as any)?.components && (
                   <div className="mt-1.5 space-y-0.5">
                     {Object.entries((bubbleData as any).components || {}).slice(0, 4).map(([key, val]: [string, any]) => (
-                      <div key={key} className="flex justify-between text-[10px]">
+                      <div key={key} className="flex justify-between text-xs">
                         <span className="text-gray-400">{key}</span>
                         <span className="text-white font-mono">{typeof val === 'number' ? val.toFixed(1) : val}</span>
                       </div>
@@ -499,13 +499,13 @@ export default function Portfolios() {
                 <Trophy className="h-3.5 w-3.5 text-yellow-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] text-gray-400">Bestes (YTD)</div>
+                <div className="text-xs text-gray-400" title="YTD = seit Jahresbeginn">Bestes (YTD)</div>
                 <div className="text-sm font-bold text-yellow-400 truncate" title={bestPerformer?.name || ''}>
                   {bestPerformer?.name || '-'}
                 </div>
-                <div className={`text-[9px] ${(() => {
+                <div className={`text-xs ${(() => {
                   const perf = multiPeriodData?.find((p: any) => p.portfolioId === bestPerformer?.id);
-                  return (perf?.outperformance?.['YTD'] || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500';
+                  return (perf?.outperformance?.['YTD'] || 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative';
                 })()}`}>
                   {(() => {
                     const perf = multiPeriodData?.find((p: any) => p.portfolioId === bestPerformer?.id);
@@ -557,7 +557,7 @@ export default function Portfolios() {
               variant="outline"
               size="sm"
               onClick={selectAll}
-              className="h-7 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+              className="h-8 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
             >
               <CheckSquare className="h-3 w-3 mr-1" />
               Alle
@@ -566,7 +566,7 @@ export default function Portfolios() {
               variant="outline"
               size="sm"
               onClick={deselectAll}
-              className="h-7 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+              className="h-8 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
               disabled={selectedPortfolios.size === 0}
             >
               <Square className="h-3 w-3 mr-1" />
@@ -577,7 +577,7 @@ export default function Portfolios() {
                 variant="destructive"
                 size="sm"
                 onClick={() => setIsDeleteDialogOpen(true)}
-                className="h-7 text-xs bg-red-500 hover:bg-red-600 text-white"
+                className="h-8 text-xs bg-red-500 hover:bg-red-600 text-white"
               >
                 <Trash2 className="h-3 w-3 mr-1" />
                 {selectedPortfolios.size} löschen
@@ -678,15 +678,16 @@ export default function Portfolios() {
                               </Tooltip>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-400">
                             Erstellt: {formatDate(portfolio.createdAt)}
                           </p>
                         </div>
                       </div>
                       <button
                         onClick={(e) => handleDelete(e, portfolio.id, portfolio.name)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 shrink-0"
+                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 shrink-0"
                         title="Portfolio löschen"
+                        aria-label={`Portfolio ${portfolio.name} löschen`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -695,19 +696,19 @@ export default function Portfolios() {
                     {/* Stats Row - Compact with larger fonts */}
                     <div className="grid grid-cols-3 gap-2 mb-3 py-2 border-y border-white/5">
                       <div className="text-center">
-                        <div className="text-xs text-gray-500">Positionen</div>
+                        <div className="text-xs text-gray-400">Positionen</div>
                         <div className="text-base font-semibold text-white">{positionCount}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs text-gray-500">Wert</div>
+                        <div className="text-xs text-gray-400">Wert</div>
                         <div className="text-base font-semibold text-white">
                           {formatCHF(portfolio.currentValue ?? 0, { decimals: 0 })}
                         </div>
                       </div>
                       <div className="text-center">
-                        <div className="text-xs text-gray-500">YTD</div>
+                        <div className="text-xs text-gray-400" title="YTD = seit Jahresbeginn">YTD</div>
                         <div className={`text-base font-semibold flex items-center justify-center gap-0.5 ${
-                          performance >= 0 ? "text-[#00CFC1]" : "text-red-500"
+                          performance >= 0 ? "text-[#00CFC1]" : "text-negative"
                         }`}>
                           {performance >= 0 ? (
                             <TrendingUp className="h-4 w-4" />
@@ -721,7 +722,7 @@ export default function Portfolios() {
 
                     {/* Outperformance Table - Real multi-period data with larger font */}
                     <div className="mb-3">
-                      <div className="text-xs text-gray-500 mb-1.5 text-center">Outperformance vs. S&P 500</div>
+                      <div className="text-xs text-gray-400 mb-1.5 text-center">Outperformance vs. S&P 500</div>
                       {(() => {
                         const portfolioPerf = multiPeriodData?.find((p: any) => p.portfolioId === portfolio.id);
                         return (
@@ -775,7 +776,7 @@ export default function Portfolios() {
                     <Button 
                       variant="outline"
                       size="sm"
-                      className="w-full h-7 text-xs bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30"
+                      className="w-full h-8 text-xs bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleViewPortfolio(portfolio);
@@ -819,7 +820,7 @@ export default function Portfolios() {
                   <Bell className="h-4 w-4 text-[#00CFC1]" />
                   Aktive Alarme
                   {activeAlerts.length > 0 && (
-                    <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">
+                    <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">
                       {activeAlerts.length}
                     </span>
                   )}
@@ -827,7 +828,7 @@ export default function Portfolios() {
               </div>
               <div className="px-4 pb-4 space-y-2">
                 {activeAlerts.length === 0 ? (
-                  <div className="text-center py-3 text-gray-500 text-xs">Keine aktiven Alarme</div>
+                  <div className="text-center py-3 text-gray-400 text-xs">Keine aktiven Alarme</div>
                 ) : (
                   activeAlerts.map((alert: any) => (
                     <div key={alert.id} className="flex items-center gap-2 bg-[#0f1420]/50 border border-white/5 rounded-lg p-2">
@@ -840,7 +841,7 @@ export default function Portfolios() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-white text-xs font-semibold">{alert.ticker}</div>
-                        <div className="text-gray-500 text-[10px]">
+                        <div className="text-gray-400 text-xs">
                           {alert.alertType === 'below_price' ? 'Unter' : 'Über'} CHF {parseFloat(alert.targetPrice || '0').toFixed(2)}
                         </div>
                       </div>
@@ -861,14 +862,14 @@ export default function Portfolios() {
                 <div className="text-sm font-semibold text-white flex items-center gap-2">
                   <BarChart3Icon className="h-4 w-4 text-[#00CFC1]" />
                   Strategie-Scoring
-                  <span className="text-[10px] text-gray-500 font-normal ml-auto">Top 5</span>
+                  <span className="text-xs text-gray-400 font-normal ml-auto">Top 5</span>
                 </div>
               </div>
               <div className="px-4 pb-4 space-y-1.5">
                 {scoringLoading ? (
                   <div className="text-gray-400 text-xs text-center py-3">Wird berechnet...</div>
                 ) : !scoringData || (scoringData as any[]).length === 0 ? (
-                  <div className="text-gray-500 text-xs text-center py-3">Keine Daten verfügbar</div>
+                  <div className="text-gray-400 text-xs text-center py-3">Keine Daten verfügbar</div>
                 ) : (
                   (scoringData as any[]).slice(0, 5).map((item: any) => (
                     <div key={item.symbol} className="flex items-center justify-between bg-white/5 rounded-lg px-2.5 py-1.5">
@@ -1055,7 +1056,7 @@ export default function Portfolios() {
                   </div>
                   <div className="mt-1 flex items-center gap-3 text-xs">
                     <span className="text-gray-400">{s.currentWeightPercent.toFixed(1)}% → {s.targetWeightPercent.toFixed(1)}%</span>
-                    <span className="text-gray-500">{s.reason}</span>
+                    <span className="text-gray-400">{s.reason}</span>
                   </div>
                 </div>
               ))}

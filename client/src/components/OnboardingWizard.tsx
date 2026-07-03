@@ -69,7 +69,7 @@ export default function OnboardingWizard() {
   const handleComplete = async () => {
     try {
       if (!investmentGoal || !riskTolerance || !investmentHorizon) {
-        toast.error("Bitte wähle alle Optionen aus");
+        toast.error("Bitte wählen Sie alle Optionen aus");
         return;
       }
 
@@ -83,7 +83,7 @@ export default function OnboardingWizard() {
       // Then mark onboarding as completed
       await completeOnboardingMutation.mutateAsync();
 
-      toast.success("Willkommen! Dein Profil wurde erstellt.");
+      toast.success("Willkommen! Ihr Profil wurde erstellt.");
       // U-06: nicht auf ein leeres Dashboard werfen, sondern die Brücke
       // zum ersten Portfolio anbieten (Schritt 5).
       setCurrentStep(5);
@@ -143,16 +143,16 @@ export default function OnboardingWizard() {
           <CardHeader>
             <CardTitle className="text-2xl text-white">
               {currentStep === 1 && "Willkommen bei Portfolio Analyzer!"}
-              {currentStep === 2 && "Was ist dein Anlageziel?"}
-              {currentStep === 3 && "Wie hoch ist deine Risikotoleranz?"}
-              {currentStep === 4 && "Wie lange möchtest du investieren?"}
+              {currentStep === 2 && "Was ist Ihr Anlageziel?"}
+              {currentStep === 3 && "Wie hoch ist Ihre Risikotoleranz?"}
+              {currentStep === 4 && "Wie lange möchten Sie investieren?"}
               {currentStep === 5 && "Ihr Profil ist gespeichert – wie möchten Sie starten?"}
             </CardTitle>
             <CardDescription className="text-slate-400">
-              {currentStep === 1 && "Lass uns dein erstes Portfolio erstellen"}
-              {currentStep === 2 && "Wähle dein primäres Investmentziel"}
-              {currentStep === 3 && "Bestimme dein Risikoniveau"}
-              {currentStep === 4 && "Definiere deinen Anlagehorizont"}
+              {currentStep === 1 && "Erstellen wir gemeinsam Ihr erstes Portfolio"}
+              {currentStep === 2 && "Wählen Sie Ihr primäres Anlageziel"}
+              {currentStep === 3 && "Bestimmen Sie Ihr Risikoniveau"}
+              {currentStep === 4 && "Definieren Sie Ihren Anlagehorizont"}
               {currentStep === 5 && "Wählen Sie einen der beiden Wege zu Ihrem ersten Portfolio"}
             </CardDescription>
           </CardHeader>
@@ -161,7 +161,7 @@ export default function OnboardingWizard() {
             {currentStep === 1 && (
               <div className="space-y-6 py-4">
                 <p className="text-slate-300 text-lg">
-                  Portfolio Analyzer hilft dir, deine Investitionen zu verwalten und zu optimieren.
+                  Portfolio Analyzer hilft Ihnen, Ihre Investitionen zu verwalten und zu optimieren.
                 </p>
                 <div className="grid gap-4">
                   <div className="flex items-start gap-3">
@@ -169,7 +169,7 @@ export default function OnboardingWizard() {
                     <div>
                       <h3 className="font-semibold text-white">Portfolio-Optimierung</h3>
                       <p className="text-sm text-slate-400">
-                        Erstelle optimierte Portfolios basierend auf historischen Daten
+                        Erstellen Sie optimierte Portfolios basierend auf historischen Daten
                       </p>
                     </div>
                   </div>
@@ -178,7 +178,7 @@ export default function OnboardingWizard() {
                     <div>
                       <h3 className="font-semibold text-white">Live-Tracking</h3>
                       <p className="text-sm text-slate-400">
-                        Verfolge die Performance deiner Investments in Echtzeit
+                        Verfolgen Sie die Performance Ihrer Anlagen in Echtzeit
                       </p>
                     </div>
                   </div>
@@ -408,7 +408,7 @@ export default function OnboardingWizard() {
                         Jetzt starten (Free)
                       </div>
                       <div className="text-sm opacity-90">
-                        Du kannst jederzeit upgraden
+                        Sie können jederzeit upgraden
                       </div>
                     </div>
                   </Button>

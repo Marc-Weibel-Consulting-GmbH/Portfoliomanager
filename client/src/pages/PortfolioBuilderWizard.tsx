@@ -428,7 +428,7 @@ export default function PortfolioBuilderWizard() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-8 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2 text-white">Wähle deinen Pfad</h1>
+              <h1 className="text-3xl font-bold mb-2 text-white">Wählen Sie Ihren Pfad</h1>
               <p className="text-gray-400">
                 Wie möchten Sie Ihr Portfolio erstellen?
               </p>

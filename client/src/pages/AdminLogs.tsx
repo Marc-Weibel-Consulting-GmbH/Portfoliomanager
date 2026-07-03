@@ -159,12 +159,12 @@ export default function AdminLogs() {
             <CardContent>
               <div className="text-sm font-medium">
                 {stats.newestLog
-                  ? new Date(stats.newestLog).toLocaleTimeString("de-DE")
+                  ? new Date(stats.newestLog).toLocaleTimeString("de-CH")
                   : "Keine Logs"}
               </div>
               <p className="text-xs text-muted-foreground">
                 {stats.newestLog
-                  ? new Date(stats.newestLog).toLocaleDateString("de-DE")
+                  ? new Date(stats.newestLog).toLocaleDateString("de-CH")
                   : "-"}
               </p>
             </CardContent>
@@ -226,7 +226,7 @@ export default function AdminLogs() {
                       {log.level.toUpperCase()}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
-                      {new Date(log.timestamp).toLocaleString("de-DE")}
+                      {new Date(log.timestamp).toLocaleString("de-CH")}
                     </span>
                   </div>
                 </div>

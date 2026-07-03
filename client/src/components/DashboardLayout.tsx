@@ -128,7 +128,7 @@ export default function DashboardLayout({
             <div className="text-center space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">{APP_TITLE}</h1>
               <p className="text-sm text-muted-foreground">
-                Please sign in to continue
+                Bitte melden Sie sich an, um fortzufahren
               </p>
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function DashboardLayout({
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Sign in
+            Anmelden
           </Button>
         </div>
       </div>
@@ -430,7 +430,10 @@ function DashboardLayoutContent({
                       {user?.username || user?.name || user?.email || "-"}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Premium</span>
+                      {/* U-15: echter Abo-Status statt hartkodiertem «Premium» */}
+                      <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                        {user?.subscriptionTier === 'premium' || user?.hasPaid === 1 ? 'Premium' : 'Free'}
+                      </span>
                     </div>
                   </div>
                 </button>

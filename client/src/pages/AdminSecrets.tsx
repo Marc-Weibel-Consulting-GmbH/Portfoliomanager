@@ -238,7 +238,7 @@ export default function AdminSecrets() {
               <CardContent>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Zuletzt aktualisiert:</span>
-                  <span>{new Date(secret.updatedAt).toLocaleString("de-DE")}</span>
+                  <span>{new Date(secret.updatedAt).toLocaleString("de-CH")}</span>
                 </div>
               </CardContent>
             </Card>

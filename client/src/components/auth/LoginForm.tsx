@@ -82,7 +82,7 @@ export default function LoginForm() {
         </div>
         <Input
           type="password"
-          placeholder="Dein Passwort"
+          placeholder="Ihr Passwort"
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           className="bg-slate-700 border-slate-600 text-white"
