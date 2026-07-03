@@ -289,7 +289,6 @@ export const portfoliosRouter = router({
     get: protectedProcedure
       .input(z.number().int().positive())
       .query(async ({ input, ctx }) => {
-        console.log('[portfolios.get] input:', input, 'type:', typeof input, 'userId:', ctx.user.id);
         const { getSavedPortfolioById } = await import("../db");
         const result = await getSavedPortfolioById(input, ctx.user.id);
         console.log('[portfolios.get] result:', result ? 'found' : 'not found');
@@ -494,7 +493,7 @@ export const portfoliosRouter = router({
         }
         
         console.log(`[portfolios.create ${debugId}] Auth OK - userId:`, ctx.user.id, 'type:', typeof ctx.user.id);
-        console.log(`[portfolios.create ${debugId}] Input:`, JSON.stringify(input, null, 2));
+        console.log(`[portfolios.create ${debugId}] Input received (name: ${input?.name ?? 'n/a'})`);
         
         try {
           const { getDb } = await import("../db");

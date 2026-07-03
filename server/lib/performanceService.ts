@@ -20,6 +20,7 @@ import {
   type IRRResult,
   type PerformanceMetrics,
 } from './performanceEngine';
+import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF } from './transactionSemantics';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -192,21 +193,23 @@ export async function calculatePortfolioPerformance(
   const mvb = valuations.length > 0 ? valuations[0].marketValue : 0;
   const mve = valuations.length > 0 ? valuations[valuations.length - 1].marketValue : 0;
 
-  // For IRR, format cash flows correctly
-  const irrCashFlows: CashFlow[] = cashFlows.map(cf => ({
-    ...cf,
-    amount: cf.type === 'withdrawal' ? -Math.abs(cf.amount) : Math.abs(cf.amount),
-  }));
+  // R-37: Flows am (oder vor dem) ersten Bewertungstag stecken bereits im MVB
+  // (Tagesend-Bewertung inkl. Cash) und dürfen nicht zusätzlich als IRR-Flow
+  // bzw. als «investiert» gezählt werden. Die Flows sind bereits vorzeichen-
+  // normalisiert (Deposits positiv, Withdrawals negativ — R-01,
+  // siehe lib/transactionSemantics.ts).
+  const firstValuationDate = valuations.length > 0 ? valuations[0].date : input.startDate;
+  const postBaselineFlows: CashFlow[] = cashFlows.filter(cf => cf.date > firstValuationDate);
 
-  const irr = calculateIRR(mvb, mve, irrCashFlows, input.startDate, input.endDate);
+  const irr = calculateIRR(mvb, mve, postBaselineFlows, input.startDate, input.endDate);
 
   // 13. Calculate totals
-  const totalInvested = cashFlows
+  const totalInvested = postBaselineFlows
     .filter(cf => cf.amount > 0)
     .reduce((sum, cf) => sum + cf.amount, 0) + mvb;
 
   const currentValueCHF = mve;
-  const totalWithdrawn = cashFlows
+  const totalWithdrawn = postBaselineFlows
     .filter(cf => cf.amount < 0)
     .reduce((sum, cf) => sum + Math.abs(cf.amount), 0);
 
@@ -334,18 +337,20 @@ export async function calculateAggregatedPerformance(
   // Calculate IRR
   const mvb = valuations.length > 0 ? valuations[0].marketValue : 0;
   const mve = valuations.length > 0 ? valuations[valuations.length - 1].marketValue : 0;
-  const irrCashFlows: CashFlow[] = cashFlows.map(cf => ({
-    ...cf,
-    amount: cf.type === 'withdrawal' ? -Math.abs(cf.amount) : Math.abs(cf.amount),
-  }));
-  const irr = calculateIRR(mvb, mve, irrCashFlows, startDate, endDate);
+
+  // R-37: Flows am (oder vor dem) ersten Bewertungstag stecken bereits im MVB —
+  // nicht zusätzlich als IRR-Flow / «investiert» zählen (Flows sind bereits
+  // vorzeichen-normalisiert, R-01 — siehe lib/transactionSemantics.ts).
+  const firstValuationDate = valuations.length > 0 ? valuations[0].date : startDate;
+  const postBaselineFlows: CashFlow[] = cashFlows.filter(cf => cf.date > firstValuationDate);
+  const irr = calculateIRR(mvb, mve, postBaselineFlows, startDate, endDate);
 
   // Totals
-  const totalInvested = cashFlows
+  const totalInvested = postBaselineFlows
     .filter(cf => cf.amount > 0)
     .reduce((sum, cf) => sum + cf.amount, 0) + mvb;
   const currentValueCHF = mve;
-  const totalWithdrawn = cashFlows
+  const totalWithdrawn = postBaselineFlows
     .filter(cf => cf.amount < 0)
     .reduce((sum, cf) => sum + Math.abs(cf.amount), 0);
   const absoluteGainCHF = currentValueCHF + totalWithdrawn - totalInvested;
@@ -395,22 +400,24 @@ function buildCashTimeline(
       ? tx.transactionDate.split('T')[0]
       : tx.transactionDate.toISOString().split('T')[0];
 
-    const amountCHF = parseFloat(tx.totalAmountCHF || tx.totalAmount || '0');
-    const fees = parseFloat(tx.fees || '0');
+    // Kanonische Semantik (siehe lib/transactionSemantics.ts):
+    // totalAmountCHF = Brutto EXKL. Fees; Vorzeichen via Transaktionstyp.
+    const amountCHF = getGrossAmountCHF(tx);
+    const fees = getFeesCHF(tx);
 
     let cashChange = 0;
     switch (tx.transactionType) {
       case 'deposit':
       case 'entry':
-        // Money comes in
-        cashChange = amountCHF;
-        break;
       case 'withdrawal':
-        // Money goes out
-        cashChange = -amountCHF;
+        // R-01: Deposit/Entry erhöhen Cash, Withdrawal senkt Cash — unabhängig
+        // von der gespeicherten Vorzeichen-Konvention (vorher machte
+        // `-amountCHF` aus einer negativ gespeicherten Entnahme einen Zufluss).
+        cashChange = getSignedFlowCHF(tx);
         break;
       case 'buy':
-        // Cash decreases (we spend money to buy shares)
+        // Cash decreases (we spend money to buy shares); Brutto + Fees ist
+        // unter der kanonischen Semantik korrekt (Fees nicht doppelt, R-02).
         cashChange = -(amountCHF + fees);
         break;
       case 'sell':

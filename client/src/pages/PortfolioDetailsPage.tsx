@@ -905,10 +905,10 @@ export default function PortfolioDetailsPage() {
                       .map((h: any) => (
                         <div key={h.ticker} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-2">
-                            <Link href={`/stocks/${h.ticker}`}>
+                            <Link href={`/aktien/${h.ticker}`}>
                               <span className="font-mono text-[#00CFC1] text-xs w-16 hover:underline cursor-pointer">{h.ticker}</span>
                             </Link>
-                            <Link href={`/stocks/${h.ticker}`}>
+                            <Link href={`/aktien/${h.ticker}`}>
                               <span className="text-gray-400 text-xs truncate max-w-[100px] hover:text-white cursor-pointer">{h.companyName}</span>
                             </Link>
                           </div>

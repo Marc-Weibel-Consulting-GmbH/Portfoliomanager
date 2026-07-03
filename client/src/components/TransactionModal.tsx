@@ -158,21 +158,22 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     if (transactionType === "buy" || transactionType === "sell") {
       const sharesNum = parseFloat(shares);
       const priceNum = parseFloat(pricePerShare);
-      const feesNum = parseFloat(fees || "0");
-      
+
       if (isNaN(sharesNum) || isNaN(priceNum)) {
         toast.error("Ungültige Zahlen eingegeben");
         return;
       }
-      
+
       // Convert to CHF if foreign currency
       let amountInCHF = sharesNum * priceNum;
       if (stockData?.currency && stockData.currency !== 'CHF' && fxData) {
         amountInCHF = sharesNum * priceNum * fxData.rate;
       }
-      
-      // Add fees for buy, subtract for sell
-      finalTotalAmount = (amountInCHF + (transactionType === "buy" ? feesNum : -feesNum)).toFixed(2);
+
+      // R-02: totalAmountCHF ist kanonisch der BRUTTO-Handelswert EXKL. Gebühren
+      // (Fees stehen separat in `fees`) — vorher wurden Fees hier eingerechnet
+      // und von den Konsumenten doppelt gezählt.
+      finalTotalAmount = amountInCHF.toFixed(2);
     }
 
     // For withdrawals, make amount negative

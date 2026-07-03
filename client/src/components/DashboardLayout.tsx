@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, FileText, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap, FlaskConical } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap, FlaskConical } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -54,7 +54,6 @@ const toolsGroup: NavGroup = {
     { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
     { icon: Calculator, label: "Rechner", path: "/rechner" },
     { icon: FlaskConical, label: "Backtest", path: "/backtesting" },
-    { icon: FileText, label: "Import", path: "/import" },
   ],
 };
 

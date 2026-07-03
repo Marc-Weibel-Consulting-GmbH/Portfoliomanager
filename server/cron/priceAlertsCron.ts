@@ -134,7 +134,7 @@ export async function checkPriceAlerts() {
                   <p><a href="${process.env.VITE_APP_URL}/price-alerts">Alerts verwalten</a></p>
                 `,
               });
-              console.log(`[priceAlertsCron] Email sent to ${user.email}`);
+              console.log(`[priceAlertsCron] Email sent for alert ${alert.id}`);
             }
           } catch (emailError) {
             console.error("[priceAlertsCron] Failed to send email notification:", emailError);
@@ -147,7 +147,7 @@ export async function checkPriceAlerts() {
             
             if (user && user.mobile && user.whatsappAlerts) {
               await sendWhatsAppMessage(user.mobile, `🔔 ${message}`);
-              console.log(`[priceAlertsCron] WhatsApp sent to ${user.mobile}`);
+              console.log(`[priceAlertsCron] WhatsApp sent for alert ${alert.id}`);
             }
           } catch (whatsappError) {
             console.error("[priceAlertsCron] Failed to send WhatsApp notification:", whatsappError);

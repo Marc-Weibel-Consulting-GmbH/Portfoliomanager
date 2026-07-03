@@ -11,6 +11,7 @@
  */
 
 import { PortfolioTransaction } from "../drizzle/schema";
+import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF } from "./lib/transactionSemantics";
 
 export interface PortfolioValuePoint {
   date: string; // YYYY-MM-DD
@@ -204,9 +205,11 @@ export function calculateHoldingsPerformance(
     const holding = holdingsMap.get(ticker) || { shares: 0, totalCost: 0, ticker };
     
     const shares = parseFloat(tx.shares || "0");
-    const totalAmountCHF = parseFloat(tx.totalAmountCHF || tx.totalAmount || "0");
-    const fees = parseFloat(tx.fees || "0");
-    
+    // Kanonische Semantik (R-02): totalAmountCHF = Brutto EXKL. Fees,
+    // Kostenbasis = Brutto + Fees (siehe lib/transactionSemantics.ts).
+    const totalAmountCHF = getGrossAmountCHF(tx);
+    const fees = getFeesCHF(tx);
+
     if (tx.transactionType === "buy") {
       holding.shares += shares;
       holding.totalCost += totalAmountCHF + fees;
@@ -280,18 +283,18 @@ export function calculatePerformanceMetrics(
   let feesPaid = 0;
   
   for (const tx of transactions) {
-    const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || "0");
-    const fees = parseFloat(tx.fees || "0");
-    
     if (tx.transactionType === "deposit") {
-      totalDeposits += amount;
+      totalDeposits += getSignedFlowCHF(tx); // immer positiv
     } else if (tx.transactionType === "withdrawal") {
-      totalWithdrawals += amount;
+      // R-01: getSignedFlowCHF normalisiert beide Speicher-Konventionen
+      // (negativ wie TransactionModal oder positiv) auf einen negativen Flow;
+      // totalWithdrawals ist damit immer der positive Entnahmebetrag.
+      totalWithdrawals += -getSignedFlowCHF(tx);
     } else if (tx.transactionType === "dividend") {
-      dividendsReceived += amount;
+      dividendsReceived += getGrossAmountCHF(tx);
     }
-    
-    feesPaid += fees;
+
+    feesPaid += getFeesCHF(tx);
   }
   
   const totalInvested = totalDeposits - totalWithdrawals;
@@ -376,19 +379,22 @@ export function buildValuePoints(
     const isInitial = isInitialInvestment(date);
     
     for (const tx of txs) {
-      const amount = parseFloat(tx.totalAmountCHF || tx.totalAmount || "0");
+      const amount = getGrossAmountCHF(tx);
       const shares = parseFloat(tx.shares || "0");
-      const fees = parseFloat(tx.fees || "0");
-      
+      const fees = getFeesCHF(tx);
+
       if (tx.transactionType === "deposit") {
         // Initial deposit is performance-neutral
         if (!isInitial) {
-          cashFlows += amount;
+          cashFlows += getSignedFlowCHF(tx);
         }
       } else if (tx.transactionType === "withdrawal") {
-        cashFlows -= amount;
-      } else if (tx.transactionType === "dividend") {
-        cashFlows += amount;
+        // R-01: Entnahme ist IMMER ein negativer externer Flow — unabhängig
+        // davon, ob die Zeile den Betrag negativ oder positiv gespeichert hat.
+        cashFlows += getSignedFlowCHF(tx);
+      // R-05: Dividenden sind interner Ertrag des Portfolios und KEIN
+      // externer Cashflow mehr (vorher: cashFlows += amount, was die
+      // Dividende vom Periodenertrag abzog und MWR verzerrte).
       } else if (tx.transactionType === "buy" && tx.ticker) {
         const holding = holdings.get(tx.ticker) || { shares: 0, totalCost: 0 };
         holding.shares += shares;

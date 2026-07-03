@@ -74,7 +74,7 @@ describe('Auto-Backfill Module', () => {
       expect(result.ticker).toBe('NESN.SW');
       expect(result.success).toBe(true);
       expect(result.pricesInserted).toBe(1250);
-      expect(result.duration).toBeGreaterThan(0);
+      expect(result.duration).toBeGreaterThanOrEqual(0); // duration can be 0ms with mocked backfill
       expect(backfillHistoricalPrices).toHaveBeenCalled();
     });
 

@@ -5,7 +5,7 @@ import { describe, it, expect } from "vitest";
 
 const MCP_BASE = process.env.TRADINGVIEW_MCP_URL?.replace(/\/$/, "") ?? "";
 
-describe("TradingView MCP Server", () => {
+describe.skipIf(!process.env.TRADINGVIEW_MCP_URL)("TradingView MCP Server", () => {
   it("TRADINGVIEW_MCP_URL env var is set", () => {
     expect(MCP_BASE).not.toBe("");
     expect(MCP_BASE).toMatch(/^https?:\/\//);

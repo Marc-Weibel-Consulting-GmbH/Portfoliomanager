@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-describe('Wikifolio credentials', () => {
+describe.skipIf(!process.env.WIKIFOLIO_EMAIL || !process.env.WIKIFOLIO_PASSWORD)('Wikifolio credentials', () => {
   it('should have WIKIFOLIO_EMAIL set and valid', () => {
     const email = process.env.WIKIFOLIO_EMAIL;
     expect(email).toBeTruthy();

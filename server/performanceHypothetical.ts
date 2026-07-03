@@ -409,14 +409,22 @@ export async function getRealTwrSeriesFromTransactions(
       const amountCHF = parseFloat(String(tx.totalAmountCHF || tx.amountCHF || (shares * pricePerShare)));
 
       switch (type) {
-        case 'deposit':
-          cashBalance += amountCHF;
-          externalCashflow += amountCHF;
+        case 'deposit': {
+          // R-01 (vgl. lib/transactionSemantics.ts): Einzahlung immer positiv werten
+          const inflow = Math.abs(amountCHF);
+          cashBalance += inflow;
+          externalCashflow += inflow;
           break;
-        case 'withdrawal':
-          cashBalance -= amountCHF;
-          externalCashflow -= amountCHF;
+        }
+        case 'withdrawal': {
+          // R-01 (vgl. lib/transactionSemantics.ts): Entnahme immer negativ werten —
+          // unabhängig davon, ob die Zeile den Betrag negativ (TransactionModal)
+          // oder positiv gespeichert hat.
+          const outflow = Math.abs(amountCHF);
+          cashBalance -= outflow;
+          externalCashflow -= outflow;
           break;
+        }
         case 'buy':
           cashBalance -= (amountCHF + fees);
           holdings[ticker] = (holdings[ticker] || 0) + shares;

@@ -16,7 +16,16 @@ import bcrypt from "bcrypt";
 import { Resend } from "resend";
 import { ENV } from "../_core/env";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (!resendClient) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 export const authRouter = router({
   // Request password reset
@@ -34,7 +43,7 @@ export const authRouter = router({
       const resetUrl = `${process.env.VITE_APP_URL}/reset-password?token=${token}`;
 
       try {
-        await resend.emails.send({
+        await getResend().emails.send({
           from: process.env.EMAIL_FROM || "noreply@manus.space",
           to: input.email,
           subject: "Passwort zurücksetzen - Portfolio Analyse",
@@ -101,7 +110,7 @@ export const authRouter = router({
     const verificationUrl = `${process.env.VITE_APP_URL}/verify-email?token=${token}`;
 
     try {
-      await resend.emails.send({
+      await getResend().emails.send({
         from: process.env.EMAIL_FROM || "noreply@manus.space",
         to: user.email,
         subject: "E-Mail verifizieren - Portfolio Analyse",

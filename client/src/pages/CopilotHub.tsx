@@ -646,7 +646,7 @@ function SignalFeedTab() {
               <div key={symbol} className={`rounded-lg border p-4 ${cfg.bg}`}>
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <Link href={`/stocks/${symbol}`}>
+                    <Link href={`/aktien/${symbol}`}>
                       <span className="text-[#00CFC1] font-mono font-bold text-base hover:underline cursor-pointer">{symbol}</span>
                     </Link>
                     <p className="text-gray-400 text-xs mt-0.5 line-clamp-1">{item.name ?? ''}</p>

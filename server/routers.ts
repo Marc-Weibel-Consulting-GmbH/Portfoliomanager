@@ -30,7 +30,6 @@ import { portfolioManagementRouter } from "./routers/portfolioManagementRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
 import { dashboardPerformanceRouter } from "./routers/dashboardPerformanceRouter";
 import { newsRouter } from "./routers/newsRouter";
-import { debugRouter } from "./routers/debugRouter";
 import { analyticsRouter } from "./routers/analyticsRouter";
 import { aiInsightsRouter } from "./routers/aiInsightsRouter";
 import { watchlistRouter } from "./routers/watchlistRouter";
@@ -238,51 +237,6 @@ export const appRouter = router({
 
   // TradingView Analytics Bridge (Railway microservice)
   tradingview: tradingviewRouter,
-
-  // DEBUG: Test endpoint for portfolio creation
-  debugTest: debugRouter,
-
-  // DEBUG: Endpoint to inspect production environment variables
-  debug: router({
-    // Check current auth context
-    authContext: protectedProcedure.query(({ ctx }) => {
-      console.log('[DEBUG] authContext called, ctx.user:', ctx.user);
-      return {
-        userId: ctx.user.id,
-        userIdType: typeof ctx.user.id,
-        openId: ctx.user.openId,
-        email: ctx.user.email,
-        name: ctx.user.name,
-        role: ctx.user.role,
-        fullUser: ctx.user,
-      };
-    }),
-    envKeys: publicProcedure.query(() => {
-      const keys = Object.keys(process.env).sort();
-      const secretKeys = keys.filter(k => 
-        k.includes('STRIPE') || 
-        k.includes('FINNHUB') || 
-        k.includes('RESEND') || 
-        k.includes('TWILIO') ||
-        k.includes('SECRET') ||
-        k.includes('KEY') ||
-        k.includes('TOKEN')
-      );
-      return {
-        totalKeys: keys.length,
-        allKeys: keys,
-        secretRelatedKeys: secretKeys,
-        nodeEnv: process.env.NODE_ENV,
-        sampleValues: {
-          STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ? `SET(len:${process.env.STRIPE_SECRET_KEY.length})` : 'UNDEFINED',
-          FINNHUB_API_KEY: process.env.FINNHUB_API_KEY ? `SET(len:${process.env.FINNHUB_API_KEY.length})` : 'UNDEFINED',
-          RESEND_API_KEY: process.env.RESEND_API_KEY ? `SET(len:${process.env.RESEND_API_KEY.length})` : 'UNDEFINED',
-          DATABASE_URL: process.env.DATABASE_URL ? `SET(len:${process.env.DATABASE_URL.length})` : 'UNDEFINED',
-          JWT_SECRET: process.env.JWT_SECRET ? `SET(len:${process.env.JWT_SECRET.length})` : 'UNDEFINED',
-        }
-      };
-    }),
-  }),
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
