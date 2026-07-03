@@ -27,7 +27,6 @@ export const ENV = {
   get stripeWebhookSecret() { return process.env.STRIPE_WEBHOOK_SECRET ?? ""; },
   get finnhubApiKey() { debugEnv(); return process.env.FINNHUB_API_KEY ?? ""; },
   get fiscalApiKey() { return process.env.FISCAL_API_KEY ?? ""; },
-  get fmpApiKey() { return process.env.FMP_API_KEY ?? ""; },
   get resendApiKey() { return process.env.RESEND_API_KEY ?? ""; },
   get twilioAccountSid() { return process.env.TWILIO_ACCOUNT_SID ?? ""; },
   get twilioAuthToken() { return process.env.TWILIO_AUTH_TOKEN ?? ""; },

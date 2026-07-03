@@ -1,7 +1,5 @@
 import { getAllStocks, updateStock, getDb } from "./db";
-
-const FMP_API_KEY = process.env.FMP_API_KEY;
-const FMP_STABLE_URL = "https://financialmodelingprep.com/stable/ratios";
+import { fetchEODHDFundamentals } from "./_core/eodhdApi";
 
 // Estimated earnings growth rates for stocks (annual %)
 // These are typical growth rates for different sectors
@@ -78,45 +76,29 @@ const GROWTH_RATE_ESTIMATES: Record<string, number> = {
   'AVGO': 15,
 };
 
-// Fetch P/E ratio and calculate PEG ratio
+// Fetch PEG ratio from EODHD (fallback: calculate from P/E and estimated growth)
 async function fetchAndCalculatePEG(ticker: string): Promise<string | null> {
   try {
-    if (!FMP_API_KEY) {
-      console.warn(`[PEG Updater] FMP_API_KEY not configured, skipping ${ticker}`);
+    const fundamentals = await fetchEODHDFundamentals(ticker);
+
+    // Prefer the PEG ratio EODHD provides directly (Highlights.PEGRatio)
+    if (fundamentals.pegRatio !== null && fundamentals.pegRatio > 0) {
+      return fundamentals.pegRatio.toFixed(2);
+    }
+
+    // Fallback: calculate PEG = P/E / estimated growth rate
+    const peRatio = fundamentals.peRatio;
+    if (!peRatio || peRatio <= 0) {
+      console.warn(`[PEG Updater] No valid P/E ratio for ${ticker}`);
       return null;
     }
-    // Use the stable API endpoint
-    const response = await fetch(
-      `${FMP_STABLE_URL}?symbol=${ticker}&apikey=${FMP_API_KEY}`
-    );
-    
-    if (!response.ok) {
-      console.warn(`[PEG Updater] Failed to fetch ratios for ${ticker}: ${response.statusText}`);
-      return null;
-    }
-    
-    const data = await response.json() as any;
-    
-    // FMP returns an array of ratios, get the most recent one
-    if (Array.isArray(data) && data.length > 0) {
-      const latestRatio = data[0];
-      const peRatio = latestRatio.priceToEarningsRatio;
-      
-      if (!peRatio || peRatio <= 0) {
-        console.warn(`[PEG Updater] No valid P/E ratio for ${ticker}`);
-        return null;
-      }
-      
-      // Get estimated growth rate for this ticker
-      const growthRate = GROWTH_RATE_ESTIMATES[ticker] || 15; // Default 15% if not specified
-      
-      // Calculate PEG = P/E / Growth Rate
-      const pegRatio = peRatio / growthRate;
-      
-      return pegRatio.toFixed(2);
-    }
-    
-    return null;
+
+    // Get estimated growth rate for this ticker
+    const growthRate = GROWTH_RATE_ESTIMATES[ticker] || 15; // Default 15% if not specified
+
+    const pegRatio = peRatio / growthRate;
+
+    return pegRatio.toFixed(2);
   } catch (error) {
     console.error(`[PEG Updater] Error fetching ratios for ${ticker}:`, error);
     return null;
