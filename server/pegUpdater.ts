@@ -1,6 +1,6 @@
 import { getAllStocks, updateStock, getDb } from "./db";
 
-const FMP_API_KEY = process.env.FMP_API_KEY || "csYfpLrjCs1Z8iLLERQAfxFoisyY14Fr";
+const FMP_API_KEY = process.env.FMP_API_KEY;
 const FMP_STABLE_URL = "https://financialmodelingprep.com/stable/ratios";
 
 // Estimated earnings growth rates for stocks (annual %)
@@ -81,6 +81,10 @@ const GROWTH_RATE_ESTIMATES: Record<string, number> = {
 // Fetch P/E ratio and calculate PEG ratio
 async function fetchAndCalculatePEG(ticker: string): Promise<string | null> {
   try {
+    if (!FMP_API_KEY) {
+      console.warn(`[PEG Updater] FMP_API_KEY not configured, skipping ${ticker}`);
+      return null;
+    }
     // Use the stable API endpoint
     const response = await fetch(
       `${FMP_STABLE_URL}?symbol=${ticker}&apikey=${FMP_API_KEY}`
