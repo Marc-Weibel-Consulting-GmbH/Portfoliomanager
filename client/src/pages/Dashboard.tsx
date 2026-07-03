@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Plus, FolderOpen, Target, Search, Sparkles, MessageCircle, Bell,
-  TrendingUp, TrendingDown, Calendar, ArrowUpRight, ArrowDownRight, Info, RefreshCw
+  TrendingUp, TrendingDown, Calendar, ArrowUpRight, ArrowDownRight, Info, RefreshCw, AlertTriangle
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
@@ -107,11 +107,35 @@ function QuickActions() {
 // PortfolioCompact – Gesamtwert + Portfolios
 // ----------------------------------------------------------------
 function PortfolioCompact() {
-  const { data: metrics, isLoading: metricsLoading } = trpc.dashboard.getAggregatedMetrics.useQuery();
-  const { data: portfolios, isLoading: portfoliosLoading } = trpc.dashboard.getPortfolioCompact.useQuery();
+  const { data: metrics, isLoading: metricsLoading, isError: metricsError, refetch: refetchMetrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
+  const { data: portfolios, isLoading: portfoliosLoading, isError: portfoliosError, refetch: refetchPortfolios } = trpc.dashboard.getPortfolioCompact.useQuery();
   const [, navigate] = useLocation();
 
   if (metricsLoading || portfoliosLoading) return <Skeleton className="h-48 bg-[#111827] rounded-xl" />;
+
+  // U-07: Fehlgeschlagene Abfrage nicht als «CHF 0» rendern, sondern klar ausweisen
+  if (metricsError || portfoliosError) {
+    return (
+      <Card className="bg-[#0d1220] border-[#1e2840]">
+        <CardContent className="p-4">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Gesamtwert · Aggregiert</span>
+          <div className="flex items-center gap-2 mt-3 mb-3">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" aria-hidden="true" />
+            <span className="text-sm text-gray-300">Daten derzeit nicht verfügbar</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs bg-[#1a2332] border-[#2a3a4e] text-gray-200 hover:bg-[#243044]"
+            onClick={() => { if (metricsError) refetchMetrics(); if (portfoliosError) refetchPortfolios(); }}
+          >
+            <RefreshCw className="h-3 w-3 mr-1.5" aria-hidden="true" />
+            Erneut versuchen
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const totalValue = metrics?.totalValue ?? 0;
   const dayChange = metrics?.dayChange ?? 0;
@@ -341,7 +365,7 @@ function KIAnalyse() {
       <CardContent className="px-4 pb-4">
         {!analysis ? (
           <div className="text-center py-8 text-gray-500 text-sm">
-            Noch kein Bericht vorhanden. Klicken Sie "Jetzt analysieren" oder warten Sie auf den täglichen Cron um 08:00.
+            Noch kein Bericht vorhanden. Der Bericht wird täglich um 08:00 Uhr erstellt.
           </div>
         ) : (
           <div className="space-y-4">

@@ -16,6 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+// Alias, weil recharts oben bereits einen `Tooltip` exportiert (U-13)
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -445,6 +451,10 @@ export default function PortfolioDetailsPage() {
   
   // Use enriched stocks from the API (must be before conditional returns)
   const holdings = portfolio?.enrichedStocks || [];
+
+  // U-13: Positionen ohne aktuellen Kurs bzw. Wechselkurs werden mit Wert 0
+  // gerechnet — im UI ausweisen statt still falsche Summen zeigen.
+  const missingDataCount = holdings.filter((h: any) => h.priceMissing || h.fxMissing).length;
   
   // Calculate sector allocation
   const sectorWeights: Record<string, number> = useMemo(() => {
@@ -747,6 +757,24 @@ export default function PortfolioDetailsPage() {
             {portfolio?.investmentAmount && (
               <p className="text-xs text-gray-500 mt-1">Cost CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Number(portfolio.investmentAmount))}</p>
             )}
+            {/* U-13: Hinweis, wenn Positionen wegen fehlender Kurs-/FX-Daten
+                nicht im Gesamtwert enthalten sind */}
+            {missingDataCount > 0 && (
+              <UiTooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-xs text-amber-400 mt-1 cursor-help">
+                    ohne {missingDataCount} Position{missingDataCount > 1 ? 'en' : ''} mit fehlenden Daten
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                  <p className="text-xs">
+                    Für {missingDataCount} Position{missingDataCount > 1 ? 'en' : ''} fehlen aktuelle Kurs-
+                    oder Wechselkursdaten. Diese Positionen sind im angezeigten Wert nicht enthalten
+                    (siehe Markierung in der Positionsliste).
+                  </p>
+                </TooltipContent>
+              </UiTooltip>
+            )}
           </div>
 
           {/* YTD — kanonische Quelle: getMultiPeriodPerformanceV2 (identisch zur Portfolios-Liste) */}
@@ -1029,13 +1057,43 @@ export default function PortfolioDetailsPage() {
                             <td className="px-5 py-3.5">
                               <span className="font-mono text-xs font-semibold text-gray-300 tracking-wide">{h.ticker}</span>
                             </td>
-                            <td className="px-3 py-3.5 text-sm text-white">{h.companyName}</td>
+                            <td className="px-3 py-3.5 text-sm text-white">
+                              <div className="flex items-center gap-2">
+                                <span>{h.companyName}</span>
+                                {/* U-13: fehlender Kurs/Wechselkurs → Badge statt stiller CHF 0 */}
+                                {(h.priceMissing || h.fxMissing) && (
+                                  <UiTooltip>
+                                    <TooltipTrigger asChild>
+                                      <span onClick={(e) => e.stopPropagation()}>
+                                        <Badge
+                                          className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs px-1.5 py-0 cursor-help shrink-0"
+                                          aria-label={h.priceMissing ? 'Kurs fehlt' : 'Wechselkurs fehlt'}
+                                        >
+                                          {h.priceMissing ? 'Kurs fehlt' : 'Wechselkurs fehlt'}
+                                        </Badge>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                                      <p className="text-xs">
+                                        Für diese Position ist derzeit kein aktueller{' '}
+                                        {h.priceMissing ? 'Kurs' : 'Wechselkurs'} verfügbar. Ihr Wert ist
+                                        deshalb nicht im Gesamtwert des Portfolios enthalten.
+                                      </p>
+                                    </TooltipContent>
+                                  </UiTooltip>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-3 py-3.5">
                               <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>
                             </td>
                             <td className="px-3 py-3.5 text-right text-sm text-gray-300">{weight.toFixed(1)}%</td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className="text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(value)}</span>
+                              {(h.priceMissing || h.fxMissing) ? (
+                                <span className="text-sm text-gray-500" aria-label="Wert nicht verfügbar">—</span>
+                              ) : (
+                                <span className="text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(value)}</span>
+                              )}
                             </td>
                             <td className="px-3 py-3.5 text-right">
                               <span className={`text-sm font-mono ${today >= 0 ? 'text-[#00CFC1]' : 'text-red-400'}`}>

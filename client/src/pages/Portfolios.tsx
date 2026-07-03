@@ -41,7 +41,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useMemo } from "react";
-import { Bell, AlertTriangle, BarChart3 as BarChart3Icon, Target, MinusCircle, Activity, Shield, Info, X, Loader2 } from "lucide-react";
+import { Bell, AlertTriangle, BarChart3 as BarChart3Icon, Target, MinusCircle, Activity, Shield, Info, X, Loader2, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { CopilotInsights } from "@/components/dashboard/CopilotInsights";
 import {
@@ -105,7 +106,7 @@ export default function Portfolios() {
   });
   
   // Fetch aggregated metrics for live portfolios only
-  const { data: metrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
+  const { data: metrics, isLoading: metricsLoading, isError: metricsError, refetch: refetchMetrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
   
   // Fetch risk metrics (Sharpe, Bubble) for KPI tooltips
   const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: false });
@@ -310,6 +311,34 @@ export default function Portfolios() {
               </div>
             </div>
 
+            {/* U-07: Geldwert-KPIs — Skeleton beim Laden (kein 0-Flackern),
+                Fehlerzustand statt falscher «CHF 0» bei fehlgeschlagener Abfrage */}
+            {metricsLoading ? (
+              [0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Skeleton className="w-7 h-7 rounded-lg bg-white/10 shrink-0" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-2.5 w-16 bg-white/10" />
+                    <Skeleton className="h-4 w-20 bg-white/10" />
+                  </div>
+                </div>
+              ))
+            ) : metricsError ? (
+              <div className="col-span-4 flex items-center gap-3">
+                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" aria-hidden="true" />
+                <span className="text-xs text-gray-300">Daten derzeit nicht verfügbar</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-xs bg-[#1a1f2e] border-white/10 text-white hover:bg-[#1a1f2e]/80"
+                  onClick={() => refetchMetrics()}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" aria-hidden="true" />
+                  Erneut versuchen
+                </Button>
+              </div>
+            ) : (
+            <>
             {/* Total Value */}
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-[#00CFC1]/20 rounded-lg flex items-center justify-center shrink-0">
@@ -377,6 +406,8 @@ export default function Portfolios() {
                 <div className="text-[9px] text-gray-500">S&P 500</div>
               </div>
             </div>
+            </>
+            )}
 
             {/* Sharpe Ratio with Tooltip */}
             <Tooltip>
@@ -599,12 +630,33 @@ export default function Portfolios() {
                             <h3 className="text-lg font-semibold text-[#00CFC1] truncate">
                               {portfolio.name}
                             </h3>
-                            <Badge 
+                            <Badge
                               variant={isLive ? "default" : "secondary"}
                               className={`shrink-0 text-xs px-2 py-0.5 ${isLive ? "bg-green-500 text-white" : "bg-blue-500 text-white"}`}
                             >
                               {isLive ? "Live" : "Test"}
                             </Badge>
+                            {/* U-13: Positionen mit fehlenden Kurs-/FX-Daten ausweisen */}
+                            {Array.isArray(portfolio.dataQuality) && portfolio.dataQuality.length > 0 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span
+                                    className="flex items-center gap-0.5 text-xs font-medium text-amber-400 shrink-0 cursor-help"
+                                    aria-label={`${portfolio.dataQuality.length} Position${portfolio.dataQuality.length > 1 ? 'en' : ''} mit fehlenden Kursdaten`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                                    {portfolio.dataQuality.length}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                                  <p className="text-xs">
+                                    Für {portfolio.dataQuality.length} Position{portfolio.dataQuality.length > 1 ? 'en' : ''} fehlen
+                                    aktuelle Kurs- oder Wechselkursdaten. Diese Positionen sind im angezeigten Wert nicht enthalten.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                           <p className="text-xs text-gray-500">
                             Erstellt: {formatDate(portfolio.createdAt)}
