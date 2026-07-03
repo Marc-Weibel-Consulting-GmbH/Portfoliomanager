@@ -35,6 +35,8 @@ import {
   PieChart,
   Bell,
   Play,
+  Plus,
+  FileText,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -42,6 +44,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
+import { TransactionModal } from "@/components/TransactionModal";
+import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
@@ -343,6 +347,10 @@ export default function PortfolioDetailsPage() {
   
   // State for share
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+
+  // U-03: Transaktion erfassen + Swissquote-PDF-Import (Transaktionen-Tab)
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [isPdfImportOpen, setIsPdfImportOpen] = useState(false);
   
   // State for activation modal (Demo -> Live)
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
@@ -373,6 +381,16 @@ export default function PortfolioDetailsPage() {
     setIsEditPositionModalOpen(true);
   };
   
+  // U-02: Einstieg aus dem Portfolio-Builder-Importpfad (?import=1) —
+  // PDF-Import einmalig automatisch öffnen, dann den Query-Param entfernen.
+  useEffect(() => {
+    if (searchParams.get('import') === '1') {
+      setIsPdfImportOpen(true);
+      navigate(`/portfolios/${portfolioId}?tab=transaktionen`, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch portfolio data with currency information
   const { data: portfolio, isLoading, refetch } = trpc.portfolios.getWithCurrency.useQuery(
     portfolioId,
@@ -605,6 +623,18 @@ export default function PortfolioDetailsPage() {
     // Invalidate and refetch data
     utils.portfolios.list.invalidate();
     utils.portfolios.getWithCurrency.invalidate(portfolioId);
+    utils.portfolios.getHistoricalPerformance.invalidate({ portfolioId });
+    refetch();
+  };
+
+  // U-03: Nach neuer Transaktion / PDF-Import alle abhängigen Daten neu laden
+  const handleTransactionsChanged = () => {
+    utils.portfolioTransactions.list.invalidate({ portfolioId });
+    utils.realizedGainsHistory.getAll.invalidate({ portfolioId });
+    utils.portfolios.list.invalidate();
+    utils.portfolios.getWithCurrency.invalidate(portfolioId);
+    utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+    utils.portfolios.getPerformanceMetrics.invalidate({ portfolioId });
     utils.portfolios.getHistoricalPerformance.invalidate({ portfolioId });
     refetch();
   };
@@ -1078,6 +1108,29 @@ export default function PortfolioDetailsPage() {
 
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
           <TabsContent value="transaktionen" className="mt-6">
+            {/* U-03: Transaktion erfassen + PDF-Import — nur für Live-Portfolios
+                (konsistent zu den Lösch-Guards weiter unten) */}
+            {!isDemo && (
+              <div className="flex justify-end gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPdfImportOpen(true)}
+                  className="border-[#00CFC1]/30 text-[#00CFC1] hover:bg-[#00CFC1]/10"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF importieren
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setIsTransactionModalOpen(true)}
+                  className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Transaktion erfassen
+                </Button>
+              </div>
+            )}
             {(() => {
               const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
@@ -1348,7 +1401,41 @@ export default function PortfolioDetailsPage() {
           setIsEditPositionModalOpen(false);
         }}
       />
-      
+
+      {/* U-03: Transaktion erfassen (nur Live-Portfolios) */}
+      {!isDemo && (
+        <TransactionModal
+          open={isTransactionModalOpen}
+          onClose={() => setIsTransactionModalOpen(false)}
+          portfolioId={portfolioId}
+          portfolioStocks={holdings.map((h: any) => ({
+            ticker: h.ticker,
+            companyName: h.companyName || h.ticker,
+            shares: parseFloat(h.shares || '0'),
+          }))}
+          onSuccess={handleTransactionsChanged}
+        />
+      )}
+
+      {/* U-03: Swissquote-PDF-Import (nur Live-Portfolios) */}
+      {!isDemo && (
+        <Dialog open={isPdfImportOpen} onOpenChange={setIsPdfImportOpen}>
+          <DialogContent
+            className="max-w-2xl p-0 bg-transparent border-none shadow-none max-h-[90vh] overflow-y-auto"
+            aria-describedby={undefined}
+          >
+            <DialogHeader className="sr-only">
+              <DialogTitle>Swissquote-PDF importieren</DialogTitle>
+            </DialogHeader>
+            <SwissquotePDFImport
+              portfolioId={portfolioId}
+              portfolioName={portfolio.name}
+              onImportComplete={handleTransactionsChanged}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Activation Modal (Demo -> Live) */}
       <Dialog open={isActivationModalOpen} onOpenChange={setIsActivationModalOpen}>
         <DialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30 text-white">

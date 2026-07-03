@@ -1,4 +1,3 @@
-// Bewusst behalten (aktuell nicht geroutet): wird in Phase 4 wieder angeschlossen — siehe OPTIMIZATION_PLAN.md U-03
 /**
  * SwissquotePDFImport Component
  * Allows users to upload Swissquote PDF statements and import transactions
