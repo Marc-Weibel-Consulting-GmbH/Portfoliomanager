@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
+import { formatNumber } from "@/lib/format";
 import { Globe, Activity, BarChart3, Newspaper, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -40,7 +41,7 @@ function IndexKpiRow() {
           <div key={idx.key} className={`bg-[#0f1420] p-5 ${i < indices.length - 1 ? "border-r border-white/10" : ""}`}>
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">{idx.label}</p>
             <p className="text-2xl font-bold font-mono text-white">
-              {idx.value !== null ? new Intl.NumberFormat("de-CH", { maximumFractionDigits: 0 }).format(idx.value) : "—"}
+              {idx.value !== null ? formatNumber(idx.value) : "—"}
             </p>
             <p className={`text-xs font-mono mt-1 ${idx.dayChange === null ? "text-gray-500" : positive ? "text-[#00CFC1]" : "text-red-400"}`}>
               {idx.dayChange === null ? "—" : `${positive ? "+" : ""}${idx.dayChange.toFixed(1)}%`}

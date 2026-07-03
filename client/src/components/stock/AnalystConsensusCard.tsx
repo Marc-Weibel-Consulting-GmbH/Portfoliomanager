@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatNumber as formatNumberCH } from "@/lib/format";
 
 /**
  * Analysten-Konsens (Kaufen / Halten / Verkaufen + Kursziel + Potenzial).
@@ -24,13 +25,9 @@ export default function AnalystConsensusCard({ ticker }: { ticker: string }) {
   const currency = data?.currency || "";
   const currentPrice = data?.currentPrice ?? null;
 
-  const formatNumber = (val: number | null | undefined, decimals = 2) => {
-    if (val === null || val === undefined) return "—";
-    return val.toLocaleString("de-CH", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  };
+  // Zentrale Formatierung (lib/format), plus «—»-Fallback für fehlende Werte.
+  const formatNumber = (val: number | null | undefined, decimals = 2) =>
+    val === null || val === undefined ? "—" : formatNumberCH(val, { decimals });
 
   const potential =
     targetPrice != null && currentPrice != null && currentPrice > 0

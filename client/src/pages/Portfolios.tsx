@@ -58,23 +58,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("de-CH", {
-    style: "currency",
-    currency: "CHF",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const formatPercent = (value: number) => {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
-};
-
-const formatDate = (date: Date | string) => {
-  const d = new Date(date);
-  return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
-};
+import { formatCHF, formatDate, formatPercent } from "@/lib/format";
 
 // Compact Outperformance Table Component
 const OutperformanceTable = ({ performanceData }: { performanceData: any }) => {
@@ -333,7 +317,7 @@ export default function Portfolios() {
               </div>
               <div>
                 <div className="text-[10px] text-gray-400">Gesamtwert</div>
-                <div className="text-base font-bold text-white">{formatCurrency(metrics?.totalValue || 0)}</div>
+                <div className="text-base font-bold text-white">{formatCHF(metrics?.totalValue || 0, { decimals: 0 })}</div>
                 <div className="text-[9px] text-gray-500">Alle Portfolios</div>
               </div>
             </div>
@@ -352,7 +336,7 @@ export default function Portfolios() {
                 <div className={`text-base font-bold ${
                   ((metrics as any)?.dayChange || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
                 }`}>
-                  {((metrics as any)?.dayChange || 0) >= 0 ? '+' : ''}{formatCurrency((metrics as any)?.dayChange || 0)}
+                  {formatCHF((metrics as any)?.dayChange || 0, { decimals: 0, signDisplay: 'always' })}
                 </div>
                 <div className={`text-[9px] ${
                   ((metrics as any)?.dayChangePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-red-500'
@@ -645,7 +629,7 @@ export default function Portfolios() {
                       <div className="text-center">
                         <div className="text-xs text-gray-500">Wert</div>
                         <div className="text-base font-semibold text-white">
-                          {formatCurrency(portfolio.currentValue ?? 0)}
+                          {formatCHF(portfolio.currentValue ?? 0, { decimals: 0 })}
                         </div>
                       </div>
                       <div className="text-center">

@@ -1,3 +1,4 @@
+// Bewusst behalten (aktuell nicht geroutet): wird in Phase 4 wieder angeschlossen — siehe OPTIMIZATION_PLAN.md R-36/F-02/F-14
 import { useState, useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
 import CopilotBacktest from '@/components/CopilotBacktest';
