@@ -69,7 +69,13 @@ console.warn = (...args: any[]) => {
   });
 };
 
-// Capture uncaught exceptions
+// Capture uncaught exceptions (A-08).
+// After an uncaughtException the process is in an undefined state (half-written
+// batches, broken invariants), so we log and then TERMINATE with a non-zero
+// exit code instead of limping on. The 1s grace period lets console/stdout
+// buffers flush; the hosting supervisor (manus.space keeps the service alive
+// and restarts crashed processes) brings the server back up cleanly.
+let exiting = false;
 process.on("uncaughtException", (error: Error) => {
   addLog({
     level: "error",
@@ -79,16 +85,26 @@ process.on("uncaughtException", (error: Error) => {
       name: error.name,
     },
   });
+  console.error("[Log Monitor] FATAL uncaughtException — exiting with code 1 (supervisor restarts):", error);
+  if (!exiting) {
+    exiting = true;
+    process.exitCode = 1;
+    setTimeout(() => process.exit(1), 1000);
+  }
 });
 
-// Capture unhandled promise rejections
+// Capture unhandled promise rejections (A-08).
+// Deliberately NOT exiting here: the codebase still contains many legacy
+// floating promises (fire-and-forget crons, notifications) whose rejections
+// don't corrupt process state; exiting on each would turn minor API hiccups
+// into restart loops. Log loudly instead — revisit once A-07 is completed.
 process.on("unhandledRejection", (reason: any) => {
-  const message = reason instanceof Error 
-    ? reason.message 
+  const message = reason instanceof Error
+    ? reason.message
     : String(reason);
 
-  const stack = reason instanceof Error 
-    ? reason.stack 
+  const stack = reason instanceof Error
+    ? reason.stack
     : undefined;
 
   addLog({
@@ -96,6 +112,7 @@ process.on("unhandledRejection", (reason: any) => {
     message: `Unhandled Promise Rejection: ${message}`,
     stack,
   });
+  console.error("[Log Monitor] Unhandled promise rejection (process keeps running):", reason);
 });
 
 export function getLogs(options?: {

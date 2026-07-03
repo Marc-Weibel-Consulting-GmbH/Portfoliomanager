@@ -436,7 +436,7 @@ export const dashboardRouter = router({
           const pd = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = pd.stocks || pd.positions || [];
           stocks.forEach((s: any) => { if (s.ticker) allTickers.add(s.ticker); });
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
       }
     }
 
@@ -574,7 +574,7 @@ export const dashboardRouter = router({
             const pd = JSON.parse(portfolio.portfolioData || '{}');
             const stocks = pd.stocks || pd.positions || [];
             positionCount = stocks.length;
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Positionszahl) fehlgeschlagen:', e); }
         }
 
         portfolioMetrics.push({
@@ -902,7 +902,7 @@ export const dashboardRouter = router({
               if (createdStr < earliestTransactionDate) earliestTransactionDate = createdStr;
             }
             // For Max range on demo portfolios, allow going back to the full available history
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (frühestes Datum) fehlgeschlagen:', e); }
         }
       }
       if (allTickers.size === 0) return { range: input.range, scope: input.scope, points: [] };
@@ -1187,7 +1187,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -1232,7 +1232,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
 
       // Now remove any remaining zero/negative
@@ -1384,7 +1384,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -1427,7 +1427,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
 
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
@@ -1523,7 +1523,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -1564,7 +1564,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
 
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
@@ -1658,7 +1658,7 @@ export const dashboardRouter = router({
               }
             }
             demoHoldingsByPortfolio.set(p.id, demoHoldings);
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen der Demo-Portfolio-Holdings fehlgeschlagen:', e); }
         }
       }
 
@@ -2004,7 +2004,7 @@ export const dashboardRouter = router({
                 holdingsAgg.set(stock.ticker, (holdingsAgg.get(stock.ticker) || 0) + shares);
               }
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Holdings-Aggregation aus portfolioData fehlgeschlagen:', e); }
         }
         totalCash += parseFloat(portfolio.cashBalance || '0');
       }
@@ -2045,7 +2045,7 @@ export const dashboardRouter = router({
               holdingsAgg.set(stockDef.ticker, calculatedShares);
             }
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung aus Gewichten fehlgeschlagen:', e); }
       }
       for (const [t, s] of Array.from(holdingsAgg.entries())) {
         if (s <= 0) holdingsAgg.delete(t);
@@ -2249,7 +2249,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           const pd = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = pd.stocks || pd.positions || [];
           stocks.forEach((s: any) => { if (s.ticker) allTickers.add(s.ticker); });
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
       }
     }
     const symbols = Array.from(allTickers).slice(0, 15);
@@ -2276,13 +2276,13 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         try {
           const summary: any = await yahooFinance.quoteSummary(ticker, { modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'] });
           qualityMetrics = extractQualityFromYahoo(summary);
-        } catch (_) {}
+        } catch (e) { console.warn('[dashboardRouter] Yahoo quoteSummary (Quality-Metriken) fehlgeschlagen:', e); }
         let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral' };
-        if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (_) {} }
+        if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (e) { console.warn('[dashboardRouter] calculateMomentumScore fehlgeschlagen:', e); } }
         let qualityResult: any = { score: 0, grade: 'C' };
-        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
+        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (e) { console.warn('[dashboardRouter] calculateQualityScore fehlgeschlagen:', e); }
         let bubbleScore = 0, bubbleRegime = 'normal';
-        if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (_) {} }
+        if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (e) { console.warn('[dashboardRouter] detectBubble fehlgeschlagen:', e); } }
         const mNorm = (momentumResult.score + 1) / 2;
         const qNorm = (qualityResult.score + 1) / 2;
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
@@ -2366,7 +2366,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         const data = JSON.parse(p.portfolioData || '{}');
         const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
         stocks.forEach((s: any) => { if (s.ticker) portfolioTickers.add(s.ticker); });
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
     });
     watchlist.forEach((w: any) => { if (w.ticker) portfolioTickers.add(w.ticker); });
     const tickerList = Array.from(portfolioTickers).slice(0, 30);
@@ -2414,7 +2414,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         const data = JSON.parse(p.portfolioData || '{}');
         const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
         stocks.forEach((s: any) => { if (s.ticker) tickers.add(s.ticker); });
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
     });
     const tickerList = Array.from(tickers).slice(0, 30);
     const today = new Date();
@@ -2456,7 +2456,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             }
           });
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Wirtschaftskalender-Events fehlgeschlagen:', e); }
     }
 
     // 2. Fetch EARNINGS calendar for portfolio tickers
@@ -2475,7 +2475,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             });
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Earnings-Kalender-Events fehlgeschlagen:', e); }
 
       // 3. Fetch DIVIDENDS calendar
       try {
@@ -2492,7 +2492,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             });
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Dividenden-Kalender-Events fehlgeschlagen:', e); }
     }
 
     // Sort by date, then importance
@@ -2619,7 +2619,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
               portfolioName: portfolio.name,
             });
           }
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Holdings-Map) fehlgeschlagen:', e); }
       }
 
       const allTickers = Array.from(holdingsMap.keys()).slice(0, 30);
@@ -2698,7 +2698,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
             minTitles = rules.minTitles || 15;
           }
         }
-      } catch {}
+      } catch (e) { console.warn('[dashboardRouter] Laden der Rebalancing-Regeln fehlgeschlagen:', e); }
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       let targetPortfolios = portfolios;
@@ -2732,7 +2732,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
               const weight = parseFloat(stock.weight || '0') / 100;
               holdingsMap.set(stock.ticker, weight); // store weight as placeholder
             }
-          } catch {}
+          } catch (e) { console.warn('[dashboardRouter] Parsen der Demo-Portfolio-Gewichte fehlgeschlagen:', e); }
         }
       }
 
@@ -2919,7 +2919,7 @@ Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
           const rows = await db.select().from(appSettings);
           const feeRow = rows.find((r: any) => r.key === 'fee_structure');
           if (feeRow?.value) fees = { ...fees, ...(feeRow.value as any) };
-        } catch {}
+        } catch (e) { console.warn('[dashboardRouter] Laden der Gebührenstruktur fehlgeschlagen:', e); }
       }
 
       if (isLive) {

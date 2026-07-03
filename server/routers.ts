@@ -250,16 +250,19 @@ export const appRouter = router({
     // Password reset and email verification
     ...authExtensionsRouter._def.procedures,
     register: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) return val;
-        throw new Error("Invalid input");
-      })
+      .input(z.object({
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string().email(),
+        password: z.string().min(8),
+        mobile: z.string().nullish(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("./db");
         const { users, newsletter } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        
-        const data = input as any;
+
+        const data = input;
         const db = await getDb();
         
         if (!db) {
@@ -324,16 +327,16 @@ export const appRouter = router({
         return { success: true };
       }),
     login: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) return val;
-        throw new Error("Invalid input");
-      })
+      .input(z.object({
+        email: z.string().email(),
+        password: z.string(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("./db");
         const { users } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
-        
-        const data = input as any;
+
+        const data = input;
         const db = await getDb();
         
         if (!db) {
@@ -508,17 +511,20 @@ export const appRouter = router({
       return results;
     }),
     add: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) return val;
-        throw new Error("Invalid input");
-      })
+      .input(z.object({
+        title: z.string(),
+        content: z.string().optional(),
+        fileUrl: z.string().optional(),
+        fileType: z.string().optional(),
+        fileName: z.string().optional(),
+      }))
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
         const { research } = await import("../drizzle/schema");
         const { storagePut } = await import("./storage");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-        const data = input as any;
+        const data = input;
         
         let fileUrl = "";
         
@@ -534,7 +540,7 @@ export const appRouter = router({
               
               // Generate unique filename
               const timestamp = Date.now();
-              const ext = data.fileName.split('.').pop() || 'bin';
+              const ext = data.fileName?.split('.').pop() || 'bin';
               const key = `research/${timestamp}-${data.fileName}`;
               
               // Upload to S3
@@ -557,10 +563,7 @@ export const appRouter = router({
         
         return { success: true };
       }),    delete: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "number") return val;
-        throw new Error("Invalid input");
-      })
+      .input(z.number())
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
         const { research } = await import("../drizzle/schema");
@@ -574,17 +577,13 @@ export const appRouter = router({
 
   alerts: router({
     createRule: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val !== 'object' || val === null) throw new Error('Invalid input');
-        const input = val as any;
-        return {
-          ticker: typeof input.ticker === 'string' ? input.ticker : undefined,
-          metricName: input.metricName,
-          condition: input.condition,
-          threshold: input.threshold,
-          notificationMethod: input.notificationMethod || 'email',
-        };
-      })
+      .input(z.object({
+        ticker: z.string().optional(),
+        metricName: z.string(),
+        condition: z.enum(['above', 'below', 'change']),
+        threshold: z.string(),
+        notificationMethod: z.enum(['email', 'whatsapp', 'both']).default('email'),
+      }))
       .mutation(async ({ ctx, input }) => {
         const { createAlertRule } = await import("./_core/alertSystem");
         const ruleId = await createAlertRule({
@@ -601,13 +600,7 @@ export const appRouter = router({
       }),
     
     getMyHistory: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val !== 'object' || val === null) return { limit: 50 };
-        const input = val as any;
-        return {
-          limit: typeof input.limit === 'number' ? input.limit : 50,
-        };
-      })
+      .input(z.object({ limit: z.number().default(50) }).default({ limit: 50 }))
       .query(async ({ ctx, input }) => {
         const { getUserAlertHistory } = await import("./_core/alertSystem");
         return await getUserAlertHistory(ctx.user.id, input.limit);
@@ -617,12 +610,7 @@ export const appRouter = router({
 
   newsletter: router({
     subscribe: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "email" in val) {
-          return val as { email: string };
-        }
-        throw new Error("Invalid email");
-      })
+      .input(z.object({ email: z.string() }))
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
         const { newsletter } = await import("../drizzle/schema");
@@ -729,12 +717,7 @@ export const appRouter = router({
       }),
     
     verifyPayment: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "paymentId" in val) {
-          return val as { paymentId: string };
-        }
-        throw new Error("Invalid payment ID");
-      })
+      .input(z.object({ paymentId: z.string() }))
       .mutation(async ({ input, ctx }) => {
         // TODO: Verify payment with Stripe
         // For now, return placeholder
@@ -747,12 +730,11 @@ export const appRouter = router({
 
   contact: router({
     send: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "name" in val && "email" in val && "message" in val) {
-          return val as { name: string; email: string; message: string };
-        }
-        throw new Error("Invalid contact form data");
-      })
+      .input(z.object({
+        name: z.string(),
+        email: z.string(),
+        message: z.string(),
+      }))
       .mutation(async ({ input }) => {
         // TODO: Implement email sending logic here
         // For now, just log the contact form submission
@@ -833,19 +815,19 @@ export const appRouter = router({
       }),
     
     updateSettings: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) return val;
-        throw new Error("Invalid input");
-      })
+      .input(z.object({
+        mobile: z.string().nullish(),
+        whatsappAlerts: z.number().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("./db");
         const { users } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
-        
-        const updates = input as { mobile?: string | null; whatsappAlerts?: number };
-        
+
+        const updates = input;
+
         await db.update(users)
           .set(updates)
           .where(eq(users.openId, ctx.user.openId));
@@ -854,12 +836,10 @@ export const appRouter = router({
       }),
     
     updateProfile: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "username" in val && "email" in val) {
-          return val as { username: string; email: string };
-        }
-        throw new Error("Invalid input: username and email are required");
-      })
+      .input(z.object({
+        username: z.string(),
+        email: z.string(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("./db");
         const { users } = await import("../drizzle/schema");
@@ -878,12 +858,10 @@ export const appRouter = router({
       }),
     
     updatePassword: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "currentPassword" in val && "newPassword" in val) {
-          return val as { currentPassword: string; newPassword: string };
-        }
-        throw new Error("Invalid input: currentPassword and newPassword are required");
-      })
+      .input(z.object({
+        currentPassword: z.string(),
+        newPassword: z.string(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("./db");
         const { users } = await import("../drizzle/schema");
@@ -916,12 +894,11 @@ export const appRouter = router({
       }),
     
     updateNotifications: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) {
-          return val as { whatsappAlerts?: boolean; emailNotifications?: boolean; newsletterSubscribed?: boolean };
-        }
-        throw new Error("Invalid input");
-      })
+      .input(z.object({
+        whatsappAlerts: z.boolean().optional(),
+        emailNotifications: z.boolean().optional(),
+        newsletterSubscribed: z.boolean().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("./db");
         const { users } = await import("../drizzle/schema");
@@ -955,12 +932,11 @@ export const appRouter = router({
       return await getAllCategories();
     }),
     add: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "name" in val) {
-          return val as { name: string; description?: string; color?: string };
-        }
-        throw new Error("Invalid input: name is required");
-      })
+      .input(z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        color: z.string().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         // Only admins can manage categories
         if (ctx.user.role !== 'admin') {
@@ -972,12 +948,12 @@ export const appRouter = router({
         return { success: true };
       }),
     update: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "id" in val) {
-          return val as { id: number; name?: string; description?: string; color?: string };
-        }
-        throw new Error("Invalid input: id is required");
-      })
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        color: z.string().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         // Only admins can manage categories
         if (ctx.user.role !== 'admin') {
@@ -990,10 +966,7 @@ export const appRouter = router({
         return { success: true };
       }),
     delete: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "number") return val;
-        throw new Error("Invalid input: id must be a number");
-      })
+      .input(z.number())
       .mutation(async ({ input: id, ctx }) => {
         // Only admins can manage categories
         if (ctx.user.role !== 'admin') {
@@ -1014,12 +987,10 @@ export const appRouter = router({
       return await getAllUniqueSectors();
     }),
     updateStockSector: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "ticker" in val && "sector" in val) {
-          return val as { ticker: string; sector: string };
-        }
-        throw new Error("Invalid input: ticker and sector are required");
-      })
+      .input(z.object({
+        ticker: z.string(),
+        sector: z.string(),
+      }))
       .mutation(async ({ input, ctx }) => {
         // Only admins can manage sectors
         if (ctx.user.role !== 'admin') {
@@ -1094,12 +1065,10 @@ export const appRouter = router({
 
   fx: router({
     getCurrentRate: publicProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "currency" in val && typeof val.currency === "string") {
-          return val as { currency: string; date?: string };
-        }
-        throw new Error("Invalid currency");
-      })
+      .input(z.object({
+        currency: z.string(),
+        date: z.string().optional(),
+      }))
       .query(async ({ input }) => {
         const { getFxRate } = await import("./fxHelper");
         

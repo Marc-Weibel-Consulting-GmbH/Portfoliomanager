@@ -58,9 +58,11 @@ async function startServer() {
     await handleStripeWebhook(req, res);
   });
   
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Body-parser limit (A-04): the largest legitimate payload is the PDF import
+  // (pdfImportRouter caps files at 20 MB; sent as base64 → ~27 MB JSON), so
+  // 30 MB covers it with headroom. Previously 50 MB.
+  app.use(express.json({ limit: "30mb" }));
+  app.use(express.urlencoded({ limit: "30mb", extended: true }));
   // Traditional login endpoint with server-side redirect for mobile compatibility
   app.post("/api/auth/login", async (req, res) => {
     try {

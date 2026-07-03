@@ -1,13 +1,12 @@
 import { router, protectedProcedure } from "../_core/trpc";
+import { z } from "zod";
 
 export const annualPerformanceRouter = router({
   getSummary: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof val.portfolioId === "number") {
-        return val as { portfolioId: number; year?: number };
-      }
-      throw new Error("Invalid portfolio ID");
-    })
+    .input(z.object({
+      portfolioId: z.number(),
+      year: z.number().optional(),
+    }))
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolioById, getPortfolioTransactions, getDb, getStockByTicker } = await import("../db");
       const { realizedGains, historicalPrices } = await import("../../drizzle/schema");

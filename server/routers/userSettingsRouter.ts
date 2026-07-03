@@ -1,5 +1,6 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 
 export const userSettingsRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
@@ -13,18 +14,15 @@ export const userSettingsRouter = router({
   }),
 
   updateBrokerFees: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val !== "object" || val === null) throw new Error("Invalid input");
-      return val as {
-        brokerName?: string;
-        feePerTrade?: string;
-        feePercent?: string;
-        minFeePerTrade?: string;
-        maxFeePerTrade?: string;
-        stampDutyPercent?: string;
-        currencyConversionFee?: string;
-      };
-    })
+    .input(z.object({
+      brokerName: z.string().optional(),
+      feePerTrade: z.string().optional(),
+      feePercent: z.string().optional(),
+      minFeePerTrade: z.string().optional(),
+      maxFeePerTrade: z.string().optional(),
+      stampDutyPercent: z.string().optional(),
+      currencyConversionFee: z.string().optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });

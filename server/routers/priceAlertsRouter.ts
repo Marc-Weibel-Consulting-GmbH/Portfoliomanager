@@ -24,23 +24,13 @@ export const priceAlertsRouter = router({
 
   // Create a new price alert
   create: protectedProcedure
-    .input((val: unknown) => {
-      if (
-        typeof val === "object" &&
-        val !== null &&
-        "ticker" in val &&
-        "alertType" in val
-      ) {
-        return val as {
-          ticker: string;
-          alertType: "above_price" | "below_price" | "percent_change";
-          targetPrice?: string;
-          percentChange?: string;
-          notificationMethod?: "email" | "whatsapp" | "both";
-        };
-      }
-      throw new Error("Invalid alert data");
-    })
+    .input(z.object({
+      ticker: z.string(),
+      alertType: z.enum(["above_price", "below_price", "percent_change"]),
+      targetPrice: z.string().optional(),
+      percentChange: z.string().optional(),
+      notificationMethod: z.enum(["email", "whatsapp", "both"]).optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       console.log('[priceAlerts.create] ctx.user:', ctx.user);
       
@@ -93,19 +83,14 @@ export const priceAlertsRouter = router({
 
   // Update alert (toggle active status or change values)
   update: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "id" in val) {
-        return val as {
-          id: number;
-          isActive?: number;
-          targetPrice?: string;
-          percentChange?: string;
-          notificationMethod?: "email" | "whatsapp" | "both";
-          status?: "active" | "triggered" | "disabled";
-        };
-      }
-      throw new Error("Invalid update data");
-    })
+    .input(z.object({
+      id: z.number(),
+      isActive: z.number().optional(),
+      targetPrice: z.string().optional(),
+      percentChange: z.string().optional(),
+      notificationMethod: z.enum(["email", "whatsapp", "both"]).optional(),
+      status: z.enum(["active", "triggered", "disabled"]).optional(),
+    }))
     .mutation(async ({ input, ctx }) => {
       console.log('[priceAlerts.update] ctx.user:', ctx.user);
       
@@ -161,12 +146,7 @@ export const priceAlertsRouter = router({
 
   // Delete an alert
   delete: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "id" in val && typeof val.id === "number") {
-        return { id: val.id };
-      }
-      throw new Error("Invalid alert ID");
-    })
+    .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       console.log('[priceAlerts.delete] ctx.user:', ctx.user);
       

@@ -1,5 +1,6 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { convertToCHF } from "../fxHelper";
+import { z } from "zod";
 
 /**
  * Stückzahlen pro Ticker aus Transaktionen aggregieren: `buy` und `entry`
@@ -52,12 +53,7 @@ export const dividendCalendarRouter = router({
    * Get dividend calendar for a portfolio (upcoming + estimated)
    */
   calendar: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof (val as any).portfolioId === "number") {
-        return val as { portfolioId: number };
-      }
-      throw new Error("Invalid portfolio ID");
-    })
+    .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
       const { getPortfolioDividends } = await import("../dividendCalendar");
@@ -121,12 +117,7 @@ export const dividendCalendarRouter = router({
    * Get all dividends (past + upcoming) for full calendar view
    */
   allDividends: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof (val as any).portfolioId === "number") {
-        return val as { portfolioId: number };
-      }
-      throw new Error("Invalid portfolio ID");
-    })
+    .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
       const { getAllPortfolioDividends } = await import("../dividendCalendar");
@@ -183,12 +174,10 @@ export const dividendCalendarRouter = router({
    * Get upcoming dividends (backward compatibility)
    */
   getUpcoming: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "object" && val !== null && "portfolioId" in val && typeof (val as any).portfolioId === "number") {
-        return val as { portfolioId: number; daysAhead?: number };
-      }
-      throw new Error("Invalid portfolio ID");
-    })
+    .input(z.object({
+      portfolioId: z.number(),
+      daysAhead: z.number().optional(),
+    }))
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
       const { getPortfolioDividends } = await import("../dividendCalendar");
@@ -212,7 +201,7 @@ export const dividendCalendarRouter = router({
         aggregateHoldingsFromPortfolioData(portfolioData3, holdings);
       }
 
-      const dividends = await getPortfolioDividends(tickers, (input as any).daysAhead || 365);
+      const dividends = await getPortfolioDividends(tickers, input.daysAhead || 365);
 
       const enrichedDividends = (await Promise.all(dividends.map(async div => {
         const stock = portfolioData3.find((s: any) =>
@@ -246,10 +235,7 @@ export const dividendCalendarRouter = router({
    * gemerged über alle eigenen Positionen, sortiert nach Ex-Datum.
    */
   upcomingAll: protectedProcedure
-    .input((val: unknown) => {
-      const v = (val ?? {}) as any;
-      return { daysAhead: typeof v.daysAhead === "number" ? v.daysAhead : 365 };
-    })
+    .input(z.object({ daysAhead: z.number().default(365) }).default({ daysAhead: 365 }))
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
       const { getPortfolioDividends } = await import("../dividendCalendar");

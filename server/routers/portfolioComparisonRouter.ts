@@ -3,12 +3,7 @@ import { z } from "zod";
 
 export const portfolioComparisonRouter = router({
     compare: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null && "portfolioIds" in val && Array.isArray(val.portfolioIds)) {
-          return val as { portfolioIds: number[] };
-        }
-        throw new Error("Invalid portfolio IDs");
-      })
+      .input(z.object({ portfolioIds: z.array(z.number()) }))
       .query(async ({ input, ctx }) => {
         const { getSavedPortfolioById, getPortfolioTransactions, getDb } = await import("../db");
         const db = await getDb();

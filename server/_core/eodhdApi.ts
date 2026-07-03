@@ -10,6 +10,7 @@
 
 import { apiCache, CACHE_TTL } from './apiCache';
 import { retryFetch } from './retryUtil';
+import { eodhdRealTimeSchema, eodhdFundamentalsSchema, payloadSample } from './externalSchemas';
 
 export interface EODHDFundamentals {
   companyName: string | null;
@@ -54,8 +55,20 @@ export async function fetchEODHDRealTime(ticker: string): Promise<EODHDRealTime>
       console.warn(`[EODHD] real-time request failed for ${ticker}: ${response.status} ${response.statusText}`);
       return empty;
     }
-    const data: any = await response.json();
-    const toNum = (v: any) => (v === undefined || v === null || v === 'NA' ? null : Number(v));
+    const raw = await response.json();
+    // A-05: validate the shape before reading — provider error pages must not
+    // become NaN prices downstream.
+    const parsed = eodhdRealTimeSchema.safeParse(raw);
+    if (!parsed.success) {
+      console.warn(`[EODHD] Unexpected real-time payload for ${ticker}. Sample: ${payloadSample(raw)}`);
+      return empty;
+    }
+    const data = parsed.data;
+    const toNum = (v: number | string | null | undefined) => {
+      if (v === undefined || v === null || v === 'NA') return null;
+      const n = Number(v);
+      return Number.isNaN(n) ? null : n;
+    };
     const result: EODHDRealTime = {
       close: toNum(data.close),
       previousClose: toNum(data.previousClose),
@@ -124,7 +137,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       };
     }
 
-    const data = await response.json();
+    const raw = await response.json();
 
     // Extract fundamental metrics
     const fundamentals: EODHDFundamentals = {
@@ -140,6 +153,17 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       bookValue: null,
       earningsGrowth: null,
     };
+
+    // A-05: validate the subset of the payload we read; on mismatch return
+    // the all-null fallback instead of propagating garbage into the DB.
+    const parsedResponse = eodhdFundamentalsSchema.safeParse(raw);
+    if (!parsedResponse.success) {
+      console.warn(`[EODHD] Unexpected fundamentals payload for ${ticker}. Sample: ${payloadSample(raw)}`);
+      return fundamentals;
+    }
+    const data = parsedResponse.data;
+    // parseFloat semantics for values that may arrive as strings
+    const pf = (v: number | string): number => (typeof v === 'number' ? v : parseFloat(v));
 
     // Extract company info from General section
     if (data.General) {
@@ -159,46 +183,46 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       const highlights = data.Highlights;
       
       if (highlights.PEGRatio !== undefined && highlights.PEGRatio !== null) {
-        fundamentals.pegRatio = parseFloat(highlights.PEGRatio);
+        fundamentals.pegRatio = pf(highlights.PEGRatio);
       }
       
       if (highlights.PERatio !== undefined && highlights.PERatio !== null) {
-        fundamentals.peRatio = parseFloat(highlights.PERatio);
+        fundamentals.peRatio = pf(highlights.PERatio);
       }
       
       if (highlights.DividendYield !== undefined && highlights.DividendYield !== null) {
         // EODHD returns dividend yield as decimal (0.03 = 3%)
-        fundamentals.dividendYield = parseFloat(highlights.DividendYield) * 100;
+        fundamentals.dividendYield = pf(highlights.DividendYield) * 100;
       }
       
       if (highlights.MarketCapitalization !== undefined && highlights.MarketCapitalization !== null) {
-        fundamentals.marketCap = parseFloat(highlights.MarketCapitalization);
+        fundamentals.marketCap = pf(highlights.MarketCapitalization);
       }
       
       if (highlights.Beta !== undefined && highlights.Beta !== null) {
-        fundamentals.beta = parseFloat(highlights.Beta);
+        fundamentals.beta = pf(highlights.Beta);
       }
       
       if (highlights.EarningsShare !== undefined && highlights.EarningsShare !== null) {
-        fundamentals.eps = parseFloat(highlights.EarningsShare);
+        fundamentals.eps = pf(highlights.EarningsShare);
       }
       
       if (highlights.BookValue !== undefined && highlights.BookValue !== null) {
-        fundamentals.bookValue = parseFloat(highlights.BookValue);
+        fundamentals.bookValue = pf(highlights.BookValue);
       }
     }
 
     // Valuation section may contain additional P/E data
     if (data.Valuation && !fundamentals.peRatio) {
       if (data.Valuation.TrailingPE !== undefined && data.Valuation.TrailingPE !== null) {
-        fundamentals.peRatio = parseFloat(data.Valuation.TrailingPE);
+        fundamentals.peRatio = pf(data.Valuation.TrailingPE);
       }
     }
 
     // Technicals section may contain beta
     if (data.Technicals && !fundamentals.beta) {
       if (data.Technicals.Beta !== undefined && data.Technicals.Beta !== null) {
-        fundamentals.beta = parseFloat(data.Technicals.Beta);
+        fundamentals.beta = pf(data.Technicals.Beta);
       }
     }
 

@@ -1,6 +1,7 @@
 import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { historicalPrices, transactions, savedPortfolios } from "../../drizzle/schema";
+import { eodhdEodResponseSchema, payloadSample, type EodhdEodRow } from "../_core/externalSchemas";
 
 /**
  * Batch job to import historical prices from EODHD API
@@ -50,15 +51,7 @@ function toEodhdTicker(dbTicker: string): string | null {
   return TICKER_MAPPING[dbTicker] || dbTicker;
 }
 
-interface EODHDHistoricalPrice {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  adjusted_close: number;
-  volume: number;
-}
+type EODHDHistoricalPrice = EodhdEodRow;
 
 /**
  * Fetch historical prices from EODHD API
@@ -86,7 +79,16 @@ async function fetchHistoricalPrices(
     }
 
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    // A-05: validate the provider response instead of trusting it blindly —
+    // an HTML error page or rate-limit JSON must not land in price columns.
+    const parsed = eodhdEodResponseSchema.safeParse(data);
+    if (!parsed.success) {
+      console.warn(
+        `[importHistoricalPrices] Unexpected EODHD EOD payload for ${ticker}, skipping. Sample: ${payloadSample(data)}`
+      );
+      return [];
+    }
+    return parsed.data;
   } catch (error) {
     console.error(`[importHistoricalPrices] Error fetching ${ticker}:`, error);
     return [];
