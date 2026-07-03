@@ -1,6 +1,35 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 
+async function assertPortfolioOwnership(portfolioId: number, userId: number) {
+  const { getSavedPortfolioById } = await import("../db");
+  const portfolio = await getSavedPortfolioById(portfolioId, userId);
+  if (!portfolio) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Portfolio nicht gefunden oder keine Berechtigung",
+    });
+  }
+  return portfolio;
+}
+
+async function assertTransactionOwnership(transactionIds: number[], userId: number) {
+  if (transactionIds.length === 0) return;
+  const { getDb } = await import("../db");
+  const { portfolioTransactions } = await import("../../drizzle/schema");
+  const { inArray } = await import("drizzle-orm");
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db
+    .select({ portfolioId: portfolioTransactions.portfolioId })
+    .from(portfolioTransactions)
+    .where(inArray(portfolioTransactions.id, transactionIds));
+  const portfolioIds = Array.from(new Set(rows.map((r) => r.portfolioId)));
+  for (const pid of portfolioIds) {
+    await assertPortfolioOwnership(pid, userId);
+  }
+}
+
 export const portfolioTransactionsRouter = router({
   create: protectedProcedure
     .input((val: unknown) => {
@@ -20,22 +49,16 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid transaction data");
     })
     .mutation(async ({ input, ctx }) => {
-      console.log('[portfolioTransactions.create] ctx.user:', ctx.user);
-      
       // HARD AUTH GUARD: No fallback, fail-fast on missing user
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
-        console.error('[portfolioTransactions.create] AUTH GUARD FAILED:', {
-          hasUser: !!ctx.user,
-          userId: ctx.user?.id,
-          userIdType: typeof ctx.user?.id,
-        });
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Authentication required: ctx.user.id is missing or invalid",
         });
       }
-      
-      console.log("[Transaction] Creating transaction:", JSON.stringify(input, null, 2));
+
+      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
+
       const { createPortfolioTransaction } = await import("../db");
       
       // Normalize transactionDate to Date object
@@ -59,7 +82,8 @@ export const portfolioTransactionsRouter = router({
       }
       throw new Error("Invalid portfolio ID");
     })
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getPortfolioTransactions } = await import("../db");
       return await getPortfolioTransactions(input.portfolioId);
     }),
@@ -77,7 +101,8 @@ export const portfolioTransactionsRouter = router({
       }
       throw new Error("Invalid filter parameters");
     })
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
       const { getDb } = await import("../db");
       const { portfolioTransactions } = await import("../../drizzle/schema");
       const { eq, and, gte, lte, desc } = await import("drizzle-orm");
@@ -210,21 +235,16 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid transaction ID");
     })
     .mutation(async ({ input, ctx }) => {
-      console.log('[portfolioTransactions.delete] ctx.user:', ctx.user);
-      
       // HARD AUTH GUARD: No fallback, fail-fast on missing user
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
-        console.error('[portfolioTransactions.delete] AUTH GUARD FAILED:', {
-          hasUser: !!ctx.user,
-          userId: ctx.user?.id,
-          userIdType: typeof ctx.user?.id,
-        });
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Authentication required: ctx.user.id is missing or invalid",
         });
       }
-      
+
+      await assertTransactionOwnership([input.transactionId], ctx.user.id);
+
       const { getDb } = await import("../db");
       const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
@@ -260,21 +280,16 @@ export const portfolioTransactionsRouter = router({
       throw new Error("Invalid update data");
     })
     .mutation(async ({ input, ctx }) => {
-      console.log('[portfolioTransactions.update] ctx.user:', ctx.user);
-      
       // HARD AUTH GUARD: No fallback, fail-fast on missing user
       if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
-        console.error('[portfolioTransactions.update] AUTH GUARD FAILED:', {
-          hasUser: !!ctx.user,
-          userId: ctx.user?.id,
-          userIdType: typeof ctx.user?.id,
-        });
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Authentication required: ctx.user.id is missing or invalid",
         });
       }
-      
+
+      await assertTransactionOwnership([input.transactionId], ctx.user.id);
+
       const { getDb } = await import("../db");
       const { portfolioTransactions } = await import("../../drizzle/schema");
       const { eq, and } = await import("drizzle-orm");
@@ -569,6 +584,9 @@ export const portfolioTransactionsRouter = router({
         });
       }
       if (input.transactionIds.length === 0) return { deleted: 0 };
+
+      await assertTransactionOwnership(input.transactionIds, ctx.user.id);
+
       const { getDb } = await import("../db");
       const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
       const { inArray } = await import("drizzle-orm");

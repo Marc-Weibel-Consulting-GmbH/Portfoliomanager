@@ -1,4 +1,4 @@
-import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, adminProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { fetchStockMetrics } from "../_core/stockDataApi";
 import { fetchEODHDFundamentals } from "../_core/eodhdApi";
@@ -1085,7 +1085,7 @@ export const stocksRouter = router({
         const { generateDailyNews } = await import("../_core/aiDailyNews");
         return await generateDailyNews(input.ticker, input.companyName);
       }),
-    importPrices: protectedProcedure
+    importPrices: adminProcedure
       .input((val: unknown) => {
         if (typeof val === "object" && val !== null) return val;
         throw new Error("Invalid input");

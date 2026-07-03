@@ -99,9 +99,9 @@ export async function handleStripeWebhook(req: Request, res: Response) {
           });
           
           if (emailSent) {
-            console.log(`[Payment] Confirmation email sent to ${userEmail}`);
+            console.log(`[Payment] Confirmation email sent (userId: ${userId})`);
           } else {
-            console.error(`[Payment] Failed to send confirmation email to ${userEmail}`);
+            console.error(`[Payment] Failed to send confirmation email (userId: ${userId})`);
           }
         } else {
           console.warn(`[Payment] No email address found for user ${userId}`);

@@ -817,7 +817,7 @@ export default function Portfolios() {
                   (scoringData as any[]).slice(0, 5).map((item: any) => (
                     <div key={item.symbol} className="flex items-center justify-between bg-white/5 rounded-lg px-2.5 py-1.5">
                       <div className="flex items-center gap-2">
-                        <Link href={`/stocks/${item.symbol}`}>
+                        <Link href={`/aktien/${item.symbol}`}>
                           <span className="text-[#00CFC1] font-mono text-xs font-semibold hover:underline cursor-pointer">{item.symbol}</span>
                         </Link>
                       </div>

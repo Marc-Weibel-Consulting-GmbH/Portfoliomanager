@@ -63,9 +63,6 @@ import AdminWikifolio from "./pages/AdminWikifolio";
 import AdminSettings from "./pages/AdminSettings";
 import AdminResearch from "./pages/AdminResearch";
 
-// ─── Legacy (für Redirects) ───
-import DebugTest from "./pages/DebugTest";
-
 function Router() {
   return (
     <Switch>
@@ -109,6 +106,9 @@ function Router() {
       <Route path="/aktien/:ticker" component={StockDetail} />
       {/* Legacy stock routes → redirect */}
       <Route path="/stock/:ticker">
+        {(params: { ticker?: string }) => <Redirect to={`/aktien/${params.ticker}`} />}
+      </Route>
+      <Route path="/stocks/:ticker">
         {(params: { ticker?: string }) => <Redirect to={`/aktien/${params.ticker}`} />}
       </Route>
       <Route path="/invest" component={Invest} />
@@ -236,9 +236,6 @@ function Router() {
       <Route path="/transactions">
         <Redirect to="/portfolios" />
       </Route>
-
-      {/* Debug */}
-      <Route path="/debug-test" component={DebugTest} />
 
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}

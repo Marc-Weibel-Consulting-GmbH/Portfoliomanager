@@ -1,4 +1,4 @@
-import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+import { adminProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { importHistoricalPrices, importHistoricalPricesForTicker } from "../jobs/importHistoricalPrices";
 import { checkPriceCoverage, getRelevantTickersForPortfolio, getAllPortfolioTickers } from "../priceCoverage";
@@ -13,7 +13,7 @@ import {
 } from "../autoBackfill";
 
 export const adminRouter = router({
-    exportData: protectedProcedure.query(async () => {
+    exportData: adminProcedure.query(async () => {
       const { getAllStocks, getDb } = await import("../db");
       const { research, transactions } = await import("../../drizzle/schema");
       const db = await getDb();
@@ -33,11 +33,16 @@ export const adminRouter = router({
         },
       };
     }),
-    importData: protectedProcedure
-      .input((val: unknown) => {
-        if (typeof val === "object" && val !== null) return val;
-        throw new Error("Invalid input");
-      })
+    importData: adminProcedure
+      .input(
+        z.object({
+          data: z.object({
+            stocks: z.array(z.any()).optional(),
+            research: z.array(z.any()).optional(),
+            transactions: z.array(z.any()).optional(),
+          }),
+        })
+      )
       .mutation(async ({ input }) => {
         const { getDb } = await import("../db");
         const { stocks, research, transactions } = await import("../../drizzle/schema");
@@ -93,7 +98,7 @@ export const adminRouter = router({
           },
         };
       }),
-    bulkUpdateSwissStocks: protectedProcedure.mutation(async ({ ctx }) => {
+    bulkUpdateSwissStocks: adminProcedure.mutation(async ({ ctx }) => {
       // Only admin can run bulk updates
       if (ctx.user?.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required');
@@ -180,7 +185,7 @@ export const adminRouter = router({
         results,
       };
     }),
-    triggerDailyRefresh: protectedProcedure.mutation(async ({ ctx }) => {
+    triggerDailyRefresh: adminProcedure.mutation(async ({ ctx }) => {
       // Only admin can trigger daily refresh
       if (ctx.user?.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required');
@@ -191,7 +196,7 @@ export const adminRouter = router({
       
       return result;
     }),
-    getDataQualityMetrics: protectedProcedure.query(async ({ ctx }) => {
+    getDataQualityMetrics: adminProcedure.query(async ({ ctx }) => {
       // Only admin can view data quality metrics
       if (ctx.user?.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required');
@@ -203,7 +208,7 @@ export const adminRouter = router({
       return metrics;
     }),
     
-    triggerYTDUpdate: protectedProcedure.mutation(async ({ ctx }) => {
+    triggerYTDUpdate: adminProcedure.mutation(async ({ ctx }) => {
       // Only admin can trigger YTD update
       if (ctx.user?.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required');
@@ -215,7 +220,7 @@ export const adminRouter = router({
       return { success: true, message: "YTD update completed" };
     }),
     
-    refreshPrices: protectedProcedure.query(async ({ ctx }) => {
+    refreshPrices: adminProcedure.query(async ({ ctx }) => {
       // Only admin can refresh prices
       if (ctx.user?.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required');
@@ -227,7 +232,7 @@ export const adminRouter = router({
       return { success: true, message: "Prices refreshed successfully" };
     }),
     
-    refreshCharts: protectedProcedure.query(async ({ ctx }) => {
+    refreshCharts: adminProcedure.query(async ({ ctx }) => {
       // Only admin can refresh charts
       if (ctx.user?.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required');
@@ -240,7 +245,7 @@ export const adminRouter = router({
       return { success: true, message: "Charts refreshed successfully" };
     }),
     
-    refreshNews: protectedProcedure.query(async ({ ctx }) => {
+    refreshNews: adminProcedure.query(async ({ ctx }) => {
       // Only admin can refresh news
       if (ctx.user?.role !== 'admin') {
         throw new Error('Unauthorized: Admin access required');
@@ -253,7 +258,7 @@ export const adminRouter = router({
     /**
      * Trigger historical price import for all tickers
      */
-    importHistoricalPrices: protectedProcedure
+    importHistoricalPrices: adminProcedure
       .input(
         z.object({
           fromDate: z.string().optional(),
@@ -274,7 +279,7 @@ export const adminRouter = router({
     /**
      * Import historical prices for a specific ticker
      */
-    importHistoricalPricesForTicker: protectedProcedure
+    importHistoricalPricesForTicker: adminProcedure
       .input(
         z.object({
           ticker: z.string(),
@@ -296,7 +301,7 @@ export const adminRouter = router({
      * Check price coverage for specified tickers
      * Useful for debugging missing historical price data
      */
-    priceCoverage: protectedProcedure
+    priceCoverage: adminProcedure
       .input(z.object({
         tickers: z.array(z.string()).optional(),
         portfolioId: z.number().optional(),
@@ -342,7 +347,7 @@ export const adminRouter = router({
      * Backfill historical prices for specified tickers
      * Admin-only operation to populate missing historical price data
      */
-    backfillPrices: protectedProcedure
+    backfillPrices: adminProcedure
       .input(z.object({
         tickers: z.array(z.string()).optional(),
         portfolioId: z.number().optional(),
@@ -395,7 +400,7 @@ export const adminRouter = router({
      * Get all portfolio tickers
      * Useful for seeing what tickers are in use across all portfolios
      */
-    getAllTickers: protectedProcedure
+    getAllTickers: adminProcedure
       .query(async ({ ctx }) => {
         // Only admin can get all tickers
         if (ctx.user?.role !== 'admin') {
@@ -413,7 +418,7 @@ export const adminRouter = router({
      * Get auto-backfill queue status
      * Shows pending and recently completed backfills
      */
-    getBackfillStatus: protectedProcedure
+    getBackfillStatus: adminProcedure
       .query(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') {
           throw new Error('Unauthorized: Admin access required');
@@ -426,7 +431,7 @@ export const adminRouter = router({
      * Check data status for specific symbols
      * Returns information about available historical data
      */
-    checkSymbolsDataStatus: protectedProcedure
+    checkSymbolsDataStatus: adminProcedure
       .input(z.object({
         tickers: z.array(z.string())
       }))
@@ -454,7 +459,7 @@ export const adminRouter = router({
      * Trigger MAX backfill for specific symbols
      * Fetches 5 years of historical data for each symbol
      */
-    triggerMaxBackfill: protectedProcedure
+    triggerMaxBackfill: adminProcedure
       .input(z.object({
         tickers: z.array(z.string()),
         force: z.boolean().optional().default(false)
@@ -484,7 +489,7 @@ export const adminRouter = router({
      * Auto-detect and backfill new symbols
      * Checks all provided symbols and triggers backfill for those without sufficient data
      */
-    autoBackfillSymbols: protectedProcedure
+    autoBackfillSymbols: adminProcedure
       .input(z.object({
         tickers: z.array(z.string()).optional()
       }))
@@ -521,7 +526,7 @@ export const adminRouter = router({
      * Clear backfill cache
      * Forces re-check of all symbols on next backfill request
      */
-    clearBackfillCache: protectedProcedure
+    clearBackfillCache: adminProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') {
           throw new Error('Unauthorized: Admin access required');
@@ -537,7 +542,7 @@ export const adminRouter = router({
      * Get the current status of the ML model:
      * latest artifact metadata, metrics, and whether a model is active.
      */
-    mlGetStatus: protectedProcedure
+    mlGetStatus: adminProcedure
       .query(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
 
@@ -604,7 +609,7 @@ export const adminRouter = router({
     /**
      * Get full training history (all artifacts, newest first).
      */
-    mlGetHistory: protectedProcedure
+    mlGetHistory: adminProcedure
       .input(z.object({ limit: z.number().min(1).max(100).optional().default(20) }))
       .query(async ({ ctx, input }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
@@ -644,7 +649,7 @@ export const adminRouter = router({
      * Aggregierte Signal-Performance-Metriken je Engine und Regime.
      * Basis für Admin-Dashboard zur Optimierung des Signalmix.
      */
-    getSignalPerformance: protectedProcedure
+    getSignalPerformance: adminProcedure
       .input(z.object({
         days: z.number().default(90),
         engine: z.string().optional(),
@@ -765,7 +770,7 @@ export const adminRouter = router({
       }),
 
     /** Manueller Trigger: Signal-Snapshot für alle Portfolio-Aktien */
-    triggerSignalSnapshot: protectedProcedure
+    triggerSignalSnapshot: adminProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
         const { snapshotSignalsForPortfolio } = await import('../cron/signalEvaluationCron');
@@ -774,7 +779,7 @@ export const adminRouter = router({
       }),
 
     /** Manueller Trigger: Lookback-Evaluation */
-    triggerSignalEvaluation: protectedProcedure
+    triggerSignalEvaluation: adminProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
         const { evaluatePendingSignals } = await import('../cron/signalEvaluationCron');
@@ -785,7 +790,7 @@ export const adminRouter = router({
     // ── Phase 3: Risk Threshold Kalibrierung ─────────────────────────────────
 
     /** Kalibrierungsstatus: Cache-Stats und kalibrierte Ticker anzeigen */
-    getRiskCalibrationStatus: protectedProcedure
+    getRiskCalibrationStatus: adminProcedure
       .query(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
         const { getCacheStats } = await import('../lib/signals/riskThresholdCalibrator');
@@ -798,7 +803,7 @@ export const adminRouter = router({
       }),
 
     /** Kalibrierung für einen einzelnen Ticker triggern */
-    calibrateRiskThresholdsForTicker: protectedProcedure
+    calibrateRiskThresholdsForTicker: adminProcedure
       .input(z.object({ ticker: z.string() }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
@@ -849,7 +854,7 @@ export const adminRouter = router({
       }),
 
     /** Cache leeren (erzwingt Neukalibrierung beim nächsten Request) */
-    clearRiskCalibrationCache: protectedProcedure
+    clearRiskCalibrationCache: adminProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
         const { clearThresholdCache } = await import('../lib/signals/riskThresholdCalibrator');
@@ -858,7 +863,7 @@ export const adminRouter = router({
       }),
 
     // ─── App Settings (Diversifikationsregeln, Gebühren) ───────────────
-    getAppSettings: protectedProcedure
+    getAppSettings: adminProcedure
       .query(async ({ ctx }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
         const { getDb } = await import("../db");
@@ -869,7 +874,7 @@ export const adminRouter = router({
         return rows;
       }),
 
-    updateAppSetting: protectedProcedure
+    updateAppSetting: adminProcedure
       .input(z.object({
         key: z.string(),
         value: z.any(),

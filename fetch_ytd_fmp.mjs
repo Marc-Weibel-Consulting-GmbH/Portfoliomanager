@@ -1,6 +1,10 @@
 import mysql from 'mysql2/promise';
 
-const FMP_API_KEY = 'PYLr6bZlg4Hb5RlZPjyLaJxF3Wy2Rvwc';
+const FMP_API_KEY = process.env.FMP_API_KEY;
+if (!FMP_API_KEY) {
+  console.error('FMP_API_KEY environment variable is required');
+  process.exit(1);
+}
 
 async function fetchYTDPrices() {
   const conn = await mysql.createConnection(process.env.DATABASE_URL);

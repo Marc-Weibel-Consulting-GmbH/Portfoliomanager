@@ -221,7 +221,7 @@ Positiv: Das Token-Designsystem, die shadcn-Basis, `de-CH`-Locale bei `Intl`, di
 |---|---|---|---|---|
 | C-01 | **Portfolio- und Chatdaten fliessen an ein ausländisches LLM-Gateway** (Manus Forge → Gemini): Chat-Nachrichten inkl. Portfolio-Kontext (Name, Positionen, Gewichte, Stückzahlen), Metriken aus Copilot/Insights/Weekly-Review — in der Datenschutzerklärung **nicht erwähnt**. revDSG Art. 19 (Informationspflicht) und Art. 16 (Auslandsübermittlung) sind nicht adressiert. | `server/_core/llm.ts:212–322`, `chatRouter.ts:139–188`, `copilotRouter.ts:999`, `aiInsightsRouter.ts:96` u. a. | Datenschutzerklärung vervollständigen (inkl. KI-Verarbeitung, Empfängerliste, Auslandsübermittlung); prüfen, ob Portfolio-Kontext pseudonymisiert übergeben werden kann; AVV/SCC-Lage klären. Juristische Begleitung empfohlen. | M |
 | C-02 | **Rechtsseiten sind unausgefüllte Platzhalter** («[Ihr Firmenname]», «[Registergericht]»), Datenschutzerklärung zitiert **DSGVO-Artikel statt revDSG** und erwähnt weder LLM noch Twilio/Resend. Für eine live betriebene Schweizer Finanz-App nicht haltbar. | `Impressum.tsx:28–63`, `Datenschutz.tsx:83–108,171–182`, `AGB.tsx:32,107` | Inhalte erstellen (revDSG-konform), juristisch prüfen lassen. | M |
-| C-03 | **Committeter FMP-API-Key** `PYLr6bZlg4Hb5RlZPjyLaJxF3Wy2Rvwc` (auch in der Git-Historie, Commit `7e89314`). | `fetch_ytd_fmp.mjs:3` | **Key sofort rotieren**; Datei auf `process.env` umstellen; Historie im Zuge von D-09 bereinigen. | S |
+| C-03 | **Committeter FMP-API-Key** (Klartext in `fetch_ytd_fmp.mjs:3`, auch in der Git-Historie, Commit `7e89314`). *Status: Datei ist auf `process.env` umgestellt (Phase 0); der Key muss extern rotiert werden, da er in der Historie bleibt.* | `fetch_ytd_fmp.mjs:3` | **Key sofort rotieren**; Historie im Zuge von D-09 bereinigen. | S |
 | C-04 | Unauthentifizierter Schreibzugriff auf fremde Konten via `debugTest.testPortfolioCreate` (= A-03; hier zusätzlich als Datenschutzverletzung relevant). | `debugRouter.ts:6–17` | Siehe A-03. | S |
 
 ### 6.2 WICHTIG
@@ -302,7 +302,7 @@ Der Auftraggeber hat vier Dokumente mit eigenen Beobachtungen geliefert (Teil 1 
 | F-09 | **KI-Prognose ausblenden** (unzuverlässig; Tab `StockDetail.tsx:560/864`, Route, Nav) und **Backtest-/Signal-Framework-Entscheid**: alle Strategien unterliegen Buy & Hold (kein Alpha) — Feature-Flag/Ausblenden statt sofortigem Löschen; Signal-Framework in die Signale-Seite integrieren (gem. Mockup). | Teil 2 | S (ausblenden) / M (Rückbau) |
 | F-10 | **Aktien-Detailseite restrukturieren** (gem. Mockups Teil 2): News aus der Übersicht entfernen (eigener Tab existiert), Tab «Chart & TA» direkt nach der Übersicht, «Bewertung» neu strukturieren (verständliche Einordnung), Signale-Seite gemäss Mockup neu. | Teil 2 | M–L |
 | F-11 | **Marktseite**: mehrere Timeframes, Toggle Lokalwährung/CHF, Regime-Seite gemäss Design-Mockup vereinfachen. Datenkorrektur via R-35. | Teil 3 | M |
-| F-12 | **Copilot (Teil 4)** — Fachprüfung durch den Auftraggeber steht noch aus; Befunde folgen. | Teil 4 | — |
+| F-12 | **Copilot verschlanken auf Chat + Verlauf** (Vorgabe Auftraggeber, 2026-07-03): Der Copilot-Hub hat heute 5 Tabs (Insights/Chat/History/Signals/Deepdive, `CopilotHub.tsx:82–94`). Zielbild: **Copilot = nur Chat und Chatverlauf**; die übrigen KI-Tools wandern an ihren fachlichen Ort, konsistent mit den bestehenden Strukturen: **Insights** → ins Dashboard bzw. in die Portfolios-Übersicht (dort werden `getCopilotInsights` bereits abgefragt, vgl. D-11 — keine Doppel-Anzeige an zwei Orten); **Signals** → in die Signale-Seite der Aktien-Sektion (zusammen mit F-09/F-10, wo auch das Signal-Framework integriert wird); **Deepdive** → in die Sektion «Portfolios» (als Analyse-Einstieg neben den bestehenden Optimierungs-Tabs der Portfolio-Detailseite — **keinen** zweiten Optimierungs-Ort schaffen, `OptimierenTab` existiert bereits). Navigation/Routen entsprechend anpassen (`/copilot` behält Chat; alte Tab-Deep-Links redirecten). Detail-Review des Copilot-Chats durch den Auftraggeber steht noch aus; weitere Befunde werden hier ergänzt. | Teil 4 + Vorgabe; `client/src/pages/CopilotHub.tsx`, `PortfolioCopilot.tsx` (tot), `DashboardLayout.tsx` | M |
 
 ---
 
@@ -350,7 +350,7 @@ Die Phasen sind so geschnitten, dass Berechnungsfixes, Refactoring und UX getren
 4. G-02 (Schriftgrössen/Kontrast), G-04 … G-08, U-08 … U-12, U-14
 5. U-15/U-16/G-10/G-11: Sprach- und Begriffs-Pass (konsequent Sie, Deutsch, Glossar)
 6. U-19/U-20 (Demo-/Live-Semantik, Gebühren-Verdrahtung) — Voraussetzung für F-02
-7. Kunden-Features aus Abschnitt 8.2 in Mockup-Reihenfolge: F-04/F-05/F-08/F-09 (S) → F-06/F-07/F-10/F-11 (M) → F-01/F-02/F-03 (L; F-02/F-03 erst nach Phase 2, da sie auf korrekten Zahlen aufsetzen müssen)
+7. Kunden-Features aus Abschnitt 8.2 in Mockup-Reihenfolge: F-04/F-05/F-08/F-09 (S) → F-06/F-07/F-10/F-11/F-12 (M; F-12 Copilot-Verschlankung zusammen mit F-09/F-10, da Signals/Signal-Framework gemeinsam an die Signale-Seite wandern) → F-01/F-02/F-03 (L; F-02/F-03 erst nach Phase 2, da sie auf korrekten Zahlen aufsetzen müssen)
 
 ### Phase 5 — Strukturelle Zielarchitektur (L, nach Stabilisierung)
 1. R-14: Decimal-Migration (Schema + decimal.js) — hinter den Charakterisierungstests

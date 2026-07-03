@@ -438,7 +438,8 @@ export default function StockDetail() {
 
   const currentPrice = parseFloat(stock.currentPrice || "0");
   const currency = stock.currency || "CHF";
-  const score = stock.score || Math.floor(Math.random() * 20) + 75;
+  // Kein Fallback auf erfundene Werte: fehlt der Score, wird keiner angezeigt
+  const score = stock.score ?? null;
   
   // Rating logic for metrics
   const getRating = (metric: string, value: string | null | undefined): "good" | "neutral" | "bad" | undefined => {
@@ -545,7 +546,9 @@ export default function StockDetail() {
                 </Button>
               </div>
             </div>
-            <ScoreCircle score={score} onClick={() => setShowScoreExplanation(true)} />
+            {score !== null && (
+              <ScoreCircle score={score} onClick={() => setShowScoreExplanation(true)} />
+            )}
           </div>
         </div>
 

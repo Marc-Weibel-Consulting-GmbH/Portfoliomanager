@@ -14,11 +14,9 @@ const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
 
   if (!ctx.user || !ctx.user.id) {
-    console.error('[requireUser] Auth failed - user:', ctx.user, 'userId:', ctx.user?.id);
+    console.error('[requireUser] Auth failed - hasUser:', !!ctx.user);
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
   }
-
-  console.log('[requireUser] Auth OK - userId:', ctx.user.id, 'openId:', ctx.user.openId);
 
   return next({
     ctx: {
