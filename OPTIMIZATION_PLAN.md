@@ -265,7 +265,7 @@ Kein `.env` committet; `.gitignore`/`.env.example` sauber; bcrypt Cost 10; Cooki
 
 Der Auftraggeber hat vier Dokumente mit eigenen Beobachtungen geliefert (Teil 1 Dashboard/Portfolios, Teil 2 Aktien, Teil 3 Markt, Teil 4 Copilot). Alle technisch prüfbaren Punkte wurden gegen den Code verifiziert; die Tabelle mappt jeden Punkt auf einen Plan-Eintrag. **Bugs** wurden oben in die Kategorien 1–7 eingereiht (IDs R-29 … R-35, A-14, U-19/U-20); reine **Feature-/Redesign-Wünsche** erhalten hier F-IDs (sie sind keine Audit-Befunde, gehören aber in die Umsetzungsplanung, da mehrere Mockups von Claude Design existieren).
 
-> ⚠️ **Teil 4 (Copilot) ist leer** — das Dokument enthält nur die Überschrift «1. Copilot», keinen Text und keine Bilder. Vermutlich ging beim Export Inhalt verloren; bitte erneut liefern.
+> **Teil 4 (Copilot):** Die Fachprüfung des Copilot-Bereichs steht auftraggeberseitig noch aus — das Dokument enthält bewusst nur die Überschrift. Befunde werden nachgeliefert und dann hier ergänzt.
 >
 > Teil 1 ist laut Auftraggeber teilweise bereits von Manus umgesetzt; die Verifikation erfolgte gegen den Repo-Stand `ed96859` — bereits umgesetzte Punkte sind entsprechend als «erledigt/vorhanden» markiert.
 
@@ -302,7 +302,7 @@ Der Auftraggeber hat vier Dokumente mit eigenen Beobachtungen geliefert (Teil 1 
 | F-09 | **KI-Prognose ausblenden** (unzuverlässig; Tab `StockDetail.tsx:560/864`, Route, Nav) und **Backtest-/Signal-Framework-Entscheid**: alle Strategien unterliegen Buy & Hold (kein Alpha) — Feature-Flag/Ausblenden statt sofortigem Löschen; Signal-Framework in die Signale-Seite integrieren (gem. Mockup). | Teil 2 | S (ausblenden) / M (Rückbau) |
 | F-10 | **Aktien-Detailseite restrukturieren** (gem. Mockups Teil 2): News aus der Übersicht entfernen (eigener Tab existiert), Tab «Chart & TA» direkt nach der Übersicht, «Bewertung» neu strukturieren (verständliche Einordnung), Signale-Seite gemäss Mockup neu. | Teil 2 | M–L |
 | F-11 | **Marktseite**: mehrere Timeframes, Toggle Lokalwährung/CHF, Regime-Seite gemäss Design-Mockup vereinfachen. Datenkorrektur via R-35. | Teil 3 | M |
-| F-12 | **Copilot (Teil 4)** — Inhalt fehlt im gelieferten Dokument (nur Überschrift). Punkte nachliefern. | Teil 4 | — |
+| F-12 | **Copilot (Teil 4)** — Fachprüfung durch den Auftraggeber steht noch aus; Befunde folgen. | Teil 4 | — |
 
 ---
 
