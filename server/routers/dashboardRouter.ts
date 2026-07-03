@@ -1618,7 +1618,7 @@ export const dashboardRouter = router({
       const { inArray, and, gte, lte } = await import("drizzle-orm");
 
       const db = await getDb();
-      if (!db) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (!db) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       // Support both live and demo portfolios
@@ -1628,7 +1628,7 @@ export const dashboardRouter = router({
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
-      if (targetPortfolios.length === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (targetPortfolios.length === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Get 1 year of data for risk calculation
       const today = new Date();
@@ -1663,7 +1663,7 @@ export const dashboardRouter = router({
         }
       }
 
-      if (allTickers.size === 0) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (allTickers.size === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -1787,7 +1787,7 @@ export const dashboardRouter = router({
         }
       }
 
-      if (dailyReturns.length < 10) return { volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (dailyReturns.length < 10) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Volatility (annualized)
       const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
@@ -1881,6 +1881,7 @@ export const dashboardRouter = router({
       const concentrationTop3 = totalVal > 0 ? (holdingValues.slice(0, 3).reduce((s, v) => s + v, 0) / totalVal) * 100 : 0;
 
       return {
+        dataAvailable: true,
         volatility: Number(volatility.toFixed(1)),
         volBenchmark: Number(volBenchmark.toFixed(1)),
         maxDrawdown: Number((maxDrawdown * 100).toFixed(1)),
@@ -1905,10 +1906,29 @@ export const dashboardRouter = router({
         const sornetteScore = await getMarketBubbleScore();
         if (sornetteScore) {
           const formatted = formatBubbleIndicatorResponse(sornetteScore);
+          // History best-effort from the same source as the DB fallback
+          // (lpplResults, own LPPL engine). If unavailable, [] — the client
+          // hides the sparkline for an empty history.
+          let sornetteHistory: number[] = [];
+          try {
+            const { getDb } = await import("../db");
+            const { lpplResults } = await import("../../drizzle/schema");
+            const { desc, eq } = await import("drizzle-orm");
+            const db = await getDb();
+            if (db) {
+              const rows = await db.select().from(lpplResults)
+                .where(eq(lpplResults.indexSymbol, '^GSPC'))
+                .orderBy(desc(lpplResults.checkedAt))
+                .limit(8);
+              sornetteHistory = rows.reverse().map(r => r.bubbleConfidence);
+            }
+          } catch (histErr) {
+            console.warn('[getBubbleIndicator] History-Fallback aus lpplResults fehlgeschlagen:', histErr);
+          }
           return {
             score: formatted.score,
             label: formatted.label,
-            history: [] as number[],
+            history: sornetteHistory,
             interpretation: formatted.interpretation,
             source: 'sornette_api' as const,
             dataDate: formatted.dataDate,

@@ -151,8 +151,22 @@ export default function PriceAlerts() {
     }
   };
 
+  // U-17: eigener Mutation-Hook für den Schalter, damit ein spezifischer
+  // Erfolgs-Toast erscheint (statt des generischen «Alarm aktualisiert»,
+  // der zudem den Dialog-State zurücksetzt).
+  const toggleMutation = trpc.priceAlerts.update.useMutation({
+    onSuccess: (_data, variables) => {
+      const activated = !!(variables && variables.isActive);
+      toast.success(activated ? "Alarm aktiviert" : "Alarm deaktiviert");
+      utils.priceAlerts.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error(`Fehler: ${error.message}`);
+    },
+  });
+
   const toggleAlert = (id: number, currentStatus: number) => {
-    updateMutation.mutate({
+    toggleMutation.mutate({
       id,
       isActive: currentStatus ? 0 : 1,
     });

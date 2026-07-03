@@ -107,38 +107,49 @@ function KonstChart({
   const padL = 56, padR = 20, padT = 16, padB = 44;
   const iw = W - padL - padR, ih = H - padT - padB;
 
-  // Dynamic domain so real PE/growth values stay in view.
-  // We cap the domain at reasonable limits to avoid extreme outliers distorting the chart.
-  // Outliers are detected and shown with arrows pointing to their true position.
+  // Dynamic domain from data quantiles (p95 + 10% headroom, no fixed floors)
+  // so typical portfolios spread across the full canvas.
+  // Outliers beyond the domain are placed just inside the edge with an arrow.
   const gs = positions.map((p) => p.g);
   const pes = positions.map((p) => p.pe);
-  // Use 90th percentile to avoid outliers dominating the scale
   const sortedGs = [...gs].filter(Number.isFinite).sort((a, b) => a - b);
   const sortedPes = [...pes].filter(Number.isFinite).sort((a, b) => a - b);
-  const p90g = sortedGs[Math.floor(sortedGs.length * 0.9)] ?? 30;
-  const p90pe = sortedPes[Math.floor(sortedPes.length * 0.9)] ?? 40;
-  const p10pe = sortedPes[Math.floor(sortedPes.length * 0.1)] ?? 8;
-  const xMax = Math.max(30, Math.ceil(Math.max(1, p90g) / 5) * 5 + 5);
-  const yMin = Math.min(8, Math.floor(Math.min(99, p10pe) / 5) * 5);
-  const yMax = Math.max(40, Math.ceil(Math.max(1, p90pe) / 5) * 5 + 5);
+  const quantile = (arr: number[], q: number) =>
+    arr.length ? arr[Math.min(arr.length - 1, Math.floor(arr.length * q))] : NaN;
+  const p95g = quantile(sortedGs, 0.95);
+  const p95pe = quantile(sortedPes, 0.95);
+  const p10pe = quantile(sortedPes, 0.1);
+  const roundUp5 = (v: number) => Math.max(5, Math.ceil(v / 5) * 5);
+  const xMax = roundUp5(Number.isFinite(p95g) ? p95g * 1.1 : 30);
+  const yMin = Math.max(0, Math.floor((Number.isFinite(p10pe) ? Math.min(p10pe, 99) : 8) / 5) * 5);
+  const yMax = Math.max(yMin + 5, roundUp5(Number.isFinite(p95pe) ? p95pe * 1.1 : 40));
   const X_DOM = [0, xMax], Y_DOM = [yMin, yMax];
   const sx = (v: number) => padL + ((v - X_DOM[0]) / (X_DOM[1] - X_DOM[0])) * iw;
   const sy = (v: number) => padT + ih - ((v - Y_DOM[0]) / (Y_DOM[1] - Y_DOM[0])) * ih;
-  
+
   // Detect outliers: positions outside the visible domain
   const isOutlierX = (v: number) => v < X_DOM[0] || v > X_DOM[1];
   const isOutlierY = (v: number) => v < Y_DOM[0] || v > Y_DOM[1];
   const isOutlier = (p: KPos) => isOutlierX(p.g) || isOutlierY(p.pe);
-  // Clamp to boundary for rendering, but mark as outlier
-  const sxC = (v: number) => sx(Math.max(X_DOM[0], Math.min(X_DOM[1], v)));
-  const syC = (v: number) => sy(Math.max(Y_DOM[0], Math.min(Y_DOM[1], v)));
+  // Outliers: clamp to the domain, then pull a few px inside the edge so the
+  // bubble is fully visible (arrow marks the true direction).
+  const inset = 16;
+  const sxC = (v: number) => {
+    const px = sx(Math.max(X_DOM[0], Math.min(X_DOM[1], v)));
+    return Math.max(padL + inset, Math.min(padL + iw - inset, px));
+  };
+  const syC = (v: number) => {
+    const px = sy(Math.max(Y_DOM[0], Math.min(Y_DOM[1], v)));
+    return Math.max(padT + inset, Math.min(padT + ih - inset, px));
+  };
 
   const maxR = Math.max(1, ...positions.map((d) => Math.sqrt(d.mcap)));
-  const rOf = (m: number) => 13 + (Math.sqrt(m) / maxR) * 30;
+  const rOf = (m: number) => 8 + (Math.sqrt(m) / maxR) * 20;
 
   const ticks = (lo: number, hi: number) => {
+    const step = hi - lo > 60 ? 10 : 5;
     const out: number[] = [];
-    for (let t = lo; t <= hi + 0.001; t += 5) out.push(t);
+    for (let t = lo; t <= hi + 0.001; t += step) out.push(t);
     return out;
   };
   const xTicks = ticks(0, xMax), yTicks = ticks(yMin <= 0 ? 5 : yMin, yMax);
@@ -241,8 +252,10 @@ function KonstChart({
       {/* tooltip */}
       {hov && (() => {
         const cx = sxC(hov.g);
-        const cy = sy(Math.max(Y_DOM[0], Math.min(Y_DOM[1], hov.pe)));
-        const tw = 172, th = 92;
+        const cy = syC(hov.pe);
+        const hovOutlier = isOutlier(hov);
+        const outlierValue = hov.g > X_DOM[1] ? `Wachstum ${hov.g.toFixed(0)}%` : hov.pe > Y_DOM[1] || hov.pe < Y_DOM[0] ? `KGV ${hov.pe.toFixed(1)}` : `Wachstum ${hov.g.toFixed(0)}%`;
+        const tw = 208, th = hovOutlier ? 110 : 92;
         const tx = Math.min(W - tw - 4, cx + 18);
         const ty = Math.max(4, cy - th - 8);
         return (
@@ -255,6 +268,9 @@ function KonstChart({
             <circle cx={tx + 17} cy={ty + 71} r="5" fill={momColor(hov.mom)} />
             <text x={tx + 28} y={ty + 75} fill={T.textMuted} fontSize="11">Momentum {momLabel(hov.mom)}</text>
             <text x={tx + tw - 12} y={ty + 75} textAnchor="end" fill={T.accent} fontSize="11" fontWeight="700" fontFamily={T.mono}>Score {hov.score}</text>
+            {hovOutlier && (
+              <text x={tx + 12} y={ty + 94} fill={T.warn} fontSize="10.5">Wert ausserhalb der Skala: {outlierValue}</text>
+            )}
           </g>
         );
       })()}
@@ -466,7 +482,7 @@ export default function PositionsKonstellation({
 
       {omitted > 0 && (
         <div style={{ fontSize: 10.5, color: T.textDim, marginTop: 10 }}>
-          {omitted} Position{omitted === 1 ? "" : "en"} ohne vollständige Fundamentaldaten nicht dargestellt.
+          {omitted} Titel ohne Daten (KGV/PEG/Marktkap. fehlend oder ungültig) — nicht dargestellt.
         </div>
       )}
 

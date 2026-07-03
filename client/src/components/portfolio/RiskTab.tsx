@@ -107,6 +107,32 @@ function BubbleDetailModal({ open, onClose, bubble }: { open: boolean; onClose: 
             </div>
           )}
 
+          {/* F-08: Erklärung des Indikators für alle übrigen Quellen (lokale
+              LPPL-Engine / Fallback), damit das Modal nie fast leer ist. */}
+          {bubble.source !== 'sornette_api' && (
+            <div className="space-y-2 border-t border-white/10 pt-3">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Wie der Indikator berechnet wird</h4>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Das Log-Periodic-Power-Law-Modell (LPPL, nach Didier Sornette) sucht in den Kursen des
+                S&amp;P 500 nach dem typischen Muster einer spekulativen Blase: überexponentielles Wachstum
+                mit immer schnelleren Schwingungen, das auf einen kritischen Zeitpunkt zuläuft.
+              </p>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Gewichtung: Der Score kombiniert LPPL-Fits über sechs Zeitskalen (2–4 Wochen bis 2–6 Jahre).
+                Aus dem Mittel der positiven Blasen-Signale abzüglich des Mittels der negativen
+                (Anti-Blasen-)Signale entsteht ein Wert von 0–100, wobei 50 neutral ist. Die langfristige
+                Skala (2–6 Jahre) ist für die Blasen-Erkennung am wichtigsten.
+              </p>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Lesart: unter 33 = geringes Blasen-Risiko, 33–66 = erhöhte Wachsamkeit,
+                über 66 = starke Blasen-Signale.
+              </p>
+              {bubble.source === 'local_db' && (
+                <p className="text-[10px] text-gray-600">Quelle: lokale LPPL-Berechnung (Sornette-API nicht erreichbar).</p>
+              )}
+            </div>
+          )}
+
           {/* History sparkline */}
           {bubble.history && bubble.history.length > 0 && (
             <div className="border-t border-white/10 pt-3">
@@ -142,6 +168,11 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     { enabled: portfolioId > 0 }
   );
 
+  // F-08: Der Server liefert dataAvailable=false, wenn keine Risiko-Kennzahlen
+  // berechnet werden konnten (kein Portfolio, keine Kurshistorie). Dann keine
+  // irreführenden 0.0%-Werte anzeigen.
+  const riskData = risk && risk.dataAvailable !== false ? risk : undefined;
+
   const metrics: {
     label: string;
     value: string;
@@ -153,45 +184,45 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   }[] = [
     {
       label: "Volatilität (p.a.)",
-      value: risk ? `${risk.volatility.toFixed(1)}%` : "—",
-      sub: risk ? `Bench ${risk.volBenchmark.toFixed(1)}%` : undefined,
-      tone: risk ? (risk.volatility < risk.volBenchmark ? "good" : "neutral") : "neutral",
+      value: riskData ? `${riskData.volatility.toFixed(1)}%` : "—",
+      sub: riskData ? `Bench ${riskData.volBenchmark.toFixed(1)}%` : undefined,
+      tone: riskData ? (riskData.volatility < riskData.volBenchmark ? "good" : "neutral") : "neutral",
       tooltip: "Annualisierte Standardabweichung der täglichen Renditen. Misst die Schwankungsbreite des Portfolios. Niedrigere Volatilität = geringeres Risiko.",
-      benchmark: risk ? `Benchmark: ${risk.volBenchmark.toFixed(1)}%` : undefined,
+      benchmark: riskData ? `Benchmark: ${riskData.volBenchmark.toFixed(1)}%` : undefined,
     },
     {
       label: "Max Drawdown",
-      value: risk ? `${risk.maxDrawdown.toFixed(1)}%` : "—",
-      sub: risk ? `Bench ${risk.drawdownBenchmark.toFixed(1)}%` : undefined,
-      tone: risk ? (Math.abs(risk.maxDrawdown) < Math.abs(risk.drawdownBenchmark) ? "good" : "bad") : "bad",
+      value: riskData ? `${riskData.maxDrawdown.toFixed(1)}%` : "—",
+      sub: riskData ? `Bench ${riskData.drawdownBenchmark.toFixed(1)}%` : undefined,
+      tone: riskData ? (Math.abs(riskData.maxDrawdown) < Math.abs(riskData.drawdownBenchmark) ? "good" : "bad") : "neutral",
       tooltip: "Maximaler Wertverlust vom Höchststand bis zum Tiefststand. Zeigt das schlimmste Szenario für einen Anleger der zum ungünstigsten Zeitpunkt investiert hat.",
     },
     {
       label: "Beta",
-      value: risk ? risk.beta.toFixed(2) : "—",
+      value: riskData ? riskData.beta.toFixed(2) : "—",
       sub: "vs. SMI",
       tone: "neutral",
       tooltip: "Sensitivität des Portfolios gegenüber dem Markt (SMI). Beta > 1 = stärkere Bewegungen als der Markt. Beta < 1 = defensiver als der Markt.",
     },
     {
       label: "VaR (95%, 1T)",
-      value: risk ? `${risk.var95.toFixed(1)}%` : "—",
+      value: riskData ? `${riskData.var95.toFixed(1)}%` : "—",
       sub: "Tagesverlust-Schwelle",
-      tone: "bad",
+      tone: riskData ? "bad" : "neutral",
       tooltip: "Value at Risk: Mit 95% Wahrscheinlichkeit wird der Tagesverlust diesen Wert nicht überschreiten. Beispiel: VaR -2% bedeutet, an 95 von 100 Tagen verliert das Portfolio weniger als 2%.",
     },
     {
       label: "Sharpe Ratio",
-      value: risk ? risk.sharpeRatio.toFixed(2) : "—",
-      sub: risk ? `Bench ${risk.sharpeBenchmark.toFixed(2)}` : undefined,
-      tone: risk && risk.sharpeRatio >= 1 ? "good" : "neutral",
+      value: riskData ? riskData.sharpeRatio.toFixed(2) : "—",
+      sub: riskData ? `Bench ${riskData.sharpeBenchmark.toFixed(2)}` : undefined,
+      tone: riskData && riskData.sharpeRatio >= 1 ? "good" : "neutral",
       tooltip: "Rendite pro Risikoeinheit (Überrendite / Volatilität). Sharpe > 1 = gut. Sharpe > 2 = sehr gut. Vergleich mit Benchmark zeigt ob das Risiko belohnt wird.",
     },
     {
       label: "Konzentration Top 3",
-      value: risk ? `${risk.concentrationTop3.toFixed(1)}%` : "—",
+      value: riskData ? `${riskData.concentrationTop3.toFixed(1)}%` : "—",
       sub: "Anteil der 3 grössten Positionen",
-      tone: risk && risk.concentrationTop3 > 60 ? "bad" : risk && risk.concentrationTop3 < 40 ? "good" : "neutral",
+      tone: riskData && riskData.concentrationTop3 > 60 ? "bad" : riskData && riskData.concentrationTop3 < 40 ? "good" : "neutral",
       tooltip: "Prozentualer Anteil der drei grössten Positionen am Gesamtportfolio. Werte über 60% deuten auf Klumpenrisiko hin.",
     },
   ];
@@ -205,18 +236,18 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     bubble?.label === "Hoch" ? "bg-red-400" : bubble?.label === "Mittel" ? "bg-amber-400" : "bg-[#00CFC1]";
 
   // Determine risk assessment text for green boxes
-  const riskAssessment = risk ? {
-    overall: risk.sharpeRatio >= 1 && risk.concentrationTop3 < 50 ? "Gut diversifiziert" :
-             risk.concentrationTop3 > 60 ? "Klumpenrisiko erkannt" : "Ausgewogen",
-    overallTone: risk.sharpeRatio >= 1 && risk.concentrationTop3 < 50 ? "good" :
-                 risk.concentrationTop3 > 60 ? "bad" : "neutral",
-    volatilityAssessment: risk.volatility < 15 ? "Niedrig (defensiv)" :
-                          risk.volatility < 25 ? "Moderat (ausgewogen)" : "Hoch (aggressiv)",
-    volatilityTone: risk.volatility < 15 ? "good" : risk.volatility < 25 ? "neutral" : "bad",
-    sharpeAssessment: risk.sharpeRatio >= 1.5 ? "Ausgezeichnet" :
-                      risk.sharpeRatio >= 1 ? "Gut" :
-                      risk.sharpeRatio >= 0.5 ? "Akzeptabel" : "Verbesserungswürdig",
-    sharpeTone: risk.sharpeRatio >= 1 ? "good" : risk.sharpeRatio >= 0.5 ? "neutral" : "bad",
+  const riskAssessment = riskData ? {
+    overall: riskData.sharpeRatio >= 1 && riskData.concentrationTop3 < 50 ? "Gut diversifiziert" :
+             riskData.concentrationTop3 > 60 ? "Klumpenrisiko erkannt" : "Ausgewogen",
+    overallTone: riskData.sharpeRatio >= 1 && riskData.concentrationTop3 < 50 ? "good" :
+                 riskData.concentrationTop3 > 60 ? "bad" : "neutral",
+    volatilityAssessment: riskData.volatility < 15 ? "Niedrig (defensiv)" :
+                          riskData.volatility < 25 ? "Moderat (ausgewogen)" : "Hoch (aggressiv)",
+    volatilityTone: riskData.volatility < 15 ? "good" : riskData.volatility < 25 ? "neutral" : "bad",
+    sharpeAssessment: riskData.sharpeRatio >= 1.5 ? "Ausgezeichnet" :
+                      riskData.sharpeRatio >= 1 ? "Gut" :
+                      riskData.sharpeRatio >= 0.5 ? "Akzeptabel" : "Verbesserungswürdig",
+    sharpeTone: riskData.sharpeRatio >= 1 ? "good" : riskData.sharpeRatio >= 0.5 ? "neutral" : "bad",
   } : null;
 
   return (
@@ -289,6 +320,19 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
         </div>
       </div>
 
+      {/* Risk Assessment Summary: «Keine Daten»-Zustand statt 0.0%-Werten (F-08) */}
+      {!riskLoading && !riskData && (
+        <div className="grid grid-cols-3 gap-4">
+          {["Gesamtbewertung", "Volatilität", "Rendite/Risiko"].map((label) => (
+            <div key={label} className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{label}</p>
+              <p className="text-lg font-bold text-gray-500">Keine Daten verfügbar</p>
+              <p className="text-xs text-gray-600 mt-1">Für die Risikoberechnung liegt noch keine ausreichende Kurshistorie vor.</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Risk Assessment Summary (green boxes) */}
       {riskAssessment && (
         <div className="grid grid-cols-3 gap-4">
@@ -309,7 +353,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
           }`}>
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Volatilität</p>
             <p className={`text-lg font-bold ${toneClass(riskAssessment.volatilityTone as any)}`}>{riskAssessment.volatilityAssessment}</p>
-            <p className="text-xs text-gray-500 mt-1">{risk?.volatility.toFixed(1)}% p.a.</p>
+            <p className="text-xs text-gray-500 mt-1">{riskData?.volatility.toFixed(1)}% p.a.</p>
           </div>
           <div className={`bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border rounded-lg p-4 ${
             riskAssessment.sharpeTone === 'good' ? 'border-[#00CFC1]/30' :
@@ -317,7 +361,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
           }`}>
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Rendite/Risiko</p>
             <p className={`text-lg font-bold ${toneClass(riskAssessment.sharpeTone as any)}`}>{riskAssessment.sharpeAssessment}</p>
-            <p className="text-xs text-gray-500 mt-1">Sharpe {risk?.sharpeRatio.toFixed(2)}</p>
+            <p className="text-xs text-gray-500 mt-1">Sharpe {riskData?.sharpeRatio.toFixed(2)}</p>
           </div>
         </div>
       )}
