@@ -2,6 +2,7 @@ import { getDb } from "./db";
 import { historicalPrices } from "../drizzle/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { getFiscalPEHistory, calculateMedianPE, type FiscalPERatio } from "./_core/fiscalApi";
+import { ENV } from "./_core/env";
 
 interface QuarterlyEarnings {
   date: string;
@@ -19,7 +20,7 @@ interface HistoricalPEPoint {
  * Fetch quarterly earnings from EODHD API
  */
 async function fetchQuarterlyEarnings(ticker: string): Promise<QuarterlyEarnings[]> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   if (!apiKey) {
     throw new Error("EODHD_API_KEY not configured");
   }

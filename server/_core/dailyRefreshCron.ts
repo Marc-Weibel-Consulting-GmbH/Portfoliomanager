@@ -19,6 +19,7 @@ import { stocks } from '../../drizzle/schema';
 import { fetchCompleteStockData } from './multiApiDataMerger';
 import { recordMetricsSnapshot } from './historicalMetricsRecorder';
 
+import { ENV } from "./env";
 const RATE_LIMIT_MS = 500; // 500ms between API calls
 const MIN_REFRESH_INTERVAL_HOURS = 12; // Only refresh if last update was >12h ago
 
@@ -48,11 +49,11 @@ export async function refreshAllStocks(options: { force?: boolean } = {}): Promi
 
   try {
     // Connect to database
-    if (!process.env.DATABASE_URL) {
+    if (!ENV.databaseUrl) {
       throw new Error('DATABASE_URL not configured');
     }
 
-    connection = await mysql.createConnection(process.env.DATABASE_URL);
+    connection = await mysql.createConnection(ENV.databaseUrl);
     const db = drizzle(connection);
 
     // Get all stocks

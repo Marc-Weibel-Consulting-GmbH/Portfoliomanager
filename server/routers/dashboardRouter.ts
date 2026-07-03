@@ -1,5 +1,6 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
+import { ENV } from "../_core/env";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -2422,7 +2423,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     in14.setDate(in14.getDate() + 14);
     const todayStr = today.toISOString().split('T')[0];
     const in14Str = in14.toISOString().split('T')[0];
-    const EODHD_API_KEY = process.env.EODHD_API_KEY;
+    const EODHD_API_KEY = ENV.eodhdApiKey;
     const events: Array<{ type: string; ticker?: string; date: string; label: string; description?: string; time?: string; importance?: string; amount?: number }> = [];
 
     // 1. Fetch ECONOMIC CALENDAR (macro events like PMI, NFP, etc.)

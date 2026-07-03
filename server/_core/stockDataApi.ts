@@ -10,6 +10,7 @@
 import { callDataApi } from "./dataApi";
 import { apiCache, CACHE_TTL } from './apiCache';
 
+import { ENV } from "./env";
 export interface StockMetrics {
   currentPrice: number | null;
   currency: string | null;
@@ -181,7 +182,7 @@ export async function fetchHistoricalPrices(
   ticker: string,
   years: number = 5
 ): Promise<{ date: string; close: number }[] | null> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   
   if (!apiKey) {
     console.warn('[fetchHistoricalPrices] EODHD API key not configured');

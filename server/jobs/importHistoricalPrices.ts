@@ -2,6 +2,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { historicalPrices, transactions, savedPortfolios } from "../../drizzle/schema";
 import { eodhdEodResponseSchema, payloadSample, type EodhdEodRow } from "../_core/externalSchemas";
+import { getEodhdApiKey } from "../_core/env";
 
 /**
  * Batch job to import historical prices from EODHD API
@@ -9,7 +10,8 @@ import { eodhdEodResponseSchema, payloadSample, type EodhdEodRow } from "../_cor
  * and stores them in the historicalPrices table for hypothetical performance calculations.
  */
 
-const EODHD_API_KEY = process.env.EODHD_API_KEY;
+// A-10: key is resolved lazily per call via getEodhdApiKey() (env with DB-secret
+// fallback) — a module-load capture would defeat the DB fallback.
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
 /**
@@ -65,11 +67,12 @@ async function fetchHistoricalPrices(
   fromDate: string,
   toDate: string
 ): Promise<EODHDHistoricalPrice[]> {
-  if (!EODHD_API_KEY) {
+  const apiKey = await getEodhdApiKey();
+  if (!apiKey) {
     throw new Error("EODHD_API_KEY is not configured");
   }
 
-  const url = `${EODHD_BASE_URL}/eod/${ticker}?api_token=${EODHD_API_KEY}&fmt=json&from=${fromDate}&to=${toDate}`;
+  const url = `${EODHD_BASE_URL}/eod/${ticker}?api_token=${apiKey}&fmt=json&from=${fromDate}&to=${toDate}`;
 
   try {
     const response = await fetch(url);

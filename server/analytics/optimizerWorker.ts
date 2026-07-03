@@ -10,6 +10,7 @@ import { getDb } from "../db";
 import { watchlistStocks, signalWeights } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 
+import { ENV } from "../_core/env";
 export interface WeightConfig {
   pe: number;
   peg: number;
@@ -128,7 +129,7 @@ async function fetchPricesEODHD(ticker: string): Promise<{
   prices: number[];
   volumes: number[];
 } | null> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   if (!apiKey) return null;
 
   try {

@@ -1,5 +1,6 @@
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
+import { ENV } from "../_core/env";
 
 export const weeklyOverviewRouter = router({
     generate: protectedProcedure.query(async ({ ctx }) => {
@@ -37,7 +38,7 @@ export const weeklyOverviewRouter = router({
           const newsData = newsRes.ok ? await newsRes.json() : [];
 
           // Fetch weekly price data to check for significant moves
-          const eodhd_key = process.env.EODHD_API_KEY;
+          const eodhd_key = ENV.eodhdApiKey;
           let priceChange = 0;
           if (eodhd_key) {
             try {

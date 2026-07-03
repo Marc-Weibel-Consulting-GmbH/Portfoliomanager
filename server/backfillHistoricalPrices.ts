@@ -7,8 +7,9 @@ import { getDb } from "./db";
 import { historicalPrices } from "../drizzle/schema";
 import { sql } from "drizzle-orm";
 import { normalizeTickerForDb } from "./tickerNormalization";
+import { getEodhdApiKey } from "./_core/env";
 
-const EODHD_API_KEY = process.env.EODHD_API_KEY;
+// A-10: key resolved lazily per call (env with DB-secret fallback)
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
 // Chunk size for date range splitting (days)
@@ -46,11 +47,12 @@ async function fetchHistoricalPricesFromAPI(
   fromDate: string,
   toDate: string
 ): Promise<EODHDHistoricalPrice[]> {
-  if (!EODHD_API_KEY) {
+  const apiKey = await getEodhdApiKey();
+  if (!apiKey) {
     throw new Error("EODHD_API_KEY is not configured");
   }
 
-  const url = `${EODHD_BASE_URL}/eod/${ticker}?api_token=${EODHD_API_KEY}&fmt=json&from=${fromDate}&to=${toDate}`;
+  const url = `${EODHD_BASE_URL}/eod/${ticker}?api_token=${apiKey}&fmt=json&from=${fromDate}&to=${toDate}`;
 
   try {
     const response = await fetch(url);

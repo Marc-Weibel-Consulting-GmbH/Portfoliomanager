@@ -12,6 +12,7 @@ import { apiCache, CACHE_TTL } from './apiCache';
 import { retryFetch } from './retryUtil';
 import { eodhdRealTimeSchema, eodhdFundamentalsSchema, payloadSample } from './externalSchemas';
 
+import { ENV } from "./env";
 export interface EODHDFundamentals {
   companyName: string | null;
   sector: string | null;
@@ -38,7 +39,7 @@ export interface EODHDRealTime {
  */
 export async function fetchEODHDRealTime(ticker: string): Promise<EODHDRealTime> {
   const empty: EODHDRealTime = { close: null, previousClose: null, changePercent: null };
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   if (!apiKey) {
     console.warn('[EODHD] API key not configured');
     return empty;
@@ -87,7 +88,7 @@ export async function fetchEODHDRealTime(ticker: string): Promise<EODHDRealTime>
  * @param ticker Stock ticker (e.g., "NESN.SW" for Swiss stocks)
  */
 export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFundamentals> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   
   if (!apiKey) {
     console.warn('[EODHD] API key not configured');

@@ -5,6 +5,7 @@ import { fetchEODHDFundamentals } from "../_core/eodhdApi";
 import { fetchDividendYieldWithFallback } from "../_core/dividendYieldHelper";
 import { recalculateWeights } from "../_core/portfolioWeightHelper";
 import { getStockLogoUrl } from "../_core/stockLogo";
+import { ENV } from "../_core/env";
 
 export const stocksRouter = router({
     getAll: publicProcedure.query(async () => {
@@ -225,7 +226,7 @@ export const stocksRouter = router({
       .input(z.string())
       .query(async ({ input }) => {
         try {
-          const apiKey = process.env.EODHD_API_KEY;
+          const apiKey = ENV.eodhdApiKey;
           if (!apiKey) return [];
           
           const searchUrl = `https://eodhd.com/api/search/${encodeURIComponent(input)}?api_token=${apiKey}&limit=10`;
@@ -274,7 +275,7 @@ export const stocksRouter = router({
           let ytdStartPrice = null;
           let ytdPerformance = null;
           try {
-            const apiKey = process.env.EODHD_API_KEY;
+            const apiKey = ENV.eodhdApiKey;
             if (apiKey) {
               // R-09: baseline window derived from the current year (was
               // hardcoded 2024-12-27…2024-12-31) — last trading days of the

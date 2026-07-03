@@ -19,10 +19,10 @@ import { ENV } from "../_core/env";
 let resendClient: Resend | null = null;
 function getResend(): Resend {
   if (!resendClient) {
-    if (!process.env.RESEND_API_KEY) {
+    if (!ENV.resendApiKey) {
       throw new Error("RESEND_API_KEY is not configured");
     }
-    resendClient = new Resend(process.env.RESEND_API_KEY);
+    resendClient = new Resend(ENV.resendApiKey);
   }
   return resendClient;
 }

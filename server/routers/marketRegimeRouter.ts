@@ -1,5 +1,6 @@
 import { publicProcedure, router } from "../_core/trpc";
 import { fetchHistoricalPrices } from "../_core/stockDataApi";
+import { ENV } from "../_core/env";
 
 type RegimeLevel = "bullish" | "neutral" | "bearish";
 type EngineResult = {
@@ -359,7 +360,7 @@ export const marketRegimeRouter = router({
   // + normalisierte YTD-Performance-Serie für das "Indizes Performance YTD"-Chart.
   // Echte Indexpunkte via EODHD (SSMI.INDX=SMI, GSPC.INDX=S&P 500, URTH.US=MSCI World ETF, GLD.US=Gold ETF).
   getIndices: publicProcedure.query(async () => {
-    const EODHD_API_KEY = process.env.EODHD_API_KEY;
+    const EODHD_API_KEY = ENV.eodhdApiKey;
     const EODHD_BASE_URL = "https://eodhd.com/api";
 
     const today = new Date();

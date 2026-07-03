@@ -33,6 +33,7 @@ import {
   type DatedReturns,
 } from "./riskStats";
 import { getFxRate, getStockCurrency } from "../fxHelper";
+import { ENV } from "../_core/env";
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
 
@@ -731,7 +732,7 @@ async function fetchDCFFromEODHD(ticker: string): Promise<{
   companyName: string;
   currency: string;
 } | null> {
-  const apiKey = process.env.EODHD_API_KEY;
+  const apiKey = ENV.eodhdApiKey;
   if (!apiKey) {
     console.warn('[DCF] EODHD API key not configured, falling back to Yahoo Finance');
     return null;

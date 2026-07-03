@@ -1,5 +1,8 @@
+import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { loginSchema, loginUser, registerSchema, registerUser, SESSION_MAX_AGE_MS } from "./_core/authService";
+import { getClientIp, isRateLimited, LOGIN_RATE_LIMIT, RATE_LIMIT_MESSAGE, REGISTER_RATE_LIMIT } from "./_core/rateLimit";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { ENV } from "./_core/env";
@@ -249,132 +252,40 @@ export const appRouter = router({
     }),
     // Password reset and email verification
     ...authExtensionsRouter._def.procedures,
+    // Thin delegates to the shared auth service (D-08) — cookie handling stays
+    // in the transport layer, business logic lives in _core/authService.ts.
     register: publicProcedure
-      .input(z.object({
-        firstName: z.string(),
-        lastName: z.string(),
-        email: z.string().email(),
-        password: z.string().min(8),
-        mobile: z.string().nullish(),
-      }))
+      .input(registerSchema)
       .mutation(async ({ input, ctx }) => {
-        const { getDb } = await import("./db");
-        const { users, newsletter } = await import("../drizzle/schema");
-        const { eq } = await import("drizzle-orm");
+        if (isRateLimited(`register:${getClientIp(ctx.req)}`, REGISTER_RATE_LIMIT)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: RATE_LIMIT_MESSAGE });
+        }
 
-        const data = input;
-        const db = await getDb();
-        
-        if (!db) {
-          throw new Error("Database not available");
-        }
-        
-        // Check if email already exists
-        const existingUser = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, data.email))
-          .limit(1);
-        
-        if (existingUser.length > 0) {
-          throw new Error("Diese E-Mail-Adresse ist bereits registriert");
-        }
-        
-        // Generate unique openId
-        const openId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        
-        // Hash password
-        const bcrypt = await import("bcryptjs");
-        const hashedPassword = await bcrypt.default.hash(data.password, 10);
-        
-        // Create new user
-        await db.insert(users).values({
-          openId,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          name: `${data.firstName} ${data.lastName}`,
-          email: data.email,
-          password: hashedPassword,
-          mobile: data.mobile || null,
-          loginMethod: "email",
-          role: "user",
-          hasPaid: 0,
-        });
-        
-        // Add to newsletter
-        try {
-          await db.insert(newsletter).values({
-            email: data.email,
-            isActive: 1,
-          });
-        } catch (error) {
-          console.error("Failed to add to newsletter:", error);
-        }
-        
-        // Auto-login: Create session token and set cookie
-        const { sdk } = await import("./_core/sdk");
-        const sessionToken = await sdk.createSessionToken(openId, {
-          name: `${data.firstName} ${data.lastName}`,
-          expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
-        });
-        
+        const { sessionToken } = await registerUser(input);
+
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, {
           ...cookieOptions,
-          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          maxAge: SESSION_MAX_AGE_MS,
         });
-        
+
         return { success: true };
       }),
     login: publicProcedure
-      .input(z.object({
-        email: z.string().email(),
-        password: z.string(),
-      }))
+      .input(loginSchema)
       .mutation(async ({ input, ctx }) => {
-        const { getDb } = await import("./db");
-        const { users } = await import("../drizzle/schema");
-        const { eq } = await import("drizzle-orm");
+        if (isRateLimited(`login:${getClientIp(ctx.req)}`, LOGIN_RATE_LIMIT)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: RATE_LIMIT_MESSAGE });
+        }
 
-        const data = input;
-        const db = await getDb();
-        
-        if (!db) {
-          throw new Error("Database not available");
-        }
-        
-        // Find user by email
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, data.email))
-          .limit(1);
-        
-        if (!user) {
-          throw new Error("E-Mail oder Passwort falsch");
-        }
-        
-        // Verify password
-        const bcrypt = await import("bcryptjs");
-        const isValid = await bcrypt.default.compare(data.password, user.password || "");
-        
-        if (!isValid) {
-          throw new Error("E-Mail oder Passwort falsch");
-        }
-        
-        // Create session token and set cookie
-        const { sdk } = await import("./_core/sdk");
-        const sessionToken = await sdk.createSessionToken(user.openId, {
-          name: user.name || `${user.firstName} ${user.lastName}`,
-          expiresInMs: 30 * 24 * 60 * 60 * 1000, // 30 days
-        });
-        
+        const { sessionToken } = await loginUser(input.email, input.password);
+
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, sessionToken, {
           ...cookieOptions,
-          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          maxAge: SESSION_MAX_AGE_MS,
         });
-        
+
         return { success: true };
       }),
     completeOnboarding: protectedProcedure
