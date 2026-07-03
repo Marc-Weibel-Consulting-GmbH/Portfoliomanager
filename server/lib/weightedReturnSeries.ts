@@ -7,6 +7,26 @@
  * exact same formula guarantees that the chart's endpoint equals the displayed number
  * for every portfolio — including those with an extreme single-stock mover.
  *
+ * ── METHODOLOGY LIMITATION (R-18) — deliberate, read before "fixing" ─────────
+ * This is a WEIGHTED PRICE-RETURN INDEX, not a transaction-based portfolio
+ * return (contrast: lib/performanceService TTWROR/IRR pipeline):
+ *   - Weights are the CURRENT stored weights, applied statically over the whole
+ *     period — historical buys/sells/rebalancings do not change them.
+ *   - Each stock's return starts at its own first available price at/after
+ *     `startDate` (per-stock start dates when histories begin late).
+ *   - Holding the weights constant per day implies daily implicit rebalancing.
+ *   - Deposits/withdrawals/dividends/fees are invisible to the series.
+ * FX: the function is currency-agnostic — it returns whatever currency the
+ * supplied price maps are in. Both production consumers (portfoliosRouter
+ * getHistoricalPerformance and getMultiPeriodPerformanceV2) convert the price
+ * maps to CHF with per-date FX rates via lib/performanceCore.toChfPriceMap
+ * BEFORE calling this, so the emitted line is a true CHF return. New callers
+ * must do the same — do not pass mixed local-currency maps.
+ * Replacing this methodology with a transaction-based series is a product
+ * decision (chart == displayed V2 number would break); deferred, see
+ * OPTIMIZATION_PLAN.md R-18.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
  * Methodology (identical to getMultiPeriodPerformanceV2):
  *   - Weights are normalized over the supplied stocks (Σ weight = 1).
  *   - Per stock, startPrice = first price at or after `startDate`, else the earliest
@@ -14,7 +34,7 @@
  *   - Per emitted date d, endPrice = the most recent price at or before d (forward-fill).
  *   - portfolioReturn(d) = Σ wᵢ · (endPriceᵢ(d) − startPriceᵢ) / startPriceᵢ · 100,
  *     renormalized over the weight actually used (stocks with valid prices).
- *   - Prices are in local currency (no FX conversion), matching the numbers.
+ *   - Prices are converted per date by the caller (CHF in production, see above).
  *   - No clamping, no daily-change smoothing — large legitimate moves are preserved.
  *
  * At the last date (today) endPrice == latest available price, so the series endpoint

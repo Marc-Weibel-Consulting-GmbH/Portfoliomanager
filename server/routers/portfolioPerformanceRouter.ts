@@ -1,6 +1,6 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
-import { calculateHoldingsPerformance } from "../performanceCalculations";
+import { calculateHoldingsPerformance } from "../lib/holdingsPerformance";
 import { calculatePortfolioPerformance } from "../lib/performanceService";
 import { extractPortfolioCashFlows } from "../lib/performanceEngine";
 import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF } from "../lib/transactionSemantics";

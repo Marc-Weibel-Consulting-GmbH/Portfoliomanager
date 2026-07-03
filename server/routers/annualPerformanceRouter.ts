@@ -1,5 +1,7 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
+// D-01: unified holdings replay (buy/entry/sell, chronological, DESC-safe)
+import { buildHoldings } from "../lib/holdings";
 
 export const annualPerformanceRouter = router({
   getSummary: protectedProcedure
@@ -43,7 +45,9 @@ export const annualPerformanceRouter = router({
       let totalBuyAmounts = 0;
       let totalSellProceeds = 0;
       let totalDividends = 0;
-      const holdings: Record<string, number> = {};
+      // D-01: share counts via unified replay; the CHF cost-basis tracking
+      // below stays local (specialized: CHF amounts, initial-position deposits).
+      const holdings = buildHoldings(transactions);
       const costBasis: Record<string, { totalCost: number; totalShares: number }> = {};
       
       // Process transactions to calculate holdings and total invested
@@ -58,7 +62,6 @@ export const annualPerformanceRouter = router({
         const isInitialPosition = tx.transactionType === 'buy' && txDateStr <= liveStartDateStr;
         
         if (tx.transactionType === 'buy') {
-          holdings[tx.ticker] = (holdings[tx.ticker] || 0) + shares;
           totalBuyAmounts += amount;
           totalInvestedInStocks += amount;
           
@@ -74,7 +77,6 @@ export const annualPerformanceRouter = router({
           costBasis[tx.ticker].totalCost += amount;
           costBasis[tx.ticker].totalShares += shares;
         } else if (tx.transactionType === 'sell') {
-          holdings[tx.ticker] = (holdings[tx.ticker] || 0) - shares;
           totalSellProceeds += amount;
           // Reduce invested in stocks by cost basis of sold shares
           if (costBasis[tx.ticker] && costBasis[tx.ticker].totalShares > 0) {
@@ -102,7 +104,7 @@ export const annualPerformanceRouter = router({
         const todayStr = new Date().toISOString().split('T')[0];
         let liveStartValueCHF = 0;
         
-        for (const [ticker, shares] of Object.entries(holdings)) {
+        for (const [ticker, { shares }] of Array.from(holdings.entries())) {
           if (shares > 0) {
             const stock = await getStockByTicker(ticker);
             const rawStockPrice = stock?.currentPrice || '0';

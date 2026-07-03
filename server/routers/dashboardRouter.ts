@@ -1,6 +1,9 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { ENV } from "../_core/env";
+// D-01: unified holdings replay (buy/entry/sell, chronological, DESC-safe) —
+// replaces the previously inline re-implemented per-router replay loops.
+import { buildHoldings } from "../lib/holdings";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -465,20 +468,13 @@ export const dashboardRouter = router({
         if (isLive) {
           // Live portfolio: calculate from transactions with YTD historical prices
           const transactions = transactionsByPortfolio.get(portfolio.id) || [];
-          const holdings: Record<string, number> = {};
-          transactions.forEach((tx: any) => {
-            const shares = parseFloat(tx.shares || '0');
-            const ticker = tx.ticker;
-            if (!ticker) return;
-            if (tx.transactionType === 'buy') holdings[ticker] = (holdings[ticker] || 0) + shares;
-            else if (tx.transactionType === 'sell') holdings[ticker] = (holdings[ticker] || 0) - shares;
-          });
+          const holdings = buildHoldings(transactions);
 
           let currentValueForPerf = 0;
           let ytdStartValueCHF = 0;
           let hasHistoricalData = false;
 
-          for (const [ticker, shares] of Object.entries(holdings)) {
+          for (const [ticker, { shares }] of Array.from(holdings.entries())) {
             if (shares <= 0) continue;
             const stock = stocksMap.get(ticker) as any;
             if (!stock) continue;
@@ -561,15 +557,7 @@ export const dashboardRouter = router({
         let positionCount = 0;
         if (isLive) {
           const transactions = transactionsByPortfolio.get(portfolio.id) || [];
-          const holdings: Record<string, number> = {};
-          transactions.forEach((tx: any) => {
-            const shares = parseFloat(tx.shares || '0');
-            const ticker = tx.ticker;
-            if (!ticker) return;
-            if (tx.transactionType === 'buy') holdings[ticker] = (holdings[ticker] || 0) + shares;
-            else if (tx.transactionType === 'sell') holdings[ticker] = (holdings[ticker] || 0) - shares;
-          });
-          positionCount = Object.values(holdings).filter(s => s > 0).length;
+          positionCount = Array.from(buildHoldings(transactions).values()).filter(h => h.shares > 0).length;
         } else {
           try {
             const pd = JSON.parse(portfolio.portfolioData || '{}');
@@ -1068,16 +1056,8 @@ export const dashboardRouter = router({
             const liveStart = new Date(portfolio.liveStartDate).toISOString().split('T')[0];
             if (date < liveStart) continue;
             const transactions = txByPortfolio.get(portfolio.id) || [];
-            const holdingsMap = new Map<string, number>();
-            for (const tx of transactions) {
-              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-              if (txDate > date) continue;
-              const ticker = tx.ticker;
-              if (!ticker) continue;
-              if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
-              else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
-            }
-            for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
+            const holdingsMap = buildHoldings(transactions, date);
+            for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
               if (shares <= 0) continue;
               const stock = stocksMap.get(ticker) as any;
               if (!stock) continue;
@@ -1160,12 +1140,8 @@ export const dashboardRouter = router({
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           // Live portfolio: from transactions
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           // Demo portfolio: from portfolioData
@@ -1364,12 +1340,8 @@ export const dashboardRouter = router({
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -1503,12 +1475,8 @@ export const dashboardRouter = router({
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -1729,16 +1697,8 @@ export const dashboardRouter = router({
         for (const portfolio of targetPortfolios) {
           if (portfolio.isLive === 1 && portfolio.liveStartDate) {
             const transactions = txByPortfolio.get(portfolio.id) || [];
-            const holdingsMap = new Map<string, number>();
-            for (const tx of transactions) {
-              const txDate = new Date(tx.transactionDate).toISOString().split('T')[0];
-              if (txDate > date) continue;
-              const ticker = tx.ticker;
-              if (!ticker) continue;
-              if (tx.transactionType === 'buy') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + parseFloat(tx.shares || '0'));
-              else if (tx.transactionType === 'sell') holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) - parseFloat(tx.shares || '0'));
-            }
-            for (const [ticker, shares] of Array.from(holdingsMap.entries())) {
+            const holdingsMap = buildHoldings(transactions, date);
+            for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
               if (shares <= 0) continue;
               const tickerPrices = priceMap.get(ticker);
               if (!tickerPrices) continue;
@@ -1856,12 +1816,8 @@ export const dashboardRouter = router({
       const holdingsAgg = new Map<string, number>();
       for (const portfolio of targetPortfolios) {
         const transactions = txByPortfolio.get(portfolio.id) || [];
-        for (const tx of transactions) {
-          const ticker = tx.ticker;
-          if (!ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+        for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+          holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
         }
       }
       const holdingValues: number[] = [];
@@ -2004,12 +1960,8 @@ export const dashboardRouter = router({
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            const ticker = tx.ticker;
-            if (!ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -2620,14 +2572,9 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           let stocks: any[] = [];
           if (portfolio.isLive === 1 && portfolio.liveStartDate) {
             const txs = await getPortfolioTransactions(portfolio.id);
-            const sharesMap = new Map<string, number>();
-            for (const tx of txs) {
-              if (!tx.ticker) continue;
-              const s = parseFloat(tx.shares || '0');
-              if (tx.transactionType === 'buy') sharesMap.set(tx.ticker, (sharesMap.get(tx.ticker) || 0) + s);
-              else if (tx.transactionType === 'sell') sharesMap.set(tx.ticker, (sharesMap.get(tx.ticker) || 0) - s);
-            }
-            stocks = Array.from(sharesMap.entries()).filter(([, s]) => s > 0).map(([ticker, shares]) => ({ ticker, shares }));
+            stocks = Array.from(buildHoldings(txs).entries())
+              .filter(([, h]) => h.shares > 0)
+              .map(([ticker, h]) => ({ ticker, shares: h.shares }));
           } else {
             const pd = JSON.parse(portfolio.portfolioData || '{}');
             stocks = (pd.stocks || pd.positions || []).filter((s: any) => s.ticker);
@@ -2737,11 +2684,8 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       for (const portfolio of targetPortfolios) {
         if (portfolio.isLive === 1 && portfolio.liveStartDate) {
           const transactions = await getPortfolioTransactions(portfolio.id);
-          for (const tx of transactions) {
-            if (!tx.ticker) continue;
-            const shares = parseFloat(tx.shares || '0');
-            if (tx.transactionType === 'buy') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) + shares);
-            else if (tx.transactionType === 'sell') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) - shares);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsMap.set(ticker, (holdingsMap.get(ticker) || 0) + pos.shares);
           }
         } else {
           try {
@@ -2950,13 +2894,9 @@ Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
 
         // Get current holdings
         const transactions = await getPortfolioTransactions(portfolio.id);
-        const holdingsMap = new Map<string, number>();
-        for (const tx of transactions) {
-          if (!tx.ticker) continue;
-          const shares = parseFloat(tx.shares || '0');
-          if (tx.transactionType === 'buy') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) + shares);
-          else if (tx.transactionType === 'sell') holdingsMap.set(tx.ticker, (holdingsMap.get(tx.ticker) || 0) - shares);
-        }
+        const holdingsMap = new Map<string, number>(
+          Array.from(buildHoldings(transactions).entries()).map(([ticker, pos]) => [ticker, pos.shares])
+        );
 
         // Calculate total portfolio value
         let totalValue = 0;
