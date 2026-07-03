@@ -102,6 +102,15 @@ export async function batchGetStocks(tickers: string[]) {
 /**
  * Batch load historical prices for multiple tickers at a specific date
  * Instead of N queries (one per ticker), this does 1 query
+ *
+ * R-11/R-30: liefert adjustedClose ?? close. Alle heutigen Konsumenten
+ * (dashboardRouter, portfoliosRouter[-optimized]) nutzen die Map als
+ * YTD-/Perioden-START-Baseline gegen den heutigen Kurs, d. h. als
+ * RENDITE-Berechnung — dafür ist der split-bereinigte Kurs korrekt
+ * (Holcim/Amrize-Spin-off). Tradeoff: für eine reine Punkt-Bewertung
+ * (Stückzahl × Kurs an einem Stichtag) wäre der unadjustierte close mit
+ * split-adjustierten Stückzahlen richtig; solange keine Splits-Tabelle
+ * existiert, wiegt die Konsistenz der Renditeserie schwerer.
  */
 export async function batchGetHistoricalPrices(tickers: string[], targetDate: string) {
   const db = await getDb();
@@ -134,7 +143,7 @@ export async function batchGetHistoricalPrices(tickers: string[], targetDate: st
     const variantPriceMap = new Map<string, number>();
     for (const price of exactPrices) {
       if (price.close) {
-        variantPriceMap.set(price.ticker, parseFloat(price.close));
+        variantPriceMap.set(price.ticker, parseFloat(price.adjustedClose ?? price.close));
       }
     }
     
@@ -174,7 +183,7 @@ export async function batchGetHistoricalPrices(tickers: string[], targetDate: st
       const tickerLatestPrice = new Map<string, number>();
       for (const price of nearestPrices) {
         if (!tickerLatestPrice.has(price.ticker) && price.close) {
-          tickerLatestPrice.set(price.ticker, parseFloat(price.close));
+          tickerLatestPrice.set(price.ticker, parseFloat(price.adjustedClose ?? price.close));
         }
       }
       

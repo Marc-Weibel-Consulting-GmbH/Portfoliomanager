@@ -1,12 +1,12 @@
 /**
  * CT-9 — Charakterisierungstests für calculateYTDPerformance
- * (+ generateFallbackPerformance, nur via Fallback-Pfad erreichbar)
  * (server/ytd-performance.ts)
  *
  * Pinnt das YTD-Startdatum (seit dem R-09-Fix dynamisch: 1. Januar des
  * laufenden Jahres; vorher hartkodiert '2025-01-01'), die Kombination
  * mit statischen aktuellen Gewichten inkl. Renormalisierung bei totalWeight <
- * 100 (R-18) und die hartkodierte, erfundene +13.32-%-Fallback-Rampe (R-08).
+ * 100 (R-18), den adjustedClose-Switch (R-11) und den Fallback-Pfad
+ * (vorher R-08: erfundene +13.32-%-Rampe; jetzt leere Serie).
  * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
  *
  * Daten-Mocking: das Modul baut seine DB-Verbindung lokal via
@@ -21,7 +21,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 
 const h = vi.hoisted(() => ({
   /** Preiszeilen-Queue: ein Eintrag pro fetchCachedPrices-Aufruf (= pro Stock). */
-  queue: [] as Array<Array<{ ticker: string; date: string; close: string }>>,
+  queue: [] as Array<Array<{ ticker: string; date: string; close: string; adjustedClose?: string }>>,
 }));
 
 vi.mock("drizzle-orm/mysql2", () => ({
@@ -118,8 +118,33 @@ describe("CT-9 calculateYTDPerformance — statische Gewichte (R-18)", () => {
   });
 });
 
-describe("CT-9 Fallback-Pfad — generateFallbackPerformance (R-08, R-09)", () => {
-  it("ohne Kursdaten: erfundene lineare +13.32-%-Rampe ab dynamischem Jahresanfang", async () => {
+describe("CT-9 adjustedClose-Switch (R-11)", () => {
+  it("liest adjustedClose vor close, wenn beide divergieren (Split-Fall)", async () => {
+    vi.setSystemTime(new Date("2025-01-08T12:00:00Z"));
+    // Roher close ist der Vor-Split-Kurs (110 …), adjustedClose der bereinigte
+    // Kurs (55 …) — konsistent zur adjustierten ytdStartPrice-Baseline 50 (R-30).
+    h.queue = [[
+      { ticker: "CCC", date: "2025-01-02", close: "110", adjustedClose: "55" },
+      { ticker: "CCC", date: "2025-01-03", close: "112", adjustedClose: "56" },
+      { ticker: "CCC", date: "2025-01-06", close: "114", adjustedClose: "57" },
+      { ticker: "CCC", date: "2025-01-07", close: "116", adjustedClose: "58" },
+      { ticker: "CCC", date: "2025-01-08", close: "120", adjustedClose: "60" },
+    ]];
+
+    const series = await calculateYTDPerformance([
+      { ticker: "CCC", portfolioWeight: "100", ytdStartPrice: "50" },
+    ]);
+
+    // vorher (R-11): close wurde roh gelesen → (110 − 50)/50 = +120 % usw.
+    // Jetzt adjustedClose: (55 − 50)/50 = +10 % … (60 − 50)/50 = +20 %.
+    const perf = series.map((p) => p.performance);
+    expect(perf).toHaveLength(5);
+    [10, 12, 14, 16, 20].forEach((expected, i) => expect(perf[i]).toBeCloseTo(expected, 10));
+  });
+});
+
+describe("CT-9 Fallback-Pfad (R-08, R-09)", () => {
+  it("ohne Kursdaten: leere Serie statt erfundener Rampe (R-08-Fix)", async () => {
     // Systemzeit 03.07.2026 — «YTD» beginnt am 01.01.2026.
     vi.setSystemTime(new Date("2026-07-03T12:00:00Z"));
     h.queue = [[]]; // Cache leer; API-Pfad liefert [] (kein Key) → Fallback
@@ -128,19 +153,12 @@ describe("CT-9 Fallback-Pfad — generateFallbackPerformance (R-08, R-09)", () =
       { ticker: "NODATA", portfolioWeight: "100", ytdStartPrice: "100" },
     ]);
 
-    // vorher (R-09): Start hartkodiert '2025-01-01' — die «YTD»-Serie umfasste
-    // am 03.07.2026 volle 18 Monate (549 Tagespunkte, series[0].date
-    // '2025-01-01'). Jetzt dynamisch: 1. Januar des laufenden Jahres.
-    expect(series[0]).toEqual({ date: "2026-01-01", performance: 0 });
-    expect(series).toHaveLength(184); // 01.01.–03.07.2026, inkl. beider Enden
-    expect(series[series.length - 1].date).toBe("2026-07-03");
-
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-08 (heute NICHT
-    // im Scope, Pin bleibt): generateFallbackPerformance ERFINDET eine linear
+    // vorher (R-08): generateFallbackPerformance ERFAND eine linear
     // interpolierte Rendite mit hartkodiertem Endwert +13.32 % («From database
-    // calculation») — unabhängig von Portfolio, Titeln und Zeitraum.
-    expect(series[series.length - 1].performance).toBeCloseTo(13.32, 10);
-    expect(series[91].performance).toBeCloseTo(13.32 * 91 / 183, 10); // exakt linear
-    expect(series[45].performance).toBeCloseTo(13.32 * 45 / 183, 10);
+    // calculation») — 184 Tagespunkte 01.01.–03.07.2026, unabhängig von
+    // Portfolio, Titeln und Zeitraum. (Und davor, R-09: Start hartkodiert
+    // '2025-01-01' → 549 Punkte.) Jetzt: leere Serie; der Router liefert
+    // {dates: [], values: []}, der Client zeigt «Keine Daten verfügbar».
+    expect(series).toEqual([]);
   });
 });

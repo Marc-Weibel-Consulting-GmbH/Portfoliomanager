@@ -119,8 +119,11 @@ export const annualPerformanceRouter = router({
                 )
                 .limit(1);
               
-              const liveStartPrice = historicalPrice[0]?.close 
-                ? parseFloat(historicalPrice[0].close)
+              // R-11: adjustierte Start-Baseline — der Wert wird gegen den
+              // heutigen Kurs verglichen (Rendite-Semantik), nicht als reine
+              // Punkt-Bewertung verwendet.
+              const liveStartPrice = historicalPrice[0]?.close
+                ? parseFloat(historicalPrice[0].adjustedClose ?? historicalPrice[0].close)
                 : currentPrice;
               
               const liveStartValueLocal = shares * liveStartPrice;

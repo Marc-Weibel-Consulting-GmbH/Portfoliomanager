@@ -117,12 +117,13 @@ export const dashboardPerformanceRouter = router({
         );
       
       // Build price map: ticker -> date -> price
+      // R-11: adjustedClose (split-bereinigt) für die Wert-/Renditeserie, Fallback close.
       const priceMap = new Map<string, Map<string, number>>();
       for (const price of pricesResult) {
         if (!priceMap.has(price.ticker)) {
           priceMap.set(price.ticker, new Map());
         }
-        priceMap.get(price.ticker)!.set(price.date, parseFloat(price.close));
+        priceMap.get(price.ticker)!.set(price.date, parseFloat(price.adjustedClose ?? price.close));
       }
       
       // Get all unique dates from price data

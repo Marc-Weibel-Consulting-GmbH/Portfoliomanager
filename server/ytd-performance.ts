@@ -46,7 +46,9 @@ async function fetchCachedPrices(ticker: string, fromDate: string, toDate: strin
 
     return cached.map(row => ({
       date: typeof row.date === 'string' ? row.date : (row.date as Date)?.toISOString().split('T')[0] || '',
-      close: parseFloat(row.close.toString()),
+      // R-11: adjustedClose (split-bereinigt) für die Renditeserie, Fallback close —
+      // konsistent zur adjustierten ytdStartPrice-Baseline (R-30).
+      close: parseFloat((row.adjustedClose ?? row.close).toString()),
     })).filter(p => p.date); // Filter out entries with invalid dates
   } catch (error) {
     console.error(`[YTD Cache] Error fetching cached prices for ${ticker}:`, error);
@@ -209,8 +211,13 @@ export async function calculateYTDPerformance(stocks: any[]): Promise<{ date: st
   console.log(`[YTD] ${validStocks.length}/${stocks.length} stocks have valid daily price data`);
 
   if (validStocks.length === 0) {
-    console.warn('[YTD] No stocks with valid price data, using fallback');
-    return generateFallbackPerformance();
+    // vorher (R-08): generateFallbackPerformance() ERFAND hier eine linear
+    // interpolierte +13.32-%-Rampe («From database calculation»). Ohne Kursdaten
+    // liefern wir jetzt eine leere Serie; der Router (performanceRouter.
+    // getYTDPerformance) gibt {dates: [], values: []} zurück und der Client
+    // (PortfolioPerformanceChart) zeigt «Keine Daten verfügbar».
+    console.warn('[YTD] No stocks with valid price data, returning empty series');
+    return [];
   }
 
   // Get union of all trading days
@@ -280,30 +287,6 @@ export async function calculateYTDPerformance(stocks: any[]): Promise<{ date: st
   return dailyPerformance;
 }
 
-/**
- * Fallback: Generate linear interpolation if API fails
- */
-function generateFallbackPerformance(): { date: string; performance: number }[] {
-  console.log('[YTD] Using fallback linear interpolation');
-
-  // R-09: dynamic YTD start (was hardcoded '2025-01-01'). The invented linear
-  // +13.32 % ramp itself is R-08 and deliberately left in place for now.
-  const startDate = new Date(`${new Date().getFullYear()}-01-01`);
-  const endDate = new Date();
-  const days = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-
-  const result: { date: string; performance: number }[] = [];
-  const finalPerformance = 13.32; // From database calculation
-
-  for (let i = 0; i <= days; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-
-    result.push({
-      date: date.toISOString().split('T')[0],
-      performance: (finalPerformance * i) / days,
-    });
-  }
-
-  return result;
-}
+// vorher (R-08): hier stand generateFallbackPerformance() — eine hartkodierte,
+// erfundene lineare +13.32-%-Rampe für den Fall fehlender Kursdaten. Ersatzlos
+// gelöscht; calculateYTDPerformance liefert stattdessen eine leere Serie.
