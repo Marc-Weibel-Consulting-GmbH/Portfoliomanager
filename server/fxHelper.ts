@@ -316,6 +316,12 @@ export async function getCurrentFxRate(currencyPair: string): Promise<number> {
  * @param ticker - Stock ticker symbol
  * @param date - Date in YYYY-MM-DD format
  * @returns Historical close price or null if not found
+ *
+ * R-11: liefert adjustedClose ?? close. Beide Konsumenten (portfoliosRouter
+ * ytdStartPrice- und Perioden-Start-Baselines) vergleichen den Wert mit dem
+ * heutigen Kurs bei fixer Stückzahl — Rendite-Semantik, dafür ist der
+ * split-bereinigte Kurs korrekt. Solange keine Splits-Tabelle existiert,
+ * wiegt die Konsistenz der Renditeserie schwerer als die Punkt-Bewertung.
  */
 export async function getHistoricalPrice(ticker: string, date: string): Promise<number | null> {
   const db = await getDb();
@@ -341,7 +347,7 @@ export async function getHistoricalPrice(ticker: string, date: string): Promise<
       .limit(1);
     
     if (exactPrice && exactPrice.close) {
-      return parseFloat(exactPrice.close);
+      return parseFloat(exactPrice.adjustedClose ?? exactPrice.close);
     }
     
     // If exact date not found, try to find nearest previous date (for weekends/holidays)
@@ -358,8 +364,8 @@ export async function getHistoricalPrice(ticker: string, date: string): Promise<
       .limit(1);
     
     if (nearestPrice && nearestPrice.close) {
-      console.warn(`[FxHelper] Using nearest price for ${ticker} on ${date}: ${nearestPrice.close} from ${nearestPrice.date}`);
-      return parseFloat(nearestPrice.close);
+      console.warn(`[FxHelper] Using nearest price for ${ticker} on ${date}: ${nearestPrice.adjustedClose ?? nearestPrice.close} from ${nearestPrice.date}`);
+      return parseFloat(nearestPrice.adjustedClose ?? nearestPrice.close);
     }
     
     console.warn(`[FxHelper] No historical price found for ${ticker} on ${date}`);

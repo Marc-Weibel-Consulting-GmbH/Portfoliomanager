@@ -63,10 +63,12 @@ export const analyticsRouter = router({
     .input(
       z.object({
         ticker: z.string(),
-        riskFreeRate: z.number().default(0.02),
+        // Optional: wenn nicht gesetzt, verwendet calcDCF den währungs-
+        // spezifischen risikofreien Zins (R-32).
+        riskFreeRate: z.number().optional(),
         marketRiskPremium: z.number().default(0.055),
         terminalGrowthRate: z.number().default(0.025),
-        projectionYears: z.number().default(5),
+        projectionYears: z.number().default(10),
       })
     )
     .query(async ({ input }) => {

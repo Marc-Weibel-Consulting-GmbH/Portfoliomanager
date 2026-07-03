@@ -1,10 +1,13 @@
 /**
- * CT-15 — Charakterisierungstests für calcDCF (server/analytics/engine.ts:883–997)
+ * CT-15 — Charakterisierungstests für calcDCF (server/analytics/engine.ts)
  *
- * Pinnt den systematischen Überbewertungs-Bias der DCF-Analyse (R-32):
- * WACC-Floor 8 %, Wachstums-Decay auf 2.5 %, FCF-Cap bei 5 % der MarketCap.
+ * Pinnt das Verhalten NACH dem R-32-Fix: währungsspezifischer risikofreier
+ * Zins (CHF 1 %/EUR 2.5 %/USD 4 %) + Beta·5.5 % ERP, WACC-Floor 5.5 % statt
+ * flat 8 %, Horizont 10 statt 5 Jahre, WACC−g-Mindestspread 2 % statt 3.5 %,
+ * kein asymmetrischer Anzeige-Cap mehr; der FCF-Cap (5 % MarketCap ab Yield
+ * > 8 %) bleibt, wird aber in `notes` ausgewiesen statt still angewendet.
  * Szenario 19: stabiler CHF-Titel (FCF-Yield 5 %, Wachstum 4 %, Beta 0.8) →
- * Fair Value liegt trotz konservativer Inputs UNTER dem Kurs.
+ * Fair Value liegt nun ÜBER dem Kurs (der alte 8-%-Floor drückte ihn darunter).
  * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
  *
  * Daten-Mocking: calcDCF holt Fundamentaldaten selbst — der EODHD-Pfad ist
@@ -37,7 +40,7 @@ afterAll(() => {
 });
 
 describe("CT-15 calcDCF (Szenario 19)", () => {
-  it("stabiler CHF-Titel (FCF-Yield 5 %, Wachstum 4 %, Beta 0.8) → Fair Value unter Kurs (R-32)", async () => {
+  it("stabiler CHF-Titel (FCF-Yield 5 %, Wachstum 4 %, Beta 0.8) → Fair Value über Kurs (R-32 gefixt)", async () => {
     h.quoteSummary = S19.quoteSummary;
     const res = await calcDCF({ ticker: "STAB.SW" });
 
@@ -48,39 +51,45 @@ describe("CT-15 calcDCF (Szenario 19)", () => {
     expect(res.beta).toBe(0.8);
     expect(res.revenueGrowthEstimate).toBe(4);
     expect(res.freeCashFlow).toBe(5000000); // Yield exakt 5 % → kein FCF-Cap
+    expect(res.notes).toEqual([]); // kein Cap aktiv → keine Hinweise
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-32:
-    // CAPM-WACC wäre 0.7·(2 % + 0.8·5.5 %) + 0.3·4 %·0.79 = 5.43 % — der
-    // hartkodierte Floor hebt den Diskontsatz auf 8 % an.
-    expect(res.wacc).toBe(8);
+    // CAPM-WACC mit CHF-risikofreiem Zins 1 %: 0.7·(1 % + 0.8·5.5 %) +
+    // 0.3·4 %·0.79 = 4.73 % → Floor hebt auf 5.5 % (ein ERP) an.
+    // vorher (R-32): flat 8-%-Floor → wacc = 8.
+    expect(res.wacc).toBe(5.5);
 
-    // Wachstums-Decay 4 % → 2.5 % über 5 Jahre (R-32-Baustein):
-    expect(res.projectedFCF).toEqual([5185000, 5361290, 5527490, 5682260, 5824316]);
-    expect(res.pvFCF).toBe(21925830);
-    expect(res.pvTerminalValue).toBe(73873273);
+    // Wachstums-Decay 4 % → 2.5 % über 10 Jahre.
+    // vorher (R-32, 5 Jahre): [5185000, 5361290, 5527490, 5682260, 5824316]
+    expect(res.projectedFCF).toEqual([
+      5192500, 5384622, 5575777, 5765353, 5952727,
+      6137262, 6318311, 6495223, 6667347, 6834031,
+    ]);
+    // vorher (R-32): pvFCF 21925830, pvTerminalValue 73873273
+    expect(res.pvFCF).toBe(44862103);
+    expect(res.pvTerminalValue).toBe(136695724);
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-32:
-    // Konservativer Zähler + 8-%-Floor im Nenner ⇒ Fair Value 95.80 < Kurs 100
-    // («überbewertet»), obwohl die Inputs einen fair bis günstig bewerteten
-    // Qualitätstitel beschreiben.
-    expect(res.intrinsicValue).toBe(95.8);
-    expect(res.upsideDownside).toBe(-4.2);
-    expect(res.intrinsicValue).toBeLessThan(res.currentPrice);
+    // vorher (R-32): intrinsicValue 95.8, upsideDownside -4.2 — der 8-%-Floor
+    // drückte den fair bis günstig bewerteten Qualitätstitel unter den Kurs.
+    expect(res.intrinsicValue).toBe(181.56);
+    expect(res.upsideDownside).toBe(81.6);
+    expect(res.intrinsicValue).toBeGreaterThan(res.currentPrice);
   });
 
-  it("FCF-Yield 10 % wird still auf 5 % der MarketCap gekappt (R-32)", async () => {
+  it("FCF-Yield 10 % wird auf 5 % der MarketCap gekappt — mit Ausweis in notes (R-32e)", async () => {
     h.quoteSummary = {
       ...S19.quoteSummary,
       financialData: { ...S19.quoteSummary.financialData, freeCashflow: 10_000_000 },
     };
     const res = await calcDCF({ ticker: "STAB.SW" });
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-32:
-    // FCF-Yield 10 % > 8 % → der REALE FCF (10 Mio) wird ohne Ausweis auf
-    // 5 % der MarketCap (5 Mio) halbiert; das Ergebnis ist identisch mit
-    // Szenario 19 — der doppelt so hohe Cashflow ändert die Bewertung nicht.
+    // Der Cap bleibt (FCF-Yield 10 % > 8 % → FCF auf 5 Mio gekappt, Ergebnis
+    // identisch mit Szenario 19), wird aber nicht mehr STILL angewendet:
+    // `notes` weist die Kappung aus. vorher (R-32): notes existierte nicht.
     expect(res.freeCashFlow).toBe(5000000);
-    expect(res.intrinsicValue).toBe(95.8);
-    expect(res.upsideDownside).toBe(-4.2);
+    expect(res.notes).toHaveLength(1);
+    expect(res.notes[0]).toContain("FCF-Yield 10.0 % > 8 %");
+    // vorher (R-32): intrinsicValue 95.8, upsideDownside -4.2
+    expect(res.intrinsicValue).toBe(181.56);
+    expect(res.upsideDownside).toBe(81.6);
   });
 });

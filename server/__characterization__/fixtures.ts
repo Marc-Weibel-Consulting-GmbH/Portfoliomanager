@@ -71,6 +71,8 @@ export interface PriceRow {
   ticker: string;
   date: string;
   close: string;
+  /** Split-bereinigter Kurs (R-11); fehlt → Engines fallen auf close zurück. */
+  adjustedClose?: string;
 }
 
 export function toPriceMap(rows: PriceRow[]): Map<string, Map<string, number>> {
@@ -377,8 +379,10 @@ export const S16 = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Szenario 11 — Split-artiger Kurssprung: −51 % über Nacht (2:1-Split-Fixture)
-// Für CT-8 (getRealTwrSeriesFromTransactions): Preissprünge > 50 % werden
-// verworfen und forward-gefüllt (R-08) — der Split wird für immer falsch bewertet.
+// Für CT-8 (getRealTwrSeriesFromTransactions).
+// vorher (R-08): Preissprünge > 50 % wurden verworfen und forward-gefüllt —
+// der Split wurde für immer falsch bewertet. Jetzt wird der Sprung vertraut;
+// ohne adjustedClose (R-11) zeigt die Serie den rohen −51-%-Einbruch.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const S11 = {
@@ -387,14 +391,32 @@ export const S11 = {
   priceRows: [
     { ticker: "SPLT", date: D.mar03, close: "100" },
     { ticker: "SPLT", date: D.mar04, close: "49" },   // −51 % (Split-Tag)
-    { ticker: "SPLT", date: D.mar05, close: "49.5" }, // weiterhin > 50 % unter Forward-Fill 100
+    { ticker: "SPLT", date: D.mar05, close: "49.5" },
+  ] as PriceRow[],
+  stockRow: { ticker: "SPLT", currency: "CHF" },
+};
+
+/**
+ * Szenario 11 (adjustiert) — dieselbe 2:1-Split-Woche, aber mit befülltem
+ * adjustedClose (divergent zum rohen close am Vor-Split-Tag). Pinnt den
+ * R-11-Switch: Renditeserien lesen adjustedClose ?? close, der Split-Sprung
+ * verschwindet aus der Serie.
+ */
+export const S11_ADJ = {
+  initialHoldings: { SPLT: 100 } as Record<string, number>,
+  initialCash: 0,
+  priceRows: [
+    { ticker: "SPLT", date: D.mar03, close: "100", adjustedClose: "50" }, // roh 100, split-bereinigt 50
+    { ticker: "SPLT", date: D.mar04, close: "49", adjustedClose: "49" },  // Split-Tag: −2 % real
+    { ticker: "SPLT", date: D.mar05, close: "49.5", adjustedClose: "49.5" },
   ] as PriceRow[],
   stockRow: { ticker: "SPLT", currency: "CHF" },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Szenario 13 (TWR-Variante) — Crash-Tag −20 % als Preisreihe für CT-8
-// −20 % passiert den 50-%-Preisfilter, wird aber vom ±15-%-Smoothing gekappt (R-08).
+// vorher (R-08): −20 % passierte den 50-%-Preisfilter, wurde aber vom
+// ±15-%-Smoothing gekappt. Jetzt passiert der Crash-Tag ungekappt.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const S13_TWR = {

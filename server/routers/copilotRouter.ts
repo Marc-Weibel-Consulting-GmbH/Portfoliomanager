@@ -10,6 +10,7 @@ import { protectedProcedure, router } from '../_core/trpc';
 import { invokeLLM } from '../_core/llm';
 import { getResearchContextForLLM } from '../helpers/researchContext';
 import { getSavedPortfolioById, getPortfolioTransactions, createPortfolioTransaction, getDb } from '../db';
+import { tryConvertToCHF } from '../fxHelper';
 import {
   runCopilotAnalysis,
   calculateRankings,
@@ -149,6 +150,119 @@ async function fetchHoldingData(ticker: string): Promise<{
   } catch {}
 
   return { prices, volumes, currentPrice, currency, sector, fundamentals };
+}
+
+/** Letzter Schlusskurs + Quote-Währung eines Tickers (leichtgewichtig, 14-Tage-Fenster). */
+async function fetchLastCloseWithCurrency(
+  ticker: string
+): Promise<{ price: number; currency: string } | null> {
+  try {
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 14 * 86400000);
+    const chart: any = await (yf as any).chart(normalizeForYahoo(ticker), {
+      period1: startDate.toISOString().split('T')[0],
+      period2: endDate.toISOString().split('T')[0],
+      interval: '1d',
+    });
+    const quotes = chart?.quotes?.filter((q: any) => q.close != null) || [];
+    if (quotes.length === 0) return null;
+    return {
+      price: quotes[quotes.length - 1].close as number,
+      currency: chart?.meta?.currency || 'USD',
+    };
+  } catch {
+    return null;
+  }
+}
+
+type RebalancingTrade = {
+  ticker: string;
+  companyName?: string;
+  action: 'buy' | 'sell';
+  shares: number;
+  pricePerShare: number;
+  currency: string;
+  fxRate?: number;
+};
+
+/**
+ * R-36: echte Stückzahlen serverseitig ableiten statt `shares: 1`-Platzhalter.
+ * shares = floor(|targetWeight × totalValueCHF − currentValueCHF| / priceCHF);
+ * positive Differenz → buy, negative → sell. Ticker ohne Kurs oder ohne
+ * FX-Kurs (tryConvertToCHF → null, kein stilles 1:1) werden mit Fehlermeldung
+ * übersprungen.
+ */
+async function deriveTradesFromTargetWeights(
+  portfolioId: number,
+  targets: Array<{ ticker: string; companyName?: string; targetWeight: number }>,
+  errors: string[]
+): Promise<RebalancingTrade[]> {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Ist-Bestand aus Transaktionen (buy/entry +, sell −)
+  const txs = await getPortfolioTransactions(portfolioId);
+  const sharesByTicker: Record<string, number> = {};
+  for (const tx of txs as any[]) {
+    if (!tx.ticker) continue;
+    const sh = parseFloat(tx.shares || '0');
+    if (!Number.isFinite(sh) || sh === 0) continue;
+    if (tx.transactionType === 'buy' || tx.transactionType === 'entry') {
+      sharesByTicker[tx.ticker] = (sharesByTicker[tx.ticker] || 0) + sh;
+    } else if (tx.transactionType === 'sell') {
+      sharesByTicker[tx.ticker] = (sharesByTicker[tx.ticker] || 0) - sh;
+    }
+  }
+
+  // Kurse in CHF für alle beteiligten Ticker (Bestand + Ziele)
+  const allTickers = Array.from(new Set([
+    ...Object.keys(sharesByTicker).filter((t) => sharesByTicker[t] > 0),
+    ...targets.map((t) => t.ticker),
+  ]));
+  const priceInfo: Record<string, { price: number; currency: string; priceCHF: number }> = {};
+  for (const ticker of allTickers) {
+    const quote = await fetchLastCloseWithCurrency(ticker);
+    if (!quote || quote.price <= 0) {
+      errors.push(`${ticker}: kein aktueller Kurs verfügbar — übersprungen`);
+      continue;
+    }
+    const priceCHF = await tryConvertToCHF(quote.price, quote.currency, today);
+    if (priceCHF === null || priceCHF <= 0) {
+      errors.push(`${ticker}: kein FX-Kurs ${quote.currency}CHF verfügbar — übersprungen`);
+      continue;
+    }
+    priceInfo[ticker] = { price: quote.price, currency: quote.currency, priceCHF };
+  }
+
+  // Gesamtwert des Portfolios in CHF (nur bewertbare Positionen)
+  let totalValueCHF = 0;
+  for (const [ticker, sh] of Object.entries(sharesByTicker)) {
+    if (sh > 0 && priceInfo[ticker]) totalValueCHF += sh * priceInfo[ticker].priceCHF;
+  }
+  if (totalValueCHF <= 0) {
+    errors.push('Portfoliowert CHF 0 — keine Trades ableitbar');
+    return [];
+  }
+
+  const trades: RebalancingTrade[] = [];
+  for (const target of targets) {
+    const info = priceInfo[target.ticker];
+    if (!info) continue; // bereits als Fehler vermerkt
+    const currentValueCHF = (sharesByTicker[target.ticker] || 0) * info.priceCHF;
+    const deltaCHF = target.targetWeight * totalValueCHF - currentValueCHF;
+    // Abrunden Richtung 0: nie mehr kaufen/verkaufen als die Zielgewichtung verlangt
+    const qty = Math.floor(Math.abs(deltaCHF) / info.priceCHF);
+    if (qty <= 0) continue;
+    trades.push({
+      ticker: target.ticker,
+      companyName: target.companyName,
+      action: deltaCHF > 0 ? 'buy' : 'sell',
+      shares: qty,
+      pricePerShare: info.price,
+      currency: info.currency,
+      fxRate: info.priceCHF / info.price,
+    });
+  }
+  return trades;
 }
 
 export const copilotRouter = router({
@@ -465,6 +579,8 @@ export const copilotRouter = router({
   applyRebalancing: protectedProcedure
     .input(z.object({
       portfolioId: z.number(),
+      // Legacy path: explicit trades (back-compat, R-36 — new clients send
+      // targetWeights instead and let the server derive real share counts).
       trades: z.array(z.object({
         ticker: z.string(),
         companyName: z.string().optional(),
@@ -473,19 +589,38 @@ export const copilotRouter = router({
         pricePerShare: z.number().positive(),
         currency: z.string().default('USD'),
         fxRate: z.number().optional(),
-      })),
+      })).optional(),
+      // R-36: target weights (fractions, 0–1); the server computes
+      // shares = floor(|targetWeight × totalValueCHF − currentValueCHF| / priceCHF).
+      targetWeights: z.array(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+        targetWeight: z.number().min(0).max(1),
+      })).optional(),
       saveToHistory: z.boolean().default(true),
     }))
     .mutation(async ({ ctx, input }) => {
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
       if (!portfolio) {
-        return { error: 'Portfolio nicht gefunden', applied: 0 };
+        return { error: 'Portfolio nicht gefunden', applied: 0, total: 0 };
       }
 
       let applied = 0;
       const errors: string[] = [];
 
-      for (const trade of input.trades) {
+      let trades = input.trades ?? [];
+      if (input.targetWeights && input.targetWeights.length > 0) {
+        const derived = await deriveTradesFromTargetWeights(
+          input.portfolioId,
+          input.targetWeights,
+          errors
+        );
+        trades = derived;
+      } else if (!input.trades) {
+        return { error: 'Weder trades noch targetWeights übergeben', applied: 0, total: 0 };
+      }
+
+      for (const trade of trades) {
         try {
           const totalAmount = trade.shares * trade.pricePerShare;
           const fxRate = trade.fxRate || 1;
@@ -512,8 +647,8 @@ export const copilotRouter = router({
       }
 
       // Save to history
-      if (input.saveToHistory) {
-        const recs = input.trades.map(trade => ({
+      if (input.saveToHistory && trades.length > 0) {
+        const recs = trades.map(trade => ({
           portfolioId: input.portfolioId,
           userId: ctx.user.id,
           ticker: trade.ticker,
@@ -527,7 +662,7 @@ export const copilotRouter = router({
         await saveCopilotRecommendations(recs);
       }
 
-      return { error: errors.length > 0 ? errors.join('; ') : null, applied, total: input.trades.length };
+      return { error: errors.length > 0 ? errors.join('; ') : null, applied, total: trades.length };
     }),
 
   // ============================================================

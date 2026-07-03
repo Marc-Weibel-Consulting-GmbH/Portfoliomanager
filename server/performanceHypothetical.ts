@@ -139,13 +139,15 @@ export async function getHypotheticalSeriesFromWeights(
 
     pricesMap[ticker] = {};
     for (const p of prices) {
-      const priceLocal = parseFloat(String(p.close)) || 0;
+      // R-11: Renditeserien lesen adjustedClose (split-/korporate-Action-bereinigt),
+      // Fallback auf close, solange adjustedClose nicht flächendeckend befüllt ist.
+      const priceLocal = parseFloat(String(p.adjustedClose ?? p.close)) || 0;
       if (priceLocal > 0) {
         // Convert to CHF if needed
-        const priceCHF = currency === baseCurrency 
-          ? priceLocal 
+        const priceCHF = currency === baseCurrency
+          ? priceLocal
           : await convertToCHF(priceLocal, currency, p.date);
-        
+
         pricesMap[ticker][p.date] = priceCHF;
         lastKnownPrices[ticker] = priceCHF;
       }
@@ -204,9 +206,6 @@ export async function getHypotheticalSeriesFromWeights(
     }
   }
   
-  let lastPortfolioReturn = 0;
-  const MAX_DAILY_CHANGE = 0.15; // Maximum 15% daily change to detect anomalies
-
   for (const date of allDates) {
     let portfolioValue = 0;
     let tickersWithPrice = 0;
@@ -214,21 +213,17 @@ export async function getHypotheticalSeriesFromWeights(
 
     for (const { ticker } of weights) {
       let price = pricesMap[ticker][date];
-      
+
       // Forward-fill if price not available
       if (!price) {
         price = forwardFillPrices[ticker] || 0;
         if (price > 0) tickersForwardFilled++;
       } else {
-        // Update forward-fill price only if the new price is reasonable
-        // (not more than 50% different from last known price to avoid data errors)
-        const lastPrice = forwardFillPrices[ticker];
-        if (lastPrice && Math.abs(price - lastPrice) / lastPrice > 0.5) {
-          console.warn(`[HypotheticalPerformance] ${ticker} on ${date}: Large price jump from ${lastPrice} to ${price}, using forward-fill`);
-          price = lastPrice;
-        } else {
-          forwardFillPrices[ticker] = price;
-        }
+        // vorher (R-08): Kurssprünge > 50 % wurden als «Datenfehler» verworfen
+        // und mit dem letzten Kurs forward-gefüllt — ein 2:1-Split blieb damit
+        // dauerhaft falsch bewertet. Neue Kurse werden jetzt übernommen; mit
+        // adjustedClose (R-11) sind echte Split-Sprünge bereits bereinigt.
+        forwardFillPrices[ticker] = price;
         tickersWithPrice++;
       }
 
@@ -236,26 +231,16 @@ export async function getHypotheticalSeriesFromWeights(
     }
 
     const portfolioReturn = startValue > 0 ? (portfolioValue / startValue) - 1 : 0;
-    
-    // Detect and smooth out unrealistic jumps
-    const dailyChange = Math.abs(portfolioReturn - lastPortfolioReturn);
-    let smoothedReturn = portfolioReturn;
-    
-    if (result.length > 0 && dailyChange > MAX_DAILY_CHANGE) {
-      // Large jump detected - likely due to data issues
-      // Use interpolation instead
-      console.warn(`[HypotheticalPerformance] ${date}: Large daily change ${(dailyChange * 100).toFixed(2)}%, smoothing`);
-      smoothedReturn = lastPortfolioReturn + (portfolioReturn > lastPortfolioReturn ? MAX_DAILY_CHANGE : -MAX_DAILY_CHANGE);
-    }
 
+    // vorher (R-08): Tagesbewegungen > 15 % wurden stillschweigend auf ±15 %
+    // gekappt («smoothing») — die ausgewiesene Rendite widersprach der daneben
+    // stehenden Bewertung. Renditen werden nicht mehr mutiert.
     result.push({
       date,
-      portfolioReturn: smoothedReturn,
+      portfolioReturn,
       portfolioValueCHF: portfolioValue,
       segment: 'hypothetical'
     });
-    
-    lastPortfolioReturn = smoothedReturn;
   }
 
   console.log(`[HypotheticalPerformance] Generated ${result.length} points`);
@@ -337,12 +322,13 @@ export async function getRealTwrSeriesFromTransactions(
 
     pricesMap[ticker] = {};
     for (const p of prices) {
-      const priceLocal = parseFloat(String(p.close)) || 0;
+      // R-11: Renditeserien lesen adjustedClose (split-bereinigt), Fallback close.
+      const priceLocal = parseFloat(String(p.adjustedClose ?? p.close)) || 0;
       if (priceLocal > 0) {
-        const priceCHF = currency === baseCurrency 
-          ? priceLocal 
+        const priceCHF = currency === baseCurrency
+          ? priceLocal
           : await convertToCHF(priceLocal, currency, p.date);
-        
+
         pricesMap[ticker][p.date] = priceCHF;
       }
     }
@@ -454,14 +440,10 @@ export async function getRealTwrSeriesFromTransactions(
       if (!price) {
         price = forwardFillPrices[ticker] || 0;
       } else {
-        // Check for unrealistic price jumps (more than 50% in one day)
-        const lastPrice = forwardFillPrices[ticker];
-        if (lastPrice && Math.abs(price - lastPrice) / lastPrice > 0.5) {
-          console.warn(`[RealTWR] ${ticker} on ${date}: Large price jump from ${lastPrice} to ${price}, using forward-fill`);
-          price = lastPrice;
-        } else {
-          forwardFillPrices[ticker] = price;
-        }
+        // vorher (R-08): Kurssprünge > 50 % wurden verworfen und forward-gefüllt
+        // (ein 2:1-Split fror die Bewertung dauerhaft ein). Neue Kurse werden
+        // jetzt übernommen; mit adjustedClose (R-11) sind Split-Sprünge bereinigt.
+        forwardFillPrices[ticker] = price;
       }
 
       portfolioValue += sharesCount * price;
@@ -485,21 +467,13 @@ export async function getRealTwrSeriesFromTransactions(
     // Compound the daily returns: (1 + R_total) = (1 + R_1) * (1 + R_2) * ... * (1 + R_n)
     const previousReturn = result.length > 0 ? result[result.length - 1].portfolioReturn : 0;
     const cumulativeReturn = (1 + previousReturn) * (1 + dailyReturn) - 1;
-    
-    // Detect and smooth out unrealistic jumps (max 15% daily change)
-    const MAX_DAILY_CHANGE = 0.15;
-    let smoothedReturn = cumulativeReturn;
-    
-    if (result.length > 0 && Math.abs(dailyReturn) > MAX_DAILY_CHANGE) {
-      console.warn(`[RealTWR] ${date}: Large daily return ${(dailyReturn * 100).toFixed(2)}%, smoothing`);
-      // Cap the daily return
-      const cappedDailyReturn = dailyReturn > 0 ? MAX_DAILY_CHANGE : -MAX_DAILY_CHANGE;
-      smoothedReturn = (1 + previousReturn) * (1 + cappedDailyReturn) - 1;
-    }
 
+    // vorher (R-08): |Tagesrendite| > 15 % wurde vor dem Aufzinsen auf ±15 %
+    // gekappt — das falsche Niveau blieb via stitchSeries dauerhaft im Chart.
+    // Renditen werden nicht mehr mutiert.
     result.push({
       date,
-      portfolioReturn: smoothedReturn,
+      portfolioReturn: cumulativeReturn,
       portfolioValueCHF: portfolioValue,
       segment: 'real'
     });

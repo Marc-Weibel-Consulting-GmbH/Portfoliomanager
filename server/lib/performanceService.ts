@@ -115,10 +115,11 @@ export async function calculatePortfolioPerformance(
     ));
 
   // Build price maps: ticker -> date -> price (in original currency)
+  // R-11: adjustedClose (split-bereinigt) für die Renditeserie, Fallback close.
   const rawPriceMap = new Map<string, Map<string, number>>();
   for (const p of pricesResult) {
     if (!rawPriceMap.has(p.ticker)) rawPriceMap.set(p.ticker, new Map());
-    rawPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.close));
+    rawPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.adjustedClose ?? p.close));
   }
 
   // 5. Get all trading dates in the period
@@ -275,10 +276,11 @@ export async function calculateAggregatedPerformance(
     ));
 
   // Build price maps
+  // R-11: adjustedClose (split-bereinigt) für die Renditeserie, Fallback close.
   const rawPriceMap = new Map<string, Map<string, number>>();
   for (const p of pricesResult) {
     if (!rawPriceMap.has(p.ticker)) rawPriceMap.set(p.ticker, new Map());
-    rawPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.close));
+    rawPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.adjustedClose ?? p.close));
   }
 
   // Get all dates

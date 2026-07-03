@@ -551,19 +551,17 @@ function ApplyRebalancingButton({
   const handleApply = async () => {
     setIsApplying(true);
     try {
-      // Convert suggestions to trades (simplified - uses 1 share as placeholder)
-      const trades = suggestions.map((s) => ({
+      // R-36: Zielgewichte senden — der Server berechnet echte Stückzahlen
+      // aus Portfoliowert, aktuellem Kurs und FX (kein Platzhalter mehr).
+      const targetWeights = suggestions.map((s) => ({
         ticker: s.ticker,
         companyName: s.companyName,
-        action: (s.action === 'increase' ? 'buy' : 'sell') as 'buy' | 'sell',
-        shares: 1, // Placeholder - in real implementation, calculate based on portfolio value
-        pricePerShare: 100, // Placeholder - would use current market price
-        currency: 'USD',
+        targetWeight: s.targetWeight,
       }));
 
       const result = await applyMutation.mutateAsync({
         portfolioId,
-        trades,
+        targetWeights,
         saveToHistory: true,
       });
 

@@ -2,11 +2,12 @@
  * CT-8 — Charakterisierungstests für getRealTwrSeriesFromTransactions + stitchSeries
  * (server/performanceHypothetical.ts)
  *
- * Pinnt das stille «Glätten» der Chart-TWR (R-08):
- * - Tagesrenditen > ±15 % werden gekappt (Szenario 13, Crash-Tag −20 %),
- * - Preissprünge > 50 % werden verworfen und forward-gefüllt (Szenario 11,
- *   Split-artiger Sprung — ein 2:1-Split wird damit für immer falsch bewertet).
- * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
+ * vorher (R-08): pinnte das stille «Glätten» der Chart-TWR — Tagesrenditen
+ * > ±15 % wurden gekappt, Preissprünge > 50 % verworfen und forward-gefüllt.
+ * Nach dem R-08-Fix werden Renditen NIE mutiert: der Crash-Tag −20 % passiert
+ * ungekappt (Szenario 13), der Split-Sprung −51 % wird vertraut (Szenario 11).
+ * Mit adjustedClose-Daten (R-11, Szenario 11_ADJ) ist der Split-Sprung in der
+ * Serie bereits bereinigt. Erwartungswerte durch AUSFÜHREN des Codes ermittelt.
  *
  * DB-Mocking: nur die Daten-Loader — getDb() liefert ein Double, das für
  * `stocks` die Fixture-Stammdaten und für `historicalPrices` die Fixture-Kurse
@@ -15,7 +16,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { S11, S13_TWR, D } from "./fixtures";
+import { S11, S11_ADJ, S13_TWR, D } from "./fixtures";
 
 const h = vi.hoisted(() => ({
   stockRow: null as any,
@@ -49,7 +50,7 @@ beforeEach(() => {
 });
 
 describe("CT-8 getRealTwrSeriesFromTransactions", () => {
-  it("Szenario 13: Crash-Tag −20 % wird auf −15 % gekappt (R-08)", async () => {
+  it("Szenario 13: Crash-Tag −20 % passiert ungekappt (R-08-Fix)", async () => {
     h.stockRow = S13_TWR.stockRow;
     h.priceRows = S13_TWR.priceRows;
 
@@ -63,17 +64,15 @@ describe("CT-8 getRealTwrSeriesFromTransactions", () => {
     expect(series.map((p) => p.portfolioValueCHF)).toEqual([100000, 80000, 82000]);
 
     expect(series[0].portfolioReturn).toBe(0);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-08:
-    // Tagesrendite −20 % > MAX_DAILY_CHANGE (15 %) → die ausgewiesene Rendite
-    // wird stillschweigend auf −15 % gekappt, obwohl das Portfolio real −20 %
-    // verlor (portfolioValueCHF 80'000 steht direkt daneben).
-    expect(series[1].portfolioReturn).toBeCloseTo(-0.15, 12);
-    // Folgetag +2.5 % wird auf die GEKAPPTE Serie aufgezinst:
-    // (1 − 0.15) · 1.025 − 1 = −0.12875 (real wäre 0.8 · 1.025 − 1 = −0.18).
-    expect(series[2].portfolioReturn).toBeCloseTo(-0.12875, 12);
+    // vorher (R-08): Tagesrendite −20 % > MAX_DAILY_CHANGE (15 %) → die Rendite
+    // wurde stillschweigend auf −15 % gekappt (series[1] = −0.15, series[2] =
+    // −0.12875). Jetzt stimmt die Rendite mit der Bewertung überein:
+    expect(series[1].portfolioReturn).toBeCloseTo(-0.20, 12);
+    // Folgetag +2.5 % auf die ECHTE Serie aufgezinst: 0.8 · 1.025 − 1 = −0.18.
+    expect(series[2].portfolioReturn).toBeCloseTo(-0.18, 12);
   });
 
-  it("Szenario 11: Split-Sprung −51 % wird verworfen und forward-gefüllt (R-08)", async () => {
+  it("Szenario 11: Split-Sprung −51 % wird vertraut, nicht mehr verworfen (R-08-Fix)", async () => {
     h.stockRow = S11.stockRow;
     h.priceRows = S11.priceRows;
 
@@ -81,13 +80,37 @@ describe("CT-8 getRealTwrSeriesFromTransactions", () => {
       D.mar03, D.mar05, [], S11.initialHoldings, S11.initialCash
     );
 
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-08 (+ R-11):
-    // Kurs 100 → 49 (−51 %) überschreitet den 50-%-Preisfilter → der neue Kurs
-    // wird verworfen und mit 100 forward-gefüllt; auch 49.5 am Folgetag bleibt
-    // > 50 % unter dem Forward-Fill. Ein 2:1-Split friert die Bewertung also
-    // dauerhaft auf dem Vor-Split-Kurs ein — Rendite und Wert bewegen sich nie.
-    expect(series.map((p) => p.portfolioValueCHF)).toEqual([10000, 10000, 10000]);
-    expect(series.map((p) => p.portfolioReturn)).toEqual([0, 0, 0]);
+    // vorher (R-08): Kurs 100 → 49 (−51 %) überschritt den 50-%-Preisfilter →
+    // der neue Kurs wurde verworfen und mit 100 forward-gefüllt; Wert und
+    // Rendite bewegten sich nie ([10000, 10000, 10000] / [0, 0, 0]).
+    // Jetzt wird der Sprung übernommen: bei ROHEN close-Daten (ohne
+    // adjustedClose) zeigt die Serie den Split als echten −51-%-Verlust —
+    // die Korrektur dafür ist adjustedClose (R-11, s. Szenario 11_ADJ).
+    expect(series.map((p) => p.portfolioValueCHF)).toEqual([10000, 4900, 4950]);
+    expect(series[0].portfolioReturn).toBe(0);
+    expect(series[1].portfolioReturn).toBeCloseTo(-0.51, 12);
+    // Tag 3: (1 − 0.51) · (4950/4900) − 1 = −0.505
+    expect(series[2].portfolioReturn).toBeCloseTo(-0.505, 12);
+  });
+
+  it("Szenario 11_ADJ: mit adjustedClose ist der Split-Sprung bereinigt (R-11)", async () => {
+    h.stockRow = S11_ADJ.stockRow;
+    h.priceRows = S11_ADJ.priceRows;
+
+    const series = await getRealTwrSeriesFromTransactions(
+      D.mar03, D.mar05, [], S11_ADJ.initialHoldings, S11_ADJ.initialCash
+    );
+
+    // R-11: die Serie liest adjustedClose ?? close — der rohe close (100) am
+    // Vor-Split-Tag wird ignoriert, bewertet wird mit 50/49/49.5. Der Split
+    // erscheint als reale −2-%-Bewegung statt als −51-%-Crash.
+    // Dokumentierter Tradeoff: portfolioValueCHF basiert damit ebenfalls auf
+    // adjustierten Kursen (Serien-Konsistenz vor Punkt-Bewertung, solange
+    // keine Splits-Tabelle existiert).
+    expect(series.map((p) => p.portfolioValueCHF)).toEqual([5000, 4900, 4950]);
+    expect(series[0].portfolioReturn).toBe(0);
+    expect(series[1].portfolioReturn).toBeCloseTo(-0.02, 12);
+    expect(series[2].portfolioReturn).toBeCloseTo(-0.01, 12);
   });
 });
 
@@ -120,8 +143,9 @@ describe("CT-8 stitchSeries", () => {
     expect(stitched[3].portfolioValueCHF).toBeCloseTo(11550, 10);
     expect(stitched[2].segment).toBe("real");
 
-    // Kontext R-08: endet die Hypo-Serie auf einem GEKAPPTEN Wert (z. B. −15 %
-    // statt −20 %, s. o.), wird das falsche Niveau hier auf die gesamte
-    // Real-Serie weiterverkettet — der Fehler bleibt im Chart dauerhaft sichtbar.
+    // vorher (R-08): endete die Hypo-Serie auf einem GEKAPPTEN Wert (z. B.
+    // −15 % statt −20 %), wurde das falsche Niveau hier auf die gesamte
+    // Real-Serie weiterverkettet. Seit dem R-08-Fix liefern die Serien
+    // unmutierte Renditen — die Verkettung selbst ist unverändert.
   });
 });

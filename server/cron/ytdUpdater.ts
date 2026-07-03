@@ -38,7 +38,14 @@ async function fetchDec31ClosePrice(ticker: string, year: number): Promise<numbe
     
     // Get last trading day (should be Dec 31 or closest trading day before)
     const lastDay = data[data.length - 1];
-    return lastDay.close || null;
+    // R-30: adjusted_close als YTD-Baseline (split-/spin-off-bereinigt) —
+    // der rohe Dez-31-Close machte z. B. Holcim nach dem Amrize-Spin-off
+    // zu einem ≈ −45-%-«YTD»-Ausreisser. Fallback close, falls die API
+    // keinen adjustierten Kurs liefert.
+    // TODO(R-11/R-30): Corporate Actions MITTEN im Jahr werden damit nicht
+    // abgedeckt (currentPrice vs. fixe Jahresanfangs-Baseline) — braucht
+    // Ratio-Sprung-Erkennung im täglichen Updater oder eine Splits-Tabelle.
+    return lastDay.adjusted_close ?? lastDay.close ?? null;
   } catch (error) {
     console.error(`[YTD Updater] Error fetching ${ticker}:`, error);
     return null;

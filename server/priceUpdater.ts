@@ -87,6 +87,15 @@ export async function startPriceUpdater() {
             }
 
             // Calculate YTD performance if ytdStartPrice exists
+            // R-30: ytdStartPrice wird vom ytdUpdater (bzw. scripts/
+            // recompute-ytd-baselines.ts) aus adjustedClose gesetzt, damit
+            // currentPrice vs. Baseline über Splits/Spin-offs des VORJAHRES
+            // hinweg stimmt (Holcim/Amrize-Fall).
+            // TODO(R-11/R-30): Bei einer Corporate Action MITTEN im Jahr bleibt
+            // die Rechnung falsch — currentPrice springt, die Baseline nicht.
+            // Braucht Ratio-Sprung-Erkennung im täglichen Update oder eine
+            // Splits-Tabelle; bis dahin: scripts/recompute-ytd-baselines.ts
+            // nach bekannten Corporate Actions laufen lassen.
             const ytdStart = parseFloat(stock.ytdStartPrice || "0");
             if (ytdStart > 0) {
               const ytdPerformance = ((parseFloat(newPrice) - ytdStart) / ytdStart) * 100;
