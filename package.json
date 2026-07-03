@@ -110,6 +110,7 @@
     "tough-cookie": "^6.0.1",
     "twilio": "^5.10.4",
     "vaul": "^1.1.2",
+    "wikifolio": "link:vendor/wikifolio",
     "wouter": "^3.3.5",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^3.14.1",
