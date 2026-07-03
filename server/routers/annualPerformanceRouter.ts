@@ -12,8 +12,8 @@ export const annualPerformanceRouter = router({
       const { getSavedPortfolioById, getPortfolioTransactions, getDb, getStockByTicker } = await import("../db");
       const { realizedGains, historicalPrices } = await import("../../drizzle/schema");
       const { eq, and, gte, lte } = await import("drizzle-orm");
-      const { getStockCurrency, convertToCHF } = await import("../fxHelper");
-      const { getGrossAmountCHF, getSignedFlowCHF } = await import("../lib/transactionSemantics");
+      const { getStockCurrency, convertToCHF, tryGetFxRate } = await import("../fxHelper");
+      const { getGrossAmountCHF, getSignedFlowCHF, withResolvedGrossAmountCHF } = await import("../lib/transactionSemantics");
       
       // Get database instance
       const db = await getDb();
@@ -29,7 +29,12 @@ export const annualPerformanceRouter = router({
       const yearEnd = new Date(year, 11, 31, 23, 59, 59);
       
       // Calculate live performance inline (same logic as calculateLivePerformance procedure)
-      const transactions = await getPortfolioTransactions(input.portfolioId);
+      // R-15: Zeilen ohne totalAmountCHF/fxRate mit dem FX-Kurs zum
+      // TRANSAKTIONSDATUM auflösen (vorher: Lokalbetrag als CHF gemischt).
+      const transactions = await withResolvedGrossAmountCHF(
+        await getPortfolioTransactions(input.portfolioId),
+        (currency, date) => tryGetFxRate(date, `${currency}CHF`)
+      );
       
       let totalDeposits = 0;  // Net capital from user
       let totalInvestedInStocks = 0;  // Cost basis of current positions

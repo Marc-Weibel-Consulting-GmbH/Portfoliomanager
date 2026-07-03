@@ -74,11 +74,22 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     { enabled: !!ticker && (transactionType === "buy" || transactionType === "sell") }
   );
 
-  // Fetch current FX rate for currency conversion
+  // R-12: FX-Kurs zum GEWÄHLTEN Transaktionsdatum abfragen (nicht den heutigen
+  // Kurs für backdatierte Trades persistieren). fx.getCurrentRate akzeptiert
+  // ein optionales Datum; der Query-Key enthält das Datum, daher wird bei
+  // Datumswechsel automatisch neu geladen. getFxRate liefert 0, wenn im
+  // 30-Tage-Lookback kein Kurs existiert (R-10) — dann blockieren wir das
+  // Speichern statt stillschweigend zu raten.
   const { data: fxData } = trpc.fx.getCurrentRate.useQuery(
-    { currency: stockData?.currency || "CHF" },
-    { enabled: !!stockData?.currency && stockData.currency !== "CHF" }
+    { currency: stockData?.currency || "CHF", date: transactionDate },
+    { enabled: !!stockData?.currency && stockData.currency !== "CHF" && !!transactionDate }
   );
+
+  const needsFx =
+    (transactionType === "buy" || transactionType === "sell") &&
+    !!stockData?.currency &&
+    stockData.currency !== "CHF";
+  const fxRateMissing = needsFx && fxData !== undefined && !(fxData.rate > 0);
 
   // Auto-fill price when buying or selling
   useEffect(() => {
@@ -161,6 +172,15 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
 
       if (isNaN(sharesNum) || isNaN(priceNum)) {
         toast.error("Ungültige Zahlen eingegeben");
+        return;
+      }
+
+      // R-12: Fremdwährung erfordert einen Kurs zum Transaktionsdatum —
+      // ohne Kurs nicht speichern (kein Default auf heutigen/keinen Kurs).
+      if (needsFx && (!fxData || !(fxData.rate > 0))) {
+        toast.error(
+          `Kein Wechselkurs für ${stockData?.currency} am ${transactionDate} verfügbar. Bitte anderes Datum wählen.`
+        );
         return;
       }
 
@@ -345,6 +365,13 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
               onChange={(e) => setTransactionDate(e.target.value)}
               className="bg-slate-700 border-slate-600"
             />
+            {/* R-12: ohne Kurs zum gewählten Datum wird das Speichern blockiert */}
+            {fxRateMissing && (
+              <p className="text-sm text-red-400 mt-1">
+                Kein Wechselkurs für {stockData?.currency} am {transactionDate} verfügbar.
+                Bitte wählen Sie ein anderes Datum.
+              </p>
+            )}
           </div>
 
           {/* Notes */}
@@ -412,7 +439,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
           {requiresShares && (!shares || !pricePerShare) && stockData?.currency && stockData.currency !== 'CHF' && fxData && (
             <div className="bg-blue-900/20 border border-blue-700/50 p-3 rounded-md">
               <p className="text-xs text-blue-300">
-                💱 Aktueller Wechselkurs: 1 {stockData.currency} = {fxData.rate.toFixed(4)} CHF
+                💱 Wechselkurs am {transactionDate}: 1 {stockData.currency} = {fxData.rate.toFixed(4)} CHF
               </p>
             </div>
           )}
@@ -422,9 +449,9 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
             <Button variant="outline" onClick={handleClose} className="bg-slate-700 hover:bg-slate-600">
               Abbrechen
             </Button>
-            <Button 
-              onClick={handleSubmit} 
-              disabled={createTransactionMutation.isPending}
+            <Button
+              onClick={handleSubmit}
+              disabled={createTransactionMutation.isPending || fxRateMissing}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {createTransactionMutation.isPending ? "Speichern..." : "Speichern"}

@@ -1,13 +1,21 @@
 /**
- * Portfolio Performance Calculations Module
- * 
- * This module provides accurate calculations for:
- * - Time-Weighted Return (TWR)
- * - Money-Weighted Return (IRR/MWR)
- * - Total Return (absolute and percentage)
- * - Unrealized gains/losses
- * - Realized gains/losses
- * - Portfolio value over time
+ * Portfolio Performance Calculations Module — LEGACY (R-04/D-01)
+ *
+ * DEPRECATED as a history/return engine: `buildValuePoints` values PAST dates
+ * with CURRENT prices, so every TWR/MWR/value-history number derived from it
+ * is meaningless once prices have moved. The user-facing consumers
+ * (routers/portfolioPerformanceRouter.ts) have been rewired onto the
+ * historically-correct pipeline (lib/performanceService.ts +
+ * lib/performanceEngine.ts). Do NOT wire new consumers onto
+ * `buildValuePoints`, `calculatePerformanceMetrics`,
+ * `calculateTimeWeightedReturn` or `calculateMoneyWeightedReturn`.
+ *
+ * Still legitimately in use (point-in-time, no history involved):
+ * - `calculateHoldingsPerformance` (cost basis / current value per holding)
+ * - `calculatePortfolioValueAtDate` (takes historical prices as input)
+ *
+ * The module is kept (not deleted) because CT-1/CT-6
+ * (server/__characterization__/) pin its behavior including the known bugs.
  */
 
 import { PortfolioTransaction } from "../drizzle/schema";
@@ -256,6 +264,12 @@ export function calculateHoldingsPerformance(
 
 /**
  * Calculate comprehensive performance metrics for a portfolio
+ *
+ * @deprecated R-04/D-01 — the TWR/MWR fields are derived from
+ * `buildValuePoints`, which values past dates with CURRENT prices. Use
+ * lib/performanceService.calculatePortfolioPerformance instead. Kept only for
+ * the CT-1 characterization pins; no user-facing consumer remains.
+ *
  * @param transactions All transactions for the portfolio
  * @param currentPrices Map of ticker to current price
  * @param realizedGainsTotal Total realized gains from closed positions
@@ -331,11 +345,17 @@ export function calculatePerformanceMetrics(
 /**
  * Build portfolio value points from transactions
  * This creates a timeline of portfolio values and cash flows
- * 
+ *
+ * @deprecated R-04/D-01 — values every PAST date with CURRENT prices
+ * (`currentPrices.get(ticker)`), producing a flat series that is wrong as soon
+ * as prices move. Use lib/performanceService (historical prices) instead.
+ * Kept only for the CT-1 characterization pins; no user-facing consumer
+ * remains.
+ *
  * IMPORTANT: Initial investments (first buy transactions on portfolio creation date)
  * are treated as performance-neutral (cashFlow = 0) to establish the baseline.
  * Only subsequent cash flows affect TWR calculation.
- * 
+ *
  * @param transactions All transactions for the portfolio
  * @param currentPrices Map of ticker to current price
  * @param portfolioCreationDate Optional: Date when portfolio was created (for initial investment handling)

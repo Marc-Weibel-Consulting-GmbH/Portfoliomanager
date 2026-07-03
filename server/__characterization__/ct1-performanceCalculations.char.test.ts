@@ -2,6 +2,14 @@
  * CT-1 — Charakterisierungstests für calculatePerformanceMetrics + buildValuePoints
  * (server/performanceCalculations.ts)
  *
+ * STATUS (R-04/D-01): Das Modul ist LEGACY/DEPRECATED. Seit Phase 2.7 hat es
+ * KEINE user-facing Konsumenten mehr — routers/portfolioPerformanceRouter.ts
+ * bezieht TWR/MWR und die Wert-Historie aus der historisch korrekten Pipeline
+ * (lib/performanceService.ts); nur calculateHoldingsPerformance (CT-6,
+ * point-in-time) bleibt in Gebrauch. Diese Pins dokumentieren das eingefrorene
+ * Fehlverhalten der stillgelegten Funktionen (flache Serie aus HEUTIGEN
+ * Kursen) und schützen vor versehentlicher Wiederverwendung.
+ *
  * Pinnt das IST-Verhalten inkl. bekannter Fehler (siehe OPTIMIZATION_PLAN.md).
  * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
  *

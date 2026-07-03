@@ -684,6 +684,16 @@ export const dashboardRouter = router({
         return { ttwror: 0, irr: 0, annualizedTtwror: 0, periodDays: 0, dailySeries: [] };
       }
 
+      // R-15: Zeilen ohne totalAmountCHF/fxRate mit dem FX-Kurs zum
+      // TRANSAKTIONSDATUM auflösen, bevor Cash-Timeline und Flows sie lesen
+      // (vorher: Lokalbetrag stillschweigend als CHF gemischt).
+      const { withResolvedGrossAmountCHF } = await import("../lib/transactionSemantics");
+      const { tryGetFxRate } = await import("../fxHelper");
+      const resolvedTransactions = await withResolvedGrossAmountCHF(
+        allTransactions,
+        (currency, date) => tryGetFxRate(date, `${currency}CHF`)
+      );
+
       // Don't go before earliest transaction
       if (startDateStr < earliestTxDate) startDateStr = earliestTxDate;
 
@@ -742,7 +752,7 @@ export const dashboardRouter = router({
 
       // Build cash balances
       const cashBalances = new Map<string, number>();
-      const sortedTxs = [...allTransactions].sort((a, b) => {
+      const sortedTxs = [...resolvedTransactions].sort((a, b) => {
         const da = new Date(a.transactionDate).toISOString();
         const db2 = new Date(b.transactionDate).toISOString();
         return da.localeCompare(db2);
@@ -773,7 +783,7 @@ export const dashboardRouter = router({
       const valuations = buildDailyValuations(holdingsTimeline, pricesCHF, cashBalances, sortedDates);
 
       // Extract external cash flows
-      const cashFlows = extractPortfolioCashFlows(allTransactions);
+      const cashFlows = extractPortfolioCashFlows(resolvedTransactions);
 
       // Calculate TTWROR
       const ttwrorResult = calculateTTWROR(valuations, cashFlows);
