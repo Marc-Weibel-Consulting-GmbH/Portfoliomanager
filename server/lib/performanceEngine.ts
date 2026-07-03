@@ -20,6 +20,7 @@
  */
 
 import { getSignedFlowCHF } from './transactionSemantics';
+import { daysBetweenUTC, yearsBetween, annualizeReturn } from './dateMath';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & Interfaces
@@ -178,20 +179,14 @@ export function calculateTTWROR(
 
   const totalReturn = cumulativeProduct - 1;
 
-  // Calculate annualized return
-  const startDate = new Date(sorted[0].date);
-  const endDate = new Date(sorted[sorted.length - 1].date);
-  const periodDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-
-  let annualizedReturn = 0;
-  if (periodDays >= 365) {
-    // Standard annualization: (1 + total)^(365/days) - 1
-    annualizedReturn = Math.pow(1 + totalReturn, 365 / periodDays) - 1;
-  } else {
-    // For periods less than a year, just report the periodic return
-    // (annualizing short periods can be misleading)
-    annualizedReturn = totalReturn;
-  }
+  // R-16: einheitliche Konvention via lib/dateMath — 365.25-Basis, geometrisch,
+  // Annualisierung NUR für Perioden > 1 Jahr; unterjährig wird die
+  // Periodenrendite ausgewiesen (vorher: 365-Basis ab >= 365 Tagen).
+  const periodDays = Math.max(1, daysBetweenUTC(sorted[0].date, sorted[sorted.length - 1].date));
+  const annualizedReturn = annualizeReturn(
+    totalReturn,
+    yearsBetween(sorted[0].date, sorted[sorted.length - 1].date)
+  );
 
   return {
     totalReturn,
@@ -242,9 +237,9 @@ export function calculateIRR(
   // If no cash flows and MVB > 0, simple return
   if (cashFlows.length === 0 && mvb > 0) {
     const simpleReturn = (mve / mvb) - 1;
-    const annualized = totalDays >= 365
-      ? Math.pow(1 + simpleReturn, 365 / totalDays) - 1
-      : simpleReturn;
+    // R-16: Annualisierung nur > 1 Jahr, 365.25-Basis (lib/dateMath);
+    // unterjährig wird die Periodenrendite ausgewiesen.
+    const annualized = annualizeReturn(simpleReturn, yearsBetween(startDate, endDate));
     return { annualizedIRR: annualized, periodicIRR: simpleReturn, converged: true, iterations: 0 };
   }
 
@@ -256,6 +251,12 @@ export function calculateIRR(
   // Newton-Raphson iteration to find IRR
   // f(r) = MVB × (1+r)^(RD/365) + Σ CFt × (1+r)^(RDt/365) - MVE = 0
   // f'(r) = MVB × (RD/365) × (1+r)^(RD/365 - 1) + Σ CFt × (RDt/365) × (1+r)^(RDt/365 - 1)
+  //
+  // R-16-Hinweis: Die 365er-Basis INNERHALB der IRR-Diskontierung folgt
+  // bewusst der dokumentierten Portfolio-Performance-Referenzformel (siehe
+  // Modul-Header) und ist durch CT-3 gepinnt; die repo-weite
+  // Annualisierungs-Konvention (365.25, lib/dateMath) gilt für die
+  // Rendite-AUSWEISUNG (TTWROR/Simple-Return oben).
 
   const MAX_ITERATIONS = 100;
   const TOLERANCE = 1e-10;
@@ -472,11 +473,13 @@ export function calculatePerformance(
 // Utility Functions
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Calculate days between two dates (YYYY-MM-DD strings) */
+/**
+ * Calculate days between two dates (YYYY-MM-DD strings).
+ * R-16: delegiert an lib/dateMath (floor der exakten UTC-ms-Differenz,
+ * vorzeichenbehaftet — kein Math.abs/Math.ceil).
+ */
 function daysBetween(startDate: string, endDate: string): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return daysBetweenUTC(startDate, endDate);
 }
 
 /**

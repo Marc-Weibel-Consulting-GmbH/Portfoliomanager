@@ -213,7 +213,12 @@ export async function calculatePortfolioPerformance(
   const firstValuationDate = valuations.length > 0 ? valuations[0].date : input.startDate;
   const postBaselineFlows: CashFlow[] = cashFlows.filter(cf => cf.date > firstValuationDate);
 
-  const irr = calculateIRR(mvb, mve, postBaselineFlows, input.startDate, input.endDate);
+  // R-17: IRR-Periode an die tatsächlich BEWERTETEN Stichtage koppeln (erster/
+  // letzter Preisstand). Vorher lief die Periode bis input.endDate (bei
+  // Aufrufern oft «heute» via new Date()), obwohl MVE am letzten Preisdatum
+  // steht — die Periode war zu lang, die annualisierte IRR zu tief.
+  const lastValuationDate = valuations.length > 0 ? valuations[valuations.length - 1].date : input.endDate;
+  const irr = calculateIRR(mvb, mve, postBaselineFlows, firstValuationDate, lastValuationDate);
 
   // 13. Calculate totals
   const totalInvested = postBaselineFlows
@@ -361,7 +366,10 @@ export async function calculateAggregatedPerformance(
   // vorzeichen-normalisiert, R-01 — siehe lib/transactionSemantics.ts).
   const firstValuationDate = valuations.length > 0 ? valuations[0].date : startDate;
   const postBaselineFlows: CashFlow[] = cashFlows.filter(cf => cf.date > firstValuationDate);
-  const irr = calculateIRR(mvb, mve, postBaselineFlows, startDate, endDate);
+  // R-17: IRR-Periode an die bewerteten Stichtage koppeln (s. o. in
+  // calculatePortfolioPerformance).
+  const lastValuationDate = valuations.length > 0 ? valuations[valuations.length - 1].date : endDate;
+  const irr = calculateIRR(mvb, mve, postBaselineFlows, firstValuationDate, lastValuationDate);
 
   // Totals
   const totalInvested = postBaselineFlows

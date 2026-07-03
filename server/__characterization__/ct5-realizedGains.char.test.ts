@@ -11,15 +11,16 @@
  *
  * DB-Mocking: getDb() baut die Drizzle-Instanz via drizzle(process.env.DATABASE_URL)
  * — der mysql2-Treiber wird durch ein In-Memory-Double ersetzt. Im Verkaufs-Zweig
- * gibt es genau eine SELECT-Abfrage (seit R-03: ALLE Transaktionen des Tickers,
- * Buys UND Sells); das Double liefert dafür die Fixture-Zeilen, die «zum
- * Zeitpunkt des Verkaufs» in der DB lägen. INSERTs (portfolioTransactions,
- * realizedGains) werden aufgezeichnet.
+ * gibt es zwei SELECT-Abfragen mit identischem Resultat (seit R-20 die
+ * Oversell-Validierung VOR dem Insert, seit R-03 der Moving-Average-Replay:
+ * beide lesen ALLE Transaktionen des Tickers, Buys UND Sells); das Double
+ * liefert dafür die Fixture-Zeilen, die «zum Zeitpunkt des Verkaufs» in der DB
+ * lägen. INSERTs (portfolioTransactions, realizedGains) werden aufgezeichnet.
  * fxHelper (getStockCurrency/getFxRate) ist gemockt und protokolliert die Aufrufe.
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { S4, S15, D } from "./fixtures";
+import { S4, S10, S15, D } from "./fixtures";
 
 const h = vi.hoisted(() => ({
   /** Ledger-Zeilen (Buys UND Sells des Tickers), die das SELECT im Verkaufs-Zweig liefert. */
@@ -118,6 +119,26 @@ describe("CT-5 createPortfolioTransaction — Verkaufs-Zweig (Szenario 4)", () =
     const rg = h.inserts[1];
     expect(rg.avgCostBasis).toBe("30.00"); // vorher (R-03): "20.00"
     expect(rg.realizedGain).toBe("0.00"); // vorher (R-03): "1000.00"
+  });
+});
+
+describe("CT-5 createPortfolioTransaction — Oversell-Validierung (Szenario 10, R-20)", () => {
+  it("Verkauf 150 bei Bestand 100 wird mit deutschem Fehler abgelehnt — kein INSERT", async () => {
+    // vorher (R-20): der Oversell wurde persistiert und erzeugte downstream
+    // negative Positionen/Kostenbasen (vgl. die R-20-Pins in CT-1/CT-4/CT-6);
+    // jetzt lehnt der Live-Schreibpfad den Verkauf VOR dem Insert ab.
+    h.buyRows = [S10.transactions[0]]; // Kauf 100 OVER liegt in der DB
+    await expect(
+      createPortfolioTransaction(toInsert(S10.transactions[1])) // Verkauf 150 OVER
+    ).rejects.toThrow("Verkauf von 150 Stück OVER nicht möglich — Bestand ist 100 Stück");
+    expect(h.inserts).toEqual([]); // Validierung greift VOR dem Schreiben
+  });
+
+  it("Verkauf exakt in Bestandeshöhe bleibt zulässig (Gegenprobe)", async () => {
+    h.buyRows = [S4.transactions[0]]; // Kauf 100@10
+    const res = await createPortfolioTransaction(toInsert(S4.transactions[1])); // Verkauf 100@20
+    expect(res.realizedGain.amount).toBe(1000);
+    expect(h.inserts.length).toBe(2); // portfolioTransactions + realizedGains
   });
 });
 

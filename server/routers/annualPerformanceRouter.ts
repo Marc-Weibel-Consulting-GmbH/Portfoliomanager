@@ -25,8 +25,11 @@ export const annualPerformanceRouter = router({
       }
       
       const year = input.year || new Date().getFullYear();
-      const yearStart = new Date(year, 0, 1);
-      const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+      // R-17: Jahres-Stichtage in UTC konstruieren — vorher new Date(year,0,1)
+      // in der SERVER-Zeitzone, inkonsistent zum UTC-Tages-Bucketing der
+      // Transaktionen (siehe lib/dateMath.ts, toUTCDateString-Konvention).
+      const yearStart = new Date(Date.UTC(year, 0, 1));
+      const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
       
       // Calculate live performance inline (same logic as calculateLivePerformance procedure)
       // R-15: Zeilen ohne totalAmountCHF/fxRate mit dem FX-Kurs zum
@@ -208,7 +211,12 @@ export const annualPerformanceRouter = router({
           const txDate = new Date(tx.transactionDate);
           return txDate >= yearStart && txDate <= yearEnd;
         })
-        .reduce((sum: number, tx: any) => sum + parseFloat(tx.totalAmount || '0'), 0);
+        // Latenter FX-Bug behoben: vorher parseFloat(tx.totalAmount) — der
+        // LOKALBETRAG (z. B. USD) floss unkonvertiert in die CHF-Summe.
+        // getGrossAmountCHF liest den CHF-Betrag; Zeilen ohne totalAmountCHF
+        // sind oben bereits via withResolvedGrossAmountCHF (R-15, FX-Kurs zum
+        // Transaktionsdatum) aufgelöst.
+        .reduce((sum: number, tx: any) => sum + getGrossAmountCHF(tx), 0);
       
       // Calculate total fees for the year
       const totalFees = transactions

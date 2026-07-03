@@ -687,7 +687,7 @@ export const dashboardRouter = router({
       // R-15: Zeilen ohne totalAmountCHF/fxRate mit dem FX-Kurs zum
       // TRANSAKTIONSDATUM auflösen, bevor Cash-Timeline und Flows sie lesen
       // (vorher: Lokalbetrag stillschweigend als CHF gemischt).
-      const { withResolvedGrossAmountCHF } = await import("../lib/transactionSemantics");
+      const { withResolvedGrossAmountCHF, getSignedFlowCHF } = await import("../lib/transactionSemantics");
       const { tryGetFxRate } = await import("../fxHelper");
       const resolvedTransactions = await withResolvedGrossAmountCHF(
         allTransactions,
@@ -765,8 +765,10 @@ export const dashboardRouter = router({
         const fees = parseFloat(tx.fees || '0');
         let change = 0;
         switch (tx.transactionType) {
-          case 'deposit': case 'entry': change = amountCHF; break;
-          case 'withdrawal': change = -amountCHF; break;
+          // R-01: getSignedFlowCHF normalisiert beide Speicher-Konventionen
+          // (vorher machte `-amountCHF` aus einer negativ gespeicherten
+          // Entnahme einen Cash-ZUFLUSS).
+          case 'deposit': case 'entry': case 'withdrawal': change = getSignedFlowCHF(tx); break;
           case 'buy': change = -(amountCHF + fees); break;
           case 'sell': change = amountCHF - fees; break;
           case 'dividend': change = amountCHF; break;
@@ -795,7 +797,12 @@ export const dashboardRouter = router({
         ...cf,
         amount: cf.type === 'withdrawal' ? -Math.abs(cf.amount) : Math.abs(cf.amount),
       }));
-      const irrResult = calculateIRR(mvb, mve, irrCashFlows, startDateStr, todayStr);
+      // R-17: IRR-Periode an die tatsächlich BEWERTETEN Stichtage koppeln —
+      // vorher lief die Periode bis «heute» (new Date()), obwohl MVE am
+      // letzten Preisdatum steht.
+      const irrStartStr = valuations.length > 0 ? valuations[0].date : startDateStr;
+      const irrEndStr = valuations.length > 0 ? valuations[valuations.length - 1].date : todayStr;
+      const irrResult = calculateIRR(mvb, mve, irrCashFlows, irrStartStr, irrEndStr);
 
       // Downsample daily series to max 60 points for chart
       const step = Math.max(1, Math.floor(ttwrorResult.dailySeries.length / 60));

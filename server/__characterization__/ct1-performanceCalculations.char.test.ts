@@ -67,11 +67,15 @@ describe("CT-1 calculatePerformanceMetrics", () => {
     // Cash enthält, ergibt sich +100 % statt der echten ~+3.97 % (vgl. CT-2).
     // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-04.
     expect(m.timeWeightedReturn).toBe(100);
-    // vorher (R-01): ~0 %. Jetzt: die (korrekt positive) Entnahme +10'000 und
-    // der Endwert +10'000 sind die einzigen IRR-Flows (Initial-Deposit ist
-    // performance-neutral) → Gleichung unlösbar, Newton-Clamp rate=10,
-    // Hochrechnung auf < 1 Jahr → ~1'697 % (R-25 + R-16, unverändert offen).
-    expect(m.moneyWeightedReturn).toBeCloseTo(1696.7304893707496, 8);
+    // vorher (R-01): ~0 %. Die (korrekt positive) Entnahme +10'000 und der
+    // Endwert +10'000 sind die einzigen IRR-Flows (Initial-Deposit ist
+    // performance-neutral) → Gleichung unlösbar, Newton-Clamp rate=10 (R-25,
+    // dokumentiert offen).
+    // vorher (R-16): 1696.7304893707496 — die geklemmte Rate wurde via
+    // (1+r)^(1/Jahre) über die UNTERJÄHRIGE Periode (303 Tage, 365er-Basis)
+    // zusätzlich aufgeblasen. Jetzt (lib/dateMath): unterjährig keine
+    // Annualisierung → die Clamp-Rate 10 wird als 1'000 % ausgewiesen.
+    expect(m.moneyWeightedReturn).toBe(1000);
     // Bestandsdaten selbst bleiben korrekt:
     expect(m.unrealizedGains).toBe(500);
     expect(m.currentValue).toBe(10000);
@@ -156,9 +160,11 @@ describe("CT-1 calculatePerformanceMetrics", () => {
     expect(m.unrealizedGains).toBe(0);
     expect(m.timeWeightedReturn).toBe(0);
     // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-20 + R-25:
-    // MWR = ~1'697 % aus dem Verkaufserlös als einzigem Flow gegen Endwert 0
+    // MWR aus dem Verkaufserlös als einzigem Flow gegen Endwert 0
     // (Newton-Raphson-Clamp rate=10, stillschweigend zurückgegeben).
-    expect(m.moneyWeightedReturn).toBeCloseTo(1696.7304893707496, 8);
+    // vorher (R-16): 1696.7304893707496 — unterjährige Hochrechnung der
+    // Clamp-Rate; jetzt (lib/dateMath) unverändert 1'000 %.
+    expect(m.moneyWeightedReturn).toBe(1000);
   });
 });
 

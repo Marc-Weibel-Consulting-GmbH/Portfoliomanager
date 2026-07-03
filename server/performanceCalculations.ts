@@ -20,6 +20,7 @@
 
 import { PortfolioTransaction } from "../drizzle/schema";
 import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF } from "./lib/transactionSemantics";
+import { daysBetweenUTC, yearsBetween, annualizeReturn } from "./lib/dateMath";
 
 export interface PortfolioValuePoint {
   date: string; // YYYY-MM-DD
@@ -85,15 +86,12 @@ export function calculateTimeWeightedReturn(valuePoints: PortfolioValuePoint[]):
   }
   
   const totalReturn = (cumulativeReturn - 1) * 100;
-  
-  // Annualize if period is longer than 1 year
-  const daysDiff = daysBetween(sorted[0].date, sorted[sorted.length - 1].date);
-  if (daysDiff > 365) {
-    const years = daysDiff / 365;
-    return (Math.pow(1 + totalReturn / 100, 1 / years) - 1) * 100;
-  }
-  
-  return totalReturn;
+
+  // R-16: einheitliche Konvention via lib/dateMath — 365.25-Basis, geometrisch,
+  // Annualisierung NUR für Perioden > 1 Jahr (vorher: 365-Basis mit
+  // Math.ceil/Math.abs-behaftetem daysBetween).
+  const years = yearsBetween(sorted[0].date, sorted[sorted.length - 1].date);
+  return annualizeReturn(totalReturn / 100, years) * 100;
 }
 
 /**
@@ -138,13 +136,15 @@ export function calculateMoneyWeightedReturn(
   
   // Calculate IRR using Newton-Raphson method
   const irr = calculateIRR(cashFlows, startDate);
-  
-  // Annualize the IRR
-  const daysDiff = daysBetween(startDate, endDate);
+
+  // R-16: Annualisierung via lib/dateMath — 365.25-Basis, geometrisch, NUR für
+  // Perioden > 1 Jahr; unterjährige Perioden weisen die Rate unverändert aus.
+  // Vorher blies (1+r)^(1/Jahre) mit Jahren < 1 die Rate auf (z. B. eine
+  // geklemmte Newton-Rate über 303 Tage auf ~1'697 % statt 1'000 %).
+  const daysDiff = daysBetweenUTC(startDate, endDate);
   if (daysDiff === 0) return 0;
-  
-  const years = daysDiff / 365;
-  return (Math.pow(1 + irr, 1 / years) - 1) * 100;
+
+  return annualizeReturn(irr, yearsBetween(startDate, endDate)) * 100;
 }
 
 /**
@@ -167,7 +167,8 @@ function calculateIRR(
     let dnpv = 0;
     
     for (const cf of cashFlows) {
-      const years = daysBetween(startDate, cf.date) / 365;
+      // R-16: Day-Count via lib/dateMath (365.25-Basis; vorher 365 mit Math.ceil).
+      const years = yearsBetween(startDate, cf.date);
       const discountFactor = Math.pow(1 + rate, years);
       
       npv += cf.amount / discountFactor;
@@ -185,7 +186,13 @@ function calculateIRR(
     if (rate < -0.99) rate = -0.99;
     if (rate > 10) rate = 10;
   }
-  
+
+  // R-25 (Klasse): Newton-Raphson ist NICHT konvergiert — die letzte
+  // (unkonvergierte, ggf. auf [−0.99, 10] geklemmte) Rate wird stillschweigend
+  // zurückgegeben, ohne Kennzeichnung. Dieses Modul ist LEGACY/DEPRECATED
+  // (R-04/D-01, keine user-facing Konsumenten; CT-1 pinnt das Verhalten) —
+  // bewusst nur dokumentiert, nicht geändert. Die Live-Engine
+  // (lib/performanceEngine.calculateIRR) liefert dagegen converged=false.
   return rate;
 }
 
@@ -467,19 +474,6 @@ export function buildValuePoints(
   }
   
   return valuePoints;
-}
-
-/**
- * Calculate number of days between two dates
- * @param date1 First date (YYYY-MM-DD)
- * @param date2 Second date (YYYY-MM-DD)
- * @returns Number of days between the dates
- */
-function daysBetween(date1: string, date2: string): number {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  const diffTime = Math.abs(d2.getTime() - d1.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
 /**

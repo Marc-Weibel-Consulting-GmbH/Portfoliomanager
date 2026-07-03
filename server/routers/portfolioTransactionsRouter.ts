@@ -441,7 +441,8 @@ export const portfolioTransactionsRouter = router({
       const { portfolioTransactions, historicalPrices } = await import("../../drizzle/schema");
       const { eq, and } = await import("drizzle-orm");
       const { tryGetFxRate } = await import("../fxHelper");
-      const { getSavedPortfolioById } = await import("../db");
+      const { getSavedPortfolioById, assertSellWithinHoldings } = await import("../db");
+      const { parseCsvDate } = await import("../lib/csvDate");
       
       const db = await getDb();
       if (!db) {
@@ -512,24 +513,12 @@ export const portfolioTransactionsRouter = router({
             throw new Error(`Invalid price: ${cols[priceIdx]}`);
           }
           
-          // Parse date (support multiple formats)
-          let transactionDate: Date;
-          if (dateStr.includes('.')) {
-            // DD.MM.YYYY format
-            const [day, month, year] = dateStr.split('.');
-            transactionDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-          } else if (dateStr.includes('/')) {
-            // MM/DD/YYYY or DD/MM/YYYY
-            transactionDate = new Date(dateStr);
-          } else {
-            // ISO format YYYY-MM-DD
-            transactionDate = new Date(dateStr);
-          }
-          
-          if (isNaN(transactionDate.getTime())) {
-            throw new Error(`Invalid date: ${dateStr}`);
-          }
-          
+          // R-21: explizite Datumsformate (ISO, DD.MM.YYYY; Slash-Angaben
+          // IMMER als DD/MM/YYYY, Schweizer Konvention) statt new Date()-Raten
+          // (vorher wurde 03/04/2026 US-gedeutet). Ungültige/mehrdeutige Daten
+          // werfen einen deutschen Fehler pro Zeile — siehe lib/csvDate.ts.
+          const transactionDate = parseCsvDate(dateStr);
+
           // Detect currency from ticker
           let currency = 'CHF';
           if (ticker.endsWith('.SW')) {
@@ -552,7 +541,14 @@ export const portfolioTransactionsRouter = router({
           
           const totalAmount = shares * price;
           const totalAmountCHF = totalAmount * fxRate;
-          
+
+          // R-20: Oversell-Validierung pro Zeile — gleiche Prüfung wie im
+          // Live-Schreibpfad (db.ts createPortfolioTransaction); der deutsche
+          // Fehler landet via catch in results.errors («Row i: …»).
+          if (transactionType === 'sell') {
+            await assertSellWithinHoldings(input.portfolioId, ticker, shares, transactionDate);
+          }
+
           // Insert transaction
           await db.insert(portfolioTransactions).values({
             portfolioId: input.portfolioId,

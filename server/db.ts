@@ -2,6 +2,7 @@ import { eq, sql, isNotNull, ne, desc, lt, and, asc, gte, lte } from "drizzle-or
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, InsertLogoCache, LogoCache, stocks, users, news, transactions, savedPortfolios, categories, logoCache } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { roundRappen } from './lib/rounding';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -766,6 +767,74 @@ export async function togglePortfolioLive(id: number, userId: number, isLive: bo
 }
 
 // Portfolio transactions
+/** Kompakte Stückzahl-Darstellung für Fehlermeldungen (ohne Float-Rauschen). */
+function formatShareCount(n: number): string {
+  return String(Number(n.toFixed(4)));
+}
+
+/**
+ * R-20: Bestand (Stückzahl) eines Titels in einem Portfolio zum Zeitpunkt
+ * `atDate` — chronologischer Replay der Buy/Sell-Zeilen. Verkäufe klemmen bei
+ * 0 (konsistent zum Moving-Average-Replay im Verkaufs-Zweig für Legacy-Zeilen).
+ */
+export async function getSharesHeldAt(portfolioId: number, ticker: string, atDate: Date): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { portfolioTransactions } = await import("../drizzle/schema");
+
+  const rows = await db
+    .select()
+    .from(portfolioTransactions)
+    .where(
+      and(
+        eq(portfolioTransactions.portfolioId, portfolioId),
+        eq(portfolioTransactions.ticker, ticker)
+      )
+    );
+
+  const atTime = atDate.getTime();
+  const trades = rows
+    .filter(
+      (row: any) =>
+        (row.transactionType === 'buy' || row.transactionType === 'sell') &&
+        new Date(row.transactionDate).getTime() <= atTime
+    )
+    .sort(
+      (a: any, b: any) =>
+        new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime() ||
+        a.id - b.id
+    );
+
+  let held = 0;
+  for (const trade of trades) {
+    const shares = parseFloat(trade.shares || '0');
+    if (!(shares > 0)) continue;
+    held = trade.transactionType === 'buy' ? held + shares : Math.max(0, held - shares);
+  }
+  return held;
+}
+
+/**
+ * R-20: Oversell-Validierung — wirft einen deutschen Fehler, wenn `sharesSold`
+ * den Bestand zum Verkaufszeitpunkt übersteigt (statt stillschweigend negative
+ * Positionen/Kostenbasen zu erzeugen). Gemeinsame Validierung der Live-
+ * Schreibpfade (createPortfolioTransaction, CSV-Import).
+ */
+export async function assertSellWithinHoldings(
+  portfolioId: number,
+  ticker: string,
+  sharesSold: number,
+  atDate: Date
+): Promise<void> {
+  const held = await getSharesHeldAt(portfolioId, ticker, atDate);
+  const EPSILON = 1e-6; // Float-Toleranz (z. B. Bruchteils-Stücke aus Importen)
+  if (sharesSold > held + EPSILON) {
+    throw new Error(
+      `Verkauf von ${formatShareCount(sharesSold)} Stück ${ticker} nicht möglich — Bestand ist ${formatShareCount(held)} Stück`
+    );
+  }
+}
+
 export async function createPortfolioTransaction(transaction: any) {
   console.log("[DB] createPortfolioTransaction called with:", JSON.stringify(transaction, null, 2));
   const db = await getDb();
@@ -853,7 +922,42 @@ export async function createPortfolioTransaction(transaction: any) {
       throw new Error(`Unzureichende Liquidität: Cash-Position würde CHF ${Math.round(newCashPosition).toLocaleString('de-CH')} betragen. Bitte zahlen Sie zuerst Geld ein.`);
     }
   }
-  
+
+  // R-20: Oversell-Validierung VOR dem Insert — ein Verkauf über den Bestand
+  // hinaus wird abgelehnt (vorher: negative Positionen/Kostenbasen, die
+  // downstream stillschweigend auf 0 geklemmt wurden).
+  if (transaction.transactionType === 'sell' && transaction.ticker) {
+    await assertSellWithinHoldings(
+      transaction.portfolioId,
+      transaction.ticker,
+      parseFloat(transaction.shares || '0'),
+      new Date(transaction.transactionDate)
+    );
+  }
+
+  // R-22: Schweizer Rappenrundung (0.05) für persistierte CASH-Beträge —
+  // Ein-/Auszahlungen und Dividenden-Auszahlungen (Settlement) sowie Gebühren.
+  // Kurse, Stückzahlen und Brutto-Handelswerte bleiben ungerundet
+  // (Konvention: siehe server/lib/rounding.ts).
+  if (['deposit', 'withdrawal', 'dividend'].includes(transaction.transactionType)) {
+    const chf = parseFloat(transaction.totalAmountCHF ?? '');
+    if (Number.isFinite(chf)) {
+      transaction.totalAmountCHF = roundRappen(chf).toFixed(2);
+    }
+    if (!transaction.currency || transaction.currency === 'CHF') {
+      const local = parseFloat(transaction.totalAmount ?? '');
+      if (Number.isFinite(local)) {
+        transaction.totalAmount = roundRappen(local).toFixed(2);
+      }
+    }
+  }
+  {
+    const fees = parseFloat(transaction.fees ?? '');
+    if (Number.isFinite(fees)) {
+      transaction.fees = roundRappen(fees).toFixed(2);
+    }
+  }
+
   try {
     const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");
     console.log("[DB] Inserting into portfolioTransactions table...");
@@ -942,7 +1046,8 @@ export async function createPortfolioTransaction(transaction: any) {
           totalCostChf += shares * price * buyFx;
         } else {
           // Prior sell consumes basis proportionally (avg cost stays constant).
-          // R-20 stays open: an oversell just clamps the position to zero here.
+          // R-20: neue Oversells werden oben (assertSellWithinHoldings) VOR dem
+          // Insert abgelehnt; der Clamp hier bleibt als Schutz für Legacy-Zeilen.
           const factor = totalShares > 0 ? Math.max(0, (totalShares - shares) / totalShares) : 0;
           totalCost *= factor;
           totalCostChf *= factor;
@@ -950,7 +1055,8 @@ export async function createPortfolioTransaction(transaction: any) {
         }
       }
 
-      // Guard: no remaining position (oversell / no prior buys) → basis 0 (R-20 stays open).
+      // Guard: no remaining position (Legacy-Oversell / no prior buys) → basis 0
+      // (neue Oversells werden seit R-20 vor dem Insert abgelehnt).
       const avgCostBasis = totalShares > 0 ? totalCost / totalShares : 0;
       const sellPrice = parseFloat(transaction.pricePerShare || '0');
       const sharesSold = parseFloat(transaction.shares || '0');
