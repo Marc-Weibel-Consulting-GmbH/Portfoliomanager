@@ -154,3 +154,29 @@
 - L-16/L-20 Alt-Zeilen bereinigen bzw. ISIN→Ticker-Backfill; LVMUY/ABB.SW in stocks anlegen; «APPLE»-Alarm korrigieren; MONC.MI/HELN.SW/ROG.SW Symbol-Mapping.
 - L-14/L-19 recompute-ytd-baselines.ts gegen Prod-DB (adjustedClose).
 - L-17 Empfehlungen kuratieren; L-18 Platform-KPI-Datenpfad.
+
+---
+
+## STATUS DER UMSETZUNG (diese Session)
+
+**Behoben (Code, committet):**
+- L-01/02/04/05/06/07 Landing/Pricing-Copy ✓
+- L-08 Portfolio-Karten-Overlap ✓
+- L-09 Strategie-Scoring-Widget (ticker/combinedScore) ✓
+- L-10/F-12 Copilot verschlankt + Deep-Dive nach Portfolios ✓
+- L-13 Alarm-Widget alle Typen ✓
+- L-15 NaN-Anzeige-Guard ✓
+- L-12 Sharpe/Bubble «—» statt vorgetäuschter 0 ✓
+- L-20 watchlistAlertsCron ISIN-Skip + isLikelyIsin (+ Test) ✓
+
+**Analysiert, kein Code-Bug:**
+- L-03 Markt-Puls-Sektoren/Top-Mover 0.0 %: `fetchEODHDRealTime` liefert korrekt `null`
+  für fehlende Werte (kein 0-Coercion). Der 04.07.2026 ist ein **Samstag** → EODHD-Real-Time
+  liefert `change_p: 0` (Börse zu). Die daneben stehende KI-Analyse stammt vom letzten Handelstag.
+  Echtes Datenverhalten am Wochenende, kein Fehler. Optionale UX-Verbesserung: «Börse geschlossen»-
+  Hinweis am Markt-Puls (nicht umgesetzt — nicht live verifizierbar).
+
+**Nicht umgesetzt (bewusst):**
+- L-11 Portfolios-Leerraum: rein kosmetisch [S], ohne Live-Ansicht nicht zielsicher fixbar.
+- L-14/L-16/L-17/L-18/L-19 + APPLE/MONC.MI/HELN.SW: Datenbereinigung/Symbol-Mapping gegen die
+  Prod-DB (user-seitig), nicht aus dieser Session heraus durchführbar.

@@ -3,7 +3,7 @@
  * mapping, and the /aktien listType fallback decision.
  */
 import { describe, it, expect, vi } from "vitest";
-import { pickTickerFromQuotes, resolveIsinToTicker } from "../lib/isinResolver";
+import { pickTickerFromQuotes, resolveIsinToTicker, isLikelyIsin } from "../lib/isinResolver";
 import { universeListType } from "../lib/watchlistUniverse";
 import { mapWikifolioSearchResults } from "../lib/wikifolioService";
 
@@ -42,6 +42,19 @@ describe("isinResolver", () => {
     await expect(resolveIsinToTicker(vi.fn(), "")).resolves.toBeNull();
     await expect(resolveIsinToTicker(vi.fn().mockResolvedValue({ quotes: [] }), "XX123")).resolves.toBeNull();
     await expect(resolveIsinToTicker(vi.fn().mockRejectedValue(new Error("boom")), "XX123")).resolves.toBeNull();
+  });
+
+  it("isLikelyIsin erkennt ISINs und weist Ticker ab (L-20)", () => {
+    // echte ISINs (12 Zeichen: 2 Buchstaben + 9 alphanumerisch + Prüfziffer)
+    expect(isLikelyIsin("US02079K1079")).toBe(true); // Alphabet
+    expect(isLikelyIsin("CH0012005267")).toBe(true); // Novartis
+    expect(isLikelyIsin("us0378331005")).toBe(true); // klein → normalisiert
+    // Ticker sind keine ISINs
+    expect(isLikelyIsin("AAPL")).toBe(false);
+    expect(isLikelyIsin("ROG.SW")).toBe(false);
+    expect(isLikelyIsin("BRK.B")).toBe(false);
+    expect(isLikelyIsin("")).toBe(false);
+    expect(isLikelyIsin(null)).toBe(false);
   });
 });
 

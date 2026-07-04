@@ -443,7 +443,8 @@ export default function Portfolios() {
                   <div>
                     <div className="text-xs text-gray-400">Sharpe Ratio</div>
                     <div className="text-base font-bold text-purple-400">
-                      {((riskMetrics as any)?.sharpeRatio ?? 0).toFixed(2)}
+                      {/* L-12: fehlende Kennzahl als «—» statt vorgetäuschter 0.00 */}
+                      {(riskMetrics as any)?.sharpeRatio != null ? Number((riskMetrics as any).sharpeRatio).toFixed(2) : '—'}
                     </div>
                     <div className="text-xs text-gray-400">Risikoadj. Rendite</div>
                   </div>
@@ -452,7 +453,7 @@ export default function Portfolios() {
               <TooltipContent side="bottom" className="bg-[#1a1f2e] border-white/20 text-white max-w-[250px] p-3">
                 <p className="text-xs font-semibold mb-1">Sharpe Ratio</p>
                 <p className="text-xs text-gray-300">Misst die risikoadjustierte Rendite. Werte {'>'} 1.0 gelten als gut, {'>'} 2.0 als sehr gut. Berechnet als (Rendite − risikofreier Zins) / Volatilität.</p>
-                <p className="text-xs text-gray-400 mt-1">Benchmark (SMI): {((riskMetrics as any)?.sharpeBenchmark ?? 0).toFixed(2)}</p>
+                <p className="text-xs text-gray-400 mt-1">Benchmark (SMI): {(riskMetrics as any)?.sharpeBenchmark != null ? Number((riskMetrics as any).sharpeBenchmark).toFixed(2) : '—'}</p>
               </TooltipContent>
             </Tooltip>
 
@@ -475,9 +476,10 @@ export default function Portfolios() {
                       ((bubbleData as any)?.level ?? 0) >= 70 ? 'text-red-400' :
                       ((bubbleData as any)?.level ?? 0) >= 40 ? 'text-amber-400' : 'text-emerald-400'
                     }`}>
-                      {(bubbleData as any)?.level ?? 0}/100
+                      {/* L-12: fehlender Bubble-Wert als «—» statt 0/100 */}
+                      {(bubbleData as any)?.level != null ? `${(bubbleData as any).level}/100` : '—'}
                     </div>
-                    <div className="text-xs text-gray-400">{(bubbleData as any)?.label || 'Normal'}</div>
+                    <div className="text-xs text-gray-400">{(bubbleData as any)?.label || ((bubbleData as any)?.level != null ? 'Normal' : 'Keine Daten')}</div>
                   </div>
                 </div>
               </TooltipTrigger>
