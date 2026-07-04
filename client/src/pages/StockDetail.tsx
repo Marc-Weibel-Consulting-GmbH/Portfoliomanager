@@ -547,7 +547,11 @@ export default function StockDetail() {
               </div>
             </div>
             {score !== null && (
-              <ScoreCircle score={score} onClick={() => setShowScoreExplanation(true)} />
+              /* F-07: Header-Score ist der Qualitäts-Score (langfristig, fundamental) */
+              <div className="flex flex-col items-center gap-1">
+                <ScoreCircle score={score} onClick={() => setShowScoreExplanation(true)} />
+                <span className="text-xs text-gray-400">Qualität</span>
+              </div>
             )}
           </div>
         </div>
@@ -751,8 +755,8 @@ export default function StockDetail() {
           <div className="space-y-6">
             {/* LPPLS Bubble-Risiko (Sornette) — nur sichtbar bei relevantem Risiko */}
             <BubbleRiskCard ticker={ticker} />
-            {/* Strategie-Scoring Widget */}
-            <StockScoringWidget ticker={ticker} />
+            {/* F-07: Signal-Score (Strategie) in den Signale-Tab verschoben —
+                die Übersicht zeigt nur noch den Qualitäts-Score im Header. */}
             {/* Analysten-Konsens */}
             <AnalystConsensusCard ticker={ticker} />
             {/* Key Metrics */}
@@ -849,9 +853,12 @@ export default function StockDetail() {
         
         </TabsContent>
 
-          {/* Signale Tab */}
+          {/* Signale Tab — F-07: Signal-Score (Strategie) + Technisches Signal (kurzfristig) */}
           <TabsContent value="signals">
-            <TradingViewSignalsTab ticker={ticker} />
+            <div className="space-y-4">
+              <StockScoringWidget ticker={ticker} />
+              <TradingViewSignalsTab ticker={ticker} />
+            </div>
           </TabsContent>
 
           {/* Chart & TA Tab */}
@@ -1079,49 +1086,55 @@ export default function StockDetail() {
                 <div className="w-10 h-10 rounded-lg bg-[#00CFC1]/20 flex items-center justify-center">
                   <Info className="w-5 h-5 text-[#00CFC1]" />
                 </div>
-                <h3 className="text-xl font-bold text-white">Score-Berechnung</h3>
+                <h3 className="text-xl font-bold text-white">Qualitäts-Score</h3>
               </div>
-              
+
+              {/* F-07: Erklärung entspricht der echten Gewichtung in server/scoring.ts
+                  (calculateStockScore, Dividenden- vs. Wachstumsprofil). */}
               <div className="space-y-4 text-sm text-gray-300">
                 <p>
-                  Der <strong className="text-[#00CFC1]">Score ({score}/100)</strong> bewertet die Gesamtqualität der Aktie basierend auf mehreren Faktoren:
+                  Der <strong className="text-[#00CFC1]">Qualitäts-Score ({score}/100)</strong> misst
+                  die langfristige Qualität einer Aktie anhand von Fundamental- und Risikokennzahlen.
+                  Er sagt nichts über den richtigen Kaufzeitpunkt aus — dafür gibt es das kurzfristige
+                  Technische Signal im Tab «Signale».
                 </p>
-                
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div>
-                    <div>
-                      <strong>Fundamentaldaten (40%):</strong> P/E Ratio, PEG Ratio, Gewinnwachstum, Margen
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div>
-                    <div>
-                      <strong>Risikometriken (30%):</strong> Volatilität, Beta, Sharpe Ratio
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div>
-                    <div>
-                      <strong>Dividenden & Cashflow (20%):</strong> Dividendenrendite, Free Cash Flow
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div>
-                    <div>
-                      <strong>Wettbewerbsvorteile (10%):</strong> Moats, Marktposition
-                    </div>
-                  </div>
+
+                <p>
+                  Je nach Profil der Aktie werden unterschiedliche Kennzahlen gewichtet:
+                </p>
+
+                <div>
+                  <p className="font-semibold text-white mb-1">Dividendentitel</p>
+                  <ul className="space-y-1">
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Dividendenrendite (40%):</strong> Wie viel Ausschüttung Sie im Verhältnis zum Kurs erhalten</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>KGV (30%):</strong> Wie teuer die Aktie im Verhältnis zum Gewinn ist — tiefer ist besser</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Beta (20%):</strong> Wie stark die Aktie mit dem Markt schwankt — stabiler ist besser</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Volatilität (10%):</strong> Wie stark der Kurs schwankt — ruhiger ist besser</span></li>
+                  </ul>
                 </div>
-                
+
+                <div>
+                  <p className="font-semibold text-white mb-1">Wachstumstitel</p>
+                  <ul className="space-y-1">
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Sharpe Ratio (30%):</strong> Rendite im Verhältnis zum eingegangenen Risiko</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>PEG Ratio (25%):</strong> Bewertung im Verhältnis zum Gewinnwachstum — tiefer ist besser</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Gewinnwachstum (25%):</strong> Erwartetes jährliches Gewinnwachstum (aus KGV/PEG abgeleitet)</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Beta (20%):</strong> Marktschwankung — stabiler ist besser</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Momentum YTD (15%):</strong> Kursentwicklung seit Jahresbeginn</span></li>
+                  </ul>
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  Fehlt eine Kennzahl, wird sie herausgerechnet und die übrigen Gewichte werden
+                  entsprechend hochskaliert (die Prozentwerte sind relative Gewichte).
+                </p>
+
                 <div className="pt-3 border-t border-white/10">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#00CFC1]">80-100: Ausgezeichnet</span>
-                    <span className="text-yellow-500">60-79: Gut</span>
-                    <span className="text-red-500">&lt;60: Schwach</span>
+                    <span className="text-[#00CFC1]">&gt;80: Ausgezeichnet</span>
+                    <span className="text-yellow-500">61–80: Gut</span>
+                    <span className="text-orange-400">41–60: Mittel</span>
+                    <span className="text-red-500">≤40: Schwach</span>
                   </div>
                 </div>
               </div>

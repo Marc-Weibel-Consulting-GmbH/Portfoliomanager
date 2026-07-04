@@ -659,6 +659,49 @@ async function processStock(
 
 export const signalsRouter = router({
   /**
+   * F-14: Empfehlungs-Historie (read-only) aus signal_history.
+   * Neueste zuerst, max. 100. Optional nur bereits evaluierte Signale.
+   * Alpha-Felder sind erst für Signale gefüllt, die nach dem Alpha-Deployment
+   * evaluiert wurden (ältere Zeilen bleiben null).
+   */
+  getHistory: protectedProcedure
+    .input(z.object({ onlyEvaluated: z.boolean().default(false) }).optional())
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const { signalHistory } = await import("../../drizzle/schema");
+      const { desc, isNotNull } = await import("drizzle-orm");
+
+      const rows = await db
+        .select()
+        .from(signalHistory)
+        .where(input?.onlyEvaluated ? isNotNull(signalHistory.evaluatedAt) : undefined)
+        .orderBy(desc(signalHistory.computedAt))
+        .limit(100);
+
+      const num = (v: unknown): number | null => {
+        if (v == null) return null;
+        const n = parseFloat(String(v));
+        return isNaN(n) ? null : n;
+      };
+
+      return rows.map((r) => ({
+        id: r.id,
+        date: r.computedAt,
+        ticker: r.ticker,
+        action: r.action,
+        conviction: num(r.conviction),
+        priceAtSignal: num(r.priceAtSignal),
+        evaluated: r.evaluatedAt != null,
+        evaluatedAt: r.evaluatedAt,
+        actualReturnPct: num(r.actualReturnPct),
+        benchmarkReturnPct: num(r.benchmarkReturnPct),
+        alphaPct: num(r.alphaPct),
+        directionCorrect: r.directionCorrect,
+      }));
+    }),
+
+  /**
    * Get regime-based signal for a single ticker (on-demand, for StockDetail page)
    */
   getRegimeSignal: protectedProcedure

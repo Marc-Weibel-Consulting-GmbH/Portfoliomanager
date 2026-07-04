@@ -1,12 +1,15 @@
 /**
- * StockScoringWidget
- * Combined Momentum + Quality + LPPL scoring widget for the StockDetail page.
+ * StockScoringWidget — «Signal-Score (Strategie)»
+ * Combined Momentum + Quality + LPPL scoring widget (StockDetail, Tab «Signale»).
+ * F-07: Teil des Signal-Konzepts — dieser Score fliesst ins Handelssignal ein
+ * und ist bewusst vom langfristigen Qualitäts-Score im Header getrennt.
  */
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, TrendingUp, Shield, Activity, RefreshCw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertCircle, TrendingUp, Shield, Activity, RefreshCw, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -71,8 +74,18 @@ export default function StockScoringWidget({ ticker }: Props) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-sm flex items-center gap-2">
             <Activity className="w-4 h-4 text-[#00CFC1]" />
-            Strategie-Scoring
+            Signal-Score (Strategie)
             <span className="text-gray-500 text-xs font-normal">Momentum + Qualität + LPPL</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-3.5 h-3.5 text-gray-500 hover:text-[#00CFC1] cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Dieser Score fliesst ins Handelssignal ein (kurz- bis mittelfristige Strategie-Sicht).
+                Nicht zu verwechseln mit dem Qualitäts-Score im Seitenkopf, der die langfristige
+                Qualität der Aktie misst.
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           <Button
             variant="ghost"
@@ -84,6 +97,10 @@ export default function StockScoringWidget({ ticker }: Props) {
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
         </div>
+        {/* F-07: Einzeiler zur Einordnung */}
+        <p className="text-gray-500 text-xs">
+          Fliesst als Strategie-Komponente ins Handelssignal ein — kein Qualitätsurteil über die Aktie.
+        </p>
       </CardHeader>
       <CardContent className="p-4 pt-0">
         {isLoading && (

@@ -60,9 +60,14 @@ function deriveSignal(tfData: any): string {
   return "NEUTRAL";
 }
 
-/** Derive overall signal from combined_analysis data */
-function deriveOverallSignal(sigData: any): { signal: string; score: number; reasons: string[] } {
-  if (!sigData) return { signal: "NEUTRAL", score: 50, reasons: [] };
+/**
+ * Derive overall signal from combined_analysis data.
+ * F-07: score ist null, wenn gar keine Indikator-Daten vorliegen — die UI
+ * zeigt dann «Keine Daten» statt eines irreführenden 50/100-Defaults.
+ * 50 bedeutet: Indikatoren vorhanden, aber echt neutral.
+ */
+function deriveOverallSignal(sigData: any): { signal: string; score: number | null; reasons: string[] } {
+  if (!sigData) return { signal: "NEUTRAL", score: null, reasons: [] };
 
   const tech = sigData?.technical || sigData;
   const sentiment = tech?.market_sentiment;
@@ -71,6 +76,17 @@ function deriveOverallSignal(sigData: any): { signal: string; score: number; rea
   const macd = tech?.macd;
   const ema = tech?.ema;
   const adx = tech?.adx;
+
+  // Liegen überhaupt Indikator-Inputs vor? Ohne Inputs → «Keine Daten» (null)
+  const hasData = Boolean(
+    sentiment?.buy_sell_signal ||
+    tech?.timeframe_context?.bias ||
+    (rsi?.value !== undefined && rsi?.value !== null) ||
+    macd?.crossover ||
+    (ema?.signals?.length ?? 0) > 0 ||
+    adx?.di_signal
+  );
+  if (!hasData) return { signal: "NEUTRAL", score: null, reasons: [] };
 
   const reasons: string[] = [];
   let bullPoints = 0;
@@ -296,8 +312,8 @@ export default function TradingViewSignalsTab({ ticker, exchange }: Props) {
     timeframeSignals[tf] = deriveSignal(data);
   });
 
-  // If no timeframes from analysis, create from signals data
-  if (Object.keys(timeframeSignals).length === 0 && sigData) {
+  // If no timeframes from analysis, create from signals data (nur wenn Daten vorliegen)
+  if (Object.keys(timeframeSignals).length === 0 && sigData && overallScore !== null) {
     const tfLabel = sigData.timeframe || "1D";
     timeframeSignals[tfLabel] = overallSignal;
   }
@@ -329,12 +345,20 @@ export default function TradingViewSignalsTab({ ticker, exchange }: Props) {
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <div className="text-gray-400 text-xs uppercase tracking-wide mb-1">Gesamtsignal (TA)</div>
-              <div className="flex items-center gap-2">
-                <SignalIcon signal={overallSignal} />
-                <SignalBadge signal={overallSignal} />
-                <span className="text-gray-400 text-sm">Score: <span className="text-white font-mono">{overallScore}/100</span></span>
-              </div>
+              {/* F-07: klar als kurzfristiges technisches Signal benannt */}
+              <div className="text-gray-400 text-xs uppercase tracking-wide mb-1">Technisches Signal (kurzfristig)</div>
+              {overallScore !== null ? (
+                <div className="flex items-center gap-2">
+                  <SignalIcon signal={overallSignal} />
+                  <SignalBadge signal={overallSignal} />
+                  <span className="text-gray-400 text-sm">Score: <span className="text-white font-mono">{overallScore}/100</span></span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Minus className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-400 text-sm">Keine Daten — für diesen Titel liegen aktuell keine Indikatoren vor</span>
+                </div>
+              )}
             </div>
             {priceData && (
               <div className="text-right">
@@ -345,7 +369,7 @@ export default function TradingViewSignalsTab({ ticker, exchange }: Props) {
               </div>
             )}
           </div>
-          <ScoreBar score={overallScore} />
+          {overallScore !== null && <ScoreBar score={overallScore} />}
           {reasons.length > 0 && (
             <div className="mt-3 space-y-1">
               {reasons.slice(0, 4).map((r, i) => (

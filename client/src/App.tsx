@@ -31,6 +31,7 @@ import Portfolios from "./pages/Portfolios";
 import PortfolioDetailsPage from "./pages/PortfolioDetailsPage";
 import StockDetail from "./pages/StockDetail";
 import Invest from "./pages/Invest";
+import Signals from "./pages/Signals";
 import MarktHub from "./pages/MarktHub";
 import CopilotHub from "./pages/CopilotHub";
 
@@ -104,6 +105,8 @@ function Router() {
 
       {/* ═══ 3. AKTIEN ═══ */}
       <Route path="/aktien" component={Invest} />
+      {/* F-14: Signale-Tab der Aktien-Sektion — muss VOR /aktien/:ticker stehen */}
+      <Route path="/aktien/signale" component={Signals} />
       <Route path="/aktien/:ticker" component={StockDetail} />
       {/* Legacy stock routes → redirect */}
       <Route path="/stock/:ticker">

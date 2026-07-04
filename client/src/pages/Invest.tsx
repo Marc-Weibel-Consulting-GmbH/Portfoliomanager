@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import AktienTabsNav from "@/components/AktienTabsNav";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -201,6 +202,8 @@ export default function Invest() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* F-14: Aktien-Sektion mit Tabs «Titel | Signale» */}
+        <AktienTabsNav active="titel" />
         {/* Hero Section with Search */}
         <div className={`flex flex-col items-center justify-center transition-all duration-500 ${hasSearched || showFilters ? "pt-4 pb-4" : "pt-16 pb-12"}`}>
           {!hasSearched && !showFilters && (
@@ -444,12 +447,13 @@ export default function Invest() {
                         Div.% {sortBy === 'dividend' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
                       </th>
                       <th className="text-center p-3 font-medium">Signal</th>
+                      {/* F-07: als Signal-Score gekennzeichnet — nicht der Qualitäts-Score der Detailseite */}
                       <th
                         className="text-center p-3 font-medium cursor-pointer hover:text-foreground select-none"
                         onClick={() => toggleSort('score')}
-                        title="Nach KI-Score sortieren"
+                        title="Signal-Score (kurzfristiges Handelssignal) — nicht zu verwechseln mit dem Qualitäts-Score"
                       >
-                        Score {sortBy === 'score' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
+                        Signal-Score {sortBy === 'score' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
                       </th>
                       <th className="text-right p-3 font-medium" title="PEG Ratio">PEG</th>
                       <th className="text-right p-3 font-medium"></th>
