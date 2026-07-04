@@ -697,27 +697,27 @@ export default function Portfolios() {
                       </button>
                     </div>
 
-                    {/* Stats Row - Compact with larger fonts */}
+                    {/* Stats Row - Compact; Zahlen bleiben in ihrer Spalte (L-08: Wert/YTD-Overlap) */}
                     <div className="grid grid-cols-3 gap-2 mb-3 py-2 border-y border-white/5">
-                      <div className="text-center">
+                      <div className="text-center min-w-0">
                         <div className="text-xs text-gray-400">Positionen</div>
-                        <div className="text-base font-semibold text-white">{positionCount}</div>
+                        <div className="text-sm font-semibold text-white tabular-nums">{positionCount}</div>
                       </div>
-                      <div className="text-center">
+                      <div className="text-center min-w-0">
                         <div className="text-xs text-gray-400">Wert</div>
-                        <div className="text-base font-semibold text-white">
+                        <div className="text-sm font-semibold text-white tabular-nums whitespace-nowrap truncate">
                           {formatCHF(portfolio.currentValue ?? 0, { decimals: 0 })}
                         </div>
                       </div>
-                      <div className="text-center">
+                      <div className="text-center min-w-0">
                         <div className="text-xs text-gray-400" title="YTD = seit Jahresbeginn">YTD</div>
-                        <div className={`text-base font-semibold flex items-center justify-center gap-0.5 ${
+                        <div className={`text-sm font-semibold flex items-center justify-center gap-0.5 tabular-nums whitespace-nowrap ${
                           performance >= 0 ? "text-[#00CFC1]" : "text-negative"
                         }`}>
                           {performance >= 0 ? (
-                            <TrendingUp className="h-4 w-4" />
+                            <TrendingUp className="h-4 w-4 shrink-0" />
                           ) : (
-                            <TrendingDown className="h-4 w-4" />
+                            <TrendingDown className="h-4 w-4 shrink-0" />
                           )}
                           {formatPercent(performance)}
                         </div>
@@ -829,7 +829,12 @@ export default function Portfolios() {
                       <div className="flex-1 min-w-0">
                         <div className="text-white text-xs font-semibold">{alert.ticker}</div>
                         <div className="text-gray-400 text-xs">
-                          {alert.alertType === 'below_price' ? 'Unter' : 'Über'} CHF {parseFloat(alert.targetPrice || '0').toFixed(2)}
+                          {/* L-13: alle drei Alarmtypen korrekt beschriften (nicht nur Preis) */}
+                          {alert.alertType === 'percent_change'
+                            ? `Änderung ${alert.percentChange ?? '0'}%`
+                            : alert.alertType === 'below_price'
+                            ? `Unter CHF ${parseFloat(alert.targetPrice || '0').toFixed(2)}`
+                            : `Über CHF ${parseFloat(alert.targetPrice || '0').toFixed(2)}`}
                         </div>
                       </div>
                     </div>
@@ -858,22 +863,28 @@ export default function Portfolios() {
                 ) : !scoringData || (scoringData as any[]).length === 0 ? (
                   <div className="text-gray-400 text-xs text-center py-3">Keine Daten verfügbar</div>
                 ) : (
-                  (scoringData as any[]).slice(0, 5).map((item: any) => (
-                    <div key={item.symbol} className="flex items-center justify-between bg-white/5 rounded-lg px-2.5 py-1.5">
+                  (scoringData as any[]).slice(0, 5).map((item: any) => {
+                    // L-09: Backend liefert `ticker`/`combinedScore` — defensiv beide Feldnamen lesen,
+                    // sonst bleiben Ticker und Score leer («- BUY»).
+                    const symbol = item.symbol ?? item.ticker;
+                    const score = item.score ?? item.combinedScore;
+                    return (
+                    <div key={symbol} className="flex items-center justify-between bg-white/5 rounded-lg px-2.5 py-1.5">
                       <div className="flex items-center gap-2">
-                        <Link href={`/aktien/${item.symbol}`}>
-                          <span className="text-[#00CFC1] font-mono text-xs font-semibold hover:underline cursor-pointer">{item.symbol}</span>
+                        <Link href={`/aktien/${symbol}`}>
+                          <span className="text-[#00CFC1] font-mono text-xs font-semibold hover:underline cursor-pointer">{symbol ?? '–'}</span>
                         </Link>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-white text-xs font-mono font-bold">{item.score?.toFixed(0) ?? '–'}</span>
+                        <span className="text-white text-xs font-mono font-bold">{score != null ? Number(score).toFixed(0) : '–'}</span>
                         <span className={`text-xs font-semibold ${
-                          item.signal === 'BUY' ? 'text-emerald-400' :
-                          item.signal === 'SELL' ? 'text-red-400' : 'text-gray-400'
+                          item.signal?.includes('BUY') ? 'text-emerald-400' :
+                          item.signal?.includes('SELL') ? 'text-red-400' : 'text-gray-400'
                         }`}>{item.signal}</span>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
                 <Link href="/backtesting">
                   <div className="text-center pt-1">

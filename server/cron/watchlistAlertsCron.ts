@@ -8,6 +8,7 @@
  */
 
 import { notifyOwner } from "../_core/notification";
+import { isLikelyIsin } from "../lib/isinResolver";
 
 let isRunning = false;
 
@@ -53,7 +54,19 @@ export async function checkWatchlistAlerts() {
       return;
     }
 
-    console.log(`[watchlistAlertsCron] Checking ${stocks.length} watchlist stocks...`);
+    // L-20: Alt-Einträge, die eine ISIN statt eines Yahoo-Tickers tragen (Wikifolio-Importe
+    // vor dem F-15-ISIN-Fix), liefern bei Yahoo garantiert «Quote not found» und fluteten die
+    // Logs mit einer Warnung pro Zeile. Solche Zeilen einmal aggregiert melden und überspringen.
+    const isinRows = stocks.filter((s: any) => isLikelyIsin(s.ticker));
+    const checkableStocks = stocks.filter((s: any) => !isLikelyIsin(s.ticker));
+    if (isinRows.length > 0) {
+      console.warn(
+        `[watchlistAlertsCron] ${isinRows.length} Watchlist-Einträge mit ISIN statt Ticker übersprungen ` +
+        `(Alt-Importe — bitte ISIN→Ticker bereinigen).`
+      );
+    }
+
+    console.log(`[watchlistAlertsCron] Checking ${checkableStocks.length} watchlist stocks...`);
 
     const strongBuySignals: Array<{
       ticker: string;
@@ -73,7 +86,7 @@ export async function checkWatchlistAlerts() {
       previousScore: number;
     }> = [];
 
-    for (const stock of stocks) {
+    for (const stock of checkableStocks) {
       try {
         const yahooTicker = normalizeTicker(stock.ticker);
         const quote: any = await yahooFinance.quoteSummary(yahooTicker, {
