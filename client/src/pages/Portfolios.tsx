@@ -42,23 +42,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useMemo } from "react";
-import { Bell, AlertTriangle, BarChart3 as BarChart3Icon, Target, MinusCircle, Activity, Shield, Info, X, Loader2, RefreshCw } from "lucide-react";
+import { Bell, AlertTriangle, BarChart3 as BarChart3Icon, Target, MinusCircle, Activity, Shield, X, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
-import { CopilotInsights } from "@/components/dashboard/CopilotInsights";
+import { TickerBar, MarktPuls, KIAnalyse, AnstehendeTermine } from "@/components/dashboard/MarketSections";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 import { formatCHF, formatDate, formatPercent } from "@/lib/format";
 import { getUserErrorMessage } from "@/lib/errorMessages";
@@ -98,9 +90,13 @@ export default function Portfolios() {
   // U-08: Einzel-Löschung über AlertDialog statt Browser-confirm()
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
+  // F-01 Punkt 3: KPI-Zeile wahlweise aggregiert oder für ein einzelnes
+  // Portfolio — Auswahl über ein Dropdown im Kopfbereich statt Button-Reihe.
+  const [scope, setScope] = useState<"aggregate" | number>("aggregate");
+
   const utils = trpc.useUtils();
   // Fetch portfolios from database
-  const { data: portfolios = [], refetch, isLoading } = trpc.portfolios.list.useQuery();
+  const { data: portfolios = [], isLoading } = trpc.portfolios.list.useQuery();
   const deleteMutation = trpc.portfolios.delete.useMutation({
     onSuccess: () => {
       // Refresh will happen after all deletions
@@ -118,34 +114,13 @@ export default function Portfolios() {
     utils.dashboard.getPortfolioCompact.invalidate();
   };
   
-  // Fetch aggregated metrics for live portfolios only
-  const { data: metrics, isLoading: metricsLoading, isError: metricsError, refetch: refetchMetrics } = trpc.dashboard.getAggregatedMetrics.useQuery();
-  
-  // Fetch risk metrics (Sharpe, Bubble) for KPI tooltips
-  const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: false });
-  const { data: bubbleData } = trpc.dashboard.getBubbleIndicator.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: false });
-  
-  // State for action popup dialogs
-  const [actionDialog, setActionDialog] = useState<{ open: boolean; title: string; body: string; insightId: string; insightType: string }>({ open: false, title: '', body: '', insightId: '', insightType: 'general' });
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionResult, setActionResult] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<Array<{ ticker: string; companyName: string; action: string; currentWeightPercent: number; targetWeightPercent: number; reason: string; selected: boolean }>>([]);
-  const [suggestionSummary, setSuggestionSummary] = useState('');
-  const [applyingState, setApplyingState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [selectedPortfolioForAction, setSelectedPortfolioForAction] = useState<number | null>(null);
+  // Fetch aggregated metrics — scoped (Aggregiert oder einzelnes Portfolio)
+  const { data: metrics, isLoading: metricsLoading, isError: metricsError, refetch: refetchMetrics } = trpc.dashboard.getAggregatedMetrics.useQuery({ scope });
 
-  const applySuggestionsMutation = trpc.dashboard.applySuggestions.useMutation({
-    onSuccess: (result) => {
-      setApplyingState('success');
-      toast.success('Vorschläge umgesetzt', { description: result.mode === 'live' ? `${result.transactions?.length || 0} Transaktionen erstellt` : `${result.updatedPositions} Positionen aktualisiert` });
-      refetch();
-    },
-    onError: (error) => {
-      setApplyingState('error');
-      toast.error('Fehler', { description: error.message });
-    }
-  });
-  
+  // Fetch risk metrics (Sharpe, Bubble) for KPI tooltips
+  const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery({ scope }, { staleTime: 5 * 60 * 1000, retry: false });
+  const { data: bubbleData } = trpc.dashboard.getBubbleIndicator.useQuery(undefined, { staleTime: 5 * 60 * 1000, retry: false });
+
   // Fetch multi-period performance data for all portfolios (V2 uses same logic as detail page)
   const { data: multiPeriodData } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
 
@@ -281,14 +256,14 @@ export default function Portfolios() {
   const liveCount = portfolios.filter((p: any) => p.isLive === 1).length;
   const testCount = portfolios.length - liveCount;
 
+  // Beschriftung der KPI-Zeile je nach gewählter Ansicht
+  const scopeLabel = scope === "aggregate"
+    ? "Alle Portfolios"
+    : (portfolios.find((p: any) => p.id === scope)?.name ?? "Portfolio");
+
   // Sidebar data
   const { data: alerts } = trpc.priceAlerts.list.useQuery();
   const activeAlerts = alerts?.filter((a: any) => a.status === 'active').slice(0, 3) || [];
-
-  const { data: copilotInsights = [], isLoading: insightsLoading } = trpc.dashboard.getCopilotInsights.useQuery(
-    { scope: 'aggregate' },
-    { staleTime: 5 * 60 * 1000 }
-  );
 
   const { data: scoringData, isLoading: scoringLoading } = trpc.dashboard.getScoringWatchlist.useQuery(
     undefined,
@@ -306,15 +281,44 @@ export default function Portfolios() {
               Verwalten Sie Ihre Anlageportfolios
             </p>
           </div>
-          <Button
-            onClick={() => setLocation("/portfolio-builder")}
-            size="sm"
-            className="gap-2 bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Neues Portfolio
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* F-01 Punkt 3: Portfolio-Auswahl als Dropdown (Aggregiert | je Portfolio)
+                statt einzelner Buttons — steuert die KPI-Zeile darunter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Ansicht:</span>
+              <Select
+                value={scope === "aggregate" ? "aggregate" : String(scope)}
+                onValueChange={(v) => setScope(v === "aggregate" ? "aggregate" : Number(v))}
+              >
+                <SelectTrigger
+                  className="w-[190px] h-9 text-xs bg-[#1a1f2e] border-white/10 text-white"
+                  aria-label="Ansicht wählen: aggregiert oder einzelnes Portfolio"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1f2e] border-white/10">
+                  <SelectItem value="aggregate" className="text-white hover:bg-white/10">Aggregiert</SelectItem>
+                  {portfolios.map((p: any) => (
+                    <SelectItem key={p.id} value={String(p.id)} className="text-white hover:bg-white/10">
+                      {p.name} {p.isLive === 1 ? "(Live)" : "(Test)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={() => setLocation("/portfolio-builder")}
+              size="sm"
+              className="gap-2 bg-[#00CFC1] hover:bg-[#00CFC1]/90 text-white"
+            >
+              <Plus className="h-4 w-4" />
+              Neues Portfolio
+            </Button>
+          </div>
         </div>
+
+        {/* Übernommen vom bisherigen Dashboard (F-01 Punkt 2): Indizes-Ticker */}
+        <TickerBar />
 
         {/* Compact Statistics Header */}
         <div className="bg-gradient-to-r from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-3">
@@ -367,7 +371,7 @@ export default function Portfolios() {
               <div>
                 <div className="text-xs text-gray-400">Gesamtwert</div>
                 <div className="text-base font-bold text-white">{formatCHF(metrics?.totalValue || 0, { decimals: 0 })}</div>
-                <div className="text-xs text-gray-400">Alle Portfolios</div>
+                <div className="text-xs text-gray-400 truncate max-w-[120px]" title={scopeLabel}>{scopeLabel}</div>
               </div>
             </div>
 
@@ -405,7 +409,7 @@ export default function Portfolios() {
                 <div className={`text-base font-bold ${(metrics?.totalPerformancePercent || 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                   {formatPercent(metrics?.totalPerformancePercent || 0)}
                 </div>
-                <div className="text-xs text-gray-400">Ø Portfolios</div>
+                <div className="text-xs text-gray-400">{scope === "aggregate" ? "Ø Portfolios" : "Gewählte Ansicht"}</div>
               </div>
             </div>
 
@@ -793,26 +797,9 @@ export default function Portfolios() {
         )}
           </div>
 
-          {/* Right Sidebar (1/3 width) */}
+          {/* Right Sidebar (1/3 width) — Copilot Insights leben neu auf dem
+              Dashboard (F-01/F-12, keine Doppel-Anzeige gem. D-11) */}
           <div className="space-y-4">
-            {/* Copilot Insights */}
-            <CopilotInsights 
-              insights={copilotInsights as any[]} 
-              loading={insightsLoading}
-              onAction={(insight) => {
-                const insightType = insight.id.includes('sector') ? 'sector_check'
-                  : insight.id.includes('concentration') || insight.id.includes('position') ? 'top_positions'
-                  : insight.id.includes('diversif') ? 'diversification'
-                  : insight.id.includes('cash') ? 'cash_management'
-                  : 'general';
-                setActionDialog({ open: true, title: insight.title, body: insight.body, insightId: insight.id, insightType });
-                setActionResult(null);
-                setSuggestions([]);
-                setSuggestionSummary('');
-                setApplyingState('idle');
-              }}
-            />
-
             {/* Aktive Preisalarme */}
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
               <div className="px-4 pt-4 pb-2">
@@ -900,6 +887,16 @@ export default function Portfolios() {
             </Card>
           </div>
         </div>
+
+        {/* Übernommen vom bisherigen Dashboard (F-01 Punkt 2):
+            Markt-Puls, Anstehende Termine und KI-Analyse */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2">
+            <MarktPuls />
+          </div>
+          <AnstehendeTermine />
+        </div>
+        <KIAnalyse />
       </div>
 
       {/* Single Delete Confirmation Dialog (U-08) */}
@@ -949,172 +946,6 @@ export default function Portfolios() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Copilot Insight Action Dialog */}
-      <Dialog open={actionDialog.open} onOpenChange={(open) => setActionDialog(prev => ({ ...prev, open }))}>
-        <DialogContent className="bg-[#1a1f2e] border-white/10 text-white max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Info className="h-5 w-5 text-[#00CFC1]" />
-              {actionDialog.title}
-            </DialogTitle>
-            <DialogDescription className="text-gray-300 text-sm leading-relaxed mt-2">
-              {actionDialog.body}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Portfolio-Selektor für Aktion */}
-          {suggestions.length === 0 && applyingState === 'idle' && (
-            <div className="mt-4">
-              <div className="text-xs text-gray-400 mb-2">Portfolio für Analyse wählen:</div>
-              <Select
-                value={selectedPortfolioForAction?.toString() || ''}
-                onValueChange={(v) => setSelectedPortfolioForAction(Number(v))}
-              >
-                <SelectTrigger className="bg-[#0a0f1a] border-white/10 text-white">
-                  <SelectValue placeholder="Portfolio wählen..." />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1a1f2e] border-white/10">
-                  {portfolios.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id.toString()} className="text-white hover:bg-white/10">
-                      {p.name} {p.isLive === 1 ? '(Live)' : '(Demo)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Vorschläge laden */}
-          {suggestions.length === 0 && applyingState === 'idle' && (
-            <div className="mt-4">
-              <Button
-                size="sm"
-                className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black font-semibold w-full"
-                disabled={actionLoading || !selectedPortfolioForAction}
-                onClick={async () => {
-                  setActionLoading(true);
-                  try {
-                    const result = await fetch(`/api/trpc/dashboard.analyzeInsight?input=${encodeURIComponent(JSON.stringify({ json: { insightType: actionDialog.insightType as any, portfolioId: selectedPortfolioForAction } }))}`, { credentials: 'include' });
-                    const json = await result.json();
-                    const data = json?.result?.data?.json || json?.result?.data;
-                    if (data?.suggestions?.length > 0) {
-                      setSuggestions(data.suggestions.map((s: any) => ({ ...s, selected: true })));
-                      setSuggestionSummary(data.summary || '');
-                    } else {
-                      setSuggestionSummary(data?.summary || 'Keine konkreten Vorschläge verfügbar.');
-                    }
-                  } catch (e) {
-                    toast.error('Fehler bei der Analyse');
-                  } finally {
-                    setActionLoading(false);
-                  }
-                }}
-              >
-                {actionLoading ? (
-                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> KI analysiert...</>
-                ) : (
-                  'KI-Vorschläge generieren'
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Zusammenfassung */}
-          {suggestionSummary && (
-            <div className="mt-4 p-3 bg-[#0a0f1a] rounded-lg border border-white/5">
-              <div className="text-xs text-gray-400 mb-1">KI-Analyse:</div>
-              <div className="text-sm text-gray-200">{suggestionSummary}</div>
-            </div>
-          )}
-
-          {/* Vorschläge-Liste */}
-          {suggestions.length > 0 && applyingState !== 'success' && (
-            <div className="mt-4 space-y-2">
-              <div className="text-xs text-gray-400 mb-2">Vorschläge ({suggestions.filter(s => s.selected).length}/{suggestions.length} ausgewählt):</div>
-              {suggestions.map((s, idx) => (
-                <div key={idx} className={`p-3 rounded-lg border ${s.selected ? 'border-[#00CFC1]/40 bg-[#00CFC1]/5' : 'border-white/5 bg-[#0a0f1a] opacity-60'} cursor-pointer`}
-                  onClick={() => {
-                    const updated = [...suggestions];
-                    updated[idx] = { ...updated[idx], selected: !updated[idx].selected };
-                    setSuggestions(updated);
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={s.selected} className="border-white/30" />
-                      <span className="text-sm font-medium text-white">{s.ticker}</span>
-                      <span className="text-xs text-gray-400">{s.companyName}</span>
-                    </div>
-                    <Badge className={`text-xs ${
-                      s.action === 'add_new' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                      s.action === 'increase' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                      s.action === 'reduce' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-                      'bg-red-500/20 text-red-400 border-red-500/30'
-                    }`}>
-                      {s.action === 'add_new' ? 'NEU' : s.action === 'increase' ? 'ERHÖHEN' : s.action === 'reduce' ? 'REDUZIEREN' : 'VERKAUFEN'}
-                    </Badge>
-                  </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs">
-                    <span className="text-gray-400">{s.currentWeightPercent.toFixed(1)}% → {s.targetWeightPercent.toFixed(1)}%</span>
-                    <span className="text-gray-400">{s.reason}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Erfolgs-Meldung */}
-          {applyingState === 'success' && (
-            <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-center">
-              <div className="text-green-400 font-semibold">✓ Vorschläge erfolgreich umgesetzt</div>
-              <div className="text-xs text-gray-400 mt-1">Die Positionen wurden angepasst.</div>
-            </div>
-          )}
-
-          <DialogFooter className="mt-4 flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-white/20 text-gray-300 hover:bg-white/10"
-              onClick={() => {
-                setActionDialog(prev => ({ ...prev, open: false }));
-                setSuggestions([]);
-                setSuggestionSummary('');
-                setApplyingState('idle');
-              }}
-            >
-              Schliessen
-            </Button>
-            {suggestions.length > 0 && !applySuggestionsMutation.isPending && applyingState !== 'success' && (
-              <Button
-                size="sm"
-                className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black font-semibold"
-                disabled={suggestions.filter(s => s.selected).length === 0 || applySuggestionsMutation.isPending}
-                onClick={() => {
-                  if (!selectedPortfolioForAction) return;
-                  setApplyingState('loading');
-                  applySuggestionsMutation.mutate({
-                    portfolioId: selectedPortfolioForAction,
-                    suggestions: suggestions.filter(s => s.selected).map(s => ({
-                      ticker: s.ticker,
-                      action: s.action as any,
-                      targetWeightPercent: s.targetWeightPercent,
-                    })),
-                    autoCalculateFees: true,
-                  });
-                }}
-              >
-                {`${suggestions.filter(s => s.selected).length} Vorschläge umsetzen`}
-              </Button>
-            )}
-            {applySuggestionsMutation.isPending && (
-              <Button size="sm" disabled className="bg-[#00CFC1]/50 text-black font-semibold">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Umsetzen...
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }
