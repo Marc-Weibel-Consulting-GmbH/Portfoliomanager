@@ -20,14 +20,14 @@ export default function Landing() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-8 w-8 text-teal-400" />
-              <span className="text-xl font-bold text-white">Portfolio Analyzer</span>
+              <span className="text-xl font-bold text-white">Portfoliomanager</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-slate-300 hover:text-teal-400 transition-colors">Features</a>
+              <a href="#features" className="text-slate-300 hover:text-teal-400 transition-colors">Funktionen</a>
               <Link href="/pricing" className="text-slate-300 hover:text-teal-400 transition-colors cursor-pointer">
-                Pricing
+                Preise
               </Link>
-              <a href="#about" className="text-slate-300 hover:text-teal-400 transition-colors">About</a>
+              <a href="#about" className="text-slate-300 hover:text-teal-400 transition-colors">Über uns</a>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login">
@@ -37,7 +37,7 @@ export default function Landing() {
               </Link>
               <Link href="/register">
                 <Button className="bg-teal-500 hover:bg-teal-600 text-white font-semibold px-6 shadow-lg shadow-teal-500/30">
-                  Get Started
+                  Registrieren
                 </Button>
               </Link>
             </div>
@@ -51,7 +51,7 @@ export default function Landing() {
           {/* Left Column - Text Content */}
           <div className="space-y-8 z-10">
             <h1 className="text-6xl lg:text-7xl font-bold text-white leading-tight">
-              Optimiere dein<br />
+              Optimieren Sie Ihr<br />
               Aktienportfolio mit<br />
               KI-gestützter Analyse
             </h1>
@@ -183,7 +183,7 @@ export default function Landing() {
             </div>
             <h3 className="text-3xl font-bold text-white mb-4">Portfolio-Builder</h3>
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
-              Erstelle und optimiere dein Portfolio basierend auf modernsten KI-Modellen und Risikoprofilen.
+              Erstellen und optimieren Sie Ihr Portfolio basierend auf modernsten KI-Modellen und Risikoprofilen.
             </p>
             <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
               Mehr erfahren
@@ -200,7 +200,7 @@ export default function Landing() {
             </div>
             <h3 className="text-3xl font-bold text-white mb-4">Live-Tracking</h3>
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
-              Verfolge die Performance deines gesamten Portfolios in Echtzeit und erhalte sofortige Updates.
+              Verfolgen Sie die Performance Ihres gesamten Portfolios in Echtzeit und erhalten Sie sofortige Updates.
             </p>
             <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
               Mehr erfahren
@@ -217,7 +217,7 @@ export default function Landing() {
             </div>
             <h3 className="text-3xl font-bold text-white mb-4">Preisalarme</h3>
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
-              Setze individuelle Alarme für Preisänderungen, News und technische Indikatoren.
+              Setzen Sie individuelle Alarme für Preisänderungen, News und technische Indikatoren.
             </p>
             <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
               Mehr erfahren
@@ -230,26 +230,14 @@ export default function Landing() {
       {/* Trust Section */}
       <section className="relative container mx-auto px-6 py-16">
         <div className="flex flex-col md:flex-row items-center justify-between gap-12">
-          {/* Left - Social Proof */}
+          {/* Left - Value statement (L-07: keine erfundenen Investoren-Avatare / «500+»-Claim) */}
           <div className="flex items-center gap-4">
-            <div className="flex -space-x-3">
-              {[
-                "/manus-storage/investor-1_7966a08a.jpg",
-                "/manus-storage/investor-2_ff152502.jpg",
-                "/manus-storage/investor-3_84ffeac2.jpg",
-                "/manus-storage/investor-4_ecaa8659.jpg",
-                "/manus-storage/investor-5_b7c66885.jpg"
-              ].map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  alt={`Investor ${i + 1}`}
-                  className="w-14 h-14 rounded-full border-2 border-slate-900 object-cover"
-                />
-              ))}
+            <div className="w-14 h-14 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+              <TrendingUp className="h-7 w-7 text-teal-400" />
             </div>
             <div>
-              <p className="text-white font-semibold text-xl">500+ Investoren vertrauen uns</p>
+              <p className="text-white font-semibold text-xl">Für Schweizer Privatanleger entwickelt</p>
+              <p className="text-slate-400 text-sm">CHF-first · Fundamentaldaten · KI-gestützte Analyse</p>
             </div>
           </div>
 
@@ -265,7 +253,7 @@ export default function Landing() {
             </div>
             <div className="flex items-center gap-3 text-slate-300">
               <CreditCard className="h-7 w-7 text-indigo-400" />
-              <span className="font-medium text-lg">Stripe Payment</span>
+              <span className="font-medium text-lg">Sichere Zahlung (Stripe)</span>
             </div>
           </div>
         </div>

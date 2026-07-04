@@ -21,7 +21,15 @@ export default function Pricing() {
       <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <a href="/" className="flex items-center gap-3">
-            {APP_LOGO && <img src={APP_LOGO} alt={APP_TITLE} className="h-8 w-8 rounded-lg" />}
+            {/* L-04: kaputte/fehlende Logo-URL nicht als schwarzes Quadrat rendern */}
+            {APP_LOGO && (
+              <img
+                src={APP_LOGO}
+                alt={APP_TITLE}
+                className="h-8 w-8 rounded-lg"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
             <span className="text-xl font-bold text-white">{APP_TITLE}</span>
           </a>
           <div className="flex gap-3">
@@ -177,7 +185,7 @@ export default function Pricing() {
             <div className="flex flex-col items-center text-center p-6 rounded-lg bg-slate-900/50 border border-slate-800">
               <Shield className="h-10 w-10 text-primary mb-3" />
               <h3 className="font-semibold text-white mb-2">Schweizer Datenschutz</h3>
-              <p className="text-sm text-slate-400">DSGVO-konform und sicher</p>
+              <p className="text-sm text-slate-400">revDSG-konform und sicher</p>
             </div>
             <div className="flex flex-col items-center text-center p-6 rounded-lg bg-slate-900/50 border border-slate-800">
               <CreditCard className="h-10 w-10 text-primary mb-3" />
@@ -186,8 +194,8 @@ export default function Pricing() {
             </div>
             <div className="flex flex-col items-center text-center p-6 rounded-lg bg-slate-900/50 border border-slate-800">
               <Sparkles className="h-10 w-10 text-primary mb-3" />
-              <h3 className="font-semibold text-white mb-2">Jederzeit kündbar</h3>
-              <p className="text-sm text-slate-400">Keine Mindestlaufzeit</p>
+              <h3 className="font-semibold text-white mb-2">Einmalige Zahlung</h3>
+              <p className="text-sm text-slate-400">Kein Abo, keine Folgekosten</p>
             </div>
           </div>
         </div>
@@ -202,8 +210,8 @@ export default function Pricing() {
           
           <div className="space-y-6">
             <FAQItem
-              question="Was beinhaltet das monatliche Abo?"
-              answer="Mit dem monatlichen Abo für CHF 10.00 erhalten Sie Zugriff auf alle Premium-Features. Sie können jederzeit kündigen, keine Mindestlaufzeit."
+              question="Was beinhaltet der Premium-Zugriff?"
+              answer="Mit einer einmaligen Zahlung von CHF 10.00 erhalten Sie dauerhaften Zugriff auf alle Premium-Features. Kein Abo, keine wiederkehrenden Kosten."
             />
             <FAQItem
               question="Kann ich mein kostenloses Konto später upgraden?"
@@ -214,8 +222,8 @@ export default function Pricing() {
               answer="Wir akzeptieren alle gängigen Kreditkarten (Visa, Mastercard, American Express), TWINT und PostFinance über unseren sicheren Payment-Provider Stripe."
             />
             <FAQItem
-              question="Wie funktioniert die Kündigung?"
-              answer="Sie können Ihr Abo jederzeit mit einem Klick in den Einstellungen kündigen. Es gibt keine Mindestlaufzeit oder versteckte Gebühren."
+              question="Fallen wiederkehrende Kosten an?"
+              answer="Nein. Der Premium-Zugriff ist eine einmalige Zahlung von CHF 10.00 ohne Abo, ohne Mindestlaufzeit und ohne versteckte Gebühren."
             />
             <FAQItem
               question="Kann ich mehrere Portfolios verwalten?"
@@ -223,7 +231,7 @@ export default function Pricing() {
             />
             <FAQItem
               question="Sind meine Daten sicher?"
-              answer="Ja, alle Daten werden verschlüsselt übertragen und in der Schweiz gespeichert. Wir verkaufen keine Daten an Dritte und halten uns strikt an die DSGVO."
+              answer="Ja, alle Daten werden verschlüsselt übertragen und in der Schweiz gespeichert. Wir verkaufen keine Daten an Dritte und halten uns strikt an das revidierte Schweizer Datenschutzgesetz (revDSG)."
             />
           </div>
         </div>
@@ -250,7 +258,7 @@ export default function Pricing() {
       <footer className="bg-slate-950 text-slate-400 py-8 border-t border-slate-800">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm">
-            © 2025 {APP_TITLE}. Alle Rechte vorbehalten.
+            © {new Date().getFullYear()} {APP_TITLE}. Alle Rechte vorbehalten.
           </p>
           <div className="mt-4 flex justify-center gap-6 text-sm">
             <a href="/datenschutz" className="hover:text-white transition-colors">Datenschutz</a>
