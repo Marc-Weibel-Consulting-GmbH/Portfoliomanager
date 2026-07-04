@@ -13,6 +13,35 @@ import {
 } from "../autoBackfill";
 
 export const adminRouter = router({
+    /**
+     * L-18: Echte Plattform-KPIs statt hartkodierter Platzhalter-Nullen.
+     * Zählt Nutzer, Neuregistrierungen (30 Tage), zahlende Nutzer (hasPaid — Stripe
+     * läuft als Einmalzahlung) und angelegte Portfolios direkt aus der DB.
+     */
+    getPlatformKpis: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const { users, savedPortfolios } = await import("../../drizzle/schema");
+      const { sql, gte } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const countOf = async (table: any, where?: any) => {
+        const base = db.select({ c: sql<number>`count(*)` }).from(table);
+        const [row] = where ? await base.where(where) : await base;
+        return Number(row?.c ?? 0);
+      };
+
+      const [totalUsers, newUsers30d, premiumUsers, totalPortfolios] = await Promise.all([
+        countOf(users),
+        countOf(users, gte(users.createdAt, thirtyDaysAgo)),
+        countOf(users, sql`${users.hasPaid} = 1`),
+        countOf(savedPortfolios),
+      ]);
+
+      return { totalUsers, newUsers30d, premiumUsers, totalPortfolios };
+    }),
+
     exportData: adminProcedure.query(async () => {
       const { getAllStocks, getDb } = await import("../db");
       const { research, transactions } = await import("../../drizzle/schema");

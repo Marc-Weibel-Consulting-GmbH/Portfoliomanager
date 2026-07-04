@@ -178,5 +178,41 @@
 
 **Nicht umgesetzt (bewusst):**
 - L-11 Portfolios-Leerraum: rein kosmetisch [S], ohne Live-Ansicht nicht zielsicher fixbar.
-- L-14/L-16/L-17/L-18/L-19 + APPLE/MONC.MI/HELN.SW: Datenbereinigung/Symbol-Mapping gegen die
-  Prod-DB (user-seitig), nicht aus dieser Session heraus durchführbar.
+
+---
+
+## FOLGE-SESSION: offene Punkte in Code überführt
+
+Nach dem Merge von PR #52 wurden die verbleibenden «betriebsseitigen» Punkte, soweit
+sinnvoll, in **Code / Admin-Aktionen** überführt (statt roher SQL/Skripte):
+
+- **L-18 erledigt (Code):** `admin.getPlatformKpis` liefert echte DB-Zahlen; die Platform-KPI-Seite
+  zeigt sie statt hartkodierter Nullen. Die Fake-Karte «in Kürze verfügbar» ist weg.
+- **L-16 erledigt (Admin-Aktion):** Button **«ISIN bereinigen»** in Admin › Watchlist ruft
+  `watchlist.cleanupIsinTickers` — löst die 133 ISIN-Alt-Zeilen per Yahoo-Suche in Ticker auf,
+  entfernt Dubletten, meldet Nichtauflösbare. Idempotent. **→ 1× klicken gegen Prod genügt.**
+- **«APPLE»-Alarm-Root erledigt (Code):** `priceAlerts.create` validiert den Ticker gegen die
+  stocks-Tabelle und lehnt unbekannte Kürzel ab. Neue Fehlalarme wie «APPLE» sind verhindert.
+  (Der bestehende «APPLE»-Alarm ist eine einzelne Alt-Zeile — in Einstellungen › Preisalarme löschen.)
+
+### Runbook — bleibt user-seitig (Prod-DB, bewusst NICHT als Button gewrappt)
+Finanzdaten-Remediation mit Dry-Run-Default; erst Dry-Run prüfen, dann `--apply`:
+```
+# YTD-Baselines aus adjustedClose neu ableiten (L-14/L-19, extreme YTD-Werte)
+npx tsx scripts/recompute-ytd-baselines.ts            # Dry-Run
+npx tsx scripts/recompute-ytd-baselines.ts --apply    # schreibt
+
+# Realisierte Gewinne nachziehen (R-03-Backfill)
+npx tsx scripts/backfill-realized-gains.ts [--apply]
+
+# Gebühren-Semantik migrieren (R-05)
+npx tsx scripts/migrate-fee-semantics.ts [--apply]
+```
+Diese mutieren Kern-Finanzdaten und sind als einmalige, review-pflichtige Läufe gedacht —
+daher bewusst nicht als 1-Klick-Admin-Button (nicht aus dieser Session verifizierbar).
+
+### Ebenfalls user-seitig
+- `VITE_APP_TITLE=Portfoliomanager` in der Deploy-Umgebung setzen (Code-Default ist bereits gesetzt).
+- Symbol-Coverage HELN.SW/ROG.SW/MONC.MI (EODHD «No data»/404): Datenquellen-/Suffix-Thema,
+  live gegen EODHD zu prüfen; LVMUY/ABB.SW in die stocks-Tabelle aufnehmen (getPortfolioCompact-Warnungen).
+- L-17 Empfehlungen kuratieren (Admin › Watchlist, Toggle «Empfehlung»); Massenbutton vorhanden.

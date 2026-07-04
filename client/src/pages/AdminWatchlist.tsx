@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Minus, Eye, Users, Bot, Star, ListChecks } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Minus, Eye, Users, Bot, Star, ListChecks, Wrench } from "lucide-react";
 
 export default function AdminWatchlist() {
   const { user } = useAuth();
@@ -163,6 +163,16 @@ export default function AdminWatchlist() {
     },
   });
 
+  // L-16: Alt-ISIN-Zeilen (Wikifolio-Importe vor dem F-15-Fix) in Ticker auflösen
+  const cleanupIsinMutation = trpc.watchlist.cleanupIsinTickers.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.watchlist.list.invalidate();
+      utils.watchlist.stats.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const aiMutation = trpc.watchlist.generateRecommendations.useMutation({
     onSuccess: (data) => {
       toast.success(data.message);
@@ -214,6 +224,17 @@ export default function AdminWatchlist() {
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
               Aktualisieren
+            </Button>
+            {/* L-16: Alt-ISIN-Zeilen in Yahoo-Ticker auflösen (Wikifolio-Importe vor F-15) */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => cleanupIsinMutation.mutate()}
+              disabled={cleanupIsinMutation.isPending}
+              title="Watchlist-Einträge, die eine ISIN statt eines Tickers tragen, automatisch auflösen"
+            >
+              <Wrench className={`w-4 h-4 mr-2 ${cleanupIsinMutation.isPending ? "animate-spin" : ""}`} />
+              ISIN bereinigen
             </Button>
             <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
               <DialogTrigger asChild>

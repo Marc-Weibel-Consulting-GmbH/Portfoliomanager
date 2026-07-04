@@ -2,34 +2,40 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Activity } from "lucide-react";
 import { AdminTopbar } from "@/components/AdminTopbar";
+import { trpc } from "@/lib/trpc";
 
 export default function AdminKPIs() {
-  // Placeholder data - will be replaced with real data from backend
+  // L-18: echte Zahlen aus der DB statt hartkodierter Platzhalter-Nullen.
+  const { data, isLoading, isError } = trpc.admin.getPlatformKpis.useQuery();
+
+  const fmt = (v: number | undefined) =>
+    isLoading ? "…" : typeof v === "number" ? v.toLocaleString("de-CH") : "—";
+
   const metrics = [
     {
       title: "Gesamt-Benutzer",
-      value: "0",
+      value: fmt(data?.totalUsers),
       description: "Registrierte Benutzer",
       icon: Users,
       color: "text-blue-500",
     },
     {
       title: "Neue Benutzer (30 Tage)",
-      value: "0",
+      value: fmt(data?.newUsers30d),
       description: "Neue Registrierungen",
       icon: TrendingUp,
       color: "text-green-500",
     },
     {
-      title: "Premium-Benutzer",
-      value: "0",
-      description: "Aktive Premium-Abos",
+      title: "Zahlende Benutzer",
+      value: fmt(data?.premiumUsers),
+      description: "Einmalzahlung getätigt",
       icon: DollarSign,
       color: "text-purple-500",
     },
     {
       title: "Gesamt-Portfolios",
-      value: "0",
+      value: fmt(data?.totalPortfolios),
       description: "Erstellte Portfolios",
       icon: Activity,
       color: "text-cyan-500",
@@ -47,6 +53,16 @@ export default function AdminKPIs() {
           </p>
         </div>
 
+        {isError && (
+          <Card className="border-red-500/40">
+            <CardContent className="py-4">
+              <p className="text-sm text-red-500">
+                Die Kennzahlen konnten nicht geladen werden. Bitte später erneut versuchen.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {metrics.map((metric) => (
             <Card key={metric.title}>
@@ -57,7 +73,7 @@ export default function AdminKPIs() {
                 <metric.icon className={`h-4 w-4 ${metric.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{metric.value}</div>
+                <div className="text-2xl font-bold tabular-nums">{metric.value}</div>
                 <p className="text-xs text-muted-foreground">
                   {metric.description}
                 </p>
@@ -65,20 +81,6 @@ export default function AdminKPIs() {
             </Card>
           ))}
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Detaillierte Statistiken</CardTitle>
-            <CardDescription>
-              Erweiterte Metriken und Analysen
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Diese Funktion wird in Kürze verfügbar sein.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   );

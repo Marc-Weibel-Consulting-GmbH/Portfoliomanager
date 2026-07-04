@@ -3,7 +3,7 @@ import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { watchlistStocks } from "../../drizzle/schema";
 import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios } from '../lib/wikifolioService';
-import { resolveIsinToTicker } from '../lib/isinResolver';
+import { resolveIsinToTicker, isLikelyIsin } from '../lib/isinResolver';
 import { getUniverseListTypeFilter } from '../lib/watchlistUniverse';
 import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
@@ -208,6 +208,61 @@ export const watchlistRouter = router({
         success: true,
         empfehlungCount: empfehlung[0]?.count || 0,
         message: `Alle aktiven Titel als Empfehlung markiert (${empfehlung[0]?.count || 0} Empfehlungen)`,
+      };
+    }),
+
+  /**
+   * L-16: Alt-Watchlist-Zeilen bereinigen, die eine ISIN statt eines Yahoo-Tickers tragen
+   * (Wikifolio-Importe vor dem F-15-ISIN-Fix). Jede ISIN wird per Yahoo-Suche in einen
+   * Ticker aufgelöst und die Zeile umgeschrieben; existiert der Ziel-Ticker bereits, wird die
+   * ISIN-Dublette gelöscht (ticker ist UNIQUE). Nicht auflösbare Zeilen bleiben zur manuellen
+   * Prüfung bestehen und werden im Ergebnis gemeldet. Idempotent — mehrfach ausführbar.
+   */
+  cleanupIsinTickers: adminProcedure
+    .mutation(async () => {
+      const { getDb } = await import("../db");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const rows = await db.select({ id: watchlistStocks.id, ticker: watchlistStocks.ticker }).from(watchlistStocks);
+      const isinRows = rows.filter((r: any) => isLikelyIsin(r.ticker));
+
+      let resolved = 0;
+      let deduped = 0;
+      const unresolved: Array<{ isin: string }> = [];
+
+      for (const row of isinRows) {
+        try {
+          const ticker = await resolveIsinToTicker(
+            (q: string) => yahooFinance.search(q, { quotesCount: 5, newsCount: 0 }, { validateResult: false }),
+            row.ticker
+          );
+          if (!ticker) { unresolved.push({ isin: row.ticker }); continue; }
+
+          const existing = await db.select({ id: watchlistStocks.id }).from(watchlistStocks)
+            .where(eq(watchlistStocks.ticker, ticker)).limit(1);
+
+          if (existing.length > 0) {
+            // Ziel-Ticker existiert bereits → ISIN-Dublette entfernen
+            await db.delete(watchlistStocks).where(eq(watchlistStocks.id, row.id));
+            deduped++;
+          } else {
+            await db.update(watchlistStocks).set({ ticker }).where(eq(watchlistStocks.id, row.id));
+            resolved++;
+          }
+        } catch (err: any) {
+          unresolved.push({ isin: row.ticker });
+        }
+      }
+
+      return {
+        success: true,
+        scanned: isinRows.length,
+        resolved,
+        deduped,
+        unresolvedCount: unresolved.length,
+        unresolved: unresolved.slice(0, 50),
+        message: `${isinRows.length} ISIN-Zeilen geprüft: ${resolved} aufgelöst, ${deduped} Dubletten entfernt, ${unresolved.length} offen.`,
       };
     }),
 

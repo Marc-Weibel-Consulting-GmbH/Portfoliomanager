@@ -48,7 +48,8 @@ export const priceAlertsRouter = router({
       }
       
       const { getDb } = await import("../db");
-      const { priceAlerts } = await import("../../drizzle/schema");
+      const { priceAlerts, stocks: stocksTable } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
 
       const db = await getDb();
       if (!db) {
@@ -67,9 +68,25 @@ export const priceAlertsRouter = router({
         throw new Error("Percent change is required for percent change alerts");
       }
 
+      // Ticker-Validierung: Der Alarm-Check zieht Preise nur aus der stocks-Tabelle.
+      // Ein unbekanntes Kürzel (z. B. «APPLE» statt «AAPL») würde nie auslösen und
+      // erzeugte nur «No price data»-Warnungen — daher hier früh ablehnen.
+      const normalizedTicker = input.ticker.trim().toUpperCase();
+      const known = await db
+        .select({ ticker: stocksTable.ticker })
+        .from(stocksTable)
+        .where(eq(stocksTable.ticker, normalizedTicker))
+        .limit(1);
+      if (known.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Unbekannter Ticker «${normalizedTicker}». Bitte das offizielle Börsenkürzel verwenden (z. B. AAPL statt APPLE).`,
+        });
+      }
+
       await db.insert(priceAlerts).values({
         userId: ctx.user.id,
-        ticker: input.ticker.toUpperCase(),
+        ticker: normalizedTicker,
         alertType: input.alertType,
         targetPrice: input.targetPrice || null,
         percentChange: input.percentChange || null,
