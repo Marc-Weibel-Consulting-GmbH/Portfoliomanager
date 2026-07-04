@@ -1,0 +1,32 @@
+import { Wikifolio } from '.';
+declare type TradeOrderTypeSell = 'Sell' | 'SellLimit' | 'StopLoss' | 'SellStopLimit';
+declare type TradeOrderTypeBuy = 'Buy' | 'BuyLimit';
+declare type TradeOrderType = TradeOrderTypeBuy | TradeOrderTypeSell;
+export declare class Trade {
+    wikifolio: Wikifolio;
+    id?: string;
+    type?: 'buy' | 'sell' | 'other';
+    orderType?: TradeOrderType;
+    name?: string;
+    isin?: string;
+    link?: string;
+    isMainOrder?: boolean;
+    mainOrderId?: string;
+    subOrders?: any[];
+    issuer?: number;
+    securityType?: number;
+    executionDate?: string;
+    executionPrice?: number;
+    executedAt?: Date;
+    performance?: number;
+    weightage?: number;
+    investmentUniverseGroupId?: string;
+    isLeveraged?: boolean;
+    linkParameter?: string;
+    corporateActionType?: any;
+    cash?: any;
+    private static getType;
+    constructor(trade: Partial<Trade> | undefined, wikifolio: Wikifolio);
+    set(trade: Partial<Trade>): any;
+}
+export {};

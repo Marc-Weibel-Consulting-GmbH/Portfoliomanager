@@ -1,0 +1,27 @@
+import { JSDOM } from 'jsdom';
+import got from 'got';
+declare type Node = Document | HTMLElement;
+export declare function parseHtml(html: string): {
+    html: string;
+    window: import("jsdom").DOMWindow;
+    document: Document;
+    $: (selector: string, parent?: Node) => HTMLElement;
+    $$: (selector: string, parent?: Node) => HTMLElement[];
+    attribute: (selector: string, attr: string) => any;
+    string: (selector: string, parent?: HTMLElement | undefined) => any;
+    int: (selector: string, parent?: HTMLElement | undefined) => any;
+    float: (selector: string, parent?: HTMLElement | undefined) => any;
+    date: (selector: string, parent?: HTMLElement | undefined) => any;
+    currency: (selector: string, parent?: HTMLElement | undefined) => any;
+};
+declare type ValueType = 'string' | 'int' | 'float' | 'date' | 'currency';
+export declare function toType(val: any, type: ValueType): any;
+export declare function toDate(val?: string): Date | undefined;
+export declare function fromDate(d: Date, type?: string): string;
+export declare function toFloat(val?: string): number | undefined;
+export declare function toInt(val?: string): number | undefined;
+export declare function toCurrency(val: string): number | undefined;
+export declare function toQueryString(obj?: any, prefix?: string | false, encode?: 'keys' | 'values' | 'all' | 'none'): string;
+export declare function removeValues(obj: any, ...values: any[]): any;
+export declare function matchResult(regexp: RegExp, string: string, emptyValue?: any): any;
+export { JSDOM, got };
