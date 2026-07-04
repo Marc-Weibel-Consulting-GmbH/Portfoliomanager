@@ -276,7 +276,7 @@ async function getWikifolioCredentials(): Promise<{ email: string; password: str
   return { email, password };
 }
 
-export type WikifolioSearchSortBy = 'perf12m' | 'sharperatio' | 'aum';
+export type WikifolioSearchSortBy = 'perf12m' | 'sharperatio' | 'sharpe36m' | 'sharpe60m' | 'aum' | 'perfever' | 'perf36m' | 'perf60m' | 'topwikis';
 
 export interface WikifolioTraderResult {
   symbol: string;
@@ -292,54 +292,85 @@ export interface WikifolioTraderResult {
   wikifolioUrl: string | null;
 }
 
+// Map our sortBy keys to the new search-api.wikifolio.com SortingOrder enum values
+const SORT_BY_MAP: Record<WikifolioSearchSortBy, string> = {
+  'perf12m': 'Performance1Year',
+  'sharperatio': 'SharpeRatio',
+  'sharpe36m': 'SharpeRatio36Months',
+  'sharpe60m': 'SharpeRatio60Months',
+  'aum': 'TotalInvestments',
+  'perfever': 'PerformanceEver',
+  'perf36m': 'Performance36Months',
+  'perf60m': 'Performance60Months',
+  'topwikis': 'TopWikifolios',
+};
+
 /**
- * Map Wikifolio search results (class instances with circular api refs)
- * to plain, serializable objects. Exported for unit tests.
+ * Map Wikifolio search results from the new search-api.wikifolio.com format
+ * to plain, serializable objects.
  */
-export function mapWikifolioSearchResults(wikis: Array<Partial<Wikifolio>>): WikifolioTraderResult[] {
+export function mapWikifolioSearchResults(wikis: any[]): WikifolioTraderResult[] {
   return wikis
     .filter(w => !!w.symbol)
     .map(w => ({
       symbol: w.symbol as string,
-      title: w.title || (w.symbol as string),
-      traderName: (w.user as any)?.name || '',
-      rankValue: typeof w.rank === 'number' && !Number.isNaN(w.rank) ? w.rank : null,
-      perfAnnually: typeof w.perfannually === 'number' && !Number.isNaN(w.perfannually) ? w.perfannually : null,
-      perfEver: typeof w.perfever === 'number' && !Number.isNaN(w.perfever) ? w.perfever : null,
-      maxDrawdown: typeof w.maxdraw === 'number' && !Number.isNaN(w.maxdraw) ? w.maxdraw : null,
-      capital: typeof w.capital === 'number' && !Number.isNaN(w.capital) ? w.capital : null,
+      title: w.shortDescription || w.symbol,
+      traderName: w.trader?.fullName || w.trader?.nickName || '',
+      rankValue: null, // rankings not included in basic search
+      perfAnnually: null,
+      perfEver: null,
+      maxDrawdown: null,
+      capital: null,
       isin: w.isin || null,
-      wikifolioUrl: w.wikifolioUrl || null,
+      wikifolioUrl: `https://www.wikifolio.com/de/de/w/${w.symbol?.toLowerCase()}`,
     }));
 }
 
 /**
- * Search successful Wikifolio traders via the (unofficial) wikifolio npm package.
+ * Search successful Wikifolio traders via the new search-api.wikifolio.com API.
  * Sorted descending by the given criterion; only investable real-money wikifolios.
+ * No login required — the search API is public.
  */
 export async function searchWikifolios(params: {
   sortBy: WikifolioSearchSortBy;
   query?: string;
   limit?: number;
 }): Promise<WikifolioTraderResult[]> {
-  const { email, password } = await getWikifolioCredentials();
-  const api = new WikifolioApi({ email, password });
+  const sortingOrder = SORT_BY_MAP[params.sortBy] || 'SharpeRatio';
 
-  const search: Partial<WikifolioSearch> = {
-    sortBy: params.sortBy,
-    sortOrder: 'desc',
-    investable: true,
-    realMoney: true,
+  const requestBody = {
+    count: params.limit ?? 25,
+    offset: 0,
+    fullText: params.query || '',
+    country: 'de',
+    filters: {
+      isRealMoneyInvested: true,
+      isInvestable: true,
+    },
+    orderBy: {
+      direction: 'desc',
+      orderBy: sortingOrder,
+    },
   };
-  if (params.query) search.query = params.query;
 
-  let wikis: Wikifolio[];
+  let response: any;
   try {
-    wikis = await api.search(search);
+    const resp = await (got as any).post('https://search-api.wikifolio.com/api/v1/search/wikifolios', {
+      json: requestBody,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Origin': 'https://www.wikifolio.com',
+        'Referer': 'https://www.wikifolio.com/de/de/alle-wikifolios/suche',
+      },
+      responseType: 'json',
+    });
+    response = resp.body;
   } catch (err: any) {
     console.error('[wikifolioService] Trader search failed:', err?.message || err);
-    throw new Error('Wikifolio-Anmeldung fehlgeschlagen — bitte Zugangsdaten in den Admin-Secrets prüfen.');
+    throw new Error('Wikifolio-Suche fehlgeschlagen — bitte später erneut versuchen.');
   }
 
-  return mapWikifolioSearchResults(wikis).slice(0, params.limit ?? 25);
+  const wikis: any[] = response?.wikifolios || [];
+  return mapWikifolioSearchResults(wikis);
 }

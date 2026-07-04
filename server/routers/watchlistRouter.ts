@@ -763,7 +763,7 @@ export const watchlistRouter = router({
    */
   searchWikifolios: adminProcedure
     .input(z.object({
-      sortBy: z.enum(['perf12m', 'sharperatio', 'aum']).default('perf12m'),
+      sortBy: z.enum(['perf12m', 'sharperatio', 'sharpe36m', 'sharpe60m', 'aum', 'perfever', 'perf36m', 'perf60m', 'topwikis']).default('sharperatio'),
       query: z.string().optional(),
       limit: z.number().min(1).max(50).optional().default(25),
     }))
