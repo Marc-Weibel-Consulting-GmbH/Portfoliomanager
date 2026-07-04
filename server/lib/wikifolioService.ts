@@ -124,12 +124,16 @@ async function authenticate(): Promise<void> {
   });
 
   const setCookieHeader = loginResponse.headers['set-cookie'];
-  if (!setCookieHeader || (!loginResponse.body.endsWith('/dashboard') && !loginResponse.body.endsWith('/uebersicht') && !loginResponse.url?.includes('/dashboard') && !loginResponse.url?.includes('/uebersicht'))) {
-    // Check if we got a redirect to dashboard (success indicator)
-    const finalUrl = loginResponse.url || '';
-    if (!finalUrl.includes('/dashboard') && !finalUrl.includes('/uebersicht') && !finalUrl.includes('/de/de/')) {
-      throw new Error('Wikifolio login failed — check credentials');
-    }
+  const bodyStr = loginResponse.body || '';
+  const finalUrl = loginResponse.url || '';
+  const loginSucceeded =
+    bodyStr.includes('/uebersicht') ||
+    bodyStr.includes('/dashboard') ||
+    finalUrl.includes('/uebersicht') ||
+    finalUrl.includes('/dashboard') ||
+    finalUrl.includes('/de/de/');
+  if (!setCookieHeader || !loginSucceeded) {
+    throw new Error('Wikifolio login failed — check credentials');
   }
 
   // Extract the main session cookie

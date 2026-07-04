@@ -24,7 +24,11 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
+<<<<<<< Updated upstream
 import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap } from "lucide-react";
+=======
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap, FlaskConical, Camera } from "lucide-react";
+>>>>>>> Stashed changes
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -73,6 +77,8 @@ const adminMenuItems = [
   { icon: Zap, label: "Signal-Optimizer", path: "/admin/optimizer" },
   { icon: Brain, label: "Research & Multi-Agent", path: "/admin/research" },
   { icon: Settings, label: "Einstellungen", path: "/admin/settings" },
+  { icon: Calculator, label: "Berechnungen", path: "/admin/berechnungen" },
+  { icon: Camera, label: "Screenshots", path: "/admin/screenshots" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
