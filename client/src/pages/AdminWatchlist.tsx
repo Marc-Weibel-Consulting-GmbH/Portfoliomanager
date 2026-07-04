@@ -526,11 +526,16 @@ export default function AdminWatchlist() {
                         <td className="p-3 text-muted-foreground">{stock.sector || "—"}</td>
                         <td className="p-3">{stock.category || "—"}</td>
                         <td className="p-3 text-right font-mono">
-                          {stock.currentPrice ? `${parseFloat(stock.currentPrice).toFixed(2)}` : "—"}
-                          {stock.currency && <span className="text-xs text-muted-foreground ml-1">{stock.currency}</span>}
+                          {/* L-15: auch der String «NaN» ist truthy → nur echte, endliche Werte zeigen */}
+                          {Number.isFinite(Number(stock.currentPrice)) ? (
+                            <>
+                              {Number(stock.currentPrice).toFixed(2)}
+                              {stock.currency && <span className="text-xs text-muted-foreground ml-1">{stock.currency}</span>}
+                            </>
+                          ) : "—"}
                         </td>
-                        <td className="p-3 text-right font-mono">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "—"}</td>
-                        <td className="p-3 text-right font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(1)}%` : "—"}</td>
+                        <td className="p-3 text-right font-mono">{Number.isFinite(Number(stock.peRatio)) ? Number(stock.peRatio).toFixed(1) : "—"}</td>
+                        <td className="p-3 text-right font-mono">{Number.isFinite(Number(stock.dividendYield)) ? `${Number(stock.dividendYield).toFixed(1)}%` : "—"}</td>
                         <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
                         <td className="p-3 text-center">
                           <span className={`font-mono font-semibold ${(stock.signalScore || 0) >= 65 ? "text-green-600" : (stock.signalScore || 0) <= 35 ? "text-red-600" : ""}`}>

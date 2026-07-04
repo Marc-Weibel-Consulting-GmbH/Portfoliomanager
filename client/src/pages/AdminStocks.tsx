@@ -10,6 +10,13 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { AdminTopbar } from "@/components/AdminTopbar";
 
+// L-15: robuste Zahl-Formatierung — auch der String «NaN» ist truthy und würde sonst als
+// «NaN» gerendert. Nur echte, endliche Werte anzeigen, sonst «—».
+function fmtNum(v: unknown, decimals: number, suffix = ""): string {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(decimals) + suffix : "—";
+}
+
 export default function AdminStocks() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -120,15 +127,19 @@ export default function AdminStocks() {
                         <td className="py-2 px-2">{stock.companyName}</td>
                         <td className="py-2 px-2 text-muted-foreground">{stock.category}</td>
                         <td className="py-2 px-2 text-right">
-                          {stock.currentPrice ? Number(stock.currentPrice).toFixed(2) : 'N/A'} {stock.currency || 'CHF'}
+                          {Number.isFinite(Number(stock.currentPrice))
+                            ? `${Number(stock.currentPrice).toFixed(2)} ${stock.currency || 'CHF'}`
+                            : '—'}
                         </td>
                         <td className={`py-2 px-2 text-right font-semibold ${
                           Number(stock.ytdPerformance) >= 0 ? 'text-green-500' : 'text-red-500'
                         }`}>
-                          {stock.ytdPerformance ? (Number(stock.ytdPerformance) >= 0 ? '+' : '') + Number(stock.ytdPerformance).toFixed(1) + '%' : 'N/A'}
+                          {Number.isFinite(Number(stock.ytdPerformance))
+                            ? (Number(stock.ytdPerformance) >= 0 ? '+' : '') + Number(stock.ytdPerformance).toFixed(1) + '%'
+                            : '—'}
                         </td>
-                        <td className="py-2 px-2 text-right">{stock.peRatio ? Number(stock.peRatio).toFixed(1) : 'N/A'}</td>
-                        <td className="py-2 px-2 text-right">{stock.dividendYield ? Number(stock.dividendYield).toFixed(2) + '%' : 'N/A'}</td>
+                        <td className="py-2 px-2 text-right">{fmtNum(stock.peRatio, 1)}</td>
+                        <td className="py-2 px-2 text-right">{fmtNum(stock.dividendYield, 2, '%')}</td>
                       </tr>
                     ))}
                   </tbody>

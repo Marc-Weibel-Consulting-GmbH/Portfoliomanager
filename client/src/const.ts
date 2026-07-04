@@ -1,6 +1,8 @@
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
-export const APP_TITLE = import.meta.env.VITE_APP_TITLE || "App";
+// L-05: einheitlicher Produktname. Der deployte Wert kommt aus VITE_APP_TITLE;
+// ist er nicht gesetzt, gilt «Portfoliomanager» (konsistent mit Sidebar/Dashboard).
+export const APP_TITLE = import.meta.env.VITE_APP_TITLE || "Portfoliomanager";
 
 export const APP_LOGO =
   import.meta.env.VITE_APP_LOGO ||

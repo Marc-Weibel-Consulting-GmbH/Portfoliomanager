@@ -15,6 +15,17 @@ export interface YahooSearchQuote {
 export type YahooSearchFn = (query: string) => Promise<{ quotes?: YahooSearchQuote[] }>;
 
 /**
+ * Heuristik: sieht der String wie eine ISIN aus? (2 Buchstaben Länderkürzel +
+ * 9 alphanumerische Zeichen + 1 Prüfziffer). Verwendet, um Alt-Watchlist-Einträge,
+ * die eine ISIN statt eines Yahoo-Tickers tragen, gegen sinnlose Quote-Abrufe zu
+ * schützen (L-20: stoppt den [watchlistAlertsCron]-Log-Spam).
+ */
+export function isLikelyIsin(value: string | null | undefined): boolean {
+  if (!value) return false;
+  return /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(value.trim().toUpperCase());
+}
+
+/**
  * Pick the first equity/ETF quote symbol from Yahoo search quotes.
  * Exported for unit tests.
  */
