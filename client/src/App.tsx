@@ -64,6 +64,8 @@ import AdminSignalPerformance from "./pages/AdminSignalPerformance";
 import AdminWikifolio from "./pages/AdminWikifolio";
 import AdminSettings from "./pages/AdminSettings";
 import AdminResearch from "./pages/AdminResearch";
+import AdminBerechnungen from "./pages/AdminBerechnungen";
+import AdminScreenshots from "./pages/AdminScreenshots";
 
 function Router() {
   return (
@@ -163,6 +165,8 @@ function Router() {
       <Route path="/admin/wikifolio"><RequireAdmin><AdminWikifolio /></RequireAdmin></Route>
       <Route path="/admin/settings"><RequireAdmin><AdminSettings /></RequireAdmin></Route>
       <Route path="/admin/research"><RequireAdmin><AdminResearch /></RequireAdmin></Route>
+      <Route path="/admin/berechnungen"><RequireAdmin><AdminBerechnungen /></RequireAdmin></Route>
+      <Route path="/admin/screenshots"><RequireAdmin><AdminScreenshots /></RequireAdmin></Route>
 
       {/* ═══ Legacy Redirects (alte Routen → neue Struktur) ═══ */}
       <Route path="/home">

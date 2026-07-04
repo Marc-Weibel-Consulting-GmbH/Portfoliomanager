@@ -1,7 +1,7 @@
-import { Shield, Database, Grid3x3, PieChart, Key, BarChart3 } from "lucide-react";
+import { Shield, Database, Grid3x3, PieChart, Key, BarChart3, Calculator, Camera } from "lucide-react";
 import { useLocation } from "wouter";
 
-type AdminTab = "overview" | "stocks" | "categories" | "sectors" | "secrets" | "kpis";
+type AdminTab = "overview" | "stocks" | "categories" | "sectors" | "secrets" | "kpis" | "berechnungen" | "screenshots";
 
 export function AdminTopbar() {
   const [location, setLocation] = useLocation();
@@ -13,6 +13,8 @@ export function AdminTopbar() {
     if (location.startsWith("/admin/sectors")) return "sectors";
     if (location.startsWith("/admin/secrets")) return "secrets";
     if (location.startsWith("/admin/kpis")) return "kpis";
+    if (location.startsWith("/admin/berechnungen")) return "berechnungen";
+    if (location.startsWith("/admin/screenshots")) return "screenshots";
     return "overview";
   };
   
@@ -25,6 +27,8 @@ export function AdminTopbar() {
     { id: "sectors" as const, label: "Sektoren-Verwaltung", icon: PieChart, path: "/admin/sectors" },
     { id: "kpis" as const, label: "KPI-Verwaltung", icon: BarChart3, path: "/admin/kpis" },
     { id: "secrets" as const, label: "Secrets-Verwaltung", icon: Key, path: "/admin/secrets" },
+    { id: "berechnungen" as const, label: "Berechnungen", icon: Calculator, path: "/admin/berechnungen" },
+    { id: "screenshots" as const, label: "Screenshots", icon: Camera, path: "/admin/screenshots" },
   ];
 
   return (
