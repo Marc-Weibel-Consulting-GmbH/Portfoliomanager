@@ -1005,12 +1005,73 @@ export const portfoliosRouter = router({
           }
         }
         
-        // If deactivating live tracking, just update the flags
+        // U-19: Beim Deaktivieren wird das Portfolio wieder zum Demo-Portfolio.
+        // Demo-Portfolios führen keine Transaktionen (Kundenanforderung):
+        // 1) aktuelle Bestände aus den Transaktionen in portfolioData übernehmen
+        //    (die Positionen bleiben erhalten),
+        // 2) danach Transaktionen + zugehörige realizedGains-Zeilen löschen.
+        if (!input.isLive && portfolio.isLive) {
+          const { getPortfolioTransactions, getDb } = await import("../db");
+          const transactions = await getPortfolioTransactions(input.id);
+
+          if (transactions.length > 0) {
+            // Bestände aggregieren (buy/entry +, sell −) — VOR dem Löschen
+            const { aggregateHoldingsFromTransactions } = await import("./dividendCalendarRouter");
+            const holdings = aggregateHoldingsFromTransactions(transactions);
+
+            // Snapshot der Stückzahlen in portfolioData (Format {stocks:[]} bzw. Array beibehalten)
+            let raw: any = {};
+            try {
+              raw = JSON.parse(portfolio.portfolioData || "{}");
+            } catch {
+              raw = {};
+            }
+            const stocks: any[] = Array.isArray(raw) ? raw : (raw.stocks || []);
+            const byTicker = new Map<string, any>(stocks.map((s: any) => [s.ticker, s]));
+            for (const [ticker, shares] of Object.entries(holdings)) {
+              if (!ticker || ticker === "CASH") continue;
+              const existing = byTicker.get(ticker);
+              if (shares > 0) {
+                if (existing) {
+                  existing.shares = shares.toFixed(2);
+                } else {
+                  byTicker.set(ticker, { ticker, shares: shares.toFixed(2) });
+                }
+              } else if (existing) {
+                // Position vollständig verkauft → nicht in den Demo-Bestand übernehmen
+                byTicker.delete(ticker);
+              }
+            }
+            const snapshotStocks = Array.from(byTicker.values());
+            const newPortfolioData = Array.isArray(raw)
+              ? JSON.stringify(snapshotStocks)
+              : JSON.stringify({ ...raw, stocks: snapshotStocks });
+
+            // Transaktionen + realisierte Gewinne dieses Portfolios entfernen
+            const db = await getDb();
+            if (db) {
+              const { portfolioTransactions, realizedGains } = await import("../../drizzle/schema");
+              const { eq } = await import("drizzle-orm");
+              await db.delete(realizedGains).where(eq(realizedGains.portfolioId, input.id));
+              await db.delete(portfolioTransactions).where(eq(portfolioTransactions.portfolioId, input.id));
+            }
+
+            const result = await updateSavedPortfolio(input.id, ctx.user.id, {
+              isLive: isLiveValue,
+              liveStartDate: liveStartDate,
+              portfolioData: newPortfolioData,
+            });
+
+            return { success: true, portfolio: result };
+          }
+        }
+
+        // If deactivating live tracking without transactions, just update the flags
         const result = await updateSavedPortfolio(input.id, ctx.user.id, {
           isLive: isLiveValue,
           liveStartDate: liveStartDate,
         });
-        
+
         return { success: true, portfolio: result };
       }),
 

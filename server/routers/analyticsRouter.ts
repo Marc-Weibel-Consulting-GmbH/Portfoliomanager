@@ -98,6 +98,8 @@ export const analyticsRouter = router({
         lookbackDays: z.number().default(252),
         riskFreeRate: z.number().default(0.02),
         method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend"]).default("max_sharpe"),
+        // R-34c (additiv): Portfoliowert in CHF für die Mindest-Positionsgrösse CHF 3'000
+        portfolioValue: z.number().positive().optional(),
       })
     )
     .query(async ({ input }) => {
@@ -107,6 +109,7 @@ export const analyticsRouter = router({
           lookbackDays: input.lookbackDays,
           riskFreeRate: input.riskFreeRate,
           method: input.method,
+          portfolioValue: input.portfolioValue,
         });
       } catch (err: any) {
         throw new TRPCError({

@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap, FlaskConical } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -53,7 +53,8 @@ const toolsGroup: NavGroup = {
   items: [
     { icon: Bell, label: "Preisalarme", path: "/price-alerts" },
     { icon: Calculator, label: "Rechner", path: "/rechner" },
-    { icon: FlaskConical, label: "Backtest", path: "/backtesting" },
+    // F-09/Backtest: Nav-Eintrag ausgeblendet (Vorgabe Teil 2 «kein Alpha») —
+    // die Route /backtesting bleibt für Direktaufrufe bestehen (Rückbau-Entscheid offen).
   ],
 };
 

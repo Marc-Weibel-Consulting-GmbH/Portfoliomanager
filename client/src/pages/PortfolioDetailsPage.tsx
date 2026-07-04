@@ -59,7 +59,7 @@ import RiskTab from "@/components/portfolio/RiskTab";
 import OptimierenTab from "@/components/portfolio/OptimierenTab";
 import PositionsKonstellation from "@/components/portfolio/PositionsKonstellation";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
-import { SECTOR_COLOR, formatCHF, formatCurrency } from "@/lib/format";
+import { SECTOR_COLOR, formatCHF, formatCurrency, formatDate } from "@/lib/format";
 import { StockLogo } from "@/components/StockLogo";
 import {
   AlertDialog,
@@ -270,6 +270,100 @@ function PerformanceTab({
   );
 }
 
+// ─── F-06: Dividenden-Tab — anstehende Dividenden dieses Portfolios ───
+function DividendenTab({ portfolioId }: { portfolioId: number }) {
+  const { data: dividends = [], isLoading } = trpc.dividendCalendar.getUpcoming.useQuery(
+    { portfolioId, daysAhead: 365 },
+    { enabled: portfolioId > 0 }
+  );
+
+  const rows = useMemo(() => {
+    const startOfToday = new Date(new Date().toDateString());
+    return (dividends as any[])
+      .filter((d) => d.exDividendDate && new Date(d.exDividendDate) >= startOfToday)
+      .sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
+  }, [dividends]);
+
+  const totalCHF = rows.reduce((s: number, d: any) => s + (d.expectedIncome || 0), 0);
+
+  if (isLoading) {
+    return (
+      <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5 space-y-3 animate-pulse" aria-label="Dividenden werden geladen">
+        <div className="h-4 w-48 bg-white/10 rounded" />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-8 bg-white/5 rounded" />
+        ))}
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="bg-[#0f1420] border border-white/10 rounded-lg p-10 text-center">
+        <DollarSign className="h-10 w-10 text-gray-600 mx-auto mb-3" />
+        <p className="text-gray-400 text-sm">Keine anstehenden Dividenden für dieses Portfolio.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[#0f1420] border border-white/10 rounded-lg">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Anstehende Dividenden</h3>
+          <p className="text-xs text-gray-400">Nächste 12 Monate · Positionen dieses Portfolios</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Erwartet (12M)</p>
+          <p className="text-lg font-bold font-mono text-[#00CFC1]">{formatCHF(totalCHF)}</p>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-white/10">
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Titel</th>
+              <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ex-Datum</th>
+              <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Zahldatum</th>
+              <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Betrag je Aktie</th>
+              <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Stück</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Erwartet (CHF)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((d: any, i: number) => (
+              <tr key={`${d.ticker}-${d.exDividendDate}-${i}`} className="border-b border-white/5 hover:bg-white/[0.03]">
+                <td className="px-5 py-3">
+                  <span className="font-mono text-xs text-[#00CFC1] mr-2">{d.ticker}</span>
+                  <span className="text-sm text-white">{d.companyName}</span>
+                </td>
+                <td className="px-3 py-3 text-sm text-gray-400">
+                  {formatDate(d.exDividendDate)}
+                  {d.type === 'estimated' && (
+                    <span className="ml-1 text-xs text-yellow-500/70" title="geschätzter Termin">~</span>
+                  )}
+                </td>
+                <td className="px-3 py-3 text-sm text-gray-400">{d.paymentDate ? formatDate(d.paymentDate) : '—'}</td>
+                <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(d.amount, d.currency || 'CHF')}</td>
+                <td className="px-3 py-3 text-right text-sm text-gray-300">
+                  {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 2 }).format(parseFloat(d.shares) || 0)}
+                </td>
+                <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">{formatCHF(d.expectedIncome || 0)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-white/10">
+              <td colSpan={5} className="px-5 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Summe (gesamt)</td>
+              <td className="px-5 py-3 text-right text-sm font-bold font-mono text-[#00CFC1]">{formatCHF(totalCHF)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // Inline delete button for individual transactions
 function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId: number; portfolioId: number }) {
   const utils = trpc.useUtils();
@@ -357,6 +451,9 @@ export default function PortfolioDetailsPage() {
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
   const [startCapital, setStartCapital] = useState("");
   const [selectedActivationBenchmark, setSelectedActivationBenchmark] = useState<"SMI" | "SP500" | "MSCI_WORLD">("SMI");
+
+  // U-19: Live-Tracking deaktivieren (Live -> Demo) mit Bestätigungsdialog
+  const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
   
   // Fetch transactions for edit modal
   const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
@@ -421,7 +518,25 @@ export default function PortfolioDetailsPage() {
       toast.error('Fehler beim Aktivieren', { description: getUserErrorMessage(error) });
     },
   });
-  
+
+  // U-19: Deaktivieren (Live -> Demo) — Transaktionen werden serverseitig entfernt,
+  // die Positionen bleiben als Demo-Bestand erhalten.
+  const deactivateLive = trpc.portfolios.toggleLive.useMutation({
+    onSuccess: () => {
+      toast.success('Live-Tracking deaktiviert. Die Positionen bleiben als Demo-Portfolio erhalten.');
+      setIsDeactivateDialogOpen(false);
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      utils.portfolios.list.invalidate();
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      utils.realizedGainsHistory.getAll.invalidate({ portfolioId });
+      refetch();
+    },
+    onError: (error) => {
+      setIsDeactivateDialogOpen(false);
+      toast.error('Fehler beim Deaktivieren', { description: getUserErrorMessage(error) });
+    },
+  });
+
   const [selectedPeriod, setSelectedPeriod] = useState("YTD");
   const [selectedBenchmark, setSelectedBenchmark] = useState("SPY");
   // Performance view: stocks-only vs. total portfolio incl. cash drag.
@@ -706,6 +821,17 @@ export default function PortfolioDetailsPage() {
                   Aktivieren
                 </Button>
               )}
+              {/* U-19: Live-Tracking deaktivieren (mit Warnhinweis) */}
+              {!isDemo && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDeactivateDialogOpen(true)}
+                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                >
+                  Deaktivieren
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
                 + Position
               </Button>
@@ -849,6 +975,7 @@ export default function PortfolioDetailsPage() {
               { value: 'uebersicht', label: 'Übersicht' },
               { value: 'positionen', label: `Positionen`, badge: holdings.length },
               { value: 'transaktionen', label: 'Transaktionen', badge: transactions.length },
+              { value: 'dividenden', label: 'Dividenden' },
               { value: 'performance', label: 'Performance' },
               { value: 'risiko', label: 'Risiko' },
               { value: 'optimieren', label: 'Optimieren', aiBadge: true },
@@ -1187,6 +1314,24 @@ export default function PortfolioDetailsPage() {
 
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
           <TabsContent value="transaktionen" className="mt-6">
+            {/* U-19: Demo-Portfolios führen keine Transaktionen — Hinweis statt Liste */}
+            {isDemo && (
+              <div className="bg-[#0f1420] border border-white/10 rounded-lg p-10 text-center">
+                <FileText className="h-10 w-10 text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-300 text-sm font-medium">Demo-Portfolios führen keine Transaktionen.</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  Aktivieren Sie Live-Tracking, um Käufe, Verkäufe und Dividenden zu erfassen und auszuwerten.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setIsActivationModalOpen(true)}
+                  className="mt-4 bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Live-Tracking aktivieren
+                </Button>
+              </div>
+            )}
             {/* U-03: Transaktion erfassen + PDF-Import — nur für Live-Portfolios
                 (konsistent zu den Lösch-Guards weiter unten) */}
             {!isDemo && (
@@ -1210,7 +1355,7 @@ export default function PortfolioDetailsPage() {
                 </Button>
               </div>
             )}
-            {(() => {
+            {!isDemo && (() => {
               const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
               const dividends = transactions.filter((t: any) => (t.type || t.transactionType) === 'dividend');
@@ -1391,6 +1536,11 @@ export default function PortfolioDetailsPage() {
                 </>
               );
             })()}
+          </TabsContent>
+
+          {/* DIVIDENDEN TAB — F-06: anstehende Dividenden dieses Portfolios */}
+          <TabsContent value="dividenden" className="mt-6">
+            <DividendenTab portfolioId={portfolioId} />
           </TabsContent>
 
           {/* PERFORMANCE TAB */}
@@ -1628,6 +1778,17 @@ export default function PortfolioDetailsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* U-19: Live-Tracking deaktivieren — Bestätigung mit Warnhinweis */}
+      <ConfirmDialog
+        open={isDeactivateDialogOpen}
+        onOpenChange={setIsDeactivateDialogOpen}
+        title="Live-Tracking deaktivieren?"
+        description="Beim Deaktivieren werden die Transaktionen entfernt; die Positionen bleiben erhalten. Das Portfolio wird wieder als Demo-Portfolio geführt. Diese Aktion kann nicht rückgängig gemacht werden."
+        confirmLabel="Deaktivieren"
+        onConfirm={() => deactivateLive.mutate({ id: portfolioId, isLive: false })}
+        isPending={deactivateLive.isPending}
+      />
 
       {/* Bulk Delete Confirmation Dialog (U-08) */}
       <ConfirmDialog
