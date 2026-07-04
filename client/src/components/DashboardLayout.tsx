@@ -24,11 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-<<<<<<< Updated upstream
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap } from "lucide-react";
-=======
 import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap, FlaskConical, Camera } from "lucide-react";
->>>>>>> Stashed changes
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
