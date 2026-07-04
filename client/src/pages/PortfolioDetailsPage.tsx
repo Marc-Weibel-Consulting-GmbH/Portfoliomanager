@@ -57,6 +57,7 @@ import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
 import RiskTab from "@/components/portfolio/RiskTab";
 import OptimierenTab from "@/components/portfolio/OptimierenTab";
+import PortfolioDeepDive from "@/components/portfolio/PortfolioDeepDive";
 import PositionsKonstellation from "@/components/portfolio/PositionsKonstellation";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
 import { SECTOR_COLOR, formatCHF, formatCurrency, formatDate } from "@/lib/format";
@@ -979,6 +980,7 @@ export default function PortfolioDetailsPage() {
               { value: 'performance', label: 'Performance' },
               { value: 'risiko', label: 'Risiko' },
               { value: 'optimieren', label: 'Optimieren', aiBadge: true },
+              { value: 'deepdive', label: 'Deep-Dive', aiBadge: true },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
@@ -1564,6 +1566,11 @@ export default function PortfolioDetailsPage() {
           {/* OPTIMIZE TAB — KI-Re-Allocation + Effizienzgrenze (S.06) */}
           <TabsContent value="optimieren" className="mt-6">
             <OptimierenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} />
+          </TabsContent>
+
+          {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}
+          <TabsContent value="deepdive" className="mt-6">
+            <PortfolioDeepDive portfolioId={portfolioId} />
           </TabsContent>
         </Tabs>
 
