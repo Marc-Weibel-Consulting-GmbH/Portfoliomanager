@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --keep-names --tree-shaking=false --outdir=dist && mkdir -p dist/node_modules/wikifolio && cp -r vendor/wikifolio/dist dist/node_modules/wikifolio/dist && cp vendor/wikifolio/package.json dist/node_modules/wikifolio/package.json",
+    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --keep-names --tree-shaking=false --outdir=dist && mkdir -p dist/node_modules/wikifolio && cp -rL node_modules/wikifolio/dist dist/node_modules/wikifolio/dist && cp node_modules/wikifolio/package.json dist/node_modules/wikifolio/package.json",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
     "format": "prettier --write .",
