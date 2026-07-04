@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
@@ -101,7 +102,14 @@ export default function OptimierenTab({
   }, [holdings]);
 
   const { data: result, isFetching, error } = trpc.analytics.optimize.useQuery(
-    { tickers, lookbackDays: 252, riskFreeRate: 0.015, method: "max_sharpe" },
+    {
+      tickers,
+      lookbackDays: 252,
+      riskFreeRate: 0.015,
+      method: "max_sharpe",
+      // R-34c: Portfoliowert für die Mindest-Positionsgrösse CHF 3'000 (Server-Post-Filter)
+      ...(totalValueCHF && totalValueCHF > 0 ? { portfolioValue: totalValueCHF } : {}),
+    },
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 5 * 60 * 1000 }
   );
 
@@ -140,6 +148,17 @@ export default function OptimierenTab({
       .slice(0, 6);
   }, [result, currentWeights]);
 
+  // R-34c: vom Server wegen der Mindestgrösse CHF 3'000 auf 0 gesetzte Positionen
+  const droppedPositions = useMemo(
+    () =>
+      ((result as any)?.droppedPositions ?? []) as Array<{
+        ticker: string;
+        targetWeight: number;
+        targetValueCHF: number;
+      }>,
+    [result]
+  );
+
   // Diversification rules
   const divRules = useMemo(
     () => checkDiversificationRules(holdings, totalValueCHF || 0),
@@ -159,6 +178,22 @@ export default function OptimierenTab({
 
   return (
     <div className="space-y-5">
+      {/* ─── R-34: Warnung bei < 15 Titeln (der Optimizer kann keine Titel ergänzen) ─── */}
+      {tickers.length < 15 && (
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-200">
+            Für eine robuste Optimierung empfehlen wir mindestens 15 Titel — Ihr Portfolio hat{' '}
+            {tickers.length}. Die Optimierung verteilt nur bestehende Positionen um; ergänzen Sie
+            weitere Positionen über{' '}
+            <Link href="/aktien" className="underline font-semibold text-amber-100 hover:text-white">
+              Aktien → Empfehlungen
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+
       {/* ─── Diversifikationsregeln ─── */}
       <div className={`border rounded-lg overflow-hidden ${allPassed ? 'border-[#00CFC1]/30' : 'border-amber-500/30'}`}>
         <button
@@ -228,6 +263,23 @@ export default function OptimierenTab({
               </div>
             ))}
           </div>
+
+          {/* R-34c: Mindest-Positionsgrösse CHF 3'000 — vom Server auf 0 gesetzte Positionen */}
+          {droppedPositions.length > 0 && (
+            <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
+              <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-200">
+                Mindest-Positionsgrösse CHF 3'000: {droppedPositions.length === 1
+                  ? 'Eine Position unterschreitet im Zielportfolio die Mindestgrösse und wurde auf 0 % gesetzt'
+                  : `${droppedPositions.length} Positionen unterschreiten im Zielportfolio die Mindestgrösse und wurden auf 0 % gesetzt`}
+                {' '}(Gewicht auf die übrigen Titel umverteilt):{' '}
+                {droppedPositions
+                  .map((d) => `${d.ticker} (CHF ${Math.round(d.targetValueCHF).toLocaleString('de-CH')})`)
+                  .join(', ')}
+                .
+              </p>
+            </div>
+          )}
 
           <div className="grid lg:grid-cols-2 gap-5">
             {/* KI-Vorschläge (Re-Allocation) */}

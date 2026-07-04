@@ -6,12 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, TrendingUpIcon, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
 import DashboardLayout from "@/components/DashboardLayout";
 import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
 import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
-import TradingViewBacktestTab from "@/components/stock/TradingViewBacktestTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
 import ValuationTab from "@/components/stock/ValuationTab";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
@@ -140,31 +139,6 @@ function FinancialHighlight({ label, value, isPositive }: { label: string; value
   );
 }
 
-// News item component with thematic icon
-function NewsItem({ title, icon: Icon, url, date }: { title: string; icon: React.ElementType; url?: string; date?: string }) {
-  const content = (
-    <div className="flex items-start gap-3 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 rounded-lg px-2 transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#00CFC1]/20 to-[#00CFC1]/5 flex items-center justify-center flex-shrink-0">
-        <Icon className="w-5 h-5 text-[#00CFC1]" />
-      </div>
-      <div className="flex-1">
-        <p className="text-sm text-gray-300 line-clamp-2">{title}</p>
-        {date && <p className="text-xs text-gray-500 mt-1">{date}</p>}
-      </div>
-    </div>
-  );
-  
-  if (url) {
-    return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
-        {content}
-      </a>
-    );
-  }
-  
-  return content;
-}
-
 export default function StockDetail() {
   // Active route is /aktien/:ticker (legacy /stock/:ticker redirects here).
   // Must match the live route or the page renders blank via `if (!match) return null`.
@@ -185,8 +159,10 @@ export default function StockDetail() {
   const searchParams = new URLSearchParams(searchString);
   const fromPortfolioId = searchParams.get('from');
   const urlTab = searchParams.get('tab') || 'overview';
-  // F-09: alte Deep-Links auf den ausgeblendeten KI-Prognose-Tab auf die Übersicht umleiten
-  const [activeStockTab, setActiveStockTab] = useState(urlTab === 'prediction' ? 'overview' : urlTab);
+  // F-09: alte Deep-Links auf ausgeblendete Tabs (KI-Prognose, Backtest) auf die Übersicht umleiten
+  const [activeStockTab, setActiveStockTab] = useState(
+    urlTab === 'prediction' || urlTab === 'backtest' ? 'overview' : urlTab
+  );
   
   const handleStockTabChange = (tab: string) => {
     setActiveStockTab(tab);
@@ -556,17 +532,18 @@ export default function StockDetail() {
           </div>
         </div>
 
-        {/* Tabs per IA-Optimierung: Übersicht | Signale | Chart & TA | Bewertung | Backtest | News.
+        {/* Tabs per IA-Optimierung (F-10): Übersicht | Chart & TA | Signale | Bewertung | News.
             F-09: KI-Prognose-Tab ausgeblendet (Vorgabe Auftraggeber: unzuverlässig).
+            Backtest-Tab ausgeblendet (Vorgabe Teil 2 «kein Alpha») — Route /backtesting
+            bleibt für Direktaufrufe; Rückbau-Entscheid offen.
             PredictionTab.tsx/predictionRouter bleiben für den Rückbau-Entscheid bestehen. */}
         <Tabs value={activeStockTab} onValueChange={handleStockTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none mb-6">
             {[
               { value: 'overview', label: 'Übersicht' },
-              { value: 'signals', label: 'Signale', badge: newsData.length },
               { value: 'chart-ta', label: 'Chart & TA' },
+              { value: 'signals', label: 'Signale', badge: newsData.length },
               { value: 'valuation', label: 'Bewertung (DCF)' },
-              { value: 'backtest', label: 'Backtest' },
               { value: 'news', label: 'News', badge: newsData.length },
             ].map(tab => (
               <TabsTrigger
@@ -751,7 +728,7 @@ export default function StockDetail() {
             </div>
           </div>
 
-          {/* Right Column - Metrics & News */}
+          {/* Right Column - Metrics (F-10: News aus der Übersicht entfernt — eigener News-Tab) */}
           <div className="space-y-6">
             {/* LPPLS Bubble-Risiko (Sornette) — nur sichtbar bei relevantem Risiko */}
             <BubbleRiskCard ticker={ticker} />
@@ -815,39 +792,6 @@ export default function StockDetail() {
               </CardContent>
             </Card>
 
-            {/* News Section */}
-            <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
-              <CardContent className="p-4">
-                <h3 className="text-lg font-semibold text-white mb-3">News</h3>
-                <div className="space-y-1">
-                  {newsData.length > 0 ? (
-                    newsData.map((news: any, index: number) => (
-                      <NewsItem 
-                        key={index} 
-                        title={news.title} 
-                        icon={Newspaper}
-                        url={news.url}
-                        date={news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('de-CH') : undefined}
-                      />
-                    ))
-                  ) : (
-                    <>
-                      <NewsItem title={`${stock.companyName} unveils new products with innovative features`} icon={Lightbulb} />
-                      <NewsItem title={`${stock.companyName} services revenue hits all-time high`} icon={TrendingUp} />
-                      <NewsItem title={`Analysts bullish on ${stock.companyName}'s future growth`} icon={TrendingUpIcon} />
-                    </>
-                  )}
-                </div>
-                <Button 
-                  variant="ghost" 
-                  className="w-full mt-3 text-[#00CFC1] hover:text-[#00b8ad] hover:bg-[#00CFC1]/10"
-                  onClick={() => navigate(`/newsroom?ticker=${ticker}`)}
-                >
-                  Alle News anzeigen
-                  <ExternalLink className="w-4 h-4 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
         
@@ -869,11 +813,6 @@ export default function StockDetail() {
           {/* Bewertung (DCF) Tab */}
           <TabsContent value="valuation">
             <ValuationTab ticker={ticker} stock={stock} />
-          </TabsContent>
-
-          {/* Backtest Tab */}
-          <TabsContent value="backtest">
-            <TradingViewBacktestTab ticker={ticker} />
           </TabsContent>
 
           {/* News Tab */}

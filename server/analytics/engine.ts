@@ -67,6 +67,11 @@ export interface OptimizeInput {
   lookbackDays?: number;
   riskFreeRate?: number;
   method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend";
+  /**
+   * R-34c: aktueller Portfoliowert in CHF. Wenn gesetzt, werden Zielpositionen
+   * unter CHF 3'000 auf 0 gesetzt und umverteilt (Mindest-Positionsgrösse).
+   */
+  portfolioValue?: number;
 }
 
 export interface TechnicalAnalysisInput {
@@ -1059,6 +1064,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
     lookbackDays = 252,
     riskFreeRate = DEFAULT_RISK_FREE_RATE,
     method = "max_sharpe",
+    portfolioValue,
   } = input;
 
   if (tickers.length < 2) {
@@ -1095,7 +1101,41 @@ export async function optimizePortfolio(input: OptimizeInput) {
 
   // Optimal weights
   const optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields);
-  const { ret: optRet, vol: optVol, sharpe: optSharpe } = portfolioStats(optimalWeights, mu, cov);
+
+  // R-34c: Mindest-Positionsgrösse CHF 3'000 — Zielpositionen, deren Wert
+  // (Zielgewicht × Portfoliowert) unter der Mindestgrösse liegt, werden auf 0
+  // gesetzt; ihr Gewicht wird innerhalb der Bounds auf die verbleibenden Titel
+  // umverteilt. Nur aktiv, wenn der Portfoliowert übergeben wurde; bei < 2
+  // verbleibenden Titeln wird die Regel ausgesetzt (Regel wäre unerfüllbar,
+  // z. B. bei sehr kleinen Portfolios).
+  const MIN_POSITION_CHF = 3000;
+  let finalWeights = optimalWeights;
+  const droppedPositions: Array<{ ticker: string; targetWeight: number; targetValueCHF: number }> = [];
+  if (portfolioValue && portfolioValue > 0) {
+    const keepIdx: number[] = [];
+    const dropIdx: number[] = [];
+    optimalWeights.forEach((w, i) => {
+      if (w * portfolioValue < MIN_POSITION_CHF) dropIdx.push(i);
+      else keepIdx.push(i);
+    });
+    if (dropIdx.length > 0 && keepIdx.length >= 2) {
+      const { minW, maxW } = effectiveBounds(keepIdx.length, 0.01, 0.10);
+      const kept = normalizeWithBounds(keepIdx.map((i) => optimalWeights[i]), minW, maxW);
+      finalWeights = new Array(n).fill(0);
+      keepIdx.forEach((idx, j) => {
+        finalWeights[idx] = kept[j];
+      });
+      dropIdx.forEach((i) => {
+        droppedPositions.push({
+          ticker: available[i],
+          targetWeight: Math.round(optimalWeights[i] * 10000) / 10000,
+          targetValueCHF: Math.round(optimalWeights[i] * portfolioValue),
+        });
+      });
+    }
+  }
+
+  const { ret: optRet, vol: optVol, sharpe: optSharpe } = portfolioStats(finalWeights, mu, cov);
 
   // Current portfolio (equal weight)
   const equalWeights = new Array(n).fill(1 / n);
@@ -1110,7 +1150,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
     return {
       ticker,
       currentWeight: Math.round((1 / n) * 1000) / 10,
-      optimalWeight: Math.round(optimalWeights[i] * 1000) / 10,
+      optimalWeight: Math.round(finalWeights[i] * 1000) / 10,
       annualReturn: Math.round(mu[i] * 10000) / 100,
       volatility: Math.round(Math.sqrt(cov[i][i]) * 10000) / 100,
       sharpe: Math.round(calcSharpe(ar, riskFreeRate) * 1000) / 1000,
@@ -1119,7 +1159,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
 
   const weightsMap: { [ticker: string]: number } = {};
   for (let i = 0; i < available.length; i++) {
-    weightsMap[available[i]] = Math.round(optimalWeights[i] * 10000) / 10000;
+    weightsMap[available[i]] = Math.round(finalWeights[i] * 10000) / 10000;
   }
 
   return {
@@ -1140,6 +1180,10 @@ export async function optimizePortfolio(input: OptimizeInput) {
     assets: assetStats,
     efficientFrontier,
     tickers: available,
+    // R-34c (additiv): Positionen, die wegen der Mindestgrösse CHF 3'000
+    // auf 0 gesetzt wurden (leer, wenn kein portfolioValue übergeben wurde).
+    droppedPositions,
+    minPositionChf: MIN_POSITION_CHF,
   };
 }
 
