@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --keep-names --tree-shaking=false --outdir=dist",
+    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --keep-names --tree-shaking=false --outdir=dist && mkdir -p dist/node_modules/wikifolio && cp -r vendor/wikifolio/dist dist/node_modules/wikifolio/dist && cp vendor/wikifolio/package.json dist/node_modules/wikifolio/package.json",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
     "format": "prettier --write .",
@@ -101,6 +101,7 @@
     "react-resizable-panels": "^3.0.6",
     "recharts": "^2.15.4",
     "resend": "^6.4.2",
+    "rxjs": "^7.4.0",
     "simple-statistics": "^7.8.9",
     "sonner": "^2.0.7",
     "stripe": "^19.1.0",
@@ -112,6 +113,7 @@
     "vaul": "^1.1.2",
     "wikifolio": "link:vendor/wikifolio",
     "wouter": "^3.3.5",
+    "ws": "^8.2.3",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^3.14.1",
     "zod": "^4.1.12"
