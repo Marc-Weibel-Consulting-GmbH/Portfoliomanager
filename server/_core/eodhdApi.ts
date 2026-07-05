@@ -117,8 +117,8 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
   }
 
   try {
-    // EODHD API endpoint for fundamentals
-    const url = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}&fmt=json`;
+    // EODHD API endpoint for fundamentals (Symbol-Alias wie im Realtime-Pfad anwenden)
+    const url = `https://eodhd.com/api/fundamentals/${toEodhdSymbol(ticker)}?api_token=${apiKey}&fmt=json`;
     
     // Use retry logic with exponential backoff
     const response = await retryFetch(url, {}, { maxRetries: 3, baseDelay: 1000 });

@@ -269,6 +269,15 @@ function PerformanceCard({ scope }: { scope: Scope }) {
           </div>
         </div>
 
+        {/* Ehrlicher Hinweis, wenn die Portfolio-Linie mangels historischer Kurse nicht
+            gezeichnet werden kann (sonst widerspräche eine flache 0 %-Linie der YTD-Kachel). */}
+        {!isLoading && (data as any)?.portfolioIncomplete && points.length >= 2 && (
+          <p className="text-xs text-amber-400/80 mb-2">
+            Für diese Titel fehlen historische Kursdaten — die Portfolio-Linie kann für diesen
+            Zeitraum nicht dargestellt werden. Die YTD-Kennzahl oben basiert auf dem investierten Betrag.
+          </p>
+        )}
+
         {isLoading ? (
           <Skeleton className="h-64 bg-[#111827] rounded-lg" />
         ) : points.length < 2 ? (
