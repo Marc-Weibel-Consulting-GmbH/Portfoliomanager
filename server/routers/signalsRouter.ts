@@ -14,18 +14,14 @@ import { z } from "zod";
 import { getDb } from "../db";
 import { eq } from "drizzle-orm";
 import { savedPortfolios } from "../../drizzle/schema";
-import YahooFinanceClass from "yahoo-finance2";
 import { randomForestSignal } from '../analytics/mlEngine';
 import { signalForSeries, getActiveSignalModel } from '../analytics/signalService';
 import { analyzeSentiment, sentimentToSignalScore } from '../analytics/sentimentEngine';
 import { getActiveWeights, type WeightConfig } from '../analytics/optimizerWorker';
 import { detectBubble } from '../analytics/lpplsEngine';
-import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
+import { calculateQualityScore, calculateMomentumScore } from '../analytics/qualityMomentumEngine';
 import { runSignalOrchestrator } from '../lib/signals/signalOrchestrator';
 import type { PortfolioAction } from '../lib/signals/types';
-
-// yahoo-finance2 v3: default export is a constructor class
-const yahooFinance = new (YahooFinanceClass as any)();
 
 type SignalType = "buy" | "sell" | "hold";
 type SignalStrength = "strong" | "moderate" | "weak";
@@ -82,16 +78,35 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 }
 
 /**
- * Normalize ticker: strip .US suffix for US stocks, keep .SW for Swiss
+ * Fetch live fundamental data (EODHD) + technicals (historicalPrices-DB) for a single ticker
  */
-function normalizeTicker(ticker: string): string {
-  if (ticker.endsWith(".US")) return ticker.slice(0, -3);
-  return ticker;
+/**
+ * Historische Schlusskurse (split-adjustiert, letzte ~400 Tage) aus der historicalPrices-DB.
+ * Ersetzt Yahoo-`chart`-Abrufe (Yahoo ist aus der Deploy-Umgebung blockiert). Keyed nach dem
+ * DB-Ticker (so wie importHistoricalPrices speichert). Liefert nach Datum aufsteigend sortiert.
+ */
+async function getYearCloses(ticker: string): Promise<Array<{ date: string; close: number }>> {
+  try {
+    const { getDb } = await import("../db");
+    const { historicalPrices } = await import("../../drizzle/schema");
+    const { eq, gte, and, asc } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) return [];
+    const from = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const rows = await db
+      .select({ date: historicalPrices.date, close: historicalPrices.close, adj: historicalPrices.adjustedClose })
+      .from(historicalPrices)
+      .where(and(eq(historicalPrices.ticker, ticker), gte(historicalPrices.date, from)))
+      .orderBy(asc(historicalPrices.date));
+    return rows
+      .map((r: any) => ({ date: r.date as string, close: parseFloat((r.adj ?? r.close) as any) }))
+      .filter((p: { date: string; close: number }) => Number.isFinite(p.close) && p.close > 0);
+  } catch (e) {
+    console.warn(`[Signals] getYearCloses failed for ${ticker}:`, (e as Error).message);
+    return [];
+  }
 }
 
-/**
- * Fetch live fundamental data from Yahoo Finance for a single ticker
- */
 async function fetchLiveData(ticker: string): Promise<{
   peRatio: number | null;
   pegRatio: number | null;
@@ -107,8 +122,6 @@ async function fetchLiveData(ticker: string): Promise<{
   fcfYield: number | null;
   grossMargin: number | null;
 }> {
-  const normalizedTicker = normalizeTicker(ticker);
-  
   let peRatio: number | null = null;
   let pegRatio: number | null = null;
   let dividendYield = 0;
@@ -118,73 +131,46 @@ async function fetchLiveData(ticker: string): Promise<{
   let ytdPerformance = 0;
   let rsi14: number | null = null;
   let companyName = ticker;
-  let roe: number | null = null;
-  let debtToEquity: number | null = null;
-  let fcfYield: number | null = null;
-  let grossMargin: number | null = null;
+  // Qualitätskennzahlen (ROE/D-E/FCF/Marge) liefert der EODHD-Fundamentals-Basisabruf nicht;
+  // sie bleiben null → das Quality-Scoring degradiert graziös.
+  const roe: number | null = null;
+  const debtToEquity: number | null = null;
+  const fcfYield: number | null = null;
+  const grossMargin: number | null = null;
 
+  // Fundamentaldaten via EODHD (Yahoo ist aus der Deploy-Umgebung blockiert → Timeouts).
   try {
-    // Fetch quoteSummary for fundamentals
-    const summary = await yahooFinance.quoteSummary(normalizedTicker, {
-      modules: ["summaryDetail", "defaultKeyStatistics", "financialData", "price"],
-    }) as any;
+    const { fetchEODHDFundamentals, fetchEODHDRealTime } = await import("../_core/eodhdApi");
+    const f = await fetchEODHDFundamentals(ticker);
+    peRatio = f.peRatio ?? null;
+    pegRatio = f.pegRatio ?? null;
+    dividendYield = f.dividendYield ?? 0; // fetchEODHDFundamentals liefert bereits Prozent
+    companyName = f.companyName ?? ticker;
 
-    const sd = summary.summaryDetail;
-    const ks = summary.defaultKeyStatistics;
-    const fd = summary.financialData;
-    const price = summary.price;
-
-    // Extract fundamentals
-    peRatio = sd?.trailingPE ?? ((fd?.currentPrice && fd?.earningsPerShare) 
-      ? fd.currentPrice / fd.earningsPerShare : null);
-    pegRatio = ks?.pegRatio ?? null;
-    dividendYield = (sd?.dividendYield ?? 0) * 100; // Convert from decimal to percentage
-    currentPrice = fd?.currentPrice ?? sd?.regularMarketPrice ?? price?.regularMarketPrice ?? 0;
-    fiftyTwoWeekHigh = sd?.fiftyTwoWeekHigh ?? null;
-    fiftyTwoWeekLow = sd?.fiftyTwoWeekLow ?? null;
-    companyName = price?.longName ?? price?.shortName ?? ticker;
-
-    // Quality metrics extraction
-    roe = fd?.returnOnEquity ? fd.returnOnEquity * 100 : null;
-    debtToEquity = fd?.debtToEquity ? fd.debtToEquity / 100 : null;
-    grossMargin = fd?.grossMargins ? fd.grossMargins * 100 : null;
-    if (fd?.freeCashflow && ks?.marketCap) {
-      fcfYield = (fd.freeCashflow / ks.marketCap) * 100;
-    }
+    const rt = await fetchEODHDRealTime(ticker);
+    if (rt.close && rt.close > 0) currentPrice = rt.close;
   } catch (err) {
-    console.warn(`[Signals] quoteSummary failed for ${normalizedTicker}:`, (err as Error).message);
+    console.warn(`[Signals] EODHD-Fundamentals fehlgeschlagen für ${ticker}:`, (err as Error).message);
   }
 
-  // Fetch YTD performance from chart data
+  // YTD / RSI-14 / 52-Wochen-Range aus der historicalPrices-DB (EODHD-importiert).
   try {
-    const now = new Date();
-    const yearStart = new Date(now.getFullYear(), 0, 1);
-    
-    const chartResult = await yahooFinance.chart(normalizedTicker, {
-      period1: yearStart.toISOString().split("T")[0],
-      period2: now.toISOString().split("T")[0],
-      interval: "1d",
-    }) as any;
-
-    const quotes = chartResult.quotes ?? [];
-    if (quotes.length > 1) {
-      const firstClose = quotes[0]?.close;
-      const lastClose = quotes[quotes.length - 1]?.close;
-      if (firstClose && lastClose && firstClose > 0) {
-        ytdPerformance = ((lastClose - firstClose) / firstClose) * 100;
+    const series = await getYearCloses(ticker);
+    if (series.length > 1) {
+      const yearStart = `${new Date().getFullYear()}-01-01`;
+      const firstYtd = series.find(p => p.date >= yearStart) ?? series[0];
+      const last = series[series.length - 1];
+      if (firstYtd.close > 0) {
+        ytdPerformance = ((last.close - firstYtd.close) / firstYtd.close) * 100;
       }
-      // Use last close as current price if not available from summary
-      if (currentPrice === 0 && lastClose) {
-        currentPrice = lastClose;
-      }
-
-      // Calculate RSI-14 from chart data
-      if (quotes.length >= 15) {
-        rsi14 = calcRSI(quotes.map((q: any) => q.close).filter((c: any) => c != null), 14);
-      }
+      if (currentPrice === 0) currentPrice = last.close;
+      const closes = series.map(p => p.close);
+      fiftyTwoWeekHigh = Math.max(...closes);
+      fiftyTwoWeekLow = Math.min(...closes);
+      if (closes.length >= 15) rsi14 = calcRSI(closes, 14);
     }
   } catch (err) {
-    console.warn(`[Signals] chart failed for ${normalizedTicker}:`, (err as Error).message);
+    console.warn(`[Signals] Historie/RSI fehlgeschlagen für ${ticker}:`, (err as Error).message);
   }
 
   return {
@@ -450,7 +436,6 @@ async function processStock(
   enableSentiment: boolean,
 ): Promise<Signal> {
   const ticker = stock.ticker;
-  const normalizedTicker = normalizeTicker(ticker);
 
   // Step 1: Fetch live fundamental data
   let liveData: Awaited<ReturnType<typeof fetchLiveData>> | null = null;
@@ -515,16 +500,11 @@ async function processStock(
     }
   }
 
-  // Step 4: Fetch historical chart data for ML enhancement
+  // Step 4: historische Kurse aus der DB (EODHD) für ML — Yahoo blockiert im Deploy.
   try {
-    const chartResult = await yahooFinance.chart(normalizedTicker, {
-      period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      period2: new Date().toISOString().split('T')[0],
-      interval: '1d',
-    }) as any;
-    const quotes = chartResult.quotes ?? [];
-    const prices = quotes.map((q: any) => q.close).filter((c: any) => c != null);
-    const volumes = quotes.map((q: any) => q.volume).filter((v: any) => v != null);
+    const series = await getYearCloses(ticker);
+    const prices = series.map(p => p.close);
+    const volumes: number[] = []; // historicalPrices führt kein Volumen — RF degradiert graziös
     const fundamentals = liveData ? {
       peRatio: liveData.peRatio,
       pegRatio: liveData.pegRatio,
@@ -569,7 +549,7 @@ async function processStock(
     // Step 7: Momentum Factor scoring
     if (prices.length >= 60) {
       try {
-        const momentumResult = calculateMomentumScore(prices);
+        const momentumResult = calculateMomentumScore({ prices });
         signal.momentumGrade = momentumResult.grade;
         signal.momentumScore = momentumResult.score;
         if (momentumResult.grade === 'A') {
@@ -708,15 +688,10 @@ export const signalsRouter = router({
     .input(z.object({ ticker: z.string() }))
     .query(async ({ input }) => {
       const ticker = input.ticker;
-      const normalizedTicker = normalizeTicker(ticker);
       try {
-        const chartResult = await yahooFinance.chart(normalizedTicker, {
-          period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          period2: new Date().toISOString().split('T')[0],
-          interval: '1d',
-        }) as any;
-        const quotes = chartResult.quotes ?? [];
-        const prices: number[] = quotes.map((q: any) => q.close).filter((c: any) => c != null);
+        // Historische Kurse aus der DB (EODHD) statt Yahoo (im Deploy blockiert).
+        const series = await getYearCloses(ticker);
+        const prices: number[] = series.map(p => p.close);
         if (prices.length < 60) return null;
 
         // Quick quality + momentum for regime context

@@ -1044,7 +1044,7 @@ export const dashboardRouter = router({
       const smiStart = getNearestValue(smiMap, sampledDates[0]) || 0;
       const msciStart = getNearestValue(msciMap, sampledDates[0]) || 0;
 
-      const points: Array<{ label: string; portfolio: number; smi: number; msci: number }> = [];
+      const points: Array<{ label: string; portfolio: number | null; smi: number; msci: number }> = [];
 
       for (let i = 0; i < sampledDates.length; i++) {
         const date = sampledDates[i];
@@ -1107,7 +1107,22 @@ export const dashboardRouter = router({
       const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0);
       const filteredPoints = firstNonZeroIdx > 0 ? points.slice(firstNonZeroIdx) : points;
 
-      return { range: input.range, scope: input.scope, points: filteredPoints };
+      // Ehrlichkeit statt Fake-Linie: Konnte für die Titel kein Portfoliowert aus historischen
+      // Kursen gebildet werden (startingValue nie > 0, z. B. fehlende historicalPrices für
+      // Demo-Titel), zeichnen wir KEINE flache 0 %-Portfolio-Linie. Die Kennzahl-Kachel (YTD)
+      // fällt in diesem Fall auf investmentAmount zurück — der Chart kann das nicht und meldet
+      // die Lücke offen (portfolioIncomplete), statt +0 % vorzutäuschen.
+      const portfolioHasData = startingValue > 0;
+      const cleanedPoints = portfolioHasData
+        ? filteredPoints
+        : filteredPoints.map(p => ({ ...p, portfolio: null }));
+
+      return {
+        range: input.range,
+        scope: input.scope,
+        points: cleanedPoints,
+        portfolioIncomplete: !portfolioHasData,
+      };
     }),
 
   // ──────────────────────────────────────────────────────────────────────
