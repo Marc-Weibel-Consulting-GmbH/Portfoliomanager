@@ -1107,11 +1107,23 @@ export const dashboardRouter = router({
       const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0);
       const filteredPoints = firstNonZeroIdx > 0 ? points.slice(firstNonZeroIdx) : points;
 
+      // Selbstheilung: fehlen für Titel historische Kurse, im Hintergrund einen Backfill
+      // anstoßen (der deployte Server hat DB + EODHD). autoBackfillNewSymbols prüft den Status
+      // und überspringt bereits vorhandene/laufende Symbole — der aktuelle Aufruf wird nicht
+      // blockiert (fire-and-forget), der nächste Aufruf zeichnet die Linie dann.
+      const tickersWithoutPrices = Array.from(allTickers).filter(t => !priceMap.has(t));
+      if (tickersWithoutPrices.length > 0) {
+        import("../autoBackfill")
+          .then(({ autoBackfillNewSymbols }) => autoBackfillNewSymbols(tickersWithoutPrices))
+          .catch(err => console.warn(`[getPerformanceTimeseries] Auto-Backfill fehlgeschlagen: ${err?.message}`));
+      }
+
       // Ehrlichkeit statt Fake-Linie: Konnte für die Titel kein Portfoliowert aus historischen
       // Kursen gebildet werden (startingValue nie > 0, z. B. fehlende historicalPrices für
       // Demo-Titel), zeichnen wir KEINE flache 0 %-Portfolio-Linie. Die Kennzahl-Kachel (YTD)
       // fällt in diesem Fall auf investmentAmount zurück — der Chart kann das nicht und meldet
-      // die Lücke offen (portfolioIncomplete), statt +0 % vorzutäuschen.
+      // die Lücke offen (portfolioIncomplete), statt +0 % vorzutäuschen. Nach dem Backfill (oben)
+      // schließt sich die Lücke beim nächsten Laden.
       const portfolioHasData = startingValue > 0;
       const cleanedPoints = portfolioHasData
         ? filteredPoints
