@@ -629,10 +629,10 @@ export default function AdminWatchlist() {
         <ConfirmDialog
           open={bulkMigrateOpen}
           onOpenChange={setBulkMigrateOpen}
-          title="Alle aktiven Titel als Empfehlung markieren?"
-          description="Alle aktiven Titel der Watchlist werden als Empfehlung markiert und erscheinen damit für Nutzer auf der Seite «Aktien». Einzelne Titel können danach jederzeit wieder in die Watchlist verschoben werden."
+          title={signalFilter === "buy" ? "Alle Kaufsignal-Titel als Empfehlung markieren?" : signalFilter === "sell" ? "Alle Verkaufssignal-Titel als Empfehlung markieren?" : signalFilter === "hold" ? "Alle Halten-Titel als Empfehlung markieren?" : "Alle aktiven Titel als Empfehlung markieren?"}
+          description={signalFilter !== "all" ? `Nur Titel mit Signal „${signalFilter === "buy" ? "Kaufen" : signalFilter === "sell" ? "Verkaufen" : "Halten"}" werden als Empfehlung markiert. Titel mit anderem Signal bleiben in der Watchlist.` : "Alle aktiven Titel der Watchlist werden als Empfehlung markiert und erscheinen damit für Nutzer auf der Seite «Aktien»."}
           confirmLabel="Als Empfehlung markieren"
-          onConfirm={() => bulkMigrateMutation.mutate()}
+          onConfirm={() => bulkMigrateMutation.mutate(signalFilter !== "all" ? { signalType: signalFilter as "buy" | "sell" | "hold" } : undefined)}
           isPending={bulkMigrateMutation.isPending}
         />
       </div>

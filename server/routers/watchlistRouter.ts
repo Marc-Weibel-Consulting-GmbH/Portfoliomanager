@@ -194,15 +194,24 @@ export const watchlistRouter = router({
     }),
 
   // F-13: one-click migration — mark all active titles as Empfehlung
+  // Accepts optional signalType filter so the UI can restrict to buy/sell/hold signals
   markAllActiveAsEmpfehlung: adminProcedure
-    .mutation(async () => {
+    .input(z.object({ signalType: z.enum(["buy", "sell", "hold"]).optional() }).optional())
+    .mutation(async ({ input }) => {
       const { getDb } = await import("../db");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+      const conditions = [
+        eq(watchlistStocks.isActive, 1),
+        eq(watchlistStocks.listType, "watchlist"),
+      ];
+      if (input?.signalType) {
+        conditions.push(eq(watchlistStocks.signalType, input.signalType as "buy" | "sell" | "hold"));
+      }
       await db.update(watchlistStocks)
         .set({ listType: "empfehlung" })
-        .where(and(eq(watchlistStocks.isActive, 1), eq(watchlistStocks.listType, "watchlist")));
+        .where(and(...conditions));
       const empfehlung = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "empfehlung"));
       return {
         success: true,
