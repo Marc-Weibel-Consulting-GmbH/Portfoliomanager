@@ -70,19 +70,15 @@ describe("universeListType (F-13 graceful transition)", () => {
 });
 
 describe("mapWikifolioSearchResults", () => {
-  it("maps class-instance-like results to plain serializable objects", () => {
+  it("maps search-api.wikifolio.com results to plain serializable objects", () => {
+    // Neue öffentliche Such-API: title ← shortDescription, traderName ← trader.fullName/nickName,
+    // wikifolioUrl wird aus dem Symbol abgeleitet; Ranking/Perf sind in der Basissuche nicht enthalten.
     const result = mapWikifolioSearchResults([
       {
         symbol: "wfglobalnt",
-        title: "Global New Trends",
-        user: { name: "Max Muster" } as any,
-        rank: 34.2,
-        perfannually: 12.5,
-        perfever: 210.4,
-        maxdraw: -25.1,
-        capital: 1_500_000,
+        shortDescription: "Global New Trends",
+        trader: { fullName: "Max Muster" } as any,
         isin: "DE000LS9ABC1",
-        wikifolioUrl: "https://www.wikifolio.com/de/de/w/wfglobalnt",
       } as any,
     ]);
 
@@ -91,26 +87,26 @@ describe("mapWikifolioSearchResults", () => {
         symbol: "wfglobalnt",
         title: "Global New Trends",
         traderName: "Max Muster",
-        rankValue: 34.2,
-        perfAnnually: 12.5,
-        perfEver: 210.4,
-        maxDrawdown: -25.1,
-        capital: 1_500_000,
+        rankValue: null,
+        perfAnnually: null,
+        perfEver: null,
+        maxDrawdown: null,
+        capital: null,
         isin: "DE000LS9ABC1",
         wikifolioUrl: "https://www.wikifolio.com/de/de/w/wfglobalnt",
       },
     ]);
   });
 
-  it("drops entries without symbol and nulls NaN/missing metrics", () => {
+  it("drops entries without symbol and leaves optional fields empty/null", () => {
     const result = mapWikifolioSearchResults([
       {} as any,
-      { symbol: "wfx", rank: NaN, perfannually: undefined } as any,
+      { symbol: "wfx" } as any,
     ]);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       symbol: "wfx",
-      title: "wfx",
+      title: "wfx", // kein shortDescription → Fallback auf Symbol
       traderName: "",
       rankValue: null,
       perfAnnually: null,
@@ -118,7 +114,8 @@ describe("mapWikifolioSearchResults", () => {
       maxDrawdown: null,
       capital: null,
       isin: null,
-      wikifolioUrl: null,
+      // wikifolioUrl wird immer aus dem Symbol gebaut (nie null bei vorhandenem Symbol)
+      wikifolioUrl: "https://www.wikifolio.com/de/de/w/wfx",
     });
   });
 });

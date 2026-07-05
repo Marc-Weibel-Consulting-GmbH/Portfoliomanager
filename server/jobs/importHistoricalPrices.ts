@@ -3,6 +3,9 @@ import { getDb } from "../db";
 import { historicalPrices, transactions, savedPortfolios } from "../../drizzle/schema";
 import { eodhdEodResponseSchema, payloadSample, type EodhdEodRow } from "../_core/externalSchemas";
 import { getEodhdApiKey } from "../_core/env";
+// DB-Ticker → EODHD-Symbol zentral in server/lib/eodhdSymbol.ts (auch von Realtime- und
+// Dividenden-Pfad genutzt, damit alle EODHD-Abrufe dasselbe Symbol verwenden).
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 
 /**
  * Batch job to import historical prices from EODHD API
@@ -23,34 +26,13 @@ const EODHD_BASE_URL = "https://eodhd.com/api";
 export const HISTORICAL_PRICES_JOB_NAME = "historicalPricesImport";
 export const HISTORICAL_PRICES_MIN_INTERVAL_MINUTES = 6 * 60; // 6h
 
-/**
- * Ticker mapping: DB ticker -> EODHD ticker
- * Some tickers in the DB use different formats than EODHD expects.
- * 
- * Key corrections:
- * - HELN.SW: Helvetia merged with Baloise -> now trades as HELNF (US OTC)
- * - MESA: Mesa Air delisted Nov 2025, reverse-split to RJET
- * - MONC.MI: Italian exchange not on EODHD, use MONRY (US ADR)
- * - APPLE: User typo, should be AAPL
- */
-const TICKER_MAPPING: Record<string, string> = {
-  'EXSA.DE': 'EXSA.XETRA',
-  'ABB.N': 'ABBN.SW',
-  'VWRL.L': 'VWRL.LSE',
-  'HELN.SW': 'HELNF',       // Helvetia Baloise Holding (OTC)
-  'MONC.MI': 'MONRY',       // Moncler ADR (US OTC)
-  'MESA': 'RJET',           // Mesa Air -> RJET after reverse split Nov 2025
-  'MESA.US': 'RJET',        // Mesa Air -> RJET (with .US suffix)
-  'APPLE': 'AAPL',          // User typo correction
-};
-
 /** Tickers that are genuinely not available on EODHD (no working alternative) */
 const UNAVAILABLE_TICKERS = new Set<string>([]);
 
 /** Convert a DB ticker to the EODHD format */
 function toEodhdTicker(dbTicker: string): string | null {
   if (UNAVAILABLE_TICKERS.has(dbTicker)) return null;
-  return TICKER_MAPPING[dbTicker] || dbTicker;
+  return toEodhdSymbol(dbTicker);
 }
 
 type EODHDHistoricalPrice = EodhdEodRow;

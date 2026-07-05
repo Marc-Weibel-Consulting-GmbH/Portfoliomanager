@@ -7,6 +7,7 @@
 import { apiCache, CACHE_TTL } from "./_core/apiCache";
 import { retryFetch } from "./_core/retryUtil";
 import { getEodhdApiKey } from "./_core/env";
+import { toEodhdSymbol } from "./lib/eodhdSymbol";
 
 export interface DividendEvent {
   ticker: string;
@@ -24,6 +25,9 @@ export interface DividendEvent {
  * EODHD uses: AAPL.US, NESN.SW, ROG.SW etc.
  */
 function toEODHDTicker(ticker: string): string {
+  // Zentrale Symbol-Aliasse zuerst (z. B. MONC.MI→MONRY, HELN.SW→HELNF), sonst 404.
+  const aliased = toEodhdSymbol(ticker);
+  if (aliased !== ticker) return aliased;
   // If already has exchange suffix like .SW, .PA, .DE, keep it
   if (ticker.includes(".")) {
     return ticker;

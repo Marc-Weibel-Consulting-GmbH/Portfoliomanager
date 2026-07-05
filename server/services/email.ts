@@ -26,7 +26,7 @@ export async function sendPurchaseConfirmation({
   currency,
   transactionId,
 }: SendPurchaseConfirmationParams) {
-  const appName = process.env.VITE_APP_TITLE || "Portfolio BIG";
+  const appName = process.env.VITE_APP_TITLE || "Portfoliomanager";
   const appUrl = process.env.VITE_APP_URL || "http://localhost:3000";
   
   // Format amount (convert from cents to currency)
