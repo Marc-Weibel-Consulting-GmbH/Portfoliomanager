@@ -948,7 +948,14 @@ export const dashboardRouter = router({
       }
       const sortedDates = Array.from(allDates).sort();
       console.log(`[getPerformanceTimeseries] pricesResult=${pricesResult.length} sortedDates=${sortedDates.length} firstDate=${sortedDates[0]} lastDate=${sortedDates[sortedDates.length-1]}`);
-      if (sortedDates.length === 0) return { range: input.range, scope: input.scope, points: [] };
+      if (sortedDates.length === 0) {
+        // Kein einziger Titel hat historische Kurse → Backfill für ALLE Titel anstoßen, damit der
+        // nächste Aufruf die Linie zeichnen kann (der frühe Return würde die Selbstheilung sonst überspringen).
+        import("../autoBackfill")
+          .then(({ autoBackfillNewSymbols }) => autoBackfillNewSymbols(Array.from(allTickers)))
+          .catch(err => console.warn(`[getPerformanceTimeseries] Auto-Backfill (leer) fehlgeschlagen: ${err?.message}`));
+        return { range: input.range, scope: input.scope, points: [], portfolioIncomplete: true };
+      }
 
       // Get benchmark data (SMI + MSCI World)
       const smiData = await getBenchmarkData("SMI", startDateStr, todayStr);
@@ -1107,14 +1114,20 @@ export const dashboardRouter = router({
       const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0);
       const filteredPoints = firstNonZeroIdx > 0 ? points.slice(firstNonZeroIdx) : points;
 
-      // Selbstheilung: fehlen für Titel historische Kurse, im Hintergrund einen Backfill
-      // anstoßen (der deployte Server hat DB + EODHD). autoBackfillNewSymbols prüft den Status
-      // und überspringt bereits vorhandene/laufende Symbole — der aktuelle Aufruf wird nicht
-      // blockiert (fire-and-forget), der nächste Aufruf zeichnet die Linie dann.
-      const tickersWithoutPrices = Array.from(allTickers).filter(t => !priceMap.has(t));
-      if (tickersWithoutPrices.length > 0) {
+      // Selbstheilung: einen Backfill anstoßen für Titel, die am/vor dem Startdatum KEINEN Kurs
+      // haben — also gar keine Historie ODER nur Teil-Historie ab einem späteren Datum (z. B. neu
+      // hinzugefügte Titel mit Kursen erst ab Juni, während YTD am 1.1. beginnt). Genau das lässt
+      // die Portfolio-Linie fehlen. `getNearestPrice(t, startDateStr) === undefined` erfasst beide
+      // Fälle (vorher wurde nur auf „gar keine Kurse" geprüft → Teil-Historie fiel durch).
+      // autoBackfillNewSymbols prüft den Status (< 100 Punkte ⇒ Backfill über 15 Jahre) und
+      // überspringt vorhandene/laufende Symbole. Fire-and-forget; der nächste Aufruf zeichnet die Linie.
+      const tickersNeedingHistory = Array.from(allTickers).filter(
+        t => getNearestPrice(t, startDateStr) === undefined
+      );
+      if (tickersNeedingHistory.length > 0) {
+        console.log(`[getPerformanceTimeseries] Auto-Backfill angestoßen für ${tickersNeedingHistory.length} Titel ohne Historie am ${startDateStr}: ${tickersNeedingHistory.join(',')}`);
         import("../autoBackfill")
-          .then(({ autoBackfillNewSymbols }) => autoBackfillNewSymbols(tickersWithoutPrices))
+          .then(({ autoBackfillNewSymbols }) => autoBackfillNewSymbols(tickersNeedingHistory))
           .catch(err => console.warn(`[getPerformanceTimeseries] Auto-Backfill fehlgeschlagen: ${err?.message}`));
       }
 
