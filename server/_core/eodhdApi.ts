@@ -13,6 +13,7 @@ import { retryFetch } from './retryUtil';
 import { eodhdRealTimeSchema, eodhdFundamentalsSchema, payloadSample } from './externalSchemas';
 
 import { ENV } from "./env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 export interface EODHDFundamentals {
   companyName: string | null;
   sector: string | null;
@@ -50,7 +51,8 @@ export async function fetchEODHDRealTime(ticker: string): Promise<EODHDRealTime>
   if (cached) return cached;
 
   try {
-    const url = `https://eodhd.com/api/real-time/${ticker}?api_token=${apiKey}&fmt=json`;
+    // Symbol-Alias anwenden (z. B. MONC.MI→MONRY, HELN.SW→HELNF), sonst 404 im Realtime-Pfad.
+    const url = `https://eodhd.com/api/real-time/${toEodhdSymbol(ticker)}?api_token=${apiKey}&fmt=json`;
     const response = await retryFetch(url, {}, { maxRetries: 3, baseDelay: 1000 });
     if (!response.ok) {
       console.warn(`[EODHD] real-time request failed for ${ticker}: ${response.status} ${response.statusText}`);
