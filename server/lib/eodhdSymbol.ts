@@ -16,12 +16,17 @@
 export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'EXSA.DE': 'EXSA.XETRA',
   'ABB.N': 'ABBN.SW',
+  'ABB.SW': 'ABBN.SW',      // ABB handelt an der SIX unter ABBN, nicht ABB
   'VWRL.L': 'VWRL.LSE',
-  'HELN.SW': 'HELNF',
+  'ROG.SW': 'ROP.SW',       // Roche: EODHD führt die Aktie unter ROP.SW (nicht ROG.SW)
+  'HELN.SW': 'HBHN.SW',     // Helvetia+Baloise fusioniert → Helvetia Baloise Holding (HBHN.SW)
   'MONC.MI': 'MONRY',
   'MESA': 'RJET',
   'MESA.US': 'RJET',
   'APPLE': 'AAPL',
+  // LVMH-ADR direkt als OTC-ADR abrufen (NICHT auf MC.PA 1:1 mappen — der ADR steht in einem
+  // anderen Verhältnis zur Pariser Stammaktie, das würde den Positionswert verfälschen).
+  'LVMUY': 'LVMUY.US',
 };
 
 /**

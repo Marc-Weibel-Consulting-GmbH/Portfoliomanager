@@ -1,7 +1,7 @@
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { fetchStockMetrics } from "../_core/stockDataApi";
-import { fetchEODHDFundamentals } from "../_core/eodhdApi";
+import { fetchEODHDFundamentals, fetchEODHDRealTime } from "../_core/eodhdApi";
 import { fetchDividendYieldWithFallback } from "../_core/dividendYieldHelper";
 import { recalculateWeights } from "../_core/portfolioWeightHelper";
 import { getStockLogoUrl } from "../_core/stockLogo";
@@ -766,25 +766,31 @@ export const stocksRouter = router({
               try {
                 const region = stock.ticker.endsWith(".SW") ? "CH" : "US";
                 
-                // Fetch price & risk metrics from Yahoo Finance
+                // Risk metrics (Beta etc.) via Yahoo — im Deploy oft blockiert, daher nur additiv.
                 const metrics = await fetchStockMetrics(stock.ticker, region);
-                
+
                 // Fetch fundamental data from EODHD
                 const fundamentals = await fetchEODHDFundamentals(stock.ticker);
-                
+
+                // Aktueller Kurs bevorzugt via EODHD (zuverlässig im Deploy, wendet Symbol-Alias an);
+                // Yahoo nur als Fallback. Sonst bleibt currentPrice leer → "Kurs fehlt".
+                const rt = await fetchEODHDRealTime(stock.ticker);
+                const currentPrice: number | null =
+                  (rt.close != null && rt.close > 0) ? rt.close : metrics.currentPrice;
+
                 const updateData: any = {
                   lastDataRefresh: new Date(),
                 };
-                
+
                 // Update price data
-                if (metrics.currentPrice !== null) {
-                  updateData.currentPrice = metrics.currentPrice.toFixed(2);
-                  
+                if (currentPrice !== null) {
+                  updateData.currentPrice = currentPrice.toFixed(2);
+
                   // Recalculate YTD performance
                   if (stock.ytdStartPrice) {
                     const ytdStart = parseFloat(stock.ytdStartPrice);
                     if (ytdStart > 0) {
-                      const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
+                      const ytdPerf = ((currentPrice - ytdStart) / ytdStart) * 100;
                       updateData.ytdPerformance = ytdPerf.toFixed(2);
                     }
                   }

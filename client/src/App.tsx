@@ -203,7 +203,7 @@ function Router() {
         <Redirect to="/markt?tab=news" />
       </Route>
       <Route path="/dividends">
-        <Redirect to="/markt?tab=dividenden" />
+        <Redirect to="/portfolios" />
       </Route>
       <Route path="/chat">
         <Redirect to="/copilot" />
