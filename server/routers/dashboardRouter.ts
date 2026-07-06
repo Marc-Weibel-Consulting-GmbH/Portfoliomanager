@@ -989,7 +989,10 @@ export const dashboardRouter = router({
           const mid = (lo + hi) >> 1;
           if (dates[mid] <= date) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
         }
-        return best >= 0 ? tp.get(dates[best]) : undefined;
+        if (best >= 0) return tp.get(dates[best]);
+        // Fallback: look forward up to 5 trading days (handles holidays like Jan 1)
+        const forward = dates.find(d => d > date);
+        return forward !== undefined ? tp.get(forward) : undefined;
       };
 
       // Pre-compute shares for demo portfolios (avoid repeated JSON.parse + sort inside the hot loop)
