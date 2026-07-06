@@ -1,53 +1,18 @@
 import cron, { ScheduledTask } from "node-cron";
 import { getAllStocks, updateStock } from "./db";
-import { callDataApi } from "./_core/dataApi";
+import { fetchEODHDRealTime } from "./_core/eodhdApi";
 
-// Fetch real-time prices from Yahoo Finance API
+// Aktuellen Kurs via EODHD holen. Yahoo Finance (bisherige Quelle) ist aus der Deploy-Umgebung
+// blockiert → der tägliche Updater lief ins Leere und stocks.currentPrice blieb leer ("Kurs
+// fehlt"). fetchEODHDRealTime wendet den Symbol-Alias an (z. B. ROG.SW→ROP.SW, ABB.SW→ABBN.SW).
 async function fetchRealTimePrice(ticker: string): Promise<string | null> {
   try {
-    // Determine region based on ticker suffix
-    let region = "US";
-    
-    if (ticker.includes(".")) {
-      const suffix = ticker.split('.')[1];
-      // Map Yahoo Finance suffixes to regions
-      const regionMap: Record<string, string> = {
-        "SW": "CH",  // Switzerland
-        "DE": "DE",  // Germany
-        "L": "GB",   // London/UK
-        "PA": "FR",  // Paris/France
-        "CO": "DK",  // Copenhagen/Denmark
-        "MI": "IT",  // Milan/Italy
-      };
-      region = regionMap[suffix] || "US";
+    const rt = await fetchEODHDRealTime(ticker);
+    if (rt.close != null && rt.close > 0) {
+      return rt.close.toString();
     }
-
-    const response = await callDataApi("YahooFinance/get_stock_chart", {
-      query: {
-        symbol: ticker,
-        region: region,
-        interval: "1d",
-        range: "1d"
-      }
-    }) as any;
-
-    if (!response || !response.chart || !response.chart.result || response.chart.result.length === 0) {
-      console.warn(`[Price Updater] No data returned for ${ticker}`);
-      return null;
-    }
-
-    const result = response.chart.result[0];
-    const meta = result.meta;
-
-    // Get the current price from meta (most recent price)
-    const currentPrice = meta.regularMarketPrice;
-
-    if (!currentPrice) {
-      console.warn(`[Price Updater] No current price for ${ticker}`);
-      return null;
-    }
-
-    return currentPrice.toString();
+    console.warn(`[Price Updater] Kein EODHD-Kurs für ${ticker}`);
+    return null;
   } catch (error) {
     console.error(`[Price Updater] Failed to fetch price for ${ticker}:`, error);
     return null;
