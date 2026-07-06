@@ -51,6 +51,11 @@ const CHART_TOOLTIP_STYLE = {
 function KpiRow({ scope }: { scope: Scope }) {
   const { data: metrics, isLoading, isError, refetch } =
     trpc.dashboard.getAggregatedMetrics.useQuery({ scope });
+  // Use TTWROR from chart timeseries as the authoritative YTD value (consistent with chart line)
+  const { data: perfData } = trpc.dashboard.getPerformanceTimeseries.useQuery(
+    { scope, range: "YTD" as any },
+    { staleTime: 5 * 60 * 1000, retry: false },
+  );
   const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(
     { scope },
     { staleTime: 5 * 60 * 1000, retry: false },
@@ -94,7 +99,10 @@ function KpiRow({ scope }: { scope: Scope }) {
   const totalValue = metrics?.totalValue ?? 0;
   const dayChange = metrics?.dayChange ?? 0;
   const dayChangePercent = metrics?.dayChangePercent ?? 0;
-  const ytdPercent = metrics?.totalPerformancePercent ?? 0;
+  // Use chart TTWROR endpoint as YTD (consistent with chart line)
+  const chartPoints = (perfData as any)?.points;
+  const chartYtd = chartPoints?.length > 0 ? chartPoints[chartPoints.length - 1]?.portfolio : null;
+  const ytdPercent = chartYtd != null ? chartYtd : (metrics?.totalPerformancePercent ?? 0);
   const smiYtd = (metrics as any)?.benchmarkSmiYtd ?? 0;
   const msciYtd = (metrics as any)?.benchmarkMsciYtd ?? 0;
   const isLive = (metrics?.livePortfolioCount ?? 0) > 0;
