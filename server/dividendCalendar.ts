@@ -208,6 +208,68 @@ export async function getAllPortfolioDividends(tickers: string[]): Promise<Divid
 }
 
 /**
+ * Nächste erwartete Dividende JE TITEL — auch wenn sie erst >12 Monate entfernt ist (z. B. 2027
+ * bei jährlich zahlenden Schweizer Titeln). Damit ist der Portfolio-Dividenden-Tab nicht leer,
+ * nur weil die nächste Ausschüttung noch nicht angekündigt ist.
+ *
+ * Logik je Ticker:
+ *   1) Gibt es eine bereits angekündigte anstehende Dividende (Ex-Termin ≥ heute)? → die nächste.
+ *   2) Sonst aus der Historie projizieren: nächster Ex-Termin = letzter Ex-Termin + typisches
+ *      Intervall (Gap der letzten beiden Termine; jährlich ≈ 365 Tage), auf die Zukunft hochgerollt;
+ *      Betrag/Aktie = letzte Ausschüttung. Ergebnis-Typ "estimated".
+ * Höchstens eine Position pro Ticker; Titel ganz ohne Dividendenhistorie fehlen (kein Fake).
+ */
+export async function getNextDividendPerTicker(tickers: string[]): Promise<DividendEvent[]> {
+  const todayMs = Date.now();
+  const result: DividendEvent[] = [];
+
+  const batchSize = 5;
+  for (let i = 0; i < tickers.length; i += batchSize) {
+    const batch = tickers.slice(i, i + batchSize);
+    const perTicker = await Promise.all(batch.map(async (ticker): Promise<DividendEvent | null> => {
+      const events = await fetchTickerDividendsEODHD(ticker);
+      if (events.length === 0) return null;
+
+      // 1) Bereits angekündigte anstehende Dividende bevorzugen (nächster Ex-Termin).
+      const announced = events
+        .filter(e => e.type !== "past" && new Date(e.exDividendDate).getTime() >= todayMs)
+        .sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
+      if (announced.length > 0) return announced[0];
+
+      // 2) Sonst aus der Historie projizieren.
+      const past = events
+        .filter(e => e.type === "past")
+        .sort((a, b) => new Date(b.exDividendDate).getTime() - new Date(a.exDividendDate).getTime());
+      if (past.length === 0) return null;
+
+      const lastEx = new Date(past[0].exDividendDate);
+      let intervalDays = 365; // Default: jährlich (typisch für CH-Titel)
+      if (past.length >= 2) {
+        const gap = Math.round((lastEx.getTime() - new Date(past[1].exDividendDate).getTime()) / 86400000);
+        if (gap > 0) intervalDays = gap;
+      }
+      const nextEx = new Date(lastEx.getTime() + intervalDays * 86400000);
+      while (nextEx.getTime() < todayMs) nextEx.setTime(nextEx.getTime() + intervalDays * 86400000);
+
+      return {
+        ticker,
+        exDividendDate: nextEx.toISOString().split("T")[0],
+        paymentDate: new Date(nextEx.getTime() + 14 * 86400000).toISOString().split("T")[0],
+        declarationDate: null,
+        amount: past[0].amount,
+        currency: past[0].currency,
+        period: past[0].period,
+        type: "estimated",
+      };
+    }));
+    result.push(...perTicker.filter((e): e is DividendEvent => e !== null));
+    if (i + batchSize < tickers.length) await new Promise(r => setTimeout(r, 300));
+  }
+
+  return result.sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
+}
+
+/**
  * Check for dividends happening today or in the next few days
  */
 export async function checkDividendNotifications(portfolioId: number, notificationDays: number = 3): Promise<DividendEvent[]> {
