@@ -16,11 +16,28 @@
  * @param ticker Raw ticker symbol
  * @returns Normalized ticker symbol
  */
+/**
+ * Firmenspezifische Ticker-Aliasse: der Ticker, den ein Portfolio/Broker verwendet, → der
+ * kanonische Ticker in der stocks-Tabelle. Anders als Format-Varianten (.US/.SW) sind das
+ * echte Zweitkürzel/Umbenennungen, die getTickerVariants NICHT erzeugt.
+ *   - ABB.SW → ABBN.SW  (ABB handelt an der SIX unter ABBN, nicht ABB)
+ * Weitere (fusions-/ADR-bedingte) Aliasse hier ergänzen, sobald das Zielsymbol bestätigt ist.
+ */
+export const CANONICAL_TICKER_ALIASES: Record<string, string> = {
+  'ABB.SW': 'ABBN.SW',
+};
+
+/** Firmen-Alias auf den kanonischen stocks-Ticker anwenden (case-insensitiv). */
+export function resolveCanonicalTicker(ticker: string): string {
+  if (!ticker) return ticker;
+  return CANONICAL_TICKER_ALIASES[ticker.trim().toUpperCase()] ?? ticker;
+}
+
 export function normalizeTickerForDb(ticker: string): string {
   if (!ticker) return ticker;
-  
+
   const trimmed = ticker.trim().toUpperCase();
-  
+
   // If already has exchange suffix, keep it
   if (trimmed.includes('.')) {
     return trimmed;

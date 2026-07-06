@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { formatNumber } from "@/lib/format";
-import { Globe, Activity, BarChart3, Newspaper, Calendar } from "lucide-react";
+import { Globe, Activity, BarChart3, Newspaper } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -13,7 +13,6 @@ import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER
 
 import MarketRegimeContent from "./MarketRegimeContent";
 import NewsroomContent from "./Newsroom";
-import DividendenTab from "@/components/markt/DividendenTab";
 
 // Index-KPIs (Mockup S.13): echte Werte aus marketRegime.getIndices (SMI/S&P/MSCI/Gold)
 function IndexKpiRow() {
@@ -163,7 +162,7 @@ function OverviewContent() {
 }
 
 const LEGACY_TAB_MAP: Record<string, string> = {
-  overview: "ueberblick", dividends: "dividenden", bull: "regime", scanner: "ueberblick",
+  overview: "ueberblick", bull: "regime", scanner: "ueberblick",
 };
 
 export default function MarktHub() {
@@ -184,7 +183,7 @@ export default function MarktHub() {
           <p className="text-xs font-medium text-[#00CFC1] uppercase tracking-widest mb-1">MARKT</p>
           <h1 className="text-2xl font-bold text-white">Markt-Hub</h1>
           <p className="text-sm text-gray-400 mt-1">
-            Marktregime · Heatmap · News · Dividenden-Kalender — alles in einer Page.
+            Marktregime · Heatmap · News — alles in einer Page. Der Dividenden-Kalender liegt bei den Portfolio-Details.
           </p>
         </div>
 
@@ -196,7 +195,6 @@ export default function MarktHub() {
               { value: "regime", label: "Regime", icon: Activity, badge: "Bull" },
               { value: "heatmap", label: "Heatmap", icon: BarChart3 },
               { value: "news", label: "News", icon: Newspaper },
-              { value: "dividenden", label: "Dividenden-Kalender", icon: Calendar },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -223,9 +221,6 @@ export default function MarktHub() {
           </TabsContent>
           <TabsContent value="news" className="mt-6">
             <NewsroomContent />
-          </TabsContent>
-          <TabsContent value="dividenden" className="mt-6">
-            <DividendenTab />
           </TabsContent>
         </Tabs>
       </div>

@@ -16,6 +16,7 @@
 export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'EXSA.DE': 'EXSA.XETRA',
   'ABB.N': 'ABBN.SW',
+  'ABB.SW': 'ABBN.SW',      // ABB handelt an der SIX unter ABBN, nicht ABB
   'VWRL.L': 'VWRL.LSE',
   'HELN.SW': 'HELNF',
   'MONC.MI': 'MONRY',

@@ -163,6 +163,15 @@ export async function getStockByTicker(ticker: string) {
     const base = ticker.slice(0, -3);
     result = await db.select().from(stocks).where(eq(stocks.ticker, base)).limit(1);
   }
+  // Firmen-Alias (z. B. Portfolio hält "ABB.SW", stocks-Tabelle führt "ABBN.SW") — sonst
+  // erscheint die Position als "Kurs fehlt", obwohl der Kurs unter dem kanonischen Ticker da ist.
+  if (result.length === 0) {
+    const { resolveCanonicalTicker } = await import("./tickerNormalization");
+    const canonical = resolveCanonicalTicker(ticker);
+    if (canonical !== ticker) {
+      result = await db.select().from(stocks).where(eq(stocks.ticker, canonical)).limit(1);
+    }
+  }
   return result.length > 0 ? result[0] : undefined;
 }
 
