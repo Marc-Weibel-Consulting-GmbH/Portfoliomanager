@@ -22,3 +22,7 @@
 - [x] Fix routers/weeklyOverviewRouter.ts to use toEodhdSymbol
 - [x] Fix routers/stocksRouter.ts to use toEodhdSymbol
 - [x] Fix ytd-performance.ts to use toEodhdSymbol (prioritize mapping over variant fallback)
+- [x] Backfill ACWI.US (MSCI World), CHSPI.SW (SMI), SPY (S&P500) benchmark data to 2026-07-06
+- [x] Populate benchmarkData table for MSCI_WORLD, SMI, SP500 (397/393/397 rows)
+- [x] Add benchmark proxy tickers (ACWI.US, CHSPI.SW, SPY) to daily historicalPrices import
+- [x] Add refreshBenchmarkData() call to daily historicalPricesCron (runs after main import)

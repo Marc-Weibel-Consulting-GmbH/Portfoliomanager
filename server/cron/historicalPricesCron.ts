@@ -1,5 +1,49 @@
 import { importHistoricalPrices, HISTORICAL_PRICES_JOB_NAME, HISTORICAL_PRICES_MIN_INTERVAL_MINUTES } from "../jobs/importHistoricalPrices";
 import { runIfNotRecent } from "../lib/jobLock";
+import { upsertBenchmarkData } from "../db";
+
+/**
+ * Refresh benchmark data (MSCI World, SMI, S&P 500) from EODHD.
+ * Called daily after the main historical prices import.
+ */
+async function refreshBenchmarkData(fromDate: string, toDate: string): Promise<void> {
+  const apiKey = process.env.EODHD_API_KEY;
+  if (!apiKey) {
+    console.warn('[historicalPricesCron] EODHD_API_KEY not set, skipping benchmark refresh');
+    return;
+  }
+
+  const BENCHMARK_MAP: Array<{ symbol: string; key: 'SMI' | 'SP500' | 'MSCI_WORLD' }> = [
+    { symbol: 'ACWI.US', key: 'MSCI_WORLD' },
+    { symbol: 'CHSPI.SW', key: 'SMI' },
+    { symbol: 'SPY.US', key: 'SP500' },
+  ];
+
+  for (const { symbol, key } of BENCHMARK_MAP) {
+    try {
+      const url = `https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.warn(`[historicalPricesCron] Benchmark ${symbol}: HTTP ${res.status}`);
+        continue;
+      }
+      const data: Array<{ date: string; adjusted_close?: number; close: number }> = await res.json();
+      if (!Array.isArray(data) || data.length === 0) continue;
+
+      for (const row of data) {
+        await upsertBenchmarkData({
+          benchmark: key,
+          date: row.date,
+          close: String(row.adjusted_close ?? row.close),
+          source: 'eodhd',
+        });
+      }
+      console.log(`[historicalPricesCron] Benchmark ${key}: ${data.length} rows refreshed`);
+    } catch (err: any) {
+      console.error(`[historicalPricesCron] Benchmark ${symbol} refresh failed:`, err?.message);
+    }
+  }
+}
 
 /**
  * Daily cron job to update historical prices
@@ -41,6 +85,9 @@ export async function dailyHistoricalPricesUpdate() {
       } else {
         console.error("[historicalPricesCron] Daily update failed:", result.errors);
       }
+
+      // Also refresh benchmark data (MSCI World, SMI, S&P 500)
+      await refreshBenchmarkData(weekAgoStr, yesterdayStr);
     });
   } catch (error) {
     console.error("[historicalPricesCron] Fatal error during daily update:", error);

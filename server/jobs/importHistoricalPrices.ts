@@ -150,10 +150,14 @@ async function getUniqueTickers(): Promise<string[]> {
     }
   }
 
+  // Benchmark proxy tickers — always kept up-to-date so KPI header and chart are consistent
+  const BENCHMARK_TICKERS = ['ACWI.US', 'CHSPI.SW', 'SPY'];
+
   // Combine both sources and deduplicate
   const allTickers = new Set<string>([
     ...transactionTickers.map((r) => r.ticker).filter((t): t is string => !!t),
-    ...Array.from(portfolioTickers)
+    ...Array.from(portfolioTickers),
+    ...BENCHMARK_TICKERS,
   ]);
 
   return Array.from(allTickers);
