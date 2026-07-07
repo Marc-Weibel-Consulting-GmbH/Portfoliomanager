@@ -180,7 +180,7 @@ export const dividendCalendarRouter = router({
     }))
     .query(async ({ input, ctx }) => {
       const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
-      const { getPortfolioDividends } = await import("../dividendCalendar");
+      const { getNextDividendPerTicker } = await import("../dividendCalendar");
 
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
       if (!portfolio) {
@@ -189,7 +189,6 @@ export const dividendCalendarRouter = router({
 
       const rawData3 = JSON.parse(portfolio.portfolioData);
       const portfolioData3: any[] = Array.isArray(rawData3) ? rawData3 : (rawData3.stocks || []);
-      const tickers = portfolioData3.map((stock: any) => stock.ticker);
 
       const transactions = await getPortfolioTransactions(input.portfolioId);
       const holdings: Record<string, number> = {};
@@ -201,7 +200,14 @@ export const dividendCalendarRouter = router({
         aggregateHoldingsFromPortfolioData(portfolioData3, holdings);
       }
 
-      const dividends = await getPortfolioDividends(tickers, input.daysAhead || 365);
+      // Nur Titel abfragen, die wir tatsächlich halten (Stückzahl > 0). So wird die
+      // Projektion nicht durch verkaufte/leere Positionen verwässert.
+      const tickers = Object.keys(holdings).filter((t) => holdings[t] > 0);
+
+      // Nächste erwartete Dividende JE TITEL (angekündigt bevorzugt, sonst aus Historie
+      // projiziert — auch bis 2027). daysAhead wird bewusst ignoriert: die Projektion je
+      // Titel darf über 12 Monate hinausgehen, damit jährlich zahlende CH-Titel erscheinen.
+      const dividends = await getNextDividendPerTicker(tickers);
 
       const enrichedDividends = (await Promise.all(dividends.map(async div => {
         const stock = portfolioData3.find((s: any) =>

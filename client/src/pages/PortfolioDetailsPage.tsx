@@ -311,11 +311,11 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
     <div className="bg-[#0f1420] border border-white/10 rounded-lg">
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
         <div>
-          <h3 className="text-sm font-semibold text-white">Anstehende Dividenden</h3>
-          <p className="text-xs text-gray-400">Nächste 12 Monate · Positionen dieses Portfolios</p>
+          <h3 className="text-sm font-semibold text-white">Nächste Dividende je Titel</h3>
+          <p className="text-xs text-gray-400">Angekündigt oder aus der Historie geschätzt · Bestand dieses Portfolios</p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Erwartet (12M)</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Erwartet (nächste Runde)</p>
           <p className="text-lg font-bold font-mono text-[#00CFC1]">{formatCHF(totalCHF)}</p>
         </div>
       </div>
@@ -341,7 +341,12 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
                 <td className="px-3 py-3 text-sm text-gray-400">
                   {formatDate(d.exDividendDate)}
                   {d.type === 'estimated' && (
-                    <span className="ml-1 text-xs text-yellow-500/70" title="geschätzter Termin">~</span>
+                    <span
+                      className="ml-2 inline-block rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-500/90 align-middle"
+                      title="Termin und Betrag aus der Dividendenhistorie projiziert"
+                    >
+                      geschätzt
+                    </span>
                   )}
                 </td>
                 <td className="px-3 py-3 text-sm text-gray-400">{d.paymentDate ? formatDate(d.paymentDate) : '—'}</td>
