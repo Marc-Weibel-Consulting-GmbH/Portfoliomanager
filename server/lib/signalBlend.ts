@@ -81,6 +81,53 @@ function qualityToSigned(qualityScore: number): number {
   return clamp((clamp(qualityScore, 0, 100) - 50) * 2, -100, 100);
 }
 
+export interface CombinedBlendInput {
+  /** Momentum/Timing-Score, -1..1. */
+  momentumScore: number;
+  /** Qualitäts-Score, -1..1. */
+  qualityScore: number;
+  regime: string;
+  /** LPPL-/Blasen-Abschlag, 0..1 (subtraktiv). */
+  lpplPenalty?: number;
+}
+
+export interface CombinedBlendResult {
+  /** 0..100, gleiche Skala wie die bisherige combined-Formel. */
+  combinedScore: number;
+  grade: "A" | "B" | "C" | "D" | "F";
+  signalLabel: "STRONG BUY" | "BUY" | "HOLD" | "SELL" | "STRONG SELL";
+  weights: RegimeWeights;
+}
+
+/**
+ * Regime-abhängige Variante der bestehenden Momentum+Quality−LPPL-Kombiscore-Formel
+ * (signalsRouter Step 8a). VERHALTENSWAHREND: bei Gewichten 50/50 identisch zur bisherigen
+ * `0.4*mNorm + 0.4*qNorm − lpplPenalty` (der Faktor 0.8 = 0.4+0.4 hält Skala und die
+ * Grade-/Label-Schwellen exakt). Nur die Gewichtung wird regime-abhängig und admin-konfigurierbar.
+ */
+export function blendCombinedScore(
+  input: CombinedBlendInput,
+  config: RegimeBlendConfig = DEFAULT_REGIME_BLEND
+): CombinedBlendResult {
+  const w = resolveWeights(input.regime, config);
+  const total = w.quality + w.trading;
+  const wq = total > 0 ? w.quality / total : 0.5;
+  const wt = total > 0 ? w.trading / total : 0.5;
+
+  const mNorm = (clamp(input.momentumScore, -1, 1) + 1) / 2; // -1..1 → 0..1
+  const qNorm = (clamp(input.qualityScore, -1, 1) + 1) / 2;
+  const lppl = input.lpplPenalty ?? 0;
+
+  const combined = clamp(0.8 * (wq * qNorm + wt * mNorm) - lppl, 0, 1);
+  const combinedScore = parseFloat((combined * 100).toFixed(1));
+  const grade =
+    combined >= 0.75 ? "A" : combined >= 0.6 ? "B" : combined >= 0.45 ? "C" : combined >= 0.3 ? "D" : "F";
+  const signalLabel =
+    combined >= 0.7 ? "STRONG BUY" : combined >= 0.55 ? "BUY" : combined >= 0.45 ? "HOLD" : combined >= 0.3 ? "SELL" : "STRONG SELL";
+
+  return { combinedScore, grade, signalLabel, weights: { quality: wq, trading: wt } };
+}
+
 export function blendSignal(input: BlendInput, config: RegimeBlendConfig = DEFAULT_REGIME_BLEND): BlendResult {
   const w = resolveWeights(input.regime, config);
   const total = w.quality + w.trading;

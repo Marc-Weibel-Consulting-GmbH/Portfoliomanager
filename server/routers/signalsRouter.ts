@@ -22,6 +22,9 @@ import { detectBubble } from '../analytics/lpplsEngine';
 import { calculateQualityScore, calculateMomentumScore } from '../analytics/qualityMomentumEngine';
 import { runSignalOrchestrator } from '../lib/signals/signalOrchestrator';
 import type { PortfolioAction } from '../lib/signals/types';
+import { computeRegime } from '../lib/signals/regimeEngine';
+import { blendCombinedScore } from '../lib/signalBlend';
+import { getRegimeBlendConfig } from '../analytics/regimeSignalMemory';
 
 type SignalType = "buy" | "sell" | "hold";
 type SignalStrength = "strong" | "moderate" | "weak";
@@ -566,22 +569,36 @@ async function processStock(
     // This ensures consistency between the Signals page and StockDetail page
     if (signal.momentumScore !== undefined && signal.qualityScore !== undefined) {
       try {
-        const mNorm = (signal.momentumScore + 1) / 2; // -1..1 → 0..1
-        const qNorm = (signal.qualityScore + 1) / 2;  // -1..1 → 0..1
         const bScore = signal.bubbleScore ?? 0;
         const bRegime = signal.bubbleRegime ?? 'normal';
         const lpplPenalty = bRegime === 'bubble' ? bScore * 0.5 : 0;
-        const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
-        signal.combinedScore = parseFloat((combined * 100).toFixed(1));
-        signal.overallGrade = combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F';
-        signal.combinedSignal = combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL';
+
+        // Track A: regime-abhängige, admin-konfigurierbare Gewichtung Qualität↔Timing.
+        // Bei fehlendem Regime/Config fällt blendCombinedScore auf 50/50 zurück — identisch
+        // zur bisherigen 0.4·mNorm + 0.4·qNorm − lpplPenalty-Formel (verhaltenswahrend).
+        let regimeKey = 'default';
+        try { regimeKey = computeRegime(prices).regime; } catch { /* Preise zu kurz o. ä. */ }
+        const blendConfig = await getRegimeBlendConfig();
+        const blended = blendCombinedScore(
+          {
+            momentumScore: signal.momentumScore,
+            qualityScore: signal.qualityScore,
+            regime: regimeKey,
+            lpplPenalty,
+          },
+          blendConfig
+        );
+
+        signal.combinedScore = blended.combinedScore;
+        signal.overallGrade = blended.grade;
+        signal.combinedSignal = blended.signalLabel;
         // Override the legacy signal type with the combined model for consistency
-        if (signal.combinedSignal === 'STRONG BUY' || signal.combinedSignal === 'BUY') {
+        if (blended.signalLabel === 'STRONG BUY' || blended.signalLabel === 'BUY') {
           signal.type = 'buy';
-          signal.strength = signal.combinedSignal === 'STRONG BUY' ? 'strong' : 'moderate';
-        } else if (signal.combinedSignal === 'STRONG SELL' || signal.combinedSignal === 'SELL') {
+          signal.strength = blended.signalLabel === 'STRONG BUY' ? 'strong' : 'moderate';
+        } else if (blended.signalLabel === 'STRONG SELL' || blended.signalLabel === 'SELL') {
           signal.type = 'sell';
-          signal.strength = signal.combinedSignal === 'STRONG SELL' ? 'strong' : 'moderate';
+          signal.strength = blended.signalLabel === 'STRONG SELL' ? 'strong' : 'moderate';
         } else {
           signal.type = 'hold';
           signal.strength = 'moderate';
