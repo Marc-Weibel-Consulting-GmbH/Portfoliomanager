@@ -954,3 +954,28 @@ export const wikifolioTrades = mysqlTable("wikifolio_trades", {
 
 export type WikifolioTrade = typeof wikifolioTrades.$inferSelect;
 export type InsertWikifolioTrade = typeof wikifolioTrades.$inferInsert;
+
+// ============================================
+// Regime-abhängige Signal-Konfiguration (Track A, P1+P2 — AI_ALPHA_ROADMAP.md)
+// Je Marktregime: (P1) admin-editierbares Verhältnis Qualität/Trading + (P2) aus dem
+// gemessenen Alpha GELERNTE Engine-Gewichte (Gedächtnis-Schleife).
+// ============================================
+export const regimeSignalConfig = mysqlTable("regime_signal_config", {
+  id: int("id").autoincrement().primaryKey(),
+  regime: varchar("regime", { length: 40 }).notNull().unique(),
+  // P1 — Admin-Gewichte (Titelwahl vs. Timing). NULL = Default aus signalBlend verwenden.
+  qualityWeight: decimal("qualityWeight", { precision: 5, scale: 4 }),
+  tradingWeight: decimal("tradingWeight", { precision: 5, scale: 4 }),
+  // P2 — gelernte Engine-Gewichte { engine: weight } (Summe 1). NULL, bis erstmals gelernt.
+  engineWeights: json("engineWeights"),
+  // Anzahl ausgewerteter Signale, auf denen die gelernten Gewichte beruhen (Evidenz).
+  sampleSize: int("sampleSize").default(0),
+  lastLearnedAt: timestamp("lastLearnedAt"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  regimeIdx: index("ix_regime_signal_config_regime").on(t.regime),
+}));
+
+export type RegimeSignalConfig = typeof regimeSignalConfig.$inferSelect;
+export type InsertRegimeSignalConfig = typeof regimeSignalConfig.$inferInsert;
