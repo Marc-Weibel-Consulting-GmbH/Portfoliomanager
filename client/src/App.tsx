@@ -66,6 +66,7 @@ import AdminSettings from "./pages/AdminSettings";
 import AdminResearch from "./pages/AdminResearch";
 import AdminBerechnungen from "./pages/AdminBerechnungen";
 import AdminScreenshots from "./pages/AdminScreenshots";
+import AdminSignalConfig from "./pages/AdminSignalConfig";
 
 function Router() {
   return (
@@ -166,6 +167,7 @@ function Router() {
       <Route path="/admin/settings"><RequireAdmin><AdminSettings /></RequireAdmin></Route>
       <Route path="/admin/research"><RequireAdmin><AdminResearch /></RequireAdmin></Route>
       <Route path="/admin/berechnungen"><RequireAdmin><AdminBerechnungen /></RequireAdmin></Route>
+      <Route path="/admin/signal-config"><RequireAdmin><AdminSignalConfig /></RequireAdmin></Route>
       <Route path="/admin/screenshots"><RequireAdmin><AdminScreenshots /></RequireAdmin></Route>
 
       {/* ═══ Legacy Redirects (alte Routen → neue Struktur) ═══ */}
