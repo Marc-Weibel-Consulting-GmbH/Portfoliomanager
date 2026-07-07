@@ -80,6 +80,33 @@ sichtbarem Herkunfts-Hinweis. **Nicht das Fundament**, sondern ein Input in das 
 - **B6 — Robustheit & Recht.** Rate-Limit/Backoff/Caching/Alerting; **ToS-Prüfung** (Zugriff via
   persönlichem Login-Scraping ist fragil und rechtlich zu klären).
 
+### Produkt-Ausprägung (Nutzer-Input, Juli 2026)
+
+Drei konkrete Anforderungen, die Track A/C schärfen:
+
+- **P1 — Konfigurierbare Signal-Mischung (Admin).** Das Verhältnis **Qualität/Titelwahl**
+  vs. **Trading-Signal/Timing (Kauf & Verkauf)** wird im Admin-Bereich einstellbar — und zwar
+  **regime-abhängig** (in der Krise zählt Qualität mehr, im Bullenmarkt das Timing). Grundlage:
+  reine `blendSignal`-Logik + persistierte, editierbare Gewichte je Regime.
+- **P2 — Regime-Optimierungslauf mit Gedächtnis.** Ein separater Lauf testet Einstellungs-/
+  Gewichtskombinationen **pro Marktregime** (welche Zusammensetzung aus Qualität + Trading-Signal
+  liefert je Regime das beste Out-of-Sample-Alpha für Käufe UND Verkäufe). Die Erfahrung aus
+  `signal_history` fließt zurück in die Gewichte; **Neukalibrierung bei Regimewechsel**. Das ist
+  Track A2, regime-konditioniert, plus der bestehende Walk-Forward-Optimizer.
+- **P3 — Wiederkehrende Transaktions-Empfehlungen (Track D).** Im Portfolio-Detail wahlweise
+  **wöchentlich/monatlich/quartalsweise** eine Empfehlungsliste (Käufe/Verkäufe/Rebalancing), die
+  **einzeln oder komplett** übernommen werden kann — optional automatisch. Der bestehende Einmal-
+  Trigger im Optimierungen-Tab bleibt für die Erstoptimierung neuer Portfolios.
+  ⚠️ **Automatische Ausführung** von Trades ist regulatorisch/haftungstechnisch heikel: Default =
+  Vorschlag mit Bestätigung; Auto-Ausführung nur als explizites Opt-in mit Audit-Trail.
+
+## Track D — Wiederkehrende Empfehlungs-/Rebalancing-Läufe (P3, Produkt-Feature)
+
+- Pro Portfolio wählbare Kadenz (wöchentlich/monatlich/quartalsweise) → geplanter Lauf erzeugt eine
+  Empfehlungsliste (basiert auf dem Signal-Aggregat aus Track A + Optimizer aus Track C).
+- UI im Portfolio-Detail: Liste mit einzeln/gesamt „übernehmen"; Umsetzung erzeugt Transaktionen.
+- Auto-Ausführung opt-in, mit Bestätigung als Default und vollem Audit-Trail.
+
 ## Track C — Portfolio-Optimierung professionalisieren (später)
 
 - Ledoit-Wolf-Shrinkage für die Kovarianz (`engine.ts:291`).
