@@ -14,7 +14,7 @@ import { getDb } from "../db";
 import { signalHistory, regimeSignalConfig } from "../../drizzle/schema";
 import { isNotNull, eq } from "drizzle-orm";
 import { learnRegimeWeights, type EvaluatedSignalRow } from "../lib/signalMemory";
-import { DEFAULT_REGIME_BLEND, resolveWeights } from "../lib/signalBlend";
+import { DEFAULT_REGIME_BLEND, resolveWeights, type RegimeBlendConfig } from "../lib/signalBlend";
 
 export interface RecomputeResult {
   updatedRegimes: number;
@@ -90,6 +90,41 @@ export async function recomputeRegimeEngineWeights(): Promise<RecomputeResult> {
   return { updatedRegimes: updated, evaluatedRows: evaluated.length };
 }
 
+// Kurzer Cache, damit der Signal-Pfad (pro Titel aufgerufen) die DB nicht wiederholt trifft.
+let blendConfigCache: { at: number; config: RegimeBlendConfig } | null = null;
+const BLEND_CONFIG_TTL_MS = 5 * 60 * 1000;
+
+/** Cache invalidieren (nach setRegimeBlend), damit Admin-Änderungen sofort greifen. */
+export function invalidateBlendConfigCache(): void {
+  blendConfigCache = null;
+}
+
+/**
+ * Admin-/gelernte Qualität-Trading-Gewichte je Regime als RegimeBlendConfig für den Signal-Pfad.
+ * Persistierte Werte überschreiben die Defaults; unkonfigurierte Regimes behalten den Default.
+ * Cache 5 Min; fällt bei fehlender DB auf DEFAULT_REGIME_BLEND zurück.
+ */
+export async function getRegimeBlendConfig(nowMs = Date.now()): Promise<RegimeBlendConfig> {
+  if (blendConfigCache && nowMs - blendConfigCache.at < BLEND_CONFIG_TTL_MS) {
+    return blendConfigCache.config;
+  }
+  const db = await getDb();
+  const config: RegimeBlendConfig = { ...DEFAULT_REGIME_BLEND };
+  if (db) {
+    const rows = await db.select().from(regimeSignalConfig);
+    for (const r of rows) {
+      if (r.qualityWeight != null && r.tradingWeight != null) {
+        config[r.regime] = {
+          quality: parseFloat(String(r.qualityWeight)),
+          trading: parseFloat(String(r.tradingWeight)),
+        };
+      }
+    }
+  }
+  blendConfigCache = { at: nowMs, config };
+  return config;
+}
+
 export interface RegimeConfigView {
   regime: string;
   qualityWeight: number;
@@ -159,4 +194,5 @@ export async function setRegimeBlend(regime: string, quality: number, trading: n
       tradingWeight: t.toFixed(4),
     });
   }
+  invalidateBlendConfigCache();
 }

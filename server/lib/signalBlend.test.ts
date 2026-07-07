@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { blendSignal, resolveWeights, DEFAULT_REGIME_BLEND } from "./signalBlend";
+import { blendSignal, blendCombinedScore, resolveWeights, DEFAULT_REGIME_BLEND } from "./signalBlend";
 import { learnRegimeWeights, type EvaluatedSignalRow } from "./signalMemory";
 
 describe("blendSignal", () => {
@@ -39,6 +39,37 @@ describe("blendSignal", () => {
     expect(resolveWeights("Sideways-High-Vol", DEFAULT_REGIME_BLEND)).toEqual(
       DEFAULT_REGIME_BLEND.sideways_high_vol
     );
+  });
+});
+
+describe("blendCombinedScore (Verhaltenswahrung + Regime)", () => {
+  // Referenz: die bisherige Formel 0.4*mNorm + 0.4*qNorm - lpplPenalty.
+  const legacy = (m: number, q: number, lppl = 0) => {
+    const mNorm = (m + 1) / 2;
+    const qNorm = (q + 1) / 2;
+    const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lppl));
+    return parseFloat((combined * 100).toFixed(1));
+  };
+
+  it("ist bei 50/50-Gewichtung identisch zur alten Formel", () => {
+    const cfg = { default: { quality: 1, trading: 1 } }; // 50/50
+    for (const [m, q] of [[0.5, 0.8], [-0.3, 0.2], [1, -1], [0, 0]] as const) {
+      const r = blendCombinedScore({ momentumScore: m, qualityScore: q, regime: "x" }, cfg);
+      expect(r.combinedScore).toBeCloseTo(legacy(m, q), 1);
+    }
+  });
+
+  it("berücksichtigt den LPPL-Abschlag wie die alte Formel", () => {
+    const cfg = { default: { quality: 1, trading: 1 } };
+    const r = blendCombinedScore({ momentumScore: 0.8, qualityScore: 0.8, regime: "x", lpplPenalty: 0.2 }, cfg);
+    expect(r.combinedScore).toBeCloseTo(legacy(0.8, 0.8, 0.2), 1);
+  });
+
+  it("gewichtet Qualität in der Krise stärker als im Bullenmarkt", () => {
+    // Hohe Qualität, schwaches Timing → Krise (quality-heavy) soll höher scoren als Bulle.
+    const crisis = blendCombinedScore({ momentumScore: -0.6, qualityScore: 0.9, regime: "crisis" }, DEFAULT_REGIME_BLEND);
+    const bull = blendCombinedScore({ momentumScore: -0.6, qualityScore: 0.9, regime: "bull" }, DEFAULT_REGIME_BLEND);
+    expect(crisis.combinedScore).toBeGreaterThan(bull.combinedScore);
   });
 });
 
