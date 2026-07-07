@@ -8,6 +8,7 @@ import { fetchStockMetrics } from './stockDataApi';
 import { fetchEODHDFundamentals } from './eodhdApi';
 import { ENV } from './env';
 import { fetchLogo, getSwissStockDomain } from '../logoService';
+import { toEodhdSymbol } from '../lib/eodhdSymbol';
 
 export interface CompleteStockData {
   ticker: string;
@@ -98,8 +99,9 @@ async function fetchFromEODHD(ticker: string): Promise<Partial<CompleteStockData
       return {};
     }
 
-    const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}`;
-    const quoteUrl = `https://eodhd.com/api/real-time/${ticker}?api_token=${apiKey}&fmt=json`;
+    const eodhSymbol = toEodhdSymbol(ticker);
+    const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${eodhSymbol}?api_token=${apiKey}`;
+    const quoteUrl = `https://eodhd.com/api/real-time/${eodhSymbol}?api_token=${apiKey}&fmt=json`;
 
     const [fundamentalsRes, quoteRes] = await Promise.all([
       fetch(fundamentalsUrl),

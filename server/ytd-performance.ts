@@ -5,6 +5,7 @@
 
 import { ENV } from './_core/env';
 import { getEODHDTickerVariants } from './european-ticker-mapping';
+import { toEodhdSymbol } from './lib/eodhdSymbol';
 import { drizzle } from 'drizzle-orm/mysql2';
 import { historicalPrices } from '../drizzle/schema';
 import { and, eq, gte, lte } from 'drizzle-orm';
@@ -106,7 +107,10 @@ async function fetchDailyPricesFromAPI(ticker: string, fromDate: string, toDate:
   }
 
   // Try ticker variants for European stocks
-  const variants = getEODHDTickerVariants(ticker);
+  // Prioritize the centralized mapping, then fall back to variant logic
+  const mappedTicker = toEodhdSymbol(ticker);
+  const rawVariants = getEODHDTickerVariants(ticker);
+  const variants = mappedTicker !== ticker ? [mappedTicker, ...rawVariants.filter(v => v !== mappedTicker)] : rawVariants;
   
   for (const variant of variants) {
     try {

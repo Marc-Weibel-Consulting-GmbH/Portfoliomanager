@@ -14,13 +14,39 @@
  * - APPLE: Nutzer-Tippfehler → AAPL
  */
 export const EODHD_TICKER_MAPPING: Record<string, string> = {
-  'EXSA.DE': 'EXSA.XETRA',
+  // ─── Swiss Exchange ───
   'ABB.N': 'ABBN.SW',
   'ABB.SW': 'ABBN.SW',      // ABB handelt an der SIX unter ABBN, nicht ABB
-  'VWRL.L': 'VWRL.LSE',
-  'ROG.SW': 'ROP.SW',       // Roche: EODHD führt die Aktie unter ROP.SW (nicht ROG.SW)
-  'HELN.SW': 'HBHN.SW',     // Helvetia+Baloise fusioniert → Helvetia Baloise Holding (HBHN.SW)
-  'MONC.MI': 'MONRY',
+  'ROG.SW': 'RO.SW',        // Roche: EODHD führt die Aktie unter RO.SW
+  'HELN.SW': 'HBAN.SW',     // Helvetia+Baloise fusioniert → Helvetia Baloise Holding
+  'HBHN.SW': 'HBAN.SW',     // Alias für Helvetia Baloise
+
+  // ─── German Exchanges (.DE → .XETRA) ───
+  'EXSA.DE': 'EXSA.XETRA',
+  'MTX.DE': 'MTX.XETRA',    // MTU Aero Engines
+  'XEON.DE': 'XEON.XETRA',  // Xtrackers EUR Overnight Rate Swap
+
+  // ─── London Stock Exchange (.L → .LSE) ───
+  'VWRL.L': 'VWRL.LSE',     // Vanguard FTSE All-World
+  'BATS.L': 'BATS.LSE',     // British American Tobacco
+  'DGE.L': 'DGE.LSE',       // Diageo
+  'MNG.L': 'MNG.LSE',       // M&G
+  'YCA.L': 'YCA.LSE',       // Yellow Cake
+
+  // ─── Warsaw Stock Exchange (.WA → .WAR) ───
+  'GPW.WA': 'GPW.WAR',      // Warsaw Stock Exchange
+
+  // ─── Australian Exchange (.AX → .AU) ───
+  'WHC.AX': 'WHC.AU',       // Whitehaven Coal
+
+  // ─── Italian Exchange (.MI → .F Frankfurt proxy, EODHD hat kein .MI) ───
+  'ADB.MI': '169.F',        // Aeroporto Guglielmo Marconi di Bologna
+  'EQUI.MI': 'SR2.F',       // Equita Group
+  'IG.MI': 'I10.F',         // Italgas
+  'PST.MI': '7PI.F',        // Poste Italiane
+  'MONC.MI': 'MONRY',       // Moncler → US ADR
+
+  // ─── US / OTC ───
   'MESA': 'RJET',
   'MESA.US': 'RJET',
   'APPLE': 'AAPL',

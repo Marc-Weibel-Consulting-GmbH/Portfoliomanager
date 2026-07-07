@@ -6,6 +6,7 @@ import { fetchDividendYieldWithFallback } from "../_core/dividendYieldHelper";
 import { recalculateWeights } from "../_core/portfolioWeightHelper";
 import { getStockLogoUrl } from "../_core/stockLogo";
 import { ENV } from "../_core/env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 
 export const stocksRouter = router({
     getAll: publicProcedure.query(async () => {
@@ -281,7 +282,7 @@ export const stocksRouter = router({
               // hardcoded 2024-12-27…2024-12-31) — last trading days of the
               // previous year; the latest close in the window is the YTD baseline.
               const lastYear = new Date().getFullYear() - 1;
-              const historicalUrl = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=${lastYear}-12-27&to=${lastYear}-12-31&fmt=json`;
+              const historicalUrl = `https://eodhd.com/api/eod/${toEodhdSymbol(cleanTicker)}?api_token=${apiKey}&from=${lastYear}-12-27&to=${lastYear}-12-31&fmt=json`;
               const historicalRes = await fetch(historicalUrl);
               if (historicalRes.ok) {
                 const historicalData = await historicalRes.json();

@@ -1,6 +1,7 @@
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { ENV } from "../_core/env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 
 export const weeklyOverviewRouter = router({
     generate: protectedProcedure.query(async ({ ctx }) => {
@@ -42,7 +43,7 @@ export const weeklyOverviewRouter = router({
           let priceChange = 0;
           if (eodhd_key) {
             try {
-              const priceUrl = `https://eodhd.com/api/eod/${stock.ticker}?api_token=${eodhd_key}&from=${fromDate}&to=${toDate}&fmt=json`;
+              const priceUrl = `https://eodhd.com/api/eod/${toEodhdSymbol(stock.ticker)}?api_token=${eodhd_key}&from=${fromDate}&to=${toDate}&fmt=json`;
               const priceRes = await fetch(priceUrl);
               if (priceRes.ok) {
                 const priceData = await priceRes.json();

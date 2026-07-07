@@ -3,6 +3,7 @@ import { historicalPrices } from "../drizzle/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { getFiscalPEHistory, calculateMedianPE, type FiscalPERatio } from "./_core/fiscalApi";
 import { ENV } from "./_core/env";
+import { toEodhdSymbol } from "./lib/eodhdSymbol";
 
 interface QuarterlyEarnings {
   date: string;
@@ -26,7 +27,7 @@ async function fetchQuarterlyEarnings(ticker: string): Promise<QuarterlyEarnings
   }
 
   // EODHD uses format: TICKER.EXCHANGE (e.g., AAPL.US, NESN.SW)
-  const url = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}&fmt=json`;
+  const url = `https://eodhd.com/api/fundamentals/${toEodhdSymbol(ticker)}?api_token=${apiKey}&fmt=json`;
   
   const response = await fetch(url);
   if (!response.ok) {

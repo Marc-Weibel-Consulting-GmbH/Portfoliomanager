@@ -6,6 +6,7 @@
 import cron from 'node-cron';
 import { getAllStocks, updateStock } from '../db';
 import { ENV } from "../_core/env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 
 /**
  * Fetch December 31st close price for a ticker from EODHD API
@@ -22,7 +23,7 @@ async function fetchDec31ClosePrice(ticker: string, year: number): Promise<numbe
     const fromDate = `${year}-12-24`;
     const toDate = `${year}-12-31`;
     
-    const url = `https://eodhd.com/api/eod/${ticker}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
+    const url = `https://eodhd.com/api/eod/${toEodhdSymbol(ticker)}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
     const response = await fetch(url);
     
     if (!response.ok) {

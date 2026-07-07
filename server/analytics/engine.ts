@@ -34,6 +34,7 @@ import {
 } from "./riskStats";
 import { getFxRate, getStockCurrency } from "../fxHelper";
 import { ENV } from "../_core/env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
 
@@ -750,6 +751,7 @@ async function fetchDCFFromEODHD(ticker: string): Promise<{
     if (!ticker.includes('.')) {
       eodhTicker = `${ticker}.US`;
     }
+    eodhTicker = toEodhdSymbol(eodhTicker);
 
     const url = `https://eodhd.com/api/fundamentals/${eodhTicker}?api_token=${apiKey}&fmt=json`;
     console.log(`[DCF] Fetching EODHD fundamentals for ${eodhTicker}`);

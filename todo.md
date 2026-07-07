@@ -6,3 +6,19 @@
 - [x] Backfill RO.SW historical prices (15816 records from 1995)
 - [x] Backfill HBAN.SW historical prices (17050+ records)
 - [x] Update portfolioData in savedPortfolios (Yvonne, Demo Swiss Blue Chips) for ROG.SW→RO.SW and HELN.SW→HBAN.SW
+- [x] Centralize toEodhdSymbol() mapping across ALL server files (12+ files fixed)
+- [x] Add Italian (.MI → .F Frankfurt proxy), London (.L → .LSE), Warsaw (.WA → .WAR), Australian (.AX → .AU) exchange mappings to eodhdSymbol.ts
+- [x] Fix multiApiDataMerger.ts to use toEodhdSymbol
+- [x] Fix stockDataApi.ts to use toEodhdSymbol
+- [x] Fix tickerValidator.ts to use toEodhdSymbol
+- [x] Fix analytics/engine.ts to use toEodhdSymbol
+- [x] Fix analytics/optimizerWorker.ts to use toEodhdSymbol
+- [x] Fix analytics/signalOptimizer.ts to use toEodhdSymbol
+- [x] Fix qualityMetricsService.ts to use toEodhdSymbol
+- [x] Fix cron/ytdUpdater.ts to use toEodhdSymbol
+- [x] Fix historical-pe.ts to use toEodhdSymbol
+- [x] Fix logoService.ts to use toEodhdSymbol
+- [x] Fix backfillHistoricalPrices.ts to use toEodhdSymbol
+- [x] Fix routers/weeklyOverviewRouter.ts to use toEodhdSymbol
+- [x] Fix routers/stocksRouter.ts to use toEodhdSymbol
+- [x] Fix ytd-performance.ts to use toEodhdSymbol (prioritize mapping over variant fallback)

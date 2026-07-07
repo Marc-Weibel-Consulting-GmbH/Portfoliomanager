@@ -10,6 +10,7 @@
  */
 
 import { ENV } from "../_core/env";
+import { toEodhdSymbol } from "./eodhdSymbol";
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -67,12 +68,13 @@ const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 Stunden
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
 function resolveEodhdTicker(ticker: string): string {
-  // Entferne .US Suffix falls vorhanden, EODHD braucht MSFT.US Format
-  if (ticker.endsWith(".US")) return ticker;
-  if (ticker.endsWith(".SW") || ticker.endsWith(".PA") || ticker.endsWith(".DE") ||
-      ticker.endsWith(".MI") || ticker.endsWith(".L") || ticker.endsWith(".AS")) return ticker;
-  // Standard: US-Aktie
-  return `${ticker}.US`;
+  // Erst Suffix hinzufügen falls nötig
+  let resolved = ticker;
+  if (!ticker.includes('.')) {
+    resolved = `${ticker}.US`;
+  }
+  // Dann zentrale EODHD-Mapping anwenden
+  return toEodhdSymbol(resolved);
 }
 
 function calcStdDev(values: number[]): number {

@@ -10,6 +10,7 @@
 
 import { ENV } from "./_core/env";
 import { getCachedLogo, saveCachedLogo, getCachedLogos } from "./db";
+import { toEodhdSymbol } from "./lib/eodhdSymbol";
 
 interface LogoResult {
   url: string;
@@ -60,7 +61,7 @@ async function fetchEODHDLogo(ticker: string): Promise<string | null> {
     }
     
     // EODHD Fundamentals endpoint includes LogoURL
-    const url = `https://eodhd.com/api/fundamentals/${ticker}?api_token=${apiKey}&fmt=json&filter=General::LogoURL`;
+    const url = `https://eodhd.com/api/fundamentals/${toEodhdSymbol(ticker)}?api_token=${apiKey}&fmt=json&filter=General::LogoURL`;
     const response = await fetch(url, {
       signal: AbortSignal.timeout(5000), // 5 second timeout
     });

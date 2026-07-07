@@ -9,6 +9,7 @@
 
 import { callDataApi } from "./dataApi";
 import { apiCache, CACHE_TTL } from './apiCache';
+import { toEodhdSymbol } from '../lib/eodhdSymbol';
 
 import { ENV } from "./env";
 export interface StockMetrics {
@@ -206,7 +207,8 @@ export async function fetchHistoricalPrices(
     
     console.log(`[fetchHistoricalPrices] Fetching ${years} years for ${cleanTicker} from ${fromDate} to ${toDate}`);
     
-    const url = `https://eodhd.com/api/eod/${cleanTicker}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
+    const eodhSymbol = toEodhdSymbol(cleanTicker);
+    const url = `https://eodhd.com/api/eod/${eodhSymbol}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
     const response = await fetch(url);
     
     if (!response.ok) {

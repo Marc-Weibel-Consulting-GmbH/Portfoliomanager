@@ -25,6 +25,7 @@ import { eq, desc } from "drizzle-orm";
 import { randomForestSignal } from "./mlEngine";
 
 import { ENV } from "../_core/env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 export interface WeightConfig {
   pe: number;
   peg: number;
@@ -296,6 +297,7 @@ async function fetchFromEODHD(ticker: string): Promise<{
     if (!ticker.includes(".")) {
       eodhTicker = `${ticker}.US`; // Default to US if no suffix
     }
+    eodhTicker = toEodhdSymbol(eodhTicker);
 
     const url = `https://eodhd.com/api/eod/${eodhTicker}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
     const response = await fetch(url, { signal: AbortSignal.timeout(15000) });

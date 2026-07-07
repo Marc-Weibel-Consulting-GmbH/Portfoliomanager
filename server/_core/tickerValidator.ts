@@ -1,4 +1,5 @@
 import { ENV } from "./env";
+import { toEodhdSymbol } from '../lib/eodhdSymbol';
 // Ticker validator uses inline fetch logic to avoid circular dependencies
 
 export interface TickerValidationResult {
@@ -24,9 +25,9 @@ async function fetchStockDataInline(ticker: string): Promise<any> {
   console.log('[TickerValidator] EODHD_API_KEY check:', { exists: !!apiKey, type: typeof apiKey, length: apiKey?.length || 0 });
   if (!apiKey || apiKey.trim() === '') throw new Error("EODHD API key not configured");
 
-  const cleanTicker = ticker;
-  const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${cleanTicker}?api_token=${apiKey}`;
-  const quoteUrl = `https://eodhd.com/api/real-time/${cleanTicker}?api_token=${apiKey}&fmt=json`;
+  const eodhSymbol = toEodhdSymbol(ticker);
+  const fundamentalsUrl = `https://eodhd.com/api/fundamentals/${eodhSymbol}?api_token=${apiKey}`;
+  const quoteUrl = `https://eodhd.com/api/real-time/${eodhSymbol}?api_token=${apiKey}&fmt=json`;
 
   const [fundamentalsRes, quoteRes] = await Promise.all([
     fetch(fundamentalsUrl),

@@ -11,6 +11,7 @@ import { watchlistStocks, signalWeights } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 
 import { ENV } from "../_core/env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 export interface WeightConfig {
   pe: number;
   peg: number;
@@ -142,6 +143,7 @@ async function fetchPricesEODHD(ticker: string): Promise<{
     if (!ticker.includes(".")) {
       eodhTicker = `${ticker}.US`;
     }
+    eodhTicker = toEodhdSymbol(eodhTicker);
 
     const url = `https://eodhd.com/api/eod/${eodhTicker}?api_token=${apiKey}&from=${fromDate}&to=${toDate}&fmt=json`;
     const controller = new AbortController();
