@@ -254,6 +254,52 @@ export async function getWikifolioDetails(symbol: string): Promise<WikifolioDeta
   }
 }
 
+export interface WikifolioTradeRecord {
+  externalTradeId: string | null;
+  isin: string | null;
+  name: string | null;
+  side: 'buy' | 'sell' | 'other';
+  executionPrice: number | null;
+  weightage: number | null;
+  executedAt: string | null;
+}
+
+/** Order-Typ von Wikifolio auf buy/sell/other normalisieren. */
+function normalizeTradeSide(order: any): 'buy' | 'sell' | 'other' {
+  const raw = String(order?.type ?? order?.orderType ?? '').toLowerCase();
+  if (raw.startsWith('buy')) return 'buy';
+  if (raw.startsWith('sell') || raw.includes('stoploss')) return 'sell';
+  if (raw === 'buy') return 'buy';
+  if (raw === 'sell') return 'sell';
+  return 'other';
+}
+
+/**
+ * Transaktionshistorie eines Wikifolios abrufen (Track B, AI_ALPHA_ROADMAP.md).
+ * Endpunkt analog zum gevendorten Client: api/wikifolio/{idOrSymbol}/tradehistory.
+ * `idOrSymbol` akzeptiert die Wikifolio-GUID oder das Symbol (die interne API toleriert
+ * i. d. R. beides; die GUID ist die robustere Wahl, sobald bekannt).
+ *
+ * ⚠️ Die exakten Feldnamen der Antwort sind gegen die Live-API zu verifizieren
+ * (Credentials nötig) — das Mapping ist defensiv gehalten.
+ */
+export async function getWikifolioTrades(idOrSymbol: string, pageSize = 50): Promise<WikifolioTradeRecord[]> {
+  const data = await request<any>(
+    `api/wikifolio/${idOrSymbol}/tradehistory?page=0&pageSize=${pageSize}&country=de&language=de`
+  );
+
+  const orders: any[] = data?.orders || data?.trades || (Array.isArray(data) ? data : []);
+  return orders.map((order: any): WikifolioTradeRecord => ({
+    externalTradeId: order.id ?? order.orderId ?? null,
+    isin: order.isin ?? null,
+    name: order.name ?? null,
+    side: normalizeTradeSide(order),
+    executionPrice: firstNumber(order.executionPrice, order.price),
+    weightage: firstNumber(order.weightage, order.weight),
+    executedAt: order.executedAt ?? order.executionDate ?? null,
+  }));
+}
+
 /**
  * Clear session (force re-login on next request)
  */
@@ -309,21 +355,45 @@ const SORT_BY_MAP: Record<WikifolioSearchSortBy, string> = {
  * Map Wikifolio search results from the new search-api.wikifolio.com format
  * to plain, serializable objects.
  */
+/**
+ * Erste vorhandene endliche Zahl aus mehreren möglichen Feldnamen ziehen (die
+ * search-api liefert Kennzahlen je nach Version unter unterschiedlichen Keys —
+ * daher defensiv über mehrere Kandidaten, statt hart auf `null`).
+ */
+function firstNumber(...vals: any[]): number | null {
+  for (const v of vals) {
+    const n = typeof v === 'string' ? parseFloat(v) : v;
+    if (typeof n === 'number' && Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
 export function mapWikifolioSearchResults(wikis: any[]): WikifolioTraderResult[] {
   return wikis
     .filter(w => !!w.symbol)
-    .map(w => ({
-      symbol: w.symbol as string,
-      title: w.shortDescription || w.symbol,
-      traderName: w.trader?.fullName || w.trader?.nickName || '',
-      rankValue: null, // rankings not included in basic search
-      perfAnnually: null,
-      perfEver: null,
-      maxDrawdown: null,
-      capital: null,
-      isin: w.isin || null,
-      wikifolioUrl: `https://www.wikifolio.com/de/de/w/${w.symbol?.toLowerCase()}`,
-    }));
+    .map(w => {
+      // Kennzahlen können flach am Objekt oder unter w.stats/w.keyFigures liegen.
+      const s = w.stats || w.keyFigures || w.figures || {};
+      const sharpe = firstNumber(w.sharpeRatio, w.sharpe, s.sharpeRatio, s.sharpe);
+      const perfAnnually = firstNumber(w.performanceAnnualized, w.perfAnnually, s.performanceAnnualized, s.performance1Year, w.performance1Year);
+      const perfEver = firstNumber(w.performanceEver, w.perfEver, s.performanceEver);
+      const maxDrawdown = firstNumber(w.maxDrawdown, s.maxDrawdown);
+      const capital = firstNumber(w.totalInvestments, w.investmentCapital, w.aum, s.totalInvestments);
+      // rankValue = die Kennzahl, nach der sortiert wurde (Sharpe als sinnvoller Default).
+      const rankValue = firstNumber(w.rankValue, sharpe, perfAnnually);
+      return {
+        symbol: w.symbol as string,
+        title: w.shortDescription || w.symbol,
+        traderName: w.trader?.fullName || w.trader?.nickName || '',
+        rankValue,
+        perfAnnually,
+        perfEver,
+        maxDrawdown,
+        capital,
+        isin: w.isin || null,
+        wikifolioUrl: `https://www.wikifolio.com/de/de/w/${w.symbol?.toLowerCase()}`,
+      };
+    });
 }
 
 /**

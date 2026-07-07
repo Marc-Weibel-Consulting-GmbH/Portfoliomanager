@@ -893,3 +893,64 @@ export const multiAgentSessions = mysqlTable("multiAgentSessions", {
 });
 export type MultiAgentSession = typeof multiAgentSessions.$inferSelect;
 export type InsertMultiAgentSession = typeof multiAgentSessions.$inferInsert;
+
+// ============================================
+// Wikifolio als zusätzliche Signalquelle (Track B, AI_ALPHA_ROADMAP.md)
+// Erfolgreiche, real investierte Wikifolios + ihre Transaktionen. Fließt als EINE
+// gewichtete Quelle in das Signal-Aggregat ein — nicht als Fundament.
+// ============================================
+
+// Verfolgte Wikifolios inkl. Erfolgs-Kennzahlen (Basis fürs Ranking "erfolgreich").
+export const wikifolios = mysqlTable("wikifolios", {
+  id: int("id").autoincrement().primaryKey(),
+  // Wikifolio-Symbol (z. B. "wfglobalnt") — stabiler Schlüssel.
+  symbol: varchar("symbol", { length: 60 }).notNull().unique(),
+  // Interne Wikifolio-GUID (für den tradehistory-Endpunkt); erst nach erstem Detail-Abruf bekannt.
+  wikifolioId: varchar("wikifolioId", { length: 64 }),
+  title: varchar("title", { length: 255 }),
+  traderName: varchar("traderName", { length: 150 }),
+  isin: varchar("isin", { length: 20 }),
+  // Erfolgs-Kennzahlen (aus der Such-/Detail-API). NULL, solange nicht abgerufen.
+  sharpeRatio: decimal("sharpeRatio", { precision: 8, scale: 4 }),
+  performance1y: decimal("performance1y", { precision: 10, scale: 4 }),
+  performanceEver: decimal("performanceEver", { precision: 10, scale: 4 }),
+  maxDrawdown: decimal("maxDrawdown", { precision: 10, scale: 4 }),
+  aum: decimal("aum", { precision: 16, scale: 2 }),
+  // Ob dieses Wikifolio aktiv für Trades gepollt wird (Top-N nach Erfolg).
+  isTracked: tinyint("isTracked").notNull().default(0),
+  lastTradesSyncAt: timestamp("lastTradesSyncAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  symbolIdx: index("ix_wikifolios_symbol").on(t.symbol),
+  trackedIdx: index("ix_wikifolios_tracked").on(t.isTracked),
+}));
+
+export type Wikifolio = typeof wikifolios.$inferSelect;
+export type InsertWikifolio = typeof wikifolios.$inferInsert;
+
+// Einzelne Transaktionen (Trades) verfolgter Wikifolios. Quelle für das Konsens-Signal.
+export const wikifolioTrades = mysqlTable("wikifolio_trades", {
+  id: int("id").autoincrement().primaryKey(),
+  wikifolioId: int("wikifolioId").notNull(), // FK → wikifolios.id
+  // Wikifolios eigene Order-ID zur Deduplizierung wiederholter Abrufe.
+  externalTradeId: varchar("externalTradeId", { length: 80 }),
+  isin: varchar("isin", { length: 20 }),
+  // ISIN→eigenes Ticker-Universum aufgelöst (isinResolver); NULL, wenn nicht auflösbar.
+  resolvedTicker: varchar("resolvedTicker", { length: 50 }),
+  name: varchar("name", { length: 255 }),
+  side: mysqlEnum("side", ["buy", "sell", "other"]).notNull().default("other"),
+  executionPrice: decimal("executionPrice", { precision: 14, scale: 4 }),
+  // Gewicht der Position im Wikifolio nach dem Trade (%) — Signalstärke.
+  weightage: decimal("weightage", { precision: 8, scale: 4 }),
+  executedAt: timestamp("executedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  wikifolioIdx: index("ix_wikifolio_trades_wikifolio").on(t.wikifolioId),
+  tickerIdx: index("ix_wikifolio_trades_ticker").on(t.resolvedTicker),
+  executedAtIdx: index("ix_wikifolio_trades_executed_at").on(t.executedAt),
+  dedupeIdx: unique("ux_wikifolio_trades_dedupe").on(t.wikifolioId, t.externalTradeId),
+}));
+
+export type WikifolioTrade = typeof wikifolioTrades.$inferSelect;
+export type InsertWikifolioTrade = typeof wikifolioTrades.$inferInsert;
