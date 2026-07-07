@@ -944,4 +944,37 @@ export const adminRouter = router({
           .onDuplicateKeyUpdate({ set: { value: input.value, description: input.description } });
         return { success: true };
       }),
+
+    // ─── KI-Alpha: regime-abhängige Signal-Konfiguration (Track A, P1+P2) ───
+
+    /** Konfiguration je Regime: admin-gesetzte Qualität/Trading-Gewichte + gelernte Engine-Gewichte. */
+    getRegimeSignalConfig: adminProcedure.query(async () => {
+      const { getRegimeConfig } = await import("../analytics/regimeSignalMemory");
+      return getRegimeConfig();
+    }),
+
+    /** P1: Qualität/Trading-Verhältnis eines Regimes setzen (wird auf Summe 1 normiert). */
+    setRegimeBlend: adminProcedure
+      .input(z.object({
+        regime: z.string().min(1),
+        quality: z.number().min(0),
+        trading: z.number().min(0),
+      }).refine((v) => v.quality + v.trading > 0, { message: "Mindestens ein Gewicht muss > 0 sein" }))
+      .mutation(async ({ input }) => {
+        const { setRegimeBlend } = await import("../analytics/regimeSignalMemory");
+        await setRegimeBlend(input.regime, input.quality, input.trading);
+        return { success: true };
+      }),
+
+    /** P2: Engine-Gewichte je Regime aus dem gemessenen Alpha (signal_history) neu lernen. */
+    recomputeRegimeWeights: adminProcedure.mutation(async () => {
+      const { recomputeRegimeEngineWeights } = await import("../analytics/regimeSignalMemory");
+      return recomputeRegimeEngineWeights();
+    }),
+
+    /** Diagnose: ist die Python-ML-Pipeline (ANALYTICS_SERVICE_URL) konfiguriert/erreichbar? */
+    analyticsServiceStatus: adminProcedure.query(async () => {
+      const { getAnalyticsServiceStatus } = await import("../lib/analyticsServiceStatus");
+      return getAnalyticsServiceStatus();
+    }),
 });
