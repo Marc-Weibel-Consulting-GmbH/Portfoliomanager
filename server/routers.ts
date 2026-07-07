@@ -42,6 +42,7 @@ import { predictionRouter } from "./routers/predictionRouter";
 import { optimizerRouter } from "./routers/optimizerRouter";
 import { marketRegimeRouter } from "./routers/marketRegimeRouter";
 import { copilotRouter } from "./routers/copilotRouter";
+import { recommendationsRouter } from "./routers/recommendationsRouter";
 import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
 import { researchRouter } from "./routers/researchRouter";
@@ -235,6 +236,7 @@ export const appRouter = router({
   optimizer: optimizerRouter,
   marketRegime: marketRegimeRouter,
   copilot: copilotRouter,
+  recommendations: recommendationsRouter,
   pdfImport: pdfImportRouter,
   userSettings: userSettingsRouter,
 

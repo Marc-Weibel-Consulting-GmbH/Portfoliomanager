@@ -979,3 +979,23 @@ export const regimeSignalConfig = mysqlTable("regime_signal_config", {
 
 export type RegimeSignalConfig = typeof regimeSignalConfig.$inferSelect;
 export type InsertRegimeSignalConfig = typeof regimeSignalConfig.$inferInsert;
+
+// ============================================
+// Wiederkehrende Transaktions-Empfehlungen je Portfolio (Track D / P3)
+// Kadenz-Konfiguration; die Generierung nutzt die bestehende Copilot-Analyse.
+// ============================================
+export const portfolioRecommendationConfig = mysqlTable("portfolio_recommendation_config", {
+  id: int("id").autoincrement().primaryKey(),
+  portfolioId: int("portfolioId").notNull().unique(),
+  cadence: mysqlEnum("cadence", ["off", "weekly", "monthly", "quarterly"]).notNull().default("off"),
+  // Automatische Ausführung — Default AUS (Vorschlag mit Bestätigung). Opt-in mit Audit-Trail.
+  autoExecute: tinyint("autoExecute").notNull().default(0),
+  lastGeneratedAt: timestamp("lastGeneratedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  portfolioIdx: index("ix_portfolio_rec_config_portfolio").on(t.portfolioId),
+}));
+
+export type PortfolioRecommendationConfig = typeof portfolioRecommendationConfig.$inferSelect;
+export type InsertPortfolioRecommendationConfig = typeof portfolioRecommendationConfig.$inferInsert;
