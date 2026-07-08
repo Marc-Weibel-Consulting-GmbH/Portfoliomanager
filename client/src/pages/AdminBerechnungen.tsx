@@ -136,17 +136,21 @@ const FORMULAS: FormulaSection[] = [
     category: "Holdings",
     title: "Tagesveränderung (Day Change)",
     description:
-      "Absolute und prozentuale Wertveränderung des Portfolios gegenüber dem Vortag.",
-    formula: "DayChange = Wert_heute − Wert_gestern\nDayChange% = DayChange / Wert_gestern × 100",
+      "Cashflow-bereinigte Tagesveränderung des Portfolios. Nur reine Preisbewegungen werden gemessen — Käufe und Verkäufe am selben Tag verzerren das Ergebnis nicht. Berechnung symmetrisch: Nur Titel mit Schlusskursen an beiden Tagen fliessen ein.",
+    formula: "DayChange_CHF = Σᵢ [ Stücke_i × (Close_i,heute − Close_i,gestern) × FX_i ]\nDayChange% = DayChange_CHF / Σᵢ [ Stücke_i × Close_i,gestern × FX_i ]",
     variables: [
-      { name: "Wert_heute", desc: "Portfoliowert zum heutigen Schlusskurs" },
-      { name: "Wert_gestern", desc: "Portfoliowert zum gestrigen Schlusskurs" },
+      { name: "Stücke_i", desc: "Anzahl gehaltener Aktien von Titel i" },
+      { name: "Close_i,heute", desc: "Schlusskurs von Titel i am letzten Handelstag (aus historicalPrices)" },
+      { name: "Close_i,gestern", desc: "Schlusskurs von Titel i am vorletzten Handelstag (aus historicalPrices)" },
+      { name: "FX_i", desc: "Aktueller FX-Kurs der Titelwährung → CHF (einheitlich für beide Seiten)" },
     ],
     example: {
-      input: "Portfolio gestern: CHF 91 000, heute: CHF 91 200",
-      calculation: "DayChange = 91200 − 91000 = +200\nDayChange% = 200 / 91000 × 100",
-      result: "DayChange = +CHF 200 (+0.22 %)",
+      input: "2 Titel: AAPL (10 Stk, USD) Close gestern 210.00, heute 212.50, USDCHF=0.895; NESN (5 Stk, CHF) Close gestern 88.00, heute 88.50",
+      calculation: "AAPL: 10 × (212.50 − 210.00) × 0.895 = 10 × 2.50 × 0.895 = +22.38\nNESN: 5 × (88.50 − 88.00) × 1.0 = 5 × 0.50 = +2.50\nBase: 10×210×0.895 + 5×88 = 1879.50 + 440 = 2319.50",
+      result: "DayChange = +CHF 24.88 (+1.07 %)",
     },
+    notes:
+      "Symmetrisches Skipping (R-29): Fehlt für einen Titel einer der beiden Schlusskurse, trägt er weder zur Veränderung noch zur Basisgrösse bei. Damit werden Neu-Einbuchungen am Kauftag nicht als Tagesgewinn gewertet.",
   },
   // ─── REALISIERTE GEWINNE ─────────────────────────────────────────────────────
   {
@@ -176,19 +180,20 @@ const FORMULAS: FormulaSection[] = [
     category: "Währungsumrechnung",
     title: "FX-Umrechnung (Fremdwährung → CHF)",
     description:
-      "Alle Preise und Transaktionen werden zum Transaktionsdatum in CHF umgerechnet. Kurs wird von EODHD abgerufen.",
-    formula: "Betrag_CHF = Betrag_Fremdwährung × FX_Rate(Datum, Währungspaar)",
+      "Fremdwährungspositionen werden für die Portfoliobewertung mit dem aktuellen Tageskurs in CHF umgerechnet. Für historische Transaktionen (Kauf/Verkauf) wird der Kurs am Transaktionsdatum verwendet. FX-Kurse werden von EODHD abgerufen.",
+    formula: "Marktwert_CHF = Preis_Fremdwährung × Stücke × FX_Rate(heute, Paar)\nTransaktionswert_CHF = Preis_Fremdwährung × Stücke × FX_Rate(Transaktionsdatum, Paar)",
     variables: [
-      { name: "Betrag_Fremdwährung", desc: "Betrag in der Originalwährung (z.B. EUR, USD)" },
-      { name: "FX_Rate(Datum, Paar)", desc: "Wechselkurs am Transaktionsdatum (z.B. EURCHF = 0.9450)" },
+      { name: "Preis_Fremdwährung", desc: "Aktueller oder historischer Kurs in der Originalwährung (z.B. EUR, USD)" },
+      { name: "FX_Rate(heute, Paar)", desc: "Aktueller Wechselkurs für Portfoliobewertung (z.B. USDCHF = 0.8950)" },
+      { name: "FX_Rate(Transaktionsdatum, Paar)", desc: "Historischer Wechselkurs am Kauf-/Verkaufsdatum für Kostenbasis" },
     ],
     example: {
-      input: "Kauf von 10 Bayer-Aktien à EUR 28.50 am 15.03.2025, EURCHF = 0.9450",
-      calculation: "Betrag_CHF = (10 × 28.50) × 0.9450 = 285.00 × 0.9450",
-      result: "Betrag_CHF = CHF 269.33",
+      input: "10 Apple-Aktien à USD 212.50 (aktuell), USDCHF heute = 0.8950; Kauf am 15.03.2025 à USD 185.00, USDCHF damals = 0.9120",
+      calculation: "Marktwert heute: 10 × 212.50 × 0.8950 = CHF 1 901.88\nKostenbasis: 10 × 185.00 × 0.9120 = CHF 1 687.20",
+      result: "Unrealized Gain = CHF 1 901.88 − CHF 1 687.20 = +CHF 214.68",
     },
     notes:
-      "Kein stiller Fallback auf 1.0 mehr (R-10, R-13): fehlt ein FX-Kurs, wird ein Fehler geworfen.",
+      "Kein stiller Fallback auf 1.0 mehr (R-10, R-13): fehlt ein FX-Kurs, wird ein Fehler geworfen. Für den Day Change wird ein einheitlicher FX-Kurs auf beide Seiten (heute und gestern) angewendet, damit reine FX-Bewegungen nicht als Portfoliogewinn erscheinen.",
   },
   // ─── SIGNALE ─────────────────────────────────────────────────────────────────
   {
