@@ -1098,6 +1098,7 @@ export default function PortfolioDetailsPage() {
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
               { value: 'uebersicht', label: 'Übersicht' },
+              { value: 'deepdive', label: 'Deep-Dive', aiBadge: true },
               { value: 'positionen', label: `Positionen`, badge: holdings.length },
               { value: 'transaktionen', label: 'Transaktionen', badge: transactions.length },
               { value: 'dividenden', label: 'Dividenden' },
@@ -1105,7 +1106,6 @@ export default function PortfolioDetailsPage() {
               { value: 'risiko', label: 'Risiko' },
               { value: 'optimieren', label: 'Optimieren', aiBadge: true },
               { value: 'empfehlungen', label: 'Empfehlungen', aiBadge: true },
-              { value: 'deepdive', label: 'Deep-Dive', aiBadge: true },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
