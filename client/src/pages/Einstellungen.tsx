@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info } from "lucide-react";
+import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info, Target } from "lucide-react";
 import GuidedTourModal from "@/components/GuidedTourModal";
+import AnlageprofilTab from "@/components/settings/AnlageprofilTab";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { getUserErrorMessage } from "@/lib/errorMessages";
 
-const VALID_TABS = ["profil", "gebuehren", "benachrichtigungen", "sicherheit", "api", "hilfe"] as const;
+const VALID_TABS = ["profil", "anlageprofil", "gebuehren", "benachrichtigungen", "sicherheit", "api", "hilfe"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
 
 // Preset broker configurations
@@ -302,6 +303,7 @@ export default function Einstellungen() {
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
               { value: "profil", label: "Profil", icon: User },
+              { value: "anlageprofil", label: "Anlageprofil", icon: Target },
               { value: "gebuehren", label: "Gebühren", icon: Landmark },
               { value: "benachrichtigungen", label: "Benachrichtigungen", icon: Bell },
               { value: "sicherheit", label: "Sicherheit", icon: Shield },
@@ -331,6 +333,10 @@ export default function Einstellungen() {
                 <p className="text-sm text-muted-foreground">Profildaten werden über OAuth verwaltet und können hier nicht geändert werden.</p>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="anlageprofil" className="mt-6">
+            <AnlageprofilTab />
           </TabsContent>
 
           <TabsContent value="gebuehren" className="mt-6">

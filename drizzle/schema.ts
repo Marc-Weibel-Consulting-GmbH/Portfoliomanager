@@ -718,6 +718,33 @@ export const userSettings = mysqlTable("userSettings", {
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = typeof userSettings.$inferInsert;
 
+// ============================================
+// Anlageprofil (Konzept «Optimierung & Empfehlungen», Stufe F1): Risikoprofil +
+// Anlageziele pro Nutzer. Speist später Optimizer/Empfehlungen und schaltet die
+// automatische Portfolio-Erstellung frei.
+// ============================================
+export const userInvestmentProfile = mysqlTable("user_investment_profile", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  // Risikoprofil
+  riskProfile: mysqlEnum("riskProfile", ["konservativ", "ausgewogen", "wachstum", "aggressiv"]).notNull().default("ausgewogen"),
+  investmentHorizonYears: int("investmentHorizonYears").notNull().default(10),
+  maxDrawdownTolerancePct: int("maxDrawdownTolerancePct").notNull().default(20),
+  // Anlageziele
+  investmentGoal: mysqlEnum("investmentGoal", ["dividends", "growth", "balanced"]).notNull().default("balanced"),
+  targetReturnPct: decimal("targetReturnPct", { precision: 5, scale: 2 }),
+  liquidityNeedPct: int("liquidityNeedPct").notNull().default(0),
+  excludedSectors: json("excludedSectors"),
+  esgOnly: tinyint("esgOnly").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  userIdx: index("ix_user_investment_profile_user").on(t.userId),
+}));
+
+export type UserInvestmentProfile = typeof userInvestmentProfile.$inferSelect;
+export type InsertUserInvestmentProfile = typeof userInvestmentProfile.$inferInsert;
+
 // LPPL Bubble-Check Results (historische Persistierung)
 export const lpplResults = mysqlTable("lppl_results", {
   id: int("id").autoincrement().primaryKey(),
