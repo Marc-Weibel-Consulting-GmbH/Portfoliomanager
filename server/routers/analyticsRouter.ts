@@ -104,12 +104,19 @@ export const analyticsRouter = router({
     )
     .query(async ({ input }) => {
       try {
+        // F2: Diversifikationsregeln (Admin) fliessen als Constraints in den Optimizer
+        // ein — derselbe Regelsatz, den die Nutzer-Ansicht anzeigt.
+        const { getDiversificationRules } = await import("../lib/diversificationRules");
+        const rules = await getDiversificationRules();
         return await optimizePortfolio({
           tickers: input.tickers,
           lookbackDays: input.lookbackDays,
           riskFreeRate: input.riskFreeRate,
           method: input.method,
           portfolioValue: input.portfolioValue,
+          minPositionChf: rules.minPositionAmountCHF,
+          minPositionWeight: rules.minPositionPercent / 100,
+          maxPositionWeight: rules.maxPositionPercent / 100,
         });
       } catch (err: any) {
         throw new TRPCError({
@@ -118,6 +125,15 @@ export const analyticsRouter = router({
         });
       }
     }),
+
+  /**
+   * F2: Aktive Diversifikationsregeln (Admin-konfigurierbar) für die Nutzer-Ansicht.
+   * Nur-Lesen; die Pflege erfolgt im Admin-Bereich «App-Einstellungen».
+   */
+  getDiversificationRules: protectedProcedure.query(async () => {
+    const { getDiversificationRules } = await import("../lib/diversificationRules");
+    return getDiversificationRules();
+  }),
 
   /**
    * Historical Risk Score Timeline: Weekly risk scores over the past year

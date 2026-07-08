@@ -72,9 +72,16 @@ export interface OptimizeInput {
   method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend";
   /**
    * R-34c: aktueller Portfoliowert in CHF. Wenn gesetzt, werden Zielpositionen
-   * unter CHF 3'000 auf 0 gesetzt und umverteilt (Mindest-Positionsgrösse).
+   * unter der Mindest-Positionsgrösse auf 0 gesetzt und umverteilt.
    */
   portfolioValue?: number;
+  /**
+   * F2: Diversifikationsregeln (Admin-konfigurierbar). Alle optional — fehlen
+   * sie, greifen die bisherigen Defaults (Standardverhalten unverändert).
+   */
+  minPositionChf?: number; // Mindest-Positionsgrösse CHF (Default 3'000)
+  minPositionWeight?: number; // Einzelposition-Untergrenze als Anteil 0..1 (Default 0.01)
+  maxPositionWeight?: number; // Einzelposition-Obergrenze als Anteil 0..1 (Default 0.10)
 }
 
 export interface TechnicalAnalysisInput {
@@ -1084,6 +1091,9 @@ export async function optimizePortfolio(input: OptimizeInput) {
     riskFreeRate = DEFAULT_RISK_FREE_RATE,
     method = "max_sharpe",
     portfolioValue,
+    minPositionChf,
+    minPositionWeight = 0.01,
+    maxPositionWeight = 0.10,
   } = input;
 
   if (tickers.length < 2) {
@@ -1131,8 +1141,11 @@ export async function optimizePortfolio(input: OptimizeInput) {
     );
   }
 
-  // Optimal weights
-  const optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields);
+  // Optimal weights (F2: Positions-Bounds aus den Diversifikationsregeln)
+  const optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields, {
+    minWeight: minPositionWeight,
+    maxWeight: maxPositionWeight,
+  });
 
   // R-34c: Mindest-Positionsgrösse CHF 3'000 — Zielpositionen, deren Wert
   // (Zielgewicht × Portfoliowert) unter der Mindestgrösse liegt, werden auf 0
@@ -1140,7 +1153,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
   // umverteilt. Nur aktiv, wenn der Portfoliowert übergeben wurde; bei < 2
   // verbleibenden Titeln wird die Regel ausgesetzt (Regel wäre unerfüllbar,
   // z. B. bei sehr kleinen Portfolios).
-  const MIN_POSITION_CHF = 3000;
+  const MIN_POSITION_CHF = minPositionChf ?? 3000;
   let finalWeights = optimalWeights;
   const droppedPositions: Array<{ ticker: string; targetWeight: number; targetValueCHF: number }> = [];
   if (portfolioValue && portfolioValue > 0) {
@@ -1151,7 +1164,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
       else keepIdx.push(i);
     });
     if (dropIdx.length > 0 && keepIdx.length >= 2) {
-      const { minW, maxW } = effectiveBounds(keepIdx.length, 0.01, 0.10);
+      const { minW, maxW } = effectiveBounds(keepIdx.length, minPositionWeight, maxPositionWeight);
       const kept = normalizeWithBounds(keepIdx.map((i) => optimalWeights[i]), minW, maxW);
       finalWeights = new Array(n).fill(0);
       keepIdx.forEach((idx, j) => {
