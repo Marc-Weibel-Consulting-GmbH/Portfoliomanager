@@ -78,6 +78,13 @@
       "when": 1783505304197,
       "tag": "0010_gigantic_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1783546786854,
+      "tag": "0011_panoramic_stature",
+      "breakpoints": true
     }
   ]
 }
