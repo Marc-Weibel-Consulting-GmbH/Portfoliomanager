@@ -2,7 +2,10 @@ import { AdminTopbar } from "@/components/AdminTopbar";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useState, useCallback } from "react";
+import { Copy, Check, Download, FileText } from "lucide-react";
+import { toast } from "sonner";
 
 interface FormulaSection {
   id: string;
@@ -252,15 +255,15 @@ const FORMULAS: FormulaSection[] = [
     category: "Signale & Scores",
     title: "Alpha (Benchmark-Alpha)",
     description:
-      "Misst die Überrendite eines Signals gegenüber dem Markt (S&P 500 / SMI) im Evaluationszeitraum.",
+      "Misst die Überrendite eines Signals gegenüber dem Markt (S&P 500 / SPI) im Evaluationszeitraum.",
     formula: "Alpha = Rendite_Signal − Rendite_Benchmark",
     variables: [
       { name: "Rendite_Signal", desc: "Tatsächliche Rendite der Aktie nach Signal-Ausgabe (in %)" },
-      { name: "Rendite_Benchmark", desc: "Rendite des Benchmarks (S&P 500 oder SMI) im gleichen Zeitraum" },
+      { name: "Rendite_Benchmark", desc: "Rendite des Benchmarks (S&P 500 oder SPI) im gleichen Zeitraum" },
     ],
     example: {
       input:
-        "Kaufsignal für Nestlé am 01.04.2025. Nach 30 Tagen: Nestlé +3.2 %, SMI +1.8 %",
+        "Kaufsignal für Nestlé am 01.04.2025. Nach 30 Tagen: Nestlé +3.2 %, SPI +1.8 %",
       calculation: "Alpha = 3.2 % − 1.8 %",
       result: "Alpha = +1.4 % (Signal hat den Markt um 1.4 % übertroffen)",
     },
@@ -369,9 +372,128 @@ const FORMULAS: FormulaSection[] = [
 
 const CATEGORIES = [...new Set(FORMULAS.map((f) => f.category))];
 
+// ─── Helper: build plain-text representation of a formula ─────────────────
+function formulaToText(f: FormulaSection): string {
+  const lines: string[] = [
+    `═══════════════════════════════════════════════════`,
+    `${f.title}  [${f.category}]`,
+    `═══════════════════════════════════════════════════`,
+    ``,
+    `Beschreibung`,
+    `────────────`,
+    f.description,
+    ``,
+    `Formel`,
+    `──────`,
+    f.formula,
+    ``,
+    `Variablen`,
+    `─────────`,
+    ...f.variables.map((v) => `  ${v.name.padEnd(28)} ${v.desc}`),
+    ``,
+    `Konkretes Beispiel`,
+    `──────────────────`,
+    `Eingabe:`,
+    `  ${f.example.input.replace(/\n/g, "\n  ")}`,
+    ``,
+    `Berechnung:`,
+    `  ${f.example.calculation.replace(/\n/g, "\n  ")}`,
+    ``,
+    `Ergebnis:`,
+    `  ${f.example.result}`,
+  ];
+  if (f.notes) {
+    lines.push(``, `Hinweis`, `───────`, f.notes);
+  }
+  lines.push(``);
+  return lines.join("\n");
+}
+
+// ─── Helper: build full plain-text document ───────────────────────────────
+function buildFullText(formulas: FormulaSection[]): string {
+  const header = [
+    `PORTFOLIO ANALYSE — BERECHNUNGEN & FORMELN`,
+    `Erstellt: ${new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" })}`,
+    ``,
+    `Dieses Dokument enthält die vollständige Dokumentation aller Berechnungen`,
+    `im Portfoliomanager – mit Formeln, Variablenerklärungen und Beispielen.`,
+    ``,
+    ``,
+  ].join("\n");
+  return header + formulas.map(formulaToText).join("\n");
+}
+
+// ─── CopyButton: per-formula text copy ────────────────────────────────────
+function CopyButton({ formula }: { formula: FormulaSection }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(formulaToText(formula));
+      setCopied(true);
+      toast.success("Formel kopiert");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Kopieren fehlgeschlagen");
+    }
+  }, [formula]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title="Formel als Text kopieren"
+      className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-teal-400" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
+// ─── PDF export via browser print ─────────────────────────────────────────
+function exportToPdf(formulas: FormulaSection[]) {
+  const text = buildFullText(formulas);
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Berechnungen & Formeln — Portfolio Analyse</title>
+<style>
+  body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.6;
+         color: #111; background: #fff; margin: 2cm; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+  @media print { body { margin: 1.5cm; } }
+</style>
+</head>
+<body><pre>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if (!win) { toast.error("Popup blockiert — bitte Popup-Blocker deaktivieren"); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 400);
+}
+
+// ─── TXT download ─────────────────────────────────────────────────────────
+function downloadTxt(formulas: FormulaSection[]) {
+  const text = buildFullText(formulas);
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `berechnungen-formeln-${new Date().toISOString().split("T")[0]}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.success("Textdatei heruntergeladen");
+}
+
+// ─── Main page ─────────────────────────────────────────────────────────────
 export default function AdminBerechnungen() {
   const [activeCategory, setActiveCategory] = useState<string>("Alle");
   const [search, setSearch] = useState("");
+  const [copiedAll, setCopiedAll] = useState(false);
 
   const filtered = FORMULAS.filter((f) => {
     const matchCat = activeCategory === "Alle" || f.category === activeCategory;
@@ -382,16 +504,59 @@ export default function AdminBerechnungen() {
     return matchCat && matchSearch;
   });
 
+  const handleCopyAll = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(buildFullText(filtered));
+      setCopiedAll(true);
+      toast.success(`${filtered.length} Formeln kopiert`);
+      setTimeout(() => setCopiedAll(false), 2500);
+    } catch {
+      toast.error("Kopieren fehlgeschlagen");
+    }
+  }, [filtered]);
+
   return (
     <DashboardLayout>
       <AdminTopbar />
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Berechnungen & Formeln</h1>
-          <p className="text-zinc-400 mt-1 text-sm">
-            Vollständige Dokumentation aller Berechnungen im Portfoliomanager – mit Formeln,
-            Variablenerklärungen und konkreten Beispielen aus dem System.
-          </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-100">Berechnungen & Formeln</h1>
+            <p className="text-zinc-400 mt-1 text-sm">
+              Vollständige Dokumentation aller Berechnungen im Portfoliomanager – mit Formeln,
+              Variablenerklärungen und konkreten Beispielen aus dem System.
+            </p>
+          </div>
+          {/* Export actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyAll}
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white gap-1.5"
+            >
+              {copiedAll ? <Check className="h-3.5 w-3.5 text-teal-400" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedAll ? "Kopiert!" : `Alle kopieren (${filtered.length})`}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadTxt(filtered)}
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              TXT
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportToPdf(filtered)}
+              className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
         </div>
 
         {/* Filter bar */}
@@ -427,9 +592,12 @@ export default function AdminBerechnungen() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <CardTitle className="text-zinc-100 text-base">{f.title}</CardTitle>
-                  <Badge variant="outline" className="text-teal-400 border-teal-800 shrink-0 text-xs">
-                    {f.category}
-                  </Badge>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant="outline" className="text-teal-400 border-teal-800 text-xs">
+                      {f.category}
+                    </Badge>
+                    <CopyButton formula={f} />
+                  </div>
                 </div>
                 <p className="text-zinc-400 text-sm leading-relaxed">{f.description}</p>
               </CardHeader>

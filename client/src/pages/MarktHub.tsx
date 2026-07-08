@@ -14,7 +14,7 @@ import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER
 import MarketRegimeContent from "./MarketRegimeContent";
 import NewsroomContent from "./Newsroom";
 
-// Index-KPIs (Mockup S.13): echte Werte aus marketRegime.getIndices (SMI/S&P/MSCI/Gold)
+// Index-KPIs (Mockup S.13): echte Werte aus marketRegime.getIndices (SPI/S&P/MSCI/Gold)
 function IndexKpiRow() {
   const { data, isLoading } = trpc.marketRegime.getIndices.useQuery(undefined, { staleTime: 60000, retry: 1 });
   const indices = data?.indices ?? [];
@@ -86,7 +86,7 @@ function IndicesYtdChart() {
               <Tooltip
                 contentStyle={{ backgroundColor: "#1a1f2e", border: "1px solid #00CFC1", borderRadius: "6px", fontSize: "12px" }}
                 labelStyle={{ color: "#fff" }}
-                formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name === "smi" ? "SMI" : name === "sp500" ? "S&P 500" : "MSCI World"]}
+                formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name === "smi" ? "SPI" : name === "sp500" ? "S&P 500" : "MSCI World"]}
               />
               <Area type="monotone" dataKey="smi" stroke="#00CFC1" strokeWidth={2} fill="url(#smiGrad)" />
               <Area type="monotone" dataKey="sp500" stroke="rgba(255,255,255,0.4)" strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
@@ -96,7 +96,7 @@ function IndicesYtdChart() {
         )}
       </div>
       <div className="flex gap-4 justify-center mt-2 text-xs text-gray-400">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#00CFC1] inline-block" /> SMI</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#00CFC1] inline-block" /> SPI</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/40 inline-block" /> S&amp;P 500</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" /> MSCI World</span>
       </div>

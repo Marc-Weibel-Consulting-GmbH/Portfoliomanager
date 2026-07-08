@@ -161,8 +161,8 @@ export const MARKET_QUOTES_CONFIG = {
   showSymbolLogo: true,
   symbolsGroups: [
     {
-      name: "SMI",
-      originalName: "SMI",
+      name: "SPI",
+      originalName: "SPI",
       symbols: [
         { name: "SIX:NESN", displayName: "Nestlé" },
         { name: "SIX:NOVN", displayName: "Novartis" },
@@ -197,7 +197,7 @@ export const TICKER_TAPE_CONFIG = {
   displayMode: "adaptive",
   symbols: [
     { proName: "FOREXCOM:SPXUSD", title: "S&P 500" },
-    { proName: "INDEX:SMI", title: "SMI" },
+    { proName: "INDEX:SMI", title: "SPI" },
     { proName: "FOREXCOM:NSXUSD", title: "Nasdaq" },
     { proName: "INDEX:DAX", title: "DAX" },
     { proName: "FX:USDCHF", title: "USD/CHF" },

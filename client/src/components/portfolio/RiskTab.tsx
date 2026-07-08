@@ -200,9 +200,9 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "Beta",
       value: riskData ? riskData.beta.toFixed(2) : "—",
-      sub: "vs. SMI",
+      sub: "vs. SPI",
       tone: "neutral",
-      tooltip: "Sensitivität des Portfolios gegenüber dem Markt (SMI). Beta > 1 = stärkere Bewegungen als der Markt. Beta < 1 = defensiver als der Markt.",
+      tooltip: "Sensitivität des Portfolios gegenüber dem Markt (SPI). Beta > 1 = stärkere Bewegungen als der Markt. Beta < 1 = defensiver als der Markt.",
     },
     {
       label: "VaR (95%, 1T)",

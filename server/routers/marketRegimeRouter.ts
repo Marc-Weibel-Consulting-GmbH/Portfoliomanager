@@ -400,7 +400,7 @@ export const marketRegimeRouter = router({
 
     // Real index tickers on EODHD
     const indexKeys: { key: string; label: string; eodhdTicker: string; currency: string }[] = [
-      { key: "smi",     label: "SMI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
+      { key: "smi",     label: "SPI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
       { key: "sp500",   label: "S&P 500",    eodhdTicker: "GSPC.INDX",  currency: "USD" },
       { key: "nasdaq",  label: "NASDAQ",     eodhdTicker: "IXIC.INDX",  currency: "USD" },
       { key: "sox",     label: "SOX",        eodhdTicker: "SOXX.US",    currency: "USD" },

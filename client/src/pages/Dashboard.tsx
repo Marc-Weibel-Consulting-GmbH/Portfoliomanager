@@ -163,7 +163,7 @@ function KpiRow({ scope }: { scope: Scope }) {
                 <p className="text-xs font-semibold mb-1">YTD (Year to Date)</p>
                 <p className="text-xs text-gray-300">
                   Wertentwicklung Ihrer Portfolios seit Jahresbeginn, in CHF gerechnet.
-                  Darunter zum Vergleich die YTD-Entwicklung von SMI und MSCI World.
+                  Darunter zum Vergleich die YTD-Entwicklung von SPI und MSCI World.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -172,7 +172,7 @@ function KpiRow({ scope }: { scope: Scope }) {
             {formatPercent(ytdPercent)}
           </div>
           <div className="text-xs font-mono text-gray-400 mt-2">
-            SMI {formatPercent(smiYtd, { decimals: 1 })} · MSCI {formatPercent(msciYtd, { decimals: 1 })}
+            SPI {formatPercent(smiYtd, { decimals: 1 })} · MSCI {formatPercent(msciYtd, { decimals: 1 })}
           </div>
         </CardContent>
       </Card>
@@ -199,7 +199,7 @@ function KpiRow({ scope }: { scope: Scope }) {
           <p className="text-xs text-gray-300">
             Misst die risikoadjustierte Rendite: (Rendite − risikofreier Zins) / Volatilität.
             Werte über 1.0 gelten als gut, über 2.0 als sehr gut. Die Benchmark-Zeile zeigt
-            den Vergleichswert des SMI über denselben Zeitraum.
+            den Vergleichswert des SPI über denselben Zeitraum.
           </p>
         </TooltipContent>
       </Tooltip>
@@ -259,7 +259,7 @@ function PerformanceCard({ scope }: { scope: Scope }) {
           <div>
             <h2 className="text-base font-semibold text-white">Performance</h2>
             <p className="text-xs text-gray-400">
-              <span className="text-[#00CFC1]">Portfolio</span> · SMI · MSCI World
+              <span className="text-[#00CFC1]">Portfolio</span> · SPI · MSCI World
             </p>
           </div>
           <div className="flex bg-[#1a2332] rounded-md p-0.5" role="group" aria-label="Zeitraum wählen">
@@ -293,7 +293,7 @@ function PerformanceCard({ scope }: { scope: Scope }) {
             Keine Daten für diesen Zeitraum verfügbar.
           </div>
         ) : (
-          <div className="h-64" aria-label={`Performance-Verlauf ${range}: Portfolio, SMI und MSCI World in Prozent`}>
+          <div className="h-64" aria-label={`Performance-Verlauf ${range}: Portfolio, SPI und MSCI World in Prozent`}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
@@ -309,7 +309,7 @@ function PerformanceCard({ scope }: { scope: Scope }) {
                   contentStyle={CHART_TOOLTIP_STYLE}
                   formatter={(value: any, name: any) => [
                     formatPercent(Number(value)),
-                    name === "portfolio" ? "Portfolio" : name === "smi" ? "SMI" : "MSCI World",
+                    name === "portfolio" ? "Portfolio" : name === "smi" ? "SPI" : "MSCI World",
                   ]}
                 />
                 <Line type="monotone" dataKey="portfolio" stroke="#00CFC1" strokeWidth={2} dot={false} />

@@ -2330,7 +2330,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
 
     // Indizes via EODHD
     const indexDefs = [
-      { key: 'smi',    label: 'SMI',     ticker: 'SSMI.INDX',  currency: 'CHF' },
+      { key: 'smi',    label: 'SPI',     ticker: 'SSMI.INDX',  currency: 'CHF' },
       { key: 'sp500',  label: 'S&P 500', ticker: 'GSPC.INDX',  currency: 'USD' },
       { key: 'nasdaq', label: 'Nasdaq',  ticker: 'IXIC.INDX',  currency: 'USD' },
       { key: 'dax',    label: 'DAX',     ticker: 'GDAXI.INDX', currency: 'EUR' },

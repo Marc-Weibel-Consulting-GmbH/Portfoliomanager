@@ -26,3 +26,7 @@
 - [x] Populate benchmarkData table for MSCI_WORLD, SMI, SP500 (397/393/397 rows)
 - [x] Add benchmark proxy tickers (ACWI.US, CHSPI.SW, SPY) to daily historicalPrices import
 - [x] Add refreshBenchmarkData() call to daily historicalPricesCron (runs after main import)
+- [x] Rename SMI → SPI everywhere (Dashboard, MarktHub, TradingViewWidget, PortfolioDetailsPage, marketRegimeRouter, dashboardRouter, marketAnalysisCron)
+- [x] Benchmark backfill: ACWI.US (2055 rows), CHSPI.SW (2078 rows), SPY (2075 rows) in benchmarkData from 2020-01-01
+- [x] PDF export for AdminBerechnungen (browser print dialog with formatted HTML)
+- [x] Text copy function for AdminBerechnungen (per-formula copy button + copy-all + TXT download)

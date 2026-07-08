@@ -334,7 +334,7 @@ export default function Signals() {
               Empfehlungs-Historie
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Vergangene Signale mit tatsächlicher Rendite seit Empfehlung, Benchmark (SMI) und Alpha.
+              Vergangene Signale mit tatsächlicher Rendite seit Empfehlung, Benchmark (SPI) und Alpha.
               Die Auswertung erfolgt automatisch nach Ablauf der Haltedauer.
             </p>
           </CardHeader>

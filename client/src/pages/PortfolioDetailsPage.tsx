@@ -683,7 +683,7 @@ export default function PortfolioDetailsPage() {
   const benchmarkOptions = [
     { value: "SPY", label: "S&P 500" },
     { value: "QQQ", label: "Nasdaq 100" },
-    { value: "SSMI.SW", label: "SMI" },
+    { value: "SSMI.SW", label: "SPI" },
     { value: "FEZ", label: "EuroStoxx 50" },
   ];
   
@@ -1831,7 +1831,7 @@ export default function PortfolioDetailsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1f2e] border-white/10">
-                  <SelectItem value="SMI" className="text-white hover:bg-white/10">SMI</SelectItem>
+                  <SelectItem value="SMI" className="text-white hover:bg-white/10">SPI (Swiss Performance Index)</SelectItem>
                   <SelectItem value="SP500" className="text-white hover:bg-white/10">S&P 500</SelectItem>
                   <SelectItem value="MSCI_WORLD" className="text-white hover:bg-white/10">MSCI World</SelectItem>
                 </SelectContent>

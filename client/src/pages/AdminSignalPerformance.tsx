@@ -272,7 +272,7 @@ export default function AdminSignalPerformance() {
                   Engine-Performance
                 </CardTitle>
                 <CardDescription className="text-zinc-500 text-xs">
-                  Trefferquote, Ø-Rendite, Ø-Alpha (vs. SMI) und Ø-Überzeugung je Signal-Engine
+                  Trefferquote, Ø-Rendite, Ø-Alpha (vs. SPI) und Ø-Überzeugung je Signal-Engine
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -302,7 +302,7 @@ export default function AdminSignalPerformance() {
                               {fmtReturn(stat.avgReturn)}
                             </span>
                           </div>
-                          {/* F-14: Alpha vs. SMI (nur Signale mit Benchmark-Daten) */}
+                          {/* F-14: Alpha vs. SPI (nur Signale mit Benchmark-Daten) */}
                           <div>
                             <div className="text-xs text-zinc-500 mb-0.5">Ø Alpha</div>
                             {stat.avgAlpha != null ? (
