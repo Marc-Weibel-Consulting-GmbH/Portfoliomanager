@@ -911,7 +911,7 @@ export default function PortfolioDetailsPage() {
         <div>
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
-            <button onClick={() => navigate('/portfolios')} className="hover:text-[#00CFC1] transition-colors">Portfolios</button>
+            <button onClick={() => navigate('/dashboard')} className="hover:text-[#00CFC1] transition-colors">Dashboard</button>
             <span>›</span>
             <span className="text-gray-300">{portfolio.name}</span>
             {portfolio.isLive === 1 && (

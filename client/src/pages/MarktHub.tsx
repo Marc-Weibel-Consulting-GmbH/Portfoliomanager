@@ -13,6 +13,7 @@ import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER
 
 import MarketRegimeContent from "./MarketRegimeContent";
 import NewsroomContent from "./Newsroom";
+import { TickerBar, KIAnalyse } from "@/components/dashboard/MarketSections";
 
 // Index-KPIs (Mockup S.13): echte Werte aus marketRegime.getIndices (SPI/S&P/MSCI/Gold)
 function IndexKpiRow() {
@@ -138,8 +139,11 @@ function HeatmapContent() {
 function OverviewContent() {
   return (
     <div className="space-y-6">
+      {/* Aus dem früheren Dashboard/Portfolios-Bereich hierher verschoben */}
+      <TickerBar />
       <IndexKpiRow />
       <IndicesYtdChart />
+      <KIAnalyse />
       <Card className="bg-[#1a1f2e] border-gray-800 overflow-hidden">
         <CardContent className="p-0">
           <TradingViewWidget widgetType="ticker-tape" config={TICKER_TAPE_CONFIG} height={46} />

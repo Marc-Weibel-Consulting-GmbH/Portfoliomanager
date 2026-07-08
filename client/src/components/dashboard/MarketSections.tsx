@@ -12,8 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   Sparkles, Calendar, ArrowUpRight, ArrowDownRight, RefreshCw, TrendingUp,
+  Bell, AlertTriangle,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import { toast } from "sonner";
 
 // ----------------------------------------------------------------
@@ -308,8 +310,32 @@ export function KIAnalyse() {
 // ----------------------------------------------------------------
 // Anstehende Termine – Makro + Earnings + Dividenden
 // ----------------------------------------------------------------
-export function AnstehendeTermine() {
+export function AnstehendeTermine({ maxItems, withinDays }: { maxItems?: number; withinDays?: number } = {}) {
   const { data: events, isLoading } = trpc.dashboard.getUpcomingEvents.useQuery();
+
+  // Optional: auf ein Zeitfenster begrenzen und auf die wichtigsten N kürzen.
+  // Beim Kürzen zählt die Wichtigkeit (HOCH > MITTEL > INFO), danach das Datum;
+  // die Anzeige bleibt anschliessend chronologisch sortiert.
+  const displayEvents = useMemo(() => {
+    let list = (events ?? []) as any[];
+    if (withinDays != null) {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start.getTime() + withinDays * 86_400_000);
+      list = list.filter((e) => {
+        const d = new Date(e.date + "T00:00:00");
+        return d >= start && d <= end;
+      });
+    }
+    if (maxItems != null && list.length > maxItems) {
+      const rank: Record<string, number> = { HOCH: 0, MITTEL: 1, INFO: 2 };
+      list = [...list]
+        .sort((a, b) => (rank[a.importance] ?? 2) - (rank[b.importance] ?? 2) || String(a.date).localeCompare(String(b.date)))
+        .slice(0, maxItems)
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    }
+    return list;
+  }, [events, maxItems, withinDays]);
 
   if (isLoading) return <Skeleton className="h-48 bg-[#111827] rounded-xl" />;
 
@@ -341,13 +367,15 @@ export function AnstehendeTermine() {
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
-        {(!events || events.length === 0) ? (
+        {displayEvents.length === 0 ? (
           <div className="text-center py-4 text-gray-400 text-xs">
-            Keine Termine in den nächsten 14 Tagen gefunden.
+            {withinDays != null
+              ? "Keine Termine in dieser Woche gefunden."
+              : "Keine Termine in den nächsten 14 Tagen gefunden."}
           </div>
         ) : (
           <div className="space-y-2">
-            {events.map((event: any, i: number) => {
+            {displayEvents.map((event: any, i: number) => {
               const { day, date, isToday } = getDayLabel(event.date);
               return (
                 <div key={i} className="flex items-start gap-3 py-2 border-b border-[#1e2840] last:border-b-0">
@@ -383,6 +411,63 @@ export function AnstehendeTermine() {
           </div>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------
+// Aktive Alarme – aktive Preis-/Änderungs-Alarme (aus der Portfolios-Übersicht)
+// ----------------------------------------------------------------
+export function AktiveAlarme() {
+  const { data: alerts } = trpc.priceAlerts.list.useQuery();
+  const activeAlerts = (alerts ?? []).filter((a: any) => a.status === "active").slice(0, 3);
+
+  return (
+    <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+      <div className="px-4 pt-4 pb-2">
+        <div className="text-sm font-semibold text-white flex items-center gap-2">
+          <Bell className="h-4 w-4 text-[#00CFC1]" />
+          Aktive Alarme
+          {activeAlerts.length > 0 && (
+            <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">
+              {activeAlerts.length}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="px-4 pb-4 space-y-2">
+        {activeAlerts.length === 0 ? (
+          <div className="text-center py-3 text-gray-400 text-xs">Keine aktiven Alarme</div>
+        ) : (
+          activeAlerts.map((alert: any) => (
+            <div key={alert.id} className="flex items-center gap-2 bg-[#0f1420]/50 border border-white/5 rounded-lg p-2">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                alert.alertType === "below_price" ? "bg-amber-500/20" : "bg-emerald-500/20"
+              }`}>
+                <AlertTriangle className={`h-3.5 w-3.5 ${
+                  alert.alertType === "below_price" ? "text-amber-400" : "text-emerald-400"
+                }`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-xs font-semibold">{alert.ticker}</div>
+                <div className="text-gray-400 text-xs">
+                  {/* L-13: alle drei Alarmtypen korrekt beschriften (nicht nur Preis) */}
+                  {alert.alertType === "percent_change"
+                    ? `Änderung ${alert.percentChange ?? "0"}%`
+                    : alert.alertType === "below_price"
+                    ? `Unter CHF ${parseFloat(alert.targetPrice || "0").toFixed(2)}`
+                    : `Über CHF ${parseFloat(alert.targetPrice || "0").toFixed(2)}`}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+        <Link href="/price-alerts">
+          <div className="text-center pt-1">
+            <span className="text-[#00CFC1] text-xs hover:underline cursor-pointer">Alle Alarme verwalten →</span>
+          </div>
+        </Link>
+      </div>
     </Card>
   );
 }

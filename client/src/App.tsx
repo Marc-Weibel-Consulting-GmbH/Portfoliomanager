@@ -27,7 +27,6 @@ import PremiumWizard from "./pages/PremiumWizard";
 
 // ─── Main App Pages (IA-Optimierung: 6 Sections) ───
 import Dashboard from "./pages/Dashboard";
-import Portfolios from "./pages/Portfolios";
 import PortfolioDetailsPage from "./pages/PortfolioDetailsPage";
 import StockDetail from "./pages/StockDetail";
 import Invest from "./pages/Invest";
@@ -100,7 +99,10 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
 
       {/* ═══ 2. PORTFOLIOS ═══ */}
-      <Route path="/portfolios" component={Portfolios} />
+      {/* Die Portfolios-Übersicht lebt neu im Dashboard; /portfolios leitet dorthin. */}
+      <Route path="/portfolios">
+        <Redirect to="/dashboard" />
+      </Route>
       <Route path="/portfolios/:id" component={PortfolioDetailsPage} />
       <Route path="/portfolios/create">
         <Redirect to="/portfolio-builder" />
@@ -205,7 +207,7 @@ function Router() {
         <Redirect to="/markt?tab=news" />
       </Route>
       <Route path="/dividends">
-        <Redirect to="/portfolios" />
+        <Redirect to="/dashboard" />
       </Route>
       <Route path="/chat">
         <Redirect to="/copilot" />
@@ -247,7 +249,7 @@ function Router() {
         <Redirect to="/aktien?filter=sektor" />
       </Route>
       <Route path="/transactions">
-        <Redirect to="/portfolios" />
+        <Redirect to="/dashboard" />
       </Route>
 
       <Route path="/404" component={NotFound} />
