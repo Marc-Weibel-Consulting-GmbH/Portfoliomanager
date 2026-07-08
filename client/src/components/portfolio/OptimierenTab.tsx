@@ -155,14 +155,29 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
 }
 
 // ─── Optimieren-Tab ────────────────────────────────────────────────────────────
+type OptimizeMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend";
+
+const METHOD_LABEL: Record<OptimizeMethod, string> = {
+  max_sharpe: "Max. Sharpe",
+  min_variance: "Min. Varianz",
+  equal_weight: "Gleichgewichtet",
+  max_dividend: "Max. Dividende",
+};
+
 export default function OptimierenTab({
   portfolioId,
   holdings,
   totalValueCHF,
+  method = "max_sharpe",
+  strategyNote,
 }: {
   portfolioId: number;
   holdings: any[];
   totalValueCHF?: number;
+  /** F3: Optimierungs-Methode, aus dem Anlageprofil abgeleitet. */
+  method?: OptimizeMethod;
+  /** F3: kurze Begründung, warum diese Strategie (aus dem Profil). */
+  strategyNote?: string;
 }) {
   const [showDivRules, setShowDivRules] = useState(true);
 
@@ -192,7 +207,7 @@ export default function OptimierenTab({
       tickers,
       lookbackDays: 252,
       riskFreeRate: 0.015,
-      method: "max_sharpe",
+      method,
       // R-34c: Portfoliowert für die Mindest-Positionsgrösse CHF 3'000 (Server-Post-Filter)
       ...(totalValueCHF && totalValueCHF > 0 ? { portfolioValue: totalValueCHF } : {}),
     },
@@ -335,13 +350,21 @@ export default function OptimierenTab({
         </div>
       ) : (
         <>
+          {/* F3: Strategie-Herleitung aus dem Anlageprofil */}
+          {strategyNote && (
+            <div className="flex items-start gap-2 bg-[#00CFC1]/5 border border-[#00CFC1]/20 rounded-lg px-4 py-2.5">
+              <Info className="w-4 h-4 text-[#00CFC1] flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-gray-300">{strategyNote}</p>
+            </div>
+          )}
+
           {/* KPIs des optimalen Portfolios */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
             {[
               { label: "Erw. Rendite (p.a.)", value: `${(result.optimalPortfolio.expectedReturn * 100).toFixed(1)}%`, tone: "text-[#00CFC1]" },
               { label: "Volatilität (p.a.)", value: `${(result.optimalPortfolio.volatility * 100).toFixed(1)}%`, tone: "text-white" },
               { label: "Sharpe Ratio", value: result.optimalPortfolio.sharpe.toFixed(2), tone: result.optimalPortfolio.sharpe >= 1 ? "text-[#00CFC1]" : "text-amber-400" },
-              { label: "Methode", value: "Max. Sharpe", tone: "text-white" },
+              { label: "Methode", value: METHOD_LABEL[method], tone: "text-white" },
             ].map((k, i) => (
               <div key={k.label} className={`bg-[#0f1420] p-4 ${i < 3 ? "border-r border-white/10" : ""}`}>
                 <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{k.label}</p>
