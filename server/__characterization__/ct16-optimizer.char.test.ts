@@ -70,23 +70,21 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     const res = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" });
 
     // Effektiver Cap = max(0.10, 1.2/3) = 0.4 → Bounds erfüllbar, Summe = 1.
-    // vorher (R-34): alle Gewichte am 10-%-Cap geclippt, Summe 0.3 —
-    // res.weights = { T1: 0.1, T2: 0.1, T3: 0.1 }.
-    expect(res.weights).toEqual({ T1: 0.3995, T2: 0.2023, T3: 0.3982 });
+    // Werte aktualisiert nach Einführung der Ledoit-Wolf-Kovarianz-Shrinkage (leichte
+    // Verschiebung ggü. der naiven Stichproben-Kovarianz; Struktur/Bounds unverändert).
+    expect(res.weights).toEqual({ T1: 0.3958, T2: 0.2052, T3: 0.399 });
     const sum = Object.values(res.weights).reduce((s, w) => s + w, 0);
     expect(sum).toBeCloseTo(1, 3);
     for (const w of Object.values(res.weights)) {
       expect(w).toBeGreaterThanOrEqual(0.01);
       expect(w).toBeLessThanOrEqual(0.4 + 1e-9);
     }
-    expect(res.assets.map((a) => a.optimalWeight)).toEqual([40, 20.2, 39.8]);
+    expect(res.assets.map((a) => a.optimalWeight)).toEqual([39.6, 20.5, 39.9]);
 
-    // vorher (R-34): expectedReturn 0.0353, volatility 0.0429, sharpe 0.356 —
-    // mit unvollständigen Gewichten gerechnet und UNTER Equal-Weight. Jetzt
-    // liegt die Sharpe-Ratio des Optimums ÜBER dem Equal-Weight-Portfolio:
-    expect(res.optimalPortfolio.expectedReturn).toBe(0.0989);
-    expect(res.optimalPortfolio.volatility).toBe(0.1049);
-    expect(res.optimalPortfolio.sharpe).toBe(0.752);
+    // Sharpe-Ratio des Optimums liegt ÜBER dem Equal-Weight-Portfolio:
+    expect(res.optimalPortfolio.expectedReturn).toBe(0.0993);
+    expect(res.optimalPortfolio.volatility).toBe(0.1054);
+    expect(res.optimalPortfolio.sharpe).toBe(0.753);
     expect(res.currentPortfolio.expectedReturn).toBe(0.1175);
     expect(res.optimalPortfolio.sharpe).toBeGreaterThan(res.currentPortfolio.sharpe);
   });
@@ -128,9 +126,9 @@ describe("CT-16 buildEfficientFrontier via optimizePortfolio (R-34 gefixt)", () 
     for (let i = 1; i < frontier.length; i++) {
       expect(frontier[i].volatility).toBeGreaterThanOrEqual(frontier[i - 1].volatility);
     }
-    // vorher (R-34): first {0.0813, 0.0728, 0.842}, last {0.1942, 0.3456, 0.504}
-    expect(frontier[0]).toEqual({ expectedReturn: 0.0993, volatility: 0.1056, sharpe: 0.751 });
-    expect(frontier[frontier.length - 1]).toEqual({ expectedReturn: 0.1264, volatility: 0.1591, sharpe: 0.669 });
+    // Werte aktualisiert nach Ledoit-Wolf-Shrinkage (marginale Verschiebung der Volatilität).
+    expect(frontier[0]).toEqual({ expectedReturn: 0.0993, volatility: 0.1056, sharpe: 0.752 });
+    expect(frontier[frontier.length - 1]).toEqual({ expectedReturn: 0.1264, volatility: 0.1582, sharpe: 0.672 });
 
     // vorher (R-34): Frontier-Maximum 0.1942 nahe max(µ) = 0.212 (unter dem
     // Cap unerreichbar), Minimum 0.0642 ÜBER dem «Optimum» 0.0353 — der

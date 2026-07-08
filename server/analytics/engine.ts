@@ -12,6 +12,7 @@
  */
 
 import YahooFinanceClass from "yahoo-finance2";
+import { ledoitWolfConstantCorr } from "../lib/ledoitWolf";
 import {
   TRADING_DAYS_YEAR,
   SQRT_TRADING_DAYS,
@@ -308,6 +309,21 @@ function covarianceMatrix(returnsMap: { [ticker: string]: number[] }, tickers: s
     }
   }
   return mat;
+}
+
+/**
+ * Ledoit-Wolf-geschrumpfte, annualisierte Kovarianz für die Optimierung — robuster gegen
+ * Schätzrauschen als die naive Stichproben-Kovarianz (vermeidet Extremgewichte auf
+ * Schätzfehler). Fällt bei zu kurzer/leerer Historie auf die Stichproben-Kovarianz zurück.
+ */
+function shrunkCovarianceMatrix(returnsMap: { [ticker: string]: number[] }, tickers: string[]): number[][] {
+  const minLen = Math.min(...tickers.map((t) => returnsMap[t]?.length ?? 0));
+  if (tickers.length === 0 || !Number.isFinite(minLen) || minLen < 2) {
+    return covarianceMatrix(returnsMap, tickers);
+  }
+  const matrix = tickers.map((t) => returnsMap[t].slice(0, minLen));
+  const { cov } = ledoitWolfConstantCorr(matrix);
+  return cov.map((row) => row.map((v) => v * TRADING_DAYS_YEAR));
 }
 
 // ─────────────────────────────────────────────
@@ -1082,7 +1098,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
 
   // Annualized expected returns and covariance matrix
   const mu = available.map((t) => mean(returnsMap[t]) * TRADING_DAYS_YEAR);
-  const cov = covarianceMatrix(returnsMap, available);
+  const cov = shrunkCovarianceMatrix(returnsMap, available);
   const n = available.length;
 
   // Fetch dividend yields for max_dividend method
