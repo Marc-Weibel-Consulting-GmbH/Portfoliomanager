@@ -12,7 +12,6 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
 import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
-import ValuationTab from "@/components/stock/ValuationTab";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
 import { PegBadge } from "@/components/stock/PegContextCard";
@@ -159,9 +158,9 @@ export default function StockDetail() {
   const searchParams = new URLSearchParams(searchString);
   const fromPortfolioId = searchParams.get('from');
   const urlTab = searchParams.get('tab') || 'overview';
-  // F-09: alte Deep-Links auf ausgeblendete Tabs (KI-Prognose, Backtest) auf die Übersicht umleiten
+  // F-09: alte Deep-Links auf entfernte Tabs (KI-Prognose, Backtest, Bewertung/DCF) auf die Übersicht umleiten
   const [activeStockTab, setActiveStockTab] = useState(
-    urlTab === 'prediction' || urlTab === 'backtest' ? 'overview' : urlTab
+    urlTab === 'prediction' || urlTab === 'backtest' || urlTab === 'valuation' ? 'overview' : urlTab
   );
   
   const handleStockTabChange = (tab: string) => {
@@ -543,7 +542,6 @@ export default function StockDetail() {
               { value: 'overview', label: 'Übersicht' },
               { value: 'chart-ta', label: 'Chart & TA' },
               { value: 'signals', label: 'Signale', badge: newsData.length },
-              { value: 'valuation', label: 'Bewertung (DCF)' },
               { value: 'news', label: 'News', badge: newsData.length },
             ].map(tab => (
               <TabsTrigger
@@ -808,11 +806,6 @@ export default function StockDetail() {
           {/* Chart & TA Tab */}
           <TabsContent value="chart-ta">
             <TradingViewSection ticker={ticker} stock={stock} />
-          </TabsContent>
-
-          {/* Bewertung (DCF) Tab */}
-          <TabsContent value="valuation">
-            <ValuationTab ticker={ticker} stock={stock} />
           </TabsContent>
 
           {/* News Tab */}
