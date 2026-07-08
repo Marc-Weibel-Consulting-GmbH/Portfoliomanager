@@ -1,14 +1,57 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import YahooFinanceClass from "yahoo-finance2";
 import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
+import { getEodhdApiKey } from "../_core/env";
+import { toEodhdSymbol } from "../lib/eodhdSymbol";
 
-const yahooFinance: any = new (YahooFinanceClass as any)();
+/** DB-Ticker → EODHD-Symbol (Alias anwenden, sonst .US-Default für US-Titel ohne Suffix). */
+function toEodhdEodSymbol(ticker: string): string {
+  const aliased = toEodhdSymbol(ticker);
+  if (aliased !== ticker) return aliased;
+  return ticker.includes(".") ? ticker : `${ticker}.US`;
+}
 
-function normalizeTicker(ticker: string): string {
-  if (ticker.endsWith(".US")) return ticker.slice(0, -3);
-  return ticker;
+/**
+ * Historische Schlusskurse aus EODHD (Quelle des Projekts; Yahoo ist aus der Deploy-
+ * Umgebung blockiert → der Backtest lief live ins Leere). Bevorzugt adjusted_close.
+ */
+async function fetchEodhdCloses(symbol: string, from: string, to: string): Promise<{ dates: string[]; prices: number[] }> {
+  const apiKey = await getEodhdApiKey();
+  const dates: string[] = [];
+  const prices: number[] = [];
+  if (!apiKey) return { dates, prices };
+  try {
+    const url = `https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&from=${from}&to=${to}&fmt=json`;
+    const res = await fetch(url);
+    if (!res.ok) return { dates, prices };
+    const rows: any[] = await res.json();
+    for (const r of Array.isArray(rows) ? rows : []) {
+      const p = typeof r.adjusted_close === "number" ? r.adjusted_close : r.close;
+      if (r.date && typeof p === "number") { dates.push(r.date); prices.push(p); }
+    }
+  } catch { /* leeres Ergebnis */ }
+  return { dates, prices };
+}
+
+/** Prozentuale Rendite einer Benchmark-Reihe (EODHD-Symbol, z. B. GSPC.INDX / SSMI.INDX). */
+async function benchmarkReturn(symbol: string, from: string, to: string): Promise<number> {
+  const { prices } = await fetchEodhdCloses(symbol, from, to);
+  return prices.length > 1 ? ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100 : 0;
+}
+
+/** Maximaler Drawdown (%) aus einer Equity-Kurve (Peak-to-Trough), <= 0. */
+function maxDrawdownFromEquity(equity: number[]): number {
+  let peak = -Infinity;
+  let maxDD = 0;
+  for (const v of equity) {
+    if (v > peak) peak = v;
+    if (peak > 0) {
+      const dd = ((v - peak) / peak) * 100;
+      if (dd < maxDD) maxDD = dd;
+    }
+  }
+  return maxDD;
 }
 
 interface BacktestSignal {
@@ -331,45 +374,25 @@ export const backtestRouter = router({
       lookbackMonths: z.number().min(3).max(60).optional().default(12),
     }))
     .query(async ({ input }) => {
-      const normalizedTicker = normalizeTicker(input.ticker);
       const lookbackDays = input.lookbackMonths * 30;
 
       const end = new Date();
       const start = new Date(end.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
+      const fromStr = start.toISOString().split("T")[0];
+      const toStr = end.toISOString().split("T")[0];
 
       // Get active optimizer weights
       const weights = await getActiveWeights();
 
-      // Fetch fundamentals for the stock
-      let peRatio: number | null = null;
-      let pegRatio: number | null = null;
-      let dividendYield = 0;
       try {
-        const summary = await yahooFinance.quoteSummary(normalizedTicker, {
-          modules: ["summaryDetail", "defaultKeyStatistics"],
-        }) as any;
-        peRatio = summary.summaryDetail?.trailingPE ?? null;
-        pegRatio = summary.defaultKeyStatistics?.pegRatio ?? null;
-        dividendYield = (summary.summaryDetail?.dividendYield ?? 0) * 100;
-      } catch { /* use defaults */ }
-
-      try {
-        const chartResult = await yahooFinance.chart(normalizedTicker, {
-          period1: start.toISOString().split("T")[0],
-          period2: end.toISOString().split("T")[0],
-          interval: "1d",
-        }) as any;
-
-        const quotes = chartResult.quotes || [];
-        if (quotes.length < 50) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Nicht genügend Daten für Backtest" });
+        const { dates: validDates, prices } = await fetchEodhdCloses(toEodhdEodSymbol(input.ticker), fromStr, toStr);
+        if (prices.length < 50) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Nicht genügend EODHD-Kursdaten für Backtest" });
         }
 
-        const dates = quotes.map((q: any) => q.date?.toISOString?.()?.split("T")[0] || "");
-        const prices = quotes.map((q: any) => q.close).filter((p: any) => p != null);
-        const validDates = dates.slice(0, prices.length);
-
-        const signals = generateSignals(validDates, prices, input.ticker, weights, { peRatio, pegRatio, dividendYield });
+        // Fundamentaldaten fließen bewusst NICHT ein: es gibt keine Point-in-Time-Historie,
+        // heutige P/E/PEG-Werte auf Vergangenheits-Signale anzuwenden wäre Look-Ahead.
+        const signals = generateSignals(validDates, prices, input.ticker, weights, { peRatio: null, pegRatio: null, dividendYield: 0 });
         const trades = signalsToTrades(signals);
 
         // Calculate performance metrics
@@ -381,39 +404,17 @@ export const backtestRouter = router({
         const avgWin = winningTrades.length > 0 ? winningTrades.reduce((s, t) => s + t.returnPct, 0) / winningTrades.length : 0;
         const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((s, t) => s + t.returnPct, 0) / losingTrades.length : 0;
         const profitFactor = avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : avgWin > 0 ? Infinity : 0;
-        const maxDrawdown = trades.length > 0 ? Math.min(...trades.map(t => t.returnPct)) : 0;
+        // MaxDrawdown aus der Equity-Kurve (Peak-to-Trough), nicht der schlechteste Einzeltrade.
+        const equityPath = [100];
+        { let e = 100; for (const t of trades) { e *= (1 + t.returnPct / 100); equityPath.push(e); } }
+        const maxDrawdown = maxDrawdownFromEquity(equityPath);
 
         // Buy & Hold comparison
         const buyHoldReturn = prices.length > 1 ? ((prices[prices.length - 1] - prices[0]) / prices[0]) * 100 : 0;
 
-        // Fetch benchmark data
-        let sp500Return = 0;
-        let spiReturn = 0;
-        try {
-          const sp500Chart = await yahooFinance.chart("^GSPC", {
-            period1: start.toISOString().split("T")[0],
-            period2: end.toISOString().split("T")[0],
-            interval: "1d",
-          }) as any;
-          const sp500Quotes = sp500Chart.quotes || [];
-          if (sp500Quotes.length > 1) {
-            const sp500Prices = sp500Quotes.map((q: any) => q.close).filter((p: any) => p != null);
-            sp500Return = ((sp500Prices[sp500Prices.length - 1] - sp500Prices[0]) / sp500Prices[0]) * 100;
-          }
-        } catch { /* ignore */ }
-
-        try {
-          const spiChart = await yahooFinance.chart("^SSMI", {
-            period1: start.toISOString().split("T")[0],
-            period2: end.toISOString().split("T")[0],
-            interval: "1d",
-          }) as any;
-          const spiQuotes = spiChart.quotes || [];
-          if (spiQuotes.length > 1) {
-            const spiPrices = spiQuotes.map((q: any) => q.close).filter((p: any) => p != null);
-            spiReturn = ((spiPrices[spiPrices.length - 1] - spiPrices[0]) / spiPrices[0]) * 100;
-          }
-        } catch { /* ignore */ }
+        // Benchmarks via EODHD-Index-Symbole (S&P 500, SMI)
+        const sp500Return = await benchmarkReturn("GSPC.INDX", fromStr, toStr);
+        const spiReturn = await benchmarkReturn("SSMI.INDX", fromStr, toStr);
 
         // Equity curve (cumulative returns)
         const equityCurve: { date: string; value: number }[] = [{ date: validDates[0], value: 100 }];
@@ -479,6 +480,8 @@ export const backtestRouter = router({
 
       const end = new Date();
       const start = new Date(end.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
+      const fromStr = start.toISOString().split("T")[0];
+      const toStr = end.toISOString().split("T")[0];
 
       // Get active optimizer weights
       const weights = await getActiveWeights();
@@ -487,35 +490,12 @@ export const backtestRouter = router({
 
       for (const stock of stocks.slice(0, 20)) {
         try {
-          const normalizedTicker = normalizeTicker(stock.ticker);
+          // Kurse aus EODHD; Fundamentaldaten fließen bewusst NICHT ein (Look-Ahead-Schutz,
+          // keine Point-in-Time-Historie).
+          const { dates: validDates, prices } = await fetchEodhdCloses(toEodhdEodSymbol(stock.ticker), fromStr, toStr);
+          if (prices.length < 50) continue;
 
-          // Fetch fundamentals
-          let peRatio: number | null = null;
-          let pegRatio: number | null = null;
-          let dividendYield = 0;
-          try {
-            const summary = await yahooFinance.quoteSummary(normalizedTicker, {
-              modules: ["summaryDetail", "defaultKeyStatistics"],
-            }) as any;
-            peRatio = summary.summaryDetail?.trailingPE ?? null;
-            pegRatio = summary.defaultKeyStatistics?.pegRatio ?? null;
-            dividendYield = (summary.summaryDetail?.dividendYield ?? 0) * 100;
-          } catch { /* use defaults */ }
-
-          const chartResult = await yahooFinance.chart(normalizedTicker, {
-            period1: start.toISOString().split("T")[0],
-            period2: end.toISOString().split("T")[0],
-            interval: "1d",
-          }) as any;
-
-          const quotes = chartResult.quotes || [];
-          if (quotes.length < 50) continue;
-
-          const dates = quotes.map((q: any) => q.date?.toISOString?.()?.split("T")[0] || "");
-          const prices = quotes.map((q: any) => q.close).filter((p: any) => p != null);
-          const validDates = dates.slice(0, prices.length);
-
-          const signals = generateSignals(validDates, prices, stock.ticker, weights, { peRatio, pegRatio, dividendYield });
+          const signals = generateSignals(validDates, prices, stock.ticker, weights, { peRatio: null, pegRatio: null, dividendYield: 0 });
           const trades = signalsToTrades(signals);
 
           const totalReturn = trades.reduce((sum: number, t: BacktestTrade) => sum + t.returnPct, 0);
@@ -540,34 +520,9 @@ export const backtestRouter = router({
         await new Promise(r => setTimeout(r, 200));
       }
 
-      // Fetch benchmark data
-      let sp500Return = 0;
-      let spiReturn = 0;
-      try {
-        const sp500Chart = await yahooFinance.chart("^GSPC", {
-          period1: start.toISOString().split("T")[0],
-          period2: end.toISOString().split("T")[0],
-          interval: "1d",
-        }) as any;
-        const sp500Quotes = sp500Chart.quotes || [];
-        if (sp500Quotes.length > 1) {
-          const sp500Prices = sp500Quotes.map((q: any) => q.close).filter((p: any) => p != null);
-          sp500Return = ((sp500Prices[sp500Prices.length - 1] - sp500Prices[0]) / sp500Prices[0]) * 100;
-        }
-      } catch { /* ignore */ }
-
-      try {
-        const spiChart = await yahooFinance.chart("^SSMI", {
-          period1: start.toISOString().split("T")[0],
-          period2: end.toISOString().split("T")[0],
-          interval: "1d",
-        }) as any;
-        const spiQuotes = spiChart.quotes || [];
-        if (spiQuotes.length > 1) {
-          const spiPrices = spiQuotes.map((q: any) => q.close).filter((p: any) => p != null);
-          spiReturn = ((spiPrices[spiPrices.length - 1] - spiPrices[0]) / spiPrices[0]) * 100;
-        }
-      } catch { /* ignore */ }
+      // Benchmarks via EODHD-Index-Symbole (S&P 500, SMI)
+      const sp500Return = await benchmarkReturn("GSPC.INDX", fromStr, toStr);
+      const spiReturn = await benchmarkReturn("SSMI.INDX", fromStr, toStr);
 
       // Portfolio-level metrics
       const totalWeightedSignalReturn = results.reduce((sum, r) => sum + (r.signalReturn * r.weight / 100), 0);
