@@ -71,6 +71,13 @@
       "when": 1783112519467,
       "tag": "0009_small_screwball",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1783505304197,
+      "tag": "0010_gigantic_jackpot",
+      "breakpoints": true
     }
   ]
 }
