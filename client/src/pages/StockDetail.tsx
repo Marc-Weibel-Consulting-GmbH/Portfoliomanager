@@ -145,6 +145,7 @@ export default function StockDetail() {
   const ticker = params?.ticker || '';
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("6M");
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);
+  const [showSignalExplanation, setShowSignalExplanation] = useState(false);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   // Kauf-Modal-State (echte Transaktion)
@@ -160,7 +161,11 @@ export default function StockDetail() {
   const urlTab = searchParams.get('tab') || 'overview';
   // F-09: alte Deep-Links auf entfernte Tabs (KI-Prognose, Backtest, Bewertung/DCF) auf die Übersicht umleiten
   const [activeStockTab, setActiveStockTab] = useState(
-    urlTab === 'prediction' || urlTab === 'backtest' || urlTab === 'valuation' ? 'overview' : urlTab
+    urlTab === 'prediction' || urlTab === 'backtest' || urlTab === 'valuation'
+      ? 'overview'
+      : urlTab === 'signals'
+      ? 'chart-ta'
+      : urlTab
   );
   
   const handleStockTabChange = (tab: string) => {
@@ -195,6 +200,15 @@ export default function StockDetail() {
   // Check if stock is already in a portfolio (for hiding "Add to Portfolio" button)
   const { data: userPortfolios = [] } = trpc.portfolios.list.useQuery();
   const utils = trpc.useUtils();
+
+  // Signal-Score (Strategie) für den Header-Kreis neben dem Qualitäts-Score.
+  const { data: signalScoringData } = trpc.tradingview.stockScoring.useQuery(
+    { symbol: ticker },
+    { enabled: !!ticker, staleTime: 5 * 60 * 1000, retry: 1 }
+  );
+  const signalScoring = (signalScoringData as any)?.json ?? signalScoringData;
+  const signalScore: number | null =
+    typeof signalScoring?.combinedScore === "number" ? signalScoring.combinedScore : null;
 
   // Echte Kauf-Transaktion (Mockup S.07: "Kaufen" → Portfolio-Picker → Transaktion)
   const createTransaction = trpc.portfolioTransactions.create.useMutation({
@@ -522,10 +536,17 @@ export default function StockDetail() {
               </div>
             </div>
             {score !== null && (
-              /* F-07: Header-Score ist der Qualitäts-Score (langfristig, fundamental) */
+              /* F-07: Qualitäts-Score (langfristig, fundamental) — Klick öffnet Erklärung */
               <div className="flex flex-col items-center gap-1">
                 <ScoreCircle score={score} onClick={() => setShowScoreExplanation(true)} />
                 <span className="text-xs text-gray-400">Qualität</span>
+              </div>
+            )}
+            {signalScore !== null && (
+              /* Signal-Score (Strategie) — gleichwertiger Kreis; Klick öffnet Detail/Berechnung */
+              <div className="flex flex-col items-center gap-1">
+                <ScoreCircle score={signalScore} onClick={() => setShowSignalExplanation(true)} />
+                <span className="text-xs text-gray-400">Signal</span>
               </div>
             )}
           </div>
@@ -541,7 +562,6 @@ export default function StockDetail() {
             {[
               { value: 'overview', label: 'Übersicht' },
               { value: 'chart-ta', label: 'Chart & TA' },
-              { value: 'signals', label: 'Signale', badge: newsData.length },
               { value: 'news', label: 'News', badge: newsData.length },
             ].map(tab => (
               <TabsTrigger
@@ -795,17 +815,13 @@ export default function StockDetail() {
         
         </TabsContent>
 
-          {/* Signale Tab — F-07: Signal-Score (Strategie) + Technisches Signal (kurzfristig) */}
-          <TabsContent value="signals">
+          {/* Chart & TA Tab — inkl. technischer Signale (aus dem früheren Signale-Tab).
+              Der Signal-Score (Strategie) lebt neu als Kreis im Seitenkopf. */}
+          <TabsContent value="chart-ta">
             <div className="space-y-4">
-              <StockScoringWidget ticker={ticker} />
+              <TradingViewSection ticker={ticker} stock={stock} />
               <TradingViewSignalsTab ticker={ticker} />
             </div>
-          </TabsContent>
-
-          {/* Chart & TA Tab */}
-          <TabsContent value="chart-ta">
-            <TradingViewSection ticker={ticker} stock={stock} />
           </TabsContent>
 
           {/* News Tab */}
@@ -1004,6 +1020,34 @@ export default function StockDetail() {
         )}
         
         {/* Score Explanation Dialog */}
+        {showSignalExplanation && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0f1420] border border-[#00CFC1]/30 rounded-lg max-w-lg w-full p-6 relative max-h-[85vh] overflow-y-auto">
+              <button
+                onClick={() => setShowSignalExplanation(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-[#00CFC1]/20 flex items-center justify-center">
+                  <Info className="w-5 h-5 text-[#00CFC1]" />
+                </div>
+                <h3 className="text-xl font-bold text-white">Signal-Score (Strategie)</h3>
+              </div>
+
+              <p className="text-sm text-gray-300 mb-4">
+                Der <strong className="text-[#00CFC1]">Signal-Score</strong> ist die kurz- bis
+                mittelfristige Strategie-Sicht und fliesst ins Handelssignal ein — kein Qualitätsurteil
+                über die Aktie. Zusammensetzung und Gewichtung (40% Momentum · 40% Qualität · 20% LPPL-Malus):
+              </p>
+
+              <StockScoringWidget ticker={ticker} />
+            </div>
+          </div>
+        )}
+
         {showScoreExplanation && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
             <div className="bg-[#0f1420] border border-[#00CFC1]/30 rounded-lg max-w-md w-full p-6 relative">
@@ -1013,7 +1057,7 @@ export default function StockDetail() {
               >
                 <X className="w-5 h-5" />
               </button>
-              
+
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-lg bg-[#00CFC1]/20 flex items-center justify-center">
                   <Info className="w-5 h-5 text-[#00CFC1]" />
@@ -1027,8 +1071,8 @@ export default function StockDetail() {
                 <p>
                   Der <strong className="text-[#00CFC1]">Qualitäts-Score ({score}/100)</strong> misst
                   die langfristige Qualität einer Aktie anhand von Fundamental- und Risikokennzahlen.
-                  Er sagt nichts über den richtigen Kaufzeitpunkt aus — dafür gibt es das kurzfristige
-                  Technische Signal im Tab «Signale».
+                  Er sagt nichts über den richtigen Kaufzeitpunkt aus — dafür gibt es den
+                  Signal-Score im Seitenkopf.
                 </p>
 
                 <p>
