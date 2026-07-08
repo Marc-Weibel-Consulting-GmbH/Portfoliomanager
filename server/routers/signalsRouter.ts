@@ -13,7 +13,7 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
 import { eq } from "drizzle-orm";
-import { savedPortfolios } from "../../drizzle/schema";
+import { savedPortfolios, stocks as stocksTable } from "../../drizzle/schema";
 import { randomForestSignal } from '../analytics/mlEngine';
 import { signalForSeries, getActiveSignalModel } from '../analytics/signalService';
 import { analyzeSentiment, sentimentToSignalScore } from '../analytics/sentimentEngine';
@@ -141,19 +141,49 @@ async function fetchLiveData(ticker: string): Promise<{
   const fcfYield: number | null = null;
   const grossMargin: number | null = null;
 
-  // Fundamentaldaten via EODHD (Yahoo ist aus der Deploy-Umgebung blockiert → Timeouts).
+  // Fundamentaldaten zuerst aus der DB-`stocks`-Tabelle (periodisch via Refresh-Cron
+  // aktualisiert) — schnell und ohne externe Latenz. Das war die Timeout-Ursache: der
+  // Live-EODHD-Abruf pro Titel überschritt bei vielen Positionen das Per-Titel-Limit.
+  const num = (v: string | null | undefined): number | null => {
+    if (v == null) return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
   try {
-    const { fetchEODHDFundamentals, fetchEODHDRealTime } = await import("../_core/eodhdApi");
-    const f = await fetchEODHDFundamentals(ticker);
-    peRatio = f.peRatio ?? null;
-    pegRatio = f.pegRatio ?? null;
-    dividendYield = f.dividendYield ?? 0; // fetchEODHDFundamentals liefert bereits Prozent
-    companyName = f.companyName ?? ticker;
-
-    const rt = await fetchEODHDRealTime(ticker);
-    if (rt.close && rt.close > 0) currentPrice = rt.close;
+    const db = await getDb();
+    if (db) {
+      const [row] = await db.select().from(stocksTable).where(eq(stocksTable.ticker, ticker)).limit(1);
+      if (row) {
+        peRatio = num(row.peRatio);
+        pegRatio = num(row.pegRatio);
+        dividendYield = num(row.dividendYield) ?? 0;
+        companyName = row.companyName || ticker;
+        const cp = num(row.currentPrice);
+        if (cp && cp > 0) currentPrice = cp;
+      }
+    }
   } catch (err) {
-    console.warn(`[Signals] EODHD-Fundamentals fehlgeschlagen für ${ticker}:`, (err as Error).message);
+    console.warn(`[Signals] DB-Fundamentals fehlgeschlagen für ${ticker}:`, (err as Error).message);
+  }
+
+  // Fallback: fehlende Kernfelder live via EODHD (Yahoo ist in der Deploy-Umgebung blockiert).
+  if (currentPrice === 0 || peRatio === null) {
+    try {
+      const { fetchEODHDFundamentals, fetchEODHDRealTime } = await import("../_core/eodhdApi");
+      if (peRatio === null || pegRatio === null) {
+        const f = await fetchEODHDFundamentals(ticker);
+        peRatio = peRatio ?? f.peRatio ?? null;
+        pegRatio = pegRatio ?? f.pegRatio ?? null;
+        if (!dividendYield) dividendYield = f.dividendYield ?? 0;
+        if (companyName === ticker) companyName = f.companyName ?? ticker;
+      }
+      if (currentPrice === 0) {
+        const rt = await fetchEODHDRealTime(ticker);
+        if (rt.close && rt.close > 0) currentPrice = rt.close;
+      }
+    } catch (err) {
+      console.warn(`[Signals] EODHD-Fallback fehlgeschlagen für ${ticker}:`, (err as Error).message);
+    }
   }
 
   // YTD / RSI-14 / 52-Wochen-Range aus der historicalPrices-DB (EODHD-importiert).
