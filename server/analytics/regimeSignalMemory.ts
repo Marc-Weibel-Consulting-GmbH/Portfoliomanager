@@ -56,35 +56,45 @@ export async function recomputeRegimeEngineWeights(): Promise<RecomputeResult> {
   const learned = learnRegimeWeights(evaluated);
 
   let updated = 0;
-  for (const [regime, engineWeights] of Object.entries(learned)) {
-    const existing = await db
-      .select()
-      .from(regimeSignalConfig)
-      .where(eq(regimeSignalConfig.regime, regime))
-      .limit(1);
+  try {
+    for (const [regime, engineWeights] of Object.entries(learned)) {
+      const existing = await db
+        .select()
+        .from(regimeSignalConfig)
+        .where(eq(regimeSignalConfig.regime, regime))
+        .limit(1);
 
-    if (existing.length > 0) {
-      await db
-        .update(regimeSignalConfig)
-        .set({
+      if (existing.length > 0) {
+        await db
+          .update(regimeSignalConfig)
+          .set({
+            engineWeights: JSON.stringify(engineWeights),
+            sampleSize: sampleByRegime[regime] || 0,
+            lastLearnedAt: new Date(),
+          })
+          .where(eq(regimeSignalConfig.regime, regime));
+      } else {
+        // Neue Zeile: Default-Blend (P1) beibehalten, gelernte Engine-Gewichte setzen.
+        const blend = resolveWeights(regime, DEFAULT_REGIME_BLEND);
+        await db.insert(regimeSignalConfig).values({
+          regime,
+          qualityWeight: blend.quality.toFixed(4),
+          tradingWeight: blend.trading.toFixed(4),
           engineWeights: JSON.stringify(engineWeights),
           sampleSize: sampleByRegime[regime] || 0,
           lastLearnedAt: new Date(),
-        })
-        .where(eq(regimeSignalConfig.regime, regime));
-    } else {
-      // Neue Zeile: Default-Blend (P1) beibehalten, gelernte Engine-Gewichte setzen.
-      const blend = resolveWeights(regime, DEFAULT_REGIME_BLEND);
-      await db.insert(regimeSignalConfig).values({
-        regime,
-        qualityWeight: blend.quality.toFixed(4),
-        tradingWeight: blend.trading.toFixed(4),
-        engineWeights: JSON.stringify(engineWeights),
-        sampleSize: sampleByRegime[regime] || 0,
-        lastLearnedAt: new Date(),
-      });
+        });
+      }
+      updated += 1;
     }
-    updated += 1;
+  } catch (e) {
+    // Tabelle regime_signal_config fehlt/veraltet → klare Meldung statt Roh-SQL im Admin-UI.
+    console.error("[regimeSignalMemory] recompute persistence failed:", (e as Error).message);
+    return {
+      updatedRegimes: 0,
+      evaluatedRows: evaluated.length,
+      reason: "Tabelle regime_signal_config nicht verfügbar — Schema/Migration prüfen (pnpm db:push).",
+    };
   }
 
   return { updatedRegimes: updated, evaluatedRows: evaluated.length };
@@ -111,14 +121,19 @@ export async function getRegimeBlendConfig(nowMs = Date.now()): Promise<RegimeBl
   const db = await getDb();
   const config: RegimeBlendConfig = { ...DEFAULT_REGIME_BLEND };
   if (db) {
-    const rows = await db.select().from(regimeSignalConfig);
-    for (const r of rows) {
-      if (r.qualityWeight != null && r.tradingWeight != null) {
-        config[r.regime] = {
-          quality: parseFloat(String(r.qualityWeight)),
-          trading: parseFloat(String(r.tradingWeight)),
-        };
+    try {
+      const rows = await db.select().from(regimeSignalConfig);
+      for (const r of rows) {
+        if (r.qualityWeight != null && r.tradingWeight != null) {
+          config[r.regime] = {
+            quality: parseFloat(String(r.qualityWeight)),
+            trading: parseFloat(String(r.tradingWeight)),
+          };
+        }
       }
+    } catch (e) {
+      // Tabelle fehlt/veraltet → Defaults verwenden, Signal-Pfad läuft weiter.
+      console.error("[regimeSignalMemory] blend config read failed:", (e as Error).message);
     }
   }
   blendConfigCache = { at: nowMs, config };
@@ -142,7 +157,15 @@ export interface RegimeConfigView {
  */
 export async function getRegimeConfig(): Promise<RegimeConfigView[]> {
   const db = await getDb();
-  const persisted = db ? await db.select().from(regimeSignalConfig) : [];
+  let persisted: Array<typeof regimeSignalConfig.$inferSelect> = [];
+  if (db) {
+    try {
+      persisted = await db.select().from(regimeSignalConfig);
+    } catch (e) {
+      // Tabelle fehlt/veraltet → nur Defaults anzeigen statt Roh-SQL-Fehler.
+      console.error("[regimeSignalMemory] config read failed:", (e as Error).message);
+    }
+  }
   const byRegime = new Map(persisted.map((r) => [r.regime, r]));
 
   const regimes = new Set<string>([
@@ -176,23 +199,28 @@ export async function setRegimeBlend(regime: string, quality: number, trading: n
   const q = total > 0 ? quality / total : 0.5;
   const t = total > 0 ? trading / total : 0.5;
 
-  const existing = await db
-    .select()
-    .from(regimeSignalConfig)
-    .where(eq(regimeSignalConfig.regime, regime))
-    .limit(1);
+  try {
+    const existing = await db
+      .select()
+      .from(regimeSignalConfig)
+      .where(eq(regimeSignalConfig.regime, regime))
+      .limit(1);
 
-  if (existing.length > 0) {
-    await db
-      .update(regimeSignalConfig)
-      .set({ qualityWeight: q.toFixed(4), tradingWeight: t.toFixed(4) })
-      .where(eq(regimeSignalConfig.regime, regime));
-  } else {
-    await db.insert(regimeSignalConfig).values({
-      regime,
-      qualityWeight: q.toFixed(4),
-      tradingWeight: t.toFixed(4),
-    });
+    if (existing.length > 0) {
+      await db
+        .update(regimeSignalConfig)
+        .set({ qualityWeight: q.toFixed(4), tradingWeight: t.toFixed(4) })
+        .where(eq(regimeSignalConfig.regime, regime));
+    } else {
+      await db.insert(regimeSignalConfig).values({
+        regime,
+        qualityWeight: q.toFixed(4),
+        tradingWeight: t.toFixed(4),
+      });
+    }
+  } catch (e) {
+    console.error("[regimeSignalMemory] setRegimeBlend failed:", (e as Error).message);
+    throw new Error("Konfiguration konnte nicht gespeichert werden — Tabelle regime_signal_config fehlt/veraltet (Migration nötig: pnpm db:push).");
   }
   invalidateBlendConfigCache();
 }
