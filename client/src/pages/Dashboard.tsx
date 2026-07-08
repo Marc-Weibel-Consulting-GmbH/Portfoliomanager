@@ -32,7 +32,6 @@ import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip,
 } from "recharts";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
-import { CopilotInsightsPanel } from "@/components/dashboard/CopilotInsightsPanel";
 import { MarktPuls, AnstehendeTermine, AktiveAlarme } from "@/components/dashboard/MarketSections";
 
 type Scope = "aggregate" | number;
@@ -622,13 +621,8 @@ export default function Dashboard() {
               <AllocationCard scope={scope} />
             </div>
 
-            {/* Positionen + Copilot Insights */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <PositionsCard scope={scope} />
-              </div>
-              <CopilotInsightsPanel scope={scope} />
-            </div>
+            {/* Positionen */}
+            <PositionsCard scope={scope} />
 
             {/* Markt-Widgets aus der früheren Portfolios-Seite */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
