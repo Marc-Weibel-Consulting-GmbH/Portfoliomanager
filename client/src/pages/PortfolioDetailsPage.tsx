@@ -52,6 +52,7 @@ import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
 import { EditPositionFieldsModal } from "@/components/EditPositionFieldsModal";
+import { PortfolioSignalsTab } from "@/components/portfolio/PortfolioSignalsTab";
 import { TransactionModal } from "@/components/TransactionModal";
 import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1105,6 +1106,7 @@ export default function PortfolioDetailsPage() {
               { value: 'uebersicht', label: 'Übersicht' },
               { value: 'deepdive', label: 'Deep-Dive', aiBadge: true },
               { value: 'positionen', label: `Positionen`, badge: holdings.length },
+              { value: 'signale', label: 'Signale', aiBadge: true },
               { value: 'transaktionen', label: 'Transaktionen', badge: transactions.length },
               { value: 'dividenden', label: 'Dividenden' },
               { value: 'performance', label: 'Performance' },
@@ -1454,6 +1456,11 @@ export default function PortfolioDetailsPage() {
                 />
               )}
             </div>
+          </TabsContent>
+
+          {/* SIGNALE TAB — Handelssignale für die aktuellen Positionen dieses Portfolios */}
+          <TabsContent value="signale" className="mt-6">
+            <PortfolioSignalsTab portfolioId={portfolioId} portfolioValueCHF={totalValueCHF} />
           </TabsContent>
 
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}

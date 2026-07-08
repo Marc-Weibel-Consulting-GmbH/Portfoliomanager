@@ -2270,29 +2270,32 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     }
     const symbols = Array.from(allTickers).slice(0, 15);
     if (symbols.length === 0) return [];
-    const YahooFinanceClass = (await import('yahoo-finance2')).default;
-    const yahooFinance = new (YahooFinanceClass as any)();
-    const { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } = await import('../analytics/qualityMomentumEngine');
+    const { calculateQualityScore, calculateMomentumScore } = await import('../analytics/qualityMomentumEngine');
     const { detectBubble } = await import('../analytics/lpplsEngine');
+    // Kursreihen aus der historicalPrices-DB (EODHD) statt Live-Yahoo (in Prod blockiert
+    // → sonst «ERROR» pro Titel). Quality-Fundamentals (ROE/FCF) liegen nicht in der DB →
+    // Quality degradiert graziös auf C; Momentum + LPPL bleiben belastbar.
+    const { getDb } = await import('../db');
+    const { historicalPrices } = await import('../../drizzle/schema');
+    const { eq: hpEq, gte: hpGte, and: hpAnd, asc: hpAsc } = await import('drizzle-orm');
+    const db = await getDb();
+    const priceFrom = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const results: any[] = [];
     for (const rawSymbol of symbols) {
       const ticker = rawSymbol.toUpperCase();
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setFullYear(startDate.getFullYear() - 1);
-        const chartResult: any = await yahooFinance.chart(ticker, {
-          period1: startDate.toISOString().split('T')[0],
-          period2: endDate.toISOString().split('T')[0],
-          interval: '1d',
-        });
-        const quotes = (chartResult?.quotes ?? []).filter((q: any) => q.close != null);
-        const prices: number[] = quotes.map((q: any) => q.close as number);
-        let qualityMetrics: any = {};
-        try {
-          const summary: any = await yahooFinance.quoteSummary(ticker, { modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'] });
-          qualityMetrics = extractQualityFromYahoo(summary);
-        } catch (e) { console.warn('[dashboardRouter] Yahoo quoteSummary (Quality-Metriken) fehlgeschlagen:', e); }
+        let prices: number[] = [];
+        if (db) {
+          const rows = await db
+            .select({ close: historicalPrices.close, adj: historicalPrices.adjustedClose })
+            .from(historicalPrices)
+            .where(hpAnd(hpEq(historicalPrices.ticker, ticker), hpGte(historicalPrices.date, priceFrom)))
+            .orderBy(hpAsc(historicalPrices.date));
+          prices = rows
+            .map((r: any) => parseFloat((r.adj ?? r.close) as any))
+            .filter((v: number) => Number.isFinite(v) && v > 0);
+        }
+        const qualityMetrics: any = {};
         let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral' };
         if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (e) { console.warn('[dashboardRouter] calculateMomentumScore fehlgeschlagen:', e); } }
         let qualityResult: any = { score: 0, grade: 'C' };
