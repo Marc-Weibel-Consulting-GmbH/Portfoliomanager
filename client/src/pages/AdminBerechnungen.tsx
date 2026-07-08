@@ -30,21 +30,23 @@ const FORMULAS: FormulaSection[] = [
     title: "TTWROR – True Time-Weighted Rate of Return",
     description:
       "Misst die reine Anlageperformance unabhängig von Zu- und Abflüssen. Jeder Handelstag wird als eigene Sub-Periode betrachtet; die Tagesrenditen werden geometrisch verkettet.",
-    formula: "TTWROR = [ ∏(1 + rᵢ) ] − 1",
+    formula: "(1+rᵢ) = (MVE_i + CF_out,i) / (MVB_i + CF_in,i)\nTTWROR = [ ∏(1 + rᵢ) ] − 1",
     variables: [
-      { name: "rᵢ", desc: "Tagesrendite der Sub-Periode i = (MVE_i − MVB_i) / MVB_i" },
+      { name: "rᵢ", desc: "Cashflow-bereinigte Tagesrendite der Sub-Periode i" },
       { name: "MVB_i", desc: "Marktwert zu Beginn der Sub-Periode i (in CHF)" },
       { name: "MVE_i", desc: "Marktwert am Ende der Sub-Periode i (in CHF)" },
+      { name: "CF_in,i", desc: "Zuflüsse (Käufe) innerhalb der Sub-Periode i (addiert zum MVB)" },
+      { name: "CF_out,i", desc: "Abflüsse (Verkäufe) innerhalb der Sub-Periode i (addiert zum MVE)" },
     ],
     example: {
       input:
-        "Portfolio-Wert: Tag 0 = CHF 10 000, Tag 1 = CHF 10 200, Tag 2 = CHF 10 100, Tag 3 = CHF 10 350",
+        "Portfolio-Wert: Tag 0 = CHF 10 000, kein Cashflow, Tag 3 = CHF 10 350",
       calculation:
-        "r₁ = (10200−10000)/10000 = +2.00 %\nr₂ = (10100−10200)/10200 = −0.98 %\nr₃ = (10350−10100)/10100 = +2.48 %\nTTWROR = (1.0200 × 0.9902 × 1.0248) − 1",
-      result: "TTWROR = +3.48 %",
+        "Keine Cashflows → r = (MVE + 0) / (MVB + 0) − 1\nr = 10350 / 10000 − 1\nTTWROR = (1.0350) − 1",
+      result: "TTWROR = +3.50 % (cashflow-bereinigt)",
     },
     notes:
-      "Annualisiert: TTWROR_ann = (1 + TTWROR)^(365/n) − 1, wobei n = Anzahl Tage im Messzeitraum.",
+      "Annualisiert: TTWROR_ann = (1 + TTWROR)^(365/n) − 1, wobei n = Anzahl Tage im Messzeitraum. Bei Cashflows (Käufe/Verkäufe) wird jede Sub-Periode separat berechnet, damit Zu-/Abflüsse die Rendite nicht verzerren.",
   },
   {
     id: "irr",
@@ -52,22 +54,22 @@ const FORMULAS: FormulaSection[] = [
     title: "IRR – Internal Rate of Return (Geldgewichtete Rendite)",
     description:
       "Berücksichtigt den Zeitpunkt und die Höhe aller Cashflows (Käufe, Verkäufe, Dividenden). Gelöst via Newton-Raphson-Iteration.",
-    formula: "MVB × (1+IRR)^(RD/365) + Σ CFt × (1+IRR)^(RDt/365) = MVE",
+    formula: "−MVB × (1+IRR)^(RD/365) − Σ CFt × (1+IRR)^(RDt/365) + MVE = 0",
     variables: [
-      { name: "MVB", desc: "Marktwert zu Beginn des Messzeitraums (in CHF)" },
-      { name: "MVE", desc: "Marktwert am Ende des Messzeitraums (in CHF)" },
-      { name: "CFt", desc: "Cashflow zum Zeitpunkt t (Kauf = negativ, Verkauf = positiv)" },
+      { name: "MVB", desc: "Marktwert zu Beginn des Messzeitraums (in CHF, als Abfluss = negativ)" },
+      { name: "MVE", desc: "Marktwert am Ende des Messzeitraums (in CHF, als Zufluss = positiv)" },
+      { name: "CFt", desc: "Externer Cashflow zum Zeitpunkt t: Einzahlung = negativ (Abfluss aus Sicht Investor), Auszahlung = positiv" },
       { name: "RD", desc: "Gesamtlänge des Messzeitraums in Tagen" },
       { name: "RDt", desc: "Verbleibende Tage vom Cashflow t bis zum Ende" },
     ],
     example: {
       input:
-        "MVB = CHF 0 (Neues Portfolio), Kauf am Tag 0: −CHF 10 000, Kauf am Tag 90: −CHF 5 000, MVE am Tag 365 = CHF 17 500",
+        "Einzahlung Tag 0: −CHF 10 000, Einzahlung Tag 90: −CHF 5 000, Endwert Tag 365 = CHF 17 500",
       calculation:
-        "0 + (−10000)×(1+IRR)^(365/365) + (−5000)×(1+IRR)^(275/365) = 17500\nNewton-Raphson: IRR₀ = 0.15 → iterativ konvergiert",
-      result: "IRR ≈ +16.2 % p.a.",
+        "−10000×(1+IRR)^(365/365) − 5000×(1+IRR)^(275/365) + 17500 = 0\nNewton-Raphson: IRR₀ = 0.15 → iterativ konvergiert",
+      result: "IRR ≈ +18.26 % p.a.",
     },
-    notes: "Konvergenzkriterium: |f(IRR)| < 1e-8, max. 1000 Iterationen.",
+    notes: "Konvergenzkriterium: |f(IRR)| < 1e-8, max. 1000 Iterationen. IRR misst die geldgewichtete Rendite aus Investorensicht: Einzahlungen sind Abflüsse (negativ), der Endwert ist ein Zufluss (positiv).",
   },
   {
     id: "ytd",
@@ -152,7 +154,7 @@ const FORMULAS: FormulaSection[] = [
     category: "Realisierte Gewinne",
     title: "Realisierter Gewinn / Verlust",
     description:
-      "Gewinn oder Verlust aus abgeschlossenen Positionen (Verkäufe). Berechnet nach FIFO-Prinzip.",
+      "Gewinn oder Verlust aus abgeschlossenen Positionen (Verkäufe). Berechnet nach der Durchschnittskostenmethode (Average Cost, AvgCost).",
     formula: "RealizedGain = Verkaufserlös − (AvgCost × Verkaufte_Stücke) − Verkaufsgebühren",
     variables: [
       { name: "Verkaufserlös", desc: "Bruttoerlös des Verkaufs in CHF" },
@@ -221,14 +223,14 @@ const FORMULAS: FormulaSection[] = [
     variables: [
       { name: "MA20 > MA50", desc: "Kurzfristiger Aufwärtstrend: +0.25 Gewicht" },
       { name: "MA50 > MA200", desc: "Langfristiger Aufwärtstrend (Golden Cross): +0.35 Gewicht" },
-      { name: "ADX > 25", desc: "Trendstärke: +0.20 Gewicht (ADX < 20 = kein Trend)" },
+      { name: "ADX-Komponente", desc: "Trendstärke × Richtung: ADX_norm × Richtung (+1 oder −1): +0.20 Gewicht" },
       { name: "Slope (MA50)", desc: "Steigung des 50-Tage-MA: +0.20 Gewicht" },
     ],
     example: {
       input: "Aktie X: MA20=105, MA50=100, MA200=95, ADX=30, Slope=+0.5",
       calculation:
-        "MA20>MA50 ✓ → +1.0×0.25 = +0.25\nMA50>MA200 ✓ (Golden Cross) → +1.0×0.35 = +0.35\nADX=30>25 ✓ → +1.0×0.20 = +0.20\nSlope positiv → +0.5×0.20 = +0.10",
-      result: "s_trend = (0.25+0.35+0.20+0.10)/1.0 = +0.90 (starker Aufwärtstrend)",
+        "MA20>MA50 ✓ → +1.0×0.25 = +0.25\nMA50>MA200 ✓ (Golden Cross) → +1.0×0.35 = +0.35\nRichtung = +1 (Aufwärtstrend), ADX_norm = 30/50 = 0.60 → +0.60×0.20 = +0.12\nSlope positiv → +0.5×0.20 = +0.10",
+      result: "s_trend = (0.25+0.35+0.12+0.10)/1.0 = +0.82 (starker Aufwärtstrend)",
     },
   },
   {
@@ -241,13 +243,13 @@ const FORMULAS: FormulaSection[] = [
     variables: [
       { name: "s_rsi", desc: "RSI < 30 → +1.0 (überverkauft), RSI > 70 → −1.0 (überkauft)" },
       { name: "s_bb", desc: "Preis am unteren Band → +1.0, am oberen Band → −1.0" },
-      { name: "s_stoch", desc: "Normalisierte Abweichung vom Mittelwert: [−1, +1]" },
+      { name: "s_stoch", desc: "Stochastik %K = (Close−Low14)/(High14−Low14)×100: %K<20 → +1.0 (überverkauft), %K>80 → −1.0 (überkauft)" },
     ],
     example: {
-      input: "Bayer: RSI=28, Preis=28.50, BB_lower=27.80, BB_upper=31.20, BB_mid=29.50",
+      input: "Bayer: RSI=28, Preis=28.50, BB_lower=27.80, BB_upper=31.20, BB_mid=29.50, %K=18",
       calculation:
-        "s_rsi: RSI=28 < 30 → +1.0 × 0.40 = +0.40\nBB-Position = (28.50−27.80)/(31.20−27.80) = 0.21 → unteres Drittel → +1.0 × 0.35 = +0.35\nAbw. = (28.50−29.50)/29.50 = −0.034 → s_stoch = −0.034 × 0.25 ≈ −0.009",
-      result: "s_mr ≈ +0.74 (stark überverkauft → Kaufsignal)",
+        "s_rsi: RSI=28 < 30 → +1.0 × 0.40 = +0.40\nBB-Position = (28.50−27.80)/(31.20−27.80) = 0.21 → unteres Drittel → +1.0 × 0.35 = +0.35\n%K=18 < 20 → +1.0 × 0.25 = +0.25",
+      result: "s_mr = +1.00 (stark überverkauft → starkes Kaufsignal)",
     },
   },
   {
@@ -288,8 +290,8 @@ const FORMULAS: FormulaSection[] = [
     example: {
       input: "Nestlé: FCF₀ = CHF 4.50/Aktie, g = 4 %, r = 8 %, n = 10 Jahre, g_terminal = 2.5 %",
       calculation:
-        "Jahr 1: 4.50×1.04/1.08 = 4.33\nJahr 2: 4.50×1.04²/1.08² = 4.16\n...\nJahr 10: 4.50×1.04¹⁰/1.08¹⁰ = 3.06\nTV = (4.50×1.04¹⁰×1.025)/(0.08−0.025) = 57.2\nFairerWert = Σ(Jahre 1-10) + TV/1.08¹⁰",
-      result: "Fairer Wert ≈ CHF 82.40 (aktueller Kurs CHF 95.50 → leicht überbewertet)",
+        "Barwerte Jahre 1-10:\nJahr 1: 4.50×1.04/1.08 = 4.33 | Jahr 2: 4.50×1.04²/1.08² = 4.16 | ... | Jahr 10: 4.50×1.04¹⁰/1.08¹⁰ = 3.06\nΣ Barwerte Jahre 1-10 ≈ 36.78\nTerminal Value: TV = (4.50×1.04¹⁰×1.025)/(0.08−0.025) = 124.14\nDiskontierter TV: 124.14/1.08¹⁰ ≈ 57.50\nFairerWert = 36.78 + 57.50",
+      result: "Fairer Wert ≈ CHF 94.28 (aktueller Kurs CHF 95.50 → fair bewertet)",
     },
     notes: "Bias-Korrektur (R-31): Wachstumsrate wird auf max. 15 % begrenzt, WACC min. 6 %.",
   },
