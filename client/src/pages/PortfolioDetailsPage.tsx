@@ -43,6 +43,7 @@ import {
   Play,
   Plus,
   FileText,
+  Pencil,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
+import { EditPositionFieldsModal } from "@/components/EditPositionFieldsModal";
 import { TransactionModal } from "@/components/TransactionModal";
 import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -564,7 +566,10 @@ export default function PortfolioDetailsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<any>(null);
   const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
-  
+  // Positions-Felder bearbeiten (Ticker/ISIN/Stück/Preis/Währung) direkt im portfolioData
+  const [editFieldsHolding, setEditFieldsHolding] = useState<any>(null);
+  const [isEditFieldsOpen, setIsEditFieldsOpen] = useState(false);
+
   // State for share
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
@@ -1381,7 +1386,19 @@ export default function PortfolioDetailsPage() {
                               </span>
                             </td>
                             <td className="pr-4 text-right">
-                              <span className="text-gray-600 text-xs">↗</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditFieldsHolding(h);
+                                  setIsEditFieldsOpen(true);
+                                }}
+                                aria-label={`Position ${h.ticker} bearbeiten`}
+                                title="Position bearbeiten (Ticker, ISIN, Stück, Preis, Währung)"
+                                className="text-gray-500 hover:text-[#00CFC1] transition-colors p-1"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
                             </td>
                           </tr>
                         );
@@ -1766,6 +1783,15 @@ export default function PortfolioDetailsPage() {
           refetch();
           setIsEditPositionModalOpen(false);
         }}
+      />
+
+      <EditPositionFieldsModal
+        open={isEditFieldsOpen}
+        onClose={() => setIsEditFieldsOpen(false)}
+        portfolioId={portfolioId}
+        rawPortfolioData={(allPortfolios as any[] | undefined)?.find((p) => p.id === portfolioId)?.portfolioData}
+        holding={editFieldsHolding}
+        onSuccess={() => refetch()}
       />
 
       {/* U-03: Transaktion erfassen (nur Live-Portfolios) */}
