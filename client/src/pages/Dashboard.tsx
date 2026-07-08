@@ -4,8 +4,10 @@
 // Vorgabe Teil 1 Punkt 3) · KPI-Reihe Gesamtwert/YTD/Sharpe/Bubble (Tooltips
 // für Sharpe + Bubble, Punkt 4) · Performance-Chart vs. SMI/MSCI ·
 // Allokation-Donut (Sektor/Region) · Positionen-Treemap · Copilot-Insights.
-// Die bisherigen Dashboard-Inhalte (TickerBar, Markt-Puls, KI-Analyse,
-// Termine) leben neu auf der Portfolios-Übersicht (Punkt 2).
+// Das Dashboard ist der einzige Übersichts-Hub: Portfolio-Übersicht (Karten,
+// Klick → Portfolio-Details) + Aggregiert, plus drei Widgets aus der früheren
+// Portfolios-Seite (Markt-Puls Sektoren, Anstehende Termine, Aktive Alarme).
+// Die separate Portfolios-Übersichtsseite wurde entfernt (Doppelspurigkeit).
 
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
@@ -31,6 +33,7 @@ import {
 } from "recharts";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
 import { CopilotInsightsPanel } from "@/components/dashboard/CopilotInsightsPanel";
+import { MarktPuls, AnstehendeTermine, AktiveAlarme } from "@/components/dashboard/MarketSections";
 
 type Scope = "aggregate" | number;
 type RangeKey = "1T" | "1M" | "YTD" | "1J" | "Max";
@@ -461,6 +464,57 @@ function PositionsCard({ scope }: { scope: Scope }) {
 // ----------------------------------------------------------------
 // Main Dashboard Component
 // ----------------------------------------------------------------
+// ----------------------------------------------------------------
+// Portfolio-Übersicht: kompakte Karten, Klick → Portfolio-Details
+// ----------------------------------------------------------------
+function PortfolioOverviewGrid({ portfolios, onOpen }: { portfolios: any[]; onOpen: (id: number) => void }) {
+  return (
+    <div>
+      <h2 className="text-base font-semibold text-white mb-2">Meine Portfolios</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {portfolios.map((p: any) => {
+          const perf = typeof p.livePerformance === "number" ? p.livePerformance : null;
+          const perfColor = perf == null ? "text-gray-400" : perf >= 0 ? "text-[#00CFC1]" : "text-negative";
+          return (
+            <Card
+              key={p.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Portfolio ${p.name} öffnen`}
+              onClick={() => onOpen(p.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpen(p.id);
+                }
+              }}
+              className="bg-[#0f1420] border-white/10 hover:border-[#00CFC1]/40 transition-colors cursor-pointer"
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h3 className="text-sm font-semibold text-white truncate">{p.name}</h3>
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                    p.isLive === 1 ? "bg-emerald-500/15 text-emerald-400" : "bg-white/10 text-gray-400"
+                  }`}>
+                    {p.isLive === 1 ? "Live" : "Demo"}
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-white font-mono">{formatCHF(p.currentValue ?? 0)}</div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs text-gray-400">{p.numberOfPositions ?? 0} Positionen</span>
+                  {perf != null && (
+                    <span className={`text-xs font-medium font-mono ${perfColor}`}>{formatPercent(perf)}</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -554,6 +608,9 @@ export default function Dashboard() {
           </Card>
         ) : (
           <>
+            {/* Portfolio-Übersicht (Karten → Details) */}
+            <PortfolioOverviewGrid portfolios={portfolios ?? []} onOpen={(id) => navigate(`/portfolios/${id}`)} />
+
             {/* KPI-Reihe */}
             <KpiRow scope={scope} />
 
@@ -571,6 +628,13 @@ export default function Dashboard() {
                 <PositionsCard scope={scope} />
               </div>
               <CopilotInsightsPanel scope={scope} />
+            </div>
+
+            {/* Markt-Widgets aus der früheren Portfolios-Seite */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <MarktPuls />
+              <AnstehendeTermine maxItems={5} withinDays={7} />
+              <AktiveAlarme />
             </div>
           </>
         )}

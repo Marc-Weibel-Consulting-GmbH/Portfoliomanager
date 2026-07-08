@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wallet, Wrench, Eye, Zap, FlaskConical, Camera } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -37,11 +37,11 @@ import { FloatingChatButton } from "./FloatingChatButton";
 type NavItem = { icon: any; label: string; path: string };
 type NavGroup = { icon: any; label: string; items: NavItem[] };
 
-// U-09: Design-Artefakt-Badges («9 Pages» usw.) entfernt — nur Portfolios
-// zeigt einen Badge (Anzahl der eigenen Portfolios, s. unten).
+// U-09: Design-Artefakt-Badges («9 Pages» usw.) entfernt — nur Dashboard
+// zeigt einen Badge (Anzahl der eigenen Portfolios) + Portfolio-Submenü (s. unten).
+// Die separate Portfolios-Übersicht wurde ins Dashboard integriert.
 const topLevelItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Wallet, label: "Portfolios", path: "/portfolios" },
   { icon: TrendingUp, label: "Aktien", path: "/aktien" },
   { icon: Globe, label: "Markt", path: "/markt" },
   { icon: Brain, label: "Copilot", path: "/copilot" },
@@ -194,9 +194,9 @@ function DashboardLayoutContent({
     toolsGroup.items.some(i => location === i.path || location.startsWith(i.path + '/'))
   );
 
-  // State for portfolio submenu
+  // State for portfolio submenu (hängt jetzt am Dashboard-Eintrag)
   const [portfolioSubmenuOpen, setPortfolioSubmenuOpen] = useState(
-    location.startsWith('/portfolios')
+    location === '/dashboard' || location.startsWith('/portfolios')
   );
 
   useEffect(() => {
@@ -275,7 +275,8 @@ function DashboardLayoutContent({
               {/* Top-level navigation items */}
               {topLevelItems.map(item => {
                 const isActive = location === item.path || location.startsWith(item.path + '/');
-                const isPortfolios = item.path === '/portfolios';
+                // Portfolio-Submenü + Badge hängen jetzt am Dashboard-Eintrag.
+                const isPortfolios = item.path === '/dashboard';
                 const showPortfolioSubmenu = isPortfolios && portfolios.length > 0 && !isCollapsed;
                 const portfolioBadge = isPortfolios && portfolios.length > 0 ? String(portfolios.length) : undefined;
 
