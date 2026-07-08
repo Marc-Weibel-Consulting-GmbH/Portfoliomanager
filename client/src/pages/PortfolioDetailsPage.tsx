@@ -370,6 +370,125 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
   );
 }
 
+// ─── Track D: wiederkehrende Transaktions-Empfehlungen ───
+function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
+  const utils = trpc.useUtils();
+  const { data: config } = trpc.recommendations.getConfig.useQuery({ portfolioId }, { enabled: portfolioId > 0 });
+  const [showList, setShowList] = useState(false);
+  const analysis = trpc.copilot.analyze.useQuery({ portfolioId }, { enabled: showList && portfolioId > 0 });
+
+  const setConfig = trpc.recommendations.setConfig.useMutation({
+    onSuccess: () => { utils.recommendations.getConfig.invalidate({ portfolioId }); toast.success('Einstellung gespeichert'); },
+    onError: (e) => toast.error('Fehler', { description: getUserErrorMessage(e) }),
+  });
+  const apply = trpc.copilot.applyRebalancing.useMutation({
+    onSuccess: (r: any) => {
+      if (r?.error && !r?.applied) toast.error('Fehler', { description: r.error });
+      else toast.success(`${r?.applied ?? 0}/${r?.total ?? 0} Transaktion(en) übernommen`);
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+    },
+    onError: (e) => toast.error('Fehler', { description: getUserErrorMessage(e) }),
+  });
+
+  const cadence = config?.cadence ?? 'off';
+  const suggestions = (analysis.data?.analysis?.rebalancingSuggestions ?? []).filter((s: any) => s.action !== 'hold');
+  const actionLabel: Record<string, string> = { increase: 'Aufstocken', decrease: 'Reduzieren', exit: 'Verkaufen' };
+
+  const applyAll = () => {
+    if (suggestions.length === 0) return;
+    apply.mutate({ portfolioId, targetWeights: suggestions.map((s: any) => ({ ticker: s.ticker, companyName: s.companyName, targetWeight: s.targetWeight })) });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Kadenz-Einstellung */}
+      <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Wiederkehrende Empfehlungen</h3>
+            <p className="text-xs text-gray-400 mt-1">
+              Wie oft möchten Sie eine Empfehlungsliste für Transaktionen erhalten?
+              {config?.nextDueAt && cadence !== 'off' && (
+                <> · Nächste Aktualisierung fällig: {formatDate(config.nextDueAt)}</>
+              )}
+            </p>
+          </div>
+          <select
+            value={cadence}
+            onChange={(e) => setConfig.mutate({ portfolioId, cadence: e.target.value as any, autoExecute: config?.autoExecute })}
+            className="bg-[#1a1f2e] border border-white/10 rounded px-3 py-2 text-sm text-white"
+            aria-label="Kadenz der Empfehlungen"
+          >
+            <option value="off">Aus</option>
+            <option value="weekly">Wöchentlich</option>
+            <option value="monthly">Monatlich</option>
+            <option value="quarterly">Quartalsweise</option>
+          </select>
+        </div>
+        <label className="flex items-center gap-2 mt-3 text-xs text-gray-400">
+          <input
+            type="checkbox"
+            checked={config?.autoExecute ?? false}
+            onChange={(e) => setConfig.mutate({ portfolioId, cadence: cadence as any, autoExecute: e.target.checked })}
+          />
+          Vorschläge automatisch ausführen (sonst manuelle Bestätigung) — <span className="text-yellow-500/80">mit Vorsicht aktivieren</span>
+        </label>
+      </div>
+
+      {/* Aktuelle Empfehlungsliste */}
+      <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
+        {!showList ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-gray-400 mb-3">Aktuelle Transaktions-Empfehlungen für dieses Portfolio anzeigen.</p>
+            <button onClick={() => setShowList(true)} className="bg-[#00CFC1] text-black text-sm font-semibold px-4 py-2 rounded hover:bg-[#00CFC1]/90">
+              Empfehlungen laden
+            </button>
+          </div>
+        ) : analysis.isLoading ? (
+          <p className="text-sm text-gray-400 text-center py-6">Empfehlungen werden berechnet…</p>
+        ) : analysis.data?.error ? (
+          <p className="text-sm text-red-400 text-center py-6">{analysis.data.error}</p>
+        ) : suggestions.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">Aktuell keine Handlungsempfehlungen — das Portfolio ist im Zielbereich.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">Empfohlene Transaktionen ({suggestions.length})</h3>
+              <button onClick={applyAll} disabled={apply.isPending} className="text-xs font-semibold text-[#00CFC1] hover:underline disabled:opacity-50">
+                Alle übernehmen
+              </button>
+            </div>
+            {suggestions.map((s: any, i: number) => (
+              <div key={`${s.ticker}-${i}`} className="flex items-center justify-between border border-white/10 rounded-lg px-4 py-3">
+                <div className="min-w-0">
+                  <div>
+                    <span className="font-mono text-xs text-[#00CFC1] mr-2">{s.ticker}</span>
+                    <span className="text-sm text-white">{s.companyName}</span>
+                    <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${s.action === 'exit' || s.action === 'decrease' ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
+                      {actionLabel[s.action] ?? s.action}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 truncate">
+                    {(s.currentWeight * 100).toFixed(1)}% → {(s.targetWeight * 100).toFixed(1)}% · {s.reason}
+                  </p>
+                </div>
+                <button
+                  onClick={() => apply.mutate({ portfolioId, targetWeights: [{ ticker: s.ticker, companyName: s.companyName, targetWeight: s.targetWeight }] })}
+                  disabled={apply.isPending}
+                  className="text-xs font-semibold text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded disabled:opacity-50 shrink-0 ml-3"
+                >
+                  Übernehmen
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Inline delete button for individual transactions
 function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId: number; portfolioId: number }) {
   const utils = trpc.useUtils();
@@ -985,6 +1104,7 @@ export default function PortfolioDetailsPage() {
               { value: 'performance', label: 'Performance' },
               { value: 'risiko', label: 'Risiko' },
               { value: 'optimieren', label: 'Optimieren', aiBadge: true },
+              { value: 'empfehlungen', label: 'Empfehlungen', aiBadge: true },
               { value: 'deepdive', label: 'Deep-Dive', aiBadge: true },
             ].map(tab => (
               <TabsTrigger
@@ -1571,6 +1691,11 @@ export default function PortfolioDetailsPage() {
           {/* OPTIMIZE TAB — KI-Re-Allocation + Effizienzgrenze (S.06) */}
           <TabsContent value="optimieren" className="mt-6">
             <OptimierenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} />
+          </TabsContent>
+
+          {/* EMPFEHLUNGEN TAB — wiederkehrende Transaktions-Empfehlungen (Track D) */}
+          <TabsContent value="empfehlungen" className="mt-6">
+            <EmpfehlungenTab portfolioId={portfolioId} />
           </TabsContent>
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}
