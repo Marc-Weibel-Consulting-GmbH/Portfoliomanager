@@ -15,10 +15,10 @@ import {
   runCopilotAnalysis,
   calculateRankings,
   calculateDiversificationScore,
-  type PortfolioHolding,
   type CopilotAnalysis,
 } from '../analytics/portfolioCopilot';
 import { runCopilotBacktest } from '../analytics/copilotBacktest';
+import { buildHoldingsEodhd } from '../lib/copilotHoldings';
 import { runWalkForwardValidation, getWalkForwardHistory, screenStocksFromEODHD, getWatchlistTickers } from '../analytics/walkForwardEngine';
 import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHistoryStats, evaluateRecommendations, markRecommendationAsApplied } from '../analytics/copilotHistory';
 import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES, fitLPPLMultiScale, calculateBubbleConfidence } from '../analytics/lpplBacktest';
@@ -85,71 +85,6 @@ export async function getLpplThresholdForScheduledJob(): Promise<number> {
 function normalizeForYahoo(ticker: string): string {
   if (ticker.endsWith('.US')) return ticker.replace('.US', '');
   return ticker;
-}
-
-async function fetchHoldingData(ticker: string): Promise<{
-  prices: number[];
-  volumes: number[];
-  currentPrice: number;
-  currency: string;
-  sector?: string;
-  fundamentals: {
-    peRatio?: number;
-    pegRatio?: number;
-    dividendYield?: number;
-    beta?: number;
-    marketCap?: number;
-  };
-}> {
-  const yahooTicker = normalizeForYahoo(ticker);
-  let resolvedTicker = yahooTicker;
-  
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setFullYear(startDate.getFullYear() - 1);
-
-  let chart: any;
-  try {
-    chart = await (yf as any).chart(resolvedTicker, {
-      period1: startDate.toISOString().split('T')[0],
-      period2: endDate.toISOString().split('T')[0],
-      interval: '1d',
-    });
-  } catch {
-    if (!resolvedTicker.includes('.')) {
-      resolvedTicker = resolvedTicker + '.SW';
-      chart = await (yf as any).chart(resolvedTicker, {
-        period1: startDate.toISOString().split('T')[0],
-        period2: endDate.toISOString().split('T')[0],
-        interval: '1d',
-      });
-    }
-  }
-
-  const quotes = chart?.quotes?.filter((q: any) => q.close != null) || [];
-  const prices = quotes.map((q: any) => q.close as number);
-  const volumes = quotes.map((q: any) => (q.volume as number) || 0);
-  const currentPrice = prices.length > 0 ? prices[prices.length - 1] : 0;
-  const currency = chart?.meta?.currency || 'USD';
-
-  // Fetch fundamentals
-  let fundamentals: any = {};
-  let sector: string | undefined;
-  try {
-    const quote = await (yf as any).quoteSummary(resolvedTicker, {
-      modules: ['defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
-    });
-    fundamentals = {
-      peRatio: quote?.summaryDetail?.trailingPE || quote?.defaultKeyStatistics?.forwardPE || undefined,
-      pegRatio: quote?.defaultKeyStatistics?.pegRatio || undefined,
-      dividendYield: (quote?.summaryDetail?.dividendYield || 0) * 100,
-      beta: quote?.defaultKeyStatistics?.beta || 1,
-      marketCap: quote?.summaryDetail?.marketCap || undefined,
-    };
-    sector = quote?.assetProfile?.sector || undefined;
-  } catch {}
-
-  return { prices, volumes, currentPrice, currency, sector, fundamentals };
 }
 
 /** Letzter Schlusskurs + Quote-Währung eines Tickers (leichtgewichtig, 14-Tage-Fenster). */
@@ -289,59 +224,10 @@ export const copilotRouter = router({
         return { error: 'Portfolio enthält keine Aktien', analysis: null, explanation: null };
       }
 
-      // Calculate total portfolio value for weights
-      const totalValue = stocks.reduce((sum: number, s: any) => sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
-
-      // Fetch data for all holdings in parallel (batches of 5)
-      const holdings: PortfolioHolding[] = [];
-      const batchSize = 5;
-      
-      for (let i = 0; i < stocks.length; i += batchSize) {
-        const batch = stocks.slice(i, i + batchSize);
-        const results = await Promise.allSettled(
-          batch.map(async (stock: any) => {
-            try {
-              const data = await fetchHoldingData(stock.ticker);
-              const value = (stock.shares || 1) * data.currentPrice;
-              return {
-                ticker: stock.ticker,
-                companyName: stock.companyName || stock.name || stock.ticker,
-                weight: totalValue > 0 ? value / totalValue : 1 / stocks.length,
-                shares: parseFloat(stock.shares || '1'),
-                currentPrice: data.currentPrice,
-                currency: data.currency,
-                sector: data.sector || stock.sector || 'Unknown',
-                prices: data.prices,
-                volumes: data.volumes,
-                fundamentals: data.fundamentals,
-              } as PortfolioHolding;
-            } catch (err) {
-              return {
-                ticker: stock.ticker,
-                companyName: stock.name || stock.ticker,
-                weight: 1 / stocks.length,
-                shares: stock.shares || 1,
-                currentPrice: stock.currentPrice || stock.avgPrice || 0,
-                currency: 'USD',
-                prices: [],
-                volumes: [],
-                fundamentals: {},
-              } as PortfolioHolding;
-            }
-          })
-        );
-        
-        for (const result of results) {
-          if (result.status === 'fulfilled') {
-            holdings.push(result.value);
-          }
-        }
-        
-        // Small delay between batches
-        if (i + batchSize < stocks.length) {
-          await new Promise(r => setTimeout(r, 500));
-        }
-      }
+      // Holdings ausschliesslich aus EODHD (Kurse + Fundamentaldaten + Währung);
+      // Yahoo ist in der Produktion blockiert. Titel ohne Kursreihe erhalten weight 0
+      // und werden aus der Risiko-/Analyse-Berechnung gefiltert (keine Platzhalter).
+      const holdings = await buildHoldingsEodhd(stocks);
 
       // Run copilot analysis
       const analysis = await runCopilotAnalysis(holdings);
@@ -426,46 +312,8 @@ export const copilotRouter = router({
         return { error: 'Portfolio enthält keine Aktien', rankings: [] };
       }
 
-      const totalValue = stocks.reduce((sum: number, s: any) => sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
-
-      const holdings: PortfolioHolding[] = [];
-      const batchSize = 5;
-      
-      for (let i = 0; i < stocks.length; i += batchSize) {
-        const batch = stocks.slice(i, i + batchSize);
-        const results = await Promise.allSettled(
-          batch.map(async (stock: any) => {
-            try {
-              const data = await fetchHoldingData(stock.ticker);
-              const value = (stock.shares || 1) * data.currentPrice;
-              return {
-                ticker: stock.ticker,
-                companyName: stock.companyName || stock.name || stock.ticker,
-                weight: totalValue > 0 ? value / totalValue : 1 / stocks.length,
-                shares: parseFloat(stock.shares || '1'),
-                currentPrice: data.currentPrice,
-                currency: data.currency,
-                sector: data.sector || stock.sector || 'Unknown',
-                prices: data.prices,
-                volumes: data.volumes,
-                fundamentals: data.fundamentals,
-              } as PortfolioHolding;
-            } catch {
-              return null;
-            }
-          })
-        );
-        
-        for (const result of results) {
-          if (result.status === 'fulfilled' && result.value) {
-            holdings.push(result.value);
-          }
-        }
-        
-        if (i + batchSize < stocks.length) {
-          await new Promise(r => setTimeout(r, 300));
-        }
-      }
+      // Holdings ausschliesslich aus EODHD (siehe analyze — Yahoo in Prod blockiert).
+      const holdings = await buildHoldingsEodhd(stocks);
 
       const rankings = await calculateRankings(holdings);
       return { error: null, rankings };
