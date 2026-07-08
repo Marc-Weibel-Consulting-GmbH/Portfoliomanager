@@ -30,5 +30,5 @@
 - [x] Benchmark backfill: ACWI.US (2055 rows), CHSPI.SW (2078 rows), SPY (2075 rows) in benchmarkData from 2020-01-01
 - [x] PDF export for AdminBerechnungen (browser print dialog with formatted HTML)
 - [x] Text copy function for AdminBerechnungen (per-formula copy button + copy-all + TXT download)
-- [ ] Day Change cashflow-bereinigen: Transaktionen am selben Tag aus der Tagesperformance herausrechnen
-- [ ] FX-Bewertungsdatum: Marktwerte mit aktuellem FX-Kurs bewerten (nicht Transaktionsdatum-FX)
+- [x] Day Change cashflow-bereinigen: Bereits korrekt implementiert in dayChange.ts (symmetrisches Skipping R-29, nur historicalPrices closes, keine currentPrice-Mischung). Dokumentation in AdminBerechnungen aktualisiert.
+- [x] FX-Bewertungsdatum: Bereits korrekt implementiert (convertToCHF mit today für Marktwert, Transaktionsdatum für Kostenbasis). Dokumentation in AdminBerechnungen mit zwei getrennten Formeln aktualisiert.
