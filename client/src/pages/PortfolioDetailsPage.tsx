@@ -44,6 +44,9 @@ import {
   Plus,
   FileText,
   Pencil,
+  Target,
+  Info,
+  Sparkles,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -492,6 +495,98 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
   );
 }
 
+// ─── F3: Konsolidierter Bereich «Optimierung & Empfehlungen» ───
+// Vereint die früheren Subtabs «Optimieren KI» und «Empfehlungen KI» in einem
+// Tab mit zwei Modi. Das Anlageprofil (F1) steuert die Optimierungsstrategie und
+// wird als Kontext angezeigt; die Diversifikationsregeln (F2) fliessen serverseitig
+// in den Optimizer ein.
+const PROFILE_RISK_LABEL: Record<string, string> = {
+  konservativ: "Konservativ", ausgewogen: "Ausgewogen", wachstum: "Wachstum", aggressiv: "Aggressiv",
+};
+const PROFILE_GOAL_LABEL: Record<string, string> = {
+  dividends: "Ertrag / Dividenden", growth: "Wachstum", balanced: "Ausgewogen",
+};
+
+function OptimierungEmpfehlungenTab({
+  portfolioId, holdings, totalValueCHF,
+}: { portfolioId: number; holdings: any[]; totalValueCHF?: number }) {
+  const [mode, setMode] = useState<"empfehlungen" | "optimierung">("empfehlungen");
+  const { data: profile } = trpc.investmentProfile.get.useQuery();
+
+  // Strategie aus dem Risikoprofil ableiten (nur DB-basierte Methoden — kein Yahoo):
+  // konservativ → Risikominimierung (Min. Varianz), sonst Max. Sharpe.
+  const method: "max_sharpe" | "min_variance" =
+    profile?.riskProfile === "konservativ" ? "min_variance" : "max_sharpe";
+  const strategyNote = profile?.isSet
+    ? `Strategie aus Ihrem Anlageprofil (${PROFILE_RISK_LABEL[profile.riskProfile] ?? profile.riskProfile}): ` +
+      (method === "min_variance"
+        ? "Risiko minimieren (Min. Varianz)."
+        : "maximale risikoadjustierte Rendite (Max. Sharpe).")
+    : "Kein Anlageprofil gesetzt — Standardstrategie Max. Sharpe. Hinterlegen Sie Ihr Risikoprofil, damit die Optimierung darauf abgestimmt wird.";
+
+  return (
+    <div className="space-y-4">
+      {/* Anlageprofil-Kontext */}
+      {profile?.isSet ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0f1420] border border-white/10 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Target className="w-4 h-4 text-[#00CFC1]" />
+            <span className="text-gray-400">Anlageprofil:</span>
+            <span className="text-white font-medium">{PROFILE_RISK_LABEL[profile.riskProfile] ?? profile.riskProfile}</span>
+            <span className="text-gray-600">·</span>
+            <span className="text-white font-medium">{PROFILE_GOAL_LABEL[profile.investmentGoal] ?? profile.investmentGoal}</span>
+          </div>
+          <Link href="/einstellungen?tab=anlageprofil" className="text-xs text-[#00CFC1] hover:underline">
+            Profil anpassen
+          </Link>
+        </div>
+      ) : (
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
+          <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-200">
+            Noch kein Anlageprofil hinterlegt. Optimierung und Empfehlungen nutzen die Standardstrategie.{" "}
+            <Link href="/einstellungen?tab=anlageprofil" className="underline font-semibold text-amber-100 hover:text-white">
+              Anlageprofil festlegen
+            </Link>{" "}
+            (Risikoprofil + Anlageziele), damit sie auf Sie abgestimmt werden.
+          </p>
+        </div>
+      )}
+
+      {/* Modus-Umschalter */}
+      <div className="inline-flex rounded-lg border border-white/10 bg-[#0f1420] p-1">
+        {[
+          { key: "empfehlungen" as const, label: "Empfehlungen (laufend)" },
+          { key: "optimierung" as const, label: "Vollständige Neu-Optimierung" },
+        ].map((m) => (
+          <button
+            key={m.key}
+            onClick={() => setMode(m.key)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === m.key ? "bg-[#00CFC1] text-black" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "empfehlungen" ? (
+        <EmpfehlungenTab portfolioId={portfolioId} />
+      ) : (
+        <OptimierenTab
+          portfolioId={portfolioId}
+          holdings={holdings}
+          totalValueCHF={totalValueCHF}
+          method={method}
+          strategyNote={strategyNote}
+        />
+      )}
+    </div>
+  );
+}
+
 // Inline delete button for individual transactions
 function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId: number; portfolioId: number }) {
   const utils = trpc.useUtils();
@@ -544,7 +639,8 @@ export default function PortfolioDetailsPage() {
   // URL-based tab persistence: ?tab=positionen etc. (German keys per Mockup S.01-06)
   const legacyTabMap: Record<string, string> = {
     overview: 'uebersicht', positions: 'positionen', transactions: 'transaktionen',
-    risk: 'risiko', optimize: 'optimieren', ai: 'optimieren',
+    risk: 'risiko', optimize: 'optimierung', ai: 'optimierung',
+    optimieren: 'optimierung', empfehlungen: 'optimierung',
   };
   const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const rawTab = searchParams.get('tab') || 'uebersicht';
@@ -980,7 +1076,7 @@ export default function PortfolioDetailsPage() {
               >
                 <Share2 className="h-4 w-4" />
               </Button>
-              <Button size="sm" onClick={() => handleTabChange('optimieren')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
+              <Button size="sm" onClick={() => handleTabChange('optimierung')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                 Optimieren
               </Button>
             </div>
@@ -1111,8 +1207,7 @@ export default function PortfolioDetailsPage() {
               { value: 'dividenden', label: 'Dividenden' },
               { value: 'performance', label: 'Performance' },
               { value: 'risiko', label: 'Risiko' },
-              { value: 'optimieren', label: 'Optimieren', aiBadge: true },
-              { value: 'empfehlungen', label: 'Empfehlungen', aiBadge: true },
+              { value: 'optimierung', label: 'Optimierung & Empfehlungen', aiBadge: true },
             ].map(tab => (
               <TabsTrigger
                 key={tab.value}
@@ -1452,7 +1547,7 @@ export default function PortfolioDetailsPage() {
                 <PositionsKonstellation
                   holdings={holdings}
                   portfolioId={portfolioId}
-                  onOptimize={() => handleTabChange('optimieren')}
+                  onOptimize={() => handleTabChange('optimierung')}
                 />
               )}
             </div>
@@ -1712,14 +1807,9 @@ export default function PortfolioDetailsPage() {
             <RiskTab portfolioId={portfolioId} />
           </TabsContent>
 
-          {/* OPTIMIZE TAB — KI-Re-Allocation + Effizienzgrenze (S.06) */}
-          <TabsContent value="optimieren" className="mt-6">
-            <OptimierenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} />
-          </TabsContent>
-
-          {/* EMPFEHLUNGEN TAB — wiederkehrende Transaktions-Empfehlungen (Track D) */}
-          <TabsContent value="empfehlungen" className="mt-6">
-            <EmpfehlungenTab portfolioId={portfolioId} />
+          {/* OPTIMIERUNG & EMPFEHLUNGEN — F3: konsolidiert (Optimieren KI + Empfehlungen KI) */}
+          <TabsContent value="optimierung" className="mt-6">
+            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} />
           </TabsContent>
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}
