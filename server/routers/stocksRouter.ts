@@ -8,6 +8,45 @@ import { getStockLogoUrl } from "../_core/stockLogo";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
 
+/**
+ * Annualisierte Volatilität (%) und Sharpe-Ratio aus der historicalPrices-DB (EODHD)
+ * nachrechnen — Fallback, wenn die gespeicherten Kennzahlen fehlen (Yahoo-Refresh in
+ * Prod blockiert). Gibt null zurück, wenn zu wenig Historie vorliegt.
+ */
+async function computeRiskFromHistory(
+  ticker: string
+): Promise<{ volatility: string | null; sharpe: string | null } | null> {
+  try {
+    const { getDb } = await import("../db");
+    const { historicalPrices } = await import("../../drizzle/schema");
+    const { eq, gte, and, asc } = await import("drizzle-orm");
+    const { calcVolatility, calcSharpe } = await import("../analytics/riskStats");
+    const db = await getDb();
+    if (!db) return null;
+    const from = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const rows = await db
+      .select({ close: historicalPrices.close, adj: historicalPrices.adjustedClose, date: historicalPrices.date })
+      .from(historicalPrices)
+      .where(and(eq(historicalPrices.ticker, ticker), gte(historicalPrices.date, from)))
+      .orderBy(asc(historicalPrices.date));
+    const closes = rows
+      .map((r: any) => parseFloat((r.adj ?? r.close) as any))
+      .filter((v: number) => Number.isFinite(v) && v > 0);
+    if (closes.length < 30) return null;
+    const returns: number[] = [];
+    for (let i = 1; i < closes.length; i++) returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+    const vol = calcVolatility(returns); // dezimal → als Prozent speichern
+    const sharpe = calcSharpe(returns);
+    return {
+      volatility: Number.isFinite(vol) ? (vol * 100).toFixed(2) : null,
+      sharpe: Number.isFinite(sharpe) ? sharpe.toFixed(2) : null,
+    };
+  } catch (e) {
+    console.warn(`[stocks.byTicker] Risk-Nachberechnung fehlgeschlagen für ${ticker}:`, (e as Error).message);
+    return null;
+  }
+}
+
 export const stocksRouter = router({
     getAll: publicProcedure.query(async () => {
       const { getAllStocks } = await import("../db");
@@ -343,8 +382,20 @@ export const stocksRouter = router({
       .input(z.string())
       .query(async ({ input }) => {
         const { getStockByTicker } = await import("../db");
-        const dbStock = await getStockByTicker(input);
-        if (dbStock) return dbStock;
+        const dbStock: any = await getStockByTicker(input);
+        if (dbStock) {
+          // Volatilität/Sharpe fehlen bei vielen Titeln, weil der Kennzahlen-Refresh sie
+          // aus Yahoo zog (in der Deploy-Umgebung blockiert). Bei Bedarf aus der
+          // historicalPrices-DB (EODHD) nachrechnen — konsistent mit den übrigen Metriken.
+          if (!dbStock.volatility || !dbStock.sharpeRatio) {
+            const computed = await computeRiskFromHistory(input);
+            if (computed) {
+              if (!dbStock.volatility && computed.volatility) dbStock.volatility = computed.volatility;
+              if (!dbStock.sharpeRatio && computed.sharpe) dbStock.sharpeRatio = computed.sharpe;
+            }
+          }
+          return dbStock;
+        }
 
         // Fallback: ticker not in local DB → fetch live from Yahoo so any
         // searchable stock can be viewed. Mapped to the DB stock shape.
