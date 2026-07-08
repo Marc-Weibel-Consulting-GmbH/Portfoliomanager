@@ -42,16 +42,18 @@ describe('TradingView Widget Configurations', () => {
     expect(TICKER_TAPE_CONFIG).toBeDefined();
     expect(TICKER_TAPE_CONFIG.symbols.length).toBeGreaterThan(5);
     const titles = TICKER_TAPE_CONFIG.symbols.map((s: any) => s.title);
-    expect(titles).toContain('SMI');
+    // Der Schweizer Index-Titel wurde bewusst von SMI auf SPI (Swiss Performance
+    // Index, breiter) umgestellt (SMI→SPI-Rename über alle Frontend-Dateien).
+    expect(titles).toContain('SPI');
     expect(titles).toContain('S&P 500');
     expect(titles).toContain('DAX');
   });
 
-  it('should have valid MARKET_QUOTES_CONFIG with SMI and DAX', async () => {
+  it('should have valid MARKET_QUOTES_CONFIG with SPI and DAX', async () => {
     const { MARKET_QUOTES_CONFIG } = await import('../../client/src/components/TradingViewWidget');
     expect(MARKET_QUOTES_CONFIG).toBeDefined();
     expect(MARKET_QUOTES_CONFIG.symbolsGroups).toHaveLength(2);
-    expect(MARKET_QUOTES_CONFIG.symbolsGroups[0].name).toBe('SMI');
+    expect(MARKET_QUOTES_CONFIG.symbolsGroups[0].name).toBe('SPI');
     expect(MARKET_QUOTES_CONFIG.symbolsGroups[1].name).toBe('DAX');
   });
 });
