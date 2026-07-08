@@ -8,14 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { ChevronLeft, ChevronRight, Check, Search, Plus, X, TrendingUp, DollarSign, Scale, PieChart, LayoutTemplate, PencilRuler, Upload, Shield, Flame } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Search, Plus, X, TrendingUp, DollarSign, Scale, PieChart, LayoutTemplate, PencilRuler, Upload, Shield, Flame, Sparkles, Info, Target } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 type PortfolioType = "dividends" | "growth" | "balanced" | "etf";
 
-type BuilderPath = "manual" | "template" | "import";
+type BuilderPath = "auto" | "manual" | "template" | "import";
 type RiskProfile = "konservativ" | "mittel" | "mutig";
 
 const pathOptions: Array<{
@@ -24,6 +24,12 @@ const pathOptions: Array<{
   icon: React.ReactNode;
   description: string;
 }> = [
+  {
+    value: "auto",
+    label: "Automatisch (KI)",
+    icon: <Sparkles className="h-8 w-8" />,
+    description: "Vorschlag aus Ihrem Anlageprofil — nach Scores, Regeln & Optimierung",
+  },
   {
     value: "template",
     label: "Vorlage",
@@ -149,6 +155,14 @@ export default function PortfolioBuilderWizard() {
   // Queries
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const createPortfolioMutation = trpc.portfolios.create.useMutation();
+
+  // F4: Auto-Portfolio (KI) — gated auf das Anlageprofil
+  const { data: investmentProfile } = trpc.investmentProfile.get.useQuery();
+  const [autoProposal, setAutoProposal] = useState<any | null>(null);
+  const buildProposal = trpc.autoPortfolio.buildProposal.useMutation({
+    onSuccess: (data) => setAutoProposal(data),
+    onError: (e) => toast.error("Vorschlag konnte nicht erstellt werden", { description: e.message }),
+  });
   
   const totalSteps = 5;
   const progress = (currentStep / totalSteps) * 100;
@@ -272,6 +286,29 @@ export default function PortfolioBuilderWizard() {
     } catch (error: any) {
       toast.error(error.message || "Fehler beim Erstellen des Portfolios");
     }
+  };
+
+  // F4: KI-Vorschlag in den Builder übernehmen (seedet Schritt 1-5 wie die Vorlage).
+  const handleAcceptProposal = () => {
+    if (!autoProposal?.positions?.length) return;
+    const capital = parseFloat(initialCapital) || 0;
+    const seeded: StockSelection[] = autoProposal.positions.map((p: any) => {
+      const value = (p.weightPct / 100) * capital;
+      const qty = p.currentPrice > 0 ? value / p.currentPrice : 0;
+      return {
+        ticker: p.ticker,
+        companyName: p.companyName,
+        quantity: parseFloat(qty.toFixed(4)),
+        purchasePrice: p.currentPrice,
+        assetType: "stock" as const,
+      };
+    });
+    setSelectedStocks(seeded);
+    const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };
+    setPortfolioType(goalToType[autoProposal.profile?.investmentGoal] ?? "balanced");
+    if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
+    setPath("auto");
+    setCurrentStep(1);
   };
 
   const startTemplate = (profile: RiskProfile) => {
@@ -444,7 +481,7 @@ export default function PortfolioBuilderWizard() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {pathOptions.map((option) => (
               <Card
                 key={option.value}
@@ -516,6 +553,120 @@ export default function PortfolioBuilderWizard() {
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Auto (KI): gated auf Anlageprofil → Vorschlag → Übernahme in den Builder */}
+          {path === "auto" && (
+            <Card className="bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20 mb-8">
+              <CardHeader>
+                <CardTitle className="text-white">Automatischer Portfolio-Vorschlag</CardTitle>
+                <CardDescription className="text-gray-400">
+                  Die KI stellt aus Ihrem Anlageprofil einen Vorschlag zusammen — bewertet nach
+                  Momentum/Qualität, gefiltert nach Ihren Zielen und gewichtet unter den
+                  Diversifikationsregeln. Sie prüfen und bestätigen alles in den folgenden Schritten.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!investmentProfile?.isSet ? (
+                  <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
+                    <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-200">
+                      Für den automatischen Vorschlag benötigen wir zuerst Ihr Anlageprofil
+                      (Risikoprofil + Anlageziele).{" "}
+                      <button
+                        onClick={() => navigate("/einstellungen?tab=anlageprofil")}
+                        className="underline font-semibold text-amber-100 hover:text-white"
+                      >
+                        Jetzt Anlageprofil festlegen
+                      </button>
+                      .
+                    </p>
+                  </div>
+                ) : !autoProposal ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                      <Target className="w-4 h-4 text-[#00CFC1]" />
+                      <span className="text-gray-400">Ihr Profil:</span>
+                      <span className="text-white font-medium capitalize">{investmentProfile.riskProfile}</span>
+                      <span className="text-gray-600">·</span>
+                      <span className="text-white font-medium capitalize">{investmentProfile.investmentGoal}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="auto-name" className="text-gray-300">Portfolio-Name</Label>
+                        <Input
+                          id="auto-name"
+                          placeholder="z.B. Mein KI-Portfolio"
+                          value={portfolioName}
+                          onChange={(e) => setPortfolioName(e.target.value)}
+                          className="bg-[#0f1420] border-white/10 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="auto-capital" className="text-gray-300">Anlagebetrag (CHF) *</Label>
+                        <Input
+                          id="auto-capital"
+                          type="number"
+                          placeholder="z.B. 50000"
+                          value={initialCapital}
+                          onChange={(e) => setInitialCapital(e.target.value)}
+                          className="bg-[#0f1420] border-white/10 text-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90"
+                        disabled={buildProposal.isPending || !(parseFloat(initialCapital) > 0)}
+                        onClick={() => buildProposal.mutate({ investmentAmount: parseFloat(initialCapital) || undefined })}
+                      >
+                        <Sparkles className="h-4 w-4 mr-1" />
+                        {buildProposal.isPending ? "Vorschlag wird erstellt…" : "KI-Vorschlag erstellen"}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                      <span className="px-2 py-0.5 rounded bg-[#00CFC1]/15 text-[#00CFC1] font-medium">
+                        {autoProposal.positions.length} Titel
+                      </span>
+                      <span>Methode: {autoProposal.methodLabel}</span>
+                      <span>·</span>
+                      <span>{autoProposal.stats.scoredCount} Titel bewertet, {autoProposal.stats.buySignals} Kaufsignale</span>
+                    </div>
+                    <div className="divide-y divide-white/5 border border-white/10 rounded-lg overflow-hidden">
+                      {autoProposal.positions.map((p: any) => (
+                        <div key={p.ticker} className="flex items-center justify-between px-4 py-2.5 bg-[#0f1420]">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
+                              <span className="text-sm text-white truncate">{p.companyName}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">{p.sector} · {p.reason}</p>
+                          </div>
+                          <span className="text-sm font-mono font-semibold text-white ml-3 shrink-0">{p.weightPct.toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung.
+                      Sie können jede Position in den nächsten Schritten anpassen.
+                    </p>
+                    <div className="flex justify-between">
+                      <Button variant="outline" className="border-white/10 text-gray-300"
+                        onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
+                        Neu erstellen
+                      </Button>
+                      <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90" onClick={handleAcceptProposal}>
+                        In den Builder übernehmen
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
