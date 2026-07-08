@@ -8,6 +8,8 @@ import {
 import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info } from "lucide-react";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
+// F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
+// nicht mehr hartkodiert. Optimizer + diese Ansicht nutzen denselben Regelsatz.
 interface DivRule {
   id: string;
   label: string;
@@ -16,62 +18,140 @@ interface DivRule {
   detail: string;
 }
 
-function checkDiversificationRules(holdings: any[], totalValueCHF: number): DivRule[] {
+export interface DiversificationRules {
+  maxPositionPercent: number;
+  minPositionPercent: number;
+  minPositionAmountCHF: number;
+  minTitles: number;
+  maxTitles: number;
+  maxSectorPercent: number;
+  maxCurrencyPercent: number;
+}
+
+// Fallback, falls die Konfig noch lädt oder nicht verfügbar ist (identisch mit Server-Defaults).
+const DEFAULT_RULES: DiversificationRules = {
+  maxPositionPercent: 10,
+  minPositionPercent: 1,
+  minPositionAmountCHF: 3000,
+  minTitles: 15,
+  maxTitles: 20,
+  maxSectorPercent: 30,
+  maxCurrencyPercent: 100,
+};
+
+const fmtChf = (v: number) => `CHF ${Math.round(v).toLocaleString("de-CH")}`;
+
+function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules: DiversificationRules): DivRule[] {
   const nonCash = holdings.filter((h: any) => h.ticker && h.ticker !== "CASH");
   const titleCount = nonCash.length;
+  const out: DivRule[] = [];
 
-  // Rule 1: Min 15 Titel
-  const rule1: DivRule = {
+  // Regel: Mindestanzahl Titel
+  out.push({
     id: "min_titles",
-    label: "Mindestens 15 Titel",
-    description: "Portfolio soll mindestens 15 verschiedene Positionen enthalten.",
-    passed: titleCount >= 15,
-    detail: `${titleCount} Titel vorhanden${titleCount < 15 ? ` (${15 - titleCount} fehlen)` : ""}`,
-  };
+    label: `Mindestens ${rules.minTitles} Titel`,
+    description: `Portfolio soll mindestens ${rules.minTitles} verschiedene Positionen enthalten.`,
+    passed: titleCount >= rules.minTitles,
+    detail: `${titleCount} Titel vorhanden${titleCount < rules.minTitles ? ` (${rules.minTitles - titleCount} fehlen)` : ""}`,
+  });
 
-  // Rule 2: Max 10% pro Position
-  const overweighted = nonCash.filter((h: any) => parseFloat(h.weight || "0") > 10);
-  const rule2: DivRule = {
+  // Regel: Höchstanzahl Titel
+  if (rules.maxTitles > 0) {
+    out.push({
+      id: "max_titles",
+      label: `Höchstens ${rules.maxTitles} Titel`,
+      description: `Portfolio soll nicht mehr als ${rules.maxTitles} Positionen enthalten (Überdiversifikation vermeiden).`,
+      passed: titleCount <= rules.maxTitles,
+      detail: titleCount <= rules.maxTitles
+        ? `${titleCount} Titel vorhanden`
+        : `${titleCount} Titel — ${titleCount - rules.maxTitles} über dem Maximum`,
+    });
+  }
+
+  // Regel: Einzelposition-Obergrenze
+  const overweighted = nonCash.filter((h: any) => parseFloat(h.weight || "0") > rules.maxPositionPercent);
+  out.push({
     id: "max_weight",
-    label: "Max. 10% pro Position",
-    description: "Keine einzelne Position soll mehr als 10% des Portfolios ausmachen.",
+    label: `Max. ${rules.maxPositionPercent}% pro Position`,
+    description: `Keine einzelne Position soll mehr als ${rules.maxPositionPercent}% des Portfolios ausmachen.`,
     passed: overweighted.length === 0,
     detail: overweighted.length === 0
-      ? "Alle Positionen ≤ 10%"
-      : `${overweighted.length} Position(en) über 10%: ${overweighted.map((h: any) => `${h.ticker} (${parseFloat(h.weight || "0").toFixed(1)}%)`).join(", ")}`,
-  };
+      ? `Alle Positionen ≤ ${rules.maxPositionPercent}%`
+      : `${overweighted.length} Position(en) über ${rules.maxPositionPercent}%: ${overweighted.map((h: any) => `${h.ticker} (${parseFloat(h.weight || "0").toFixed(1)}%)`).join(", ")}`,
+  });
 
-  // Rule 3: Min 1% pro Position
-  const underweighted = nonCash.filter((h: any) => parseFloat(h.weight || "0") < 1 && parseFloat(h.weight || "0") > 0);
-  const rule3: DivRule = {
+  // Regel: Einzelposition-Untergrenze
+  const underweighted = nonCash.filter((h: any) => {
+    const w = parseFloat(h.weight || "0");
+    return w < rules.minPositionPercent && w > 0;
+  });
+  out.push({
     id: "min_weight",
-    label: "Min. 1% pro Position",
-    description: "Keine Position soll weniger als 1% des Portfolios ausmachen (Kleinstpositionen vermeiden).",
+    label: `Min. ${rules.minPositionPercent}% pro Position`,
+    description: `Keine Position soll weniger als ${rules.minPositionPercent}% des Portfolios ausmachen (Kleinstpositionen vermeiden).`,
     passed: underweighted.length === 0,
     detail: underweighted.length === 0
-      ? "Alle Positionen ≥ 1%"
-      : `${underweighted.length} Position(en) unter 1%: ${underweighted.map((h: any) => `${h.ticker} (${parseFloat(h.weight || "0").toFixed(1)}%)`).join(", ")}`,
-  };
+      ? `Alle Positionen ≥ ${rules.minPositionPercent}%`
+      : `${underweighted.length} Position(en) unter ${rules.minPositionPercent}%: ${underweighted.map((h: any) => `${h.ticker} (${parseFloat(h.weight || "0").toFixed(1)}%)`).join(", ")}`,
+  });
 
-  // Rule 4: Min CHF 3'000 pro Position
+  // Regel: Mindest-Positionsgrösse in CHF
   const tooSmall = nonCash.filter((h: any) => {
     const posValue = (parseFloat(h.weight || "0") / 100) * totalValueCHF;
-    return posValue < 3000 && posValue > 0;
+    return posValue < rules.minPositionAmountCHF && posValue > 0;
   });
-  const rule4: DivRule = {
+  out.push({
     id: "min_chf",
-    label: "Min. CHF 3'000 pro Position",
-    description: "Jede Position soll mindestens CHF 3'000 wert sein (Transaktionskosten-Effizienz).",
+    label: `Min. ${fmtChf(rules.minPositionAmountCHF)} pro Position`,
+    description: `Jede Position soll mindestens ${fmtChf(rules.minPositionAmountCHF)} wert sein (Transaktionskosten-Effizienz).`,
     passed: tooSmall.length === 0,
     detail: tooSmall.length === 0
-      ? "Alle Positionen ≥ CHF 3'000"
-      : `${tooSmall.length} Position(en) unter CHF 3'000: ${tooSmall.map((h: any) => {
+      ? `Alle Positionen ≥ ${fmtChf(rules.minPositionAmountCHF)}`
+      : `${tooSmall.length} Position(en) unter ${fmtChf(rules.minPositionAmountCHF)}: ${tooSmall.map((h: any) => {
           const v = (parseFloat(h.weight || "0") / 100) * totalValueCHF;
-          return `${h.ticker} (CHF ${v.toFixed(0)})`;
+          return `${h.ticker} (${fmtChf(v)})`;
         }).join(", ")}`,
-  };
+  });
 
-  return [rule1, rule2, rule3, rule4];
+  // Regel: Sektor-Obergrenze (nur wenn aktiv, d.h. < 100%)
+  if (rules.maxSectorPercent > 0 && rules.maxSectorPercent < 100) {
+    const bySector: Record<string, number> = {};
+    nonCash.forEach((h: any) => {
+      const s = h.sector || "Andere";
+      bySector[s] = (bySector[s] || 0) + parseFloat(h.weight || "0");
+    });
+    const over = Object.entries(bySector).filter(([, w]) => w > rules.maxSectorPercent);
+    out.push({
+      id: "max_sector",
+      label: `Max. ${rules.maxSectorPercent}% pro Sektor`,
+      description: `Kein Sektor soll mehr als ${rules.maxSectorPercent}% des Portfolios ausmachen (Klumpenrisiko).`,
+      passed: over.length === 0,
+      detail: over.length === 0
+        ? `Alle Sektoren ≤ ${rules.maxSectorPercent}%`
+        : `${over.length} Sektor(en) über ${rules.maxSectorPercent}%: ${over.map(([s, w]) => `${s} (${w.toFixed(1)}%)`).join(", ")}`,
+    });
+  }
+
+  // Regel: Währungs-Obergrenze (nur wenn aktiv, d.h. < 100%)
+  if (rules.maxCurrencyPercent > 0 && rules.maxCurrencyPercent < 100) {
+    const byCurrency: Record<string, number> = {};
+    nonCash.forEach((h: any) => {
+      const c = h.currency || "CHF";
+      byCurrency[c] = (byCurrency[c] || 0) + parseFloat(h.weight || "0");
+    });
+    const over = Object.entries(byCurrency).filter(([, w]) => w > rules.maxCurrencyPercent);
+    out.push({
+      id: "max_currency",
+      label: `Max. ${rules.maxCurrencyPercent}% pro Währung`,
+      description: `Kein Währungsraum soll mehr als ${rules.maxCurrencyPercent}% des Portfolios ausmachen.`,
+      passed: over.length === 0,
+      detail: over.length === 0
+        ? `Alle Währungen ≤ ${rules.maxCurrencyPercent}%`
+        : `${over.length} Währung(en) über ${rules.maxCurrencyPercent}%: ${over.map(([c, w]) => `${c} (${w.toFixed(1)}%)`).join(", ")}`,
+    });
+  }
+
+  return out;
 }
 
 // ─── Optimieren-Tab ────────────────────────────────────────────────────────────
@@ -85,6 +165,12 @@ export default function OptimierenTab({
   totalValueCHF?: number;
 }) {
   const [showDivRules, setShowDivRules] = useState(true);
+
+  // F2: Diversifikationsregeln aus der Admin-Konfig (statt hartkodiert)
+  const { data: rulesData } = trpc.analytics.getDiversificationRules.useQuery(undefined, {
+    staleTime: 10 * 60 * 1000,
+  });
+  const rules: DiversificationRules = { ...DEFAULT_RULES, ...(rulesData ?? {}) };
 
   const tickers = useMemo(
     () => holdings.filter((h: any) => h.ticker && h.ticker !== "CASH").map((h: any) => h.ticker),
@@ -161,8 +247,8 @@ export default function OptimierenTab({
 
   // Diversification rules
   const divRules = useMemo(
-    () => checkDiversificationRules(holdings, totalValueCHF || 0),
-    [holdings, totalValueCHF]
+    () => checkDiversificationRules(holdings, totalValueCHF || 0, rules),
+    [holdings, totalValueCHF, rules]
   );
   const passedCount = divRules.filter(r => r.passed).length;
   const allPassed = passedCount === divRules.length;
@@ -178,12 +264,12 @@ export default function OptimierenTab({
 
   return (
     <div className="space-y-5">
-      {/* ─── R-34: Warnung bei < 15 Titeln (der Optimizer kann keine Titel ergänzen) ─── */}
-      {tickers.length < 15 && (
+      {/* ─── R-34: Warnung bei zu wenigen Titeln (der Optimizer kann keine Titel ergänzen) ─── */}
+      {tickers.length < rules.minTitles && (
         <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
           <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-amber-200">
-            Für eine robuste Optimierung empfehlen wir mindestens 15 Titel — Ihr Portfolio hat{' '}
+            Für eine robuste Optimierung empfehlen wir mindestens {rules.minTitles} Titel — Ihr Portfolio hat{' '}
             {tickers.length}. Die Optimierung verteilt nur bestehende Positionen um; ergänzen Sie
             weitere Positionen über{' '}
             <Link href="/aktien" className="underline font-semibold text-amber-100 hover:text-white">

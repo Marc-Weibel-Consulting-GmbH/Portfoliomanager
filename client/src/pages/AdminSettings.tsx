@@ -14,6 +14,8 @@ interface DiversificationRules {
   minPositionAmountCHF: number;
   minTitles: number;
   maxTitles: number;
+  maxSectorPercent: number;
+  maxCurrencyPercent: number;
 }
 
 interface FeeStructure {
@@ -31,6 +33,8 @@ const DEFAULT_DIVERSIFICATION: DiversificationRules = {
   minPositionAmountCHF: 3000,
   minTitles: 15,
   maxTitles: 20,
+  maxSectorPercent: 30,
+  maxCurrencyPercent: 100,
 };
 
 const DEFAULT_FEES: FeeStructure = {
@@ -166,6 +170,26 @@ export default function AdminSettings() {
                   className="bg-[#1a2332] border-[#2a3a4e] text-white"
                 />
                 <p className="text-xs text-gray-500 mt-1">Maximale Anzahl Titel im Portfolio</p>
+              </div>
+              <div>
+                <Label className="text-gray-300">Max. Sektor-Anteil (%)</Label>
+                <Input
+                  type="number"
+                  value={divRules.maxSectorPercent}
+                  onChange={(e) => setDivRules({ ...divRules, maxSectorPercent: parseFloat(e.target.value) || 0 })}
+                  className="bg-[#1a2332] border-[#2a3a4e] text-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">Kein Sektor darf mehr als diesen %-Anteil haben</p>
+              </div>
+              <div>
+                <Label className="text-gray-300">Max. Währungs-Anteil (%)</Label>
+                <Input
+                  type="number"
+                  value={divRules.maxCurrencyPercent}
+                  onChange={(e) => setDivRules({ ...divRules, maxCurrencyPercent: parseFloat(e.target.value) || 0 })}
+                  className="bg-[#1a2332] border-[#2a3a4e] text-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">Klumpenrisiko je Währung — 100 = Regel inaktiv</p>
               </div>
             </div>
             <div className="flex gap-2 pt-2">
