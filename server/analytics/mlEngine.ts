@@ -433,7 +433,11 @@ export function randomForestSignal(
   for (let i = 50; i < prices.length - lookAhead; i++) {
     const feat = calculateFeaturesAtPoint(prices, volumes, i);
     if (feat) {
-      // Fill fundamental data (constant for training, use current values)
+      // HINWEIS: Fundamentaldaten liegen hier nur als AKTUELLER Snapshot vor (keine
+      // Point-in-Time-Historie). Über alle Trainingszeilen konstant → Varianz 0 → die
+      // Bäume splitten nie darauf, sie tragen also NICHTS zur Vorhersage bei (kein
+      // Look-Ahead in der Ausgabe, aber auch kein Nutzen). Der echte Fundamental-Beitrag
+      // kommt aus der GB-Pipeline (PIT-Features) bzw. dem QualityScore, nicht hier.
       feat[3] = Math.min(fundamentals.peRatio || 20, 100);
       feat[4] = Math.min(fundamentals.pegRatio || 1.5, 5);
       feat[5] = fundamentals.dividendYield || 0;
@@ -488,13 +492,26 @@ export function randomForestSignal(
     currentFeatures[14] = fundamentals.sentiment || 0;
     
     const prediction = rf.predict([currentFeatures])[0]; // 0-4
-    
-    // Get prediction probabilities via voting
-    // Since ml-random-forest doesn't have predict_proba, we use OOB or estimate
-    const allPredictions = rf.predict(features);
-    const accuracy = allPredictions.reduce((acc: number, pred: number, i: number) => 
-      acc + (pred === labels[i] ? 1 : 0), 0) / allPredictions.length;
-    
+
+    // EHRLICHE Konfidenz: chronologischer Out-of-Sample-Holdout statt In-Sample-Accuracy.
+    // Bisher wurde die Trainingsgenauigkeit (Vorhersage auf denselben Trainingsdaten) als
+    // "confidence" gemeldet — die liegt bei 50 Bäumen nahe 100% und ist bedeutungslos.
+    // Stattdessen: auf den ersten 80% (chronologisch) trainieren, auf den letzten 20%
+    // testen und die RICHTUNGS-Trefferquote (buy/hold/sell) als Konfidenz melden.
+    const dirOf = (c: number) => (c >= 3 ? 1 : c <= 1 ? -1 : 0);
+    let confidence = 0;
+    const splitIdx = Math.floor(features.length * 0.8);
+    const testSize = features.length - splitIdx;
+    if (testSize >= 10) {
+      const rfEval = new RandomForestClassifier({ nEstimators: 50, maxFeatures: 0.7, replacement: true, seed: 42 });
+      rfEval.train(features.slice(0, splitIdx), labels.slice(0, splitIdx));
+      const testPreds = rfEval.predict(features.slice(splitIdx));
+      const testLabels = labels.slice(splitIdx);
+      const hits = testPreds.reduce((a: number, p: number, i: number) => a + (dirOf(p) === dirOf(testLabels[i]) ? 1 : 0), 0);
+      confidence = Math.round((hits / testPreds.length) * 100) / 100;
+    }
+    // testSize < 10 → keine belastbare Out-of-Sample-Schätzung möglich → confidence bleibt 0.
+
     // Map prediction back to signal
     const signalMap: Record<number, 'strong_sell' | 'sell' | 'hold' | 'buy' | 'strong_buy'> = {
       0: 'strong_sell',
@@ -503,15 +520,15 @@ export function randomForestSignal(
       3: 'buy',
       4: 'strong_buy',
     };
-    
+
     const signal = signalMap[prediction] || 'hold';
-    const confidence = Math.round(accuracy * 100) / 100;
     
     // Score: 0-100
     const scoreMap: Record<number, number> = { 0: 10, 1: 30, 2: 50, 3: 70, 4: 90 };
     const score = scoreMap[prediction] || 50;
     
-    // Feature importance (approximate by permutation importance)
+    // Feature-"Wichtigkeit" = |Korrelation| des Features mit dem Label (KEINE echte
+    // Permutations-/Impurity-Importance — nur eine grobe, ehrlich benannte Annäherung).
     const featureNames = [
       'RSI (14)', 'MACD Signal', 'MACD Histogramm', 'P/E Ratio', 'PEG Ratio',
       'Dividendenrendite', 'Beta', '52W-Position', 'Volumen-Trend', 'SMA20 Cross',
@@ -553,10 +570,13 @@ export function randomForestSignal(
     if (fundamentals.peRatio && fundamentals.peRatio < 15) reasons.push('Niedrige Bewertung (P/E ' + fundamentals.peRatio.toFixed(1) + ')');
     if (fundamentals.dividendYield && fundamentals.dividendYield > 3) reasons.push('Hohe Dividende (' + fundamentals.dividendYield.toFixed(1) + '%)');
     
-    if (signal === 'strong_buy' || signal === 'buy') {
-      reasons.push('Random Forest: ' + Math.round(accuracy * 100) + '% Trainingsgenauigkeit');
-    } else if (signal === 'strong_sell' || signal === 'sell') {
-      reasons.push('Random Forest: Verkaufssignal mit ' + Math.round(accuracy * 100) + '% Genauigkeit');
+    if (confidence > 0) {
+      const pct = Math.round(confidence * 100);
+      if (signal === 'strong_buy' || signal === 'buy') {
+        reasons.push(`Random Forest: ${pct}% Out-of-Sample-Trefferquote (Richtung)`);
+      } else if (signal === 'strong_sell' || signal === 'sell') {
+        reasons.push(`Random Forest: Verkaufssignal, ${pct}% Out-of-Sample-Treffer (Richtung)`);
+      }
     }
     
     return {
