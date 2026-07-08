@@ -1,14 +1,14 @@
 /**
  * AktienTabsNav — Tab-Navigation der Aktien-Sektion (F-14).
- * «Titel» = /aktien (Suche & Universum), «Signale» = /aktien/signale
- * (portfolio-basierte Handelssignale + Empfehlungs-Historie).
+ * «Titel» = /aktien (Suche & Universum), «Kaufsignale» = /aktien/signale
+ * (Titel mit Kaufempfehlung aus der Empfehlungsliste + Empfehlungs-Historie).
  */
 import { Link } from "wouter";
 
 export default function AktienTabsNav({ active }: { active: "titel" | "signale" }) {
   const tabs = [
     { key: "titel" as const, label: "Titel", href: "/aktien" },
-    { key: "signale" as const, label: "Signale", href: "/aktien/signale" },
+    { key: "signale" as const, label: "Kaufsignale", href: "/aktien/signale" },
   ];
   return (
     <div className="flex items-center gap-0 border-b border-white/10">
