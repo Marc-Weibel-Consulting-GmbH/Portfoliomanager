@@ -13,6 +13,7 @@
 
 import YahooFinanceClass from "yahoo-finance2";
 import { ledoitWolfConstantCorr } from "../lib/ledoitWolf";
+import { blPosteriorFromHistoricalMeans } from "../lib/blackLitterman";
 import {
   TRADING_DAYS_YEAR,
   SQRT_TRADING_DAYS,
@@ -1096,10 +1097,23 @@ export async function optimizePortfolio(input: OptimizeInput) {
     throw new Error("Insufficient data for optimization (need at least 2 tickers with data).");
   }
 
-  // Annualized expected returns and covariance matrix
-  const mu = available.map((t) => mean(returnsMap[t]) * TRADING_DAYS_YEAR);
+  // Annualisierte Kovarianz (Ledoit-Wolf-geschrumpft) und Erwartungsrenditen.
   const cov = shrunkCovarianceMatrix(returnsMap, available);
   const n = available.length;
+
+  // Rohe historische Jahresmittel als Renditeschätzer sind extrem rauschanfällig
+  // — der Mean-Variance-Optimizer reagiert darauf mit Extremgewichten. Black-Litterman
+  // kombiniert einen markt-konsistenten Gleichgewichts-Prior (Equal-Weight als
+  // neutrale Marktgewichtung) mit den historischen Mitteln als unsichere Views zu
+  // einer stabileren Posterior-μ. Bei singulärer Kovarianz Fallback aufs rohe μ.
+  const histMeans = available.map((t) => mean(returnsMap[t]) * TRADING_DAYS_YEAR);
+  const wPrior = new Array(n).fill(1 / n);
+  let mu: number[];
+  try {
+    mu = blPosteriorFromHistoricalMeans(cov, wPrior, histMeans);
+  } catch {
+    mu = histMeans;
+  }
 
   // Fetch dividend yields for max_dividend method
   let dividendYields: number[] | undefined;
