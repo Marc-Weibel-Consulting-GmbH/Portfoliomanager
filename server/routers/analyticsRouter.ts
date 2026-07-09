@@ -102,21 +102,50 @@ export const analyticsRouter = router({
         portfolioValue: z.number().positive().optional(),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       try {
-        // F2: Diversifikationsregeln (Admin) fliessen als Constraints in den Optimizer
-        // ein — derselbe Regelsatz, den die Nutzer-Ansicht anzeigt.
+        // F2: Diversifikationsregeln (Admin) fliessen als Constraints in den Optimizer.
         const { getDiversificationRules } = await import("../lib/diversificationRules");
         const rules = await getDiversificationRules();
+
+        // P3: Wenn ein Anlageprofil existiert, steuern Risikoprofil + Drawdown-Toleranz
+        // Methode und Positions-Cap-Schärfe. Ohne Profil greifen Admin-Regeln + input.method.
+        let method = input.method;
+        let minPositionWeight = rules.minPositionPercent / 100;
+        let maxPositionWeight = rules.maxPositionPercent / 100;
+        try {
+          const { getDb } = await import("../db");
+          const { userInvestmentProfile } = await import("../../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          const db = await getDb();
+          if (db) {
+            const [profile] = await db.select().from(userInvestmentProfile)
+              .where(eq(userInvestmentProfile.userId, ctx.user.id)).limit(1);
+            if (profile) {
+              const { optimizerParamsForProfile } = await import("../lib/profileOptimizerParams");
+              const params = optimizerParamsForProfile(
+                { riskProfile: profile.riskProfile, maxDrawdownTolerancePct: profile.maxDrawdownTolerancePct, investmentHorizonYears: profile.investmentHorizonYears },
+                rules,
+              );
+              // equal_weight / max_dividend bleiben respektiert; sonst profilbasierte Methode.
+              method = (input.method === "equal_weight" || input.method === "max_dividend") ? input.method : params.method;
+              minPositionWeight = params.minPositionWeight;
+              maxPositionWeight = params.maxPositionWeight;
+            }
+          }
+        } catch (e) {
+          console.warn("[analytics.optimize] Profil-Parameter nicht anwendbar:", (e as Error).message);
+        }
+
         return await optimizePortfolio({
           tickers: input.tickers,
           lookbackDays: input.lookbackDays,
           riskFreeRate: input.riskFreeRate,
-          method: input.method,
+          method,
           portfolioValue: input.portfolioValue,
           minPositionChf: rules.minPositionAmountCHF,
-          minPositionWeight: rules.minPositionPercent / 100,
-          maxPositionWeight: rules.maxPositionPercent / 100,
+          minPositionWeight,
+          maxPositionWeight,
         });
       } catch (err: any) {
         throw new TRPCError({

@@ -38,9 +38,18 @@ export const autoPortfolioRouter = router({
       const goal = profile.investmentGoal; // dividends|growth|balanced
       const riskProfile = profile.riskProfile;
 
-      // 2) Diversifikationsregeln (Admin)
+      // 2) Diversifikationsregeln (Admin) + Profil-abgeleitete Optimizer-Parameter (P3)
       const { getDiversificationRules } = await import("../lib/diversificationRules");
       const rules = await getDiversificationRules();
+      const { optimizerParamsForProfile } = await import("../lib/profileOptimizerParams");
+      const params = optimizerParamsForProfile(
+        {
+          riskProfile,
+          maxDrawdownTolerancePct: profile.maxDrawdownTolerancePct,
+          investmentHorizonYears: profile.investmentHorizonYears,
+        },
+        rules,
+      );
 
       // 3) Kandidaten-Universum aus der DB (nach Marktkapitalisierung begrenzt,
       //    ausgeschlossene Sektoren + fehlende Preise raus)
@@ -69,7 +78,8 @@ export const autoPortfolioRouter = router({
             .map((r: any) => parseFloat((r.adj ?? r.close) as any))
             .filter((v: number) => Number.isFinite(v) && v > 0);
           if (prices.length < 60) continue;
-          const sc = await scoreFromPrices(prices);
+          // P3: Horizont steuert Momentum-vs-Qualität im Score.
+          const sc = await scoreFromPrices(prices, { momentum: params.momentumWeight, quality: params.qualityWeight });
           scored.push({ stock: s, ...sc, dividendYield: parseFloat(s.dividendYield ?? "0") });
         } catch (e) {
           console.warn(`[autoPortfolio] Scoring ${s.ticker} fehlgeschlagen:`, (e as Error).message);
@@ -103,18 +113,18 @@ export const autoPortfolioRouter = router({
         throw new Error("Zu wenige geeignete Kandidaten nach Anwendung der Diversifikationsregeln.");
       }
 
-      // 7) Gewichtung via Optimizer (Methode aus dem Risikoprofil; DB-only)
+      // 7) Gewichtung via Optimizer (Methode + Caps aus dem Profil, P3; DB-only)
       const { optimizePortfolio } = await import("../analytics/engine");
-      const method: "max_sharpe" | "min_variance" = riskProfile === "konservativ" ? "min_variance" : "max_sharpe";
+      const method = params.method;
       const tickers = selected.map((s) => s.stock.ticker);
       let weights: Record<string, number> = {};
       try {
         const opt = await optimizePortfolio({
           tickers,
           method,
-          minPositionChf: rules.minPositionAmountCHF,
-          minPositionWeight: rules.minPositionPercent / 100,
-          maxPositionWeight: rules.maxPositionPercent / 100,
+          minPositionChf: params.minPositionChf,
+          minPositionWeight: params.minPositionWeight,
+          maxPositionWeight: params.maxPositionWeight,
           ...(input?.investmentAmount ? { portfolioValue: input.investmentAmount } : {}),
         });
         weights = opt.weights as Record<string, number>;
