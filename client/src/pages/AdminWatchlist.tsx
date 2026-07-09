@@ -199,8 +199,14 @@ export default function AdminWatchlist() {
     return <Badge variant="outline"><Minus className="w-3 h-3 mr-1" />Halten</Badge>;
   };
 
-  const getSourceBadge = (source: string) => {
+  const getSourceBadge = (source: string, notes?: string | null) => {
     if (source === "manual") return <Badge variant="outline" className="text-xs"><Users className="w-3 h-3 mr-1" />Manuell</Badge>;
+    if (source === "wikifolio") {
+      // Extract portfolio code from notes (e.g. "Importiert aus Wikifolio wfglobalnt | ...")
+      const match = notes?.match(/Wikifolio ([a-zA-Z0-9]+)/);
+      const code = match ? match[1] : '';
+      return <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20"><Star className="w-3 h-3 mr-1" />Wikifolio{code ? ` (${code})` : ''}</Badge>;
+    }
     return <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-600 border-purple-500/20"><Bot className="w-3 h-3 mr-1" />KI</Badge>;
   };
 
@@ -563,7 +569,7 @@ export default function AdminWatchlist() {
                             {stock.signalScore || 0}
                           </span>
                         </td>
-                        <td className="p-3 text-center">{getSourceBadge(stock.source)}</td>
+                        <td className="p-3 text-center">{getSourceBadge(stock.source, (stock as any).notes)}</td>
                         <td className="p-3 text-center">
                           <Switch
                             checked={(stock as any).listType === "empfehlung"}

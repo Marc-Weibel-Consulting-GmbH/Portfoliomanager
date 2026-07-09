@@ -84,6 +84,14 @@ export default function AdminWikifolio() {
     onError: (err) => toast.error(err.message),
   });
 
+  const enrichMutation = trpc.watchlist.enrichWikifolioStocks.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.watchlist.list.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const portfolio = portfolioData?.portfolio;
 
   const filteredItems = useMemo(() => {
@@ -463,6 +471,19 @@ export default function AdminWikifolio() {
                         <Download className="w-4 h-4 mr-1" />
                       )}
                       Importieren
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => enrichMutation.mutate()}
+                      disabled={enrichMutation.isPending}
+                      title="Fehlende Sektor/P/E/Div.%-Daten für alle Wikifolio-Titel via EODHD nachladen"
+                    >
+                      {enrichMutation.isPending ? (
+                        <RefreshCw className="w-4 h-4 animate-spin mr-1" />
+                      ) : (
+                        <BarChart3 className="w-4 h-4 mr-1" />
+                      )}
+                      Daten anreichern
                     </Button>
                   </div>
                 </div>
