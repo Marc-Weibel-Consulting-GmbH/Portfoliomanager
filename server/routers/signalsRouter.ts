@@ -13,7 +13,8 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
 import { eq } from "drizzle-orm";
-import { savedPortfolios, stocks as stocksTable } from "../../drizzle/schema";
+import { savedPortfolios, stocks as stocksTable, stockSignalCache } from "../../drizzle/schema";
+import { inArray } from "drizzle-orm";
 import { randomForestSignal } from '../analytics/mlEngine';
 import { signalForSeries, getActiveSignalModel } from '../analytics/signalService';
 import { analyzeSentiment, sentimentToSignalScore } from '../analytics/sentimentEngine';
@@ -761,12 +762,10 @@ export const signalsRouter = router({
     }),
 
   /**
-   * Generate trading signals for a portfolio using LIVE Yahoo Finance data
-   * 
-   * P1 Fix: Fully parallelized with batched concurrent processing.
-   * Each stock is processed independently with a per-stock timeout.
-   * Batch size of 6 concurrent stocks prevents rate limiting.
-   * Total expected time: ~15-20s for 18 stocks (vs. >60s sequential).
+   * Generate trading signals for a portfolio.
+   * Cache-first strategy: reads from stock_signal_cache (pre-computed every 2h).
+   * Only falls back to live computation for cache misses (new stocks not yet cached).
+   * Expected response time: <1s for cache hits vs 15-30s for live computation.
    */
   generate: protectedProcedure
     .input(z.object({
@@ -789,75 +788,118 @@ export const signalsRouter = router({
         throw new Error("Portfolio not found");
       }
 
-      // Load optimized weights (from Signal Auto-Optimizer)
-      const optimizedWeights = await getActiveWeights();
-
       // Parse portfolio data to get ticker list
       const portfolioData = JSON.parse(portfolio.portfolioData);
       const stocks = portfolioData.stocks || [];
-
-      console.log(`[Signals] Processing ${stocks.length} stocks in parallel (batch size ${BATCH_SIZE})...`);
+      const tickers: string[] = stocks.map((s: any) => s.ticker);
       const startTime = Date.now();
 
-      // Process all stocks in parallel batches with per-stock timeout
-      const signals: Signal[] = [];
-      let sentimentCount = 0;
+      // ─── Step 1: Read from signal cache (fast path) ───────────────────────
+      const CACHE_MAX_AGE_MS = 4 * 60 * 60 * 1000; // 4 hours
+      const cacheRows = tickers.length > 0
+        ? await db.select().from(stockSignalCache).where(inArray(stockSignalCache.ticker, tickers))
+        : [];
+      const cacheMap = new Map(cacheRows.map((r) => [r.ticker, r]));
 
-      for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
-        const batch = stocks.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.allSettled(
-          batch.map((stock: any, batchIdx: number) => {
-            // Only enable sentiment for first MAX_SENTIMENT stocks total
-            const globalIdx = i + batchIdx;
-            const enableSentiment = globalIdx < MAX_SENTIMENT;
-            
-            // Wrap each stock processing with a timeout
-            return withTimeout(
-              processStock(stock, optimizedWeights, enableSentiment),
-              PER_STOCK_TIMEOUT_MS
-            );
-          })
-        );
+      const cachedSignals: Signal[] = [];
+      const missedStocks: any[] = [];
+      const now = Date.now();
+      const num = (v: string | null | undefined) => v != null ? parseFloat(v) : null;
 
-        // Collect results from this batch
-        for (let j = 0; j < batchResults.length; j++) {
-          const result = batchResults[j];
-          const stock = batch[j];
-          
-          if (result.status === "fulfilled" && result.value !== null) {
-            signals.push(result.value);
-          } else {
-            // Stock timed out or failed — create a minimal fallback signal
-            const reason = result.status === "rejected" 
-              ? `Fehler: ${(result.reason as Error)?.message || 'Unbekannt'}`
-              : 'Timeout bei Datenabfrage';
-            console.warn(`[Signals] ${stock.ticker}: ${reason}`);
-            
-            const currentPrice = typeof stock.currentPrice === 'number'
-              ? stock.currentPrice
-              : parseFloat(stock.currentPrice) || 0;
-            
-            signals.push({
-              ticker: stock.ticker,
-              companyName: stock.companyName || stock.ticker,
-              type: "hold",
-              strength: "weak",
-              currentPrice,
-              targetPrice: currentPrice,
-              peRatio: null,
-              pegRatio: null,
-              dividendYield: 0,
-              ytdPerformance: 0,
-              fiftyTwoWeekHigh: null,
-              fiftyTwoWeekLow: null,
-              rsi14: null,
-              reason: `Daten konnten nicht vollständig geladen werden (${reason}). Bitte später erneut versuchen.`,
-              criteria: [`⚠️ ${reason}`],
-            });
+      for (const stock of stocks) {
+        const cached = cacheMap.get(stock.ticker);
+        const cacheAge = cached ? now - new Date(cached.computedAt).getTime() : Infinity;
+        if (cached && cacheAge < CACHE_MAX_AGE_MS) {
+          cachedSignals.push({
+            ticker: cached.ticker,
+            companyName: cached.companyName,
+            type: cached.signalType as SignalType,
+            strength: cached.signalStrength as SignalStrength,
+            currentPrice: num(cached.currentPrice) ?? 0,
+            targetPrice: num(cached.targetPrice) ?? 0,
+            peRatio: num(cached.peRatio),
+            pegRatio: num(cached.pegRatio),
+            dividendYield: num(cached.dividendYield) ?? 0,
+            ytdPerformance: num(cached.ytdPerformance) ?? 0,
+            fiftyTwoWeekHigh: num(cached.fiftyTwoWeekHigh),
+            fiftyTwoWeekLow: num(cached.fiftyTwoWeekLow),
+            rsi14: num(cached.rsi14),
+            reason: cached.reason ?? 'Keine Begründung verfügbar.',
+            criteria: (cached.criteria as string[]) ?? [],
+            rfSignal: cached.rfSignal ?? undefined,
+            rfScore: cached.rfScore ?? undefined,
+            qualityGrade: cached.qualityGrade ?? undefined,
+            qualityScore: cached.qualityScore ?? undefined,
+            momentumGrade: cached.momentumGrade ?? undefined,
+            momentumScore: cached.momentumScore ?? undefined,
+            combinedScore: num(cached.combinedScore) ?? undefined,
+            combinedSignal: cached.combinedSignal ?? undefined,
+            overallGrade: cached.overallGrade ?? undefined,
+            bubbleScore: num(cached.bubbleScore) ?? undefined,
+            bubbleRegime: cached.bubbleRegime ?? undefined,
+            sentimentScore: cached.sentimentScore ?? undefined,
+            sentimentLabel: cached.sentimentLabel ?? undefined,
+          });
+        } else {
+          missedStocks.push(stock);
+        }
+      }
+      console.log(`[Signals] Cache: ${cachedSignals.length} hits, ${missedStocks.length} misses (age limit: 4h)`);
+
+      // ─── Step 2: Live compute only for cache misses ───────────────────────
+      const liveSignals: Signal[] = [];
+      if (missedStocks.length > 0) {
+        const optimizedWeights = await getActiveWeights();
+        console.log(`[Signals] Live computing ${missedStocks.length} stocks (batch ${BATCH_SIZE})...`);
+        for (let i = 0; i < missedStocks.length; i += BATCH_SIZE) {
+          const batch = missedStocks.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.allSettled(
+            batch.map((stock: any, batchIdx: number) => {
+              const globalIdx = i + batchIdx;
+              const enableSentiment = globalIdx < MAX_SENTIMENT;
+              return withTimeout(
+                processStock(stock, optimizedWeights, enableSentiment),
+                PER_STOCK_TIMEOUT_MS
+              );
+            })
+          );
+          for (let j = 0; j < batchResults.length; j++) {
+            const result = batchResults[j];
+            const stock = batch[j];
+            if (result.status === "fulfilled" && result.value !== null) {
+              liveSignals.push(result.value);
+            } else {
+              const reason = result.status === "rejected" 
+                ? `Fehler: ${(result.reason as Error)?.message || 'Unbekannt'}`
+                : 'Timeout bei Datenabfrage';
+              console.warn(`[Signals] ${stock.ticker}: ${reason}`);
+              const currentPrice = typeof stock.currentPrice === 'number'
+                ? stock.currentPrice
+                : parseFloat(stock.currentPrice) || 0;
+              liveSignals.push({
+                ticker: stock.ticker,
+                companyName: stock.companyName || stock.ticker,
+                type: "hold",
+                strength: "weak",
+                currentPrice,
+                targetPrice: currentPrice,
+                peRatio: null,
+                pegRatio: null,
+                dividendYield: 0,
+                ytdPerformance: 0,
+                fiftyTwoWeekHigh: null,
+                fiftyTwoWeekLow: null,
+                rsi14: null,
+                reason: `Daten konnten nicht vollständig geladen werden (${reason}). Bitte später erneut versuchen.`,
+                criteria: [`⚠️ ${reason}`],
+              });
+            }
           }
         }
       }
 
+      // ─── Step 3: Merge and sort ───────────────────────────────────────────
+      const signals = [...cachedSignals, ...liveSignals];
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(`[Signals] Completed ${signals.length}/${stocks.length} stocks in ${elapsed}s`);
 

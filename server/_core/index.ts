@@ -26,6 +26,7 @@ import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
 import { initLpplBubbleAlertCron } from "../cron/lpplBubbleAlertCron";
 import { initMlTrainingCron } from "../cron/mlTrainingCron";
 import { initSignalEvaluationCron } from "../cron/signalEvaluationCron";
+import { initSignalCacheCron } from "../cron/signalCacheCron";
 import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
 import { initRecommendationCron } from "../cron/recommendationCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
@@ -204,6 +205,8 @@ async function startServer() {
     initMlTrainingCron();
     // Start signal evaluation cron (daily lookback + snapshot)
     initSignalEvaluationCron();
+    // Start signal cache cron (pre-computes signals every 2h for fast portfolio signal loading)
+    initSignalCacheCron();
     // Start market analysis cron (daily 08:00 CET = 07:00 UTC)
     initMarketAnalysisCron();
     // Start recommendation cron (Track D: daily due-check per portfolio cadence)

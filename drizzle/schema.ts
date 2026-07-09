@@ -1026,3 +1026,47 @@ export const portfolioRecommendationConfig = mysqlTable("portfolio_recommendatio
 
 export type PortfolioRecommendationConfig = typeof portfolioRecommendationConfig.$inferSelect;
 export type InsertPortfolioRecommendationConfig = typeof portfolioRecommendationConfig.$inferInsert;
+
+// ============================================
+// Signal-Cache: Vorberechnete Signale für alle Watchlist-Aktien
+// Wird stündlich via Cron aktualisiert. Die generate-Prozedur liest
+// aus diesem Cache statt live zu berechnen → Antwortzeit < 1s.
+// ============================================
+export const stockSignalCache = mysqlTable("stock_signal_cache", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull().unique(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  signalType: mysqlEnum("signalType", ["buy", "sell", "hold"]).notNull().default("hold"),
+  signalStrength: mysqlEnum("signalStrength", ["strong", "moderate", "weak"]).notNull().default("weak"),
+  currentPrice: varchar("currentPrice", { length: 50 }),
+  targetPrice: varchar("targetPrice", { length: 50 }),
+  peRatio: varchar("peRatio", { length: 50 }),
+  pegRatio: varchar("pegRatio", { length: 50 }),
+  dividendYield: varchar("dividendYield", { length: 50 }),
+  ytdPerformance: varchar("ytdPerformance", { length: 50 }),
+  fiftyTwoWeekHigh: varchar("fiftyTwoWeekHigh", { length: 50 }),
+  fiftyTwoWeekLow: varchar("fiftyTwoWeekLow", { length: 50 }),
+  rsi14: varchar("rsi14", { length: 50 }),
+  reason: text("reason"),
+  criteria: json("criteria"),
+  rfSignal: varchar("rfSignal", { length: 50 }),
+  rfScore: int("rfScore"),
+  qualityGrade: varchar("qualityGrade", { length: 5 }),
+  qualityScore: int("qualityScore"),
+  momentumGrade: varchar("momentumGrade", { length: 5 }),
+  momentumScore: int("momentumScore"),
+  combinedScore: varchar("combinedScore", { length: 20 }),
+  combinedSignal: varchar("combinedSignal", { length: 50 }),
+  overallGrade: varchar("overallGrade", { length: 5 }),
+  bubbleScore: varchar("bubbleScore", { length: 20 }),
+  bubbleRegime: varchar("bubbleRegime", { length: 50 }),
+  sentimentScore: int("sentimentScore"),
+  sentimentLabel: varchar("sentimentLabel", { length: 50 }),
+  computedAt: timestamp("computedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  tickerIdx: index("ix_signal_cache_ticker").on(t.ticker),
+  updatedIdx: index("ix_signal_cache_updated").on(t.updatedAt),
+}));
+export type StockSignalCache = typeof stockSignalCache.$inferSelect;
+export type InsertStockSignalCache = typeof stockSignalCache.$inferInsert;

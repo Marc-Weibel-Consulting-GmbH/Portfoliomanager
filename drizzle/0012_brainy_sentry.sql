@@ -1,0 +1,38 @@
+CREATE TABLE `stock_signal_cache` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`ticker` varchar(50) NOT NULL,
+	`companyName` varchar(255) NOT NULL,
+	`signalType` enum('buy','sell','hold') NOT NULL DEFAULT 'hold',
+	`signalStrength` enum('strong','moderate','weak') NOT NULL DEFAULT 'weak',
+	`currentPrice` varchar(50),
+	`targetPrice` varchar(50),
+	`peRatio` varchar(50),
+	`pegRatio` varchar(50),
+	`dividendYield` varchar(50),
+	`ytdPerformance` varchar(50),
+	`fiftyTwoWeekHigh` varchar(50),
+	`fiftyTwoWeekLow` varchar(50),
+	`rsi14` varchar(50),
+	`reason` text,
+	`criteria` json,
+	`rfSignal` varchar(50),
+	`rfScore` int,
+	`qualityGrade` varchar(5),
+	`qualityScore` int,
+	`momentumGrade` varchar(5),
+	`momentumScore` int,
+	`combinedScore` varchar(20),
+	`combinedSignal` varchar(50),
+	`overallGrade` varchar(5),
+	`bubbleScore` varchar(20),
+	`bubbleRegime` varchar(50),
+	`sentimentScore` int,
+	`sentimentLabel` varchar(50),
+	`computedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `stock_signal_cache_id` PRIMARY KEY(`id`),
+	CONSTRAINT `stock_signal_cache_ticker_unique` UNIQUE(`ticker`)
+);
+--> statement-breakpoint
+CREATE INDEX `ix_signal_cache_ticker` ON `stock_signal_cache` (`ticker`);--> statement-breakpoint
+CREATE INDEX `ix_signal_cache_updated` ON `stock_signal_cache` (`updatedAt`);
