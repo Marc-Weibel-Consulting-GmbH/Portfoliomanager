@@ -58,14 +58,11 @@ describe("isinResolver", () => {
   });
 });
 
-describe("universeListType (F-13 graceful transition)", () => {
-  it("filters to 'empfehlung' as soon as at least one active Empfehlung exists", () => {
+describe("universeListType (F-13 — always empfehlung)", () => {
+  it("always returns 'empfehlung' regardless of count", () => {
+    expect(universeListType(0)).toBe("empfehlung");
     expect(universeListType(1)).toBe("empfehlung");
     expect(universeListType(42)).toBe("empfehlung");
-  });
-
-  it("falls back to no filter (all active rows) while nothing is marked yet", () => {
-    expect(universeListType(0)).toBeNull();
   });
 });
 
