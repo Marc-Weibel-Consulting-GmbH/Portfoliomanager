@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { watchlistStocks } from "../../drizzle/schema";
-import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios } from '../lib/wikifolioService';
+import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios, getWikifolioTrades } from '../lib/wikifolioService';
 import { resolveIsinToTicker, isLikelyIsin } from '../lib/isinResolver';
 import { getUniverseListTypeFilter } from '../lib/watchlistUniverse';
 import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
@@ -763,6 +763,79 @@ export const watchlistRouter = router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: err?.message || 'Wikifolio-Details konnten nicht abgerufen werden',
+        });
+      }
+    }),
+
+  /**
+   * Transaktionshistorie eines Wikifolios (welcher Titel wann gekauft/verkauft/
+   * erhöht/reduziert). Wikifolio führt gewichtsbasiert — es gibt keine Stückzahlen;
+   * wir zeigen Datum · Titel · Aktion · Gewicht. ISIN → Ticker wird DB-seitig
+   * aufgelöst (stocks.isin, kein Yahoo/EODHD-Call), damit die Titel bei Bedarf
+   * auf /aktien/:ticker verlinken.
+   */
+  getWikifolioTrades: protectedProcedure
+    .input(z.object({
+      symbol: z.string().min(1).default('wfglobalnt'),
+      pageSize: z.number().min(1).max(200).default(100),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+      }
+      try {
+        const trades = await getWikifolioTrades(input.symbol, input.pageSize);
+
+        // ISIN → eigenes Ticker-Universum aus bereits aufgelösten Wikifolio-Trades
+        // (wikifolio_trades.resolvedTicker; kein externer Call, prod-sicher).
+        const { getDb } = await import('../db');
+        const { wikifolioTrades } = await import('../../drizzle/schema');
+        const db = await getDb();
+        const isinToTicker: Record<string, string> = {};
+        if (db) {
+          const isins = Array.from(new Set(trades.map(t => t.isin).filter((x): x is string => !!x)));
+          if (isins.length > 0) {
+            const { inArray, isNotNull, and: and2 } = await import('drizzle-orm');
+            const rows = await db
+              .select({ ticker: wikifolioTrades.resolvedTicker, isin: wikifolioTrades.isin })
+              .from(wikifolioTrades)
+              .where(and2(inArray(wikifolioTrades.isin, isins), isNotNull(wikifolioTrades.resolvedTicker)));
+            rows.forEach((r: any) => { if (r.isin && r.ticker) isinToTicker[r.isin] = r.ticker; });
+          }
+        }
+
+        // Aktion je Trade ableiten: chronologisch je ISIN ersten Kauf = «Kauf»,
+        // spätere Käufe = «Erhöht»; Verkäufe = «Reduziert», letzter Verkauf ohne
+        // späteren Kauf = «Verkauf» (Ausstieg). Ohne Post-Trade-Gewicht ist die
+        // Teil-/Voll-Unterscheidung eine Näherung.
+        const asc2 = [...trades].sort((a, b) =>
+          String(a.executedAt ?? '').localeCompare(String(b.executedAt ?? '')));
+        const lastEventIdxByIsin: Record<string, number> = {};
+        asc2.forEach((t, i) => { if (t.isin) lastEventIdxByIsin[t.isin] = i; });
+        const seen = new Set<string>();
+        const withAction = asc2.map((t, i) => {
+          let action: 'buy' | 'increase' | 'reduce' | 'sell' | 'other' = 'other';
+          const key = t.isin ?? t.name ?? '';
+          if (t.side === 'buy') {
+            action = seen.has(key) ? 'increase' : 'buy';
+            seen.add(key);
+          } else if (t.side === 'sell') {
+            action = (t.isin && lastEventIdxByIsin[t.isin] === i) ? 'sell' : 'reduce';
+          }
+          return {
+            ...t,
+            action,
+            ticker: t.isin ? isinToTicker[t.isin] ?? null : null,
+          };
+        });
+
+        // Neueste zuerst für die Anzeige
+        withAction.reverse();
+        return { success: true, trades: withAction };
+      } catch (err: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: err?.message || 'Wikifolio-Transaktionshistorie konnte nicht abgerufen werden',
         });
       }
     }),
