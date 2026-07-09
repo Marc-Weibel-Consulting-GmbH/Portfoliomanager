@@ -2349,28 +2349,28 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       r.status === 'fulfilled' ? r.value : { ...indexDefs[i], price: null, change: null }
     );
 
-    // Sektor-ETF Heatmap (11 GICS Sektoren)
+    // Sektor-ETF Heatmap — iShares STOXX Europe 600 Sektor-ETFs (XETRA)
+    // Handeln 09:00-17:30 CET, also auch morgens verfügbar (US SPDR ETFs erst ab 15:30 CET)
     const sectorDefs = [
-      { key: 'XLK',  label: 'Technologie' },
-      { key: 'XLF',  label: 'Finanzen' },
-      { key: 'XLV',  label: 'Gesundheit' },
-      { key: 'XLE',  label: 'Energie' },
-      { key: 'XLI',  label: 'Industrie' },
-      { key: 'XLY',  label: 'Konsum zyklisch' },
-      { key: 'XLP',  label: 'Konsum defensiv' },
-      { key: 'XLU',  label: 'Versorger' },
-      { key: 'XLRE', label: 'Immobilien' },
-      { key: 'XLB',  label: 'Materialien' },
-      { key: 'XLC',  label: 'Kommunikation' },
+      { key: 'EXV3.XETRA',  label: 'Tech.' },
+      { key: 'EXV1.XETRA',  label: 'Fin.' },
+      { key: 'EXV4.XETRA',  label: 'Gesundh.' },
+      { key: 'EXV6.XETRA',  label: 'Energie' },
+      { key: 'EXV2.XETRA',  label: 'Industrie' },
+      { key: 'EXV5.XETRA',  label: 'Konsum' },
+      { key: 'EXV8.XETRA',  label: 'Versorger' },
+      { key: 'EXV9.XETRA',  label: 'Immob.' },
+      { key: 'EXH7.XETRA',  label: 'Material.' },
+      { key: 'EXH8.XETRA',  label: 'Komm.' },
     ];
     const sectorResults = await Promise.allSettled(
       sectorDefs.map(async (def) => {
-        const rt = await fetchEODHDRealTime(`${def.key}.US`);
-        return { key: def.key, label: def.label, change: rt.changePercent };
+        const rt = await fetchEODHDRealTime(def.key);
+        return { key: def.key, label: def.label, changePercent: rt.changePercent };
       })
     );
     const sectors = sectorResults.map((r, i) =>
-      r.status === 'fulfilled' ? r.value : { ...sectorDefs[i], change: null }
+      r.status === 'fulfilled' ? r.value : { ...sectorDefs[i], changePercent: null }
     );
 
     // Top-Movers aus Watchlist/Portfolio des Users

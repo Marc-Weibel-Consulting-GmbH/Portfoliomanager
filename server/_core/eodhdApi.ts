@@ -77,7 +77,7 @@ export async function fetchEODHDRealTime(ticker: string): Promise<EODHDRealTime>
       previousClose: toNum(data.previousClose),
       changePercent: toNum(data.change_p),
     };
-    apiCache.set(cacheKey, result, CACHE_TTL.FUNDAMENTALS);
+    apiCache.set(cacheKey, result, CACHE_TTL.QUOTE);
     return result;
   } catch (error: any) {
     console.error(`[EODHD] Error fetching real-time for ${ticker}:`, error.message);
