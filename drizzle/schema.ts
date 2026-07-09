@@ -1070,3 +1070,25 @@ export const stockSignalCache = mysqlTable("stock_signal_cache", {
 }));
 export type StockSignalCache = typeof stockSignalCache.$inferSelect;
 export type InsertStockSignalCache = typeof stockSignalCache.$inferInsert;
+
+// ============================================
+// Score Snapshot History (daily score tracking)
+// ============================================
+export const stockScoreSnapshot = mysqlTable("stock_score_snapshot", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull(), // YYYY-MM-DD
+  qualityScore: int("qualityScore"),
+  momentumScore: int("momentumScore"),
+  combinedScore: int("combinedScore"),
+  signalType: mysqlEnum("signalType", ["buy", "sell", "hold"]).default("hold"),
+  signalStrength: mysqlEnum("signalStrength", ["strong", "moderate", "weak"]).default("weak"),
+  overallGrade: varchar("overallGrade", { length: 5 }),
+  currentPrice: varchar("currentPrice", { length: 50 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  tickerDateIdx: index("ix_score_snapshot_ticker_date").on(t.ticker, t.snapshotDate),
+  tickerIdx: index("ix_score_snapshot_ticker").on(t.ticker),
+}));
+export type StockScoreSnapshot = typeof stockScoreSnapshot.$inferSelect;
+export type InsertStockScoreSnapshot = typeof stockScoreSnapshot.$inferInsert;

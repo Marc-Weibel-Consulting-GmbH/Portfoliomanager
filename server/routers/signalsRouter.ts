@@ -12,8 +12,8 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
-import { eq } from "drizzle-orm";
-import { savedPortfolios, stocks as stocksTable, stockSignalCache } from "../../drizzle/schema";
+import { eq, desc } from "drizzle-orm";
+import { savedPortfolios, stocks as stocksTable, stockSignalCache, stockScoreSnapshot } from "../../drizzle/schema";
 import { inArray } from "drizzle-orm";
 import { randomForestSignal } from '../analytics/mlEngine';
 import { signalForSeries, getActiveSignalModel } from '../analytics/signalService';
@@ -915,6 +915,21 @@ export const signalsRouter = router({
       });
 
       return signals;
+    }),
+
+  // Returns the last 30 daily score snapshots for a given ticker
+  getScoreHistory: protectedProcedure
+    .input(z.object({ ticker: z.string() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const rows = await db
+        .select()
+        .from(stockScoreSnapshot)
+        .where(eq(stockScoreSnapshot.ticker, input.ticker))
+        .orderBy(desc(stockScoreSnapshot.snapshotDate))
+        .limit(30);
+      return rows.reverse(); // chronological order for charts
     }),
 
   // Clears the signal cache for all tickers in a portfolio, forcing a fresh recalculation

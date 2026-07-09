@@ -12,6 +12,8 @@ import {
   Pie,
   Cell,
   Legend as RechartsLegend,
+  LineChart,
+  Line,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -587,6 +589,61 @@ function OptimierungEmpfehlungenTab({
           strategyNote={strategyNote}
         />
       )}
+    </div>
+  );
+}
+
+// Score history sparkline — shown in the expanded detail row of the Positionen table
+function ScoreHistorySparkline({ ticker }: { ticker: string }) {
+  const { data: history, isLoading } = trpc.signals.getScoreHistory.useQuery(
+    { ticker },
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  if (isLoading) {
+    return (
+      <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">
+        <p className="text-xs font-semibold text-gray-400 mb-1">Score-Verlauf</p>
+        <p className="text-xs text-gray-500">Lade Verlaufsdaten...</p>
+      </div>
+    );
+  }
+
+  if (!history || history.length < 2) {
+    return (
+      <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">
+        <p className="text-xs font-semibold text-gray-400 mb-1">Score-Verlauf</p>
+        <p className="text-xs text-gray-500">Noch keine historischen Daten verfügbar — werden täglich gespeichert.</p>
+      </div>
+    );
+  }
+
+  const chartData = history.map((row) => ({
+    date: row.snapshotDate,
+    qualität: row.qualityScore ?? null,
+    signal: row.combinedScore ?? null,
+  }));
+
+  return (
+    <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Score-Verlauf ({history.length} Tage)</p>
+      <ResponsiveContainer width="100%" height={80}>
+        <LineChart data={chartData} margin={{ top: 2, right: 4, left: -30, bottom: 0 }}>
+          <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#6b7280' }} tickFormatter={(v) => v.slice(5)} />
+          <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#6b7280' }} />
+          <Tooltip
+            contentStyle={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11 }}
+            labelStyle={{ color: '#9ca3af' }}
+            formatter={(value: any, name: string) => [value !== null ? `${value}/100` : '–', name === 'qualität' ? 'Qualität' : 'Signal']}
+          />
+          <Line type="monotone" dataKey="qualität" stroke="#00CFC1" strokeWidth={1.5} dot={false} connectNulls />
+          <Line type="monotone" dataKey="signal" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+      <div className="flex gap-4 mt-1">
+        <span className="flex items-center gap-1 text-xs text-gray-400"><span className="inline-block w-3 h-0.5 bg-[#00CFC1]"></span>Qualität</span>
+        <span className="flex items-center gap-1 text-xs text-gray-400"><span className="inline-block w-3 h-0.5 bg-amber-400"></span>Signal</span>
+      </div>
     </div>
   );
 }
@@ -1721,6 +1778,8 @@ export default function PortfolioDetailsPage() {
                                     <p className="text-xs text-gray-300 leading-relaxed">{sig.reason}</p>
                                   </div>
                                 )}
+                                {/* Score History Sparkline */}
+                                <ScoreHistorySparkline ticker={h.ticker} />
                                 {/* Link to full stock detail */}
                                 <div className="mt-3 flex justify-end">
                                   <button
