@@ -653,6 +653,18 @@ export default function PortfolioDetailsPage() {
   const [posView, setPosView] = useState<'tabelle' | 'heatmap' | 'konstellation'>('tabelle');
   // Expandable row state for Positionen table
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
+  // Sort state for Positionen table
+  type SortKey = 'weight' | 'ytd' | 'today' | 'qualityScore' | 'signalScore';
+  const [sortKey, setSortKey] = useState<SortKey>('weight');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -849,10 +861,16 @@ export default function PortfolioDetailsPage() {
   );
 
   // Signals for Positionen tab detail rows (cache-first, loaded lazily when tab is active)
-  const { data: signalsData } = trpc.signals.generate.useQuery(
+  const trpcUtils = trpc.useUtils();
+  const { data: signalsData, isFetching: isSignalsFetching } = trpc.signals.generate.useQuery(
     { portfolioId },
     { enabled: portfolioId > 0 && activeTab === 'positionen', staleTime: 4 * 60 * 60 * 1000 }
   );
+  const refreshSignalsMutation = trpc.signals.refreshSignals.useMutation({
+    onSuccess: () => {
+      trpcUtils.signals.generate.invalidate({ portfolioId });
+    }
+  });
   // Build a map from ticker -> signal for O(1) lookup in the table
   const signalMap = useMemo(() => {
     const map = new Map<string, any>();
@@ -1392,7 +1410,7 @@ export default function PortfolioDetailsPage() {
                 {posView === 'konstellation' ? <div /> : (
                   <div>
                     <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
-                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach Gewicht</p>}
+                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach {sortKey === 'weight' ? 'Gewicht' : sortKey === 'ytd' ? 'YTD' : sortKey === 'today' ? 'Heute' : sortKey === 'qualityScore' ? 'Qualität' : 'Signal'} {sortDir === 'desc' ? '↓' : '↑'}</p>}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -1407,6 +1425,21 @@ export default function PortfolioDetailsPage() {
                       </button>
                     ))}
                   </div>
+                  {posView === 'tabelle' && (
+                    <button
+                      onClick={() => refreshSignalsMutation.mutate({ portfolioId })}
+                      disabled={refreshSignalsMutation.isPending || isSignalsFetching}
+                      title="Signal-Cache leeren und Scores neu berechnen"
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs rounded border border-white/20 text-gray-400 hover:text-white hover:border-white/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {(refreshSignalsMutation.isPending || isSignalsFetching) ? (
+                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      ) : (
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                      )}
+                      Scores neu berechnen
+                    </button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-white/20 text-white hover:bg-white/5 text-xs h-8 gap-1">
                     + Position
                   </Button>
@@ -1420,19 +1453,50 @@ export default function PortfolioDetailsPage() {
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticker</th>
                       <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
                       <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Sektor</th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Gewicht</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('weight')}>
+                        <span className={sortKey === 'weight' ? 'text-[#00CFC1]' : 'text-gray-400'}>Gewicht {sortKey === 'weight' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Wert</th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Heute</th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="YTD = seit Jahresbeginn">YTD</th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Qualitäts-Score 0-100">Qualität</th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Signal-Score 0-100 (Momentum + Qualität + LPPL)">Signal</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('today')}>
+                        <span className={sortKey === 'today' ? 'text-[#00CFC1]' : 'text-gray-400'}>Heute {sortKey === 'today' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
+                        <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Qualitäts-Score 0-100 — klicken zum Sortieren" onClick={() => handleSort('qualityScore')}>
+                        <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Qualität {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0-100 (Momentum + Qualität + LPPL) — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
+                        <span className={sortKey === 'signalScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Signal {sortKey === 'signalScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
                       <th className="w-16"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {holdings
                       .slice()
-                      .sort((a: any, b: any) => parseFloat(b.weight || '0') - parseFloat(a.weight || '0'))
+                      .sort((a: any, b: any) => {
+                        let aVal: number, bVal: number;
+                        if (sortKey === 'weight') {
+                          aVal = parseFloat(a.weight || '0');
+                          bVal = parseFloat(b.weight || '0');
+                        } else if (sortKey === 'ytd') {
+                          aVal = parseFloat(a.ytdPerformance || '0');
+                          bVal = parseFloat(b.ytdPerformance || '0');
+                        } else if (sortKey === 'today') {
+                          aVal = parseFloat(a.dailyChangePercent || a.changePercent || '0');
+                          bVal = parseFloat(b.dailyChangePercent || b.changePercent || '0');
+                        } else if (sortKey === 'qualityScore') {
+                          aVal = a.qualityScore ?? -1;
+                          bVal = b.qualityScore ?? -1;
+                        } else if (sortKey === 'signalScore') {
+                          aVal = signalMap.get(a.ticker)?.combinedScore ?? -1;
+                          bVal = signalMap.get(b.ticker)?.combinedScore ?? -1;
+                        } else {
+                          aVal = 0; bVal = 0;
+                        }
+                        return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
+                      })
                       .map((h: any) => {
                         const ytd = parseFloat(h.ytdPerformance || '0');
                         const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');

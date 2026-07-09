@@ -915,5 +915,28 @@ export const signalsRouter = router({
       });
 
       return signals;
+    }),
+
+  // Clears the signal cache for all tickers in a portfolio, forcing a fresh recalculation
+  refreshSignals: protectedProcedure
+    .input(z.object({ portfolioId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      // Verify portfolio belongs to user
+      const [portfolio] = await db
+        .select()
+        .from(savedPortfolios)
+        .where(eq(savedPortfolios.id, input.portfolioId))
+        .limit(1);
+      if (!portfolio || portfolio.userId !== ctx.user.id) {
+        throw new Error("Portfolio not found");
+      }
+      const portfolioData = JSON.parse(portfolio.portfolioData);
+      const tickers: string[] = (portfolioData.stocks || []).map((s: any) => s.ticker);
+      if (tickers.length > 0) {
+        await db.delete(stockSignalCache).where(inArray(stockSignalCache.ticker, tickers));
+      }
+      return { cleared: tickers.length };
     })
 });
