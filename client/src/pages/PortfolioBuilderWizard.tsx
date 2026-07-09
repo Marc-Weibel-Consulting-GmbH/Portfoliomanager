@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,6 +133,7 @@ export default function PortfolioBuilderWizard() {
   const [isLive, setIsLive] = useState(false);
 
   // ── Queries & mutations ──
+  const { data: savedProfile } = trpc.investmentProfile.get.useQuery();
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const createPortfolioMutation = trpc.portfolios.create.useMutation();
   const setProfileMutation = trpc.investmentProfile.set.useMutation();
@@ -140,6 +141,21 @@ export default function PortfolioBuilderWizard() {
     onSuccess: (data) => setAutoProposal(data),
     onError: (e) => toast.error("Vorschlag konnte nicht erstellt werden", { description: e.message }),
   });
+
+  // Pre-fill auto wizard from saved profile when user selects auto path
+  useEffect(() => {
+    if (savedProfile && path === "auto") {
+      if (savedProfile.investmentGoal) setAutoGoal(savedProfile.investmentGoal);
+      if (savedProfile.riskProfile) setAutoRisk(savedProfile.riskProfile);
+      if (savedProfile.investmentHorizonYears) {
+        const yr = savedProfile.investmentHorizonYears;
+        setAutoHorizon(yr <= 3 ? 2 : yr <= 7 ? 5 : yr <= 15 ? 10 : 20);
+      }
+      if (Array.isArray(savedProfile.excludedSectors) && savedProfile.excludedSectors.length > 0) {
+        setAutoExcluded(savedProfile.excludedSectors);
+      }
+    }
+  }, [savedProfile, path]);
 
   // ── Derived ──
   const totalSteps = 5;
@@ -585,6 +601,15 @@ export default function PortfolioBuilderWizard() {
                       <span>Methode: {autoProposal.methodLabel}</span>
                       <span>·</span>
                       <span>{autoProposal.stats.scoredCount} bewertet, {autoProposal.stats.buySignals} Kaufsignale</span>
+                      {autoExcluded.length > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="text-red-400">
+                            {autoExcluded.length} Sektor{autoExcluded.length > 1 ? "en" : ""} ausgeschlossen
+                            {" ("}{autoExcluded.map((s) => EXCLUDED_SECTORS.find((e) => e.value === s)?.label ?? s).join(", ")}{")"}  
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
                       {autoProposal.positions.map((p: any) => (
