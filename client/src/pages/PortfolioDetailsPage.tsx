@@ -1127,7 +1127,17 @@ export default function PortfolioDetailsPage() {
               <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
               <p className="text-sm text-gray-400 mt-1">
                 {typeConfig?.label || 'Portfolio'} · {holdings.length} Positionen
-                {portfolio.createdAt && ` · seit ${new Date(portfolio.createdAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
+                {(() => {
+                  // Priority: 1) manually set inceptionDate, 2) earliest buy transaction, 3) createdAt
+                  const displayDate = (portfolio as any).inceptionDate
+                    ? new Date((portfolio as any).inceptionDate)
+                    : (portfolio as any).earliestBuyDate
+                    ? new Date((portfolio as any).earliestBuyDate)
+                    : portfolio.createdAt
+                    ? new Date(portfolio.createdAt)
+                    : null;
+                  return displayDate ? ` · seit ${displayDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : '';
+                })()}
               </p>
             </div>
 
@@ -2151,6 +2161,7 @@ export default function PortfolioDetailsPage() {
         initialName={portfolio.name}
         initialDescription={portfolio.description || undefined}
         initialInvestmentAmount={portfolio.investmentAmount}
+        initialInceptionDate={(portfolio as any).inceptionDate ?? null}
         portfolioType={portfolio.portfolioType as 'demo' | 'live'}
         onSuccess={() => refetch()}
       />

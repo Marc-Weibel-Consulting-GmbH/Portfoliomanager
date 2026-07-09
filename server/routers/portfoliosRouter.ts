@@ -304,12 +304,25 @@ export const portfoliosRouter = router({
     getWithCurrency: protectedProcedure
       .input(z.number().int().positive())
       .query(async ({ input, ctx }) => {
-        const { getSavedPortfolioById, getStockByTicker } = await import("../db");
+        const { getSavedPortfolioById, getStockByTicker, getPortfolioTransactions } = await import("../db");
         const { getStockCurrency, tryConvertToCHF } = await import("../fxHelper");
         const { calculateStockScore } = await import("../scoring");
 
         const portfolio = await getSavedPortfolioById(input, ctx.user.id);
         if (!portfolio) return null;
+
+        // Get earliest buy/entry transaction date for display
+        let earliestBuyDate: Date | null = null;
+        try {
+          const transactions = await getPortfolioTransactions(input);
+          const buyTxs = transactions.filter((t: any) => t.transactionType === 'buy' || t.transactionType === 'entry');
+          if (buyTxs.length > 0) {
+            buyTxs.sort((a: any, b: any) => new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime());
+            earliestBuyDate = new Date(buyTxs[0].transactionDate);
+          }
+        } catch (e) {
+          // ignore — not critical
+        }
         
         // Parse portfolio data
         let portfolioData: { stocks: any[] } = { stocks: [] };
@@ -470,6 +483,7 @@ export const portfoliosRouter = router({
           avgDividendYield: Number(avgDividendYield),
           performancePercent: Number(performancePercent.toFixed(2)),
           performanceAbsolute: Number(performanceAbsolute.toFixed(2)),
+          earliestBuyDate: earliestBuyDate?.toISOString() ?? null,
           _debug: {
             originalStockCount: portfolioData.stocks?.length || 0,
             filteredStockCount: stocksWithoutCash.length,
@@ -796,6 +810,7 @@ export const portfoliosRouter = router({
           portfolioData: z.string().optional(),
           isLive: z.number().optional(),
           liveStartDate: z.string().optional().nullable(),
+          inceptionDate: z.string().optional().nullable(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -821,6 +836,7 @@ export const portfoliosRouter = router({
           portfolioData: input.portfolioData,
           isLive: input.isLive,
           liveStartDate: input.liveStartDate ? new Date(input.liveStartDate) : undefined,
+          inceptionDate: input.inceptionDate !== undefined ? (input.inceptionDate ? new Date(input.inceptionDate) : null) : undefined,
         });
         return result;
       }),

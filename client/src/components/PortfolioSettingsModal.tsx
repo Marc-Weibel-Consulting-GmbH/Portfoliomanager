@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Save, X, Loader2, Settings } from "lucide-react";
+import { Save, X, Loader2, Settings, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface PortfolioSettingsModalProps {
@@ -16,6 +16,7 @@ interface PortfolioSettingsModalProps {
   initialName: string;
   initialDescription?: string;
   initialInvestmentAmount: string;
+  initialInceptionDate?: string | null;
   portfolioType: 'demo' | 'live';
   onSuccess?: () => void;
 }
@@ -27,14 +28,23 @@ export function PortfolioSettingsModal({
   initialName,
   initialDescription,
   initialInvestmentAmount,
+  initialInceptionDate,
   portfolioType,
   onSuccess
 }: PortfolioSettingsModalProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription || "");
   const [investmentAmount, setInvestmentAmount] = useState(initialInvestmentAmount);
+  // inceptionDate stored as YYYY-MM-DD string for the date input
+  const [inceptionDate, setInceptionDate] = useState<string>(() => {
+    if (!initialInceptionDate) return "";
+    try {
+      return new Date(initialInceptionDate).toISOString().split('T')[0];
+    } catch {
+      return "";
+    }
+  });
   const [hasChanges, setHasChanges] = useState(false);
-
   const utils = trpc.useUtils();
 
   // Initialize form when modal opens
@@ -43,18 +53,30 @@ export function PortfolioSettingsModal({
       setName(initialName);
       setDescription(initialDescription || "");
       setInvestmentAmount(initialInvestmentAmount);
+      setInceptionDate(() => {
+        if (!initialInceptionDate) return "";
+        try {
+          return new Date(initialInceptionDate).toISOString().split('T')[0];
+        } catch {
+          return "";
+        }
+      });
       setHasChanges(false);
     }
-  }, [open, initialName, initialDescription, initialInvestmentAmount]);
+  }, [open, initialName, initialDescription, initialInvestmentAmount, initialInceptionDate]);
 
   // Track changes
   useEffect(() => {
-    const changed = 
+    const initialDateStr = initialInceptionDate
+      ? (() => { try { return new Date(initialInceptionDate).toISOString().split('T')[0]; } catch { return ""; } })()
+      : "";
+    const changed =
       name !== initialName ||
       description !== (initialDescription || "") ||
-      investmentAmount !== initialInvestmentAmount;
+      investmentAmount !== initialInvestmentAmount ||
+      inceptionDate !== initialDateStr;
     setHasChanges(changed);
-  }, [name, description, investmentAmount, initialName, initialDescription, initialInvestmentAmount]);
+  }, [name, description, investmentAmount, inceptionDate, initialName, initialDescription, initialInvestmentAmount, initialInceptionDate]);
 
   // Update portfolio mutation
   const updatePortfolio = trpc.portfolios.update.useMutation({
@@ -76,19 +98,12 @@ export function PortfolioSettingsModal({
       toast.error("Portfolio-Name darf nicht leer sein");
       return;
     }
-
-    const amount = parseFloat(investmentAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Investitionssumme muss eine positive Zahl sein");
-      return;
-    }
-
     updatePortfolio.mutate({
       id: portfolioId,
       name: name.trim(),
       description: description.trim() || undefined,
-      // Note: investmentAmount cannot be updated via this mutation
-      // It's displayed for reference only
+      // inceptionDate: ISO string or null to clear
+      inceptionDate: inceptionDate ? new Date(inceptionDate).toISOString() : null,
     });
   };
 
@@ -137,7 +152,7 @@ export function PortfolioSettingsModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optionale Beschreibung oder Strategie-Notizen..."
-              className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
+              className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
               maxLength={500}
             />
             <p className="text-xs text-muted-foreground">
@@ -145,7 +160,27 @@ export function PortfolioSettingsModal({
             </p>
           </div>
 
-          {/* Investment Amount (Read-only for now) */}
+          {/* Inception Date */}
+          <div className="space-y-2">
+            <Label htmlFor="inceptionDate" className="text-sm font-medium text-white flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-cyan-400" />
+              Portfolio-Startdatum (Seit Kauf)
+            </Label>
+            <Input
+              id="inceptionDate"
+              type="date"
+              value={inceptionDate}
+              onChange={(e) => setInceptionDate(e.target.value)}
+              className="bg-slate-700 border-slate-600 text-white"
+              max={new Date().toISOString().split('T')[0]}
+            />
+            <p className="text-xs text-muted-foreground">
+              Das Datum, seit dem das Portfolio gehalten wird (z.B. erster Kauftag). 
+              Wird im Portfolio-Header als «seit» angezeigt. Leer lassen = automatisch aus Transaktionen ermittelt.
+            </p>
+          </div>
+
+          {/* Investment Amount (Read-only) */}
           <div className="space-y-2">
             <Label htmlFor="investmentAmount" className="text-sm font-medium text-white">
               Investitionssumme
@@ -157,8 +192,8 @@ export function PortfolioSettingsModal({
                 disabled
                 className="bg-slate-700/50 border-slate-600 text-white/70 cursor-not-allowed"
               />
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-yellow-400 border-yellow-400/50"
               >
                 Nicht änderbar
@@ -177,7 +212,7 @@ export function PortfolioSettingsModal({
                 <div>
                   <p className="text-white font-medium mb-1">Demo-Portfolio</p>
                   <p className="text-sm text-gray-300">
-                    Dies ist ein Test-Portfolio. Sie können jederzeit Positionen hinzufügen, 
+                    Dies ist ein Test-Portfolio. Sie können jederzeit Positionen hinzufügen,
                     entfernen oder Gewichtungen anpassen, ohne echtes Geld zu investieren.
                   </p>
                 </div>
@@ -196,7 +231,7 @@ export function PortfolioSettingsModal({
               <X className="h-4 w-4 mr-2" />
               Abbrechen
             </Button>
-            
+
             <Button
               onClick={handleSave}
               disabled={!hasChanges || updatePortfolio.isPending}

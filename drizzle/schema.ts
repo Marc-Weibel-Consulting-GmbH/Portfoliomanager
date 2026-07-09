@@ -220,6 +220,7 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   liveStartDate: timestamp("liveStartDate"), // Date when live tracking started
   livePerformance: varchar("livePerformance", { length: 50 }), // IRR/MWR performance (e.g., "12.5")
   cashBalance: varchar("cashBalance", { length: 50 }).default("0"), // Current cash/liquidity balance in CHF
+  inceptionDate: timestamp("inceptionDate"), // Optional: manually set portfolio start date (overrides createdAt for display)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
