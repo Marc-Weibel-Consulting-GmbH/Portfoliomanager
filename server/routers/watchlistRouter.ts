@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { watchlistStocks } from "../../drizzle/schema";
-import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios, getWikifolioTrades } from '../lib/wikifolioService';
+import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios, getWikifolioTrades, getWikifolioKeyFigures } from '../lib/wikifolioService';
 import { resolveIsinToTicker, isLikelyIsin } from '../lib/isinResolver';
 import { getUniverseListTypeFilter } from '../lib/watchlistUniverse';
 import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
@@ -858,6 +858,11 @@ export const watchlistRouter = router({
           query: input.query,
           limit: input.limit,
         });
+
+        // Note: The new search-api.wikifolio.com no longer returns performance metrics
+        // (sharpeRatio, performance, maxDrawdown). These are only available via the
+        // authenticated basicdata endpoint. We return the search results immediately
+        // without enrichment to avoid slow/failing API calls.
         return { success: true, traders };
       } catch (err: any) {
         throw new TRPCError({

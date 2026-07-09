@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import {
   RefreshCw, Download, ExternalLink, TrendingUp, TrendingDown,
@@ -38,6 +38,18 @@ export default function AdminWikifolio() {
   const [symbol, setSymbol] = useState("wfglobalnt");
   const [inputSymbol, setInputSymbol] = useState("wfglobalnt");
   const [search, setSearch] = useState("");
+  const portfolioSectionRef = useRef<HTMLDivElement>(null);
+  const [pendingScroll, setPendingScroll] = useState(false);
+
+  // Scroll to portfolio section when a trader's portfolio is selected
+  useEffect(() => {
+    if (pendingScroll && portfolioSectionRef.current) {
+      setTimeout(() => {
+        portfolioSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+      setPendingScroll(false);
+    }
+  }, [symbol, pendingScroll]);
   const [sortKey, setSortKey] = useState<SortKey>("percentage");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [importOverwrite, setImportOverwrite] = useState(false);
@@ -250,10 +262,8 @@ export default function AdminWikifolio() {
                       <th className="text-left p-3 font-medium">Titel</th>
                       <th className="text-left p-3 font-medium">Symbol</th>
                       <th className="text-left p-3 font-medium">Trader</th>
-                      <th className="text-right p-3 font-medium">{TRADER_CRITERIA_LABELS[traderSearch?.sortBy ?? "perf12m"]}</th>
-                      <th className="text-right p-3 font-medium">Ø Perf./Jahr</th>
-                      <th className="text-right p-3 font-medium">Perf. gesamt</th>
-                      <th className="text-right p-3 font-medium">Max. Verlust</th>
+                      <th className="text-left p-3 font-medium">Strategie-Tags</th>
+                      <th className="text-left p-3 font-medium">ISIN</th>
                       <th className="text-right p-3 font-medium">Aktionen</th>
                     </tr>
                   </thead>
@@ -265,25 +275,21 @@ export default function AdminWikifolio() {
                         </td>
                         <td className="p-3 font-mono text-xs">{t.symbol}</td>
                         <td className="p-3 text-muted-foreground">{t.traderName || "—"}</td>
-                        <td className="p-3 text-right font-mono">
-                          {t.rankValue !== null ? t.rankValue.toLocaleString("de-CH", { maximumFractionDigits: 1 }) : "—"}
+                        <td className="p-3">
+                          <div className="flex flex-wrap gap-1">
+                            {(t.tags || []).slice(0, 4).map((tag: string) => (
+                              <span key={tag} className="inline-block px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground">{tag}</span>
+                            ))}
+                          </div>
                         </td>
-                        <td className="p-3 text-right font-mono">
-                          {t.perfAnnually !== null ? `${t.perfAnnually.toFixed(1)}%` : "—"}
-                        </td>
-                        <td className="p-3 text-right font-mono">
-                          {t.perfEver !== null ? `${t.perfEver.toFixed(1)}%` : "—"}
-                        </td>
-                        <td className="p-3 text-right font-mono">
-                          {t.maxDrawdown !== null ? `${t.maxDrawdown.toFixed(1)}%` : "—"}
-                        </td>
+                        <td className="p-3 font-mono text-xs text-muted-foreground">{t.isin || "—"}</td>
                         <td className="p-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="outline"
                               size="sm"
                               className="h-7"
-                              onClick={() => { setInputSymbol(t.symbol); setSymbol(t.symbol); }}
+                              onClick={() => { const sym = t.symbol.toLowerCase(); setInputSymbol(sym); setSymbol(sym); setPendingScroll(true); }}
                               title="Portfolio dieses Wikifolios laden"
                             >
                               <Eye className="w-3.5 h-3.5 mr-1" />
@@ -306,7 +312,7 @@ export default function AdminWikifolio() {
                     ))}
                     {traderSearchData.traders.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                        <td colSpan={6} className="p-6 text-center text-muted-foreground">
                           Keine Wikifolios gefunden.
                         </td>
                       </tr>
@@ -319,6 +325,7 @@ export default function AdminWikifolio() {
         </Card>
 
         {/* Symbol Input */}
+        <div ref={portfolioSectionRef} />
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Wikifolio-Symbol</CardTitle>

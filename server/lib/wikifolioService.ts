@@ -336,6 +336,8 @@ export interface WikifolioTraderResult {
   capital: number | null;
   isin: string | null;
   wikifolioUrl: string | null;
+  /** Strategy tags from the search API (e.g. 'fundamental', 'aktde', 'alpha-strong') */
+  tags: string[];
 }
 
 // Map our sortBy keys to the new search-api.wikifolio.com SortingOrder enum values
@@ -392,6 +394,7 @@ export function mapWikifolioSearchResults(wikis: any[]): WikifolioTraderResult[]
         capital,
         isin: w.isin || null,
         wikifolioUrl: `https://www.wikifolio.com/de/de/w/${w.symbol?.toLowerCase()}`,
+        tags: Array.isArray(w.tags) ? w.tags.slice(0, 5) : [],
       };
     });
 }
@@ -443,4 +446,82 @@ export async function searchWikifolios(params: {
 
   const wikis: any[] = response?.wikifolios || [];
   return mapWikifolioSearchResults(wikis);
+}
+
+/**
+ * Fetch key figures (Sharpe Ratio, performance, max drawdown, etc.) for a
+ * wikifolio by calling the authenticated `analysis` endpoint.
+ *
+ * The search-api no longer returns these metrics, so we must fetch them
+ * separately for each wikifolio after the initial search.
+ *
+ * Returns null on any error (e.g. private wikifolio, auth failure) so callers
+ * can gracefully degrade to showing "—".
+ */
+export interface WikifolioKeyFigures {
+  sharpeRatio: number | null;
+  perfAnnually: number | null;
+  perfEver: number | null;
+  perf12m: number | null;
+  maxDrawdown: number | null;
+}
+
+export async function getWikifolioKeyFigures(symbol: string): Promise<WikifolioKeyFigures | null> {
+  // Always normalise to lowercase — the API path is case-sensitive
+  const sym = symbol.toLowerCase();
+  try {
+    // basicdata already contains all key figures we need (sharpeRatio, performanceEver,
+    // maxDrawdown, performance1y).  No separate analysis call required.
+    const basicData = await request<any>(`api/wikifolio/${sym}/basicdata`);
+
+    if (!basicData || typeof basicData !== 'object') return null;
+
+    function toNum(v: any): number | null {
+      if (v === null || v === undefined) return null;
+      const n = typeof v === 'string' ? parseFloat(v.replace(',', '.').replace('%', '').replace(/\s/g, '')) : Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    // Try to extract from basicdata fields (field names vary by API version)
+    const sharpeRatio = toNum(basicData.sharpeRatio ?? basicData.sharpe);
+    const perfAnnually = toNum(basicData.performanceAnnualized ?? basicData.performancePerYear ?? basicData.perfAnnually);
+    const perfEver = toNum(basicData.performanceEver ?? basicData.totalPerformance ?? basicData.perfEver);
+    const perf12m = toNum(basicData.performance1y ?? basicData.performance12m ?? basicData.perf12m);
+    const maxDrawdown = toNum(basicData.maxDrawdown ?? basicData.maximumDrawdown);
+
+    // If basicdata has no useful data, try the analysis endpoint as fallback
+    if (sharpeRatio === null && perfAnnually === null && perfEver === null) {
+      const id = basicData?.id || basicData?.wikifolioId;
+      if (id) {
+        try {
+          const analysisData = await request<any>(`api/wikifolio/${id}/analysis?country=de&language=de`);
+          const keyFigures: any[] = analysisData?.analysis?.keyFigures || [];
+
+          function findValue(label: string): number | null {
+            const item = keyFigures.find((i: any) => i.label === label);
+            if (!item) return null;
+            const raw = item.value ?? item.displayValue;
+            if (raw === null || raw === undefined) return null;
+            const n = typeof raw === 'string' ? parseFloat(raw.replace(',', '.').replace('%', '').replace(/\s/g, '')) : raw;
+            return Number.isFinite(n) ? n : null;
+          }
+
+          return {
+            sharpeRatio: findValue('Sharpe Ratio'),
+            perfAnnually: findValue('Ø-Performance pro Jahr'),
+            perfEver: findValue('Performance seit Beginn'),
+            perf12m: findValue('Performance 1 Jahr'),
+            maxDrawdown: findValue('Maximaler Verlust (bisher)'),
+          };
+        } catch {
+          // analysis endpoint also failed — return what we have from basicdata
+        }
+      }
+    }
+
+    return { sharpeRatio, perfAnnually, perfEver, perf12m, maxDrawdown };
+  } catch (err: any) {
+    console.warn(`[wikifolioService] Could not fetch key figures for ${sym}:`, err?.message);
+    return null;
+  }
 }
