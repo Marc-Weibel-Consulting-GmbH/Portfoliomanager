@@ -24,6 +24,25 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React core — cached aggressively
+          "vendor-react": ["react", "react-dom"],
+          // tRPC + query layer
+          "vendor-trpc": ["@trpc/client", "@trpc/react-query", "@tanstack/react-query"],
+          // Heavy chart libraries — only loaded when charts are shown
+          "vendor-charts": ["chart.js", "react-chartjs-2", "recharts"],
+          // PDF export — only loaded on demand
+          "vendor-pdf": ["jspdf", "html2canvas"],
+          // Markdown rendering
+          "vendor-markdown": ["react-markdown"],
+          // UI primitives
+          "vendor-ui": ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs", "@radix-ui/react-tooltip"],
+        },
+      },
+    },
   },
   server: {
     host: true,

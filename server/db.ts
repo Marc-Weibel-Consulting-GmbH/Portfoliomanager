@@ -1,4 +1,4 @@
-import { eq, sql, isNotNull, ne, desc, lt, and, asc, gte, lte } from "drizzle-orm";
+import { eq, sql, isNotNull, ne, desc, lt, and, asc, gte, lte, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, InsertLogoCache, LogoCache, stocks, users, news, transactions, savedPortfolios, categories, logoCache } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -173,6 +173,36 @@ export async function getStockByTicker(ticker: string) {
     }
   }
   return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Batch-fetch multiple stocks by ticker in a single DB query.
+ * Returns a Map<ticker, stock> for O(1) lookup.
+ * Falls back gracefully: missing tickers simply won’t appear in the map.
+ */
+export async function getStocksByTickers(tickers: string[]): Promise<Map<string, typeof stocks.$inferSelect>> {
+  const db = await getDb();
+  const result = new Map<string, typeof stocks.$inferSelect>();
+  if (!db || tickers.length === 0) return result;
+
+  const uniqueTickers = [...new Set(tickers)];
+  const rows = await db.select().from(stocks).where(inArray(stocks.ticker, uniqueTickers));
+  for (const row of rows) {
+    result.set(row.ticker, row);
+  }
+
+  // For tickers not found, try without ".US" suffix
+  const missing = uniqueTickers.filter(t => !result.has(t) && t.endsWith('.US'));
+  if (missing.length > 0) {
+    const bases = missing.map(t => t.slice(0, -3));
+    const fallbackRows = await db.select().from(stocks).where(inArray(stocks.ticker, bases));
+    for (let i = 0; i < missing.length; i++) {
+      const found = fallbackRows.find(r => r.ticker === bases[i]);
+      if (found) result.set(missing[i], found);
+    }
+  }
+
+  return result;
 }
 
 export async function insertStock(stock: InsertStock) {

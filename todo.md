@@ -51,3 +51,11 @@
 - [x] Backend: tRPC marketReport.getLatest und marketReport.list Prozeduren
 - [x] Frontend: Markt-Seite um Market-Update-Bericht-Sektion erweitern
 - [x] Manus Skill/Task: Bericht nach Generierung via API an Portfoliomanager senden (Anleitung an Benutzer geliefert, manuell im Chancen-Task konfigurieren)
+
+## Performance-Optimierung (2026-07-09)
+- [ ] Frontend: Code-Splitting und Lazy Loading für alle Seiten-Komponenten
+- [ ] Frontend: react-markdown und andere grosse Libraries dynamisch laden
+- [ ] Backend: Redis-Caching für teure Kurs-Abfragen (EODHD, Finnhub)
+- [ ] Backend: N+1-Probleme in portfoliosRouter beheben (Batch-Queries)
+- [ ] Backend: Parallele Fetches statt sequentielle in getWithCurrency
+- [ ] Backend: DB-Indexes für häufige Queries prüfen und ergänzen

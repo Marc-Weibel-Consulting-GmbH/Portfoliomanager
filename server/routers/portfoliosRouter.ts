@@ -304,7 +304,14 @@ export const portfoliosRouter = router({
     getWithCurrency: protectedProcedure
       .input(z.number().int().positive())
       .query(async ({ input, ctx }) => {
-        const { getSavedPortfolioById, getStockByTicker, getPortfolioTransactions } = await import("../db");
+        // PERF: Check Redis cache first (2-minute TTL) to avoid recomputing on every page visit
+        try {
+          const { cacheGet } = await import('../redisClient');
+          const cached = await cacheGet<any>(`portfolio:detail:${input}:${ctx.user.id}`);
+          if (cached) return cached;
+        } catch { /* non-critical — fall through to compute */ }
+
+        const { getSavedPortfolioById, getStockByTicker, getStocksByTickers, getPortfolioTransactions } = await import("../db");
         const { getStockCurrency, tryConvertToCHF } = await import("../fxHelper");
         const { calculateStockScore } = await import("../scoring");
 
@@ -337,11 +344,15 @@ export const portfoliosRouter = router({
         // Filter out CASH ticker from portfolioData (cash is tracked separately in cashBalance field)
         const stocksWithoutCash = (portfolioData.stocks || []).filter((s: any) => s.ticker !== 'CASH');
         
+        // PERF: Batch-fetch all stocks in a single DB query instead of N+1 individual queries
+        const allTickers = stocksWithoutCash.map((s: any) => s.ticker);
+        const dbStockMap = await getStocksByTickers(allTickers);
+        
         // Enrich stocks with currency and FX data
         const enrichedStocks = await Promise.all(
           stocksWithoutCash.map(async (stock: any) => {
             const ticker = stock.ticker;
-            const dbStock = await getStockByTicker(ticker);
+            const dbStock = dbStockMap.get(ticker) || await getStockByTicker(ticker); // fallback for alias resolution
             const currency = dbStock?.currency || await getStockCurrency(ticker);
             // Single source of truth: DB price + convertToCHF — identical to
             // portfolios.list and dashboard.getAggregatedMetrics so the WERT
@@ -496,6 +507,13 @@ export const portfoliosRouter = router({
             performanceAbsolute,
           },
         };
+        
+        // PERF: Cache result in Redis for 2 minutes to avoid recomputing on every page visit
+        try {
+          const { cacheSet } = await import('../redisClient');
+          await cacheSet(`portfolio:detail:${input}:${ctx.user.id}`, result, 120);
+        } catch { /* non-critical */ }
+        
         return result;
       }),
 
