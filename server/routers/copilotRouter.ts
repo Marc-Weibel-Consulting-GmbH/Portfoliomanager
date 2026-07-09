@@ -229,6 +229,25 @@ export const copilotRouter = router({
       // und werden aus der Risiko-/Analyse-Berechnung gefiltert (keine Platzhalter).
       const holdings = await buildHoldingsEodhd(stocks);
 
+      // Signal-Cache laden für Konsistenz mit Signale-Tab
+      const signalCacheMap = new Map<string, { combinedScore: number | null; signalType: string | null; signalStrength: string | null }>();
+      try {
+        const { stockSignalCache } = await import('../../drizzle/schema');
+        const { inArray } = await import('drizzle-orm');
+        const db = await getDb();
+        const allTickers = holdings.map(h => h.ticker);
+        if (db && allTickers.length > 0) {
+          const cacheRows = await db.select().from(stockSignalCache).where(inArray(stockSignalCache.ticker, allTickers));
+          for (const row of cacheRows) {
+            signalCacheMap.set(row.ticker, {
+              combinedScore: row.combinedScore ? parseFloat(row.combinedScore as string) : null,
+              signalType: row.signalType ?? null,
+              signalStrength: row.signalStrength ?? null,
+            });
+          }
+        }
+      } catch (e) { console.warn('[Copilot] Signal-Cache nicht verfügbar:', e); }
+
       // Run copilot analysis
       const analysis = await runCopilotAnalysis(holdings);
 
@@ -254,6 +273,44 @@ export const copilotRouter = router({
         console.warn('[Copilot] calcRiskMetrics failed, using internal metrics:', riskErr);
         // Keep the original portfolioMetrics from runCopilotAnalysis as fallback
       }
+
+      // Signal-Cache-Scores in rebalancingSuggestions integrieren für Konsistenz mit Signale-Tab
+      analysis.rebalancingSuggestions = analysis.rebalancingSuggestions.map(s => {
+        const sc = signalCacheMap.get(s.ticker);
+        if (!sc) return s;
+        const score = sc.combinedScore;
+        const sigType = sc.signalType;
+        const sigStrength = sc.signalStrength;
+
+        // Signal-Typ-Label
+        const sigLabel = sigType === 'buy' ? 'KAUF' : sigType === 'sell' ? 'VERKAUF' : 'HALTEN';
+        const scoreStr = score != null ? ` (Signal-Score ${Math.round(score)}/100)` : '';
+        const strengthStr = sigStrength === 'strong' ? 'Starkes ' : sigStrength === 'weak' ? 'Schwaches ' : '';
+
+        // Aktion basierend auf Signal-Cache erzwingen:
+        // VERKAUF/SELL -> nur decrease/exit erlaubt
+        // KAUF/BUY -> increase erlaubt
+        // HALTEN -> hold oder decrease (kein increase)
+        let action = s.action;
+        let reason = s.reason;
+
+        if (score !== null) {
+          if (score >= 60 || sigType === 'buy') {
+            // Gutes Signal: Empfehlung beibehalten
+            reason = `${strengthStr}${sigLabel}-Signal${scoreStr}. ${s.reason.replace(/Ranking-Score \d+\/100[^.]*\.?\s*/g, '').replace(/Starkes Verkaufssignal[^.]*\.?\s*/g, '').trim()}`;
+          } else if (score <= 40 || sigType === 'sell') {
+            // Verkaufssignal: increase -> decrease
+            if (action === 'increase') action = 'decrease';
+            reason = `${strengthStr}${sigLabel}-Signal${scoreStr}. ${s.reason.replace(/Ranking-Score \d+\/100[^.]*\.?\s*/g, '').trim()}`;
+          } else {
+            // Halten: increase -> hold
+            if (action === 'increase') action = 'hold';
+            reason = `${sigLabel}-Signal${scoreStr}. Kein Handlungsbedarf.`;
+          }
+        }
+
+        return { ...s, action, reason };
+      }).filter(s => s.action !== 'hold'); // hold-Einträge aus Liste entfernen
 
       // Generate LLM explanation
       let explanation: string | null = null;

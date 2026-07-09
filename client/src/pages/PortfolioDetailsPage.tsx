@@ -481,7 +481,7 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
                       {actionLabel[s.action] ?? s.action}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 truncate">
+                  <p className="text-xs text-gray-400 mt-1">
                     {(s.currentWeight * 100).toFixed(1)}% → {(s.targetWeight * 100).toFixed(1)}% · {s.reason}
                   </p>
                 </div>
