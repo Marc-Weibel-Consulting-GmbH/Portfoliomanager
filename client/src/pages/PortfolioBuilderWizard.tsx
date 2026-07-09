@@ -94,13 +94,14 @@ const HORIZONS = [
   { value: 20, label: "15+ Jahre", description: "Sehr langfristig — maximales Wachstumspotenzial", icon: <Clock className="h-7 w-7" /> },
 ];
 
+// Values must match DB sector names exactly for filtering to work in buildProposal
 const EXCLUDED_SECTORS = [
-  { value: "Tabak", label: "Tabak", icon: <Ban className="h-5 w-5" /> },
-  { value: "Rüstung", label: "Rüstung", icon: <Shield className="h-5 w-5" /> },
-  { value: "Glücksspiel", label: "Glücksspiel", icon: <Ban className="h-5 w-5" /> },
-  { value: "Fossile Energie", label: "Fossile Energie", icon: <Flame className="h-5 w-5" /> },
-  { value: "Alkohol", label: "Alkohol", icon: <Ban className="h-5 w-5" /> },
-  { value: "Cannabis", label: "Cannabis", icon: <Leaf className="h-5 w-5" /> },
+  { value: "Energy", label: "Fossile Energie", icon: <Flame className="h-5 w-5" /> },
+  { value: "Industrials", label: "Rüstung / Industrie", icon: <Shield className="h-5 w-5" /> },
+  { value: "Consumer", label: "Alkohol / Tabak", icon: <Ban className="h-5 w-5" /> },
+  { value: "Consumer Cyclical", label: "Glücksspiel", icon: <Ban className="h-5 w-5" /> },
+  { value: "Finance", label: "Finanzsektor", icon: <Ban className="h-5 w-5" /> },
+  { value: "Telecommunications", label: "Telekommunikation", icon: <Ban className="h-5 w-5" /> },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -556,11 +557,20 @@ export default function PortfolioBuilderWizard() {
                       <Label className="text-gray-300">Anlagebetrag (CHF) *</Label>
                       <Input
                         type="number"
-                        placeholder="z.B. 50000"
+                        placeholder="Min. CHF 100'000"
                         value={initialCapital}
                         onChange={(e) => setInitialCapital(e.target.value)}
-                        className="bg-[#0f1420] border-white/10 text-white mt-1"
+                        className={`bg-[#0f1420] border-white/10 text-white mt-1 ${
+                          initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000
+                            ? "border-yellow-500/60"
+                            : ""
+                        }`}
                       />
+                      {initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000 && (
+                        <p className="text-xs text-yellow-400 mt-1">
+                          Empfehlung: Mindestens CHF 100'000 für ein diversifiziertes Aktienportfolio.
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
