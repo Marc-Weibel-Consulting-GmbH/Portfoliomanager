@@ -46,8 +46,8 @@
 - [x] Begründungstext muss mit Signal-Typ übereinstimmen
 
 ## Tägliches Market-Update Integration (2026-07-09)
-- [ ] DB-Schema: marketReports Tabelle (id, date, title, content, source, createdAt)
-- [ ] Backend: POST /api/market-report Endpunkt für Manus-Task-Output
-- [ ] Backend: tRPC marketReport.getLatest und marketReport.list Prozeduren
-- [ ] Frontend: Markt-Seite um Market-Update-Bericht-Sektion erweitern
-- [ ] Manus Skill/Task: Bericht nach Generierung via API an Portfoliomanager senden
+- [x] DB-Schema: marketReports Tabelle (id, date, title, content, source, createdAt)
+- [x] Backend: POST /api/market-report Endpunkt für Manus-Task-Output
+- [x] Backend: tRPC marketReport.getLatest und marketReport.list Prozeduren
+- [x] Frontend: Markt-Seite um Market-Update-Bericht-Sektion erweitern
+- [ ] Manus Skill/Task: Bericht nach Generierung via API an Portfoliomanager senden (manuelle Konfiguration erforderlich)

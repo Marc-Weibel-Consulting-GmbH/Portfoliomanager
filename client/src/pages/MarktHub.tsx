@@ -19,7 +19,7 @@ import ReactMarkdown from "react-markdown";
 
 // Tägliches Manus Momentum-Update Bericht-Widget
 function MarketReportSection() {
-  const { data: report, isLoading } = trpc.marketReport.getLatest.useQuery(undefined, {
+  const { data: report, isLoading, isError, refetch } = trpc.marketReport.getLatest.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -43,6 +43,18 @@ function MarketReportSection() {
             <div key={i} className="h-3 bg-white/10 rounded animate-pulse" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-red-500/20 rounded-lg p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[10px] font-semibold text-[#00CFC1] uppercase tracking-widest">TÄGLICHES MARKT-UPDATE</span>
+          <button onClick={() => refetch()} className="text-xs text-red-400 hover:text-red-300 transition-colors underline">Erneut versuchen</button>
+        </div>
+        <p className="text-sm text-red-400">Bericht konnte nicht geladen werden. Bitte später erneut versuchen.</p>
       </div>
     );
   }
