@@ -5,7 +5,9 @@
  */
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, AlertTriangle } from "lucide-react";
+import { Sparkles, AlertTriangle, Clock } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 const RISK_LABEL: Record<string, string> = {
   konservativ: "Konservativ", ausgewogen: "Ausgewogen", wachstum: "Wachstum", aggressiv: "Aggressiv",
@@ -24,7 +26,16 @@ interface Assessment {
   toleranceScore: number;
   needScore: number | null;
   strategicAllocation: any;
+  version?: number;
+  lastReviewedAt?: string | Date | null;
+  nextReviewDueAt?: string | Date | null;
 }
+
+const fmtDate = (d?: string | Date | null) => {
+  if (!d) return null;
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? null : dt.toLocaleDateString("de-CH", { year: "numeric", month: "2-digit", day: "2-digit" });
+};
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
@@ -61,6 +72,18 @@ export default function AnlageprofilResult({
   const capacityBinds = assessment.capacityScore < assessment.toleranceScore;
   const needConflict = assessment.needScore != null && assessment.needScore > assessment.capacityScore + 15;
 
+  // P4: jährliche Überprüfung
+  const utils = trpc.useUtils();
+  const confirmReview = trpc.investmentProfile.confirmReview.useMutation({
+    onSuccess: () => {
+      toast.success("Profil als geprüft bestätigt");
+      utils.investmentProfile.getAssessment.invalidate();
+    },
+    onError: (e) => toast.error(`Fehler: ${e.message}`),
+  });
+  const reviewDue = assessment.nextReviewDueAt ? new Date(assessment.nextReviewDueAt).getTime() < Date.now() : false;
+  const lastReviewed = fmtDate(assessment.lastReviewedAt);
+
   const R = 60; // donut radius
   const eq = donutDash(alloc.equity, R);
   const bd = donutDash(alloc.bond, R);
@@ -87,6 +110,23 @@ export default function AnlageprofilResult({
       </CardHeader>
 
       <CardContent className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* P4: Überprüfung fällig */}
+        {reviewDue && (
+          <div className="lg:col-span-3 flex flex-wrap items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
+            <div className="flex items-start gap-2 text-sm text-amber-200">
+              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>Ihr Anlegerprofil ist über ein Jahr alt. Bitte prüfen Sie, ob es noch passt.</span>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button variant="outline" className="border-white/10 text-gray-200 h-8" onClick={onReassess}>Neu bewerten</Button>
+              <Button className="bg-[#00CFC1] text-black hover:bg-[#00CFC1]/80 h-8"
+                disabled={confirmReview.isPending} onClick={() => confirmReview.mutate()}>
+                {confirmReview.isPending ? "…" : "Profil bestätigen"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Risiko-Tacho */}
         <div className="flex flex-col items-center justify-center">
           <svg viewBox="0 0 220 140" width="100%" style={{ maxWidth: 240 }} role="img" aria-label={`Risiko-Tacho ${profile}`}>
@@ -155,6 +195,14 @@ export default function AnlageprofilResult({
             </div>
           )}
         </div>
+
+        {/* P4: Version + letzte Überprüfung */}
+        {(assessment.version || lastReviewed) && (
+          <div className="lg:col-span-3 border-t border-white/10 pt-3 text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+            {assessment.version ? <span>Version {assessment.version}</span> : null}
+            {lastReviewed ? <span>Zuletzt geprüft: {lastReviewed}</span> : null}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
