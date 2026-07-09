@@ -24,6 +24,15 @@ const TRADER_CRITERIA_LABELS: Record<TraderSortBy, string> = {
   aum: "Verwaltetes Vermögen",
 };
 
+// Aktions-Label + Farbe für die Transaktionshistorie
+const WIKI_ACTION: Record<string, { label: string; cls: string }> = {
+  buy: { label: "Kauf", cls: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+  increase: { label: "Erhöht", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" },
+  reduce: { label: "Reduziert", cls: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
+  sell: { label: "Verkauf", cls: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
+  other: { label: "Sonstige", cls: "bg-muted text-muted-foreground" },
+};
+
 export default function AdminWikifolio() {
   const { user } = useAuth();
   const [symbol, setSymbol] = useState("wfglobalnt");
@@ -49,6 +58,12 @@ export default function AdminWikifolio() {
   );
 
   const { data: portfolioData, isLoading, error, refetch } = trpc.watchlist.getWikifolioPortfolio.useQuery(
+    { symbol },
+    { retry: false }
+  );
+
+  // Transaktionshistorie (welcher Titel wann gekauft/verkauft/erhöht/reduziert)
+  const { data: tradesData, isLoading: tradesLoading, error: tradesError } = trpc.watchlist.getWikifolioTrades.useQuery(
     { symbol },
     { retry: false }
   );
@@ -597,6 +612,70 @@ export default function AdminWikifolio() {
                     </tbody>
                   </table>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Transaktionshistorie — welcher Titel wann gekauft/verkauft/erhöht/reduziert */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Transaktionshistorie</CardTitle>
+                <CardDescription>
+                  Käufe, Verkäufe, Auf- und Abstockungen dieses Wikifolios über die Zeit.
+                  Wikifolio führt gewichtsbasiert — es werden keine Stückzahlen ausgewiesen.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {tradesLoading ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">Transaktionen werden geladen…</p>
+                ) : tradesError ? (
+                  <p className="text-sm text-red-500 py-6 text-center">{tradesError.message}</p>
+                ) : !tradesData?.trades?.length ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">Keine Transaktionen gefunden.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                          <th className="py-2 pr-3">Datum</th>
+                          <th className="py-2 pr-3">Titel</th>
+                          <th className="py-2 pr-3">Aktion</th>
+                          <th className="py-2 pr-3 text-right">Gewicht</th>
+                          <th className="py-2 text-right">Kurs</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tradesData.trades.map((t: any, idx: number) => {
+                          const action = WIKI_ACTION[t.action] ?? { label: t.side, cls: "bg-muted text-muted-foreground" };
+                          const dateStr = t.executedAt
+                            ? new Date(t.executedAt).toLocaleDateString("de-CH", { year: "numeric", month: "2-digit", day: "2-digit" })
+                            : "—";
+                          return (
+                            <tr key={`${t.externalTradeId ?? t.isin}-${idx}`} className="border-b last:border-0">
+                              <td className="py-2 pr-3 whitespace-nowrap tabular-nums">{dateStr}</td>
+                              <td className="py-2 pr-3">
+                                {t.ticker ? (
+                                  <a href={`/aktien/${t.ticker}`} className="text-primary hover:underline">{t.name || t.ticker}</a>
+                                ) : (
+                                  <span>{t.name || t.isin || "—"}</span>
+                                )}
+                                {t.isin && <span className="ml-2 text-xs text-muted-foreground">{t.isin}</span>}
+                              </td>
+                              <td className="py-2 pr-3">
+                                <span className={`text-xs px-2 py-0.5 rounded ${action.cls}`}>{action.label}</span>
+                              </td>
+                              <td className="py-2 pr-3 text-right tabular-nums">
+                                {t.weightage != null ? `${t.weightage.toFixed(1)}%` : "—"}
+                              </td>
+                              <td className="py-2 text-right tabular-nums">
+                                {t.executionPrice != null ? t.executionPrice.toFixed(2) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
