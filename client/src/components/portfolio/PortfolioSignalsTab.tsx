@@ -202,27 +202,35 @@ export function PortfolioSignalsTab({
                         ))}
                       </div>
                     )}
-                    {/* Modell-Inputs (RF, Sentiment) als erklärende Zusatzinfo, nicht als Widerspruch) */}
-                    {(signal.rfSignal || signal.sentimentLabel) && (
-                      <div className="text-[11px] text-muted-foreground border-t border-border pt-2 mt-1">
-                        <span className="font-medium text-foreground/60">Modell-Inputs: </span>
-                        {signal.rfSignal && (
-                          <span className="mr-3">
-                            Algorithmus: <span className={signal.rfSignal.includes('buy') ? 'text-emerald-500' : signal.rfSignal.includes('sell') ? 'text-red-400' : 'text-muted-foreground'}>
-                              {signal.rfSignal === 'strong_buy' ? 'Starker Kauf' : signal.rfSignal === 'buy' ? 'Kauf' : signal.rfSignal === 'strong_sell' ? 'Starker Verkauf' : signal.rfSignal === 'sell' ? 'Verkauf' : 'Halten'}
-                            </span> (Score: {signal.rfScore ?? '—'})
-                          </span>
-                        )}
-                        {signal.sentimentLabel && signal.sentimentLabel !== 'neutral' && (
-                          <span>
-                            Sentiment: <span className={signal.sentimentLabel === 'bullish' ? 'text-emerald-500' : 'text-red-400'}>
-                              {signal.sentimentLabel === 'bullish' ? 'Positiv' : 'Negativ'}
+                    {/* Modell-Inputs: nur anzeigen wenn RF mit finalem Signal übereinstimmt */}
+                    {(() => {
+                      const finalIsBuy = signal.type === 'buy';
+                      const finalIsSell = signal.type === 'sell';
+                      const rfIsBuy = signal.rfSignal === 'buy' || signal.rfSignal === 'strong_buy';
+                      const rfIsSell = signal.rfSignal === 'sell' || signal.rfSignal === 'strong_sell';
+                      const rfAgrees = signal.rfSignal && ((finalIsBuy && rfIsBuy) || (finalIsSell && rfIsSell));
+                      const showSentiment = signal.sentimentLabel && signal.sentimentLabel !== 'neutral';
+                      if (!rfAgrees && !showSentiment) return null;
+                      return (
+                        <div className="text-[11px] text-muted-foreground border-t border-border pt-2 mt-1">
+                          <span className="font-medium text-foreground/60">Bestätigende Indikatoren: </span>
+                          {rfAgrees && (
+                            <span className="mr-3">
+                              Algorithmus: <span className={rfIsBuy ? 'text-emerald-500' : 'text-red-400'}>
+                                {rfIsBuy ? 'Kauf' : 'Verkauf'}
+                              </span> (Score: {signal.rfScore ?? '—'})
                             </span>
-                          </span>
-                        )}
-                        <span className="ml-2 text-[10px] text-muted-foreground/50">(fliessen gewichtet in Score ein)</span>
-                      </div>
-                    )}
+                          )}
+                          {showSentiment && (
+                            <span>
+                              Sentiment: <span className={signal.sentimentLabel === 'bullish' ? 'text-emerald-500' : 'text-red-400'}>
+                                {signal.sentimentLabel === 'bullish' ? 'Positiv' : 'Negativ'}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}

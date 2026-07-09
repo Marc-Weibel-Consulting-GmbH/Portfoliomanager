@@ -40,7 +40,7 @@
 - [x] Optimierungs-Empfehlungen: Nur "aufstocken" wenn Signal-Score >= 55 (BUY-Zone)
 
 ## Signal-Konsistenz Fix (2026-07-09)
-- [ ] Signal-Typ-Berechnung: RF-Flags und combined Score müssen denselben Signal-Typ ergeben
-- [ ] RF-Flags nicht als Widerspruch anzeigen, sondern als Begründung für den Signal-Typ
-- [ ] Grade C-Badge im Signale-Tab entfernen oder erklären (ist Qualitäts-Grade, nicht Signal-Grade)
-- [ ] Begründungstext muss mit Signal-Typ übereinstimmen
+- [x] Signal-Typ-Berechnung: RF-Flags und combined Score müssen denselben Signal-Typ ergeben
+- [x] RF-Flags nicht als Widerspruch anzeigen, sondern als Begründung für den Signal-Typ
+- [x] Grade C-Badge im Signale-Tab entfernen oder erklären (ist Qualitäts-Grade, nicht Signal-Grade)
+- [x] Begründungstext muss mit Signal-Typ übereinstimmen

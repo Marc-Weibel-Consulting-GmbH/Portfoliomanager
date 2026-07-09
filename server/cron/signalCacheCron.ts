@@ -235,9 +235,15 @@ export async function refreshSignalCache(): Promise<void> {
                   // Begründungstext aus dem kombinierten Score generieren (konsistent mit Signal-Typ)
                   const scoreRound = Math.round(blended.combinedScore);
                   const momentumDir = momentumScore > 0.2 ? 'positiv' : momentumScore < -0.2 ? 'negativ' : 'neutral';
-                  const rfNote = rfSignal && rfSignal !== 'hold'
-                    ? ` Modell-Signal: ${rfSignal.includes('buy') ? 'Kauf' : 'Verkauf'} (Score ${rfScore ?? '—'}).`
-                    : '';
+                  // RF-Note nur einblenden wenn RF-Signal mit finalem Signal-Typ übereinstimmt
+                  const finalIsBuy = blended.signalLabel === 'BUY' || blended.signalLabel === 'STRONG BUY';
+                  const finalIsSell = blended.signalLabel === 'SELL' || blended.signalLabel === 'STRONG SELL';
+                  const rfIsBuy = rfSignal === 'buy' || rfSignal === 'strong_buy';
+                  const rfIsSell = rfSignal === 'sell' || rfSignal === 'strong_sell';
+                  const rfAgreesWithFinal = (finalIsBuy && rfIsBuy) || (finalIsSell && rfIsSell);
+                  const rfNote = rfSignal && rfAgreesWithFinal
+                    ? ` Algorithmus bestätigt: ${rfIsBuy ? 'Kauf' : 'Verkauf'} (Score ${rfScore ?? '—'}).`
+                    : ''; // Bei Widerspruch: RF-Note im Begründungstext weglassen
                   const bubbleNote = bReg === 'bubble' ? ` Achtung: Blasen-Risiko erkannt (LPPL ${(bScore * 100).toFixed(0)}%).` : '';
                   const peNote = peRatio && peRatio > 30 ? ` P/E ${peRatio.toFixed(1)} erhöht.` : peRatio && peRatio < 15 ? ` P/E ${peRatio.toFixed(1)} günstig.` : '';
 
