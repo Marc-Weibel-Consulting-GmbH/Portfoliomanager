@@ -224,4 +224,27 @@ export const investmentProfileRouter = router({
 
       return { success: true, assessmentSaved, result };
     }),
+
+  /**
+   * Profil bestätigen (P4): manueller Auslöser der jährlichen Überprüfung ohne
+   * erneuten Fragebogen — setzt lastReviewedAt = jetzt und nextReviewDueAt = +1 Jahr.
+   */
+  confirmReview: protectedProcedure.mutation(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Keine Datenbankverbindung");
+    try {
+      const now = new Date();
+      const nextReview = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+      const [existing] = await db.select().from(investorProfileAssessment)
+        .where(eq(investorProfileAssessment.userId, ctx.user.id)).limit(1);
+      if (!existing) return { success: false, message: "Noch keine Bewertung vorhanden." };
+      await db.update(investorProfileAssessment)
+        .set({ lastReviewedAt: now, nextReviewDueAt: nextReview })
+        .where(eq(investorProfileAssessment.userId, ctx.user.id));
+      return { success: true };
+    } catch (e) {
+      console.error("[investmentProfile] Überprüfung bestätigen fehlgeschlagen:", (e as Error).message);
+      throw new Error("Überprüfung konnte nicht gespeichert werden.");
+    }
+  }),
 });
