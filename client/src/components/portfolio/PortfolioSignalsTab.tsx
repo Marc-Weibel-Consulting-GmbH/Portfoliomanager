@@ -121,8 +121,14 @@ export function PortfolioSignalsTab({
                           <span className="font-semibold text-lg">{signal.ticker}</span>
                           {getSignalBadge(signal.type)}
                           {getStrengthBadge(signal.strength)}
-                          {signal.overallGrade && (
-                            <Badge variant="outline" className="text-xs font-mono">{signal.overallGrade}</Badge>
+                          {/* overallGrade nur anzeigen wenn combinedScore vorhanden und erklärt */}
+                          {signal.overallGrade && signal.combinedScore !== undefined && (
+                            <span
+                              className="text-xs font-mono text-muted-foreground border border-border rounded px-1.5 py-0.5"
+                              title={`Score-Grade: A (≥75), B (≥60), C (≥45), D (≥30), F (<30). Basiert auf Momentum + Qualität + LPPL-Risiko.`}
+                            >
+                              {signal.overallGrade}
+                            </span>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">{signal.companyName}</p>
@@ -186,20 +192,37 @@ export function PortfolioSignalsTab({
                     </div>
                   )}
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {signal.rfSignal && signal.rfSignal !== "hold" && (
-                      <Badge className={`text-xs ${signal.rfSignal.includes("buy") ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-red-500/20 text-red-500 border-red-500/30"}`}>
-                        RF: {signal.rfSignal === "strong_buy" ? "Starker Kauf" : signal.rfSignal === "buy" ? "Kauf" : signal.rfSignal === "strong_sell" ? "Starker Verkauf" : "Verkauf"} ({signal.rfScore})
-                      </Badge>
+                  {/* Indikatoren-Bereich: alle als Erklärung, kein Widerspruch zum Signal-Typ */}
+                  <div className="mt-3">
+                    {/* Kriterien aus P/E-Score */}
+                    {signal.criteria && signal.criteria.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {signal.criteria.map((criterion: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-xs text-muted-foreground">{criterion}</Badge>
+                        ))}
+                      </div>
                     )}
-                    {signal.sentimentLabel && signal.sentimentLabel !== "neutral" && (
-                      <Badge className={`text-xs ${signal.sentimentLabel === "bullish" ? "bg-green-500/20 text-green-500 border-green-500/30" : "bg-red-500/20 text-red-500 border-red-500/30"}`}>
-                        Sentiment: {signal.sentimentLabel === "bullish" ? "Positiv" : "Negativ"}
-                      </Badge>
+                    {/* Modell-Inputs (RF, Sentiment) als erklärende Zusatzinfo, nicht als Widerspruch) */}
+                    {(signal.rfSignal || signal.sentimentLabel) && (
+                      <div className="text-[11px] text-muted-foreground border-t border-border pt-2 mt-1">
+                        <span className="font-medium text-foreground/60">Modell-Inputs: </span>
+                        {signal.rfSignal && (
+                          <span className="mr-3">
+                            Algorithmus: <span className={signal.rfSignal.includes('buy') ? 'text-emerald-500' : signal.rfSignal.includes('sell') ? 'text-red-400' : 'text-muted-foreground'}>
+                              {signal.rfSignal === 'strong_buy' ? 'Starker Kauf' : signal.rfSignal === 'buy' ? 'Kauf' : signal.rfSignal === 'strong_sell' ? 'Starker Verkauf' : signal.rfSignal === 'sell' ? 'Verkauf' : 'Halten'}
+                            </span> (Score: {signal.rfScore ?? '—'})
+                          </span>
+                        )}
+                        {signal.sentimentLabel && signal.sentimentLabel !== 'neutral' && (
+                          <span>
+                            Sentiment: <span className={signal.sentimentLabel === 'bullish' ? 'text-emerald-500' : 'text-red-400'}>
+                              {signal.sentimentLabel === 'bullish' ? 'Positiv' : 'Negativ'}
+                            </span>
+                          </span>
+                        )}
+                        <span className="ml-2 text-[10px] text-muted-foreground/50">(fliessen gewichtet in Score ein)</span>
+                      </div>
                     )}
-                    {signal.criteria && signal.criteria.map((criterion: string, i: number) => (
-                      <Badge key={i} variant="outline" className="text-xs">{criterion}</Badge>
-                    ))}
                   </div>
                 </div>
               ))}

@@ -173,6 +173,7 @@ export async function refreshSignalCache(): Promise<void> {
             let bubbleRegime: string | undefined;
 
             if (prices.length >= 60) {
+              // RF-Signal (als einer von mehreren Inputs, nicht als Override)
               try {
                 const rf = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, [], { peRatio, pegRatio, dividendYield }), 'gb_signal', prices);
                 rfSignal = rf.signal;
@@ -204,11 +205,22 @@ export async function refreshSignalCache(): Promise<void> {
                   const lpplPenalty = bReg === 'bubble' ? bScore * 0.5 : 0;
                   let regimeKey = 'default';
                   try { regimeKey = computeRegime(prices).regime; } catch { /* silent */ }
-                  const blended = blendCombinedScore({ momentumScore, qualityScore, regime: regimeKey, lpplPenalty }, blendConfig);
+
+                  // RF-Adjustment: RF-Signal leicht in den qualityScore einfliessen lassen
+                  // (RF ist ein zusätzlicher Input, kein Override)
+                  let adjustedQualityScore = qualityScore;
+                  if (rfSignal === 'strong_sell' || rfSignal === 'sell') {
+                    adjustedQualityScore = Math.max(-1, qualityScore - 0.15); // RF-Verkauf drückt Score leicht
+                  } else if (rfSignal === 'strong_buy' || rfSignal === 'buy') {
+                    adjustedQualityScore = Math.min(1, qualityScore + 0.1); // RF-Kauf hebt Score leicht
+                  }
+
+                  const blended = blendCombinedScore({ momentumScore, qualityScore: adjustedQualityScore, regime: regimeKey, lpplPenalty }, blendConfig);
                   combinedScore = blended.combinedScore;
                   overallGrade = blended.grade;
                   combinedSignal = blended.signalLabel;
-                  // Override signal with combined model
+
+                  // Signal-Typ IMMER aus dem kombinierten Score ableiten (EINZIGE Quelle der Wahrheit)
                   if (blended.signalLabel === 'STRONG BUY' || blended.signalLabel === 'BUY') {
                     signalType = 'buy';
                     signalStrength = blended.signalLabel === 'STRONG BUY' ? 'strong' : 'moderate';
@@ -218,6 +230,32 @@ export async function refreshSignalCache(): Promise<void> {
                   } else {
                     signalType = 'hold';
                     signalStrength = 'moderate';
+                  }
+
+                  // Begründungstext aus dem kombinierten Score generieren (konsistent mit Signal-Typ)
+                  const scoreRound = Math.round(blended.combinedScore);
+                  const momentumDir = momentumScore > 0.2 ? 'positiv' : momentumScore < -0.2 ? 'negativ' : 'neutral';
+                  const rfNote = rfSignal && rfSignal !== 'hold'
+                    ? ` Modell-Signal: ${rfSignal.includes('buy') ? 'Kauf' : 'Verkauf'} (Score ${rfScore ?? '—'}).`
+                    : '';
+                  const bubbleNote = bReg === 'bubble' ? ` Achtung: Blasen-Risiko erkannt (LPPL ${(bScore * 100).toFixed(0)}%).` : '';
+                  const peNote = peRatio && peRatio > 30 ? ` P/E ${peRatio.toFixed(1)} erhöht.` : peRatio && peRatio < 15 ? ` P/E ${peRatio.toFixed(1)} günstig.` : '';
+
+                  if (blended.signalLabel === 'STRONG BUY') {
+                    reason = `Starkes Kaufsignal (Score ${scoreRound}/100): Momentum ${momentumDir}, mehrere positive Indikatoren.${peNote}${rfNote}${bubbleNote}`;
+                    targetPrice = currentPrice * 1.15;
+                  } else if (blended.signalLabel === 'BUY') {
+                    reason = `Kaufsignal (Score ${scoreRound}/100): Momentum ${momentumDir}, positive Indikatoren überwiegen.${peNote}${rfNote}${bubbleNote}`;
+                    targetPrice = currentPrice * 1.10;
+                  } else if (blended.signalLabel === 'HOLD') {
+                    reason = `Halten (Score ${scoreRound}/100): Gemischte Signale, keine klare Richtung. Momentum ${momentumDir}.${peNote}${rfNote}${bubbleNote}`;
+                    targetPrice = currentPrice * 1.02;
+                  } else if (blended.signalLabel === 'SELL') {
+                    reason = `Verkaufssignal (Score ${scoreRound}/100): Momentum ${momentumDir}, negative Indikatoren überwiegen.${peNote}${rfNote}${bubbleNote}`;
+                    targetPrice = currentPrice * 0.92;
+                  } else { // STRONG SELL
+                    reason = `Starkes Verkaufssignal (Score ${scoreRound}/100): Momentum ${momentumDir}, mehrere negative Indikatoren.${peNote}${rfNote}${bubbleNote}`;
+                    targetPrice = currentPrice * 0.85;
                   }
                 } catch { /* silent */ }
               }
