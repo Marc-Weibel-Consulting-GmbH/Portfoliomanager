@@ -14,6 +14,105 @@ import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER
 import MarketRegimeContent from "./MarketRegimeContent";
 import NewsroomContent from "./Newsroom";
 import { TickerBar, KIAnalyse } from "@/components/dashboard/MarketSections";
+import { useState as useStateAlias } from "react";
+import ReactMarkdown from "react-markdown";
+
+// Tägliches Manus Momentum-Update Bericht-Widget
+function MarketReportSection() {
+  const { data: report, isLoading } = trpc.marketReport.getLatest.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  const { data: reportList } = trpc.marketReport.list.useQuery({ limit: 7 }, {
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  const [selectedId, setSelectedId] = useStateAlias<number | null>(null);
+  const [expanded, setExpanded] = useStateAlias(false);
+
+  const selectedReport = selectedId
+    ? reportList?.find((r: any) => r.id === selectedId)
+    : report;
+
+  if (isLoading) {
+    return (
+      <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-5">
+        <div className="h-4 w-48 bg-white/10 rounded animate-pulse mb-3" />
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-3 bg-white/10 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedReport && !report) {
+    return (
+      <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-semibold text-[#00CFC1] uppercase tracking-widest">TÄGLICHES MARKT-UPDATE</span>
+        </div>
+        <p className="text-sm text-gray-500">Noch kein Bericht verfügbar. Der tägliche Manus-Task liefert den Bericht um 08:00 Uhr.</p>
+      </div>
+    );
+  }
+
+  const displayReport = selectedReport ?? report;
+  const reportDateStr = displayReport?.reportDate
+    ? new Date(displayReport.reportDate + "T00:00:00").toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "";
+
+  return (
+    <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
+        <div>
+          <span className="text-[10px] font-semibold text-[#00CFC1] uppercase tracking-widest">TÄGLICHES MARKT-UPDATE</span>
+          <h3 className="text-sm font-semibold text-white mt-0.5">{displayReport?.title}</h3>
+          <p className="text-xs text-gray-500 mt-0.5">{reportDateStr} · Quelle: Manus KI-Analyse</p>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-[#00CFC1] hover:text-[#00CFC1]/80 transition-colors"
+        >
+          {expanded ? "Weniger" : "Vollständig lesen"}
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="px-5 py-4">
+        <div className={`prose prose-invert prose-sm max-w-none text-gray-300 ${
+          expanded ? "" : "line-clamp-6"
+        }`}>
+          <ReactMarkdown>{displayReport?.content ?? ""}</ReactMarkdown>
+        </div>
+      </div>
+
+      {/* Archiv */}
+      {reportList && reportList.length > 1 && (
+        <div className="px-5 pb-4 border-t border-white/10 pt-3">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Archiv</p>
+          <div className="flex flex-wrap gap-2">
+            {reportList.map((r: any) => (
+              <button
+                key={r.id}
+                onClick={() => setSelectedId(r.id === selectedId ? null : r.id)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  (selectedId === r.id || (!selectedId && r.id === report?.id))
+                    ? "border-[#00CFC1] text-[#00CFC1] bg-[#00CFC1]/10"
+                    : "border-white/20 text-gray-400 hover:border-white/40"
+                }`}
+              >
+                {new Date(r.reportDate + "T00:00:00").toLocaleDateString("de-CH", { day: "numeric", month: "short" })}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Index-KPIs (Mockup S.13): echte Werte aus marketRegime.getIndices (SPI/S&P/MSCI/Gold)
 function IndexKpiRow() {
@@ -142,6 +241,8 @@ function OverviewContent() {
       {/* Aus dem früheren Dashboard/Portfolios-Bereich hierher verschoben */}
       <TickerBar />
       <IndexKpiRow />
+      {/* Tägliches Manus Momentum-Update Bericht */}
+      <MarketReportSection />
       <IndicesYtdChart />
       <KIAnalyse />
       <Card className="bg-[#1a1f2e] border-gray-800 overflow-hidden">

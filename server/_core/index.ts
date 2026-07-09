@@ -36,6 +36,7 @@ import { handleWeeklyReview } from "../scheduled/weeklyReviewScheduled";
 import { handleHistoricalPricesUpdate } from "../scheduled/historicalPricesScheduled";
 import { handleScoreSnapshot } from "../scheduled/scoreSnapshotScheduled";
 import { handleSignalAlerts } from "../scheduled/signalAlertsScheduled";
+import { handleMarketReportWebhook } from "../routers/marketReportRouter";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -152,6 +153,9 @@ async function startServer() {
   app.post("/api/scheduled/historicalPricesUpdate", handleHistoricalPricesUpdate);
   app.post("/api/scheduled/scoreSnapshot", handleScoreSnapshot);
   app.post("/api/scheduled/signalAlerts", handleSignalAlerts);
+
+  // Market Report Webhook (empfängt tägliche Berichte von Manus-Tasks)
+  app.post("/api/market-report", handleMarketReportWebhook);
 
   // tRPC API
   app.use(

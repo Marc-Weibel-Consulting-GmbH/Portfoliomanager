@@ -1123,3 +1123,22 @@ export const stockScoreSnapshot = mysqlTable("stock_score_snapshot", {
 }));
 export type StockScoreSnapshot = typeof stockScoreSnapshot.$inferSelect;
 export type InsertStockScoreSnapshot = typeof stockScoreSnapshot.$inferInsert;
+
+// ============================================
+// Tägliche Market-Update Berichte
+// Empfängt Berichte von Manus-Tasks via POST /api/market-report
+// und stellt sie in der Marktübersicht dar.
+// ============================================
+export const marketReports = mysqlTable("market_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  reportDate: varchar("reportDate", { length: 10 }).notNull(), // YYYY-MM-DD
+  title: varchar("title", { length: 500 }).notNull(),
+  content: text("content").notNull(), // Markdown-Inhalt des Berichts
+  source: varchar("source", { length: 100 }).default("manus_task"), // Quelle (manus_task, manual, etc.)
+  taskId: varchar("taskId", { length: 255 }), // Manus Task ID für Deduplizierung
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  reportDateIdx: index("ix_market_reports_date").on(t.reportDate),
+}));
+export type MarketReport = typeof marketReports.$inferSelect;
+export type InsertMarketReport = typeof marketReports.$inferInsert;

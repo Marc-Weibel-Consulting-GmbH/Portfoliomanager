@@ -44,3 +44,10 @@
 - [x] RF-Flags nicht als Widerspruch anzeigen, sondern als Begründung für den Signal-Typ
 - [x] Grade C-Badge im Signale-Tab entfernen oder erklären (ist Qualitäts-Grade, nicht Signal-Grade)
 - [x] Begründungstext muss mit Signal-Typ übereinstimmen
+
+## Tägliches Market-Update Integration (2026-07-09)
+- [ ] DB-Schema: marketReports Tabelle (id, date, title, content, source, createdAt)
+- [ ] Backend: POST /api/market-report Endpunkt für Manus-Task-Output
+- [ ] Backend: tRPC marketReport.getLatest und marketReport.list Prozeduren
+- [ ] Frontend: Markt-Seite um Market-Update-Bericht-Sektion erweitern
+- [ ] Manus Skill/Task: Bericht nach Generierung via API an Portfoliomanager senden

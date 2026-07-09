@@ -47,6 +47,7 @@ import { investmentProfileRouter } from "./routers/investmentProfileRouter";
 import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
 import { researchRouter } from "./routers/researchRouter";
+import { marketReportRouter } from "./routers/marketReportRouter";
 import { userSettingsRouter } from "./routers/userSettingsRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
@@ -244,6 +245,9 @@ export const appRouter = router({
 
   // TradingView Analytics Bridge (Railway microservice)
   tradingview: tradingviewRouter,
+
+  // Tägliche Market-Update Berichte
+  marketReport: marketReportRouter,
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
