@@ -47,6 +47,10 @@ import {
   Target,
   Info,
   Sparkles,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -647,6 +651,8 @@ export default function PortfolioDetailsPage() {
   const urlTab = legacyTabMap[rawTab] || rawTab;
   const [activeTab, setActiveTab] = useState(urlTab);
   const [posView, setPosView] = useState<'tabelle' | 'heatmap' | 'konstellation'>('tabelle');
+  // Expandable row state for Positionen table
+  const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -841,6 +847,20 @@ export default function PortfolioDetailsPage() {
     { scope: portfolioId },
     { enabled: portfolioId > 0 }
   );
+
+  // Signals for Positionen tab detail rows (cache-first, loaded lazily when tab is active)
+  const { data: signalsData } = trpc.signals.generate.useQuery(
+    { portfolioId },
+    { enabled: portfolioId > 0 && activeTab === 'positionen', staleTime: 4 * 60 * 60 * 1000 }
+  );
+  // Build a map from ticker -> signal for O(1) lookup in the table
+  const signalMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (signalsData) {
+      (signalsData as any[]).forEach((s: any) => map.set(s.ticker, s));
+    }
+    return map;
+  }, [signalsData]);
 
   // Fetch historical performance data from API
   const { data: historicalData, isLoading: isLoadingHistory } = trpc.portfolios.getHistoricalPerformance.useQuery(
@@ -1403,8 +1423,10 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Gewicht</th>
                       <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Wert</th>
                       <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Heute</th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="YTD = seit Jahresbeginn">YTD</th>
-                      <th className="w-8"></th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="YTD = seit Jahresbeginn">YTD</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Qualitäts-Score 0-100">Qualität</th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Signal-Score 0-100 (Momentum + Qualität + LPPL)">Signal</th>
+                      <th className="w-16"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1416,18 +1438,24 @@ export default function PortfolioDetailsPage() {
                         const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');
                         const weight = parseFloat(h.weight || '0');
                         const value = (h.shares || 0) * (h.currentPriceCHF || 0);
+                        const isExpanded = expandedTicker === h.ticker;
+                        const sig = signalMap.get(h.ticker);
+                        const qualScore = h.qualityScore ?? null;
+                        const signalScore = sig?.combinedScore ?? null;
+                        const qualColor = qualScore === null ? 'text-gray-500' : qualScore >= 70 ? 'text-emerald-400' : qualScore >= 50 ? 'text-[#00CFC1]' : qualScore >= 35 ? 'text-yellow-400' : 'text-red-400';
+                        const sigColor = signalScore === null ? 'text-gray-500' : signalScore >= 70 ? 'text-emerald-400' : signalScore >= 55 ? 'text-[#00CFC1]' : signalScore >= 45 ? 'text-yellow-400' : 'text-red-400';
                         return (
+                          <>
                           <tr
                             key={h.ticker}
-                            role="link"
                             tabIndex={0}
-                            aria-label={`${h.companyName || h.ticker} öffnen`}
-                            className="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer focus-visible:outline-none focus-visible:bg-white/[0.06]"
-                            onClick={() => navigate(`/aktien/${h.ticker}?from=${portfolioId}`)}
+                            aria-label={`${h.companyName || h.ticker} Details anzeigen`}
+                            className={`border-b border-white/5 hover:bg-white/[0.03] cursor-pointer focus-visible:outline-none focus-visible:bg-white/[0.06] ${isExpanded ? 'bg-white/[0.02]' : ''}`}
+                            onClick={() => setExpandedTicker(isExpanded ? null : h.ticker)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                navigate(`/aktien/${h.ticker}?from=${portfolioId}`);
+                                setExpandedTicker(isExpanded ? null : h.ticker);
                               }
                             }}
                           >
@@ -1477,27 +1505,172 @@ export default function PortfolioDetailsPage() {
                                 {today >= 0 ? '+' : ''}{today.toFixed(2)}%
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 text-right">
+                            <td className="px-3 py-3.5 text-right">
                               <span className={`text-sm font-mono ${ytd >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
                                 {ytd >= 0 ? '+' : ''}{ytd.toFixed(1)}%
                               </span>
                             </td>
-                            <td className="pr-4 text-right">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditFieldsHolding(h);
-                                  setIsEditFieldsOpen(true);
-                                }}
-                                aria-label={`Position ${h.ticker} bearbeiten`}
-                                title="Position bearbeiten (Ticker, ISIN, Stück, Preis, Währung)"
-                                className="text-gray-500 hover:text-[#00CFC1] transition-colors p-1"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
+                            <td className="px-3 py-3.5 text-right">
+                              <span className={`text-sm font-mono font-semibold ${qualColor}`}>
+                                {qualScore !== null ? qualScore : '—'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3.5 text-right">
+                              <span className={`text-sm font-mono font-semibold ${sigColor}`}>
+                                {signalScore !== null ? Math.round(signalScore) : '—'}
+                              </span>
+                            </td>
+                            <td className="pr-2 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditFieldsHolding(h);
+                                    setIsEditFieldsOpen(true);
+                                  }}
+                                  aria-label={`Position ${h.ticker} bearbeiten`}
+                                  title="Position bearbeiten (Ticker, ISIN, Stück, Preis, Währung)"
+                                  className="text-gray-500 hover:text-[#00CFC1] transition-colors p-1"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setExpandedTicker(isExpanded ? null : h.ticker); }}
+                                  aria-label={isExpanded ? 'Details schliessen' : 'Details anzeigen'}
+                                  title={isExpanded ? 'Details schliessen' : 'Details anzeigen'}
+                                  className="text-gray-500 hover:text-[#00CFC1] transition-colors p-1"
+                                >
+                                  {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                </button>
+                              </div>
                             </td>
                           </tr>
+                          {isExpanded && (
+                            <tr key={`${h.ticker}-detail`} className="bg-[#0a0f1a] border-b border-white/10">
+                              <td colSpan={10} className="px-5 py-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Scores Panel */}
+                                  <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
+                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Scores & Signal</h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="flex items-center gap-2">
+                                        <ShieldCheck className="h-4 w-4 text-[#00CFC1] shrink-0" />
+                                        <div>
+                                          <p className="text-xs text-gray-400">Qualitäts-Score</p>
+                                          <p className={`text-lg font-bold font-mono ${qualColor}`}>
+                                            {qualScore !== null ? qualScore : '—'}<span className="text-xs text-gray-500">/100</span>
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Zap className="h-4 w-4 text-yellow-400 shrink-0" />
+                                        <div>
+                                          <p className="text-xs text-gray-400">Signal-Score</p>
+                                          <p className={`text-lg font-bold font-mono ${sigColor}`}>
+                                            {signalScore !== null ? Math.round(signalScore) : '—'}<span className="text-xs text-gray-500">/100</span>
+                                          </p>
+                                        </div>
+                                      </div>
+                                      {sig && (
+                                        <>
+                                          <div>
+                                            <p className="text-xs text-gray-400">Signal-Typ</p>
+                                            <Badge className={`text-xs mt-0.5 ${
+                                              sig.type === 'buy' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                              sig.type === 'sell' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                                              'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                            }`}>
+                                              {sig.type === 'buy' ? 'Kaufen' : sig.type === 'sell' ? 'Verkaufen' : 'Halten'}
+                                            </Badge>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-gray-400">Stärke</p>
+                                            <p className="text-sm text-white mt-0.5 capitalize">{sig.strength === 'strong' ? 'Stark' : sig.strength === 'moderate' ? 'Mittel' : 'Schwach'}</p>
+                                          </div>
+                                          {sig.qualityScore !== undefined && (
+                                            <div>
+                                              <p className="text-xs text-gray-400">Qualität-Grade</p>
+                                              <p className="text-sm font-mono text-white mt-0.5">{sig.qualityGrade || '—'} <span className="text-gray-400">({sig.qualityScore})</span></p>
+                                            </div>
+                                          )}
+                                          {sig.momentumScore !== undefined && (
+                                            <div>
+                                              <p className="text-xs text-gray-400">Momentum-Grade</p>
+                                              <p className="text-sm font-mono text-white mt-0.5">{sig.momentumGrade || '—'} <span className="text-gray-400">({sig.momentumScore})</span></p>
+                                            </div>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {/* Fundamentals Panel */}
+                                  <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
+                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fundamentaldaten</h4>
+                                    <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+                                      <div>
+                                        <p className="text-xs text-gray-400">P/E Ratio</p>
+                                        <p className="text-sm font-semibold text-white">{sig?.peRatio?.toFixed(1) ?? (h.peRatio ? parseFloat(h.peRatio).toFixed(1) : '—')}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">PEG Ratio</p>
+                                        <p className="text-sm font-semibold text-white">{sig?.pegRatio?.toFixed(2) ?? (h.pegRatio ? parseFloat(h.pegRatio).toFixed(2) : '—')}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">Div. Rendite</p>
+                                        <p className="text-sm font-semibold text-white">{sig?.dividendYield?.toFixed(2) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(2) : '—')}%</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">RSI (14)</p>
+                                        <p className={`text-sm font-semibold ${
+                                          sig?.rsi14 ? (sig.rsi14 < 30 ? 'text-emerald-400' : sig.rsi14 > 70 ? 'text-red-400' : 'text-white') : 'text-white'
+                                        }`}>{sig?.rsi14?.toFixed(0) ?? '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">Zielkurs</p>
+                                        <p className="text-sm font-semibold text-white">{sig?.targetPrice?.toFixed(2) ?? '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">52W Hoch</p>
+                                        <p className="text-sm font-semibold text-white">{sig?.fiftyTwoWeekHigh?.toFixed(2) ?? '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">52W Tief</p>
+                                        <p className="text-sm font-semibold text-white">{sig?.fiftyTwoWeekLow?.toFixed(2) ?? '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">Beta</p>
+                                        <p className="text-sm font-semibold text-white">{h.beta ? parseFloat(h.beta).toFixed(2) : '—'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-400">Volatilität</p>
+                                        <p className="text-sm font-semibold text-white">{h.volatility ? (parseFloat(h.volatility) * 100).toFixed(1) + '%' : '—'}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                {/* Signal Reason */}
+                                {sig?.reason && (
+                                  <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">
+                                    <p className="text-xs font-semibold text-gray-400 mb-1">Signal-Begründung</p>
+                                    <p className="text-xs text-gray-300 leading-relaxed">{sig.reason}</p>
+                                  </div>
+                                )}
+                                {/* Link to full stock detail */}
+                                <div className="mt-3 flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/aktien/${h.ticker}?from=${portfolioId}`); }}
+                                    className="text-xs text-[#00CFC1] hover:underline flex items-center gap-1"
+                                  >
+                                    Vollständige Analyse öffnen →
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          </>
                         );
                       })}
                     {portfolio?.cashBalance && parseFloat(portfolio.cashBalance) > 0 && (
