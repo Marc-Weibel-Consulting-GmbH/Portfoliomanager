@@ -475,6 +475,13 @@ export default function Invest() {
                           {stock.currency && <span className="text-xs text-muted-foreground ml-1">{stock.currency}</span>}
                         </td>
                         <td className="p-3 text-right font-mono">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "—"}</td>
+                        <td className="p-3 text-right font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(1)}%` : "—"}</td>
+                        <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
+                        <td className="p-3 text-center">
+                          <span className={`font-mono font-semibold ${(stock.signalScore || 0) >= 65 ? "text-green-600" : (stock.signalScore || 0) <= 35 ? "text-red-600" : ""}`}>
+                            {stock.signalScore || 0}
+                          </span>
+                        </td>
                         <td className="p-3 text-right font-mono">
                           {(stock as any).pegRatio ? (() => {
                             const peg = parseFloat((stock as any).pegRatio);
@@ -483,13 +490,6 @@ export default function Invest() {
                             const label = q === 'value_growth' ? 'Value + Wachstum' : q === 'growth_premium' ? 'Wachstumsprämie' : q === 'value_slow' ? 'Value / Langsam' : 'Teuer / Langsam';
                             return <span className={color} title={label}>{peg.toFixed(2)}</span>;
                           })() : "—"}
-                        </td>
-                        <td className="p-3 text-right font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(1)}%` : "—"}</td>
-                        <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
-                        <td className="p-3 text-center">
-                          <span className={`font-mono font-semibold ${(stock.signalScore || 0) >= 65 ? "text-green-600" : (stock.signalScore || 0) <= 35 ? "text-red-600" : ""}`}>
-                            {stock.signalScore || 0}
-                          </span>
                         </td>
                         <td className="p-3 text-right">
                           <ArrowRight className="w-4 h-4 text-muted-foreground" />
