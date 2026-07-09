@@ -2795,10 +2795,30 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         sectorWeights.set(h.sector, (sectorWeights.get(h.sector) || 0) + w);
       }
 
+      // Signal-Cache für Score-Daten laden (für LLM-Kontext)
+      let signalCacheMap = new Map<string, { combinedScore: number | null; signalType: string | null }>();
+      try {
+        const { stockSignalCache } = await import('../../drizzle/schema');
+        const { inArray } = await import('drizzle-orm');
+        const db = await getDb();
+        if (db && allTickers.length > 0) {
+          const cacheRows = await db.select().from(stockSignalCache).where(inArray(stockSignalCache.ticker, allTickers));
+          for (const row of cacheRows) {
+            signalCacheMap.set(row.ticker, {
+              combinedScore: row.combinedScore ? parseFloat(row.combinedScore as string) : null,
+              signalType: row.signalType ?? null,
+            });
+          }
+        }
+      } catch (e) { /* Signal-Cache nicht verfügbar, ignorieren */ }
+
       // Use LLM to generate specific suggestions based on insight type
-      const portfolioContext = holdingValues.map(h => 
-        `${h.ticker} (${h.name}): ${((h as any).weight * 100).toFixed(1)}%, Sektor: ${h.sector}`
-      ).join('\n');
+      const portfolioContext = holdingValues.map(h => {
+        const sc = signalCacheMap.get(h.ticker);
+        const scoreStr = sc?.combinedScore != null ? `, Signal-Score: ${Math.round(sc.combinedScore)}/100` : '';
+        const sigStr = sc?.signalType ? `, Signal: ${sc.signalType === 'buy' ? 'KAUF' : sc.signalType === 'sell' ? 'VERKAUF' : 'HALTEN'}` : '';
+        return `${h.ticker} (${h.name}): ${((h as any).weight * 100).toFixed(1)}%, Sektor: ${h.sector}${scoreStr}${sigStr}`;
+      }).join('\n');
       const sectorContext = Array.from(sectorWeights.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([s, w]) => `${s}: ${(w * 100).toFixed(1)}%`)
@@ -2834,7 +2854,14 @@ Positionen:\n${portfolioContext}\n\nRegeln: Max ${(maxWeight*100).toFixed(0)}% p
               content: `Du bist ein Schweizer Portfolio-Berater. Gib konkrete, umsetzbare Vorschläge als JSON.
 Jeder Vorschlag hat: ticker, action ("reduce", "increase", "add_new", "exit"), currentWeightPercent (0 für neue), targetWeightPercent, reason (1 Satz).
 Bei "add_new" verwende echte Ticker von der Schweizer Börse (SIX: .SW) oder US-Börsen.
-Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
+Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.
+
+WICHTIG: Signal-Score-Regeln:
+- "increase" (aufstocken) NUR wenn Signal-Score >= 55 ODER Signal = KAUF
+- "reduce" (reduzieren) wenn Signal-Score <= 40 ODER Signal = VERKAUF
+- "exit" (verkaufen) nur bei Signal-Score < 30 ODER klarem VERKAUF-Signal
+- Bei Signal-Score 41-54 und Signal = HALTEN: maximal "reduce" auf Zielgewicht, KEIN "increase"
+- Wenn kein Signal-Score verfügbar: nur auf Basis von Sektor/Gewicht entscheiden, kein "increase"`
             },
             { role: 'user', content: prompt }
           ],
@@ -2874,9 +2901,25 @@ Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
         const content = response.choices?.[0]?.message?.content;
         if (content) {
           const parsed = JSON.parse(typeof content === 'string' ? content : '');
+          // Server-seitige Durchsetzung der Signal-Score-Regeln:
+          // "increase" nur wenn Signal-Score >= 55 oder Signal = 'buy'
+          const filteredSuggestions = (parsed.suggestions || []).map((s: any) => {
+            if (s.action === 'increase' || s.action === 'add_new') {
+              const sc = signalCacheMap.get(s.ticker);
+              const score = sc?.combinedScore ?? null;
+              const sigType = sc?.signalType ?? null;
+              const hasBuySignal = sigType === 'buy';
+              const hasGoodScore = score !== null && score >= 55;
+              // Wenn kein gutes Signal: "increase" -> "hold" (kein Vorschlag), "add_new" bleibt
+              if (s.action === 'increase' && !hasBuySignal && !hasGoodScore && score !== null) {
+                return { ...s, action: 'reduce', reason: `${s.reason} [Signal-Score ${Math.round(score)}/100 < 55 — Aufstocken nicht empfohlen]` };
+              }
+            }
+            return s;
+          });
           return {
             summary: parsed.summary || '',
-            suggestions: (parsed.suggestions || []).map((s: any) => ({
+            suggestions: filteredSuggestions.map((s: any) => ({
               ticker: s.ticker,
               companyName: s.companyName || s.ticker,
               action: s.action,
@@ -2884,7 +2927,7 @@ Halte dich strikt an die Diversifikationsregeln. Maximal 8 Vorschläge.`
               targetWeightPercent: s.targetWeightPercent,
               reason: s.reason,
             })),
-            newTickers: (parsed.suggestions || []).filter((s: any) => s.action === 'add_new').map((s: any) => s.ticker),
+            newTickers: filteredSuggestions.filter((s: any) => s.action === 'add_new').map((s: any) => s.ticker),
           };
         }
       } catch (e: any) {

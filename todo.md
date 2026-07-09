@@ -32,3 +32,9 @@
 - [x] Text copy function for AdminBerechnungen (per-formula copy button + copy-all + TXT download)
 - [x] Day Change cashflow-bereinigen: Bereits korrekt implementiert in dayChange.ts (symmetrisches Skipping R-29, nur historicalPrices closes, keine currentPrice-Mischung). Dokumentation in AdminBerechnungen aktualisiert.
 - [x] FX-Bewertungsdatum: Bereits korrekt implementiert (convertToCHF mit today für Marktwert, Transaktionsdatum für Kostenbasis). Dokumentation in AdminBerechnungen mit zwei getrennten Formeln aktualisiert.
+
+## Score-System Überarbeitung (2026-07-09)
+- [x] Qualitäts-Score: fehlende Daten (ROE/D-E/FCF/Margin alle null) → Grade 'N/A' statt 'C'
+- [x] Signal-Score-Anzeige: Transparenz-Panel mit Erklärung der Komponenten
+- [x] Optimierungs-Prompt: LLM bekommt Signal-Score, Qualitäts-Score und Signal-Typ als Input
+- [x] Optimierungs-Empfehlungen: Nur "aufstocken" wenn Signal-Score >= 55 (BUY-Zone)

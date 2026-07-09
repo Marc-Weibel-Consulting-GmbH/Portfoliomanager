@@ -22,7 +22,8 @@ export interface QualityScore {
     fcfYield: { value: number | null; score: number; label: string };
     grossMargin: { value: number | null; score: number; label: string };
   };
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  grade: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
+  dataAvailable: boolean; // true wenn mindestens 1 Metrik vorhanden
 }
 
 export interface MomentumMetrics {
@@ -42,7 +43,8 @@ export interface MomentumScore {
     acceleration: { value: number | null; score: number; label: string };
   };
   trend: 'strong_up' | 'up' | 'neutral' | 'down' | 'strong_down';
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  grade: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
+  dataAvailable: boolean;
 }
 
 /**
@@ -75,20 +77,18 @@ export function calculateQualityScore(metrics: QualityMetrics): QualityScore {
     }
   }
 
-  const rawScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    const rawScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
   const score = Math.max(-1, Math.min(1, rawScore));
-
-  // Grade assignment
-  let grade: 'A' | 'B' | 'C' | 'D' | 'F';
-  if (score >= 0.6) grade = 'A';
+  // Grade assignment — wenn keine Daten verfügbar (totalWeight=0), kein Grade vergeben
+  let grade: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
+  if (totalWeight === 0) grade = 'N/A';
+  else if (score >= 0.6) grade = 'A';
   else if (score >= 0.3) grade = 'B';
-  else if (score >= 0) grade = 'C';
+  else if (score >= 0.05) grade = 'C';
   else if (score >= -0.3) grade = 'D';
   else grade = 'F';
-
-  return { score, rawScore, components, grade };
+    return { score, rawScore, components, grade, dataAvailable: totalWeight > 0 };
 }
-
 /**
  * Calculate Momentum Factor Score
  * 
@@ -134,15 +134,16 @@ export function calculateMomentumScore(metrics: MomentumMetrics): MomentumScore 
   else if (score >= -0.5) trend = 'down';
   else trend = 'strong_down';
 
-  // Grade based on normalized score
-  let grade: 'A' | 'B' | 'C' | 'D' | 'F';
-  if (score >= 0.5) grade = 'A';
+  // Grade based on normalized score — N/A wenn keine Preisdaten
+  let grade: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
+  if (totalWeight === 0) grade = 'N/A';
+  else if (score >= 0.5) grade = 'A';
   else if (score >= 0.2) grade = 'B';
   else if (score >= -0.2) grade = 'C';
   else if (score >= -0.5) grade = 'D';
   else grade = 'F';
 
-  return { score, rawScore, components, trend, grade };
+  return { score, rawScore, components, trend, grade, dataAvailable: totalWeight > 0 };
 }
 
 // ─── Quality Component Scorers ───────────────────────────────────────────────

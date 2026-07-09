@@ -1682,33 +1682,41 @@ export default function PortfolioDetailsPage() {
                             <tr key={`${h.ticker}-detail`} className="bg-[#0a0f1a] border-b border-white/10">
                               <td colSpan={10} className="px-5 py-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {/* Scores Panel */}
+                                  {/* Scores Panel — transparent, erklärend */}
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
                                     <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Scores & Signal</h4>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div className="flex items-center gap-2">
-                                        <ShieldCheck className="h-4 w-4 text-[#00CFC1] shrink-0" />
-                                        <div>
+
+                                    {/* Haupt-Scores: Qualität + Signal nebeneinander */}
+                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                      <div className="bg-[#0a0f1a] rounded-md p-2.5">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          <ShieldCheck className="h-3.5 w-3.5 text-[#00CFC1]" />
                                           <p className="text-xs text-gray-400">Qualitäts-Score</p>
-                                          <p className={`text-lg font-bold font-mono ${qualColor}`}>
-                                            {qualScore !== null ? qualScore : '—'}<span className="text-xs text-gray-500">/100</span>
-                                          </p>
                                         </div>
+                                        <p className={`text-xl font-bold font-mono ${qualColor}`}>
+                                          {qualScore !== null ? qualScore : '—'}<span className="text-xs text-gray-500">/100</span>
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 mt-0.5">P/E · PEG · Beta · Volatilität · Sharpe</p>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <Zap className="h-4 w-4 text-yellow-400 shrink-0" />
-                                        <div>
+                                      <div className="bg-[#0a0f1a] rounded-md p-2.5">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          <Zap className="h-3.5 w-3.5 text-yellow-400" />
                                           <p className="text-xs text-gray-400">Signal-Score</p>
-                                          <p className={`text-lg font-bold font-mono ${sigColor}`}>
-                                            {signalScore !== null ? Math.round(signalScore) : '—'}<span className="text-xs text-gray-500">/100</span>
-                                          </p>
                                         </div>
+                                        <p className={`text-xl font-bold font-mono ${sigColor}`}>
+                                          {signalScore !== null ? Math.round(signalScore) : '—'}<span className="text-xs text-gray-500">/100</span>
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 mt-0.5">Momentum + Qualität + LPPL-Risiko</p>
                                       </div>
-                                      {sig && (
-                                        <>
+                                    </div>
+
+                                    {/* Signal-Typ + Komponenten */}
+                                    {sig && (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
                                           <div>
-                                            <p className="text-xs text-gray-400">Signal-Typ</p>
-                                            <Badge className={`text-xs mt-0.5 ${
+                                            <p className="text-xs text-gray-400 mb-0.5">Signal-Typ</p>
+                                            <Badge className={`text-xs ${
                                               sig.type === 'buy' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
                                               sig.type === 'sell' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
                                               'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
@@ -1716,25 +1724,77 @@ export default function PortfolioDetailsPage() {
                                               {sig.type === 'buy' ? 'Kaufen' : sig.type === 'sell' ? 'Verkaufen' : 'Halten'}
                                             </Badge>
                                           </div>
-                                          <div>
-                                            <p className="text-xs text-gray-400">Stärke</p>
-                                            <p className="text-sm text-white mt-0.5 capitalize">{sig.strength === 'strong' ? 'Stark' : sig.strength === 'moderate' ? 'Mittel' : 'Schwach'}</p>
+                                          <div className="text-right">
+                                            <p className="text-xs text-gray-400 mb-0.5">Stärke</p>
+                                            <p className="text-xs text-white">{sig.strength === 'strong' ? 'Stark' : sig.strength === 'moderate' ? 'Mittel' : 'Schwach'}</p>
                                           </div>
-                                          {sig.qualityScore !== undefined && (
-                                            <div>
-                                              <p className="text-xs text-gray-400">Qualität-Grade</p>
-                                              <p className="text-sm font-mono text-white mt-0.5">{sig.qualityGrade || '—'} <span className="text-gray-400">({sig.qualityScore})</span></p>
+                                        </div>
+
+                                        {/* Komponenten-Breakdown */}
+                                        <div className="border-t border-white/5 pt-2">
+                                          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Score-Komponenten</p>
+                                          <div className="grid grid-cols-2 gap-1.5">
+                                            {/* Momentum */}
+                                            <div className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
+                                              <span className="text-[10px] text-gray-400">Momentum</span>
+                                              <div className="flex items-center gap-1">
+                                                {sig.momentumScore !== undefined ? (
+                                                  <span className={`text-xs font-mono font-semibold ${
+                                                    sig.momentumScore >= 0.3 ? 'text-emerald-400' :
+                                                    sig.momentumScore >= -0.1 ? 'text-yellow-400' : 'text-red-400'
+                                                  }`}>{Math.round((sig.momentumScore + 1) * 50)}/100</span>
+                                                ) : <span className="text-xs text-gray-500">—</span>}
+                                                {sig.momentumGrade && sig.momentumGrade !== 'N/A' && (
+                                                  <span className={`text-[10px] font-bold px-1 rounded ${
+                                                    sig.momentumGrade === 'A' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                    sig.momentumGrade === 'B' ? 'bg-[#00CFC1]/20 text-[#00CFC1]' :
+                                                    sig.momentumGrade === 'C' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                    'bg-red-500/20 text-red-400'
+                                                  }`}>{sig.momentumGrade}</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                            {/* Qualität (ROE/D-E/FCF/Marge) */}
+                                            <div className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
+                                              <span className="text-[10px] text-gray-400">Qualität (Fund.)</span>
+                                              <div className="flex items-center gap-1">
+                                                {sig.qualityScore !== undefined ? (
+                                                  <span className={`text-xs font-mono font-semibold ${
+                                                    sig.qualityScore >= 0.3 ? 'text-emerald-400' :
+                                                    sig.qualityScore >= -0.1 ? 'text-yellow-400' : 'text-red-400'
+                                                  }`}>{Math.round((sig.qualityScore + 1) * 50)}/100</span>
+                                                ) : <span className="text-xs text-gray-500">—</span>}
+                                                {sig.qualityGrade && sig.qualityGrade !== 'N/A' ? (
+                                                  <span className={`text-[10px] font-bold px-1 rounded ${
+                                                    sig.qualityGrade === 'A' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                    sig.qualityGrade === 'B' ? 'bg-[#00CFC1]/20 text-[#00CFC1]' :
+                                                    sig.qualityGrade === 'C' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                    'bg-red-500/20 text-red-400'
+                                                  }`}>{sig.qualityGrade}</span>
+                                                ) : (
+                                                  <span className="text-[10px] text-gray-500 px-1">N/A</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          {/* Hinweis wenn Qualitäts-Fundamentaldaten fehlen */}
+                                          {sig.qualityGrade === 'N/A' && (
+                                            <p className="text-[10px] text-amber-400/70 mt-1.5">
+                                              ⚠ ROE/Verschuldung/FCF-Daten fehlen — Qualitäts-Grade nicht berechenbar. Daten unter Admin → Aktien anreichern.
+                                            </p>
+                                          )}
+                                          {/* LPPL Bubble-Risiko wenn vorhanden */}
+                                          {sig.bubbleScore !== undefined && sig.bubbleScore > 0.1 && (
+                                            <div className="mt-1.5 flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
+                                              <span className="text-[10px] text-gray-400">LPPL Bubble-Risiko</span>
+                                              <span className={`text-xs font-mono ${
+                                                sig.bubbleScore > 0.5 ? 'text-red-400' : sig.bubbleScore > 0.25 ? 'text-yellow-400' : 'text-gray-400'
+                                              }`}>{(sig.bubbleScore * 100).toFixed(0)}%</span>
                                             </div>
                                           )}
-                                          {sig.momentumScore !== undefined && (
-                                            <div>
-                                              <p className="text-xs text-gray-400">Momentum-Grade</p>
-                                              <p className="text-sm font-mono text-white mt-0.5">{sig.momentumGrade || '—'} <span className="text-gray-400">({sig.momentumScore})</span></p>
-                                            </div>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                   {/* Fundamentals Panel */}
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
