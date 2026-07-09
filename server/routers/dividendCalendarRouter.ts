@@ -209,6 +209,55 @@ export const dividendCalendarRouter = router({
       // Titel darf über 12 Monate hinausgehen, damit jährlich zahlende CH-Titel erscheinen.
       const dividends = await getNextDividendPerTicker(tickers);
 
+      // Fallback: Für Titel ohne EODHD-Daten, dividendYield aus stocks-Tabelle verwenden
+      const tickersWithDividend = new Set(dividends.map(d => d.ticker.toUpperCase()));
+      const tickersWithoutDividend = tickers.filter(t => !tickersWithDividend.has(t.toUpperCase()));
+
+      if (tickersWithoutDividend.length > 0) {
+        const { getDb } = await import("../db");
+        const { stocks: stocksTable } = await import("../../drizzle/schema");
+        const { inArray } = await import("drizzle-orm");
+        const db = await getDb();
+        if (db) {
+          const stockRows = await db.select({
+            ticker: stocksTable.ticker,
+            companyName: stocksTable.companyName,
+            dividendYield: stocksTable.dividendYield,
+            currentPrice: stocksTable.currentPrice,
+            currency: stocksTable.currency,
+          }).from(stocksTable).where(inArray(stocksTable.ticker, tickersWithoutDividend));
+
+          // Nächster Frühlings-Ex-Termin schätzen (typisch für CH/EU Jahrestitel: März–Mai)
+          const today = new Date();
+          for (const row of stockRows) {
+            const yieldPct = parseFloat(row.dividendYield ?? '0');
+            const price = parseFloat(row.currentPrice ?? '0');
+            if (yieldPct <= 0 || price <= 0) continue; // Kein Dividendentitel
+
+            const divPerShare = (yieldPct / 100) * price;
+
+            // Nächsten April schätzen (typisch für CH/EU jährliche Zahler)
+            let nextApril = new Date(today.getFullYear(), 3, 15); // 15. April
+            if (nextApril <= today) nextApril = new Date(today.getFullYear() + 1, 3, 15);
+            const nextPayment = new Date(nextApril.getTime() + 14 * 86400000);
+
+            dividends.push({
+              ticker: row.ticker,
+              exDividendDate: nextApril.toISOString().split('T')[0],
+              paymentDate: nextPayment.toISOString().split('T')[0],
+              declarationDate: null,
+              amount: parseFloat(divPerShare.toFixed(4)),
+              currency: row.currency || 'CHF',
+              period: 'Annual',
+              type: 'estimated',
+            });
+          }
+        }
+      }
+
+      // Sortieren nach Ex-Datum
+      dividends.sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
+
       const enrichedDividends = (await Promise.all(dividends.map(async div => {
         const stock = portfolioData3.find((s: any) =>
           s.ticker.toUpperCase() === div.ticker.toUpperCase()
