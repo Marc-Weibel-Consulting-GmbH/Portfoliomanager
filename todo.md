@@ -50,4 +50,4 @@
 - [x] Backend: POST /api/market-report Endpunkt für Manus-Task-Output
 - [x] Backend: tRPC marketReport.getLatest und marketReport.list Prozeduren
 - [x] Frontend: Markt-Seite um Market-Update-Bericht-Sektion erweitern
-- [ ] Manus Skill/Task: Bericht nach Generierung via API an Portfoliomanager senden (manuelle Konfiguration erforderlich)
+- [x] Manus Skill/Task: Bericht nach Generierung via API an Portfoliomanager senden (Anleitung an Benutzer geliefert, manuell im Chancen-Task konfigurieren)
