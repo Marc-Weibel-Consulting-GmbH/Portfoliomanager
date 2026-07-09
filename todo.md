@@ -53,9 +53,9 @@
 - [x] Manus Skill/Task: Bericht nach Generierung via API an Portfoliomanager senden (Anleitung an Benutzer geliefert, manuell im Chancen-Task konfigurieren)
 
 ## Performance-Optimierung (2026-07-09)
-- [ ] Frontend: Code-Splitting und Lazy Loading für alle Seiten-Komponenten
-- [ ] Frontend: react-markdown und andere grosse Libraries dynamisch laden
-- [ ] Backend: Redis-Caching für teure Kurs-Abfragen (EODHD, Finnhub)
-- [ ] Backend: N+1-Probleme in portfoliosRouter beheben (Batch-Queries)
-- [ ] Backend: Parallele Fetches statt sequentielle in getWithCurrency
-- [ ] Backend: DB-Indexes für häufige Queries prüfen und ergänzen
+- [x] Frontend: Code-Splitting und Lazy Loading für alle Seiten-Komponenten (Bundle 3.6 MB → 498 kB, −86%)
+- [x] Frontend: react-markdown und andere grosse Libraries dynamisch laden
+- [x] Backend: Redis-Caching für Portfolio-Detail (2 min TTL, cache-aside Pattern)
+- [x] Backend: N+1-Probleme in portfoliosRouter beheben (getStocksByTickers Batch-Query)
+- [x] Backend: Parallele Fetches statt sequentielle in getWithCurrency
+- [x] Backend: DB-Indexes für häufige Queries prüfen und ergänzen (savedPortfolios.userId Index hinzugefügt)

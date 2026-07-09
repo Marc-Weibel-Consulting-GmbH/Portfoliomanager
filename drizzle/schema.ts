@@ -223,7 +223,9 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   inceptionDate: timestamp("inceptionDate"), // Optional: manually set portfolio start date (overrides createdAt for display)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  userIdIdx: index("ix_saved_portfolios_userId").on(t.userId),
+}));
 
 export type SavedPortfolio = typeof savedPortfolios.$inferSelect;
 export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
