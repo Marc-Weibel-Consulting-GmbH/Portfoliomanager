@@ -17,8 +17,15 @@ export interface TickerScore {
   regime: string;
 }
 
-/** Score aus einer bereinigten Kursreihe (aufsteigend). Braucht ≥ 60 Punkte für Momentum/LPPL. */
-export async function scoreFromPrices(prices: number[]): Promise<TickerScore> {
+/**
+ * Score aus einer bereinigten Kursreihe (aufsteigend). Braucht ≥ 60 Punkte für Momentum/LPPL.
+ * P3: Momentum-/Qualitätsgewicht optional (aus dem Anlageprofil-Horizont); Default 0.4/0.4
+ * → Standardverhalten unverändert.
+ */
+export async function scoreFromPrices(
+  prices: number[],
+  weights: { momentum: number; quality: number } = { momentum: 0.4, quality: 0.4 },
+): Promise<TickerScore> {
   const { calculateQualityScore, calculateMomentumScore } = await import("../analytics/qualityMomentumEngine");
   const { detectBubble } = await import("../analytics/lpplsEngine");
 
@@ -39,7 +46,7 @@ export async function scoreFromPrices(prices: number[]): Promise<TickerScore> {
   const mNorm = (momentumResult.score + 1) / 2;
   const qNorm = (qualityResult.score + 1) / 2;
   const lpplPenalty = bubbleRegime === "bubble" ? bubbleScore * 0.5 : 0;
-  const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+  const combined = Math.max(0, Math.min(1, weights.momentum * mNorm + weights.quality * qNorm - lpplPenalty));
   const score = parseFloat((combined * 100).toFixed(1));
 
   return {
