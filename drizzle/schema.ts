@@ -746,6 +746,36 @@ export const userInvestmentProfile = mysqlTable("user_investment_profile", {
 export type UserInvestmentProfile = typeof userInvestmentProfile.$inferSelect;
 export type InsertUserInvestmentProfile = typeof userInvestmentProfile.$inferInsert;
 
+// Anlegerprofil 2.0 (Konzept INVESTOR_PROFILE_CONCEPT.md): geführte Bewertung nach
+// Beratungsstandard. Additiv zu user_investment_profile (dort bleibt das *aktive*
+// Profil, das Optimizer/Builder lesen). Ein Datensatz je Nutzer.
+export const investorProfileAssessment = mysqlTable("investor_profile_assessment", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  // Scores 0–100
+  capacityScore: int("capacityScore").notNull().default(0),   // Risikofähigkeit (objektiv)
+  toleranceScore: int("toleranceScore").notNull().default(0), // Risikobereitschaft (subjektiv)
+  needScore: int("needScore"),                                // Risikobedarf (aus Zielrendite)
+  // Bindendes Profil = min(Fähigkeit, Bereitschaft); Spiegel von user_investment_profile.riskProfile
+  bindingProfile: mysqlEnum("bindingProfile", ["konservativ", "ausgewogen", "wachstum", "aggressiv"]).notNull().default("ausgewogen"),
+  // Kenntnisse & Erfahrung (FIDLEG-Angemessenheit, leichte Variante)
+  knowledgeLevel: mysqlEnum("knowledgeLevel", ["einsteiger", "fortgeschritten", "erfahren"]).notNull().default("fortgeschritten"),
+  financialSituation: json("financialSituation"), // grobe Bänder
+  answers: json("answers"),                        // Rohantworten des Fragebogens
+  strategicAllocation: json("strategicAllocation"),// {equity,bond,cash} in %
+  version: int("version").notNull().default(1),
+  completedAt: timestamp("completedAt"),
+  lastReviewedAt: timestamp("lastReviewedAt"),
+  nextReviewDueAt: timestamp("nextReviewDueAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  userIdx: index("ix_investor_profile_assessment_user").on(t.userId),
+}));
+
+export type InvestorProfileAssessment = typeof investorProfileAssessment.$inferSelect;
+export type InsertInvestorProfileAssessment = typeof investorProfileAssessment.$inferInsert;
+
 // LPPL Bubble-Check Results (historische Persistierung)
 export const lpplResults = mysqlTable("lppl_results", {
   id: int("id").autoincrement().primaryKey(),

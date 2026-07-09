@@ -91,6 +91,7 @@ describe("mapWikifolioSearchResults", () => {
         capital: null,
         isin: "DE000LS9ABC1",
         wikifolioUrl: "https://www.wikifolio.com/de/de/w/wfglobalnt",
+        tags: [],
       },
     ]);
   });
