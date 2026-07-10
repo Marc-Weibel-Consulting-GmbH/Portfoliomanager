@@ -521,12 +521,28 @@ function OptimierungEmpfehlungenTab({
 
   // Strategie aus dem Risikoprofil ableiten (nur DB-basierte Methoden — kein Yahoo):
   // konservativ → Risikominimierung (Min. Varianz), sonst Max. Sharpe.
-  const method: "max_sharpe" | "min_variance" =
+  type OptMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
+  const profileMethod: OptMethod =
     profile?.riskProfile === "konservativ" ? "min_variance" : "max_sharpe";
-  const strategyNote = profile?.isSet
+  const [selectedMethod, setSelectedMethod] = useState<OptMethod | null>(null);
+  const method: OptMethod = selectedMethod ?? profileMethod;
+
+  const METHOD_OPTS: { value: OptMethod; label: string }[] = [
+    { value: "max_sharpe", label: "Max. Sharpe" },
+    { value: "min_variance", label: "Min. Varianz" },
+    { value: "hrp", label: "HRP (Risk Parity)" },
+    { value: "equal_weight", label: "Gleichgewichtet" },
+    { value: "max_dividend", label: "Max. Dividende" },
+  ];
+
+  const strategyNote = selectedMethod
+    ? undefined // user override — no note
+    : profile?.isSet
     ? `Strategie aus Ihrem Anlageprofil (${PROFILE_RISK_LABEL[profile.riskProfile] ?? profile.riskProfile}): ` +
       (method === "min_variance"
         ? "Risiko minimieren (Min. Varianz)."
+        : method === "hrp"
+        ? "Hierarchical Risk Parity."
         : "maximale risikoadjustierte Rendite (Max. Sharpe).")
     : "Kein Anlageprofil gesetzt — Standardstrategie Max. Sharpe. Hinterlegen Sie Ihr Risikoprofil, damit die Optimierung darauf abgestimmt wird.";
 
@@ -559,8 +575,9 @@ function OptimierungEmpfehlungenTab({
         </div>
       )}
 
-      {/* Modus-Umschalter */}
-      <div className="inline-flex rounded-lg border border-white/10 bg-[#0f1420] p-1">
+      {/* Modus-Umschalter + Methoden-Selektor */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex rounded-lg border border-white/10 bg-[#0f1420] p-1">
         {[
           { key: "empfehlungen" as const, label: "Empfehlungen (laufend)" },
           { key: "optimierung" as const, label: "Vollständige Neu-Optimierung" },
@@ -576,6 +593,20 @@ function OptimierungEmpfehlungenTab({
             {m.label}
           </button>
         ))}
+        </div>
+
+        {/* Methoden-Selektor (nur bei Optimierung sichtbar) */}
+        {mode === "optimierung" && (
+          <select
+            value={method}
+            onChange={(e) => setSelectedMethod(e.target.value as OptMethod)}
+            className="bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#00CFC1] cursor-pointer"
+          >
+            {METHOD_OPTS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {mode === "empfehlungen" ? (

@@ -13,6 +13,7 @@
 
 import YahooFinanceClass from "yahoo-finance2";
 import { ledoitWolfConstantCorr } from "../lib/ledoitWolf";
+import { runHRP } from "./hrpOptimizer";
 import { blPosteriorFromHistoricalMeans } from "../lib/blackLitterman";
 import {
   TRADING_DAYS_YEAR,
@@ -69,7 +70,7 @@ export interface OptimizeInput {
   tickers: string[];
   lookbackDays?: number;
   riskFreeRate?: number;
-  method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend";
+  method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
   /**
    * R-34c: aktueller Portfoliowert in CHF. Wenn gesetzt, werden Zielpositionen
    * unter der Mindest-Positionsgrösse auf 0 gesetzt und umverteilt.
@@ -1123,6 +1124,94 @@ export async function optimizePortfolio(input: OptimizeInput) {
     mu = blPosteriorFromHistoricalMeans(cov, wPrior, histMeans);
   } catch {
     mu = histMeans;
+  }
+
+  // ─── HRP: Hierarchical Risk Parity (no expected returns needed) ───
+  if (method === "hrp") {
+    const hrpResult = runHRP({
+      tickers: available,
+      returnsMap,
+      riskFreeRate,
+      minPositionWeight,
+      maxPositionWeight,
+    });
+
+    // Build final weights array in same order as `available`
+    const hrpWeights = available.map(t => hrpResult.weights[t] ?? 0);
+
+    // Apply min-position-CHF filter (same logic as MVO path)
+    const MIN_POSITION_CHF_HRP = minPositionChf ?? 3000;
+    let finalHrpWeights = hrpWeights;
+    const droppedHrp: Array<{ ticker: string; targetWeight: number; targetValueCHF: number }> = [];
+    if (portfolioValue && portfolioValue > 0) {
+      const keepIdx: number[] = [];
+      const dropIdx: number[] = [];
+      hrpWeights.forEach((w, i) => {
+        if (w * portfolioValue < MIN_POSITION_CHF_HRP) dropIdx.push(i);
+        else keepIdx.push(i);
+      });
+      if (dropIdx.length > 0 && keepIdx.length >= 2) {
+        const { minW, maxW } = effectiveBounds(keepIdx.length, minPositionWeight, maxPositionWeight);
+        const kept = normalizeWithBounds(keepIdx.map(i => hrpWeights[i]), minW, maxW);
+        finalHrpWeights = new Array(available.length).fill(0);
+        keepIdx.forEach((idx, j) => { finalHrpWeights[idx] = kept[j]; });
+        dropIdx.forEach(i => {
+          droppedHrp.push({
+            ticker: available[i],
+            targetWeight: Math.round(hrpWeights[i] * 10000) / 10000,
+            targetValueCHF: Math.round(hrpWeights[i] * portfolioValue),
+          });
+        });
+      }
+    }
+
+    const weightsMapHrp: Record<string, number> = {};
+    for (let i = 0; i < available.length; i++) {
+      weightsMapHrp[available[i]] = Math.round(finalHrpWeights[i] * 10000) / 10000;
+    }
+
+    // Portfolio stats using HRP weights
+    const { ret: hrpRet, vol: hrpVol, sharpe: hrpSharpe } = portfolioStats(finalHrpWeights, mu, cov);
+    const { ret: currRet2, vol: currVol2, sharpe: currSharpe2 } = portfolioStats(new Array(available.length).fill(1 / available.length), mu, cov);
+
+    const assetStatsHrp = available.map((ticker, i) => ({
+      ticker,
+      currentWeight: Math.round((1 / available.length) * 1000) / 10,
+      optimalWeight: Math.round(finalHrpWeights[i] * 1000) / 10,
+      annualReturn: Math.round(mu[i] * 10000) / 100,
+      volatility: Math.round(Math.sqrt(cov[i][i]) * 10000) / 100,
+      sharpe: Math.round(calcSharpe(returnsMap[ticker], riskFreeRate) * 1000) / 1000,
+      riskContribution: Math.round((hrpResult.riskContributions[ticker] ?? 0) * 10000) / 100,
+    }));
+
+    return {
+      method: 'hrp',
+      optimalPortfolio: {
+        expectedReturn: Math.round(hrpRet * 10000) / 10000,
+        volatility: Math.round(hrpVol * 10000) / 10000,
+        sharpe: Math.round(hrpSharpe * 1000) / 1000,
+        annualReturn: Math.round(hrpRet * 10000) / 100,
+        sharpeRatio: Math.round(hrpSharpe * 1000) / 1000,
+        diversificationRatio: hrpResult.portfolioStats.diversificationRatio,
+        sortedTickers: hrpResult.sortedTickers,
+      },
+      currentPortfolio: {
+        expectedReturn: Math.round(currRet2 * 10000) / 10000,
+        volatility: Math.round(currVol2 * 10000) / 10000,
+        sharpe: Math.round(currSharpe2 * 1000) / 1000,
+      },
+      weights: weightsMapHrp,
+      assets: assetStatsHrp,
+      efficientFrontier: buildEfficientFrontier(mu, cov, riskFreeRate, 30),
+      tickers: available,
+      droppedPositions: droppedHrp,
+      minPositionChf: MIN_POSITION_CHF_HRP,
+      hrpMeta: {
+        clusterOrder: hrpResult.sortedTickers,
+        riskContributions: hrpResult.riskContributions,
+        diversificationRatio: hrpResult.portfolioStats.diversificationRatio,
+      },
+    };
   }
 
   // Fetch dividend yields for max_dividend method

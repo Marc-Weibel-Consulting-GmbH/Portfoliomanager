@@ -155,13 +155,22 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
 }
 
 // ─── Optimieren-Tab ────────────────────────────────────────────────────────────
-type OptimizeMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend";
+type OptimizeMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
 
 const METHOD_LABEL: Record<OptimizeMethod, string> = {
   max_sharpe: "Max. Sharpe",
   min_variance: "Min. Varianz",
   equal_weight: "Gleichgewichtet",
   max_dividend: "Max. Dividende",
+  hrp: "HRP (Risk Parity)",
+};
+
+const METHOD_DESCRIPTION: Record<OptimizeMethod, string> = {
+  max_sharpe: "Maximiert die risikoadjustierte Rendite (Sharpe Ratio)",
+  min_variance: "Minimiert die Portfolio-Volatilität",
+  equal_weight: "Gleichmässige Verteilung auf alle Positionen",
+  max_dividend: "Maximiert die Dividendenrendite",
+  hrp: "Hierarchical Risk Parity: Verteilt Risiko gleichmässig über Korrelations-Cluster (kein Rendite-Schätzer benötigt)",
 };
 
 export default function OptimierenTab({
@@ -486,6 +495,83 @@ export default function OptimierenTab({
                 </>
               )}
             </div>
+          </div>
+
+          {/* ─── HRP: Cluster-Reihenfolge & Risikobeiträge ─── */}
+          {method === 'hrp' && (result as any)?.hrpMeta && (
+            <div className="grid lg:grid-cols-2 gap-5">
+              {/* Cluster-Reihenfolge */}
+              <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-sm font-semibold text-white">Hierarchische Cluster-Reihenfolge</h3>
+                  <span className="relative group ml-1">
+                    <Info className="w-3 h-3 text-gray-600 cursor-help" />
+                    <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-[#1a1f2e] border border-white/20 rounded-lg px-3 py-2 text-[11px] text-gray-300 leading-relaxed shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                      HRP gruppiert Titel nach Korrelation (Single-Linkage Clustering). Benachbarte Titel im Dendrogram sind stärker korreliert — das Risiko wird gleichmässig über alle Cluster verteilt.
+                    </span>
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">Titel nach Korrelations-Ähnlichkeit sortiert</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {((result as any).hrpMeta.clusterOrder as string[]).map((ticker: string, idx: number) => (
+                    <div key={ticker} className="flex items-center gap-1">
+                      <span className="bg-[#00CFC1]/10 border border-[#00CFC1]/30 text-[#00CFC1] text-[11px] font-mono font-semibold px-2 py-1 rounded">
+                        {ticker}
+                      </span>
+                      {idx < ((result as any).hrpMeta.clusterOrder as string[]).length - 1 && (
+                        <span className="text-gray-700 text-[10px]">—</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Diversifikations-Ratio:</span>
+                  <span className="text-xs font-mono font-semibold text-[#00CFC1]">
+                    {((result as any).hrpMeta.diversificationRatio as number).toFixed(2)}
+                  </span>
+                  <span className="text-[10px] text-gray-600">(je höher, desto besser diversifiziert)</span>
+                </div>
+              </div>
+
+              {/* Risikobeiträge */}
+              <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-sm font-semibold text-white">Risikobeiträge</h3>
+                  <span className="relative group ml-1">
+                    <Info className="w-3 h-3 text-gray-600 cursor-help" />
+                    <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 bg-[#1a1f2e] border border-white/20 rounded-lg px-3 py-2 text-[11px] text-gray-300 leading-relaxed shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                      Anteil jeder Position am Gesamt-Portfolio-Risiko (Varianz). HRP strebt eine gleichmässige Risikoverteilung an — kein Titel dominiert das Risiko.
+                    </span>
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">Anteil am Portfolio-Risiko (Varianz)</p>
+                <div className="space-y-2">
+                  {Object.entries((result as any).hrpMeta.riskContributions as Record<string, number>)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 10)
+                    .map(([ticker, contrib]) => (
+                      <div key={ticker} className="flex items-center gap-2">
+                        <span className="font-mono text-[11px] text-gray-300 w-16 flex-shrink-0">{ticker}</span>
+                        <div className="flex-1 bg-white/5 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="h-full bg-[#00CFC1] rounded-full"
+                            style={{ width: `${Math.min(100, (contrib as number) * 100).toFixed(1)}%` }}
+                          />
+                        </div>
+                        <span className="text-[11px] font-mono text-gray-400 w-10 text-right">
+                          {((contrib as number) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Method description banner */}
+          <div className="flex items-start gap-2 bg-white/[0.02] border border-white/10 rounded-lg px-4 py-2.5">
+            <Info className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-gray-500">{METHOD_DESCRIPTION[method]}</p>
           </div>
 
           <p className="text-xs text-gray-600 text-center">
