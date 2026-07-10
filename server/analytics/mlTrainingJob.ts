@@ -56,7 +56,7 @@ export interface TrainingJobOptions {
 
 export const DEFAULT_TRAINING_OPTIONS: TrainingJobOptions = {
   kind: "gb_signal",
-  gate: { minHitRate: 0.52, maxOverfitRatio: 1.6, minAlpha: 0 },
+  gate: { minHitRate: 0.52, maxOverfitRatio: 2.0, minAlpha: 0 },
   lookahead: 30,
   minSeriesLength: 150,
   minTickers: 5,

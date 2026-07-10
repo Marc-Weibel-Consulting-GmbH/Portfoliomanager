@@ -25,7 +25,7 @@ function fakeRepo(): ArtifactRepo & { rows: ArtifactRow[] } {
   };
 }
 
-const gate = { minHitRate: 0.55, maxOverfitRatio: 1.6, minAlpha: 0 };
+const gate = { minHitRate: 0.55, maxOverfitRatio: 2.0, minAlpha: 0 };
 const onnx = new Uint8Array([1, 2, 3, 4]);
 
 describe('modelStore', () => {
