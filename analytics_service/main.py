@@ -249,6 +249,36 @@ def health():
     return {"status": "ok", "service": "fincept-analytics", "version": "1.0.0"}
 
 
+class TearsheetRequest(BaseModel):
+    returns: List[float]
+    dates: List[str]  # YYYY-MM-DD, gleiche Länge wie returns
+    title: str = "Portfolio Tearsheet"
+    rf: float = 0.0
+    benchmark: Optional[List[float]] = None
+    benchmark_dates: Optional[List[str]] = None
+    benchmark_title: str = "Benchmark"
+
+
+@app.post("/analytics/tearsheet")
+def tearsheet(req: TearsheetRequest):
+    """QuantStats-Tearsheet als self-contained HTML aus einer Renditereihe."""
+    if len(req.returns) != len(req.dates):
+        raise HTTPException(status_code=400, detail="returns und dates muessen gleich lang sein")
+    if len(req.returns) < 30:
+        raise HTTPException(status_code=400, detail="Zu wenige Datenpunkte fuer einen Report (min. 30 Tage)")
+    from fastapi.responses import HTMLResponse
+    from tearsheet import build_tearsheet_html
+    try:
+        html = build_tearsheet_html(
+            req.returns, req.dates, title=req.title, rf=req.rf,
+            benchmark=req.benchmark, benchmark_dates=req.benchmark_dates,
+            benchmark_title=req.benchmark_title,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Tearsheet-Erzeugung fehlgeschlagen: {exc}")
+    return HTMLResponse(content=html)
+
+
 @app.post("/analytics/risk-metrics")
 def risk_metrics(req: RiskMetricsRequest):
     """

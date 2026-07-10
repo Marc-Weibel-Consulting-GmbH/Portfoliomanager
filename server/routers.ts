@@ -44,6 +44,7 @@ import { marketRegimeRouter } from "./routers/marketRegimeRouter";
 import { copilotRouter } from "./routers/copilotRouter";
 import { recommendationsRouter } from "./routers/recommendationsRouter";
 import { investmentProfileRouter } from "./routers/investmentProfileRouter";
+import { reportRouter } from "./routers/reportRouter";
 import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
 import { researchRouter } from "./routers/researchRouter";
@@ -240,6 +241,7 @@ export const appRouter = router({
   copilot: copilotRouter,
   recommendations: recommendationsRouter,
   investmentProfile: investmentProfileRouter,
+  report: reportRouter,
   pdfImport: pdfImportRouter,
   userSettings: userSettingsRouter,
 

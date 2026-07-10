@@ -111,6 +111,16 @@ function PerformanceTab({
 }) {
   const [showRealizedGains, setShowRealizedGains] = useState(false);
   const [attributionPeriod, setAttributionPeriod] = useState<'ytd' | 'since_buy'>('ytd');
+  // QuantStats-Tearsheet (Kundenreport) — öffnet den self-contained HTML-Report in neuem Tab.
+  const tearsheet = trpc.report.tearsheet.useMutation({
+    onSuccess: (data) => {
+      const blob = new Blob([data.html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
+    onError: (e) => toast.error('Report konnte nicht erstellt werden', { description: e.message }),
+  });
   const entry = (multiPeriod as any[] | undefined)?.find((p: any) => p.portfolioId === portfolioId);
   const ytd = entry?.performance?.YTD ?? null;
   const seitKauf = investmentAmount > 0 ? ((totalValueCHF - investmentAmount) / investmentAmount) * 100 : null;
@@ -155,6 +165,20 @@ function PerformanceTab({
 
   return (
     <div className="space-y-4">
+      {/* Kundenreport (QuantStats-Tearsheet) */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white">Performance</h3>
+        <Button
+          size="sm" variant="outline"
+          disabled={tearsheet.isPending}
+          onClick={() => tearsheet.mutate({ portfolioId })}
+          className="border-white/10 text-gray-200 hover:text-white hover:border-white/30 gap-2"
+        >
+          <FileText className="h-4 w-4" />
+          {tearsheet.isPending ? 'Report wird erstellt…' : 'Report (Tear-Sheet)'}
+        </Button>
+      </div>
+
       {/* KPI Row */}
       <div className="grid grid-cols-3 gap-0 border border-white/10 rounded-lg overflow-hidden">
         <div className="bg-[#0f1420] p-4 border-r border-white/10">
