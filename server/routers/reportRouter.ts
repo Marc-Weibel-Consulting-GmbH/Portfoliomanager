@@ -53,12 +53,41 @@ export const reportRouter = router({
         }
       }
 
+      // SPI-Benchmark (best-effort, EODHD): Tagesrenditen des SPI über denselben Zeitraum.
+      // Scheitert der Abruf, wird der Report ohne Benchmark erzeugt (kein Fehler).
+      let benchmark: number[] | undefined;
+      let benchmarkDates: string[] | undefined;
+      try {
+        const { fetchEodSeries } = await import("../jobs/importHistoricalPrices");
+        const spi = await fetchEodSeries("SSMI.INDX", dates[0] ?? startDate, endDate);
+        if (spi.prices.length > 30) {
+          const bRet: number[] = [];
+          const bDate: string[] = [];
+          for (let i = 1; i < spi.prices.length; i++) {
+            const r = spi.prices[i] / spi.prices[i - 1] - 1;
+            if (Number.isFinite(r)) {
+              bRet.push(r);
+              bDate.push(spi.dates[i]);
+            }
+          }
+          if (bRet.length > 30) {
+            benchmark = bRet;
+            benchmarkDates = bDate;
+          }
+        }
+      } catch (e) {
+        console.warn("[report.tearsheet] SPI-Benchmark nicht verfügbar:", (e as Error).message);
+      }
+
       let res: Response;
       try {
         res = await fetch(`${serviceUrl.replace(/\/$/, "")}/analytics/tearsheet`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ returns, dates, title: portfolio.name ?? "Portfolio", rf: 0 }),
+          body: JSON.stringify({
+            returns, dates, title: portfolio.name ?? "Portfolio", rf: 0,
+            ...(benchmark && benchmarkDates ? { benchmark, benchmark_dates: benchmarkDates, benchmark_title: "SPI" } : {}),
+          }),
           signal: AbortSignal.timeout(30000),
         });
       } catch (e) {
