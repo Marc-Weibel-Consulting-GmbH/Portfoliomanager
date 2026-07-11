@@ -107,5 +107,5 @@
 - [x] End-to-End Test: KI-Portfolio Vorschlag generiert korrekt (20 Titel, alle BUY, max 5.8% pro Position)
 
 ## Optimierung anwenden — Kritische Bugfixes (11.07.2026)
-- [ ] Cash-Constraint: Käufe dürfen Cash + Verkaufserlös nicht übersteigen (Dialog + Backend)
-- [ ] Portfolio-Refresh: Nach Buchung Redis-Cache invalidieren + tRPC-Queries neu laden
+- [x] Cash-Constraint: Käufe dürfen Cash + Verkaufserlös nicht übersteigen (Dialog + Backend)
+- [x] Portfolio-Refresh: Nach Buchung Redis-Cache invalidieren + tRPC-Queries neu laden

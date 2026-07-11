@@ -997,6 +997,14 @@ Gib eine strukturierte Analyse zurück.`;
           .set({ cashBalance: newCash.toFixed(2) })
           .where(eq(savedPortfolios.id, input.portfolioId));
       }
+      // 4. Invalidate Redis cache for this portfolio so next load is fresh
+      try {
+        const { cacheDel } = await import('../redisClient');
+        await cacheDel(`portfolio:detail:${input.portfolioId}:${ctx.user.id}`);
+      } catch (e) {
+        console.warn('[applyRecommendations] Redis cache invalidation failed (non-critical):', (e as Error).message);
+      }
+
       return {
         success: true,
         transactionsCreated: created.length,
@@ -1063,6 +1071,14 @@ Gib eine strukturierte Analyse zurück.`;
           .set({ cashBalance: newCash.toFixed(2) })
           .where(eq(savedPortfolios.id, input.portfolioId));
       }
+      // Invalidate Redis cache for this portfolio
+      try {
+        const { cacheDel } = await import('../redisClient');
+        await cacheDel(`portfolio:detail:${input.portfolioId}:${ctx.user.id}`);
+      } catch (e) {
+        console.warn('[undoRecommendations] Redis cache invalidation failed (non-critical):', (e as Error).message);
+      }
+
       return {
         success: true,
         deletedCount: txs.length,
