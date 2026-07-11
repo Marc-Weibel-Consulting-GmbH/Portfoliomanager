@@ -335,8 +335,12 @@ export default function PortfolioBuilderWizard() {
     const capital = parseFloat(initialCapital) || 0;
     const seeded: StockSelection[] = autoProposal.positions.map((p: any) => {
       const value = (p.weightPct / 100) * capital;
-      const qty = p.currentPrice > 0 ? value / p.currentPrice : 0;
-      return { ticker: p.ticker, companyName: p.companyName, quantity: parseFloat(qty.toFixed(4)), purchasePrice: p.currentPrice, assetType: "stock" as const };
+      // Convert price to CHF for correct share quantity calculation
+      // investmentAmount is in CHF, so we need priceCHF for consistent share count
+      const fxRate = parseFloat(p.exchangeRateToChf || '1') || 1;
+      const priceCHF = p.currentPrice * fxRate;
+      const qty = priceCHF > 0 ? value / priceCHF : 0;
+      return { ticker: p.ticker, companyName: p.companyName, quantity: parseFloat(qty.toFixed(4)), purchasePrice: priceCHF, assetType: "stock" as const };
     });
     setSelectedStocks(seeded);
     const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };
