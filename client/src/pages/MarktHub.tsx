@@ -17,8 +17,117 @@ import NewsroomContent from "./Newsroom";
 import { TickerBar, KIAnalyse } from "@/components/dashboard/MarketSections";
 import { useState as useStateAlias } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // Tägliches Manus Momentum-Update Bericht-Widget
+// Custom Markdown components for beautiful report rendering
+const markdownComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
+  // H1: Report-Titel — kompakt, nicht riesig
+  h1: ({ children }) => (
+    <h1 className="text-lg font-bold text-white mt-6 mb-2 pb-2 border-b border-white/10 first:mt-0">{children}</h1>
+  ),
+  // H2: Sektions-Header — teal-Akzentlinie
+  h2: ({ children }) => (
+    <h2 className="text-base font-semibold text-white mt-5 mb-2 flex items-center gap-2">
+      <span className="w-1 h-4 bg-[#00CFC1] rounded-full inline-block flex-shrink-0" />
+      {children}
+    </h2>
+  ),
+  // H3: Unter-Sektion
+  h3: ({ children }) => (
+    <h3 className="text-sm font-semibold text-[#00CFC1] mt-4 mb-1.5">{children}</h3>
+  ),
+  // Paragraph
+  p: ({ children }) => (
+    <p className="text-sm text-gray-300 leading-relaxed mb-3">{children}</p>
+  ),
+  // Bold
+  strong: ({ children }) => (
+    <strong className="font-semibold text-white">{children}</strong>
+  ),
+  // Italic
+  em: ({ children }) => (
+    <em className="text-gray-400 not-italic">{children}</em>
+  ),
+  // Unordered list
+  ul: ({ children }) => (
+    <ul className="space-y-1 mb-3 pl-0">{children}</ul>
+  ),
+  // Ordered list
+  ol: ({ children }) => (
+    <ol className="space-y-1 mb-3 pl-0 list-none counter-reset-item">{children}</ol>
+  ),
+  // List item
+  li: ({ children }) => (
+    <li className="flex items-start gap-2 text-sm text-gray-300">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#00CFC1]/60 mt-2 flex-shrink-0" />
+      <span>{children}</span>
+    </li>
+  ),
+  // Blockquote — highlighted insight box
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-[#00CFC1] pl-3 py-1 my-3 bg-[#00CFC1]/5 rounded-r-lg">
+      <div className="text-sm text-gray-300 italic">{children}</div>
+    </blockquote>
+  ),
+  // Inline code
+  code: ({ children, className }) => {
+    const isBlock = className?.includes('language-');
+    if (isBlock) {
+      return (
+        <pre className="bg-[#0a0e1a] border border-white/10 rounded-lg p-3 overflow-x-auto my-3">
+          <code className="text-xs text-[#00CFC1] font-mono">{children}</code>
+        </pre>
+      );
+    }
+    return (
+      <code className="bg-white/10 text-[#00CFC1] text-xs font-mono px-1.5 py-0.5 rounded">{children}</code>
+    );
+  },
+  // GFM Table — the key fix: render as proper styled HTML table
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-4 rounded-lg border border-white/10">
+      <table className="w-full text-xs border-collapse">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-[#0a0e1a]">{children}</thead>
+  ),
+  tbody: ({ children }) => (
+    <tbody className="divide-y divide-white/5">{children}</tbody>
+  ),
+  tr: ({ children }) => (
+    <tr className="hover:bg-white/[0.03] transition-colors">{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th className="text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider px-3 py-2.5 whitespace-nowrap">{children}</th>
+  ),
+  td: ({ children }) => {
+    const text = String(children ?? '');
+    // Colour positive/negative numbers automatically
+    const isPositive = /^\+/.test(text);
+    const isNegative = /^-[0-9]/.test(text);
+    return (
+      <td className={`px-3 py-2 text-xs whitespace-nowrap ${
+        isPositive ? 'text-emerald-400 font-medium' :
+        isNegative ? 'text-red-400 font-medium' :
+        'text-gray-300'
+      }`}>{children}</td>
+    );
+  },
+  // Horizontal rule — section divider
+  hr: () => (
+    <hr className="border-white/10 my-4" />
+  ),
+  // Links
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer"
+      className="text-[#00CFC1] hover:text-[#00CFC1]/80 underline underline-offset-2 transition-colors">
+      {children}
+    </a>
+  ),
+};
+
 function MarketReportSection() {
   const { data: report, isLoading, isError, refetch } = trpc.marketReport.getLatest.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
@@ -77,44 +186,60 @@ function MarketReportSection() {
     : "";
 
   return (
-    <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg overflow-hidden">
+    <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
-        <div>
-          <span className="text-[10px] font-semibold text-[#00CFC1] uppercase tracking-widest">TÄGLICHES MARKT-UPDATE</span>
-          <h3 className="text-sm font-semibold text-white mt-0.5">{displayReport?.title}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{reportDateStr} · Quelle: Manus KI-Analyse</p>
+      <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#00CFC1]/15 flex items-center justify-center flex-shrink-0">
+            <Newspaper className="w-4 h-4 text-[#00CFC1]" />
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold text-[#00CFC1] uppercase tracking-widest">TÄGLICHES MARKT-UPDATE</span>
+            <h3 className="text-sm font-semibold text-white mt-0.5 leading-tight">{displayReport?.title}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{reportDateStr} · Manus KI-Analyse</p>
+          </div>
         </div>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-xs text-[#00CFC1] hover:text-[#00CFC1]/80 transition-colors"
+          className="flex-shrink-0 text-xs font-medium text-[#00CFC1] hover:text-white bg-[#00CFC1]/10 hover:bg-[#00CFC1]/20 px-3 py-1.5 rounded-lg transition-colors"
         >
-          {expanded ? "Weniger" : "Vollständig lesen"}
+          {expanded ? "▲ Weniger" : "▼ Vollständig lesen"}
         </button>
       </div>
 
-      {/* Content */}
-      <div className="px-5 py-4">
-        <div className={`prose prose-invert prose-sm max-w-none text-gray-300 ${
-          expanded ? "" : "line-clamp-6"
-        }`}>
-          <ReactMarkdown>{displayReport?.content ?? ""}</ReactMarkdown>
+      {/* Styled Markdown Content */}
+      <div className="px-6 py-5">
+        <div className={`${!expanded ? "max-h-72 overflow-hidden relative" : ""}`}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {displayReport?.content ?? ""}
+          </ReactMarkdown>
+          {!expanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#1a1f2e] to-transparent pointer-events-none" />
+          )}
         </div>
+        {!expanded && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="mt-3 w-full text-xs text-gray-400 hover:text-[#00CFC1] transition-colors py-2 border border-white/10 hover:border-[#00CFC1]/30 rounded-lg"
+          >
+            Vollständigen Bericht anzeigen
+          </button>
+        )}
       </div>
 
       {/* Archiv */}
       {reportList && reportList.length > 1 && (
-        <div className="px-5 pb-4 border-t border-white/10 pt-3">
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Archiv</p>
+        <div className="px-6 pb-5 border-t border-white/10 pt-4">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2.5">Archiv</p>
           <div className="flex flex-wrap gap-2">
             {reportList.map((r: any) => (
               <button
                 key={r.id}
                 onClick={() => setSelectedId(r.id === selectedId ? null : r.id)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                   (selectedId === r.id || (!selectedId && r.id === report?.id))
-                    ? "border-[#00CFC1] text-[#00CFC1] bg-[#00CFC1]/10"
-                    : "border-white/20 text-gray-400 hover:border-white/40"
+                    ? "border-[#00CFC1] text-[#00CFC1] bg-[#00CFC1]/10 font-medium"
+                    : "border-white/15 text-gray-400 hover:border-white/30 hover:text-gray-200"
                 }`}
               >
                 {new Date(r.reportDate + "T00:00:00").toLocaleDateString("de-CH", { day: "numeric", month: "short" })}

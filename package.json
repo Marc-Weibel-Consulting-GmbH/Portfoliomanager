@@ -101,6 +101,7 @@
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^3.0.6",
     "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
     "resend": "^6.4.2",
     "rxjs": "^7.4.0",
     "simple-statistics": "^7.8.9",
