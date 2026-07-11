@@ -1967,7 +1967,7 @@ export default function PortfolioDetailsPage() {
                                       </div>
                                       <div>
                                         <p className="text-xs text-gray-400">Volatilität</p>
-                                        <p className="text-sm font-semibold text-white">{h.volatility ? (parseFloat(h.volatility) * 100).toFixed(1) + '%' : '—'}</p>
+                                        <p className="text-sm font-semibold text-white">{h.volatility ? parseFloat(h.volatility).toFixed(1) + '%' : '—'}</p>
                                       </div>
                                     </div>
                                   </div>
