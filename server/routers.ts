@@ -49,6 +49,7 @@ import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
 import { researchRouter } from "./routers/researchRouter";
 import { marketReportRouter } from "./routers/marketReportRouter";
+import { kiBoomRouter } from "./routers/kiBoomRouter";
 import { userSettingsRouter } from "./routers/userSettingsRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
@@ -250,6 +251,7 @@ export const appRouter = router({
 
   // Tägliche Market-Update Berichte
   marketReport: marketReportRouter,
+  kiBoom: kiBoomRouter,
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
