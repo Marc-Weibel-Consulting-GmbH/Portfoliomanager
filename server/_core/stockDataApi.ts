@@ -198,11 +198,22 @@ export async function fetchHistoricalPrices(
     const fromDate = startDate.toISOString().split('T')[0];
     const toDate = endDate.toISOString().split('T')[0];
     
-    // Convert ticker format (e.g., NESN -> NESN.SW for Swiss stocks)
+    // Convert ticker format: detect US vs Swiss exchange
     let cleanTicker = ticker;
     if (!ticker.includes('.')) {
-      // Assume Swiss stock if no exchange suffix
-      cleanTicker = `${ticker}.SW`;
+      // Known US tickers — add .US suffix; everything else defaults to .SW (Swiss)
+      const US_TICKERS = new Set([
+        'NVDA','MSFT','GOOGL','GOOG','AMZN','META','AAPL','TSLA',
+        'AMD','INTC','QCOM','AVGO','TXN','MU','LRCX','AMAT','KLAC',
+        'NFLX','UBER','LYFT','SNAP','PINS','SPOT',
+        'JPM','GS','MS','BAC','WFC','C',
+        'SPY','QQQ','IWM','DIA','VTI','VOO',
+        'NET','ANET','CRWD','PANW','ZS','OKTA','DDOG','SNOW','PLTR',
+        'BE','ENPH','FSLR','SEDG','PLUG','BLNK',
+        'AMGN','GILD','BIIB','REGN','MRNA','PFE','JNJ','UNH',
+        'COST','WMT','TGT','HD','LOW','SBUX','MCD','BRKB',
+      ]);
+      cleanTicker = US_TICKERS.has(ticker.toUpperCase()) ? `${ticker}.US` : `${ticker}.SW`;
     }
     
     console.log(`[fetchHistoricalPrices] Fetching ${years} years for ${cleanTicker} from ${fromDate} to ${toDate}`);

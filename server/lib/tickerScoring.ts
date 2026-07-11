@@ -46,7 +46,10 @@ export async function scoreFromPrices(
   const mNorm = (momentumResult.score + 1) / 2;
   const qNorm = (qualityResult.score + 1) / 2;
   const lpplPenalty = bubbleRegime === "bubble" ? bubbleScore * 0.5 : 0;
-  const combined = Math.max(0, Math.min(1, weights.momentum * mNorm + weights.quality * qNorm - lpplPenalty));
+  // Normalize so that weights.momentum + weights.quality always sum to 1.0
+  // This ensures neutral stocks (mNorm=0.5, qNorm=0.5) get combined=0.5 → HOLD, not SELL
+  const totalW = (weights.momentum + weights.quality) || 1;
+  const combined = Math.max(0, Math.min(1, (weights.momentum * mNorm + weights.quality * qNorm) / totalW - lpplPenalty));
   const score = parseFloat((combined * 100).toFixed(1));
 
   return {

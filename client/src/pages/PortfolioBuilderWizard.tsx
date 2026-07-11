@@ -77,7 +77,7 @@ const autoStepMeta: Record<AutoStep, { title: string; subtitle: string }> = {
 const INVESTMENT_GOALS = [
   { value: "dividends", label: "Dividenden & Ertrag", description: "Regelmässige Ausschüttungen, stabile Titel", icon: <DollarSign className="h-7 w-7" /> },
   { value: "growth", label: "Wachstum", description: "Langfristiger Kapitalzuwachs, Wachstumswerte", icon: <TrendingUp className="h-7 w-7" /> },
-  { value: "balanced", label: "Ausgewogen", description: "Kombination aus Ertrag und Wachstum", icon: <Scale className="h-7 w-7" /> },
+  { value: "balanced", label: "Ertrag & Wachstum", description: "Kombination aus Ertrag und Wachstum", icon: <Scale className="h-7 w-7" /> },
 ];
 
 const RISK_PROFILES = [
@@ -601,6 +601,14 @@ export default function PortfolioBuilderWizard() {
                       <span>Methode: {autoProposal.methodLabel}</span>
                       <span>·</span>
                       <span>{autoProposal.stats.scoredCount} bewertet, {autoProposal.stats.buySignals} Kaufsignale</span>
+                      {(autoProposal.stats as any).watchlistRecommendations > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="text-[#00CFC1]">
+                            {(autoProposal.stats as any).watchlistRecommendations} Watchlist-Empfehlung{(autoProposal.stats as any).watchlistRecommendations > 1 ? "en" : ""}
+                          </span>
+                        </>
+                      )}
                       {autoExcluded.length > 0 && (
                         <>
                           <span>·</span>

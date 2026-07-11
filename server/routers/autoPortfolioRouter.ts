@@ -56,6 +56,17 @@ export const autoPortfolioRouter = router({
 
       // 3) Kandidaten-Universum aus der DB (nach Marktkapitalisierung begrenzt,
       //    ausgeschlossene Sektoren + fehlende Preise raus)
+      //    PLUS: Watchlist-Empfehlungen (listType='empfehlung') werden bevorzugt einbezogen
+      const { watchlistStocks: watchlistStocksTable } = await import("../../drizzle/schema");
+      const { eq: eqOp } = await import("drizzle-orm");
+
+      // Fetch watchlist recommendation tickers for this user
+      const watchlistRecs = await db
+        .select({ ticker: watchlistStocksTable.ticker })
+        .from(watchlistStocksTable)
+        .where(eqOp(watchlistStocksTable.listType, "empfehlung"));
+      const watchlistRecTickers = new Set(watchlistRecs.map((r: any) => r.ticker.toUpperCase()));
+
       const allStocks = await db.select().from(stocksTable);
       let universe = allStocks.filter((s: any) => {
         const price = parseFloat(s.currentPrice ?? "0");
@@ -65,8 +76,17 @@ export const autoPortfolioRouter = router({
         if (esgOnly && !s.esgCertified) return false;
         return true;
       });
-      universe.sort((a: any, b: any) => parseFloat(b.marketCap ?? "0") - parseFloat(a.marketCap ?? "0"));
-      universe = universe.slice(0, 40);
+      // Sort: watchlist recommendations first, then by market cap
+      universe.sort((a: any, b: any) => {
+        const aRec = watchlistRecTickers.has(a.ticker.toUpperCase()) ? 1 : 0;
+        const bRec = watchlistRecTickers.has(b.ticker.toUpperCase()) ? 1 : 0;
+        if (bRec !== aRec) return bRec - aRec; // recommendations first
+        return parseFloat(b.marketCap ?? "0") - parseFloat(a.marketCap ?? "0");
+      });
+      // Take top 40, but ensure all watchlist recommendations are included (up to 20 extra)
+      const recStocks = universe.filter((s: any) => watchlistRecTickers.has(s.ticker.toUpperCase()));
+      const nonRecStocks = universe.filter((s: any) => !watchlistRecTickers.has(s.ticker.toUpperCase()));
+      universe = [...recStocks, ...nonRecStocks.slice(0, Math.max(0, 40 - recStocks.length))];
 
       // 4) Scoring aus Kursreihen (historicalPrices)
       const { scoreFromPrices } = await import("../lib/tickerScoring");
@@ -95,8 +115,12 @@ export const autoPortfolioRouter = router({
       }
 
       // 5) Ranking (Ziel «dividends» bevorzugt Dividendenrendite) + Kaufsignal-Filter
-      const rankKey = (x: any) => x.combinedScore + (goal === "dividends" ? Math.min(x.dividendYield * 100, 5) * 2 : 0);
-      let ranked = scored.filter((x) => x.combinedScore >= 55).sort((a, b) => rankKey(b) - rankKey(a));
+      // Watchlist-Empfehlungen erhalten +10 Punkte Bonus im Ranking
+      const rankKey = (x: any) =>
+        x.combinedScore +
+        (goal === "dividends" ? Math.min(x.dividendYield * 100, 5) * 2 : 0) +
+        (watchlistRecTickers.has(x.stock.ticker.toUpperCase()) ? 10 : 0);
+      let ranked = scored.filter((x) => x.combinedScore >= 45).sort((a, b) => rankKey(b) - rankKey(a));
       if (ranked.length < rules.minTitles) {
         // Zu wenige Kaufsignale — auf das gesamte bewertete Universum ausweiten
         ranked = [...scored].sort((a, b) => rankKey(b) - rankKey(a));
@@ -158,6 +182,7 @@ export const autoPortfolioRouter = router({
             combinedScore: c.combinedScore,
             signal: c.signal,
             reason: `${c.signal} · Momentum ${c.momentumGrade}, Qualität ${c.qualityGrade}` +
+              (watchlistRecTickers.has(s.ticker.toUpperCase()) ? " · Watchlist-Empfehlung" : "") +
               (c.regime === "bubble" ? " · LPPL-Warnung" : ""),
           };
         })
@@ -186,6 +211,7 @@ export const autoPortfolioRouter = router({
           scoredCount: scored.length,
           buySignals: scored.filter((x) => x.combinedScore >= 55).length,
           selectedCount: positions.length,
+          watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length,
         },
       };
     }),
