@@ -243,9 +243,16 @@ export default function OptimierenTab({
   const [showCloneOption, setShowCloneOption] = useState(false);
   const [cloneName, setCloneName] = useState('');
   const [cloneCreated, setCloneCreated] = useState<{ id: number; name: string } | null>(null);
+  const [autoSnapshotInfo, setAutoSnapshotInfo] = useState<{ id: number; name: string } | null>(null);
   const cloneMut = trpc.analytics.clonePortfolio.useMutation({
     onSuccess: (data) => {
       setCloneCreated({ id: data.cloneId, name: data.cloneName });
+    },
+  });
+  // Automatischer Snapshot vor der Umsetzung (ohne Dialog)
+  const autoSnapshotMut = trpc.analytics.clonePortfolio.useMutation({
+    onSuccess: (data) => {
+      setAutoSnapshotInfo({ id: data.cloneId, name: data.cloneName });
     },
   });
 
@@ -900,8 +907,13 @@ export default function OptimierenTab({
                     `${t.ticker}: ${t.type === 'buy' ? 'Kauf' : 'Verkauf'} CHF ${t.amountCHF.toLocaleString('de-CH')}`
                   ).join(' · ')}
                 </p>
+                {autoSnapshotInfo && (
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    📸 Snapshot gespeichert: <span className="text-gray-400 font-medium">{autoSnapshotInfo.name}</span> — im Dashboard unter «Snapshots» vergleichbar.
+                  </p>
+                )}
               </div>
-              <button onClick={() => setApplyResult(null)} className="text-gray-500 hover:text-gray-300 text-xs">Schliessen</button>
+              <button onClick={() => { setApplyResult(null); setAutoSnapshotInfo(null); }} className="text-gray-500 hover:text-gray-300 text-xs">Schliessen</button>
             </div>
           )}
 
@@ -1040,6 +1052,9 @@ export default function OptimierenTab({
                       const items = suggestions
                         .filter(s => selectedTickers.has(s.ticker))
                         .map(s => ({ ticker: s.ticker, currentWeight: s.cur, targetWeight: s.opt }));
+                      // Automatischer Snapshot vor der Umsetzung (ohne Dialog)
+                      const snapshotName = `Snapshot vor Optimierung ${new Date().toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: '2-digit' })}`;
+                      autoSnapshotMut.mutate({ portfolioId, cloneName: snapshotName });
                       applyMut.mutate({ portfolioId, totalValueCHF: totalValueCHF ?? 0, items });
                     }}
                     disabled={applyMut.isPending}

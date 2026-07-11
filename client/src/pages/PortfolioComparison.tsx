@@ -1,19 +1,16 @@
-import { useState, useMemo, useEffect } from "react";
-import { useLocation, useSearch } from "wouter";
+import { useState, useEffect } from "react";
+import { useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, TrendingUp, TrendingDown, BarChart3, PieChart, Download } from "lucide-react";
+import { ArrowLeft, BarChart3, PieChart, Camera, ArrowUpRight, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import {
-  LineChart,
-  Line,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
   BarChart,
   Bar,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,376 +19,280 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+const COLOR_A = "#00CFC1";
+const COLOR_B = "#a78bfa";
+
+function MetricCard({ label, valueA, valueB, nameA, nameB, format = "num", higherIsBetter = true }: {
+  label: string; valueA: number; valueB: number; nameA: string; nameB: string;
+  format?: "pct" | "num" | "chf"; higherIsBetter?: boolean;
+}) {
+  const fmt = (v: number) => {
+    if (format === "pct") return `${v.toFixed(2)}%`;
+    if (format === "chf") return `CHF ${v.toLocaleString("de-CH", { maximumFractionDigits: 0 })}`;
+    return v.toFixed(2);
+  };
+  const aWins = higherIsBetter ? valueA > valueB : valueA < valueB;
+  const bWins = higherIsBetter ? valueB > valueA : valueB < valueA;
+  return (
+    <div className="bg-[#0f1420] border border-white/10 rounded-lg p-3">
+      <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+      <div className="flex justify-between items-end gap-2">
+        <div className="flex-1">
+          <p className="text-[10px] text-gray-500 truncate mb-0.5">{nameA}</p>
+          <p className={`text-sm font-bold font-mono ${aWins ? "text-[#00CFC1]" : "text-gray-300"}`}>
+            {fmt(valueA)}{aWins && <span className="ml-1 text-[10px]">▲</span>}
+          </p>
+        </div>
+        <div className="text-gray-600 text-xs shrink-0">vs</div>
+        <div className="flex-1 text-right">
+          <p className="text-[10px] text-gray-500 truncate mb-0.5">{nameB}</p>
+          <p className={`text-sm font-bold font-mono ${bWins ? "text-[#a78bfa]" : "text-gray-300"}`}>
+            {fmt(valueB)}{bWins && <span className="ml-1 text-[10px]">▲</span>}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PortfolioComparison() {
-  const [, setLocation] = useLocation();
-  const [selectedPortfolios, setSelectedPortfolios] = useState<number[]>([]);
+  const [selectedA, setSelectedA] = useState<number | null>(null);
+  const [selectedB, setSelectedB] = useState<number | null>(null);
   const search = useSearch();
-  // Support ?a=ID&b=ID URL params for direct comparison from Dashboard
+
   useEffect(() => {
     const params = new URLSearchParams(search);
-    const a = params.get('a');
-    const b = params.get('b');
+    const a = params.get("a");
+    const b = params.get("b");
     if (a && b) {
-      const ids = [parseInt(a), parseInt(b)].filter(n => !isNaN(n));
-      if (ids.length === 2) setSelectedPortfolios(ids);
+      const idA = parseInt(a), idB = parseInt(b);
+      if (!isNaN(idA) && !isNaN(idB)) { setSelectedA(idA); setSelectedB(idB); }
     }
   }, [search]);
 
-  // Fetch all portfolios
   const { data: portfolios = [], isLoading } = trpc.portfolios.list.useQuery();
 
-  // Fetch comparison data for selected portfolios
-  const { data: comparisonData } = trpc.portfolioComparison.compare.useQuery(
-    { portfolioIds: selectedPortfolios },
-    { enabled: selectedPortfolios.length >= 2 }
+  const canCompare = selectedA !== null && selectedB !== null && selectedA !== selectedB;
+  const { data: cmp, isLoading: cmpLoading } = trpc.analytics.comparePortfolios.useQuery(
+    { portfolioIdA: selectedA!, portfolioIdB: selectedB! },
+    { enabled: canCompare }
   );
 
-  const handlePortfolioToggle = (portfolioId: number) => {
-    setSelectedPortfolios((prev) => {
-      if (prev.includes(portfolioId)) {
-        return prev.filter((id) => id !== portfolioId);
-      } else {
-        if (prev.length >= 4) {
-          toast.error("Maximal 4 Portfolios können verglichen werden");
-          return prev;
-        }
-        return [...prev, portfolioId];
-      }
-    });
-  };
+  const radarData = cmp ? [
+    { metric: "Sharpe",    A: Math.min(cmp.a.sharpeRatio * 50, 100),              B: Math.min(cmp.b.sharpeRatio * 50, 100) },
+    { metric: "Rendite",   A: Math.min(cmp.a.expectedReturn * 5, 100),            B: Math.min(cmp.b.expectedReturn * 5, 100) },
+    { metric: "Dividende", A: Math.min(cmp.a.avgDividendYield * 20, 100),         B: Math.min(cmp.b.avgDividendYield * 20, 100) },
+    { metric: "Diversif.", A: Math.min(cmp.a.numberOfPositions * 5, 100),         B: Math.min(cmp.b.numberOfPositions * 5, 100) },
+    { metric: "Stabilität",A: Math.max(0, 100 - cmp.a.volatility * 8),           B: Math.max(0, 100 - cmp.b.volatility * 8) },
+  ] : [];
 
-  const exportToPdf = async () => {
-    if (!comparisonData) {
-      toast.error("Keine Daten zum Exportieren");
-      return;
-    }
-
-    toast.info("PDF-Export wird vorbereitet...");
-    // TODO: Implement PDF export
-    toast.success("PDF-Export erfolgreich!");
-  };
-
-  // Colors for charts
-  const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
-
-  // Performance over time data
-  const performanceChartData = useMemo(() => {
-    if (!comparisonData?.performanceHistory) return [];
-    
-    const dates = Array.from(
-      new Set(
-        comparisonData.performanceHistory.flatMap((p) => p.history.map((h) => h.date))
-      )
-    ).sort();
-
-    return dates.map((date) => {
-      const dataPoint: any = { date };
-      comparisonData.performanceHistory.forEach((portfolio) => {
-        const historyPoint = portfolio.history.find((h) => h.date === date);
-        dataPoint[portfolio.name] = historyPoint?.performance || 0;
-      });
-      return dataPoint;
-    });
-  }, [comparisonData]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-900 p-8">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-slate-400 text-center">Lade Portfolios...</p>
-        </div>
-      </div>
-    );
-  }
+  const allSectors = cmp ? Array.from(new Set([
+    ...cmp.a.sectors.map((s: any) => s.name),
+    ...cmp.b.sectors.map((s: any) => s.name),
+  ])) : [];
+  const sectorChartData = allSectors.map(sector => ({
+    sector: sector.length > 14 ? sector.slice(0, 14) + "…" : sector,
+    [cmp?.a.name ?? "A"]: cmp?.a.sectors.find((s: any) => s.name === sector)?.weight ?? 0,
+    [cmp?.b.name ?? "B"]: cmp?.b.sectors.find((s: any) => s.name === sector)?.weight ?? 0,
+  }));
 
   return (
-    <div className="min-h-screen bg-slate-900 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#080d14] text-white">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-8">
-          <Button
-            onClick={() => window.history.back()}
-            variant="ghost"
-            className="mb-4 text-slate-400 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Zurück zur Übersicht
-          </Button>
-
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">Portfolio-Vergleich</h1>
-              <p className="text-slate-400">
-                Vergleichen Sie bis zu 4 Portfolios nebeneinander
-              </p>
-            </div>
-
-            {selectedPortfolios.length >= 2 && (
-              <Button
-                onClick={exportToPdf}
-                variant="outline"
-                className="text-slate-300 border-slate-600 hover:bg-slate-700"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                PDF exportieren
-              </Button>
-            )}
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => window.history.back()} className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
+            <ArrowLeft className="w-4 h-4" />Zurück
+          </button>
+          <div className="h-4 w-px bg-white/10" />
+          <div>
+            <h1 className="text-xl font-bold text-white">Portfolio-Vergleich</h1>
+            <p className="text-xs text-gray-500">Zwei Portfolios direkt vergleichen — Metriken, Sektoren, Positionen</p>
           </div>
         </div>
 
         {/* Portfolio Selection */}
-        <Card className="bg-slate-800 border-slate-700 mb-8">
-          <CardHeader>
-            <CardTitle className="text-white">Portfolios auswählen (2-4)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {portfolios.map((portfolio: any) => (
-                <div
-                  key={portfolio.id}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedPortfolios.includes(portfolio.id)
-                      ? "border-blue-500 bg-blue-500/10"
-                      : "border-slate-600 bg-slate-700/50 hover:border-slate-500"
-                  }`}
-                  onClick={() => handlePortfolioToggle(portfolio.id)}
-                >
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      checked={selectedPortfolios.includes(portfolio.id)}
-                      onCheckedChange={() => handlePortfolioToggle(portfolio.id)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-white font-medium">{portfolio.name}</h3>
-                        {portfolio.isSnapshot === 1 && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">Snapshot</span>
+        {isLoading ? (
+          <div className="text-center text-gray-500 py-12">Lade Portfolios…</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {[{ label: "Portfolio A", color: COLOR_A, selected: selectedA, setSelected: setSelectedA, other: selectedB },
+              { label: "Portfolio B", color: COLOR_B, selected: selectedB, setSelected: setSelectedB, other: selectedA }
+            ].map(({ label, color, selected, setSelected, other }) => (
+              <div key={label}>
+                <p className="text-xs uppercase tracking-wider mb-2 font-medium" style={{ color }}>{label}</p>
+                <div className="space-y-1.5">
+                  {(portfolios as any[]).map((p: any) => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        if (selected === p.id) { setSelected(null); return; }
+                        if (other === p.id) { toast.error("Bereits als anderes Portfolio ausgewählt"); return; }
+                        setSelected(p.id);
+                      }}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all flex items-center justify-between gap-2 ${
+                        selected === p.id ? "border-current bg-current/10" : "border-white/10 bg-[#0f1420] hover:border-white/20"
+                      }`}
+                      style={selected === p.id ? { borderColor: color, backgroundColor: `${color}15` } : {}}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium text-white truncate">{p.name}</span>
+                        {p.isSnapshot === 1 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">Snapshot</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        {portfolio.isLive ? (
-                          <span className="text-green-400 flex items-center gap-1">
-                            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                            Live
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">Test</span>
-                        )}
-                        {portfolio.livePerformance !== null &&
-                          portfolio.livePerformance !== undefined && (
-                            <span
-                              className={
-                                portfolio.livePerformance >= 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }
-                            >
-                              {portfolio.livePerformance >= 0 ? "+" : ""}
-                              {portfolio.livePerformance.toFixed(1)}%
-                            </span>
-                          )}
+                      <span className={`text-[10px] shrink-0 ${p.isLive === 1 ? "text-emerald-400" : "text-gray-500"}`}>
+                        {p.isLive === 1 ? "Live" : "Demo"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Comparison Results */}
+        {canCompare && (
+          cmpLoading ? (
+            <div className="text-center text-gray-500 py-12">Vergleich wird geladen…</div>
+          ) : cmp ? (
+            <div className="space-y-6">
+              {/* Snapshot note */}
+              {(cmp.a.isSnapshot === 1 || cmp.b.isSnapshot === 1) && (
+                <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
+                  <Camera className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div className="text-xs text-amber-300 space-y-0.5">
+                    {cmp.a.isSnapshot === 1 && <p><strong>{cmp.a.name}</strong> ist ein Snapshot{cmp.a.snapshotNote ? `: ${cmp.a.snapshotNote}` : ""}.</p>}
+                    {cmp.b.isSnapshot === 1 && <p><strong>{cmp.b.name}</strong> ist ein Snapshot{cmp.b.snapshotNote ? `: ${cmp.b.snapshotNote}` : ""}.</p>}
+                  </div>
+                </div>
+              )}
+
+              {/* Key Metrics */}
+              <div>
+                <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-[#00CFC1]" />Kennzahlen-Vergleich
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <MetricCard label="Sharpe Ratio"     valueA={cmp.a.sharpeRatio}       valueB={cmp.b.sharpeRatio}       nameA={cmp.a.name} nameB={cmp.b.name} />
+                  <MetricCard label="Erw. Rendite p.a." valueA={cmp.a.expectedReturn}   valueB={cmp.b.expectedReturn}    nameA={cmp.a.name} nameB={cmp.b.name} format="pct" />
+                  <MetricCard label="Volatilität p.a."  valueA={cmp.a.volatility}       valueB={cmp.b.volatility}        nameA={cmp.a.name} nameB={cmp.b.name} format="pct" higherIsBetter={false} />
+                  <MetricCard label="Ø Dividende"       valueA={cmp.a.avgDividendYield} valueB={cmp.b.avgDividendYield}  nameA={cmp.a.name} nameB={cmp.b.name} format="pct" />
+                  <MetricCard label="Positionen"        valueA={cmp.a.numberOfPositions} valueB={cmp.b.numberOfPositions} nameA={cmp.a.name} nameB={cmp.b.name} />
+                  <MetricCard label="Investiert"        valueA={cmp.a.investmentAmount} valueB={cmp.b.investmentAmount}  nameA={cmp.a.name} nameB={cmp.b.name} format="chf" />
+                </div>
+              </div>
+
+              {/* Radar Chart */}
+              <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
+                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-[#00CFC1]" />Profil-Vergleich
+                </h2>
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="#ffffff15" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                      <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                      <Radar name={cmp.a.name} dataKey="A" stroke={COLOR_A} fill={COLOR_A} fillOpacity={0.15} strokeWidth={2} />
+                      <Radar name={cmp.b.name} dataKey="B" stroke={COLOR_B} fill={COLOR_B} fillOpacity={0.15} strokeWidth={2} />
+                      <Legend wrapperStyle={{ fontSize: 11, color: "#9ca3af" }} />
+                      <Tooltip contentStyle={{ backgroundColor: "#0f1420", border: "1px solid #ffffff20", borderRadius: 8, fontSize: 11 }} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                  <div className="text-xs text-gray-500 space-y-1 shrink-0 md:w-40">
+                    <p className="text-gray-400 font-medium mb-2">Score-Basis (0–100)</p>
+                    <p>Sharpe ×50</p><p>Rendite ×5</p><p>Dividende ×20</p>
+                    <p>Diversif. ×5 Pos.</p><p>Stabilität: 100−Vol×8</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sector Bar Chart */}
+              {sectorChartData.length > 0 && (
+                <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
+                  <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                    <PieChart className="w-4 h-4 text-[#00CFC1]" />Sektor-Allokation
+                  </h2>
+                  <ResponsiveContainer width="100%" height={Math.max(220, sectorChartData.length * 30)}>
+                    <BarChart data={sectorChartData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: "#9ca3af", fontSize: 10 }} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+                      <YAxis type="category" dataKey="sector" tick={{ fill: "#9ca3af", fontSize: 10 }} width={100} />
+                      <Tooltip contentStyle={{ backgroundColor: "#0f1420", border: "1px solid #ffffff20", borderRadius: 8, fontSize: 11 }} formatter={(v: any) => `${Number(v).toFixed(1)}%`} />
+                      <Legend wrapperStyle={{ fontSize: 11, color: "#9ca3af" }} />
+                      <Bar dataKey={cmp.a.name} fill={COLOR_A} radius={[0, 3, 3, 0]} maxBarSize={14} />
+                      <Bar dataKey={cmp.b.name} fill={COLOR_B} radius={[0, 3, 3, 0]} maxBarSize={14} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Position Overlap */}
+              {(() => {
+                const tickersA = new Set(cmp.a.stocks.map((s: any) => s.ticker));
+                const tickersB = new Set(cmp.b.stocks.map((s: any) => s.ticker));
+                const overlap = cmp.a.stocks.filter((s: any) => tickersB.has(s.ticker));
+                const onlyA = cmp.a.stocks.filter((s: any) => !tickersB.has(s.ticker));
+                const onlyB = cmp.b.stocks.filter((s: any) => !tickersA.has(s.ticker));
+                return (
+                  <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
+                    <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <ArrowUpRight className="w-4 h-4 text-[#00CFC1]" />Positionen-Überschneidung
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                      <div>
+                        <p className="font-medium mb-2" style={{ color: COLOR_A }}>Nur in {cmp.a.name} ({onlyA.length})</p>
+                        <div className="space-y-1">
+                          {onlyA.map((s: any) => (
+                            <div key={s.ticker} className="flex justify-between text-gray-400">
+                              <span className="font-mono">{s.ticker}</span><span>{s.weight.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                          {onlyA.length === 0 && <p className="text-gray-600">—</p>}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 font-medium mb-2 text-center">Gemeinsam ({overlap.length})</p>
+                        <div className="space-y-1">
+                          {overlap.map((s: any) => {
+                            const bStock = cmp.b.stocks.find((x: any) => x.ticker === s.ticker);
+                            return (
+                              <div key={s.ticker} className="flex justify-between gap-1 text-gray-300">
+                                <span className="font-mono">{s.ticker}</span>
+                                <span style={{ color: COLOR_A }}>{s.weight.toFixed(1)}%</span>
+                                <span style={{ color: COLOR_B }}>{bStock?.weight.toFixed(1) ?? "—"}%</span>
+                              </div>
+                            );
+                          })}
+                          {overlap.length === 0 && <p className="text-gray-600 text-center">Keine Überschneidung</p>}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="font-medium mb-2 text-right" style={{ color: COLOR_B }}>Nur in {cmp.b.name} ({onlyB.length})</p>
+                        <div className="space-y-1">
+                          {onlyB.map((s: any) => (
+                            <div key={s.ticker} className="flex justify-between text-gray-400">
+                              <span className="font-mono">{s.ticker}</span><span>{s.weight.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                          {onlyB.length === 0 && <p className="text-gray-600">—</p>}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })()}
             </div>
+          ) : null
+        )}
 
-            {selectedPortfolios.length < 2 && (
-              <p className="text-slate-400 text-sm mt-4 text-center">
-                Wählen Sie mindestens 2 Portfolios aus, um den Vergleich zu starten
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Comparison Results */}
-        {selectedPortfolios.length >= 2 && comparisonData && (
-          <>
-            {/* Key Metrics Comparison */}
-            <Card className="bg-slate-800 border-slate-700 mb-8">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" />
-                  Kennzahlen im Vergleich
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-700">
-                        <th className="text-left py-3 px-4 text-slate-400 font-medium">
-                          Metrik
-                        </th>
-                        {comparisonData.portfolios.map((p: any, idx: number) => (
-                          <th
-                            key={p.id}
-                            className="text-right py-3 px-4 font-medium"
-                            style={{ color: COLORS[idx] }}
-                          >
-                            {p.name}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-slate-700/50">
-                        <td className="py-3 px-4 text-slate-300">Performance</td>
-                        {comparisonData.portfolios.map((p: any) => (
-                          <td
-                            key={p.id}
-                            className={`text-right py-3 px-4 font-medium ${
-                              p.performance >= 0 ? "text-green-400" : "text-red-400"
-                            }`}
-                          >
-                            {p.performance >= 0 ? "+" : ""}
-                            {p.performance.toFixed(2)}%
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="border-b border-slate-700/50">
-                        <td className="py-3 px-4 text-slate-300">Volatilität</td>
-                        {comparisonData.portfolios.map((p: any) => (
-                          <td key={p.id} className="text-right py-3 px-4 text-slate-300">
-                            {p.volatility.toFixed(2)}%
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="border-b border-slate-700/50">
-                        <td className="py-3 px-4 text-slate-300">Sharpe Ratio</td>
-                        {comparisonData.portfolios.map((p: any) => (
-                          <td key={p.id} className="text-right py-3 px-4 text-slate-300">
-                            {p.sharpeRatio.toFixed(2)}
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="border-b border-slate-700/50">
-                        <td className="py-3 px-4 text-slate-300">Max Drawdown</td>
-                        {comparisonData.portfolios.map((p: any) => (
-                          <td key={p.id} className="text-right py-3 px-4 text-red-400">
-                            {p.maxDrawdown.toFixed(2)}%
-                          </td>
-                        ))}
-                      </tr>
-                      <tr className="border-b border-slate-700/50">
-                        <td className="py-3 px-4 text-slate-300">Ø Dividende</td>
-                        {comparisonData.portfolios.map((p: any) => (
-                          <td key={p.id} className="text-right py-3 px-4 text-slate-300">
-                            {p.avgDividendYield.toFixed(2)}%
-                          </td>
-                        ))}
-                      </tr>
-                      <tr>
-                        <td className="py-3 px-4 text-slate-300">Aktueller Wert</td>
-                        {comparisonData.portfolios.map((p: any) => (
-                          <td key={p.id} className="text-right py-3 px-4 text-white font-medium">
-                            CHF {p.currentValue.toLocaleString("de-CH")}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Performance Chart */}
-            {performanceChartData.length > 0 && (
-              <Card className="bg-slate-800 border-slate-700 mb-8">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    Performance-Entwicklung
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={performanceChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis dataKey="date" stroke="#94a3b8" />
-                      <YAxis stroke="#94a3b8" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1e293b",
-                          border: "1px solid #334155",
-                          borderRadius: "8px",
-                        }}
-                        labelStyle={{ color: "#e2e8f0" }}
-                      />
-                      <Legend />
-                      {comparisonData.portfolios.map((p: any, idx: number) => (
-                        <Line
-                          key={p.id}
-                          type="monotone"
-                          dataKey={p.name}
-                          stroke={COLORS[idx]}
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Sector Allocation Comparison */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {comparisonData.portfolios.map((portfolio: any, idx: number) => (
-                <Card key={portfolio.id} className="bg-slate-800 border-slate-700">
-                  <CardHeader>
-                    <CardTitle
-                      className="text-white flex items-center gap-2"
-                      style={{ color: COLORS[idx] }}
-                    >
-                      <PieChart className="w-5 h-5" />
-                      {portfolio.name} - Sektor-Allocation
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {portfolio.sectorAllocation && portfolio.sectorAllocation.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={300}>
-                        <RechartsPieChart>
-                          <Pie
-                            data={portfolio.sectorAllocation}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) =>
-                              `${name}: ${(percent * 100).toFixed(0)}%`
-                            }
-                            outerRadius={100}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {portfolio.sectorAllocation.map((_: any, index: number) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={COLORS[index % COLORS.length]}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#1e293b",
-                              border: "1px solid #334155",
-                              borderRadius: "8px",
-                            }}
-                          />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-slate-400 text-center py-8">
-                        Keine Sektor-Daten verfügbar
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </>
+        {!canCompare && !isLoading && (
+          <div className="text-center text-gray-500 py-16 border border-white/10 rounded-lg bg-[#0f1420]">
+            <BarChart3 className="w-8 h-8 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Wählen Sie je ein Portfolio A und B aus, um den Vergleich zu starten.</p>
+          </div>
         )}
       </div>
     </div>

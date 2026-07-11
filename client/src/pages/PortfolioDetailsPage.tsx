@@ -53,6 +53,8 @@ import {
   ChevronUp,
   ShieldCheck,
   Zap,
+  Camera,
+  GitCompareArrows,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -1550,8 +1552,55 @@ export default function PortfolioDetailsPage() {
                 </div>
               </div>
             </div>
+            {/* SNAPSHOTS SECTION — Kopien dieses Portfolios */}
+          {allPortfolios && (allPortfolios as any[]).filter((p: any) => p.snapshotOfPortfolioId === portfolioId).length > 0 && (
+            <div className="mt-4 bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-amber-500/20 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Camera className="h-4 w-4 text-amber-400" />
+                <h3 className="text-sm font-semibold text-white">Snapshots</h3>
+                <span className="text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
+                  {(allPortfolios as any[]).filter((p: any) => p.snapshotOfPortfolioId === portfolioId).length}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {(allPortfolios as any[])
+                  .filter((p: any) => p.snapshotOfPortfolioId === portfolioId)
+                  .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((snap: any) => (
+                    <div key={snap.id} className="flex items-center justify-between text-xs bg-white/[0.03] rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-3">
+                        <Camera className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                        <div>
+                          <span className="text-white font-medium">{snap.name}</span>
+                          {snap.snapshotNote && (
+                            <span className="text-gray-400 ml-2">{snap.snapshotNote}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-400">
+                          {new Date(snap.createdAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </span>
+                        <a
+                          href={`/portfolio-vergleich?a=${portfolioId}&b=${snap.id}`}
+                          className="flex items-center gap-1 text-[#00CFC1] hover:text-[#00CFC1]/80 transition-colors"
+                        >
+                          <GitCompareArrows className="h-3 w-3" />
+                          Vergleichen
+                        </a>
+                        <a
+                          href={`/portfolios/${snap.id}`}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          Öffnen
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
           </TabsContent>
-
           {/* POSITIONS TAB — matches design: TICKER | NAME | SEKTOR | GEWICHT | WERT | HEUTE | YTD */}
           <TabsContent value="positionen" className="mt-6">
             <div className={posView === 'tabelle' ? "bg-[#0f1420] border border-white/10 rounded-lg" : ""}>
