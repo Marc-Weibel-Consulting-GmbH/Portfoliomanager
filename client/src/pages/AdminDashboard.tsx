@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain } from "lucide-react";
+import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -8,13 +8,6 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
 
   const adminSections = [
-    {
-      icon: Database,
-      title: "Aktien-Verwaltung",
-      description: "Verwalten Sie die Aktienliste und Stammdaten",
-      path: "/admin/stocks",
-      color: "text-blue-500",
-    },
     {
       icon: Grid3x3,
       title: "Kategorien-Verwaltung",
@@ -45,8 +38,8 @@ export default function AdminDashboard() {
     },
     {
       icon: Eye,
-      title: "Watchlist",
-      description: "Aktien-Universum verwalten (max. 200 Titel)",
+      title: "Aktienliste & Watchlist",
+      description: "Aktien-Universum kuratieren (max. 200 Titel) — inkl. nicht-kuratierter Portfolio-Titel",
       path: "/admin/watchlist",
       color: "text-emerald-500",
     },

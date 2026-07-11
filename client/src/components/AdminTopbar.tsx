@@ -8,7 +8,7 @@ export function AdminTopbar() {
   
   // Determine active tab from URL
   const getActiveTab = (): AdminTab => {
-    if (location.startsWith("/admin/stocks")) return "stocks";
+    if (location.startsWith("/admin/watchlist") || location.startsWith("/admin/stocks")) return "stocks";
     if (location.startsWith("/admin/categories")) return "categories";
     if (location.startsWith("/admin/sectors")) return "sectors";
     if (location.startsWith("/admin/secrets")) return "secrets";
@@ -23,7 +23,7 @@ export function AdminTopbar() {
 
   const tabs = [
     { id: "overview" as const, label: "Übersicht", icon: Shield, path: "/admin" },
-    { id: "stocks" as const, label: "Aktien-Verwaltung", icon: Database, path: "/admin/stocks" },
+    { id: "stocks" as const, label: "Aktienliste & Watchlist", icon: Database, path: "/admin/watchlist" },
     { id: "categories" as const, label: "Kategorien-Verwaltung", icon: Grid3x3, path: "/admin/categories" },
     { id: "sectors" as const, label: "Sektoren-Verwaltung", icon: PieChart, path: "/admin/sectors" },
     { id: "kpis" as const, label: "KPI-Verwaltung", icon: BarChart3, path: "/admin/kpis" },
