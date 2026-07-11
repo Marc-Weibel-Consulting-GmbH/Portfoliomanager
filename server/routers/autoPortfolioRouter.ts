@@ -87,44 +87,89 @@ export const autoPortfolioRouter = router({
       const nonRecStocks = universe.filter((s: any) => !watchlistRecTickers.has(s.ticker.toUpperCase()));
       universe = [...recStocks, ...nonRecStocks.slice(0, Math.max(0, 40 - recStocks.length))];
 
-      // 4) Scoring aus Kursreihen (historicalPrices)
-      const { scoreFromPrices } = await import("../lib/tickerScoring");
-      const priceFrom = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      const scored: any[] = [];
-      for (const s of universe) {
-        try {
-          const rows = await db
-            .select({ close: historicalPrices.close, adj: historicalPrices.adjustedClose })
-            .from(historicalPrices)
-            .where(and(eq(historicalPrices.ticker, s.ticker.toUpperCase()), gte(historicalPrices.date, priceFrom)))
-            .orderBy(asc(historicalPrices.date));
-          const prices = rows
-            .map((r: any) => parseFloat((r.adj ?? r.close) as any))
-            .filter((v: number) => Number.isFinite(v) && v > 0);
-          if (prices.length < 60) continue;
-          // P3: Horizont steuert Momentum-vs-Qualität im Score.
-          const sc = await scoreFromPrices(prices, { momentum: params.momentumWeight, quality: params.qualityWeight });
-          scored.push({ stock: s, ...sc, dividendYield: parseFloat(s.dividendYield ?? "0") });
-        } catch (e) {
-          console.warn(`[autoPortfolio] Scoring ${s.ticker} fehlgeschlagen:`, (e as Error).message);
-        }
-      }
+      // 4) Scoring aus watchlistStocks (signalScore + signalType) — kein Yahoo Finance, kein Preishistorie-Scoring
+      //    Alle Watchlist-Titel haben bereits berechnete Scores (0-100) und Signale (buy/sell/hold)
+      console.log(`[buildProposal] Step 4 start: loading scores for ${universe.length} tickers from watchlistStocks`);
+      const t4 = Date.now();
+      const universeTickers = universe.map((s: any) => s.ticker.toUpperCase());
+      const { inArray } = await import("drizzle-orm");
+      const watchlistScores = await db
+        .select({
+          ticker: watchlistStocksTable.ticker,
+          signalScore: watchlistStocksTable.signalScore,
+          signalType: watchlistStocksTable.signalType,
+          sector: watchlistStocksTable.sector,
+          dividendYield: watchlistStocksTable.dividendYield,
+          rsi14: watchlistStocksTable.rsi14,
+        })
+        .from(watchlistStocksTable)
+        .where(inArray(watchlistStocksTable.ticker, universeTickers));
+      const watchlistScoreMap = new Map(watchlistScores.map((w: any) => [w.ticker.toUpperCase(), w]));
+      console.log(`[buildProposal] scores loaded in ${Date.now()-t4}ms for ${watchlistScoreMap.size}/${universe.length} tickers`);
+
+      // Map universe stocks to scored candidates using watchlistStocks data
+      const scored = universe
+        .map((s: any) => {
+          const wl = watchlistScoreMap.get(s.ticker.toUpperCase());
+          const rawScore = wl?.signalScore ?? s.signalScore ?? 50;
+          const signalType = wl?.signalType ?? s.signalType ?? "hold";
+          // Normalize signal to uppercase for consistency
+          const signal = signalType === "buy" ? "BUY" : signalType === "sell" ? "SELL" : "HOLD";
+          // Derive momentum/quality grades from score ranges
+          const grade = (score: number) =>
+            score >= 80 ? "A" : score >= 65 ? "B" : score >= 50 ? "C" : score >= 35 ? "D" : "F";
+          const combinedScore = rawScore;
+          const momentumGrade = grade(combinedScore);
+          const qualityGrade = grade(combinedScore - 5); // slight offset for quality
+          return {
+            stock: s,
+            combinedScore,
+            signal,
+            momentumGrade,
+            qualityGrade,
+            dividendYield: parseFloat(wl?.dividendYield ?? s.dividendYield ?? "0"),
+            regime: "normal" as const,
+          };
+        })
+        .filter((x) => x.combinedScore > 0); // exclude unscored
+
+      console.log(`[buildProposal] scored=${scored.length}/${universe.length}`);
       if (scored.length < 2) {
-        throw new Error("Zu wenige Titel mit ausreichender Kurshistorie gefunden, um einen Vorschlag zu erstellen.");
+        throw new Error("Zu wenige bewertete Titel gefunden. Bitte aktualisieren Sie die Watchlist-Scores.");
       }
 
+      console.log(`[buildProposal] Step 5: ranking ${scored.length} scored items`);
       // 5) Ranking (Ziel «dividends» bevorzugt Dividendenrendite) + Kaufsignal-Filter
       // Watchlist-Empfehlungen erhalten +10 Punkte Bonus im Ranking
       const rankKey = (x: any) =>
         x.combinedScore +
         (goal === "dividends" ? Math.min(x.dividendYield * 100, 5) * 2 : 0) +
         (watchlistRecTickers.has(x.stock.ticker.toUpperCase()) ? 10 : 0);
-      let ranked = scored.filter((x) => x.combinedScore >= 45).sort((a, b) => rankKey(b) - rankKey(a));
+
+      // SELL-Signale und schlechteste Qualität (F) grundsätzlich ausschliessen
+      const isBuyable = (x: any) =>
+        x.signal !== "SELL" &&
+        x.qualityGrade !== "F" &&
+        x.momentumGrade !== "F";
+
+      // Score-Schwelle: 55 für echte Kaufkandidaten (vorher 45 war zu niedrig)
+      let ranked = scored
+        .filter((x) => isBuyable(x) && x.combinedScore >= 55)
+        .sort((a, b) => rankKey(b) - rankKey(a));
       if (ranked.length < rules.minTitles) {
-        // Zu wenige Kaufsignale — auf das gesamte bewertete Universum ausweiten
-        ranked = [...scored].sort((a, b) => rankKey(b) - rankKey(a));
+        // Zu wenige Kaufsignale — HOLD-Titel mit Score >= 45 einbeziehen, aber SELL bleibt draussen
+        ranked = scored
+          .filter((x) => x.signal !== "SELL" && x.qualityGrade !== "F" && x.combinedScore >= 45)
+          .sort((a, b) => rankKey(b) - rankKey(a));
+      }
+      if (ranked.length < rules.minTitles) {
+        // Letzter Fallback: alle Nicht-SELL, nach Score sortiert
+        ranked = scored
+          .filter((x) => x.signal !== "SELL")
+          .sort((a, b) => rankKey(b) - rankKey(a));
       }
 
+      console.log(`[buildProposal] Step 6: ranked=${ranked.length}, selecting under sector cap`);
       // 6) Auswahl unter Sektor-Cap bis maxTitles
       const target = Math.min(rules.maxTitles, ranked.length);
       const maxPerSector = Math.max(1, Math.floor((rules.maxSectorPercent / 100) * target));
@@ -141,28 +186,55 @@ export const autoPortfolioRouter = router({
         throw new Error("Zu wenige geeignete Kandidaten nach Anwendung der Diversifikationsregeln.");
       }
 
-      // 7) Gewichtung via Optimizer (Methode + Caps aus dem Profil, P3; DB-only)
-      const { optimizePortfolio } = await import("../analytics/engine");
+      console.log(`[buildProposal] Step 7: weighting ${selected.length} selected positions`);
+      // 7) Gewichtung: Score-proportional mit hartem 10%-Cap (DB-only, kein Yahoo Finance)
+      // Diversifikationsregel: Max. 10% pro Position (unabhängig vom Admin-Default von 25%)
+      const MAX_POSITION_WEIGHT = 0.10;
       const method = params.method;
-      const tickers = selected.map((s) => s.stock.ticker);
       let weights: Record<string, number> = {};
-      try {
-        const opt = await optimizePortfolio({
-          tickers,
-          method,
-          minPositionChf: params.minPositionChf,
-          minPositionWeight: params.minPositionWeight,
-          maxPositionWeight: params.maxPositionWeight,
-          ...(input?.investmentAmount ? { portfolioValue: input.investmentAmount } : {}),
-        });
-        weights = opt.weights as Record<string, number>;
-      } catch (e) {
-        // Fallback: score-proportional
-        console.warn("[autoPortfolio] Optimizer fehlgeschlagen, Score-proportionale Gewichte:", (e as Error).message);
-        const total = selected.reduce((s, c) => s + c.combinedScore, 0) || 1;
-        selected.forEach((c) => { weights[c.stock.ticker] = c.combinedScore / total; });
-      }
+      // Score-proportionale Gewichtung: höherer Score = höheres Gewicht
+      // Zusätzlicher Bonus für Watchlist-Empfehlungen (+10 Punkte)
+      const scoringWithBonus = selected.map((c) => ({
+        ticker: c.stock.ticker,
+        adjustedScore: c.combinedScore + (watchlistRecTickers.has(c.stock.ticker.toUpperCase()) ? 10 : 0),
+      }));
+      const total = scoringWithBonus.reduce((s, c) => s + c.adjustedScore, 0) || 1;
+      scoringWithBonus.forEach((c) => { weights[c.ticker] = c.adjustedScore / total; });
 
+      // Hartes Cap: Kein Titel darf mehr als 10% erhalten (auch nach Optimizer)
+      const capAndRenormalize = (w: Record<string, number>) => {
+        let changed = true;
+        while (changed) {
+          changed = false;
+          const total = Object.values(w).reduce((s, v) => s + v, 0) || 1;
+          const normalized: Record<string, number> = {};
+          let cappedSum = 0;
+          let uncappedSum = 0;
+          for (const [t, v] of Object.entries(w)) {
+            const norm = v / total;
+            if (norm > MAX_POSITION_WEIGHT) {
+              normalized[t] = MAX_POSITION_WEIGHT;
+              cappedSum += MAX_POSITION_WEIGHT;
+              changed = true;
+            } else {
+              normalized[t] = norm;
+              uncappedSum += norm;
+            }
+          }
+          if (changed && uncappedSum > 0) {
+            const scale = (1 - cappedSum) / uncappedSum;
+            for (const t of Object.keys(normalized)) {
+              if (normalized[t] < MAX_POSITION_WEIGHT) normalized[t] *= scale;
+            }
+          }
+          Object.assign(w, normalized);
+          if (!changed) break;
+        }
+        return w;
+      };
+      weights = capAndRenormalize(weights);
+
+      console.log(`[buildProposal] Step 8: building positions`);
       // 8) Positionen bauen (0-Gewichte fallen weg, Rest auf 100 % normiert)
       const kept = selected
         .map((c) => ({ c, w: weights[c.stock.ticker] ?? 0 }))
@@ -193,6 +265,7 @@ export const autoPortfolioRouter = router({
         positions.forEach((p) => { p.weightPct = parseFloat((p.weightPct * equityPct).toFixed(2)); });
       }
 
+      console.log(`[buildProposal] Done: ${positions.length} positions built, returning result`);
       return {
         positions,
         method,
@@ -208,9 +281,11 @@ export const autoPortfolioRouter = router({
         stats: {
           universeCount: universe.length,
           scoredCount: scored.length,
-          buySignals: scored.filter((x) => x.combinedScore >= 55).length,
+          buySignals: scored.filter((x) => x.combinedScore >= 55 && x.signal !== "SELL").length,
+          sellExcluded: scored.filter((x) => x.signal === "SELL").length,
           selectedCount: positions.length,
           watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length,
+          maxPositionPct: Math.max(...positions.map((p) => p.weightPct)),
         },
       };
     }),

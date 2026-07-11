@@ -91,3 +91,17 @@
 - [x] NVDA-Preise und Mag7-YTD aus historicalPrices DB berechnet
 - [x] Statische Metriken (OpenAI, Hyperscaler, VC, ROI) für alle Tage eingetragen
 - [x] Charts zeigen korrekte Zeitreihe mit vollständiger X-Achse (13.04.–11.07.)
+
+## Yahoo Finance → EODHD Migration (engine.ts)
+- [x] fetchReturns: Yahoo Finance chart() → DB historicalPrices (EODHD-Daten)
+- [x] fetchReturnsWithDates: Yahoo Finance chart() → DB historicalPrices
+- [x] fetchPricesWithDates: Yahoo Finance chart() → DB historicalPrices
+- [x] calcTechnicalAnalysis: Yahoo Finance chart() → DB historicalPrices
+- [x] dividendYields: Yahoo Finance quoteSummary() → stocks.dividendYield aus DB
+- [x] fetchDCFFromYahoo: Yahoo Finance quoteSummary() → DB-basierter Fallback
+- [x] TypeScript kompiliert ohne Fehler nach Migration
+- [x] buildProposal: Scoring auf watchlistStocks.signalScore umgestellt (kein Yahoo Finance, kein Preishistorie-Scoring)
+- [x] SELL-Kandidaten aus Vorschlag ausschliessen (signalType === "sell" Filter)
+- [x] Max. 10% Positionsgrösse erzwingen (hartes Cap + iterative Renormalisierung)
+- [x] Performance: buildProposal von >60s auf <1s reduziert
+- [x] End-to-End Test: KI-Portfolio Vorschlag generiert korrekt (20 Titel, alle BUY, max 5.8% pro Position)

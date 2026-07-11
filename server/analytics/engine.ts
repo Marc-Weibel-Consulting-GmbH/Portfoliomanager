@@ -11,7 +11,7 @@
  *  - Technical Analysis: RSI, MACD, Bollinger Bands
  */
 
-import YahooFinanceClass from "yahoo-finance2";
+// Yahoo Finance removed — all price data fetched from historicalPrices DB (EODHD-sourced)
 import { ledoitWolfConstantCorr } from "../lib/ledoitWolf";
 import { runHRP } from "./hrpOptimizer";
 import { blPosteriorFromHistoricalMeans } from "../lib/blackLitterman";
@@ -38,8 +38,47 @@ import {
 import { getFxRate, getStockCurrency } from "../fxHelper";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
-// yahoo-finance2 v3: default export is a constructor class
-const yahooFinance = new (YahooFinanceClass as any)();
+// ─────────────────────────────────────────────
+// DB-based price fetcher (replaces Yahoo Finance)
+// Uses historicalPrices table populated by EODHD daily cron
+// ─────────────────────────────────────────────
+async function fetchPricesFromDB(
+  tickers: string[],
+  lookbackDays: number
+): Promise<{ [ticker: string]: Array<{ date: string; price: number }> }> {
+  const { getDb } = await import("../db");
+  const db = await getDb();
+  if (!db) return {};
+  const { historicalPrices: hpTable } = await import("../../drizzle/schema");
+  const { inArray, gte, asc } = await import("drizzle-orm");
+  const startDate = new Date(Date.now() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+  // Normalize tickers for DB lookup
+  const normalizedMap: Record<string, string> = {};
+  for (const t of tickers) normalizedMap[t] = normalizeTicker(t);
+  const uniqueNorm = Array.from(new Set(Object.values(normalizedMap)));
+  const rows = await db
+    .select({ ticker: hpTable.ticker, date: hpTable.date, close: hpTable.close, adj: hpTable.adjustedClose })
+    .from(hpTable)
+    .where((inArray(hpTable.ticker, uniqueNorm) as any))
+    .orderBy(asc(hpTable.date));
+  // Filter by date (date column is a string 'YYYY-MM-DD')
+  const filtered = rows.filter((r: any) => String(r.date).slice(0, 10) >= startDate);
+  const byNorm: Record<string, Array<{ date: string; price: number }>> = {};
+  for (const r of filtered) {
+    const v = parseFloat((r.adj ?? r.close) as any);
+    if (!Number.isFinite(v) || v <= 0) continue;
+    if (!byNorm[r.ticker]) byNorm[r.ticker] = [];
+    byNorm[r.ticker].push({ date: String(r.date).slice(0, 10), price: v });
+  }
+  const result: Record<string, Array<{ date: string; price: number }>> = {};
+  for (const orig of tickers) {
+    const norm = normalizedMap[orig];
+    if (byNorm[norm] && byNorm[norm].length > 5) result[orig] = byNorm[norm];
+  }
+  return result;
+}
 
 // ─────────────────────────────────────────────
 // Types
@@ -153,53 +192,17 @@ async function fetchReturns(
   tickers: string[],
   lookbackDays: number
 ): Promise<{ [ticker: string]: number[] }> {
-  const normalizedMap: { [orig: string]: string } = {};
-  for (const t of tickers) {
-    normalizedMap[t] = normalizeTicker(t);
-  }
-  const uniqueNormalized = Array.from(new Set(Object.values(normalizedMap)));
-
-  const end = new Date();
-  const start = new Date(end.getTime() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000);
-
-  const pricesByNorm: { [norm: string]: number[] } = {};
-
-  // Fetch each ticker individually to handle errors gracefully
-  await Promise.allSettled(
-    uniqueNormalized.map(async (norm) => {
-      try {
-        const result = await yahooFinance.chart(norm, {
-          period1: start.toISOString().split("T")[0],
-          period2: end.toISOString().split("T")[0],
-          interval: "1d",
-        }) as any;
-        const quotes = (result.quotes ?? result.indicators?.quote?.[0] ?? []) as any[];
-        const prices = quotes
-          .filter((q) => q.close != null)
-          .map((q) => q.close as number);
-        if (prices.length > 5) {
-          pricesByNorm[norm] = prices;
-        }
-      } catch {
-        // Skip tickers with no data
-      }
-    })
-  );
-
-  // Map back to original tickers
+  const pricesMap = await fetchPricesFromDB(tickers, lookbackDays);
   const returnsMap: { [ticker: string]: number[] } = {};
-  for (const orig of tickers) {
-    const norm = normalizedMap[orig];
-    const prices = pricesByNorm[norm];
-    if (prices && prices.length > 1) {
+  for (const [orig, series] of Object.entries(pricesMap)) {
+    if (series.length > 1) {
       const returns: number[] = [];
-      for (let i = 1; i < prices.length; i++) {
-        returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
+      for (let i = 1; i < series.length; i++) {
+        returns.push((series[i].price - series[i - 1].price) / series[i - 1].price);
       }
       returnsMap[orig] = returns;
     }
   }
-
   return returnsMap;
 }
 
@@ -213,65 +216,27 @@ async function fetchReturnsWithDates(
   lookbackDays: number,
   currencyByTicker: { [ticker: string]: string } = {},
 ): Promise<{ [ticker: string]: DatedReturns }> {
-  const normalizedMap: { [orig: string]: string } = {};
-  for (const t of tickers) {
-    normalizedMap[t] = normalizeTicker(t);
-  }
-  const uniqueNormalized = Array.from(new Set(Object.values(normalizedMap)));
-
-  const end = new Date();
-  const start = new Date(end.getTime() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000);
-
-  const seriesByNorm: { [norm: string]: { dates: string[]; prices: number[] } } = {};
-
-  await Promise.allSettled(
-    uniqueNormalized.map(async (norm) => {
-      try {
-        const result = await yahooFinance.chart(norm, {
-          period1: start.toISOString().split("T")[0],
-          period2: end.toISOString().split("T")[0],
-          interval: "1d",
-        }) as any;
-        const quotes = (result.quotes ?? result.indicators?.quote?.[0] ?? []) as any[];
-        const dates: string[] = [];
-        const prices: number[] = [];
-        for (const q of quotes) {
-          if (q.close == null || q.date == null) continue;
-          const d = q.date instanceof Date ? q.date : new Date(q.date);
-          dates.push(d.toISOString().split("T")[0]);
-          prices.push(q.close as number);
-        }
-        if (prices.length > 5) {
-          seriesByNorm[norm] = { dates, prices };
-        }
-      } catch {
-        // Skip tickers with no data
-      }
-    })
-  );
-
+  const pricesMap = await fetchPricesFromDB(tickers, lookbackDays);
   const out: { [ticker: string]: DatedReturns } = {};
-  for (const orig of tickers) {
-    const s = seriesByNorm[normalizedMap[orig]];
-    if (s && s.prices.length > 1) {
-      // Convert prices to CHF (reporting currency) before computing returns, so risk
-      // metrics include FX volatility for a CHF investor. Uses per-date FX rates.
-      let prices = s.prices;
-      const currency = currencyByTicker[orig];
-      if (currency && currency !== "CHF") {
-        const pair = `${currency}CHF`;
-        prices = await Promise.all(
-          s.prices.map(async (p, i) => p * (await getFxRate(s.dates[i], pair))),
-        );
-      }
-      const dates: string[] = [];
-      const returns: number[] = [];
-      for (let i = 1; i < prices.length; i++) {
-        returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
-        dates.push(s.dates[i]);
-      }
-      out[orig] = { dates, returns };
+  for (const [orig, series] of Object.entries(pricesMap)) {
+    if (series.length < 2) continue;
+    // Convert prices to CHF (reporting currency) before computing returns
+    let prices = series.map((s) => s.price);
+    const dates = series.map((s) => s.date);
+    const currency = currencyByTicker[orig];
+    if (currency && currency !== "CHF") {
+      const pair = `${currency}CHF`;
+      prices = await Promise.all(
+        prices.map(async (p, i) => p * (await getFxRate(dates[i], pair))),
+      );
     }
+    const retDates: string[] = [];
+    const returns: number[] = [];
+    for (let i = 1; i < prices.length; i++) {
+      returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
+      retDates.push(dates[i]);
+    }
+    out[orig] = { dates: retDates, returns };
   }
   return out;
 }
@@ -960,7 +925,7 @@ async function fetchDCFFromEODHD(ticker: string): Promise<{
 }
 
 /**
- * Fetch DCF fundamentals from Yahoo Finance (fallback source)
+ * Fetch DCF fundamentals from DB stocks table (EODHD-sourced, fallback source)
  */
 async function fetchDCFFromYahoo(ticker: string): Promise<{
   currentPrice: number;
@@ -971,39 +936,29 @@ async function fetchDCFFromYahoo(ticker: string): Promise<{
   companyName: string;
   currency: string;
 } | null> {
+  // Yahoo Finance removed — use DB stocks table as fallback
   try {
-    const normalizedTicker = normalizeTicker(ticker);
-    const quoteSummary = await yahooFinance.quoteSummary(normalizedTicker, {
-      modules: ["financialData", "defaultKeyStatistics", "summaryDetail"],
-    }) as any;
-
-    const fd = quoteSummary.financialData as any;
-    const ks = quoteSummary.defaultKeyStatistics as any;
-    const sd = quoteSummary.summaryDetail as any;
-
-    const currentPrice = fd?.currentPrice ?? sd?.regularMarketPrice;
-    if (!currentPrice) return null;
-
-    let fcf: number | null = fd?.freeCashflow ?? null;
-    if (!fcf || fcf <= 0) {
-      const opCF = fd?.operatingCashflow;
-      if (opCF && opCF > 0) {
-        fcf = opCF * 0.7;
-      }
-    }
-    if (!fcf || fcf <= 0) return null;
-
-    const shares = ks?.sharesOutstanding ?? ks?.impliedSharesOutstanding;
-    if (!shares || shares <= 0) return null;
-
-    const revenueGrowth = fd?.revenueGrowth ?? 0.05;
-    const beta = ks?.beta ?? 1.0;
-    const companyName = (quoteSummary as any)?.quoteType?.longName ?? ticker;
-    const currency = fd?.currency ?? "USD";
-
-    return { currentPrice, fcf, shares, revenueGrowth, beta, companyName, currency };
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return null;
+    const { stocks: stocksTable } = await import("../../drizzle/schema");
+    const { eq: eqOp } = await import("drizzle-orm");
+    const [row] = await db.select().from(stocksTable).where(eqOp(stocksTable.ticker, ticker)).limit(1);
+    if (!row) return null;
+    const currentPrice = parseFloat((row.currentPrice ?? '0') as any);
+    if (!currentPrice || currentPrice <= 0) return null;
+    // Estimate FCF from market cap as rough proxy
+    const marketCap = parseFloat((row.marketCap ?? '0') as any);
+    if (!marketCap || marketCap <= 0) return null;
+    const earningsGrowth = 0.05; // conservative default growth estimate
+    const fcf = marketCap * 0.05; // 5% FCF yield as conservative estimate
+    const shares = marketCap / currentPrice;
+    const beta = parseFloat((row.beta ?? '1.0') as any) || 1.0;
+    const companyName = row.companyName ?? ticker;
+    const currency = row.currency ?? 'USD';
+    return { currentPrice, fcf, shares, revenueGrowth: earningsGrowth, beta, companyName, currency };
   } catch (error: any) {
-    console.warn(`[DCF] Yahoo Finance fetch failed for ${ticker}:`, error.message);
+    console.warn(`[DCF] DB fallback fetch failed for ${ticker}:`, error.message);
     return null;
   }
 }
@@ -1273,20 +1228,23 @@ export async function optimizePortfolio(input: OptimizeInput) {
     };
   }
 
-  // Fetch dividend yields for max_dividend method OR when minDividendYield constraint is set
+  // Fetch dividend yields from stocks DB table (EODHD-sourced)
   let dividendYields: number[] | undefined;
   if (method === "max_dividend" || input.userConstraints?.minDividendYield !== undefined) {
-    dividendYields = await Promise.all(
-      available.map(async (ticker) => {
-        try {
-          const norm = normalizeTicker(ticker);
-          const summary = await yahooFinance.quoteSummary(norm, { modules: ["summaryDetail"] }) as any;
-          return summary?.summaryDetail?.dividendYield ?? 0;
-        } catch {
-          return 0;
-        }
-      })
-    );
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (db) {
+      const { stocks: stocksTable } = await import("../../drizzle/schema");
+      const { inArray: inArr } = await import("drizzle-orm");
+      const rows = await db.select({ ticker: stocksTable.ticker, div: stocksTable.dividendYield }).from(stocksTable).where((inArr(stocksTable.ticker, available) as any));
+      const divMap: Record<string, number> = {};
+      for (const r of rows) {
+        if (r.div != null) divMap[r.ticker] = parseFloat(r.div as any) / 100; // stored as percent
+      }
+      dividendYields = available.map((t) => divMap[t] ?? 0);
+    } else {
+      dividendYields = available.map(() => 0);
+    }
   }
 
   // Optimal weights (F2: Positions-Bounds aus den Diversifikationsregeln)
@@ -1580,39 +1538,28 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
   // RSI needs at least 14+1 periods to start, plus ~100 periods for Wilder's smoothing to stabilize
   const start = new Date(end.getTime() - Math.max(lookbackDays, 250) * 1.8 * 24 * 60 * 60 * 1000);
 
-  // Fetch price data with adjusted close for split-adjusted calculations
-  const chartResult = await yahooFinance.chart(normalizedTicker, {
-    period1: start.toISOString().split("T")[0],
-    period2: end.toISOString().split("T")[0],
-    interval: "1d",
-  }) as any;
-
-  const quotes = (chartResult.quotes ?? []) as any[];
-  if (quotes.length < 30) {
-    throw new Error(`Insufficient price data for ${ticker} (need at least 30 days, got ${quotes.length})`);
+  // Fetch price data from DB (EODHD-sourced historicalPrices table)
+  const lookbackForTA = Math.max(lookbackDays, 250) * 2; // 2x for RSI warm-up
+  const pricesMap = await fetchPricesFromDB([ticker], lookbackForTA);
+  const series = pricesMap[ticker];
+  if (!series || series.length < 30) {
+    throw new Error(`Insufficient price data for ${ticker} in DB (need at least 30 days, got ${series?.length ?? 0})`);
   }
-
-  // Use adjclose (split-adjusted) if available, otherwise fall back to close
-  // This ensures RSI/MACD are calculated on split-adjusted prices matching external sources
-  const prices = quotes
-    .filter((q: any) => (q.adjclose ?? q.close) != null)
-    .map((q: any) => (q.adjclose ?? q.close) as number);
-  const dates = quotes
-    .filter((q: any) => (q.adjclose ?? q.close) != null)
-    .map((q: any) => {
-      const d = new Date(q.date);
-      return d.toISOString().split("T")[0];
-    });
-
+  const prices = series.map((s) => s.price);
+  const dates = series.map((s) => s.date);
   const currentPrice = prices[prices.length - 1];
 
-  // Get company name
+  // Get company name from stocks table
   let companyName = ticker;
   try {
-    const summary = await yahooFinance.quoteSummary(normalizedTicker, {
-      modules: ["price"],
-    }) as any;
-    companyName = summary.price?.longName ?? summary.price?.shortName ?? ticker;
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (db) {
+      const { stocks: stocksTable } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const [stockRow] = await db.select({ name: stocksTable.companyName }).from(stocksTable).where(eq(stocksTable.ticker, ticker)).limit(1);
+      if (stockRow?.name) companyName = stockRow.name;
+    }
   } catch {
     // Use ticker as fallback
   }
@@ -1962,53 +1909,6 @@ async function fetchPricesWithDates(
   tickers: string[],
   lookbackDays: number
 ): Promise<{ [ticker: string]: Array<{ date: string; price: number }> }> {
-  const normalizedMap: { [orig: string]: string } = {};
-  for (const t of tickers) {
-    normalizedMap[t] = normalizeTicker(t);
-  }
-  const uniqueNormalized = Array.from(new Set(Object.values(normalizedMap)));
-
-  const end = new Date();
-  const start = new Date(end.getTime() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000);
-
-  const pricesByNorm: { [norm: string]: Array<{ date: string; price: number }> } = {};
-
-  await Promise.allSettled(
-    uniqueNormalized.map(async (norm) => {
-      try {
-        const result = await yahooFinance.chart(norm, {
-          period1: start.toISOString().split("T")[0],
-          period2: end.toISOString().split("T")[0],
-          interval: "1d",
-        }) as any;
-        const quotes = (result.quotes ?? result.indicators?.quote?.[0] ?? []) as any[];
-        const prices: Array<{ date: string; price: number }> = [];
-        for (const q of quotes) {
-          const adjClose = q.adjclose ?? q.close;
-          if (adjClose != null && q.date) {
-            prices.push({
-              date: new Date(q.date).toISOString().split("T")[0],
-              price: adjClose,
-            });
-          }
-        }
-        if (prices.length > 5) {
-          pricesByNorm[norm] = prices;
-        }
-      } catch {
-        // Skip tickers with no data
-      }
-    })
-  );
-
-  // Map back to original tickers
-  const result: { [ticker: string]: Array<{ date: string; price: number }> } = {};
-  for (const orig of tickers) {
-    const norm = normalizedMap[orig];
-    if (pricesByNorm[norm]) {
-      result[orig] = pricesByNorm[norm];
-    }
-  }
-
-  return result;
+  // Delegate to DB-based helper (EODHD-sourced historicalPrices table)
+  return fetchPricesFromDB(tickers, lookbackDays);
 }

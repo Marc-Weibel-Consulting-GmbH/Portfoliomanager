@@ -314,6 +314,8 @@ export default function PortfolioBuilderWizard() {
     const capital = parseFloat(initialCapital);
     if (!(capital > 0)) { toast.error("Bitte geben Sie einen Anlagebetrag ein"); return; }
     if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
+    // Reset any previous mutation state so the button is re-enabled on retry
+    buildProposal.reset();
     try {
       await setProfileMutation.mutateAsync({
         riskProfile: autoRisk as any,
@@ -324,8 +326,9 @@ export default function PortfolioBuilderWizard() {
         excludedSectors: autoExcluded,
         esgOnly: false,
       });
-    } catch {
+    } catch (e) {
       // Non-fatal — continue even if profile save fails
+      console.warn("[handleBuildProposal] Profile save failed (non-fatal):", e);
     }
     buildProposal.mutate({ investmentAmount: capital });
   };
