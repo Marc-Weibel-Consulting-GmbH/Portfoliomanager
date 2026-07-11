@@ -91,22 +91,40 @@ export function MarktPuls() {
       </CardHeader>
       <CardContent className="px-4 pb-4">
         {/* Sector Heatmap Grid */}
-        <div className="grid grid-cols-7 gap-1 mb-4">
-          {sectors.slice(0, 10).map((s: any) => {
-            const change = s.changePercent ?? 0;
-            // G-04: Neutralfall bei exakt 0.0 % — Kachel und Text grau, kein Widerspruch
-            const bgColor = change > 1 ? 'bg-emerald-600' : change > 0 ? 'bg-emerald-700/60' : change === 0 ? 'bg-gray-600/60' : change > -1 ? 'bg-red-700/60' : 'bg-red-600';
-            const textColor = change > 0 ? 'text-emerald-200' : change === 0 ? 'text-gray-200' : 'text-red-200';
-            return (
-              <div key={s.label} className={`${bgColor} rounded px-2 py-1.5 text-center`}>
-                <div className="text-xs text-gray-200 truncate">{s.label}</div>
-                <div className={`text-xs font-bold ${textColor}`}>
-                  {change > 0 ? '+' : ''}{change.toFixed(1)}%
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {(() => {
+          const abbrev: Record<string, string> = {
+            'Technology': 'Tech',
+            'Healthcare': 'Health',
+            'Financial Services': 'Finanz',
+            'Consumer Cyclical': 'Konsum Z.',
+            'Consumer Defensive': 'Konsum D.',
+            'Communication Services': 'Komm.',
+            'Industrials': 'Industrie',
+            'Basic Materials': 'Material',
+            'Energy': 'Energie',
+            'Real Estate': 'Immob.',
+            'Utilities': 'Versorger',
+          };
+          return (
+            <div className="grid grid-cols-5 gap-1.5 mb-4">
+              {sectors.slice(0, 10).map((s: any) => {
+                const change = s.changePercent ?? 0;
+                const shortLabel = abbrev[s.label] ?? s.label;
+                // Solid backgrounds for maximum readability
+                const bgColor = change > 1 ? 'bg-emerald-600' : change > 0.1 ? 'bg-emerald-700' : change === 0 ? 'bg-gray-600' : change > -1 ? 'bg-red-700' : 'bg-red-600';
+                const changeColor = change > 0 ? 'text-emerald-100' : change === 0 ? 'text-gray-300' : 'text-red-100';
+                return (
+                  <div key={s.label} className={`${bgColor} rounded-md px-2 py-2 text-center`} title={s.label}>
+                    <div className="text-xs font-semibold text-white leading-tight mb-0.5 truncate">{shortLabel}</div>
+                    <div className={`text-xs font-bold ${changeColor}`}>
+                      {change > 0 ? '+' : ''}{change.toFixed(1)}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Top Gainers / Losers */}
         <div className="grid grid-cols-2 gap-4">

@@ -2461,34 +2461,71 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         if (res.ok) {
           const data = await res.json() as any;
           const ecoArr = Array.isArray(data) ? data : [];
+          // Skip CFTC speculative positions (not relevant for equity investors)
+          const cftcSkip = ['CFTC', 'Baker Hughes', 'Auction', 'Bill Auction', 'Bond Auction', 'TIPS Auction', 'Mortgage Rate'];
+          const highImportance = ['Non-Farm', 'NFP', 'CPI', 'GDP', 'FOMC', 'Fed Interest', 'Fed Chair', 'Fed Rate', 'PMI', 'Unemployment', 'Retail Sales', 'Consumer Confidence', 'ISM', 'PCE', 'Inflation'];
+          const medImportance = ['ADP', 'Jobless Claims', 'PPI', 'Housing Starts', 'Building Permits', 'Durable Goods', 'Trade Balance', 'Industrial Production', 'Michigan', 'Consumer Sentiment', 'Capacity Utilization', 'New Home Sales', 'Existing Home Sales'];
           ecoArr.forEach((e: any) => {
             const eventName = e.type || e.event;
-            if (eventName && e.date) {
-              // EODHD uses 'type' field for event name, importance is not provided so we infer
-              const highImportance = ['Non-Farm', 'NFP', 'CPI', 'GDP', 'FOMC', 'Fed Interest', 'PMI', 'Unemployment', 'Retail Sales', 'Consumer Confidence', 'ISM'];
-              const medImportance = ['ADP', 'Jobless Claims', 'PPI', 'Housing', 'Durable Goods', 'Trade Balance', 'Industrial Production'];
-              const isHigh = highImportance.some(k => eventName.includes(k));
-              const isMed = medImportance.some(k => eventName.includes(k));
-              const importance = isHigh ? 'HOCH' : isMed ? 'MITTEL' : 'INFO';
-              // Date format from EODHD: "2026-07-09 17:00:00"
-              const datePart = e.date.split(' ')[0];
-              const timePart = e.date.includes(' ') ? e.date.split(' ')[1]?.substring(0, 5) : undefined;
-              events.push({
-                type: 'macro',
-                date: datePart,
-                label: eventName,
-                description: e.comparison || (e.period ? `Periode: ${e.period}` : ''),
-                time: timePart,
-                importance,
-              });
-            }
+            if (!eventName || !e.date) return;
+            // Filter out CFTC and auction noise
+            if (cftcSkip.some(k => eventName.includes(k))) return;
+            const isHigh = highImportance.some(k => eventName.includes(k));
+            const isMed = medImportance.some(k => eventName.includes(k));
+            // Skip pure INFO events (too noisy) unless we have few events
+            const importance = isHigh ? 'HOCH' : isMed ? 'MITTEL' : 'INFO';
+            if (!isHigh && !isMed) return; // Skip INFO-level macro noise
+            // Date format from EODHD: "2026-07-09 17:00:00"
+            const datePart = e.date.split(' ')[0];
+            const timePart = e.date.includes(' ') ? e.date.split(' ')[1]?.substring(0, 5) : undefined;
+            events.push({
+              type: 'macro',
+              date: datePart,
+              label: eventName,
+              description: e.comparison || (e.period ? `Periode: ${e.period}` : ''),
+              time: timePart,
+              importance,
+            });
           });
         }
       } catch (e) { console.warn('[dashboardRouter] Wirtschaftskalender-Events fehlgeschlagen:', e); }
     }
 
-    // 2. Fetch EARNINGS calendar for portfolio tickers
-    if (EODHD_API_KEY && tickerList.length > 0) {
+    // 2. Fetch EARNINGS calendar via Finnhub for portfolio tickers + major S&P500 companies
+    const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+    // Major S&P500/DAX companies always worth showing earnings for
+    const majorEarningsTickers = ['JPM', 'GS', 'MS', 'BAC', 'WFC', 'C', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'NFLX', 'AMD', 'INTC', 'TSM', 'ASML', 'SAP', 'NESN.SW', 'ROG.SW', 'NOVN.SW', 'ABB.SW', 'UBS', 'CS'];
+    const allEarningsTickers = Array.from(new Set([...tickerList, ...majorEarningsTickers]));
+    if (FINNHUB_API_KEY) {
+      try {
+        const url = `https://finnhub.io/api/v1/calendar/earnings?from=${todayStr}&to=${in14Str}&token=${FINNHUB_API_KEY}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json() as any;
+          const earningsArr = data?.earningsCalendar ?? [];
+          if (Array.isArray(earningsArr)) {
+            earningsArr.forEach((e: any) => {
+              if (!e.symbol || !e.date) return;
+              // Only show portfolio tickers or major companies
+              const isPortfolioTicker = tickerList.some(t => t.split('.')[0] === e.symbol || t === e.symbol);
+              const isMajor = majorEarningsTickers.includes(e.symbol);
+              if (!isPortfolioTicker && !isMajor) return;
+              const importance = isPortfolioTicker ? 'HOCH' : 'MITTEL';
+              const timeLabel = e.hour === 'bmo' ? 'vor Börseneröffnung' : e.hour === 'amc' ? 'nach Börsenschluss' : '';
+              events.push({ 
+                type: 'earnings', 
+                ticker: e.symbol, 
+                date: e.date, 
+                label: `${e.symbol} Earnings`, 
+                description: timeLabel,
+                importance 
+              });
+            });
+          }
+        }
+      } catch (e) { console.warn('[dashboardRouter] Finnhub Earnings fehlgeschlagen:', e); }
+    } else if (EODHD_API_KEY && tickerList.length > 0) {
+      // Fallback to EODHD earnings
       try {
         const url = `https://eodhd.com/api/calendar/earnings?api_token=${EODHD_API_KEY}&from=${todayStr}&to=${in14Str}&symbols=${tickerList.join(',')}&fmt=json`;
         const res = await fetch(url);
@@ -2504,6 +2541,8 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           }
         }
       } catch (e) { console.warn('[dashboardRouter] Earnings-Kalender-Events fehlgeschlagen:', e); }
+    }
+    if (EODHD_API_KEY && tickerList.length > 0) {
 
       // 3. Fetch DIVIDENDS calendar
       try {
@@ -2523,15 +2562,23 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       } catch (e) { console.warn('[dashboardRouter] Dividenden-Kalender-Events fehlgeschlagen:', e); }
     }
 
+    // Deduplicate events by date+label
+    const seen = new Set<string>();
+    const deduped = events.filter(e => {
+      const key = `${e.date}|${e.label}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     // Sort by date, then importance
     const importanceOrder: Record<string, number> = { 'HOCH': 0, 'MITTEL': 1, 'INFO': 2 };
-    return events
+    return deduped
       .sort((a, b) => {
         const dateCmp = a.date.localeCompare(b.date);
         if (dateCmp !== 0) return dateCmp;
         return (importanceOrder[a.importance || 'INFO'] ?? 2) - (importanceOrder[b.importance || 'INFO'] ?? 2);
       })
-      .slice(0, 15); // Limit to 15 most relevant events
+      .slice(0, 20); // Limit to 20 most relevant events
   }),
 
   /** Portfolio-Kompakt-Übersicht für Dashboard-Header */
