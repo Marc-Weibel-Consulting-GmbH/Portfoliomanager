@@ -37,6 +37,9 @@ export const autoPortfolioRouter = router({
       const excludedSectors: string[] = (profile.excludedSectors as string[] | null) ?? [];
       const goal = profile.investmentGoal; // dividends|growth|balanced
       const riskProfile = profile.riskProfile;
+      const esgOnly = profile.esgOnly === 1;
+      const liquidityNeedPct = profile.liquidityNeedPct ?? 0;
+      const targetReturnPct = profile.targetReturnPct != null ? parseFloat(String(profile.targetReturnPct)) : null;
 
       // 2) Diversifikationsregeln (Admin) + Profil-abgeleitete Optimizer-Parameter (P3)
       const { getDiversificationRules } = await import("../lib/diversificationRules");
@@ -58,6 +61,8 @@ export const autoPortfolioRouter = router({
         const price = parseFloat(s.currentPrice ?? "0");
         if (!(price > 0)) return false;
         if (s.sector && excludedSectors.includes(s.sector)) return false;
+        // ESG-Filter: wenn esgOnly aktiviert, nur ESG-zertifizierte Titel
+        if (esgOnly && !s.esgCertified) return false;
         return true;
       });
       universe.sort((a: any, b: any) => parseFloat(b.marketCap ?? "0") - parseFloat(a.marketCap ?? "0"));
@@ -158,6 +163,12 @@ export const autoPortfolioRouter = router({
         })
         .sort((a, b) => b.weightPct - a.weightPct);
 
+      // Cash-Quote berücksichtigen: Positionen auf (100 - liquidityNeedPct)% skalieren
+      if (liquidityNeedPct > 0 && liquidityNeedPct < 100) {
+        const equityPct = 1 - liquidityNeedPct / 100;
+        positions.forEach((p) => { p.weightPct = parseFloat((p.weightPct * equityPct).toFixed(2)); });
+      }
+
       return {
         positions,
         method,
@@ -166,6 +177,9 @@ export const autoPortfolioRouter = router({
           riskProfile,
           investmentGoal: goal,
           excludedSectors,
+          esgOnly,
+          liquidityNeedPct,
+          targetReturnPct,
         },
         stats: {
           universeCount: universe.length,
