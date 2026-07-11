@@ -5,7 +5,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceDot,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap } from "lucide-react";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -219,6 +219,26 @@ export default function OptimierenTab({
   const [showAllWeak, setShowAllWeak] = useState(false);
   const [showAllAdditions, setShowAllAdditions] = useState(false);
 
+  // Manuelle Optimierungsziele (Soft-Constraints)
+  const [constraintMinDiv, setConstraintMinDiv] = useState<string>("");
+  const [constraintMaxVol, setConstraintMaxVol] = useState<string>("");
+  const [constraintMinSharpe, setConstraintMinSharpe] = useState<string>("");
+  const [showConstraints, setShowConstraints] = useState(false);
+
+  // Parsed constraints (nur wenn gültige Zahlen eingegeben)
+  const userConstraints = useMemo(() => {
+    const c: { minDividendYield?: number; maxVolatility?: number; minSharpe?: number } = {};
+    const div = parseFloat(constraintMinDiv);
+    if (!isNaN(div) && div > 0) c.minDividendYield = div / 100; // % → Anteil
+    const vol = parseFloat(constraintMaxVol);
+    if (!isNaN(vol) && vol > 0) c.maxVolatility = vol / 100;
+    const sharpe = parseFloat(constraintMinSharpe);
+    if (!isNaN(sharpe)) c.minSharpe = sharpe;
+    return Object.keys(c).length > 0 ? c : undefined;
+  }, [constraintMinDiv, constraintMaxVol, constraintMinSharpe]);
+
+  const hasActiveConstraints = userConstraints !== undefined;
+
   // F2: Diversifikationsregeln aus der Admin-Konfig (statt hartkodiert)
   const { data: rulesData } = trpc.analytics.getDiversificationRules.useQuery(undefined, {
     staleTime: 10 * 60 * 1000,
@@ -275,8 +295,10 @@ export default function OptimierenTab({
       ...(totalValueCHF && totalValueCHF > 0 ? { portfolioValue: totalValueCHF } : {}),
       // Pass actual weights so backend can compute the real current portfolio point
       ...(Object.keys(currentWeights).length > 0 ? { currentWeights } : {}),
+      // Manuelle Optimierungsziele
+      ...(userConstraints ? { userConstraints } : {}),
     },
-    { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 5 * 60 * 1000 }
+    { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 0 }
   );
 
   // Upgrade-Vorschläge aus Watchlist + Empfehlungen
@@ -370,6 +392,188 @@ export default function OptimierenTab({
           </p>
         </div>
       )}
+
+      {/* ─── Manuelle Optimierungsziele (Soft-Constraints) ─── */}
+      <div className={`border rounded-lg overflow-hidden ${hasActiveConstraints ? 'border-[#00CFC1]/40' : 'border-white/10'}`}>
+        <button
+          onClick={() => setShowConstraints(!showConstraints)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-[#0f1420] hover:bg-white/[0.02] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className={`w-4 h-4 ${hasActiveConstraints ? 'text-[#00CFC1]' : 'text-gray-500'}`} />
+            <span className="text-sm font-semibold text-white">Optimierungsziele</span>
+            {hasActiveConstraints ? (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-[#00CFC1]/20 text-[#00CFC1]">
+                {Object.keys(userConstraints!).length} aktiv
+              </span>
+            ) : (
+              <span className="text-[10px] text-gray-600">Optionale Nebenbedingungen für den Optimizer</span>
+            )}
+          </div>
+          <span className="text-gray-500 text-xs">{showConstraints ? '▲ Schliessen' : '▼ Aufklappen'}</span>
+        </button>
+
+        {showConstraints && (
+          <div className="border-t border-white/10 bg-[#0a0e1a] px-4 py-4">
+            <p className="text-xs text-gray-500 mb-4">
+              Geben Sie quantitative Ziele ein — der Optimizer berücksichtigt diese als Soft-Constraints
+              (Penalty-Terme) und strebt sie an, ohne die Optimierung zu blockieren.
+            </p>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {/* Mindest-Dividendenrendite */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+                  Mindest-Dividendenrendite
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.1"
+                    placeholder="z.B. 3.0"
+                    value={constraintMinDiv}
+                    onChange={(e) => setConstraintMinDiv(e.target.value)}
+                    className="w-full bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-[#00CFC1] placeholder-gray-600"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                </div>
+                {constraintMinDiv && !isNaN(parseFloat(constraintMinDiv)) && (
+                  <p className="text-[10px] text-[#00CFC1] mt-1">
+                    Ziel: ≥ {parseFloat(constraintMinDiv).toFixed(1)}% Dividendenrendite
+                  </p>
+                )}
+              </div>
+
+              {/* Maximale Volatilität */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+                  Maximale Volatilität (p.a.)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    placeholder="z.B. 12.0"
+                    value={constraintMaxVol}
+                    onChange={(e) => setConstraintMaxVol(e.target.value)}
+                    className="w-full bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-[#00CFC1] placeholder-gray-600"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                </div>
+                {constraintMaxVol && !isNaN(parseFloat(constraintMaxVol)) && (
+                  <p className="text-[10px] text-[#00CFC1] mt-1">
+                    Ziel: ≤ {parseFloat(constraintMaxVol).toFixed(1)}% Volatilität
+                  </p>
+                )}
+              </div>
+
+              {/* Mindest-Sharpe */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+                  Mindest-Sharpe-Ratio
+                </label>
+                <input
+                  type="number"
+                  min="-5"
+                  max="10"
+                  step="0.1"
+                  placeholder="z.B. 1.0"
+                  value={constraintMinSharpe}
+                  onChange={(e) => setConstraintMinSharpe(e.target.value)}
+                  className="w-full bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[#00CFC1] placeholder-gray-600"
+                />
+                {constraintMinSharpe && !isNaN(parseFloat(constraintMinSharpe)) && (
+                  <p className="text-[10px] text-[#00CFC1] mt-1">
+                    Ziel: Sharpe ≥ {parseFloat(constraintMinSharpe).toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Constraint-Erreichung (nach Optimierung) */}
+            {hasActiveConstraints && (result as any)?.constraintAchievement && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-3.5 h-3.5 text-[#00CFC1]" />
+                  <span className="text-xs font-semibold text-white">Zielerreichung nach Optimierung</span>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {(result as any).constraintAchievement.minDividendYield && (() => {
+                    const ca = (result as any).constraintAchievement.minDividendYield;
+                    return (
+                      <div className={`rounded-lg px-3 py-2.5 border ${ca.met ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-amber-500/5 border-amber-500/30'}`}>
+                        <p className="text-[10px] text-gray-500 mb-1">Dividendenrendite</p>
+                        <div className="flex items-center gap-1.5">
+                          {ca.met
+                            ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                            : <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
+                          <span className={`text-sm font-mono font-semibold ${ca.met ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {ca.achieved !== null ? `${(ca.achieved * 100).toFixed(2)}%` : '—'}
+                          </span>
+                          <span className="text-[10px] text-gray-600">/ Ziel: {(ca.target * 100).toFixed(1)}%</span>
+                        </div>
+                        {ca.current !== null && (
+                          <p className="text-[10px] text-gray-600 mt-0.5">Aktuell: {(ca.current * 100).toFixed(2)}%</p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {(result as any).constraintAchievement.maxVolatility && (() => {
+                    const ca = (result as any).constraintAchievement.maxVolatility;
+                    return (
+                      <div className={`rounded-lg px-3 py-2.5 border ${ca.met ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-amber-500/5 border-amber-500/30'}`}>
+                        <p className="text-[10px] text-gray-500 mb-1">Volatilität (p.a.)</p>
+                        <div className="flex items-center gap-1.5">
+                          {ca.met
+                            ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                            : <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
+                          <span className={`text-sm font-mono font-semibold ${ca.met ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {(ca.achieved * 100).toFixed(1)}%
+                          </span>
+                          <span className="text-[10px] text-gray-600">/ Ziel: ≤ {(ca.target * 100).toFixed(1)}%</span>
+                        </div>
+                        <p className="text-[10px] text-gray-600 mt-0.5">Aktuell: {(ca.current * 100).toFixed(1)}%</p>
+                      </div>
+                    );
+                  })()}
+                  {(result as any).constraintAchievement.minSharpe && (() => {
+                    const ca = (result as any).constraintAchievement.minSharpe;
+                    return (
+                      <div className={`rounded-lg px-3 py-2.5 border ${ca.met ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-amber-500/5 border-amber-500/30'}`}>
+                        <p className="text-[10px] text-gray-500 mb-1">Sharpe-Ratio</p>
+                        <div className="flex items-center gap-1.5">
+                          {ca.met
+                            ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                            : <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />}
+                          <span className={`text-sm font-mono font-semibold ${ca.met ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {ca.achieved.toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-gray-600">/ Ziel: ≥ {ca.target.toFixed(2)}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-600 mt-0.5">Aktuell: {ca.current.toFixed(2)}</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {hasActiveConstraints && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={() => { setConstraintMinDiv(""); setConstraintMaxVol(""); setConstraintMinSharpe(""); }}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Alle Ziele zurücksetzen
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ─── Diversifikationsregeln ─── */}
       <div className={`border rounded-lg overflow-hidden ${allPassed ? 'border-[#00CFC1]/30' : 'border-amber-500/30'}`}>

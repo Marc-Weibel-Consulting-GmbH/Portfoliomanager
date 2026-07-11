@@ -85,6 +85,19 @@ export interface OptimizeInput {
   maxPositionWeight?: number; // Einzelposition-Obergrenze als Anteil 0..1 (Default 0.10)
   /** Current portfolio weights as {ticker: weight 0..1}. Used to plot the actual portfolio on the frontier. */
   currentWeights?: Record<string, number>;
+  /**
+   * Manuelle Optimierungsziele (Nebenbedingungen). Werden als Penalty-Term in die
+   * Zielfunktion eingebaut, sodass der Optimizer diese Ziele anstrebt ohne sie
+   * als harte Constraints zu erzwingen (Soft-Constraints).
+   */
+  userConstraints?: {
+    /** Mindest-Dividendenrendite als Anteil 0..1 (z.B. 0.03 = 3%) */
+    minDividendYield?: number;
+    /** Maximale Portfolio-Volatilität p.a. als Anteil 0..1 (z.B. 0.12 = 12%) */
+    maxVolatility?: number;
+    /** Mindest-Sharpe-Ratio (z.B. 1.0) */
+    minSharpe?: number;
+  };
 }
 
 export interface TechnicalAnalysisInput {
@@ -401,13 +414,20 @@ function randomBoundedWeights(n: number, minW: number, maxW: number): number[] {
   return normalizeWithBounds(raw, minW, maxW);
 }
 
+interface UserConstraints {
+  minDividendYield?: number;
+  maxVolatility?: number;
+  minSharpe?: number;
+}
+
 function optimizeWeights(
   mu: number[],
   cov: number[][],
   method: string,
   riskFreeRate: number,
   dividendYields?: number[],
-  constraints?: { minWeight: number; maxWeight: number }
+  constraints?: { minWeight: number; maxWeight: number },
+  userConstraints?: UserConstraints
 ): number[] {
   const n = mu.length;
   const x0 = new Array(n).fill(1 / n);
@@ -431,17 +451,44 @@ function optimizeWeights(
 
   function score(w: number[]): number {
     const { ret, vol } = portfolioStats(w, mu, cov);
+    let base: number;
     if (isDividend && dividendYields) {
       // Objective: maximize portfolio dividend yield / volatility
       const portDivYield = w.reduce((sum, wi, i) => sum + wi * (dividendYields[i] || 0), 0);
-      // Penalize high volatility but prioritize dividend income
-      return vol > 0 ? portDivYield / (vol * 0.5 + 0.01) : portDivYield;
+      base = vol > 0 ? portDivYield / (vol * 0.5 + 0.01) : portDivYield;
     } else if (isMaxSharpe) {
-      return vol > 0 ? (ret - riskFreeRate) / vol : -Infinity;
+      base = vol > 0 ? (ret - riskFreeRate) / vol : -Infinity;
     } else if (isMinVar) {
-      return -vol; // negate so higher = better
+      base = -vol;
+    } else {
+      base = 0;
     }
-    return 0;
+
+    // ─── Soft-Constraint Penalties ────────────────────────────────────────────
+    // Jedes verletzte Ziel reduziert den Score proportional zur Verletzung.
+    // Penalty-Gewicht 5.0: stark genug um das Ziel anzustreben, aber kein
+    // harter Constraint (Optimizer bleibt immer feasible).
+    const PENALTY = 5.0;
+    if (userConstraints) {
+      // Mindest-Dividendenrendite
+      if (userConstraints.minDividendYield !== undefined && dividendYields) {
+        const portDiv = w.reduce((s, wi, i) => s + wi * (dividendYields[i] || 0), 0);
+        const shortfall = Math.max(0, userConstraints.minDividendYield - portDiv);
+        base -= PENALTY * shortfall;
+      }
+      // Maximale Volatilität
+      if (userConstraints.maxVolatility !== undefined) {
+        const excess = Math.max(0, vol - userConstraints.maxVolatility);
+        base -= PENALTY * excess;
+      }
+      // Mindest-Sharpe
+      if (userConstraints.minSharpe !== undefined) {
+        const sharpe = vol > 0 ? (ret - riskFreeRate) / vol : 0;
+        const shortfall = Math.max(0, userConstraints.minSharpe - sharpe);
+        base -= PENALTY * shortfall;
+      }
+    }
+    return base;
   }
 
   // Gradient-free optimization using random search + local refinement
@@ -1226,9 +1273,9 @@ export async function optimizePortfolio(input: OptimizeInput) {
     };
   }
 
-  // Fetch dividend yields for max_dividend method
+  // Fetch dividend yields for max_dividend method OR when minDividendYield constraint is set
   let dividendYields: number[] | undefined;
-  if (method === "max_dividend") {
+  if (method === "max_dividend" || input.userConstraints?.minDividendYield !== undefined) {
     dividendYields = await Promise.all(
       available.map(async (ticker) => {
         try {
@@ -1246,7 +1293,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
   const optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields, {
     minWeight: minPositionWeight,
     maxWeight: maxPositionWeight,
-  });
+  }, input.userConstraints);
 
   // R-34c: Mindest-Positionsgrösse CHF 3'000 — Zielpositionen, deren Wert
   // (Zielgewicht × Portfoliowert) unter der Mindestgrösse liegt, werden auf 0
@@ -1315,6 +1362,35 @@ export async function optimizePortfolio(input: OptimizeInput) {
     weightsMap[available[i]] = Math.round(finalWeights[i] * 10000) / 10000;
   }
 
+  // Constraint-Zielerreichung berechnen (für Frontend-Anzeige)
+  const optPortDiv = dividendYields
+    ? finalWeights.reduce((s, w, i) => s + w * (dividendYields[i] || 0), 0)
+    : null;
+  const currPortDiv = dividendYields
+    ? currentWeightsArr.reduce((s, w, i) => s + w * (dividendYields[i] || 0), 0)
+    : null;
+
+  const constraintAchievement = input.userConstraints ? {
+    minDividendYield: input.userConstraints.minDividendYield !== undefined ? {
+      target: input.userConstraints.minDividendYield,
+      achieved: optPortDiv !== null ? Math.round(optPortDiv * 10000) / 10000 : null,
+      current: currPortDiv !== null ? Math.round(currPortDiv * 10000) / 10000 : null,
+      met: optPortDiv !== null ? optPortDiv >= input.userConstraints.minDividendYield - 0.001 : false,
+    } : undefined,
+    maxVolatility: input.userConstraints.maxVolatility !== undefined ? {
+      target: input.userConstraints.maxVolatility,
+      achieved: Math.round(optVol * 10000) / 10000,
+      current: Math.round(currVol * 10000) / 10000,
+      met: optVol <= input.userConstraints.maxVolatility + 0.001,
+    } : undefined,
+    minSharpe: input.userConstraints.minSharpe !== undefined ? {
+      target: input.userConstraints.minSharpe,
+      achieved: Math.round(optSharpe * 1000) / 1000,
+      current: Math.round(currSharpe * 1000) / 1000,
+      met: optSharpe >= input.userConstraints.minSharpe - 0.01,
+    } : undefined,
+  } : undefined;
+
   return {
     method,
     optimalPortfolio: {
@@ -1337,6 +1413,8 @@ export async function optimizePortfolio(input: OptimizeInput) {
     // auf 0 gesetzt wurden (leer, wenn kein portfolioValue übergeben wurde).
     droppedPositions,
     minPositionChf: MIN_POSITION_CHF,
+    // Constraint-Zielerreichung (nur wenn userConstraints gesetzt)
+    constraintAchievement,
   };
 }
 

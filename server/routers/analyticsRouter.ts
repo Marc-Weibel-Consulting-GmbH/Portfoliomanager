@@ -106,6 +106,12 @@ export const analyticsRouter = router({
         portfolioValue: z.number().positive().optional(),
         // Current portfolio weights {ticker: weight 0..1} to plot actual portfolio on frontier
         currentWeights: z.record(z.string(), z.number()).optional(),
+        // Manuelle Optimierungsziele (Soft-Constraints)
+        userConstraints: z.object({
+          minDividendYield: z.number().min(0).max(1).optional(),
+          maxVolatility: z.number().min(0).max(2).optional(),
+          minSharpe: z.number().min(-5).max(10).optional(),
+        }).optional(),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -153,6 +159,7 @@ export const analyticsRouter = router({
           minPositionWeight,
           maxPositionWeight,
           currentWeights: input.currentWeights,
+          userConstraints: input.userConstraints,
         });
       } catch (err: any) {
         throw new TRPCError({
