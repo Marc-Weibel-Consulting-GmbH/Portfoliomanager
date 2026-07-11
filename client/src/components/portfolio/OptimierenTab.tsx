@@ -223,6 +223,21 @@ export default function OptimierenTab({
   const [showUpgrades, setShowUpgrades] = useState(true);
   const [showAllWeak, setShowAllWeak] = useState(false);
   const [showAllAdditions, setShowAllAdditions] = useState(false);
+  // Empfehlungs-Umsetzung: "Optimierung anwenden" Dialog
+  const [showRecommendDialog, setShowRecommendDialog] = useState(false);
+  const [recommendResult, setRecommendResult] = useState<{ count: number; netCashChange: number } | null>(null);
+  const utils = trpc.useUtils();
+  const applyRecMut = trpc.analytics.applyRecommendations.useMutation({
+    onSuccess: (data) => {
+      setRecommendResult({ count: data.transactionsCreated, netCashChange: data.netCashChange });
+      setShowRecommendDialog(false);
+      utils.portfolios.getWithCurrency.invalidate();
+      utils.portfolios.list.invalidate();
+      if (onNavigateToTransactions) {
+        setTimeout(() => onNavigateToTransactions(), 1500);
+      }
+    },
+  });
 
   // Transaktions-Umsetzung: Checkboxen + Bestätigungs-Dialog
   const [selectedTickers, setSelectedTickers] = useState<Set<string>>(new Set());
@@ -852,13 +867,52 @@ export default function OptimierenTab({
                     )}
                   </div>
                 )}
-
+                {/* ─── Optimierung anwenden Button ─── */}
+                {(upgradeData.replacementSuggestions.some((r) => r.suggestions.length > 0) || upgradeData.additionSuggestions.length > 0) && (
+                  <div className="px-4 py-4 border-t border-white/5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
+                          <span className="text-amber-400 font-medium">
+                            {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length} Ersatz-Transaktionen
+                          </span>
+                        )}
+                        {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && upgradeData.additionSuggestions.length > 0 && (
+                          <span className="text-gray-600"> + </span>
+                        )}
+                        {upgradeData.additionSuggestions.length > 0 && (
+                          <span className="text-indigo-400 font-medium">
+                            {upgradeData.additionSuggestions.length} neue Kandidaten
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setShowRecommendDialog(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors"
+                      >
+                        <Zap className="w-4 h-4" />
+                        Optimierung anwenden
+                      </button>
+                    </div>
+                    {recommendResult && (
+                      <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>
+                          {recommendResult.count} Transaktion{recommendResult.count !== 1 ? 'en' : ''} erstellt
+                          {recommendResult.netCashChange !== 0 && (
+                            <> · Cashänderung: {recommendResult.netCashChange > 0 ? '+' : ''}{fmtChf(recommendResult.netCashChange)}</>
+                          )}
+                        </span>
+                        <button onClick={() => setRecommendResult(null)} className="ml-auto text-gray-500 hover:text-gray-300">✕</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
       </div>
-
       {/* ─── Optimierung (MPT) ─── */}
       {isFetching ? (
         <div className="bg-[#0f1420] border border-white/10 rounded-lg p-10 flex items-center justify-center">
@@ -932,6 +986,123 @@ export default function OptimierenTab({
             </div>
           )}
 
+          {/* Empfehlungs-Umsetzung Dialog */}
+          {showRecommendDialog && upgradeData && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <div className="bg-[#0f1420] border border-white/20 rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 className="text-base font-semibold text-white mb-1">Optimierung anwenden?</h3>
+                <p className="text-xs text-gray-400 mb-4">
+                  Folgende Transaktionen werden automatisch im Portfolio gebucht.
+                </p>
+                {/* Sells: Schwache Positionen */}
+                {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1.5">Verkäufe — Schwache Positionen</p>
+                    <div className="space-y-1">
+                      {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).map((rep) => {
+                        const priceCHF = holdings.find((h: any) => h.ticker === rep.weakTicker)?.currentPriceCHF;
+                        const shares = priceCHF && priceCHF > 0 ? (rep.cashRequired / priceCHF).toFixed(2) : null;
+                        return (
+                          <div key={rep.weakTicker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
+                            <div>
+                              <span className="font-mono font-semibold text-red-300">{rep.weakTicker}</span>
+                              {shares && <span className="text-gray-500 ml-2">{shares} Aktien à {priceCHF ? `CHF ${priceCHF.toFixed(2)}` : '–'}</span>}
+                            </div>
+                            <span className="text-red-400 font-semibold">↓ Verkauf {fmtChf(rep.cashRequired)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {/* Buys: Ersatz-Kandidaten */}
+                {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">Käufe — Ersatz-Kandidaten</p>
+                    <div className="space-y-1">
+                      {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).map((rep) => {
+                        const buyTicker = rep.suggestions[0].ticker;
+                        return (
+                          <div key={buyTicker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
+                            <span className="font-mono font-semibold text-emerald-300">{buyTicker}</span>
+                            <span className="text-emerald-400 font-semibold">↑ Kauf {fmtChf(rep.cashRequired)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {/* Buys: Neue Ergänzungen */}
+                {upgradeData.additionSuggestions.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Käufe — Neue Kandidaten</p>
+                    <div className="space-y-1">
+                      {upgradeData.additionSuggestions.slice(0, 5).map((c: any) => {
+                        const amtCHF = c.estimatedWeight * (totalValueCHF ?? 0);
+                        return (
+                          <div key={c.ticker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
+                            <span className="font-mono font-semibold text-indigo-300">{c.ticker}</span>
+                            <span className="text-indigo-400 font-semibold">↑ Kauf {fmtChf(amtCHF)}</span>
+                          </div>
+                        );
+                      })}
+                      {upgradeData.additionSuggestions.length > 5 && (
+                        <p className="text-[10px] text-gray-600 text-center">… und {upgradeData.additionSuggestions.length - 5} weitere</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {applyRecMut.error && (
+                  <p className="text-red-400 text-xs mb-3">{(applyRecMut.error as any)?.message}</p>
+                )}
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowRecommendDialog(false)}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >Abbrechen</button>
+                  <button
+                    onClick={() => {
+                      const sells = upgradeData.replacementSuggestions
+                        .filter((r) => r.suggestions.length > 0)
+                        .map((rep) => ({
+                          ticker: rep.weakTicker,
+                          companyName: rep.weakCompanyName,
+                          totalCHF: rep.cashRequired,
+                          priceCHF: holdings.find((h: any) => h.ticker === rep.weakTicker)?.currentPriceCHF,
+                          shares: (() => {
+                            const p = holdings.find((h: any) => h.ticker === rep.weakTicker)?.currentPriceCHF;
+                            return p && p > 0 ? rep.cashRequired / p : undefined;
+                          })(),
+                        }));
+                      const buys = [
+                        ...upgradeData.replacementSuggestions
+                          .filter((r) => r.suggestions.length > 0)
+                          .map((rep) => ({
+                            ticker: rep.suggestions[0].ticker,
+                            companyName: rep.suggestions[0].companyName,
+                            totalCHF: rep.cashRequired,
+                          })),
+                        ...upgradeData.additionSuggestions.slice(0, 5).map((c: any) => ({
+                          ticker: c.ticker,
+                          companyName: c.companyName,
+                          totalCHF: c.estimatedWeight * (totalValueCHF ?? 0),
+                        })),
+                      ];
+                      applyRecMut.mutate({ portfolioId, sells, buys, cloneFirst: false });
+                    }}
+                    disabled={applyRecMut.isPending}
+                    className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  >
+                    {applyRecMut.isPending ? (
+                      <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Wird gebucht…</>
+                    ) : (
+                      <><Zap className="w-4 h-4" />Jetzt anwenden</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Bestätigungs-Dialog */}
           {showApplyConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">

@@ -833,4 +833,155 @@ Gib eine strukturierte Analyse zurück.`;
         ));
       return { success: true };
     }),
+
+  /**
+   * Empfehlungen umsetzen: Schwache Positionen verkaufen + Ersatz/Neue Kandidaten kaufen.
+   * Erstellt SELL-Transaktionen fuer schwache Positionen und BUY-Transaktionen fuer Ersatz/Ergaenzungen.
+   * Aktualisiert cashBalance entsprechend.
+   */
+  applyRecommendations: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().int().positive(),
+      sells: z.array(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+        shares: z.number().optional(),
+        priceCHF: z.number().optional(),
+        totalCHF: z.number(),
+      })).min(0),
+      buys: z.array(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+        shares: z.number().optional(),
+        priceCHF: z.number().optional(),
+        totalCHF: z.number(),
+      })).min(0),
+      cloneFirst: z.boolean().optional().default(false),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // HARD AUTH GUARD
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+      }
+      console.log('[applyRecommendations] ctx.user:', ctx.user);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+      // Verify portfolio ownership
+      const portfolio = await db
+        .select({ id: savedPortfolios.id, userId: savedPortfolios.userId, cashBalance: savedPortfolios.cashBalance })
+        .from(savedPortfolios)
+        .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
+        .limit(1);
+      if (portfolio.length === 0) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Portfolio nicht gefunden oder keine Berechtigung' });
+      }
+      let snapshotId: number | undefined;
+      // Optional: Snapshot erstellen vor der Umsetzung
+      if (input.cloneFirst) {
+        const now2 = new Date();
+        const origFull = await db.select().from(savedPortfolios)
+          .where(eq(savedPortfolios.id, input.portfolioId)).limit(1);
+        if (origFull.length > 0) {
+          const o = origFull[0];
+          const [snapResult] = await db.insert(savedPortfolios).values({
+            userId: ctx.user.id,
+            name: `Snapshot vor Empfehlungs-Umsetzung (${now2.toLocaleDateString('de-CH')})`,
+            description: `Automatischer Snapshot vor Empfehlungs-Umsetzung am ${now2.toLocaleDateString('de-CH')}`,
+            portfolioData: o.portfolioData,
+            portfolioType: o.portfolioType,
+            status: o.status,
+            investmentAmount: o.investmentAmount,
+            ...(o.benchmark ? { benchmark: o.benchmark } : {}),
+            isLive: 0,
+            cashBalance: o.cashBalance ?? '0',
+            ...(o.inceptionDate ? { inceptionDate: o.inceptionDate } : {}),
+            isSnapshot: 1,
+            snapshotOfPortfolioId: input.portfolioId,
+            snapshotNote: `Snapshot vor Empfehlungs-Umsetzung am ${now2.toLocaleDateString('de-CH')}`,
+          });
+          snapshotId = (snapResult as any).insertId as number;
+          // Copy transactions to snapshot
+          const txs = await db.select().from(portfolioTransactions)
+            .where(eq(portfolioTransactions.portfolioId, input.portfolioId));
+          if (txs.length > 0) {
+            await db.insert(portfolioTransactions).values(
+              txs.map((t) => ({
+                portfolioId: snapshotId!,
+                transactionType: t.transactionType,
+                ticker: t.ticker,
+                shares: t.shares,
+                pricePerShare: t.pricePerShare,
+                currency: t.currency,
+                totalAmount: t.totalAmount,
+                fxRate: t.fxRate,
+                totalAmountCHF: t.totalAmountCHF,
+                fees: t.fees,
+                notes: t.notes ? `[Kopie] ${t.notes}` : '[Kopie]',
+                transactionDate: t.transactionDate,
+              }))
+            );
+          }
+        }
+      }
+      const now = new Date();
+      const created: { ticker: string; type: 'sell' | 'buy'; amountCHF: number; shares?: number }[] = [];
+      // 1. SELL transactions for weak positions
+      for (const sell of input.sells) {
+        if (sell.totalCHF <= 0) continue;
+        const sharesStr = sell.shares != null ? sell.shares.toFixed(4) : null;
+        await db.insert(portfolioTransactions).values({
+          portfolioId: input.portfolioId,
+          transactionType: 'sell',
+          ticker: sell.ticker,
+          shares: sharesStr,
+          pricePerShare: sell.priceCHF != null ? sell.priceCHF.toFixed(4) : null,
+          currency: 'CHF',
+          totalAmount: sell.totalCHF.toFixed(2),
+          fxRate: '1',
+          totalAmountCHF: sell.totalCHF.toFixed(2),
+          fees: '0',
+          notes: `Empfehlung: Schwache Position ${sell.ticker} verkauft (Optimierung vom ${now.toLocaleDateString('de-CH')})`,
+          transactionDate: now,
+        });
+        created.push({ ticker: sell.ticker, type: 'sell', amountCHF: Math.round(sell.totalCHF), shares: sell.shares });
+      }
+      // 2. BUY transactions for replacements/additions
+      for (const buy of input.buys) {
+        if (buy.totalCHF <= 0) continue;
+        const sharesStr = buy.shares != null ? buy.shares.toFixed(4) : null;
+        await db.insert(portfolioTransactions).values({
+          portfolioId: input.portfolioId,
+          transactionType: 'buy',
+          ticker: buy.ticker,
+          shares: sharesStr,
+          pricePerShare: buy.priceCHF != null ? buy.priceCHF.toFixed(4) : null,
+          currency: 'CHF',
+          totalAmount: buy.totalCHF.toFixed(2),
+          fxRate: '1',
+          totalAmountCHF: buy.totalCHF.toFixed(2),
+          fees: '0',
+          notes: `Empfehlung: ${buy.ticker} gekauft als Ersatz/Ergaenzung (Optimierung vom ${now.toLocaleDateString('de-CH')})`,
+          transactionDate: now,
+        });
+        created.push({ ticker: buy.ticker, type: 'buy', amountCHF: Math.round(buy.totalCHF), shares: buy.shares });
+      }
+      // 3. Update cashBalance
+      const sellTotal = input.sells.reduce((s, t) => s + t.totalCHF, 0);
+      const buyTotal = input.buys.reduce((s, t) => s + t.totalCHF, 0);
+      const netCashChange = sellTotal - buyTotal;
+      if (Math.abs(netCashChange) > 0.01) {
+        const currentCash = parseFloat(portfolio[0]?.cashBalance ?? '0') || 0;
+        const newCash = Math.max(0, currentCash + netCashChange);
+        await db.update(savedPortfolios)
+          .set({ cashBalance: newCash.toFixed(2) })
+          .where(eq(savedPortfolios.id, input.portfolioId));
+      }
+      return {
+        success: true,
+        transactionsCreated: created.length,
+        transactions: created,
+        netCashChange: Math.round(netCashChange),
+        snapshotId,
+      };
+    }),
 });
