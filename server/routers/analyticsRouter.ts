@@ -575,4 +575,164 @@ Gib eine strukturierte Analyse zurück.`;
 
       return { success: true, transactionsCreated: created.length, transactions: created };
     }),
+
+  /** Clone a portfolio as a snapshot before applying optimization */
+  clonePortfolio: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().int().positive(),
+      cloneName: z.string().min(1).max(200),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user?.id || ctx.user.id === 1) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+      const { eq } = await import('drizzle-orm');
+
+      // Load original portfolio
+      const originals = await db.select().from(savedPortfolios)
+        .where(eq(savedPortfolios.id, input.portfolioId)).limit(1);
+      if (!originals.length) throw new TRPCError({ code: 'NOT_FOUND' });
+      const orig = originals[0];
+      if (orig.userId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN' });
+
+      // Insert clone
+      const now = new Date();
+      const [result] = await db.insert(savedPortfolios).values({
+        userId: ctx.user.id,
+        name: input.cloneName,
+        description: `Snapshot von \u00ab${orig.name}\u00bb vor Optimierung (${now.toLocaleDateString('de-CH')})`,
+        portfolioData: orig.portfolioData,
+        portfolioType: orig.portfolioType,
+        status: orig.status,
+        investmentAmount: orig.investmentAmount,
+        ...(orig.benchmark ? { benchmark: orig.benchmark } : {}),
+        isLive: 0,
+        cashBalance: orig.cashBalance ?? '0',
+        ...(orig.inceptionDate ? { inceptionDate: orig.inceptionDate } : {}),
+      });
+      const newId = (result as any).insertId as number;
+
+      // Copy transactions
+      const txs = await db.select().from(portfolioTransactions)
+        .where(eq(portfolioTransactions.portfolioId, input.portfolioId));
+      if (txs.length > 0) {
+        await db.insert(portfolioTransactions).values(
+          txs.map(t => ({
+            portfolioId: newId,
+            transactionType: t.transactionType,
+            ticker: t.ticker,
+            shares: t.shares,
+            pricePerShare: t.pricePerShare,
+            currency: t.currency,
+            totalAmount: t.totalAmount,
+            fxRate: t.fxRate,
+            totalAmountCHF: t.totalAmountCHF,
+            fees: t.fees,
+            notes: t.notes ? `[Kopie] ${t.notes}` : '[Kopie]',
+            transactionDate: t.transactionDate,
+          }))
+        );
+      }
+
+      return { success: true, cloneId: newId, cloneName: input.cloneName };
+    }),
+
+  /** Get optimization subscription status for a portfolio */
+  getOptimizationSubscription: protectedProcedure
+    .input(z.object({ portfolioId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.user?.id) return null;
+      const db = await getDb();
+      if (!db) return null;
+      const { optimizationSubscriptions } = await import('../../drizzle/schema');
+      const { eq: eqOp, and: andOp } = await import('drizzle-orm');
+      const subs = await db.select().from(optimizationSubscriptions)
+        .where(andOp(
+          eqOp(optimizationSubscriptions.userId, ctx.user.id),
+          eqOp(optimizationSubscriptions.portfolioId, input.portfolioId)
+        )).limit(1);
+      return subs.length > 0 ? subs[0] : null;
+    }),
+
+  /** Subscribe to weekly optimization drift alerts for a portfolio */
+  subscribeOptimizationAlert: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().int().positive(),
+      driftThresholdPp: z.number().int().min(1).max(30).default(5),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user?.id || ctx.user.id === 1) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+      const { optimizationSubscriptions } = await import('../../drizzle/schema');
+      const { eq: eqOp, and: andOp } = await import('drizzle-orm');
+      const { parse: parseCookie } = await import('cookie');
+      const { COOKIE_NAME } = await import('@shared/const');
+      const { createHeartbeatJob } = await import('../_core/heartbeat');
+
+      // Verify portfolio ownership
+      const portfolioRows = await db.select().from(savedPortfolios)
+        .where(eqOp(savedPortfolios.id, input.portfolioId)).limit(1);
+      if (!portfolioRows.length) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (portfolioRows[0].userId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN' });
+
+      // Check if subscription already exists
+      const existing = await db.select().from(optimizationSubscriptions)
+        .where(andOp(
+          eqOp(optimizationSubscriptions.userId, ctx.user.id),
+          eqOp(optimizationSubscriptions.portfolioId, input.portfolioId)
+        )).limit(1);
+
+      if (existing.length > 0) {
+        await db.update(optimizationSubscriptions)
+          .set({ driftThresholdPp: input.driftThresholdPp, isActive: 1 })
+          .where(eqOp(optimizationSubscriptions.id, existing[0].id));
+        return { success: true, subscriptionId: existing[0].id, isNew: false, heartbeatActive: !!existing[0].scheduleCronTaskUid };
+      }
+
+      // Create Heartbeat job (only works in production after deployment)
+      let taskUid: string | null = null;
+      try {
+        const sessionToken = parseCookie(ctx.req.headers.cookie ?? '')[COOKIE_NAME] ?? '';
+        const job = await createHeartbeatJob({
+          name: `optim-alert-${input.portfolioId}-${ctx.user.id}`,
+          cron: '0 0 8 * * 1',
+          path: '/api/scheduled/optimizationAlert',
+          payload: { portfolioId: input.portfolioId },
+          description: `W\u00f6chentlicher Optimierungs-Check f\u00fcr Portfolio ${portfolioRows[0].name}`,
+        }, sessionToken);
+        taskUid = job.taskUid;
+      } catch (e) {
+        console.warn('[subscribeOptimizationAlert] Heartbeat job creation failed (dev mode?):', e);
+      }
+
+      const [insertResult] = await db.insert(optimizationSubscriptions).values({
+        userId: ctx.user.id,
+        portfolioId: input.portfolioId,
+        cronExpression: '0 0 8 * * 1',
+        driftThresholdPp: input.driftThresholdPp,
+        scheduleCronTaskUid: taskUid,
+        isActive: 1,
+      });
+      const newId = (insertResult as any).insertId as number;
+      return { success: true, subscriptionId: newId, isNew: true, heartbeatActive: !!taskUid };
+    }),
+
+  /** Unsubscribe from optimization alerts */
+  unsubscribeOptimizationAlert: protectedProcedure
+    .input(z.object({ portfolioId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user?.id) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+      const { optimizationSubscriptions } = await import('../../drizzle/schema');
+      const { eq: eqOp, and: andOp } = await import('drizzle-orm');
+      await db.update(optimizationSubscriptions)
+        .set({ isActive: 0 })
+        .where(andOp(
+          eqOp(optimizationSubscriptions.userId, ctx.user.id),
+          eqOp(optimizationSubscriptions.portfolioId, input.portfolioId)
+        ));
+      return { success: true };
+    }),
 });

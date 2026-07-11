@@ -205,6 +205,7 @@ export default function OptimierenTab({
   totalValueCHF,
   method = "max_sharpe",
   strategyNote,
+  onNavigateToTransactions,
 }: {
   portfolioId: number;
   holdings: any[];
@@ -213,6 +214,8 @@ export default function OptimierenTab({
   method?: OptimizeMethod;
   /** F3: kurze Begründung, warum diese Strategie (aus dem Profil). */
   strategyNote?: string;
+  /** Callback: navigiert zum Transaktionen-Tab nach erfolgreicher Umsetzung */
+  onNavigateToTransactions?: () => void;
 }) {
   const [showDivRules, setShowDivRules] = useState(true);
   const [showUpgrades, setShowUpgrades] = useState(true);
@@ -229,8 +232,35 @@ export default function OptimierenTab({
       setApplyResult({ count: data.transactionsCreated, transactions: data.transactions });
       setShowApplyConfirm(false);
       setSelectedTickers(new Set());
+      // Automatically navigate to the transactions tab after 1.5s
+      if (onNavigateToTransactions) {
+        setTimeout(() => onNavigateToTransactions(), 1500);
+      }
     },
   });
+
+  // Portfolio-Kopie vor Umsetzung
+  const [showCloneOption, setShowCloneOption] = useState(false);
+  const [cloneName, setCloneName] = useState('');
+  const [cloneCreated, setCloneCreated] = useState<{ id: number; name: string } | null>(null);
+  const cloneMut = trpc.analytics.clonePortfolio.useMutation({
+    onSuccess: (data) => {
+      setCloneCreated({ id: data.cloneId, name: data.cloneName });
+    },
+  });
+
+  // Wöchentliches Optimierungs-Abo
+  const { data: subData, refetch: refetchSub } = trpc.analytics.getOptimizationSubscription.useQuery(
+    { portfolioId },
+    { enabled: portfolioId > 0, staleTime: 5 * 60 * 1000 }
+  );
+  const subscribeMut = trpc.analytics.subscribeOptimizationAlert.useMutation({
+    onSuccess: () => refetchSub(),
+  });
+  const unsubscribeMut = trpc.analytics.unsubscribeOptimizationAlert.useMutation({
+    onSuccess: () => refetchSub(),
+  });
+  const isSubscribed = !!(subData && subData.isActive);
 
   // Manuelle Optimierungsziele (Soft-Constraints)
   const [constraintMinDiv, setConstraintMinDiv] = useState<string>("");
@@ -875,25 +905,101 @@ export default function OptimierenTab({
           {/* Bestätigungs-Dialog */}
           {showApplyConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-              <div className="bg-[#0f1420] border border-white/20 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
-                <h3 className="text-base font-semibold text-white mb-2">Transaktionen erstellen?</h3>
-                <p className="text-sm text-gray-400 mb-4">
-                  Es werden {selectedTickers.size} Transaktion{selectedTickers.size !== 1 ? 'en' : ''} als Kauf oder Verkauf im Portfolio gespeichert.
-                  Gesamtportfoliowert: {fmtChf(totalValueCHF ?? 0)}.
+              <div className="bg-[#0f1420] border border-white/20 rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 className="text-base font-semibold text-white mb-1">Transaktionen erstellen?</h3>
+                <p className="text-xs text-gray-400 mb-4">
+                  {selectedTickers.size} Transaktion{selectedTickers.size !== 1 ? 'en' : ''} · Gesamtportfoliowert: {fmtChf(totalValueCHF ?? 0)}
                 </p>
-                <div className="space-y-1.5 mb-5 max-h-48 overflow-y-auto">
+
+                {/* Transaktionsliste mit Stückzahl */}
+                <div className="space-y-1.5 mb-4 max-h-52 overflow-y-auto">
                   {suggestions.filter(s => selectedTickers.has(s.ticker)).map(s => {
                     const amtCHF = Math.abs(s.diff) * (totalValueCHF ?? 0);
+                    const price = (s as any).currentPriceCHF;
+                    const shares = price && price > 0 ? (amtCHF / price).toFixed(2) : null;
                     return (
                       <div key={s.ticker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
-                        <span className="font-mono font-semibold text-gray-200">{s.ticker}</span>
-                        <span className={s.diff > 0 ? 'text-[#00CFC1]' : 'text-red-400'}>
-                          {s.diff > 0 ? 'Kauf' : 'Verkauf'} {fmtChf(amtCHF)}
+                        <div>
+                          <span className="font-mono font-semibold text-gray-200">{s.ticker}</span>
+                          {shares && (
+                            <span className="text-gray-500 ml-2">{shares} Aktien à {price ? `CHF ${price.toFixed(2)}` : '–'}</span>
+                          )}
+                        </div>
+                        <span className={s.diff > 0 ? 'text-[#00CFC1] font-semibold' : 'text-red-400 font-semibold'}>
+                          {s.diff > 0 ? '↑ Kauf' : '↓ Verkauf'} {fmtChf(amtCHF)}
                         </span>
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Portfolio-Kopie Option */}
+                <div className="border border-white/10 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      onClick={() => {
+                        setShowCloneOption(v => !v);
+                        if (!cloneName) {
+                          const today = new Date().toLocaleDateString('de-CH');
+                          setCloneName(`Snapshot vor Optimierung (${today})`);
+                        }
+                      }}
+                      className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        showCloneOption ? 'bg-[#00CFC1] border-[#00CFC1]' : 'border-white/30 bg-transparent'
+                      }`}
+                    >
+                      {showCloneOption && <span className="text-black text-[10px] font-bold">✓</span>}
+                    </button>
+                    <span className="text-xs text-gray-300">Portfolio vor Umsetzung als Kopie speichern</span>
+                  </div>
+                  {showCloneOption && (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        value={cloneName}
+                        onChange={e => setCloneName(e.target.value)}
+                        placeholder="Name der Kopie…"
+                        className="flex-1 text-xs bg-white/5 border border-white/10 rounded px-2 py-1.5 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#00CFC1]/50"
+                      />
+                      {cloneCreated ? (
+                        <span className="text-xs text-emerald-400 flex-shrink-0">✓ Gespeichert</span>
+                      ) : (
+                        <button
+                          onClick={() => cloneMut.mutate({ portfolioId, cloneName: cloneName || 'Snapshot' })}
+                          disabled={cloneMut.isPending}
+                          className="text-xs px-2.5 py-1.5 bg-white/10 hover:bg-white/20 rounded text-gray-300 flex-shrink-0 transition-colors"
+                        >
+                          {cloneMut.isPending ? 'Kopiere…' : 'Jetzt kopieren'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Wöchentliches Abo */}
+                <div className="flex items-center justify-between border border-white/10 rounded-lg px-3 py-2.5 mb-5">
+                  <div>
+                    <p className="text-xs text-gray-300 font-medium">Wöchentliche Optimierungsprüfung</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Benachrichtigung wenn Portfolio &gt;5 pp vom Optimum abweicht</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (isSubscribed) {
+                        unsubscribeMut.mutate({ portfolioId });
+                      } else {
+                        subscribeMut.mutate({ portfolioId, driftThresholdPp: 5 });
+                      }
+                    }}
+                    disabled={subscribeMut.isPending || unsubscribeMut.isPending}
+                    className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
+                      isSubscribed ? 'bg-[#00CFC1]' : 'bg-white/20'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      isSubscribed ? 'translate-x-5' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                </div>
+
                 <div className="flex gap-3 justify-end">
                   <button
                     onClick={() => setShowApplyConfirm(false)}

@@ -1144,3 +1144,26 @@ export const marketReports = mysqlTable("market_reports", {
 }));
 export type MarketReport = typeof marketReports.$inferSelect;
 export type InsertMarketReport = typeof marketReports.$inferInsert;
+
+// Optimization subscription — weekly check if portfolio drifted from optimum
+export const optimizationSubscriptions = mysqlTable("optimizationSubscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  portfolioId: int("portfolioId").notNull(),
+  /** 6-field cron (with seconds): "0 0 8 * * 1" = every Monday 08:00 UTC */
+  cronExpression: varchar("cronExpression", { length: 64 }).notNull().default("0 0 8 * * 1"),
+  /** Drift threshold in percentage points (e.g. 5 = alert when any position drifts >5pp) */
+  driftThresholdPp: int("driftThresholdPp").notNull().default(5),
+  /** Heartbeat task UID from Forge scheduler */
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+  isActive: tinyint("isActive").notNull().default(1),
+  lastRunAt: timestamp("lastRunAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  userPortfolioIdx: index("ix_optim_sub_user_portfolio").on(t.userId, t.portfolioId),
+  taskUidIdx: index("ix_optim_sub_task_uid").on(t.scheduleCronTaskUid),
+}));
+
+export type OptimizationSubscription = typeof optimizationSubscriptions.$inferSelect;
+export type InsertOptimizationSubscription = typeof optimizationSubscriptions.$inferInsert;
