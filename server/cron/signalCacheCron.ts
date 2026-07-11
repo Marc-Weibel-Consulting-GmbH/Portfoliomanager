@@ -52,6 +52,7 @@ export async function refreshSignalCache(): Promise<void> {
     const { signalForSeries, getActiveSignalModel } = await import("../analytics/signalService");
     const { detectBubble } = await import("../analytics/lpplsEngine");
     const { calculateQualityScore, calculateMomentumScore } = await import("../analytics/qualityMomentumEngine");
+    const { getQualityMetrics } = await import("../lib/qualityMetricsService");
     const { getActiveWeights } = await import("../analytics/optimizerWorker");
     const { blendCombinedScore } = await import("../lib/signalBlend");
     const { getRegimeBlendConfig } = await import("../analytics/regimeSignalMemory");
@@ -187,7 +188,29 @@ export async function refreshSignalCache(): Promise<void> {
               } catch { /* silent */ }
 
               try {
-                const qualityResult = calculateQualityScore({ roe: null, debtToEquity: null, fcfYield: null, grossMargin: null });
+                // Fetch real quality metrics from EODHD (ROE, Gross Margin, Net Debt/EBITDA)
+                let roe: number | null = null;
+                let debtToEquity: number | null = null;
+                let fcfYield: number | null = null;
+                let grossMargin: number | null = null;
+                try {
+                  const qm = await getQualityMetrics(ticker);
+                  roe = qm.returnOnEquity;
+                  grossMargin = qm.grossMargin;
+                  // Map netDebtToEbitda → debtToEquity proxy (both measure leverage)
+                  // netDebtToEbitda: <1 = low, 1-3 = moderate, >3 = high
+                  // debtToEquity thresholds in scoring: <0.5 = low, 0.5-1.5 = moderate, >2 = high
+                  // Approximate conversion: D/E ≈ netDebtToEbitda * 0.5 (rough proxy)
+                  if (qm.netDebtToEbitda !== null) {
+                    debtToEquity = Math.max(0, qm.netDebtToEbitda * 0.5);
+                  }
+                  // FCF Yield: not directly in QualityMetrics, use qualityScore as proxy signal
+                  // If EODHD qualityScore > 60, assume positive FCF yield
+                  if (qm.qualityScore > 60) fcfYield = 3.0;
+                  else if (qm.qualityScore > 40) fcfYield = 1.0;
+                  else fcfYield = -1.0;
+                } catch { /* silent - use nulls as fallback */ }
+                const qualityResult = calculateQualityScore({ roe, debtToEquity, fcfYield, grossMargin });
                 qualityGrade = qualityResult.grade;
                 qualityScore = qualityResult.score;
               } catch { /* silent */ }

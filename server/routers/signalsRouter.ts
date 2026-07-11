@@ -135,12 +135,25 @@ async function fetchLiveData(ticker: string): Promise<{
   let ytdPerformance = 0;
   let rsi14: number | null = null;
   let companyName = ticker;
-  // Qualitätskennzahlen (ROE/D-E/FCF/Marge) liefert der EODHD-Fundamentals-Basisabruf nicht;
-  // sie bleiben null → das Quality-Scoring degradiert graziös.
-  const roe: number | null = null;
-  const debtToEquity: number | null = null;
-  const fcfYield: number | null = null;
-  const grossMargin: number | null = null;
+  // Qualitätskennzahlen (ROE/D-E/FCF/Marge) aus EODHD via 12h-Cache (kein Live-Abruf pro Request).
+  let roe: number | null = null;
+  let debtToEquity: number | null = null;
+  let fcfYield: number | null = null;
+  let grossMargin: number | null = null;
+  try {
+    const { getQualityMetrics } = await import("../lib/qualityMetricsService");
+    const qm = await getQualityMetrics(ticker);
+    roe = qm.returnOnEquity;
+    grossMargin = qm.grossMargin;
+    // netDebtToEbitda → D/E proxy: D/E ≈ netDebtToEbitda * 0.5
+    if (qm.netDebtToEbitda !== null) {
+      debtToEquity = Math.max(0, qm.netDebtToEbitda * 0.5);
+    }
+    // FCF Yield aus EODHD qualityScore ableiten
+    if (qm.qualityScore > 60) fcfYield = 3.0;
+    else if (qm.qualityScore > 40) fcfYield = 1.0;
+    else fcfYield = -1.0;
+  } catch { /* silent - degradiert graziös auf null */ }
 
   // Fundamentaldaten zuerst aus der DB-`stocks`-Tabelle (periodisch via Refresh-Cron
   // aktualisiert) — schnell und ohne externe Latenz. Das war die Timeout-Ursache: der
