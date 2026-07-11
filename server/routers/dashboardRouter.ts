@@ -1855,12 +1855,21 @@ export const dashboardRouter = router({
         }
       }
 
-      // Concentration top 3 — use current holdings
+      // Concentration top 3 — use current holdings (live: from transactions, demo: from portfolioData)
       const holdingsAgg = new Map<string, number>();
       for (const portfolio of targetPortfolios) {
-        const transactions = txByPortfolio.get(portfolio.id) || [];
-        for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
-          holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          // Live portfolio: derive holdings from transactions
+          const transactions = txByPortfolio.get(portfolio.id) || [];
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + pos.shares);
+          }
+        } else {
+          // Demo portfolio: use pre-parsed holdings from portfolioData
+          const demoHoldings = demoHoldingsByPortfolio.get(portfolio.id) || [];
+          for (const { ticker, shares } of demoHoldings) {
+            if (shares > 0) holdingsAgg.set(ticker, (holdingsAgg.get(ticker) || 0) + shares);
+          }
         }
       }
       const holdingValues: number[] = [];
