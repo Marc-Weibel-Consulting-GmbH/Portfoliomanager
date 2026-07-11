@@ -104,9 +104,25 @@ export const stocks = mysqlTable("stocks", {
   factsheetUrl: varchar("factsheetUrl", { length: 500 }), // ETF factsheet PDF URL
   logoUrl: varchar("logoUrl", { length: 500 }), // Company logo URL
   score: int("score").default(0), // Calculated score based on metrics (0-100)
+  // ── Kuratierungs-Facette (Merge watchlistStocks → stocks, STOCK_UNIVERSE_MERGE.md) ──
+  // Alle nullable: listType=NULL ⇒ reines Portfolio-Stammdatum (nicht im Universum).
+  listType: mysqlEnum("listType", ["empfehlung", "watchlist"]), // empfehlung ⇒ /aktien, watchlist ⇒ Staging
+  source: mysqlEnum("stockSource", ["manual", "ai_recommended", "wikifolio"]), // Herkunft im Universum
+  signalScore: int("signalScore"), // 0-100 Signal-Score (aus watchlistAlertsCron)
+  signalType: mysqlEnum("signalType", ["buy", "sell", "hold"]),
+  aiReason: text("aiReason"),
+  rsi14: varchar("rsi14", { length: 50 }),
+  industry: varchar("industry", { length: 150 }),
+  country: varchar("country", { length: 50 }),
+  notes: text("notes"), // Admin-Notizen / Import-Herkunft (z. B. Wikifolio-Code)
+  isActive: tinyint("isActive").notNull().default(1),
+  lastMetricsUpdate: timestamp("lastMetricsUpdate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (t) => ({
+  listTypeIdx: index("ix_stocks_list_type").on(t.listType),
+  sourceIdx: index("ix_stocks_source").on(t.source),
+}));
 
 export type Stock = typeof stocks.$inferSelect;
 export type InsertStock = typeof stocks.$inferInsert;
