@@ -11,6 +11,10 @@ import { TRPCError } from "@trpc/server";
 import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory } from "../analytics/engine";
 import { getQualityMetrics } from "../lib/qualityMetricsService";
 import { invokeLLM } from "../_core/llm";
+import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
+import { getDb } from "../db";
+import { watchlistStocks } from "../../drizzle/schema";
+import { and, eq, inArray } from "drizzle-orm";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -325,6 +329,165 @@ Gib eine strukturierte Analyse zurück.`;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: err.message ?? "KI-Interpretation fehlgeschlagen",
+        });
+      }
+    }),
+
+  /**
+   * Upgrade-Vorschläge: Schwache Positionen ersetzen, starke Kandidaten hinzufügen.
+   * Liest Kandidaten aus Watchlist + Aktien-Empfehlungen und vergleicht mit
+   * bestehenden Portfolio-Positionen nach Sektor und Score.
+   */
+  upgradeProposals: protectedProcedure
+    .input(
+      z.object({
+        portfolioId: z.string(),
+        holdings: z.array(
+          z.object({
+            ticker: z.string(),
+            weight: z.number().min(0).max(1),
+            sector: z.string().optional().nullable(),
+            signalScore: z.number().optional().nullable(),
+            companyName: z.string().optional().nullable(),
+          })
+        ),
+        portfolioValue: z.number().optional().default(0),
+      })
+    )
+    .query(async ({ input }) => {
+      try {
+        const rules = await _getDiversificationRules();
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB nicht verfügbar" });
+
+        // Alle aktiven Kandidaten aus Watchlist + Empfehlungen laden
+        const candidates = await db
+          .select()
+          .from(watchlistStocks)
+          .where(
+            and(
+              eq(watchlistStocks.isActive, 1),
+              inArray(watchlistStocks.listType, ["empfehlung", "watchlist"])
+            )
+          );
+
+        const portfolioTickers = new Set(input.holdings.map((h) => h.ticker.toUpperCase()));
+
+        // Durchschnitts-Score der aktuellen Positionen
+        const holdingsWithScore = input.holdings.filter((h) => h.signalScore != null && (h.signalScore ?? 0) > 0);
+        const avgScoreCurrent =
+          holdingsWithScore.length > 0
+            ? Math.round(holdingsWithScore.reduce((s, h) => s + (h.signalScore ?? 0), 0) / holdingsWithScore.length)
+            : 0;
+
+        // Schwache Positionen (Score < Schwelle)
+        const weakPositions = input.holdings
+          .filter((h) => (h.signalScore ?? 0) < rules.upgradeScoreThreshold)
+          .sort((a, b) => (a.signalScore ?? 0) - (b.signalScore ?? 0));
+
+        // Ersatz-Vorschläge: für jede schwache Position Top-3 Kandidaten aus gleichem Sektor
+        const replacementSuggestions: Array<{
+          weakTicker: string;
+          weakCompanyName: string;
+          weakScore: number;
+          weakWeight: number;
+          suggestions: Array<{
+            ticker: string;
+            companyName: string;
+            sector: string | null;
+            signalScore: number;
+            signalType: string | null;
+            dividendYield: string | null;
+            category: string | null;
+            scoreDelta: number;
+          }>;
+        }> = [];
+
+        for (const weak of weakPositions) {
+          const sector = weak.sector ?? null;
+          const sectorCandidates = candidates
+            .filter((c) => {
+              if (portfolioTickers.has(c.ticker.toUpperCase())) return false;
+              if ((c.signalScore ?? 0) <= (weak.signalScore ?? 0)) return false;
+              if (sector && c.sector && c.sector.toLowerCase() !== sector.toLowerCase()) return false;
+              return true;
+            })
+            .sort((a, b) => (b.signalScore ?? 0) - (a.signalScore ?? 0))
+            .slice(0, 3)
+            .map((c) => ({
+              ticker: c.ticker,
+              companyName: c.companyName,
+              sector: c.sector ?? null,
+              signalScore: c.signalScore ?? 0,
+              signalType: c.signalType ?? null,
+              dividendYield: c.dividendYield ?? null,
+              category: c.category ?? null,
+              scoreDelta: (c.signalScore ?? 0) - (weak.signalScore ?? 0),
+            }));
+
+          replacementSuggestions.push({
+            weakTicker: weak.ticker,
+            weakCompanyName: weak.companyName ?? weak.ticker,
+            weakScore: weak.signalScore ?? 0,
+            weakWeight: weak.weight,
+            suggestions: sectorCandidates,
+          });
+        }
+
+        // Ergänzungs-Vorschläge: Kandidaten mit hohem Score, die noch nicht im Portfolio sind
+        const additionThreshold = 65;
+        const additionSuggestions = candidates
+          .filter((c) => {
+            if (portfolioTickers.has(c.ticker.toUpperCase())) return false;
+            if ((c.signalScore ?? 0) < additionThreshold) return false;
+            return true;
+          })
+          .sort((a, b) => (b.signalScore ?? 0) - (a.signalScore ?? 0))
+          .map((c) => ({
+            ticker: c.ticker,
+            companyName: c.companyName,
+            sector: c.sector ?? null,
+            signalScore: c.signalScore ?? 0,
+            signalType: c.signalType ?? null,
+            dividendYield: c.dividendYield ?? null,
+            category: c.category ?? null,
+            listType: c.listType,
+            estimatedWeight: parseFloat((1 / (input.holdings.length + 1)).toFixed(4)),
+          }));
+
+        // Durchschnitts-Score nach Upgrade (beste Ersatz-Vorschläge eingerechnet)
+        let simulatedScoreSum = 0;
+        let simulatedCount = 0;
+        for (const h of input.holdings) {
+          const replacement = replacementSuggestions.find((r) => r.weakTicker === h.ticker);
+          if (replacement && replacement.suggestions.length > 0) {
+            simulatedScoreSum += replacement.suggestions[0].signalScore;
+          } else {
+            simulatedScoreSum += h.signalScore ?? avgScoreCurrent;
+          }
+          simulatedCount++;
+        }
+        const avgScoreAfterUpgrade = simulatedCount > 0 ? Math.round(simulatedScoreSum / simulatedCount) : avgScoreCurrent;
+
+        return {
+          weakPositions: weakPositions.map((h) => ({
+            ticker: h.ticker,
+            companyName: h.companyName ?? h.ticker,
+            score: h.signalScore ?? 0,
+            weight: h.weight,
+            sector: h.sector ?? null,
+          })),
+          replacementSuggestions,
+          additionSuggestions,
+          avgScoreCurrent,
+          avgScoreAfterUpgrade,
+          upgradeScoreThreshold: rules.upgradeScoreThreshold,
+          totalCandidates: candidates.length,
+        };
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Upgrade-Vorschläge konnten nicht berechnet werden",
         });
       }
     }),

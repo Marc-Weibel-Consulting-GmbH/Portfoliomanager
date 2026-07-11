@@ -5,7 +5,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceDot,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw } from "lucide-react";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -24,19 +24,24 @@ export interface DiversificationRules {
   minPositionAmountCHF: number;
   minTitles: number;
   maxTitles: number;
+  minSectorPercent: number;
   maxSectorPercent: number;
   maxCurrencyPercent: number;
+  upgradeScoreThreshold: number;
 }
 
-// Fallback, falls die Konfig noch lädt oder nicht verfügbar ist (identisch mit Server-Defaults).
+// Fallback, falls die Konfig noch lädt oder nicht verfügbar ist.
+// Neu: maxPositionPercent = 25% (Bandbreite statt fix 10%), minTitles = 10.
 const DEFAULT_RULES: DiversificationRules = {
-  maxPositionPercent: 10,
+  maxPositionPercent: 25,
   minPositionPercent: 1,
   minPositionAmountCHF: 3000,
-  minTitles: 15,
-  maxTitles: 20,
-  maxSectorPercent: 30,
+  minTitles: 10,
+  maxTitles: 30,
+  minSectorPercent: 0,
+  maxSectorPercent: 40,
   maxCurrencyPercent: 100,
+  upgradeScoreThreshold: 55,
 };
 
 const fmtChf = (v: number) => `CHF ${Math.round(v).toLocaleString("de-CH")}`;
@@ -68,19 +73,18 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
     });
   }
 
-  // Regel: Einzelposition-Obergrenze
+  // Regel: Einzelposition-Bandbreite (min/max)
   const overweighted = nonCash.filter((h: any) => parseFloat(h.weight || "0") > rules.maxPositionPercent);
   out.push({
     id: "max_weight",
     label: `Max. ${rules.maxPositionPercent}% pro Position`,
-    description: `Keine einzelne Position soll mehr als ${rules.maxPositionPercent}% des Portfolios ausmachen.`,
+    description: `Keine einzelne Position soll mehr als ${rules.maxPositionPercent}% des Portfolios ausmachen (Klumpenrisiko).`,
     passed: overweighted.length === 0,
     detail: overweighted.length === 0
       ? `Alle Positionen ≤ ${rules.maxPositionPercent}%`
       : `${overweighted.length} Position(en) über ${rules.maxPositionPercent}%: ${overweighted.map((h: any) => `${h.ticker} (${parseFloat(h.weight || "0").toFixed(1)}%)`).join(", ")}`,
   });
 
-  // Regel: Einzelposition-Untergrenze
   const underweighted = nonCash.filter((h: any) => {
     const w = parseFloat(h.weight || "0");
     return w < rules.minPositionPercent && w > 0;
@@ -173,6 +177,28 @@ const METHOD_DESCRIPTION: Record<OptimizeMethod, string> = {
   hrp: "Hierarchical Risk Parity: Verteilt Risiko gleichmässig über Korrelations-Cluster (kein Rendite-Schätzer benötigt)",
 };
 
+// ─── Score-Badge ───────────────────────────────────────────────────────────────
+function ScoreBadge({ score }: { score: number }) {
+  const color = score >= 70 ? "text-emerald-400 bg-emerald-400/10" : score >= 55 ? "text-[#00CFC1] bg-[#00CFC1]/10" : score >= 45 ? "text-yellow-400 bg-yellow-400/10" : "text-red-400 bg-red-400/10";
+  return (
+    <span className={`inline-flex items-center justify-center text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded ${color}`}>
+      {Math.round(score)}
+    </span>
+  );
+}
+
+// ─── Signal-Typ-Badge ──────────────────────────────────────────────────────────
+function SignalBadge({ type }: { type: string | null }) {
+  if (!type) return null;
+  const cfg: Record<string, { label: string; cls: string }> = {
+    buy: { label: "Kauf", cls: "text-emerald-400 bg-emerald-400/10" },
+    sell: { label: "Verkauf", cls: "text-red-400 bg-red-400/10" },
+    hold: { label: "Halten", cls: "text-gray-400 bg-white/5" },
+  };
+  const c = cfg[type] ?? cfg.hold;
+  return <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${c.cls}`}>{c.label}</span>;
+}
+
 export default function OptimierenTab({
   portfolioId,
   holdings,
@@ -189,6 +215,9 @@ export default function OptimierenTab({
   strategyNote?: string;
 }) {
   const [showDivRules, setShowDivRules] = useState(true);
+  const [showUpgrades, setShowUpgrades] = useState(true);
+  const [showAllWeak, setShowAllWeak] = useState(false);
+  const [showAllAdditions, setShowAllAdditions] = useState(false);
 
   // F2: Diversifikationsregeln aus der Admin-Konfig (statt hartkodiert)
   const { data: rulesData } = trpc.analytics.getDiversificationRules.useQuery(undefined, {
@@ -211,6 +240,31 @@ export default function OptimierenTab({
     return map;
   }, [holdings]);
 
+  // Signals für Score-Daten der aktuellen Positionen (für upgradeProposals benötigt)
+  const { data: signalsData } = trpc.signals.generate.useQuery(
+    { portfolioId },
+    { enabled: portfolioId > 0, staleTime: 4 * 60 * 60 * 1000 }
+  );
+  const signalMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (signalsData) (signalsData as any[]).forEach((s: any) => map.set(s.ticker, s));
+    return map;
+  }, [signalsData]);
+
+  // Holdings mit Signal-Scores angereichert (für upgradeProposals)
+  const holdingsWithScores = useMemo(() =>
+    holdings
+      .filter((h: any) => h.ticker && h.ticker !== "CASH")
+      .map((h: any) => ({
+        ticker: h.ticker,
+        weight: parseFloat(h.weight || "0") / 100,
+        sector: h.sector ?? null,
+        signalScore: signalMap.get(h.ticker)?.combinedScore ?? null,
+        companyName: h.companyName ?? h.ticker,
+      })),
+    [holdings, signalMap]
+  );
+
   const { data: result, isFetching, error } = trpc.analytics.optimize.useQuery(
     {
       tickers,
@@ -223,6 +277,19 @@ export default function OptimierenTab({
       ...(Object.keys(currentWeights).length > 0 ? { currentWeights } : {}),
     },
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 5 * 60 * 1000 }
+  );
+
+  // Upgrade-Vorschläge aus Watchlist + Empfehlungen
+  const { data: upgradeData, isFetching: isUpgradeFetching, refetch: refetchUpgrades } = trpc.analytics.upgradeProposals.useQuery(
+    {
+      portfolioId: String(portfolioId),
+      holdings: holdingsWithScores,
+      portfolioValue: totalValueCHF ?? 0,
+    },
+    {
+      enabled: portfolioId > 0 && holdingsWithScores.length > 0,
+      staleTime: 5 * 60 * 1000,
+    }
   );
 
   const frontierData = useMemo(() => {
@@ -242,10 +309,7 @@ export default function OptimierenTab({
     ? { x: +(result.currentPortfolio.volatility * 100).toFixed(2), y: +(result.currentPortfolio.expectedReturn * 100).toFixed(2) }
     : null;
 
-  // KI-Vorschläge: grösste Abweichungen optimal vs. aktuell. Der Server
-  // garantiert seit R-34 Summe ≈ 1 innerhalb der (bei kleinen Portfolios
-  // aufgeweiteten) Bounds — clientseitiges Cappen/Renormalisieren würde die
-  // Bounds wieder verletzen und entfällt daher.
+  // KI-Vorschläge: ALLE Abweichungen optimal vs. aktuell (kein Limit mehr)
   const suggestions = useMemo(() => {
     if (!result?.weights) return [];
     const optimal = result.weights as Record<string, number>;
@@ -257,8 +321,8 @@ export default function OptimierenTab({
         return { ticker, cur, opt, diff: opt - cur };
       })
       .filter((s) => Math.abs(s.diff) >= 0.02)
-      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
-      .slice(0, 6);
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+    // Kein .slice(0, 6) mehr — alle Empfehlungen anzeigen
   }, [result, currentWeights]);
 
   // R-34c: vom Server wegen der Mindestgrösse CHF 3'000 auf 0 gesetzte Positionen
@@ -291,7 +355,7 @@ export default function OptimierenTab({
 
   return (
     <div className="space-y-5">
-      {/* ─── R-34: Warnung bei zu wenigen Titeln (der Optimizer kann keine Titel ergänzen) ─── */}
+      {/* ─── R-34: Warnung bei zu wenigen Titeln ─── */}
       {tickers.length < rules.minTitles && (
         <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
           <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
@@ -322,6 +386,7 @@ export default function OptimierenTab({
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${allPassed ? 'bg-[#00CFC1]/20 text-[#00CFC1]' : 'bg-amber-500/20 text-amber-400'}`}>
               {passedCount}/{divRules.length}
             </span>
+            <span className="text-[10px] text-gray-600 ml-1">Bandbreite: {rules.minPositionPercent}–{rules.maxPositionPercent}% pro Titel</span>
           </div>
           <span className="text-gray-500 text-xs">{showDivRules ? '▲ Schliessen' : '▼ Aufklappen'}</span>
         </button>
@@ -346,6 +411,178 @@ export default function OptimierenTab({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ─── Upgrade-Vorschläge ─── */}
+      <div className="border border-indigo-500/30 rounded-lg overflow-hidden">
+        <button
+          onClick={() => setShowUpgrades(!showUpgrades)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-[#0f1420] hover:bg-white/[0.02] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-indigo-400" />
+            <span className="text-sm font-semibold text-white">Upgrade-Vorschläge</span>
+            {upgradeData && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-indigo-500/20 text-indigo-300">
+                {upgradeData.weakPositions.length} schwach · {upgradeData.additionSuggestions.length} Kandidaten
+              </span>
+            )}
+            {upgradeData && upgradeData.avgScoreCurrent > 0 && upgradeData.avgScoreAfterUpgrade > upgradeData.avgScoreCurrent && (
+              <span className="text-[10px] text-emerald-400 font-medium">
+                Ø Score: {upgradeData.avgScoreCurrent} → {upgradeData.avgScoreAfterUpgrade} (+{upgradeData.avgScoreAfterUpgrade - upgradeData.avgScoreCurrent})
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); refetchUpgrades(); }}
+              className="text-gray-600 hover:text-gray-400 transition-colors p-1"
+              title="Aktualisieren"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isUpgradeFetching ? 'animate-spin' : ''}`} />
+            </button>
+            <span className="text-gray-500 text-xs">{showUpgrades ? '▲ Schliessen' : '▼ Aufklappen'}</span>
+          </div>
+        </button>
+
+        {showUpgrades && (
+          <div className="border-t border-white/10 bg-[#0a0e1a]">
+            {isUpgradeFetching ? (
+              <div className="flex items-center justify-center py-8 gap-3">
+                <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-gray-400">Kandidaten werden analysiert…</span>
+              </div>
+            ) : !upgradeData ? (
+              <div className="py-6 text-center text-gray-500 text-sm">
+                Keine Daten verfügbar. Stellen Sie sicher, dass Watchlist oder Empfehlungen vorhanden sind.
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+
+                {/* Score-KPIs */}
+                {upgradeData.avgScoreCurrent > 0 && (
+                  <div className="px-4 py-3 flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Ø Portfolio-Score aktuell:</span>
+                      <ScoreBadge score={upgradeData.avgScoreCurrent} />
+                    </div>
+                    {upgradeData.avgScoreAfterUpgrade > upgradeData.avgScoreCurrent && (
+                      <>
+                        <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">Nach Upgrade:</span>
+                          <ScoreBadge score={upgradeData.avgScoreAfterUpgrade} />
+                          <span className="text-xs text-emerald-400 font-semibold">
+                            +{upgradeData.avgScoreAfterUpgrade - upgradeData.avgScoreCurrent} Punkte
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    <span className="text-[10px] text-gray-600 ml-auto">
+                      {upgradeData.totalCandidates} Kandidaten in Watchlist/Empfehlungen · Schwelle: Score &lt; {upgradeData.upgradeScoreThreshold}
+                    </span>
+                  </div>
+                )}
+
+                {/* Schwache Positionen + Ersatz-Vorschläge */}
+                {upgradeData.replacementSuggestions.length > 0 && (
+                  <div className="px-4 py-3">
+                    <h4 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Schwache Positionen — Ersatz-Vorschläge
+                    </h4>
+                    <div className="space-y-3">
+                      {(showAllWeak ? upgradeData.replacementSuggestions : upgradeData.replacementSuggestions.slice(0, 5)).map((rep) => (
+                        <div key={rep.weakTicker} className="bg-white/[0.02] border border-white/5 rounded-lg p-3">
+                          {/* Schwache Position */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <ArrowDownRight className="w-4 h-4 text-red-400 flex-shrink-0" />
+                            <span className="font-mono text-sm font-semibold text-red-300">{rep.weakTicker}</span>
+                            <span className="text-xs text-gray-500 truncate">{rep.weakCompanyName}</span>
+                            <ScoreBadge score={rep.weakScore} />
+                            <span className="text-xs text-gray-600 ml-auto">{(rep.weakWeight * 100).toFixed(1)}%</span>
+                          </div>
+                          {/* Ersatz-Kandidaten */}
+                          {rep.suggestions.length === 0 ? (
+                            <p className="text-xs text-gray-600 pl-6">Kein besserer Kandidat im gleichen Sektor gefunden.</p>
+                          ) : (
+                            <div className="space-y-1.5 pl-6">
+                              {rep.suggestions.map((s) => (
+                                <div key={s.ticker} className="flex items-center gap-2 text-xs">
+                                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                                  <span className="font-mono font-semibold text-emerald-300 w-16">{s.ticker}</span>
+                                  <span className="text-gray-400 truncate flex-1">{s.companyName}</span>
+                                  <ScoreBadge score={s.signalScore} />
+                                  <SignalBadge type={s.signalType} />
+                                  <span className="text-emerald-400 font-semibold w-12 text-right">+{s.scoreDelta}</span>
+                                  {s.dividendYield && <span className="text-gray-500 w-12 text-right">{s.dividendYield}%</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {upgradeData.replacementSuggestions.length > 5 && (
+                      <button
+                        onClick={() => setShowAllWeak(!showAllWeak)}
+                        className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                      >
+                        {showAllWeak
+                          ? '▲ Weniger anzeigen'
+                          : `▼ Alle ${upgradeData.replacementSuggestions.length} schwachen Positionen anzeigen`}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {upgradeData.replacementSuggestions.length === 0 && upgradeData.avgScoreCurrent > 0 && (
+                  <div className="px-4 py-3 flex items-center gap-2 text-[#00CFC1] text-sm">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Alle Positionen liegen über der Score-Schwelle ({upgradeData.upgradeScoreThreshold}) — kein Ersatz nötig.</span>
+                  </div>
+                )}
+
+                {/* Ergänzungs-Vorschläge */}
+                {upgradeData.additionSuggestions.length > 0 && (
+                  <div className="px-4 py-3">
+                    <h4 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <Plus className="w-3.5 h-3.5" />
+                      Neue Kandidaten — Ergänzungs-Vorschläge (Score ≥ 65)
+                    </h4>
+                    <div className="space-y-1.5">
+                      {(showAllAdditions ? upgradeData.additionSuggestions : upgradeData.additionSuggestions.slice(0, 8)).map((c: any) => (
+                        <div key={c.ticker} className="flex items-center gap-2 text-xs bg-white/[0.02] rounded px-3 py-2">
+                          <Plus className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                          <span className="font-mono font-semibold text-indigo-300 w-16">{c.ticker}</span>
+                          <span className="text-gray-400 truncate flex-1">{c.companyName}</span>
+                          {c.sector && <span className="text-gray-600 text-[10px] hidden sm:block">{c.sector}</span>}
+                          <ScoreBadge score={c.signalScore} />
+                          <SignalBadge type={c.signalType} />
+                          <span className={`text-[10px] px-1 py-0.5 rounded ${c.listType === 'empfehlung' ? 'bg-[#00CFC1]/10 text-[#00CFC1]' : 'bg-white/5 text-gray-500'}`}>
+                            {c.listType === 'empfehlung' ? 'Empfehlung' : 'Watchlist'}
+                          </span>
+                          {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
+                        </div>
+                      ))}
+                    </div>
+                    {upgradeData.additionSuggestions.length > 8 && (
+                      <button
+                        onClick={() => setShowAllAdditions(!showAllAdditions)}
+                        className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                      >
+                        {showAllAdditions
+                          ? '▲ Weniger anzeigen'
+                          : `▼ Alle ${upgradeData.additionSuggestions.length} Kandidaten anzeigen`}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -403,10 +640,10 @@ export default function OptimierenTab({
           )}
 
           <div className="grid lg:grid-cols-2 gap-5">
-            {/* KI-Vorschläge (Re-Allocation) */}
+            {/* KI-Vorschläge (Re-Allocation) — alle Positionen, kein Limit */}
             <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-white mb-1">KI-Empfehlungen</h3>
-              <p className="text-xs text-gray-500 mb-4">Re-Allocation für maximale risikoadjustierte Rendite</p>
+              <h3 className="text-sm font-semibold text-white mb-1">Gewichts-Empfehlungen</h3>
+              <p className="text-xs text-gray-500 mb-4">Re-Allocation für maximale risikoadjustierte Rendite · Bandbreite {rules.minPositionPercent}–{rules.maxPositionPercent}%</p>
               {suggestions.length === 0 ? (
                 <div className="flex items-center gap-2 text-[#00CFC1] text-sm">
                   <CheckCircle className="w-4 h-4" />

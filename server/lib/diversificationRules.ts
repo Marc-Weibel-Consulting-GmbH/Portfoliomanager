@@ -10,36 +10,51 @@
  * Fehlertolerant: fehlt die Tabelle/der Eintrag oder ist die DB nicht
  * verfügbar, greifen die Defaults (identisch mit den bisher hartkodierten
  * Werten — Standardverhalten bleibt unverändert).
+ *
+ * Bandbreiten-Konzept (neu):
+ * - minPositionPercent / maxPositionPercent definieren die erlaubte Bandbreite
+ *   pro Einzeltitel. Der Optimizer bestimmt die genaue Gewichtung frei innerhalb
+ *   dieser Grenzen — keine Gleichgewichtung erzwungen.
+ * - minSectorPercent / maxSectorPercent analog für Sektoren.
  */
 
 export interface DiversificationRules {
-  /** Einzelposition-Obergrenze in % des Portfolios. */
-  maxPositionPercent: number;
-  /** Einzelposition-Untergrenze in % (Kleinstpositionen vermeiden). */
+  /** Einzelposition-Untergrenze in % des Portfolios (Kleinstpositionen vermeiden). */
   minPositionPercent: number;
+  /** Einzelposition-Obergrenze in % des Portfolios (Klumpenrisiko). */
+  maxPositionPercent: number;
   /** Mindest-Positionsgrösse in CHF (Transaktionskosten-Effizienz). */
   minPositionAmountCHF: number;
   /** Mindestanzahl verschiedener Titel. */
   minTitles: number;
   /** Höchstanzahl verschiedener Titel. */
   maxTitles: number;
-  /** Sektor-Obergrenze in % des Portfolios. */
+  /** Sektor-Untergrenze in % des Portfolios (Mindestdiversifikation je Sektor). */
+  minSectorPercent: number;
+  /** Sektor-Obergrenze in % des Portfolios (Klumpenrisiko je Sektor). */
   maxSectorPercent: number;
   /**
    * Währungs-Obergrenze in % des Portfolios (Klumpenrisiko je Währung).
    * Default 100 = Regel inaktiv, bis ein Admin sie verschärft.
    */
   maxCurrencyPercent: number;
+  /**
+   * Score-Schwelle für Upgrade-Vorschläge: Positionen mit Qualitäts-Score
+   * unterhalb dieses Wertes werden als Upgrade-Kandidaten markiert.
+   */
+  upgradeScoreThreshold: number;
 }
 
 export const DEFAULT_DIVERSIFICATION_RULES: DiversificationRules = {
-  maxPositionPercent: 10,
   minPositionPercent: 1,
+  maxPositionPercent: 25,   // Gelockert von 10% → 25%: Optimizer kann konzentrieren
   minPositionAmountCHF: 3000,
-  minTitles: 15,
-  maxTitles: 20,
-  maxSectorPercent: 30,
+  minTitles: 10,            // Gelockert von 15 → 10
+  maxTitles: 30,            // Erhöht von 20 → 30
+  minSectorPercent: 0,      // Neu: keine Mindestquote je Sektor
+  maxSectorPercent: 40,     // Leicht erhöht von 30% → 40%
   maxCurrencyPercent: 100,
+  upgradeScoreThreshold: 55, // Positionen mit Score < 55 werden als Upgrade-Kandidaten vorgeschlagen
 };
 
 /** Aktiven Regelsatz lesen (Defaults + gespeicherte Überschreibungen). */
