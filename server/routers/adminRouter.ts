@@ -620,10 +620,14 @@ export const adminRouter = router({
         const analyticsUrl = process.env.ANALYTICS_SERVICE_URL;
         let serviceOnline = false;
         if (analyticsUrl) {
-          try {
-            const r = await fetch(`${analyticsUrl.replace(/\/$/, '')}/health`, { signal: AbortSignal.timeout(3000) });
-            serviceOnline = r.ok;
-          } catch { /* offline */ }
+          const healthUrl = `${analyticsUrl.replace(/\/$/, '')}/health`;
+          // Two attempts with 8s timeout each — Railway cold starts can take 3-5s
+          for (let attempt = 0; attempt < 2 && !serviceOnline; attempt++) {
+            try {
+              const r = await fetch(healthUrl, { signal: AbortSignal.timeout(8000) });
+              serviceOnline = r.ok;
+            } catch { /* offline or timeout, try once more */ }
+          }
         }
 
         return {
