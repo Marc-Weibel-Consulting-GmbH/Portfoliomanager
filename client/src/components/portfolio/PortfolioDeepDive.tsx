@@ -240,8 +240,8 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedHoldings.map((h: any) => (
-                    <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
+                  {sortedHoldings.map((h: any, idx: number) => (
+                    <tr key={`${h.ticker}-${idx}`} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
                       <td className="py-1.5 pr-3">
                         <span className="font-medium text-white">{h.ticker}</span>
                         <span className="text-gray-600 ml-1 hidden md:inline">{h.name}</span>

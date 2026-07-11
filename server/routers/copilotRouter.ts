@@ -948,6 +948,23 @@ export const copilotRouter = router({
         stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
       } catch { stocks = []; }
 
+      // Deduplicate by ticker: merge shares and keep first entry's metadata
+      // This prevents the same stock (e.g. RO.SW) from appearing multiple times
+      // when portfolioData has duplicate entries from multiple buy transactions.
+      const tickerMap = new Map<string, any>();
+      for (const s of stocks) {
+        if (!s.ticker) continue;
+        const key = s.ticker.toUpperCase();
+        if (tickerMap.has(key)) {
+          // Accumulate shares
+          const existing = tickerMap.get(key);
+          existing.shares = (parseFloat(existing.shares || '0') + parseFloat(s.shares || '0'));
+        } else {
+          tickerMap.set(key, { ...s, shares: parseFloat(s.shares || '0') });
+        }
+      }
+      stocks = Array.from(tickerMap.values());
+
       if (stocks.length === 0) return { error: 'Keine Positionen im Portfolio', holdings: [], sectorBreakdown: [], portfolioMetrics: null, topDividend: [], highBeta: [], aiSummary: null };
 
       const totalValue = stocks.reduce((sum: number, s: any) =>
@@ -981,7 +998,8 @@ export const copilotRouter = router({
           industry: f.industry || null,
           peRatio: f.peRatio !== null ? Math.round((f.peRatio ?? 0) * 10) / 10 : null,
           pegRatio: f.pegRatio !== null ? Math.round((f.pegRatio ?? 0) * 100) / 100 : null,
-          dividendYield: f.dividendYield !== null ? Math.round((f.dividendYield ?? 0) * 10) / 10 : null,
+          // Treat 0% dividend yield as null so it sorts to the end (non-payers)
+          dividendYield: (f.dividendYield !== null && (f.dividendYield ?? 0) > 0) ? Math.round((f.dividendYield ?? 0) * 10) / 10 : null,
           beta: f.beta !== null ? Math.round((f.beta ?? 0) * 100) / 100 : null,
           eps: f.eps,
           marketCap: f.marketCap,
