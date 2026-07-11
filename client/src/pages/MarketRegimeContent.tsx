@@ -105,11 +105,48 @@ const RISK_LABEL: Record<string, string> = {
   konservativ: "Konservativ", ausgewogen: "Ausgewogen", wachstum: "Wachstum", aggressiv: "Aggressiv",
 };
 
+// Regime-Verlauf (R4): Sparkline des Gesamt-Scores der letzten Tage.
+// Skala −100…+100, Nulllinie = neutral. Farbe der Endnadel nach Vorzeichen.
+function RegimeSparkline({ points }: { points: { date: string; score: number }[] }) {
+  const W = 600, H = 120, padY = 12;
+  const n = points.length;
+  const x = (i: number) => (n <= 1 ? 0 : (i / (n - 1)) * W);
+  const y = (s: number) => H / 2 - Math.max(-1, Math.min(1, s)) * (H / 2 - padY);
+  const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.score).toFixed(1)}`).join(" ");
+  const area = `${line} L${W} ${H / 2} L0 ${H / 2} Z`;
+  const last = points[n - 1];
+  const lastColor = last.score >= 0.05 ? "#34d399" : last.score <= -0.05 ? "#f87171" : "#fbbf24";
+  const fmt = (s: number) => `${s >= 0 ? "+" : ""}${Math.round(s * 100)}`;
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString("de-CH", { day: "2-digit", month: "short" });
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" role="img" aria-label="Regime-Verlauf">
+        <defs>
+          <linearGradient id="regimeSpark" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor={lastColor} stopOpacity="0.25" />
+            <stop offset="1" stopColor={lastColor} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#ffffff" strokeOpacity="0.12" strokeWidth="1" strokeDasharray="4 4" />
+        <path d={area} fill="url(#regimeSpark)" />
+        <path d={line} fill="none" stroke={lastColor} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <circle cx={x(n - 1)} cy={y(last.score)} r="4" fill={lastColor} />
+      </svg>
+      <div className="flex justify-between text-[11px] text-gray-500 mt-1">
+        <span>{fmtDate(points[0].date)} · {fmt(points[0].score)}</span>
+        <span className="text-gray-400">Nulllinie = neutral</span>
+        <span style={{ color: lastColor }}>heute · {fmt(last.score)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function MarketRegimeContent() {
   const { data: regimeData, isLoading, refetch, isFetching } = trpc.marketRegime.getRegime.useQuery(undefined, {
     staleTime: 60000, retry: 1,
   });
   const { data: profile } = trpc.investmentProfile.get.useQuery(undefined, { retry: false });
+  const { data: history } = trpc.marketRegime.getHistory.useQuery({ days: 90 }, { staleTime: 300000, retry: false });
 
   if (isLoading) {
     return (
@@ -194,6 +231,25 @@ export default function MarketRegimeContent() {
               <p className="text-xs text-gray-500 mt-3">Diese Grössen steuern Optimierung und Empfehlungen für Ihre Portfolios.</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Regime-Verlauf (R4) */}
+      <Card className="bg-[#1a1f2e] border-white/10">
+        <CardContent className="p-5">
+          <div className="flex items-center gap-1.5 mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Regime-Verlauf · 90 Tage</p>
+            <InfoTip text="Täglicher Gesamt-Score (−100 … +100). Zeigt, ob sich das Marktumfeld zuletzt aufgehellt oder eingetrübt hat." />
+          </div>
+          {history && history.points.length >= 2 ? (
+            <RegimeSparkline points={history.points} />
+          ) : (
+            <p className="text-sm text-gray-500 italic py-4">
+              Der Verlauf wird ab jetzt täglich aufgebaut
+              {history && history.points.length === 1 ? " (1 Tag erfasst)" : ""} — die Kurve erscheint,
+              sobald mindestens zwei Handelstage erfasst sind.
+            </p>
+          )}
         </CardContent>
       </Card>
 

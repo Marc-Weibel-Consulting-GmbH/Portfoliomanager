@@ -36,8 +36,8 @@ Darstellung verfälscht ihn. Drei echte Fehler:
 
 ## Stufen
 
-| Stufe | Inhalt |
-|---|---|
-| **R1–R3** | Bugfixes + Marktampel-Hero + Transparenz/Glossar (rein Client, keine neue Datenquelle). |
-| **R5** | «Für mich» (Regime × Anlageprofil). |
-| **R4** | Regime-Verlauf (90-Tage-Sparkline) — braucht tägliche Score-History (kleine Tabelle + Cron). |
+| Stufe | Inhalt | Status |
+|---|---|---|
+| **R1–R3** | Bugfixes + Marktampel-Hero + Transparenz/Glossar (rein Client, keine neue Datenquelle). | ✅ |
+| **R5** | «Für mich» (Regime × Anlageprofil). | ✅ |
+| **R4** | Regime-Verlauf (90-Tage-Sparkline) — Tabelle `market_regime_history` + täglicher `regimeHistoryCron` (23:15 UTC, Upsert per Datum) → `marketRegime.getHistory`. Verlauf baut sich ab dem ersten Snapshot auf; bis dahin ehrlicher Hinweis. | ✅ |
