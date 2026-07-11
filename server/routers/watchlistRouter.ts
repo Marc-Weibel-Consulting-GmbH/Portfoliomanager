@@ -10,7 +10,7 @@ import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, sear
 import { resolveIsinToTicker, isLikelyIsin } from '../lib/isinResolver';
 import { getUniverseListTypeFilter } from '../lib/watchlistUniverse';
 import { curated } from '../lib/stockUniverse';
-import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
+import { eq, like, or, and, desc, asc, sql, count, isNull } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
 import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
 import { fetchEODHDFundamentals } from '../_core/eodhdApi';
@@ -89,7 +89,8 @@ export const watchlistRouter = router({
   list: protectedProcedure
     .input(z.object({
       source: z.enum(["manual", "ai_recommended", "wikifolio", "all"]).optional().default("all"),
-      listType: z.enum(["empfehlung", "watchlist", "alle"]).optional().default("alle"),
+      // "nicht_kuratiert" = Portfolio-Titel ohne Kuratierung (listType = NULL).
+      listType: z.enum(["empfehlung", "watchlist", "alle", "nicht_kuratiert"]).optional().default("alle"),
       category: z.string().optional(),
       sector: z.string().optional(),
       signalType: z.enum(["buy", "sell", "hold", "all"]).optional().default("all"),
@@ -106,14 +107,20 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      // Nur das kuratierte Universum (nicht die reinen Portfolio-Stammdaten).
-      const conditions: any[] = [curated()];
+      // "nicht_kuratiert" zeigt reine Portfolio-Stammdaten (listType = NULL);
+      // alle anderen Tabs bleiben aufs kuratierte Universum beschränkt.
+      const conditions: any[] = [];
+      if (input.listType === "nicht_kuratiert") {
+        conditions.push(isNull(watchlistStocks.listType));
+      } else {
+        conditions.push(curated());
+        if (input.listType && input.listType !== "alle") {
+          conditions.push(eq(watchlistStocks.listType, input.listType));
+        }
+      }
 
       if (input.source && input.source !== "all") {
         conditions.push(eq(watchlistStocks.source, input.source as "manual" | "ai_recommended" | "wikifolio"));
-      }
-      if (input.listType && input.listType !== "alle") {
-        conditions.push(eq(watchlistStocks.listType, input.listType));
       }
       if (input.category) {
         conditions.push(eq(watchlistStocks.category, input.category));
@@ -171,6 +178,8 @@ export const watchlistRouter = router({
     // F-13: counts per listType for the merged Empfehlungen/Watchlist view
     const empfehlung = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "empfehlung"));
     const watchlistOnly = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "watchlist"));
+    // Reine Portfolio-Stammdaten (nicht im Universum).
+    const nichtKuratiert = await db.select({ count: count() }).from(watchlistStocks).where(isNull(watchlistStocks.listType));
 
     return {
       total: total[0]?.count || 0,
@@ -180,6 +189,7 @@ export const watchlistRouter = router({
       sellSignals: sellSignals[0]?.count || 0,
       empfehlung: empfehlung[0]?.count || 0,
       watchlistOnly: watchlistOnly[0]?.count || 0,
+      nichtKuratiert: nichtKuratiert[0]?.count || 0,
       maxAllowed: 200,
     };
   }),

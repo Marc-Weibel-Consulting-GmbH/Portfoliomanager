@@ -55,7 +55,6 @@ const PriceAlerts = lazy(() => import("./pages/PriceAlerts"));
 
 // ─── Admin (lazy — only loaded when admin navigates there) ───
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const AdminStocks = lazy(() => import("./pages/AdminStocks"));
 const AdminCategories = lazy(() => import("./pages/AdminCategories"));
 const AdminSectors = lazy(() => import("./pages/AdminSectors"));
 const AdminSecretsManagement = lazy(() => import("./pages/AdminSecretsManagement"));
@@ -157,7 +156,8 @@ function Router() {
 
         {/* ═══ ADMIN ═══ */}
         <Route path="/admin"><RequireAdmin><AdminDashboard /></RequireAdmin></Route>
-        <Route path="/admin/stocks"><RequireAdmin><AdminStocks /></RequireAdmin></Route>
+        {/* Stammdaten-Seite in «Aktienliste & Watchlist» zusammengeführt (Tab «Nicht kuratiert») */}
+        <Route path="/admin/stocks"><Redirect to="/admin/watchlist" /></Route>
         <Route path="/admin/categories"><RequireAdmin><AdminCategories /></RequireAdmin></Route>
         <Route path="/admin/sectors"><RequireAdmin><AdminSectors /></RequireAdmin></Route>
         <Route path="/admin/secrets"><RequireAdmin><AdminSecretsManagement /></RequireAdmin></Route>

@@ -19,8 +19,8 @@ import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Mi
 export default function AdminWatchlist() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  // F-13: merged view — Empfehlungen | Watchlist | Alle
-  const [listTypeFilter, setListTypeFilter] = useState<"empfehlung" | "watchlist" | "alle">("alle");
+  // F-13: merged view — Empfehlungen | Watchlist | Alle | Nicht kuratiert
+  const [listTypeFilter, setListTypeFilter] = useState<"empfehlung" | "watchlist" | "alle" | "nicht_kuratiert">("alle");
   const [bulkMigrateOpen, setBulkMigrateOpen] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [signalFilter, setSignalFilter] = useState<string>("all");
@@ -209,6 +209,7 @@ export default function AdminWatchlist() {
   };
 
   const getSourceBadge = (source: string, notes?: string | null) => {
+    if (!source) return <span className="text-xs text-muted-foreground">—</span>;
     if (source === "manual") return <Badge variant="outline" className="text-xs"><Users className="w-3 h-3 mr-1" />Manuell</Badge>;
     if (source === "wikifolio") {
       // Extract portfolio code from notes (e.g. "Importiert aus Wikifolio wfglobalnt | ...")
@@ -428,6 +429,9 @@ export default function AdminWatchlist() {
               <TabsTrigger value="alle">
                 Alle{stats ? ` (${stats.total})` : ""}
               </TabsTrigger>
+              <TabsTrigger value="nicht_kuratiert" title="Portfolio-Titel, die (noch) nicht im Universum sind">
+                Nicht kuratiert{stats ? ` (${stats.nichtKuratiert ?? 0})` : ""}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <Button
@@ -591,14 +595,28 @@ export default function AdminWatchlist() {
                         </td>
                         <td className="p-3 text-center">{getSourceBadge(stock.source, (stock as any).notes)}</td>
                         <td className="p-3 text-center">
-                          <Switch
-                            checked={(stock as any).listType === "empfehlung"}
-                            onCheckedChange={(checked) =>
-                              setListTypeMutation.mutate({ id: stock.id, listType: checked ? "empfehlung" : "watchlist" })
-                            }
-                            aria-label={`${stock.ticker} als Empfehlung markieren`}
-                            title={(stock as any).listType === "empfehlung" ? "Empfehlung (für Nutzer sichtbar)" : "Nur Watchlist"}
-                          />
+                          {(stock as any).listType == null ? (
+                            // Nicht-kuratierter Portfolio-Titel → ins Universum aufnehmen (Staging).
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => setListTypeMutation.mutate({ id: stock.id, listType: "watchlist" })}
+                              title="In die Watchlist aufnehmen"
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Aufnehmen
+                            </Button>
+                          ) : (
+                            <Switch
+                              checked={(stock as any).listType === "empfehlung"}
+                              onCheckedChange={(checked) =>
+                                setListTypeMutation.mutate({ id: stock.id, listType: checked ? "empfehlung" : "watchlist" })
+                              }
+                              aria-label={`${stock.ticker} als Empfehlung markieren`}
+                              title={(stock as any).listType === "empfehlung" ? "Empfehlung (für Nutzer sichtbar)" : "Nur Watchlist"}
+                            />
+                          )}
                         </td>
                         <td className="p-3 text-right">
                           <div className="flex gap-1 justify-end">
@@ -629,6 +647,8 @@ export default function AdminWatchlist() {
                         <td colSpan={12} className="p-8 text-center text-muted-foreground">
                           {listTypeFilter === "empfehlung"
                             ? "Keine Empfehlungen vorhanden. Markieren Sie Titel über den Schalter in der Spalte «Empfehlung»."
+                            : listTypeFilter === "nicht_kuratiert"
+                            ? "Keine nicht-kuratierten Titel. Alle Aktien in der Datenbank sind Teil des Universums."
                             : "Keine Titel in der Watchlist. Fügen Sie manuell Titel hinzu oder generieren Sie KI-Empfehlungen."}
                         </td>
                       </tr>
