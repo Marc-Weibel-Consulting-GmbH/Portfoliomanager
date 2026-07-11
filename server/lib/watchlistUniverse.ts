@@ -8,9 +8,6 @@
  * Admin can toggle any title between 'watchlist' and 'empfehlung' via the
  * Switch in Admin → Aktienliste & Watchlist.
  */
-import { eq } from "drizzle-orm";
-import { watchlistStocks } from "../../drizzle/schema";
-
 /**
  * Always returns 'empfehlung' — no fallback to all-active rows.
  */

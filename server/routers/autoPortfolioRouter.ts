@@ -57,14 +57,13 @@ export const autoPortfolioRouter = router({
       // 3) Kandidaten-Universum aus der DB (nach Marktkapitalisierung begrenzt,
       //    ausgeschlossene Sektoren + fehlende Preise raus)
       //    PLUS: Watchlist-Empfehlungen (listType='empfehlung') werden bevorzugt einbezogen
-      const { watchlistStocks: watchlistStocksTable } = await import("../../drizzle/schema");
       const { eq: eqOp } = await import("drizzle-orm");
 
-      // Fetch watchlist recommendation tickers for this user
+      // Fetch watchlist recommendation tickers (vereinte stocks-Tabelle, listType='empfehlung')
       const watchlistRecs = await db
-        .select({ ticker: watchlistStocksTable.ticker })
-        .from(watchlistStocksTable)
-        .where(eqOp(watchlistStocksTable.listType, "empfehlung"));
+        .select({ ticker: stocksTable.ticker })
+        .from(stocksTable)
+        .where(eqOp(stocksTable.listType, "empfehlung"));
       const watchlistRecTickers = new Set(watchlistRecs.map((r: any) => r.ticker.toUpperCase()));
 
       const allStocks = await db.select().from(stocksTable);

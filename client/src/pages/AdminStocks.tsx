@@ -33,17 +33,6 @@ export default function AdminStocks() {
     }
   });
 
-  // Universum-Zusammenführung Phase 1 (STOCK_UNIVERSE_MERGE.md):
-  // kopiert die kuratierten watchlistStocks per Ticker-Upsert in die stocks-Tabelle.
-  const mergeMutation = trpc.stocks.mergeWatchlistUniverse.useMutation({
-    onSuccess: (data) => {
-      toast.success(data.message);
-      refetch();
-    },
-    onError: (error) => {
-      toast.error(`Zusammenführung fehlgeschlagen: ${error.message}`);
-    }
-  });
 
   // Redirect if not admin
   if (!user || user.role !== 'admin') {
@@ -91,24 +80,12 @@ export default function AdminStocks() {
                   Diese Ansicht zeigt nur die Stammdaten.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => mergeMutation.mutate()}
-                  disabled={mergeMutation.isPending}
-                  title="Kuratierte Watchlist-Titel per Ticker in die Stammdaten-Tabelle übernehmen (idempotent)"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${mergeMutation.isPending ? 'animate-spin' : ''}`} />
-                  Universum zusammenführen
+              <Link href="/admin/watchlist">
+                <Button variant="outline" size="sm">
+                  Zur Aktienliste &amp; Watchlist
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
-                <Link href="/admin/watchlist">
-                  <Button variant="outline" size="sm">
-                    Zur Aktienliste &amp; Watchlist
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
+              </Link>
             </div>
           </CardContent>
         </Card>
