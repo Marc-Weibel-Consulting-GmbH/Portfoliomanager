@@ -41,8 +41,14 @@ Regeln:
 | Phase | Inhalt | Status |
 |---|---|---|
 | **1** | Additive Spalten auf `stocks`; idempotente Admin-Aktion „Universum zusammenführen" (Upsert `watchlistStocks` → `stocks` per Ticker); Design-Doc. Kein Consumer umgestellt → Verhalten identisch. Braucht `pnpm db:push`. | ✅ (PR #99) |
-| **2** | Alle Watchlist/Invest/Wikifolio/Analytics/Optimizer/Signal/Dashboard/Cron-Zugriffe auf `stocks` umstellen (Filter `curated()` = listType != NULL erhält das bisherige Verhalten). | vorbereitet |
-| **3** | `watchlistStocks` (Tabelle + Typ + Restreferenzen) entfernen. | offen |
+| **2** | Alle Watchlist/Invest/Wikifolio/Analytics/Optimizer/Signal/Dashboard/Cron-Zugriffe auf `stocks` umstellen (Filter `curated()` = listType != NULL erhält das bisherige Verhalten). | ✅ (PR #100) |
+| **3** | `watchlistStocks` entfernen: Tabellen-Def + Typen aus `schema.ts`, DROP-Migration `0021`, Phase-1-Backfill (`stocks.mergeWatchlistUniverse` + Admin-Button) und ungenutzte Imports (`watchlistUniverse.ts`, Test-Mock). Zusätzlich: `autoPortfolioRouter` (in Phase 2 übersehen) von der eingefrorenen Tabelle auf `stocks` umgestellt. | vorbereitet |
+
+**Zur DROP-Migration `0021`:** entfernt die physische `watchlistStocks`-Tabelle
+und greift **erst** beim nächsten `pnpm db:push` auf Prod. Die Daten liegen
+bereits vollständig in `stocks` — der Drop ist reines Aufräumen. Wird kein
+`db:push` ausgeführt, bleibt die Tabelle als verwaiste, ungenutzte Hülle liegen
+(kein Code liest/schreibt sie mehr).
 
 ## Phase 2 — Umstellungsdetails
 

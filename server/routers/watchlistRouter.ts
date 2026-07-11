@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-// Universum-Merge Phase 2: die kuratierte Watchlist lebt jetzt in der vereinten
-// `stocks`-Tabelle (Alias watchlistStocks minimiert die Umstellung). `curated()`
+// Universum-Merge (abgeschlossen): die kuratierte Watchlist lebt in der vereinten
+// `stocks`-Tabelle. Der lokale Alias `watchlistStocks` zeigt auf `stocks` (die alte
+// watchlistStocks-Tabelle wurde entfernt) und hält den Diff klein; `curated()`
 // grenzt auf listType != NULL ein — reine Portfolio-Stammdaten bleiben aussen vor.
 import { stocks as watchlistStocks } from "../../drizzle/schema";
 import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios, getWikifolioTrades, getWikifolioKeyFigures } from '../lib/wikifolioService';

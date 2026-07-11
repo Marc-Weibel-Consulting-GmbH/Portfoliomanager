@@ -36,7 +36,6 @@ vi.mock("yahoo-finance2", () => {
 vi.mock("../../drizzle/schema", () => ({
   copilotHistory: {},
   walkForwardResults: {},
-  watchlistStocks: {},
 }));
 
 vi.mock("../db", () => ({
