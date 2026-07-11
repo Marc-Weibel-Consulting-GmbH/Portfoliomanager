@@ -59,3 +59,17 @@
 - [x] Backend: N+1-Probleme in portfoliosRouter beheben (getStocksByTickers Batch-Query)
 - [x] Backend: Parallele Fetches statt sequentielle in getWithCurrency
 - [x] Backend: DB-Indexes für häufige Queries prüfen und ergänzen (savedPortfolios.userId Index hinzugefügt)
+
+## Bug Fixes & Improvements (2026-07-11)
+- [ ] Fix Anlageprofil crash: add defensive null-checks + local ErrorBoundary in AnlageprofilTab
+- [ ] Fix signal scoring: change blendCombinedScore factor 0.8→1.0 so neutral stocks get HOLD instead of SELL
+- [ ] Fix cash balance deduction: applyOptimization should update cashBalance in savedPortfolios
+- [ ] Create market_regime_history table migration (DB insert failures in cron logs)
+
+## KI-Boom Monitoring Verbesserungen (Juli 2026)
+- [ ] DB-Tabelle ki_boom_metrics_history für historisches Tracking aller Signalwerte
+- [ ] Täglicher Heartbeat-Job zum automatischen Speichern der Metriken
+- [ ] Backend: getHistory-Procedure für historische Daten pro Metrik
+- [ ] Szenario-konsistente Ausstiegsempfehlung (kein Sofortausstieg wenn nur 1 Kriterium rot)
+- [ ] Frontend: Historische Linien-Charts für jedes Ausstiegskriterium
+- [ ] Frontend: Ausstiegskriterien-Karte mit Live-Status (Ampel) statt statischer Liste

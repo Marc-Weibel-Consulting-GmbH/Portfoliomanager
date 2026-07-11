@@ -1190,3 +1190,26 @@ export const optimizationSubscriptions = mysqlTable("optimizationSubscriptions",
 
 export type OptimizationSubscription = typeof optimizationSubscriptions.$inferSelect;
 export type InsertOptimizationSubscription = typeof optimizationSubscriptions.$inferInsert;
+// ── KI-Boom Metrics History ────────────────────────────────────────────────
+// Speichert täglich alle KI-Boom-Signalwerte für historische Charts
+export const kiBoomMetricsHistory = mysqlTable("ki_boom_metrics_history", {
+  id: int("id").autoincrement().primaryKey(),
+  recordedAt: timestamp("recordedAt").notNull(),
+  nvidiaPrice: decimal("nvidiaPrice", { precision: 10, scale: 2 }),
+  mag7AvgYtd: decimal("mag7AvgYtd", { precision: 8, scale: 2 }),
+  openAiVerlustquote: decimal("openAiVerlustquote", { precision: 6, scale: 2 }),
+  hyperscalerCapexWachstum: decimal("hyperscalerCapexWachstum", { precision: 8, scale: 2 }),
+  vcAnteilKI: decimal("vcAnteilKI", { precision: 6, scale: 2 }),
+  pilotProjektROIQuote: decimal("pilotProjektROIQuote", { precision: 6, scale: 2 }),
+  overallZone: varchar("overallZone", { length: 10 }),
+  activeWarnings: int("activeWarnings").default(0),
+  activeCritical: int("activeCritical").default(0),
+  scenarioSanfte: int("scenarioSanfte"),
+  scenarioCrash: int("scenarioCrash"),
+  scenarioBoom: int("scenarioBoom"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  recordedAtIdx: index("ix_ki_boom_recorded_at").on(t.recordedAt),
+}));
+export type KiBoomMetricsHistory = typeof kiBoomMetricsHistory.$inferSelect;
+export type InsertKiBoomMetricsHistory = typeof kiBoomMetricsHistory.$inferInsert;

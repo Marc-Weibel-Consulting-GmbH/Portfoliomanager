@@ -29,6 +29,7 @@ import { initMlTrainingCron } from "../cron/mlTrainingCron";
 import { initSignalEvaluationCron } from "../cron/signalEvaluationCron";
 import { initSignalCacheCron } from "../cron/signalCacheCron";
 import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
+import { initKiBoomHistoryCron } from "../cron/kiBoomHistoryCron";
 import { initRecommendationCron } from "../cron/recommendationCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
 import { handleWalkForwardWeekly, handleLPPLMonitoring, handleEvaluateRecommendations } from "../scheduled/copilotScheduled";
@@ -224,6 +225,8 @@ async function startServer() {
     initRecommendationCron();
     // Start regime-history cron (R4: daily regime-score snapshot for the trend sparkline)
     initRegimeHistoryCron();
+    // Start KI-Boom history cron (daily snapshot of all KI-Boom signal values)
+    initKiBoomHistoryCron();
   });
 }
 

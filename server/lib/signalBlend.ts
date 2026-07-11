@@ -101,9 +101,8 @@ export interface CombinedBlendResult {
 
 /**
  * Regime-abhängige Variante der bestehenden Momentum+Quality−LPPL-Kombiscore-Formel
- * (signalsRouter Step 8a). VERHALTENSWAHREND: bei Gewichten 50/50 identisch zur bisherigen
- * `0.4*mNorm + 0.4*qNorm − lpplPenalty` (der Faktor 0.8 = 0.4+0.4 hält Skala und die
- * Grade-/Label-Schwellen exakt). Nur die Gewichtung wird regime-abhängig und admin-konfigurierbar.
+ * (signalsRouter Step 8a). Faktor 1.0 statt 0.8: neutrale Aktien (momentumScore=0, qualityScore=0)
+ * ergeben combined=0.5 → HOLD statt SELL. Nur die Gewichtung wird regime-abhängig und admin-konfigurierbar.
  */
 export function blendCombinedScore(
   input: CombinedBlendInput,
@@ -118,7 +117,7 @@ export function blendCombinedScore(
   const qNorm = (clamp(input.qualityScore, -1, 1) + 1) / 2;
   const lppl = input.lpplPenalty ?? 0;
 
-  const combined = clamp(0.8 * (wq * qNorm + wt * mNorm) - lppl, 0, 1);
+  const combined = clamp(1.0 * (wq * qNorm + wt * mNorm) - lppl, 0, 1);
   const combinedScore = parseFloat((combined * 100).toFixed(1));
   const grade =
     combined >= 0.75 ? "A" : combined >= 0.6 ? "B" : combined >= 0.45 ? "C" : combined >= 0.3 ? "D" : "F";

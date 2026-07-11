@@ -1,8 +1,9 @@
 /**
  * KI-Boom Warnsystem Dashboard
  * Integriert in die Markt-Seite (MarktHub) als eigener Tab.
- * Zeigt Echtzeit-Signale, Warnstufen und Ausstiegsempfehlungen.
+ * Zeigt Echtzeit-Signale, Warnstufen, historische Charts und Ausstiegsempfehlungen.
  */
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,8 @@ import {
   RefreshCw,
   Info,
   Zap,
+  History,
+  Activity,
 } from "lucide-react";
 import {
   Tooltip,
@@ -31,6 +34,12 @@ import {
   Radar,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 
 // ── Typen ──────────────────────────────────────────────────────────────────
@@ -85,14 +94,19 @@ function formatDate(iso: string): string {
   });
 }
 
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit" });
+}
+
 // ── Subkomponenten ─────────────────────────────────────────────────────────
 
-function OverallStatusBanner({ zone, warnings, critical, exitRecommended, exitReason }: {
+function OverallStatusBanner({ zone, warnings, critical, exitRecommended, exitReason, szenarioKontext }: {
   zone: BoomZone;
   warnings: number;
   critical: number;
   exitRecommended: boolean;
   exitReason: string | null;
+  szenarioKontext: string | null;
 }) {
   const bgClass = zoneBg(zone);
   const colorClass = zoneColor(zone);
@@ -101,6 +115,9 @@ function OverallStatusBanner({ zone, warnings, critical, exitRecommended, exitRe
     gelb:  "GELBE ZONE – Erhöhte Vorsicht",
     rot:   "ROTE ZONE – Ausstieg prüfen",
   }[zone];
+
+  // Unterscheide zwischen "sofortigem Ausstieg" und "Beobachten"
+  const isSofortigerAusstieg = critical >= 2 || warnings >= 5;
 
   return (
     <div className={`border rounded-lg p-5 ${bgClass}`}>
@@ -123,10 +140,30 @@ function OverallStatusBanner({ zone, warnings, critical, exitRecommended, exitRe
           </div>
         </div>
       </div>
+
       {exitRecommended && exitReason && (
-        <div className="mt-4 flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded p-3">
-          <Zap className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-red-300"><strong>Ausstiegsempfehlung:</strong> {exitReason}</p>
+        <div className={`mt-4 flex items-start gap-2 rounded p-3 ${
+          isSofortigerAusstieg
+            ? "bg-red-500/10 border border-red-500/30"
+            : "bg-amber-500/10 border border-amber-500/30"
+        }`}>
+          {isSofortigerAusstieg
+            ? <Zap className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+            : <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          }
+          <div>
+            <p className={`text-sm font-semibold ${isSofortigerAusstieg ? "text-red-300" : "text-amber-300"}`}>
+              {isSofortigerAusstieg ? "Ausstiegsempfehlung:" : "Beobachtungsmodus:"}
+            </p>
+            <p className={`text-sm ${isSofortigerAusstieg ? "text-red-300" : "text-amber-300"}`}>{exitReason}</p>
+          </div>
+        </div>
+      )}
+
+      {szenarioKontext && (
+        <div className="mt-3 flex items-start gap-2 bg-blue-500/10 border border-blue-500/20 rounded p-3">
+          <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+          <p className="text-xs text-blue-300">{szenarioKontext}</p>
         </div>
       )}
     </div>
@@ -273,6 +310,313 @@ function StaticMetricsGrid({ metrics }: { metrics: any }) {
   );
 }
 
+// ── Historische Charts ─────────────────────────────────────────────────────
+
+interface MetricChartConfig {
+  key: string;
+  label: string;
+  unit: string;
+  color: string;
+  warnLevel?: number;
+  critLevel?: number;
+  higherIsBetter: boolean;
+  description: string;
+}
+
+const METRIC_CHARTS: MetricChartConfig[] = [
+  {
+    key: "nvidiaPrice",
+    label: "Nvidia Aktienkurs",
+    unit: "$",
+    color: "#00CFC1",
+    warnLevel: 80,
+    critLevel: 50,
+    higherIsBetter: true,
+    description: "Proxy für KI-Hardware-Nachfrage",
+  },
+  {
+    key: "mag7AvgYtd",
+    label: "Magnificent Seven YTD",
+    unit: "%",
+    color: "#6366f1",
+    warnLevel: 5,
+    critLevel: -10,
+    higherIsBetter: true,
+    description: "Durchschnittliche YTD-Performance der 7 grössten KI-Aktien",
+  },
+  {
+    key: "openAiVerlustquote",
+    label: "OpenAI Verlustquote",
+    unit: "%",
+    color: "#f59e0b",
+    warnLevel: 50,
+    critLevel: 70,
+    higherIsBetter: false,
+    description: "Verlust als % des Umsatzes (Warnung >50%, Kritisch >70%)",
+  },
+  {
+    key: "vcAnteilKI",
+    label: "VC-Anteil KI-Startups",
+    unit: "%",
+    color: "#8b5cf6",
+    warnLevel: 50,
+    critLevel: 40,
+    higherIsBetter: true,
+    description: "Anteil aller globalen VC-Investitionen in KI (Warnung <50%, Kritisch <40%)",
+  },
+  {
+    key: "hyperscalerCapexWachstum",
+    label: "Hyperscaler CapEx-Wachstum",
+    unit: "% YoY",
+    color: "#ec4899",
+    warnLevel: 5,
+    critLevel: 0,
+    higherIsBetter: false,
+    description: "CapEx-Wachstum der 4 grossen Hyperscaler (Warnung <5%, Kritisch <0%)",
+  },
+  {
+    key: "pilotProjektROIQuote",
+    label: "KI-Projekt ROI-Erfolgsquote",
+    unit: "%",
+    color: "#10b981",
+    warnLevel: 30,
+    critLevel: 15,
+    higherIsBetter: true,
+    description: "Anteil KI-Pilotprojekte mit positivem ROI (Warnung <30%, Kritisch <15%)",
+  },
+];
+
+function MetricHistoryChart({
+  config,
+  history,
+}: {
+  config: MetricChartConfig;
+  history: any[];
+}) {
+  const chartData = history
+    .filter((h) => h[config.key] != null)
+    .map((h) => ({
+      date: formatShortDate(h.date),
+      value: h[config.key],
+    }));
+
+  if (chartData.length === 0) {
+    return (
+      <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Activity className="w-3.5 h-3.5 text-gray-500" />
+          <h4 className="text-xs font-semibold text-white">{config.label}</h4>
+        </div>
+        <p className="text-[10px] text-gray-500 mb-3">{config.description}</p>
+        <div className="h-28 flex items-center justify-center">
+          <p className="text-[11px] text-gray-600">Noch keine historischen Daten verfügbar.</p>
+          <p className="text-[10px] text-gray-700 mt-1">Daten werden täglich um 23:30 UTC gespeichert.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const values = chartData.map((d) => d.value).filter((v) => v != null);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const padding = (maxVal - minVal) * 0.15 || 5;
+
+  return (
+    <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Activity className="w-3.5 h-3.5" style={{ color: config.color }} />
+        <h4 className="text-xs font-semibold text-white">{config.label}</h4>
+      </div>
+      <p className="text-[10px] text-gray-500 mb-3">{config.description}</p>
+      <div style={{ height: 120 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e2840" />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: "#6b7280", fontSize: 9 }}
+              tickLine={false}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tick={{ fill: "#6b7280", fontSize: 9 }}
+              tickLine={false}
+              domain={[minVal - padding, maxVal + padding]}
+              tickFormatter={(v) => `${v.toFixed(0)}${config.unit === "$" ? "" : ""}`}
+            />
+            <RechartsTooltip
+              contentStyle={{ backgroundColor: "#1a1f2e", border: `1px solid ${config.color}`, borderRadius: "6px", fontSize: "11px" }}
+              formatter={(v: number) => [`${config.unit === "$" ? "$" : ""}${v.toFixed(1)}${config.unit !== "$" ? config.unit : ""}`, config.label]}
+              labelStyle={{ color: "#9ca3af" }}
+            />
+            {/* Warn-Linie */}
+            {config.warnLevel != null && (
+              <ReferenceLine
+                y={config.warnLevel}
+                stroke="#f59e0b"
+                strokeDasharray="4 2"
+                strokeWidth={1}
+                label={{ value: "Warn", fill: "#f59e0b", fontSize: 8, position: "insideTopRight" }}
+              />
+            )}
+            {/* Kritisch-Linie */}
+            {config.critLevel != null && (
+              <ReferenceLine
+                y={config.critLevel}
+                stroke="#ef4444"
+                strokeDasharray="4 2"
+                strokeWidth={1}
+                label={{ value: "Krit.", fill: "#ef4444", fontSize: 8, position: "insideTopRight" }}
+              />
+            )}
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={config.color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4, fill: config.color }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// ── Live-Ausstiegskriterien mit Ampel ──────────────────────────────────────
+
+function ExitCriteriaLive({ signals }: { signals: any[] }) {
+  const gelbeKriterien = [
+    { label: "VC-Finanzierung KI fällt unter 50%", signalKey: "VC-Anteil KI-Startups", threshold: "< 50%" },
+    { label: "Magnificent Seven YTD unter +5%", signalKey: "Magnificent Seven YTD", threshold: "< +5% YTD" },
+    { label: "Hyperscaler CapEx-Wachstum über 30% (Überhitzung)", signalKey: "Hyperscaler CapEx-Wachstum", threshold: "> 30% YoY" },
+    { label: "OpenAI Verlustquote steigt über 50%", signalKey: "OpenAI Verlustquote", threshold: "> 50%" },
+    { label: "KI-Projekt ROI-Erfolgsquote unter 30%", signalKey: "KI-Projekt ROI-Erfolgsquote", threshold: "< 30%" },
+  ];
+
+  const roteKriterien = [
+    { label: "VC-Finanzierung KI fällt unter 40%", signalKey: "VC-Anteil KI-Startups", threshold: "< 40%" },
+    { label: "Magnificent Seven YTD unter -10%", signalKey: "Magnificent Seven YTD", threshold: "< -10% YTD" },
+    { label: "Hyperscaler CapEx-Wachstum fällt unter 0%", signalKey: "Hyperscaler CapEx-Wachstum", threshold: "< 0% (Rückgang = Boom-Ende)" },
+    { label: "OpenAI Verlustquote über 70%", signalKey: "OpenAI Verlustquote", threshold: "> 70%" },
+    { label: "Nvidia-Kurs unter $50", signalKey: "Nvidia Aktienkurs", threshold: "< $50" },
+  ];
+
+  function getSignalZone(signalKey: string): BoomZone {
+    const s = signals.find((sig) => sig.label === signalKey);
+    return s?.zone ?? "gruen";
+  }
+
+  function CriterionRow({ label, signalKey, threshold, targetZone }: {
+    label: string;
+    signalKey: string;
+    threshold: string;
+    targetZone: BoomZone;
+  }) {
+    const currentZone = getSignalZone(signalKey);
+    // Kriterium ist "ausgelöst" wenn das Signal in der Zielzone oder schlechter ist
+    const isTriggered = targetZone === "gelb"
+      ? currentZone === "gelb" || currentZone === "rot"
+      : currentZone === "rot";
+
+    return (
+      <li className="flex items-start gap-2.5 py-1.5 border-b border-white/5 last:border-0">
+        <div className="mt-0.5 shrink-0">
+          {isTriggered
+            ? <ZoneIcon zone={targetZone} />
+            : <CheckCircle2 className="w-4 h-4 text-[#00CFC1]/60" />
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs ${isTriggered ? (targetZone === "rot" ? "text-red-300 font-semibold" : "text-amber-300 font-semibold") : "text-gray-400"}`}>
+            {label}
+          </p>
+          <p className="text-[10px] text-gray-600 mt-0.5">Schwelle: {threshold}</p>
+        </div>
+        <Badge
+          variant="outline"
+          className={`text-[10px] px-1.5 py-0 shrink-0 ${
+            isTriggered
+              ? targetZone === "rot"
+                ? "border-red-400/40 text-red-400 bg-red-400/10"
+                : "border-amber-400/40 text-amber-400 bg-amber-400/10"
+              : "border-[#00CFC1]/30 text-[#00CFC1]/60"
+          }`}
+        >
+          {isTriggered ? "Ausgelöst" : "OK"}
+        </Badge>
+      </li>
+    );
+  }
+
+  const triggeredGelb = gelbeKriterien.filter((k) => {
+    const z = getSignalZone(k.signalKey);
+    return z === "gelb" || z === "rot";
+  }).length;
+
+  const triggeredRot = roteKriterien.filter((k) => {
+    return getSignalZone(k.signalKey) === "rot";
+  }).length;
+
+  return (
+    <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-amber-400/20">
+      <CardHeader className="pb-2 pt-5 px-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-white">Ausstiegskriterien – Live-Status</h3>
+          </div>
+          <div className="flex gap-2">
+            <Badge variant="outline" className="text-[10px] border-amber-400/40 text-amber-400">
+              {triggeredGelb} / {gelbeKriterien.length} Warnungen
+            </Badge>
+            <Badge variant="outline" className="text-[10px] border-red-400/40 text-red-400">
+              {triggeredRot} / {roteKriterien.length} Kritisch
+            </Badge>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-500">Echtzeit-Abgleich der Ausstiegskriterien mit aktuellen Signalwerten</p>
+      </CardHeader>
+      <CardContent className="px-5 pb-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest mb-3">Gelbe Zone (Warnung)</p>
+            <ul className="space-y-0">
+              {gelbeKriterien.map((k) => (
+                <CriterionRow key={k.label} {...k} targetZone="gelb" />
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest mb-3">Rote Zone (Sofortiger Ausstieg)</p>
+            <ul className="space-y-0">
+              {roteKriterien.map((k) => (
+                <CriterionRow key={k.label} {...k} targetZone="rot" />
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-white/10 space-y-2">
+          <div className="flex items-start gap-2 bg-blue-500/5 border border-blue-500/20 rounded p-3">
+            <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-gray-300">
+              <strong className="text-blue-400">Szenario-Logik:</strong> Sofortiger Ausstieg erst bei ≥2 kritischen Signalen gleichzeitig oder ≥5 Warnungen. Neutrales Szenario: Heisse Phase 2027/28 – einzelne Warnsignale sind im aktuellen Zyklus normal.
+            </p>
+          </div>
+          <div className="flex items-start gap-2 bg-[#00CFC1]/5 border border-[#00CFC1]/20 rounded p-3">
+            <CheckCircle2 className="w-4 h-4 text-[#00CFC1] mt-0.5 shrink-0" />
+            <p className="text-xs text-gray-300">
+              <strong className="text-[#00CFC1]">Erforderlich für Boom-Fortsetzung:</strong> OpenAI oder andere KI-Startups zeigen Profitabilität · Hyperscaler-Margen steigen durch KI-Umsätze · Copilot/KI-Produkte werden massiv monetarisiert · KI-Pilotprojekte zeigen &gt;30% ROI-Erfolgsquote.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function WatchlistTable() {
   const items = [
     { freq: "Täglich",      metric: "Nvidia, MSFT, GOOGL, AMZN, META, AAPL, TSLA Kurse", source: "Markt-Daten" },
@@ -327,11 +671,20 @@ function WatchlistTable() {
 // ── Hauptkomponente ────────────────────────────────────────────────────────
 
 export function KiBoomDashboard() {
+  const [historyDays, setHistoryDays] = useState(90);
+
   const { data, isLoading, isError, refetch, isFetching } = trpc.kiBoom.getDashboard.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000,   // 5 Minuten Cache
-    refetchInterval: 10 * 60 * 1000, // Auto-Update alle 10 Minuten
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
     retry: 2,
   });
+
+  const { data: historyData, isLoading: historyLoading } = trpc.kiBoom.getHistory.useQuery(
+    { days: historyDays },
+    { staleTime: 10 * 60 * 1000 }
+  );
+
+  const triggerSnapshot = trpc.kiBoom.triggerSnapshot.useMutation();
 
   if (isLoading) {
     return (
@@ -393,6 +746,7 @@ export function KiBoomDashboard() {
         critical={data.activeCritical}
         exitRecommended={data.ausstiegsEmpfehlung}
         exitReason={data.ausstiegsGrund}
+        szenarioKontext={(data as any).szenarioKontext ?? null}
       />
 
       {/* Statische Schlüsselmetriken */}
@@ -403,7 +757,6 @@ export function KiBoomDashboard() {
 
       {/* Signal-Grid + Radar */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Signale */}
         <div className="xl:col-span-2 space-y-4">
           <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Live-Signale</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -413,7 +766,6 @@ export function KiBoomDashboard() {
           </div>
         </div>
 
-        {/* Radar + Szenarien */}
         <div className="space-y-4">
           <RadarOverview signals={data.signals} />
 
@@ -421,31 +773,82 @@ export function KiBoomDashboard() {
           <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-5">
             <h3 className="text-sm font-semibold text-white mb-1">Szenarien 2026–2029</h3>
             <p className="text-[11px] text-gray-500 mb-4">Wahrscheinlichkeiten basierend auf historischen Zyklen</p>
-            <ScenarioBar
-              label="Sanfte Verlangsamung"
-              prob={data.scenarioProbabilities.sanfteVerlangsamung}
-              color="#00CFC1"
-            />
-            <ScenarioBar
-              label="Schneller Crash"
-              prob={data.scenarioProbabilities.schnellerCrash}
-              color="#f59e0b"
-            />
-            <ScenarioBar
-              label="Weiterhin Boom"
-              prob={data.scenarioProbabilities.weiterhinBoom}
-              color="#6366f1"
-            />
+            <ScenarioBar label="Sanfte Verlangsamung" prob={data.scenarioProbabilities.sanfteVerlangsamung} color="#00CFC1" />
+            <ScenarioBar label="Schneller Crash" prob={data.scenarioProbabilities.schnellerCrash} color="#f59e0b" />
+            <ScenarioBar label="Weiterhin Boom" prob={data.scenarioProbabilities.weiterhinBoom} color="#6366f1" />
             <div className="mt-4 pt-3 border-t border-white/10">
               <div className="flex items-start gap-2">
                 <Info className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
                 <p className="text-[11px] text-gray-400 leading-relaxed">
-                  Wahrscheinlichstes Szenario: <strong className="text-amber-400">Schneller Crash (40%)</strong> — Erste Risse 2026–27, starker Rückgang 2027–28.
+                  Wahrscheinlichstes Szenario: <strong className="text-amber-400">Schneller Crash (40%)</strong> — Erste Risse 2026–27, starker Rückgang 2027–28. Heisse Phase erwartet: <strong className="text-white">2027/28</strong>.
                 </p>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Live-Ausstiegskriterien */}
+      <ExitCriteriaLive signals={data.signals} />
+
+      {/* Historische Charts */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-[#00CFC1]" />
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Historische Entwicklung der Ausstiegskriterien</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-500">Zeitraum:</span>
+            {[30, 60, 90, 180].map((d) => (
+              <button
+                key={d}
+                onClick={() => setHistoryDays(d)}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                  historyDays === d
+                    ? "border-[#00CFC1]/60 text-[#00CFC1] bg-[#00CFC1]/10"
+                    : "border-white/10 text-gray-500 hover:border-white/20"
+                }`}
+              >
+                {d}T
+              </button>
+            ))}
+            <button
+              onClick={() => triggerSnapshot.mutate()}
+              disabled={triggerSnapshot.isPending}
+              className="text-[10px] px-2 py-0.5 rounded border border-white/10 text-gray-500 hover:border-white/20 transition-colors disabled:opacity-50"
+              title="Manuell einen Snapshot speichern"
+            >
+              {triggerSnapshot.isPending ? "..." : "Snapshot"}
+            </button>
+          </div>
+        </div>
+
+        {historyLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {METRIC_CHARTS.map((_, i) => (
+              <Skeleton key={i} className="h-48 bg-white/5 rounded-lg" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {METRIC_CHARTS.map((config) => (
+              <MetricHistoryChart
+                key={config.key}
+                config={config}
+                history={historyData?.history ?? []}
+              />
+            ))}
+          </div>
+        )}
+
+        {(historyData?.history?.length ?? 0) === 0 && !historyLoading && (
+          <div className="mt-2 text-center">
+            <p className="text-[11px] text-gray-600">
+              Historische Daten werden täglich um 23:30 UTC automatisch gespeichert. Der erste Snapshot wird 8 Minuten nach Server-Start erstellt.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Beobachtungs-Roadmap */}
@@ -459,66 +862,9 @@ export function KiBoomDashboard() {
         </CardContent>
       </Card>
 
-      {/* Ausstiegskriterien */}
-      <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-amber-400/20">
-        <CardHeader className="pb-2 pt-5 px-5">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-semibold text-white">Ausstiegskriterien</h3>
-          </div>
-          <p className="text-[11px] text-gray-500">Ausstieg empfohlen, wenn folgende Bedingungen eintreten</p>
-        </CardHeader>
-        <CardContent className="px-5 pb-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-widest mb-2">Gelbe Zone (Warnung)</p>
-              <ul className="space-y-1.5">
-                {[
-                  "VC-Finanzierung KI fällt unter 50%",
-                  "Magnificent Seven YTD unter +5%",
-                  "Hyperscaler kündigen CapEx-Kürzungen an",
-                  "OpenAI Verlustquote steigt über 70%",
-                  "Mehrere KI-Startups mit Entlassungswellen",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-xs text-gray-300">
-                    <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-red-400 uppercase tracking-widest mb-2">Rote Zone (Sofortiger Ausstieg)</p>
-              <ul className="space-y-1.5">
-                {[
-                  "VC-Finanzierung KI fällt unter 40%",
-                  "Magnificent Seven YTD unter -10%",
-                  "GPU-Lieferzeiten unter 10 Wochen (Überangebot)",
-                  "Private Debt Ausfallquoten KI über 5%",
-                  "Hyperscaler-Aktien -30% vs. S&P 500",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-xs text-gray-300">
-                    <XCircle className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <div className="flex items-start gap-2 bg-[#00CFC1]/5 border border-[#00CFC1]/20 rounded p-3">
-              <CheckCircle2 className="w-4 h-4 text-[#00CFC1] mt-0.5 shrink-0" />
-              <p className="text-xs text-gray-300">
-                <strong className="text-[#00CFC1]">Erforderlich für Boom-Fortsetzung:</strong> OpenAI oder andere KI-Startups zeigen Profitabilität · Hyperscaler-Margen steigen durch KI-Umsätze · Copilot/KI-Produkte werden massiv monetarisiert · KI-Pilotprojekte zeigen &gt;30% ROI-Erfolgsquote.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Quellen-Hinweis */}
       <p className="text-[10px] text-gray-600 text-center">
-        Quellen: Bloomberg, Financial Times, PitchBook, McKinsey Global Institute, Gartner Hype Cycle, OpenAI Finanzdaten · Statische Metriken werden quartalsweise aktualisiert · Marktdaten via Echtzeit-API.
+        Quellen: Bloomberg, Financial Times, PitchBook, McKinsey Global Institute, Gartner Hype Cycle, OpenAI Finanzdaten · Statische Metriken werden quartalsweise aktualisiert · Marktdaten via Echtzeit-API · Historische Snapshots täglich 23:30 UTC.
       </p>
     </div>
   );

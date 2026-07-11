@@ -595,7 +595,23 @@ Gib eine strukturierte Analyse zurück.`;
         created.push({ ticker: item.ticker, type: transactionType, amountCHF: Math.round(amountCHF) });
       }
 
-      return { success: true, transactionsCreated: created.length, transactions: created };
+      // Update cashBalance: sells increase cash, buys decrease cash
+      const netCashChange = created.reduce((acc, t) => {
+        return t.type === 'sell' ? acc + t.amountCHF : acc - t.amountCHF;
+      }, 0);
+      if (Math.abs(netCashChange) > 0.01) {
+        const portfolioRow = await db.select({ cashBalance: savedPortfolios.cashBalance })
+          .from(savedPortfolios)
+          .where(eq(savedPortfolios.id, input.portfolioId))
+          .limit(1);
+        const currentCash = parseFloat(portfolioRow[0]?.cashBalance ?? '0') || 0;
+        const newCash = Math.max(0, currentCash + netCashChange);
+        await db.update(savedPortfolios)
+          .set({ cashBalance: newCash.toFixed(2) })
+          .where(eq(savedPortfolios.id, input.portfolioId));
+      }
+
+      return { success: true, transactionsCreated: created.length, transactions: created, netCashChange: Math.round(netCashChange) };
     }),
 
   /** Clone a portfolio as a snapshot before applying optimization */
