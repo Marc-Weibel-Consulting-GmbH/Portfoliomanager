@@ -566,8 +566,8 @@ const PROFILE_GOAL_LABEL: Record<string, string> = {
 };
 
 function OptimierungEmpfehlungenTab({
-  portfolioId, holdings, totalValueCHF, onNavigateToTransactions,
-}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; onNavigateToTransactions?: () => void }) {
+  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions,
+}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void }) {
   const [mode, setMode] = useState<"empfehlungen" | "optimierung">("empfehlungen");
   const { data: profile } = trpc.investmentProfile.get.useQuery();
 
@@ -668,7 +668,7 @@ function OptimierungEmpfehlungenTab({
           portfolioId={portfolioId}
           holdings={holdings}
           totalValueCHF={totalValueCHF}
-          cashBalance={parseFloat(portfolio?.cashBalance || "0")}
+          cashBalance={cashBalance ?? 0}
           method={method}
           strategyNote={strategyNote}
           onNavigateToTransactions={onNavigateToTransactions}
@@ -2308,7 +2308,7 @@ export default function PortfolioDetailsPage() {
 
           {/* OPTIMIERUNG & EMPFEHLUNGEN — F3: konsolidiert (Optimieren KI + Empfehlungen KI) */}
           <TabsContent value="optimierung" className="mt-6">
-            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} onNavigateToTransactions={() => handleTabChange('transaktionen')} />
+            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} />
           </TabsContent>
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}
