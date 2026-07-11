@@ -609,6 +609,9 @@ Gib eine strukturierte Analyse zurück.`;
         isLive: 0,
         cashBalance: orig.cashBalance ?? '0',
         ...(orig.inceptionDate ? { inceptionDate: orig.inceptionDate } : {}),
+        isSnapshot: 1,
+        snapshotOfPortfolioId: input.portfolioId,
+        snapshotNote: `Snapshot vor Optimierung am ${now.toLocaleDateString('de-CH')}`,
       });
       const newId = (result as any).insertId as number;
 
@@ -716,6 +719,63 @@ Gib eine strukturierte Analyse zurück.`;
       });
       const newId = (insertResult as any).insertId as number;
       return { success: true, subscriptionId: newId, isNew: true, heartbeatActive: !!taskUid };
+    }),
+
+  /** Compare two portfolios side-by-side: metrics, sector allocation, holdings */
+  comparePortfolios: protectedProcedure
+    .input(z.object({
+      portfolioIdA: z.number().int().positive(),
+      portfolioIdB: z.number().int().positive(),
+    }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.user?.id) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+      const { eq: eqOp } = await import('drizzle-orm');
+
+      const loadPortfolio = async (id: number) => {
+        const rows = await db.select().from(savedPortfolios).where(eqOp(savedPortfolios.id, id)).limit(1);
+        if (!rows.length) throw new TRPCError({ code: 'NOT_FOUND', message: `Portfolio ${id} not found` });
+        const p = rows[0];
+        if (p.userId !== ctx.user!.id) throw new TRPCError({ code: 'FORBIDDEN' });
+        const data = JSON.parse(p.portfolioData || '{}');
+        const stocks: Array<{ ticker: string; weight: number; name?: string; sector?: string }> =
+          (data.stocks || data.positions || []).map((s: any) => ({
+            ticker: s.ticker,
+            weight: parseFloat(s.weight || '0'),
+            name: s.name || s.ticker,
+            sector: s.sector || 'Unbekannt',
+          }));
+        // Sector allocation
+        const sectorMap: Record<string, number> = {};
+        for (const s of stocks) {
+          sectorMap[s.sector!] = (sectorMap[s.sector!] || 0) + s.weight;
+        }
+        const sectors = Object.entries(sectorMap).map(([name, weight]) => ({ name, weight })).sort((a, b) => b.weight - a.weight);
+        // Metrics from portfolioData
+        return {
+          id: p.id,
+          name: p.name,
+          isSnapshot: p.isSnapshot,
+          snapshotNote: p.snapshotNote,
+          createdAt: p.createdAt,
+          investmentAmount: parseFloat(p.investmentAmount || '0'),
+          numberOfPositions: stocks.length,
+          avgDividendYield: parseFloat(data.avgDividendYield || '0'),
+          avgYtdPerformance: parseFloat(data.avgYtdPerformance || '0'),
+          expectedReturn: parseFloat(data.expectedReturn || data.annualReturn || '0'),
+          volatility: parseFloat(data.volatility || data.annualVolatility || '0'),
+          sharpeRatio: parseFloat(data.sharpeRatio || '0'),
+          stocks,
+          sectors,
+        };
+      };
+
+      const [a, b] = await Promise.all([
+        loadPortfolio(input.portfolioIdA),
+        loadPortfolio(input.portfolioIdB),
+      ]);
+      return { a, b };
     }),
 
   /** Unsubscribe from optimization alerts */

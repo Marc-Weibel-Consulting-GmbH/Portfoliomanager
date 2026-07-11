@@ -221,6 +221,9 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   livePerformance: varchar("livePerformance", { length: 50 }), // IRR/MWR performance (e.g., "12.5")
   cashBalance: varchar("cashBalance", { length: 50 }).default("0"), // Current cash/liquidity balance in CHF
   inceptionDate: timestamp("inceptionDate"), // Optional: manually set portfolio start date (overrides createdAt for display)
+  isSnapshot: tinyint("isSnapshot").notNull().default(0), // 1 = Snapshot/Kopie eines anderen Portfolios
+  snapshotOfPortfolioId: int("snapshotOfPortfolioId"), // ID des Original-Portfolios (falls isSnapshot=1)
+  snapshotNote: varchar("snapshotNote", { length: 255 }), // Optionale Notiz zum Snapshot
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({

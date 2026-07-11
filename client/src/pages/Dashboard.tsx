@@ -466,7 +466,7 @@ function PositionsCard({ scope }: { scope: Scope }) {
 // ----------------------------------------------------------------
 // Portfolio-Übersicht: kompakte Karten, Klick → Portfolio-Details
 // ----------------------------------------------------------------
-function PortfolioOverviewGrid({ portfolios, onOpen }: { portfolios: any[]; onOpen: (id: number) => void }) {
+function PortfolioOverviewGrid({ portfolios, onOpen, onCompare }: { portfolios: any[]; onOpen: (id: number) => void; onCompare?: (idA: number, idB: number) => void }) {
   return (
     <div>
       <h2 className="text-base font-semibold text-white mb-2">Meine Portfolios</h2>
@@ -492,11 +492,16 @@ function PortfolioOverviewGrid({ portfolios, onOpen }: { portfolios: any[]; onOp
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <h3 className="text-sm font-semibold text-white truncate">{p.name}</h3>
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
-                    p.isLive === 1 ? "bg-emerald-500/15 text-emerald-400" : "bg-white/10 text-gray-400"
-                  }`}>
-                    {p.isLive === 1 ? "Live" : "Demo"}
-                  </span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {p.isSnapshot === 1 && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Snapshot</span>
+                    )}
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                      p.isLive === 1 ? "bg-emerald-500/15 text-emerald-400" : "bg-white/10 text-gray-400"
+                    }`}>
+                      {p.isLive === 1 ? "Live" : "Demo"}
+                    </span>
+                  </div>
                 </div>
                 <div className="text-xl font-bold text-white font-mono">{formatCHF(p.currentValue ?? 0)}</div>
                 <div className="flex items-center justify-between mt-1">
@@ -505,6 +510,19 @@ function PortfolioOverviewGrid({ portfolios, onOpen }: { portfolios: any[]; onOp
                     <span className={`text-xs font-medium font-mono ${perfColor}`}>{formatPercent(perf)}</span>
                   )}
                 </div>
+                {/* Compare button: show for snapshots or when there's an original portfolio */}
+                {p.isSnapshot === 1 && p.snapshotOfPortfolioId && onCompare && (() => {
+                  const orig = portfolios.find((x: any) => x.id === p.snapshotOfPortfolioId);
+                  if (!orig) return null;
+                  return (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onCompare(p.snapshotOfPortfolioId!, p.id); }}
+                      className="mt-2 w-full text-[10px] text-[#00CFC1] border border-[#00CFC1]/30 rounded px-2 py-1 hover:bg-[#00CFC1]/10 transition-colors"
+                    >
+                      ⇄ Mit «{orig.name}» vergleichen
+                    </button>
+                  );
+                })()}
               </CardContent>
             </Card>
           );
@@ -608,7 +626,11 @@ export default function Dashboard() {
         ) : (
           <>
             {/* Portfolio-Übersicht (Karten → Details) */}
-            <PortfolioOverviewGrid portfolios={portfolios ?? []} onOpen={(id) => navigate(`/portfolios/${id}`)} />
+            <PortfolioOverviewGrid
+              portfolios={portfolios ?? []}
+              onOpen={(id) => navigate(`/portfolios/${id}`)}
+              onCompare={(a, b) => navigate(`/portfolio-comparison?a=${a}&b=${b}`)}
+            />
 
             {/* KPI-Reihe */}
             <KpiRow scope={scope} />

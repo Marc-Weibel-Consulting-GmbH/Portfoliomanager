@@ -261,6 +261,9 @@ export default function OptimierenTab({
     onSuccess: () => refetchSub(),
   });
   const isSubscribed = !!(subData && subData.isActive);
+  const [driftThreshold, setDriftThreshold] = useState<number>(
+    subData?.driftThresholdPp ?? 5
+  );
 
   // Manuelle Optimierungsziele (Soft-Constraints)
   const [constraintMinDiv, setConstraintMinDiv] = useState<string>("");
@@ -976,28 +979,55 @@ export default function OptimierenTab({
                 </div>
 
                 {/* Wöchentliches Abo */}
-                <div className="flex items-center justify-between border border-white/10 rounded-lg px-3 py-2.5 mb-5">
-                  <div>
-                    <p className="text-xs text-gray-300 font-medium">Wöchentliche Optimierungsprüfung</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">Benachrichtigung wenn Portfolio &gt;5 pp vom Optimum abweicht</p>
+                <div className="border border-white/10 rounded-lg px-3 py-2.5 mb-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-300 font-medium">Wöchentliche Optimierungsprüfung</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">Benachrichtigung wenn Portfolio &gt;{driftThreshold} pp vom Optimum abweicht</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (isSubscribed) {
+                          unsubscribeMut.mutate({ portfolioId });
+                        } else {
+                          subscribeMut.mutate({ portfolioId, driftThresholdPp: driftThreshold });
+                        }
+                      }}
+                      disabled={subscribeMut.isPending || unsubscribeMut.isPending}
+                      className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
+                        isSubscribed ? 'bg-[#00CFC1]' : 'bg-white/20'
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        isSubscribed ? 'translate-x-5' : 'translate-x-0.5'
+                      }`} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      if (isSubscribed) {
-                        unsubscribeMut.mutate({ portfolioId });
-                      } else {
-                        subscribeMut.mutate({ portfolioId, driftThresholdPp: 5 });
-                      }
-                    }}
-                    disabled={subscribeMut.isPending || unsubscribeMut.isPending}
-                    className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
-                      isSubscribed ? 'bg-[#00CFC1]' : 'bg-white/20'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      isSubscribed ? 'translate-x-5' : 'translate-x-0.5'
-                    }`} />
-                  </button>
+                  {/* Drift-Schwelle Slider */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-gray-500 w-16 shrink-0">Schwelle:</span>
+                    <input
+                      type="range"
+                      min={2}
+                      max={15}
+                      step={1}
+                      value={driftThreshold}
+                      onChange={(e) => setDriftThreshold(Number(e.target.value))}
+                      className="flex-1 h-1 accent-[#00CFC1] cursor-pointer"
+                    />
+                    <span className="text-[10px] text-[#00CFC1] font-mono w-10 text-right shrink-0">{driftThreshold} pp</span>
+                  </div>
+                  <div className="flex justify-between text-[9px] text-gray-600 px-16">
+                    <span>2 pp (sensitiv)</span>
+                    <span>15 pp (tolerant)</span>
+                  </div>
+                  {isSubscribed && subData?.driftThresholdPp !== driftThreshold && (
+                    <button
+                      onClick={() => subscribeMut.mutate({ portfolioId, driftThresholdPp: driftThreshold })}
+                      disabled={subscribeMut.isPending}
+                      className="text-[10px] text-[#00CFC1] hover:underline"
+                    >Schwelle aktualisieren ({driftThreshold} pp)</button>
+                  )}
                 </div>
 
                 <div className="flex gap-3 justify-end">

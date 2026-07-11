@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useState, useMemo, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,17 @@ import {
 export default function PortfolioComparison() {
   const [, setLocation] = useLocation();
   const [selectedPortfolios, setSelectedPortfolios] = useState<number[]>([]);
+  const search = useSearch();
+  // Support ?a=ID&b=ID URL params for direct comparison from Dashboard
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const a = params.get('a');
+    const b = params.get('b');
+    if (a && b) {
+      const ids = [parseInt(a), parseInt(b)].filter(n => !isNaN(n));
+      if (ids.length === 2) setSelectedPortfolios(ids);
+    }
+  }, [search]);
 
   // Fetch all portfolios
   const { data: portfolios = [], isLoading } = trpc.portfolios.list.useQuery();
@@ -152,7 +163,12 @@ export default function PortfolioComparison() {
                       className="mt-1"
                     />
                     <div className="flex-1">
-                      <h3 className="text-white font-medium mb-1">{portfolio.name}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-white font-medium">{portfolio.name}</h3>
+                        {portfolio.isSnapshot === 1 && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">Snapshot</span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 text-sm">
                         {portfolio.isLive ? (
                           <span className="text-green-400 flex items-center gap-1">
