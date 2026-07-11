@@ -78,3 +78,10 @@
 - [x] Backend: applyOptimization erweitern — Verkäufe schwacher Positionen + Käufe neuer Titel in einem Schritt
 - [x] Frontend: "Optimierung anwenden" Button mit Bestätigungs-Dialog (zeigt Verkäufe + Käufe + Cash-Effekt)
 - [x] Frontend: Fortschrittsanzeige während Transaktion läuft (Spinner + "Wird gebucht…" Text)
+
+## Optimierung anwenden — Erweiterungen (Juli 2026)
+- [x] Backend: undoRecommendations Prozedur — löscht Transaktionen anhand IDs + stellt cashBalance wieder her
+- [x] Backend: applyRecommendations gibt transactionIds zurück (für Undo)
+- [x] Frontend: Snapshot-Checkbox im Dialog ("Snapshot vor Umsetzung erstellen")
+- [x] Frontend: Kandidaten-Slider (Top 3–10 neue Kandidaten konfigurierbar)
+- [x] Frontend: Undo-Button nach erfolgreicher Buchung (löscht alle soeben gebuchten Transaktionen)

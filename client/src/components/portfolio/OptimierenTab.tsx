@@ -225,17 +225,23 @@ export default function OptimierenTab({
   const [showAllAdditions, setShowAllAdditions] = useState(false);
   // Empfehlungs-Umsetzung: "Optimierung anwenden" Dialog
   const [showRecommendDialog, setShowRecommendDialog] = useState(false);
-  const [recommendResult, setRecommendResult] = useState<{ count: number; netCashChange: number } | null>(null);
+  const [recommendResult, setRecommendResult] = useState<{ count: number; netCashChange: number; transactionIds: number[] } | null>(null);
+  const [cloneFirst, setCloneFirst] = useState(false);
+  const [numAdditions, setNumAdditions] = useState(5);
   const utils = trpc.useUtils();
   const applyRecMut = trpc.analytics.applyRecommendations.useMutation({
     onSuccess: (data) => {
-      setRecommendResult({ count: data.transactionsCreated, netCashChange: data.netCashChange });
+      setRecommendResult({ count: data.transactionsCreated, netCashChange: data.netCashChange, transactionIds: data.transactionIds ?? [] });
       setShowRecommendDialog(false);
       utils.portfolios.getWithCurrency.invalidate();
       utils.portfolios.list.invalidate();
-      if (onNavigateToTransactions) {
-        setTimeout(() => onNavigateToTransactions(), 1500);
-      }
+    },
+  });
+  const undoRecMut = trpc.analytics.undoRecommendations.useMutation({
+    onSuccess: () => {
+      setRecommendResult(null);
+      utils.portfolios.getWithCurrency.invalidate();
+      utils.portfolios.list.invalidate();
     },
   });
 
@@ -895,15 +901,35 @@ export default function OptimierenTab({
                       </button>
                     </div>
                     {recommendResult && (
-                      <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                        <span>
-                          {recommendResult.count} Transaktion{recommendResult.count !== 1 ? 'en' : ''} erstellt
-                          {recommendResult.netCashChange !== 0 && (
-                            <> · Cashänderung: {recommendResult.netCashChange > 0 ? '+' : ''}{fmtChf(recommendResult.netCashChange)}</>
-                          )}
-                        </span>
-                        <button onClick={() => setRecommendResult(null)} className="ml-auto text-gray-500 hover:text-gray-300">✕</button>
+                      <div className="mt-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-2 text-xs text-emerald-400">
+                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                          <span>
+                            {recommendResult.count} Transaktion{recommendResult.count !== 1 ? 'en' : ''} erstellt
+                            {recommendResult.netCashChange !== 0 && (
+                              <> · Cashänderung: {recommendResult.netCashChange > 0 ? '+' : ''}{fmtChf(recommendResult.netCashChange)}</>
+                            )}
+                          </span>
+                          <button onClick={() => setRecommendResult(null)} className="ml-auto text-gray-500 hover:text-gray-300">✕</button>
+                        </div>
+                        {recommendResult.transactionIds.length > 0 && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <button
+                              onClick={() => undoRecMut.mutate({ portfolioId, transactionIds: recommendResult.transactionIds })}
+                              disabled={undoRecMut.isPending}
+                              className="flex items-center gap-1.5 px-3 py-1 text-[11px] text-amber-400 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 rounded-md transition-colors disabled:opacity-50"
+                            >
+                              {undoRecMut.isPending ? (
+                                <><span className="w-3 h-3 border border-amber-400/40 border-t-amber-400 rounded-full animate-spin" />Rückgängig…</>
+                              ) : (
+                                <>↩ Rückgängig machen ({recommendResult.transactionIds.length} Transaktionen löschen)</>
+                              )}
+                            </button>
+                            {undoRecMut.isError && (
+                              <span className="text-[10px] text-red-400">{(undoRecMut.error as any)?.message}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1037,7 +1063,7 @@ export default function OptimierenTab({
                   <div className="mb-4">
                     <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Käufe — Neue Kandidaten</p>
                     <div className="space-y-1">
-                      {upgradeData.additionSuggestions.slice(0, 5).map((c: any) => {
+                      {upgradeData.additionSuggestions.slice(0, numAdditions).map((c: any) => {
                         const amtCHF = c.estimatedWeight * (totalValueCHF ?? 0);
                         return (
                           <div key={c.ticker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
@@ -1052,11 +1078,48 @@ export default function OptimierenTab({
                     </div>
                   </div>
                 )}
+                {/* Snapshot-Checkbox + Kandidaten-Slider */}
+                <div className="mb-4 space-y-3">
+                  {/* Slider: Anzahl neue Kandidaten */}
+                  {upgradeData.additionSuggestions.length > 0 && (
+                    <div className="px-3 py-2.5 bg-white/[0.03] rounded">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-400">Neue Kandidaten buchen</span>
+                        <span className="text-xs font-semibold text-indigo-400">Top {numAdditions}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={3}
+                        max={Math.min(10, upgradeData.additionSuggestions.length)}
+                        value={numAdditions}
+                        onChange={(e) => setNumAdditions(Number(e.target.value))}
+                        className="w-full h-1.5 accent-indigo-500 cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+                        <span>1</span>
+                        <span>{Math.min(10, upgradeData.additionSuggestions.length)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {/* Snapshot-Checkbox */}
+                  <label className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={cloneFirst}
+                      onChange={(e) => setCloneFirst(e.target.checked)}
+                      className="w-4 h-4 accent-indigo-500 cursor-pointer"
+                    />
+                    <div>
+                      <p className="text-xs text-gray-300 font-medium">Snapshot vor Umsetzung erstellen</p>
+                      <p className="text-[10px] text-gray-500">Sichert den aktuellen Zustand als separates Portfolio — jederzeit wiederherstellbar</p>
+                    </div>
+                  </label>
+                </div>
                 {/* Cash-Effekt Zusammenfassung */}
                 {(() => {
                   const sellTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
                   const buyReplTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
-                  const buyAddTotal = upgradeData.additionSuggestions.slice(0, 5).reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
+                  const buyAddTotal = upgradeData.additionSuggestions.slice(0, numAdditions).reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
                   const netChange = sellTotal - buyReplTotal - buyAddTotal;
                   return (
                     <div className="mb-4 px-3 py-2 bg-white/[0.03] rounded text-xs flex items-center justify-between">
@@ -1097,13 +1160,13 @@ export default function OptimierenTab({
                             companyName: rep.suggestions[0].companyName,
                             totalCHF: rep.cashRequired,
                           })),
-                        ...upgradeData.additionSuggestions.slice(0, 5).map((c: any) => ({
+                        ...upgradeData.additionSuggestions.slice(0, numAdditions).map((c: any) => ({
                           ticker: c.ticker,
                           companyName: c.companyName,
                           totalCHF: c.estimatedWeight * (totalValueCHF ?? 0),
                         })),
                       ];
-                      applyRecMut.mutate({ portfolioId, sells, buys, cloneFirst: false });
+                      applyRecMut.mutate({ portfolioId, sells, buys, cloneFirst });
                     }}
                     disabled={applyRecMut.isPending}
                     className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-500 disabled:opacity-50 transition-colors flex items-center gap-2"
