@@ -7,6 +7,7 @@
  * Anders als die alte Copilot-Variante wählt diese Version kein Portfolio selbst aus,
  * sondern erhält die aktuell geöffnete portfolioId als Prop.
  */
+import { useState, useMemo } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,9 @@ import {
   TrendingDown,
   DollarSign,
   Activity,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from 'lucide-react';
 
 const SECTOR_COLORS: Record<string, string> = {
@@ -34,10 +38,23 @@ const SECTOR_COLORS: Record<string, string> = {
   'Real Estate': '#a78bfa',
   'Utilities': '#06b6d4',
   'Communication Services': '#e879f9',
+  'Financial Services': '#f59e0b',
+  'Basic Materials': '#84cc16',
+  'Consumer Defensive': '#10b981',
   'Unbekannt': '#64748b',
 };
 function sectorColor(sector: string): string {
   return SECTOR_COLORS[sector] || '#64748b';
+}
+
+type SortKey = 'ticker' | 'sector' | 'weight' | 'peRatio' | 'pegRatio' | 'beta' | 'dividendYield';
+type SortDir = 'asc' | 'desc';
+
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  if (col !== sortKey) return <ChevronsUpDown className="w-3 h-3 text-gray-600 inline ml-0.5" />;
+  return sortDir === 'asc'
+    ? <ChevronUp className="w-3 h-3 text-[#00CFC1] inline ml-0.5" />
+    : <ChevronDown className="w-3 h-3 text-[#00CFC1] inline ml-0.5" />;
 }
 
 export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number }) {
@@ -46,8 +63,44 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
     { enabled: !!portfolioId, staleTime: 10 * 60 * 1000, retry: 1 }
   );
 
+  const [sortKey, setSortKey] = useState<SortKey>('weight');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
   const fmtNum = (v: number | null | undefined, dec = 2) =>
     v !== null && v !== undefined ? v.toFixed(dec) : '–';
+
+  function handleSort(col: SortKey) {
+    if (sortKey === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(col);
+      // Numeric columns default desc (highest first), text columns default asc
+      setSortDir(['ticker', 'sector'].includes(col) ? 'asc' : 'desc');
+    }
+  }
+
+  const sortedHoldings = useMemo(() => {
+    if (!data?.holdings) return [];
+    const rows = [...data.holdings];
+    rows.sort((a: any, b: any) => {
+      let av = a[sortKey];
+      let bv = b[sortKey];
+
+      // Nulls always last regardless of direction
+      if (av === null || av === undefined) return 1;
+      if (bv === null || bv === undefined) return -1;
+
+      if (typeof av === 'string') {
+        const cmp = av.localeCompare(bv);
+        return sortDir === 'asc' ? cmp : -cmp;
+      }
+      return sortDir === 'asc' ? av - bv : bv - av;
+    });
+    return rows;
+  }, [data?.holdings, sortKey, sortDir]);
+
+  const thClass = (col: SortKey, align: 'left' | 'right' = 'right') =>
+    `${align === 'left' ? 'text-left' : 'text-right'} text-gray-500 pb-2 pr-3 cursor-pointer select-none hover:text-gray-300 transition-colors whitespace-nowrap`;
 
   return (
     <div className="space-y-5">
@@ -153,27 +206,42 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
             </div>
           </div>
 
-          {/* Holdings Table */}
+          {/* Holdings Table — sortierbar */}
           <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">
             <h4 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
               <BarChart3 className="w-3.5 h-3.5 text-[#00CFC1]" /> Positionen — Fundamentaldaten
+              <span className="text-[10px] text-gray-600 font-normal ml-1">Spaltenüberschrift klicken zum Sortieren</span>
             </h4>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="text-left text-gray-500 pb-2 pr-3">Ticker</th>
-                    <th className="text-left text-gray-500 pb-2 pr-3">Sektor</th>
-                    <th className="text-right text-gray-500 pb-2 pr-3">Gewicht</th>
-                    <th className="text-right text-gray-500 pb-2 pr-3">KGV</th>
-                    <th className="text-right text-gray-500 pb-2 pr-3">PEG</th>
-                    <th className="text-right text-gray-500 pb-2 pr-3">Beta</th>
-                    <th className="text-right text-gray-500 pb-2">Div.</th>
+                    <th className={thClass('ticker', 'left')} onClick={() => handleSort('ticker')}>
+                      Ticker <SortIcon col="ticker" sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                    <th className={thClass('sector', 'left')} onClick={() => handleSort('sector')}>
+                      Sektor <SortIcon col="sector" sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                    <th className={thClass('weight')} onClick={() => handleSort('weight')}>
+                      Gewicht <SortIcon col="weight" sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                    <th className={thClass('peRatio')} onClick={() => handleSort('peRatio')}>
+                      KGV <SortIcon col="peRatio" sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                    <th className={thClass('pegRatio')} onClick={() => handleSort('pegRatio')}>
+                      PEG <SortIcon col="pegRatio" sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                    <th className={thClass('beta')} onClick={() => handleSort('beta')}>
+                      Beta <SortIcon col="beta" sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                    <th className={`text-right text-gray-500 pb-2 cursor-pointer select-none hover:text-gray-300 transition-colors whitespace-nowrap`} onClick={() => handleSort('dividendYield')}>
+                      Div. <SortIcon col="dividendYield" sortKey={sortKey} sortDir={sortDir} />
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(data.holdings || []).map((h: any) => (
-                    <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/3">
+                  {sortedHoldings.map((h: any) => (
+                    <tr key={h.ticker} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
                       <td className="py-1.5 pr-3">
                         <span className="font-medium text-white">{h.ticker}</span>
                         <span className="text-gray-600 ml-1 hidden md:inline">{h.name}</span>
