@@ -95,15 +95,15 @@ export const autoPortfolioRouter = router({
       const { inArray } = await import("drizzle-orm");
       const watchlistScores = await db
         .select({
-          ticker: watchlistStocksTable.ticker,
-          signalScore: watchlistStocksTable.signalScore,
-          signalType: watchlistStocksTable.signalType,
-          sector: watchlistStocksTable.sector,
-          dividendYield: watchlistStocksTable.dividendYield,
-          rsi14: watchlistStocksTable.rsi14,
+          ticker: stocksTable.ticker,
+          signalScore: stocksTable.signalScore,
+          signalType: stocksTable.signalType,
+          sector: stocksTable.sector,
+          dividendYield: stocksTable.dividendYield,
+          rsi14: stocksTable.rsi14,
         })
-        .from(watchlistStocksTable)
-        .where(inArray(watchlistStocksTable.ticker, universeTickers));
+        .from(stocksTable)
+        .where(inArray(stocksTable.ticker, universeTickers));
       const watchlistScoreMap = new Map(watchlistScores.map((w: any) => [w.ticker.toUpperCase(), w]));
       console.log(`[buildProposal] scores loaded in ${Date.now()-t4}ms for ${watchlistScoreMap.size}/${universe.length} tickers`);
 

@@ -225,16 +225,19 @@ export default function OptimierenTab({
   const [showAllAdditions, setShowAllAdditions] = useState(false);
   // Empfehlungs-Umsetzung: "Optimierung anwenden" Dialog
   const [showRecommendDialog, setShowRecommendDialog] = useState(false);
-  const [recommendResult, setRecommendResult] = useState<{ count: number; netCashChange: number; transactionIds: number[] } | null>(null);
+  const [recommendResult, setRecommendResult] = useState<{ count: number; netCashChange: number; transactionIds: number[]; buysScaledDown?: boolean; scaleFactor?: number } | null>(null);
   const [cloneFirst, setCloneFirst] = useState(false);
   const [numAdditions, setNumAdditions] = useState(5);
   const utils = trpc.useUtils();
   const applyRecMut = trpc.analytics.applyRecommendations.useMutation({
     onSuccess: (data) => {
-      setRecommendResult({ count: data.transactionsCreated, netCashChange: data.netCashChange, transactionIds: data.transactionIds ?? [] });
+      setRecommendResult({ count: data.transactionsCreated, netCashChange: data.netCashChange, transactionIds: data.transactionIds ?? [], buysScaledDown: data.buysScaledDown ?? false, scaleFactor: data.scaleFactor });
       setShowRecommendDialog(false);
+      // Invalidate all portfolio-related queries so holdings refresh immediately
       utils.portfolios.getWithCurrency.invalidate();
       utils.portfolios.list.invalidate();
+      utils.portfolioTransactions.list.invalidate();
+      utils.analytics.upgradeProposals.invalidate();
     },
   });
   const undoRecMut = trpc.analytics.undoRecommendations.useMutation({
@@ -912,6 +915,12 @@ export default function OptimierenTab({
                           </span>
                           <button onClick={() => setRecommendResult(null)} className="ml-auto text-gray-500 hover:text-gray-300">✕</button>
                         </div>
+                        {recommendResult.buysScaledDown && (
+                          <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-400">
+                            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>Käufe wurden auf verfügbares Cash begrenzt (Faktor: {((recommendResult.scaleFactor ?? 1) * 100).toFixed(0)}%)</span>
+                          </div>
+                        )}
                         {recommendResult.transactionIds.length > 0 && (
                           <div className="mt-2 flex items-center gap-2">
                             <button
@@ -1120,13 +1129,33 @@ export default function OptimierenTab({
                   const sellTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
                   const buyReplTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
                   const buyAddTotal = upgradeData.additionSuggestions.slice(0, numAdditions).reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
-                  const netChange = sellTotal - buyReplTotal - buyAddTotal;
+                  const totalBuys = buyReplTotal + buyAddTotal;
+                  const availableBudget = (cashBalance ?? 0) + sellTotal;
+                  const willScale = totalBuys > availableBudget + 0.01;
+                  const effectiveBuys = willScale ? availableBudget : totalBuys;
+                  const netChange = sellTotal - effectiveBuys;
                   return (
-                    <div className="mb-4 px-3 py-2 bg-white/[0.03] rounded text-xs flex items-center justify-between">
-                      <span className="text-gray-400">Cash-Effekt (netto)</span>
-                      <span className={netChange >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
-                        {netChange >= 0 ? '+' : ''}{fmtChf(netChange)}
-                      </span>
+                    <div className="mb-4 space-y-1.5">
+                      <div className="px-3 py-2 bg-white/[0.03] rounded text-xs flex items-center justify-between">
+                        <span className="text-gray-400">Verfügbares Budget (Cash + Verkäufe)</span>
+                        <span className="text-gray-300 font-semibold">{fmtChf(availableBudget)}</span>
+                      </div>
+                      <div className="px-3 py-2 bg-white/[0.03] rounded text-xs flex items-center justify-between">
+                        <span className="text-gray-400">Geplante Käufe{willScale ? ' (auf Budget begrenzt)' : ''}</span>
+                        <span className={willScale ? 'text-amber-400 font-semibold' : 'text-gray-300 font-semibold'}>{fmtChf(effectiveBuys)}{willScale && <span className="text-gray-500 ml-1 line-through">{fmtChf(totalBuys)}</span>}</span>
+                      </div>
+                      {willScale && (
+                        <div className="px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs flex items-center gap-2 text-amber-400">
+                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>Käufe werden auf verfügbares Cash begrenzt — Faktor {((availableBudget / totalBuys) * 100).toFixed(0)}%</span>
+                        </div>
+                      )}
+                      <div className="px-3 py-2 bg-white/[0.03] rounded text-xs flex items-center justify-between">
+                        <span className="text-gray-400">Cash-Effekt (netto)</span>
+                        <span className={netChange >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                          {netChange >= 0 ? '+' : ''}{fmtChf(netChange)}
+                        </span>
+                      </div>
                     </div>
                   );
                 })()}

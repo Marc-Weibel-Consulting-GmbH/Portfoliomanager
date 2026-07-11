@@ -926,6 +926,26 @@ Gib eine strukturierte Analyse zurück.`;
       const now = new Date();
       const created: { ticker: string; type: 'sell' | 'buy'; amountCHF: number; shares?: number }[] = [];
       const createdIds: number[] = [];
+
+      // ─── Cash-Constraint: Käufe dürfen Cash + Verkaufserlöse nicht übersteigen ───
+      const currentCashBeforeTrade = parseFloat(portfolio[0]?.cashBalance ?? '0') || 0;
+      const sellTotalRaw = input.sells.reduce((s, t) => s + t.totalCHF, 0);
+      const buyTotalRaw = input.buys.reduce((s, t) => s + t.totalCHF, 0);
+      const availableBudget = currentCashBeforeTrade + sellTotalRaw;
+      let scaleFactor = 1;
+      let buysScaledDown = false;
+      let scaledBuys = input.buys;
+      if (buyTotalRaw > availableBudget + 0.01) {
+        scaleFactor = availableBudget / buyTotalRaw;
+        buysScaledDown = true;
+        scaledBuys = input.buys.map((b) => ({
+          ...b,
+          totalCHF: b.totalCHF * scaleFactor,
+          shares: b.shares != null ? b.shares * scaleFactor : b.shares,
+        }));
+        console.log(`[applyRecommendations] Cash-Constraint: buyTotal=${buyTotalRaw.toFixed(2)}, available=${availableBudget.toFixed(2)}, scaleFactor=${scaleFactor.toFixed(4)}`);
+      }
+
       // 1. SELL transactions for weak positions
       for (const sell of input.sells) {
         if (sell.totalCHF <= 0) continue;
@@ -947,8 +967,8 @@ Gib eine strukturierte Analyse zurück.`;
         if ((sellResult as any)?.insertId) createdIds.push((sellResult as any).insertId as number);
         created.push({ ticker: sell.ticker, type: 'sell', amountCHF: Math.round(sell.totalCHF), shares: sell.shares });
       }
-      // 2. BUY transactions for replacements/additions
-      for (const buy of input.buys) {
+      // 2. BUY transactions for replacements/additions (cash-constrained)
+      for (const buy of scaledBuys) {
         if (buy.totalCHF <= 0) continue;
         const sharesStr = buy.shares != null ? buy.shares.toFixed(4) : null;
         const [buyResult] = await db.insert(portfolioTransactions).values({
@@ -968,13 +988,11 @@ Gib eine strukturierte Analyse zurück.`;
         if ((buyResult as any)?.insertId) createdIds.push((buyResult as any).insertId as number);
         created.push({ ticker: buy.ticker, type: 'buy', amountCHF: Math.round(buy.totalCHF), shares: buy.shares });
       }
-      // 3. Update cashBalance
-      const sellTotal = input.sells.reduce((s, t) => s + t.totalCHF, 0);
-      const buyTotal = input.buys.reduce((s, t) => s + t.totalCHF, 0);
-      const netCashChange = sellTotal - buyTotal;
-      if (Math.abs(netCashChange) > 0.01) {
-        const currentCash = parseFloat(portfolio[0]?.cashBalance ?? '0') || 0;
-        const newCash = Math.max(0, currentCash + netCashChange);
+      // 3. Update cashBalance (using scaled buy amounts)
+      const buyTotalActual = scaledBuys.reduce((s, t) => s + t.totalCHF, 0);
+      const netCashChange = sellTotalRaw - buyTotalActual;
+      if (Math.abs(netCashChange) > 0.01 || buysScaledDown) {
+        const newCash = Math.max(0, currentCashBeforeTrade + netCashChange);
         await db.update(savedPortfolios)
           .set({ cashBalance: newCash.toFixed(2) })
           .where(eq(savedPortfolios.id, input.portfolioId));
@@ -986,6 +1004,9 @@ Gib eine strukturierte Analyse zurück.`;
         transactionIds: createdIds,
         netCashChange: Math.round(netCashChange),
         snapshotId,
+        buysScaledDown,
+        scaleFactor: buysScaledDown ? scaleFactor : undefined,
+        availableBudget: Math.round(availableBudget),
       };
     }),
 
