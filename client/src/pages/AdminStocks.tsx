@@ -17,6 +17,40 @@ function fmtNum(v: unknown, decimals: number, suffix = ""): string {
   return Number.isFinite(n) ? n.toFixed(decimals) + suffix : "—";
 }
 
+// Marktkapitalisierung kompakt (Mrd. / Mio.).
+function fmtMarketCap(v: unknown): string {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)} Mrd.`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(0)} Mio.`;
+  return n.toFixed(0);
+}
+
+function fmtDate(v: unknown): string {
+  if (!v) return "—";
+  const d = new Date(v as any);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("de-CH");
+}
+
+// Kuratierungs-Facette der vereinten stocks-Tabelle: Text + Farbe.
+function listTypeLabel(v: unknown): { text: string; cls: string } {
+  if (v === "empfehlung") return { text: "Empfehlung", cls: "text-emerald-600" };
+  if (v === "watchlist") return { text: "Watchlist", cls: "text-muted-foreground" };
+  return { text: "—", cls: "text-muted-foreground/50" };
+}
+function sourceLabel(v: unknown): string {
+  if (v === "manual") return "Manuell";
+  if (v === "ai_recommended") return "KI";
+  if (v === "wikifolio") return "Wikifolio";
+  return "—";
+}
+function signalLabel(v: unknown): { text: string; cls: string } {
+  if (v === "buy") return { text: "Kaufen", cls: "text-green-600" };
+  if (v === "sell") return { text: "Verkaufen", cls: "text-red-600" };
+  if (v === "hold") return { text: "Halten", cls: "text-muted-foreground" };
+  return { text: "—", cls: "text-muted-foreground/50" };
+}
+
 export default function AdminStocks() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -109,29 +143,53 @@ export default function AdminStocks() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-2 px-2 text-muted-foreground">Ticker</th>
                       <th className="text-left py-2 px-2 text-muted-foreground">Unternehmen</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground">Sektor</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground">Industrie</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground">Land</th>
                       <th className="text-left py-2 px-2 text-muted-foreground">Kategorie</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground">Liste</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground">Quelle</th>
                       <th className="text-right py-2 px-2 text-muted-foreground">Kurs</th>
+                      <th className="text-right py-2 px-2 text-muted-foreground">Marktkap.</th>
                       <th className="text-right py-2 px-2 text-muted-foreground">YTD</th>
                       <th className="text-right py-2 px-2 text-muted-foreground">P/E</th>
+                      <th className="text-right py-2 px-2 text-muted-foreground">PEG</th>
                       <th className="text-right py-2 px-2 text-muted-foreground">Div. %</th>
+                      <th className="text-right py-2 px-2 text-muted-foreground">Beta</th>
+                      <th className="text-right py-2 px-2 text-muted-foreground">RSI-14</th>
+                      <th className="text-right py-2 px-2 text-muted-foreground">52W-Hoch</th>
+                      <th className="text-right py-2 px-2 text-muted-foreground">52W-Tief</th>
+                      <th className="text-center py-2 px-2 text-muted-foreground">Signal</th>
+                      <th className="text-right py-2 px-2 text-muted-foreground">Score</th>
+                      <th className="text-center py-2 px-2 text-muted-foreground">Aktiv</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground">Aktualisiert</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStocks.map((stock: any) => (
+                    {filteredStocks.map((stock: any) => {
+                      const lt = listTypeLabel(stock.listType);
+                      const sig = signalLabel(stock.signalType);
+                      return (
                       <tr key={stock.id} className="border-b border-border/50 hover:bg-muted/50">
                         <td className="py-2 px-2 font-mono font-semibold">{stock.ticker}</td>
                         <td className="py-2 px-2">{stock.companyName}</td>
-                        <td className="py-2 px-2 text-muted-foreground">{stock.category}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{stock.sector || '—'}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{stock.industry || '—'}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{stock.country || '—'}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{stock.category || '—'}</td>
+                        <td className={`py-2 px-2 font-medium ${lt.cls}`}>{lt.text}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{sourceLabel(stock.source)}</td>
                         <td className="py-2 px-2 text-right">
                           {Number.isFinite(Number(stock.currentPrice))
                             ? `${Number(stock.currentPrice).toFixed(2)} ${stock.currency || 'CHF'}`
                             : '—'}
                         </td>
+                        <td className="py-2 px-2 text-right">{fmtMarketCap(stock.marketCap)}</td>
                         <td className={`py-2 px-2 text-right font-semibold ${
                           Number(stock.ytdPerformance) >= 0 ? 'text-green-500' : 'text-red-500'
                         }`}>
@@ -140,9 +198,19 @@ export default function AdminStocks() {
                             : '—'}
                         </td>
                         <td className="py-2 px-2 text-right">{fmtNum(stock.peRatio, 1)}</td>
+                        <td className="py-2 px-2 text-right">{fmtNum(stock.pegRatio, 2)}</td>
                         <td className="py-2 px-2 text-right">{fmtNum(stock.dividendYield, 2, '%')}</td>
+                        <td className="py-2 px-2 text-right">{fmtNum(stock.beta, 2)}</td>
+                        <td className="py-2 px-2 text-right">{fmtNum(stock.rsi14, 0)}</td>
+                        <td className="py-2 px-2 text-right">{fmtNum(stock.week52High, 2)}</td>
+                        <td className="py-2 px-2 text-right">{fmtNum(stock.week52Low, 2)}</td>
+                        <td className={`py-2 px-2 text-center font-medium ${sig.cls}`}>{sig.text}</td>
+                        <td className="py-2 px-2 text-right font-mono">{Number.isFinite(Number(stock.signalScore)) ? Number(stock.signalScore) : '—'}</td>
+                        <td className="py-2 px-2 text-center">{stock.isActive ? 'Ja' : 'Nein'}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{fmtDate(stock.lastMetricsUpdate)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
