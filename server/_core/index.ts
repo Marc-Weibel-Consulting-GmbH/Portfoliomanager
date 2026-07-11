@@ -21,6 +21,7 @@ import { initFxRatesCron } from "../fxRatesFetchJob";
 import { initTransactionFxUpdateCron } from "../transactionFxUpdateJob";
 import { initHistoricalPricesCron } from "../cron/historicalPricesCron";
 import { initDailyRefreshCron } from "./dailyRefreshCron";
+import { initRegimeHistoryCron } from "../cron/regimeHistoryCron";
 import { initPriceAlertsCron } from "../cron/priceAlertsCron";
 import { initWatchlistAlertsCron } from "../cron/watchlistAlertsCron";
 import { initLpplBubbleAlertCron } from "../cron/lpplBubbleAlertCron";
@@ -221,6 +222,8 @@ async function startServer() {
     initMarketAnalysisCron();
     // Start recommendation cron (Track D: daily due-check per portfolio cadence)
     initRecommendationCron();
+    // Start regime-history cron (R4: daily regime-score snapshot for the trend sparkline)
+    initRegimeHistoryCron();
   });
 }
 

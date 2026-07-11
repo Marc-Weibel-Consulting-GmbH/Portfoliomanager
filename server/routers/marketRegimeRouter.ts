@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { fetchHistoricalPrices } from "../_core/stockDataApi";
 import { ENV } from "../_core/env";
@@ -493,57 +494,143 @@ export const marketRegimeRouter = router({
   }),
 
   getRegime: publicProcedure.query(async () => {
-    // Run all engines in parallel
-    const [trend, breadth, volatility, liquidity, credit, sentiment, bubble] = await Promise.all([
-      calculateTrendEngine(),
-      calculateBreadthEngine(),
-      calculateVolatilityEngine(),
-      calculateLiquidityEngine(),
-      calculateCreditEngine(),
-      calculateSentimentEngine(),
-      calculateBubbleEngine(),
-    ]);
-
-    // Calculate weighted overall score
-    const overallScore =
-      trend.score * ENGINE_WEIGHTS.trend +
-      breadth.score * ENGINE_WEIGHTS.breadth +
-      volatility.score * ENGINE_WEIGHTS.volatility +
-      liquidity.score * ENGINE_WEIGHTS.liquidity +
-      credit.score * ENGINE_WEIGHTS.credit +
-      sentiment.score * ENGINE_WEIGHTS.sentiment +
-      bubble.score * ENGINE_WEIGHTS.bubble;
-
-    // Determine regime
-    let overallRegime: string;
-    let equityAllocation: number;
-    let regimeMultiplier: number;
-
-    if (overallScore > 0.25) {
-      overallRegime = "Risk-On";
-      equityAllocation = 80;
-      regimeMultiplier = 1.2;
-    } else if (overallScore > -0.1) {
-      overallRegime = "Neutral";
-      equityAllocation = 60;
-      regimeMultiplier = 1.0;
-    } else if (overallScore > -0.4) {
-      overallRegime = "Defensive";
-      equityAllocation = 40;
-      regimeMultiplier = 0.7;
-    } else {
-      overallRegime = "Risk-Off";
-      equityAllocation = 20;
-      regimeMultiplier = 0.3;
-    }
-
-    return {
-      overallRegime,
-      overallScore,
-      equityAllocation,
-      regimeMultiplier,
-      engines: { trend, breadth, volatility, liquidity, credit, sentiment, bubble },
-      lastUpdated: new Date().toISOString(),
-    };
+    return computeRegime();
   }),
+
+  // Regime-Verlauf (R4): letzte `days` Handelstage des Gesamt-Scores für die
+  // Sparkline. Fehlertolerant — fehlt die Tabelle (noch nicht migriert) oder die
+  // DB, kommt eine leere Serie zurück und die UI zeigt einen ehrlichen Hinweis.
+  getHistory: publicProcedure
+    .input(z.object({ days: z.number().int().min(7).max(365).default(90) }).optional())
+    .query(async ({ input }) => {
+      const days = input?.days ?? 90;
+      try {
+        const { getDb } = await import("../db");
+        const { marketRegimeHistory } = await import("../../drizzle/schema");
+        const { gte, asc } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) return { points: [] as RegimeHistoryPoint[] };
+
+        const cutoff = new Date();
+        cutoff.setUTCDate(cutoff.getUTCDate() - days);
+        const cutoffStr = cutoff.toISOString().split("T")[0];
+
+        const rows = await db
+          .select()
+          .from(marketRegimeHistory)
+          .where(gte(marketRegimeHistory.date, cutoffStr))
+          .orderBy(asc(marketRegimeHistory.date));
+
+        const points: RegimeHistoryPoint[] = rows.map((r: any) => ({
+          date: r.date,
+          score: parseFloat(String(r.overallScore)),
+          regime: r.regime,
+        }));
+        return { points };
+      } catch (e) {
+        console.warn("[MarketRegime] getHistory failed:", (e as Error).message);
+        return { points: [] as RegimeHistoryPoint[] };
+      }
+    }),
 });
+
+export type RegimeHistoryPoint = { date: string; score: number; regime: string };
+
+/**
+ * Berechnet das aktuelle Gesamt-Regime aus allen sieben Engines.
+ * Geteilt von `getRegime` (Live-Query) und `recordRegimeSnapshot` (Cron).
+ */
+export async function computeRegime() {
+  const [trend, breadth, volatility, liquidity, credit, sentiment, bubble] = await Promise.all([
+    calculateTrendEngine(),
+    calculateBreadthEngine(),
+    calculateVolatilityEngine(),
+    calculateLiquidityEngine(),
+    calculateCreditEngine(),
+    calculateSentimentEngine(),
+    calculateBubbleEngine(),
+  ]);
+
+  const overallScore =
+    trend.score * ENGINE_WEIGHTS.trend +
+    breadth.score * ENGINE_WEIGHTS.breadth +
+    volatility.score * ENGINE_WEIGHTS.volatility +
+    liquidity.score * ENGINE_WEIGHTS.liquidity +
+    credit.score * ENGINE_WEIGHTS.credit +
+    sentiment.score * ENGINE_WEIGHTS.sentiment +
+    bubble.score * ENGINE_WEIGHTS.bubble;
+
+  let overallRegime: string;
+  let equityAllocation: number;
+  let regimeMultiplier: number;
+
+  if (overallScore > 0.25) {
+    overallRegime = "Risk-On";
+    equityAllocation = 80;
+    regimeMultiplier = 1.2;
+  } else if (overallScore > -0.1) {
+    overallRegime = "Neutral";
+    equityAllocation = 60;
+    regimeMultiplier = 1.0;
+  } else if (overallScore > -0.4) {
+    overallRegime = "Defensive";
+    equityAllocation = 40;
+    regimeMultiplier = 0.7;
+  } else {
+    overallRegime = "Risk-Off";
+    equityAllocation = 20;
+    regimeMultiplier = 0.3;
+  }
+
+  return {
+    overallRegime,
+    overallScore,
+    equityAllocation,
+    regimeMultiplier,
+    engines: { trend, breadth, volatility, liquidity, credit, sentiment, bubble },
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+/**
+ * Persistiert einen Tages-Snapshot des Regimes (Upsert per UTC-Datum).
+ * Aufgerufen vom regimeHistoryCron. Fehlertolerant: fehlt DB/Tabelle, No-op.
+ */
+export async function recordRegimeSnapshot(): Promise<{ recorded: boolean; date: string; score: number }> {
+  const regime = await computeRegime();
+  const date = new Date().toISOString().split("T")[0];
+  try {
+    const { getDb } = await import("../db");
+    const { marketRegimeHistory } = await import("../../drizzle/schema");
+    const db = await getDb();
+    if (!db) return { recorded: false, date, score: regime.overallScore };
+
+    const engineScores = Object.fromEntries(
+      Object.entries(regime.engines).map(([k, v]) => [k, +v.score.toFixed(4)]),
+    );
+    const values = {
+      date,
+      overallScore: regime.overallScore.toFixed(4),
+      regime: regime.overallRegime,
+      equityAllocation: regime.equityAllocation,
+      regimeMultiplier: regime.regimeMultiplier.toFixed(2),
+      engineScores,
+    };
+    await db
+      .insert(marketRegimeHistory)
+      .values(values)
+      .onDuplicateKeyUpdate({
+        set: {
+          overallScore: values.overallScore,
+          regime: values.regime,
+          equityAllocation: values.equityAllocation,
+          regimeMultiplier: values.regimeMultiplier,
+          engineScores: values.engineScores,
+        },
+      });
+    return { recorded: true, date, score: regime.overallScore };
+  } catch (e) {
+    console.warn("[MarketRegime] recordRegimeSnapshot failed:", (e as Error).message);
+    return { recorded: false, date, score: regime.overallScore };
+  }
+}

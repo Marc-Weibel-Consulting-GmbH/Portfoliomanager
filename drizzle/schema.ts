@@ -900,6 +900,26 @@ export const marketAnalysis = mysqlTable("market_analysis", {
 export type MarketAnalysisRow = typeof marketAnalysis.$inferSelect;
 export type InsertMarketAnalysis = typeof marketAnalysis.$inferInsert;
 
+// ============================================
+// Market Regime History — täglicher Snapshot des Gesamt-Scores (R4)
+// Speist die 90-Tage-Regime-Verlauf-Sparkline auf der Markt-Regime-Seite.
+// Ein Eintrag pro Handelstag (Upsert per date), befüllt vom regimeHistoryCron.
+// ============================================
+export const marketRegimeHistory = mysqlTable("market_regime_history", {
+  id: int("id").autoincrement().primaryKey(),
+  date: varchar("date", { length: 10 }).notNull().unique(), // YYYY-MM-DD (UTC)
+  overallScore: decimal("overallScore", { precision: 6, scale: 4 }).notNull(), // -1..+1
+  regime: varchar("regime", { length: 30 }).notNull(),
+  equityAllocation: int("equityAllocation").notNull(),
+  regimeMultiplier: decimal("regimeMultiplier", { precision: 4, scale: 2 }).notNull(),
+  engineScores: json("engineScores").notNull(), // { trend, breadth, volatility, ... }: score
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  dateIdx: index("ix_market_regime_history_date").on(t.date),
+}));
+export type MarketRegimeHistoryRow = typeof marketRegimeHistory.$inferSelect;
+export type InsertMarketRegimeHistory = typeof marketRegimeHistory.$inferInsert;
+
 
 // ============================================
 // App Settings (Admin-configurable diversification rules, fee structure, etc.)
