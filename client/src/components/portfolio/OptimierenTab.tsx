@@ -882,7 +882,7 @@ export default function OptimierenTab({
                         )}
                         {upgradeData.additionSuggestions.length > 0 && (
                           <span className="text-indigo-400 font-medium">
-                            {upgradeData.additionSuggestions.length} neue Kandidaten
+                            Top {Math.min(5, upgradeData.additionSuggestions.length)} neue Kandidaten{upgradeData.additionSuggestions.length > 5 ? ` (von ${upgradeData.additionSuggestions.length})` : ''}
                           </span>
                         )}
                       </div>
@@ -1052,6 +1052,21 @@ export default function OptimierenTab({
                     </div>
                   </div>
                 )}
+                {/* Cash-Effekt Zusammenfassung */}
+                {(() => {
+                  const sellTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
+                  const buyReplTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
+                  const buyAddTotal = upgradeData.additionSuggestions.slice(0, 5).reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
+                  const netChange = sellTotal - buyReplTotal - buyAddTotal;
+                  return (
+                    <div className="mb-4 px-3 py-2 bg-white/[0.03] rounded text-xs flex items-center justify-between">
+                      <span className="text-gray-400">Cash-Effekt (netto)</span>
+                      <span className={netChange >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>
+                        {netChange >= 0 ? '+' : ''}{fmtChf(netChange)}
+                      </span>
+                    </div>
+                  );
+                })()}
                 {applyRecMut.error && (
                   <p className="text-red-400 text-xs mb-3">{(applyRecMut.error as any)?.message}</p>
                 )}

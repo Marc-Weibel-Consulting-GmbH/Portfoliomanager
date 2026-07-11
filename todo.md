@@ -75,6 +75,6 @@
 - [x] Frontend: Ausstiegskriterien-Karte mit Live-Status (Ampel) statt statischer Liste
 
 ## Optimierung anwenden (Juli 2026)
-- [ ] Backend: applyOptimization erweitern — Verkäufe schwacher Positionen + Käufe neuer Titel in einem Schritt
-- [ ] Frontend: "Optimierung anwenden" Button mit Bestätigungs-Dialog (zeigt Verkäufe + Käufe + Cash-Effekt)
-- [ ] Frontend: Fortschrittsanzeige während Transaktion läuft
+- [x] Backend: applyOptimization erweitern — Verkäufe schwacher Positionen + Käufe neuer Titel in einem Schritt
+- [x] Frontend: "Optimierung anwenden" Button mit Bestätigungs-Dialog (zeigt Verkäufe + Käufe + Cash-Effekt)
+- [x] Frontend: Fortschrittsanzeige während Transaktion läuft (Spinner + "Wird gebucht…" Text)
