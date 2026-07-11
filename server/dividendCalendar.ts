@@ -56,11 +56,11 @@ async function fetchTickerDividendsEODHD(ticker: string): Promise<DividendEvent[
   const eodhdTicker = toEODHDTicker(ticker);
   const today = new Date();
   
-  // Fetch 2 years of data: 1 year back + 1 year forward
+  // Fetch 3 years of data: 1 year back + 2 years forward (to cover 2027 dividends)
   const fromDate = new Date(today);
   fromDate.setFullYear(fromDate.getFullYear() - 1);
   const toDate = new Date(today);
-  toDate.setFullYear(toDate.getFullYear() + 1);
+  toDate.setFullYear(toDate.getFullYear() + 2);
 
   const url = `https://eodhd.com/api/div/${eodhdTicker}?api_token=${apiKey}&fmt=json&from=${fromDate.toISOString().split("T")[0]}&to=${toDate.toISOString().split("T")[0]}`;
 
@@ -95,34 +95,48 @@ async function fetchTickerDividendsEODHD(ticker: string): Promise<DividendEvent[
       };
     });
 
-    // Estimate future dividends if we only have past data
+    // Estimate future dividends: project multiple payments within the 2-year horizon
     const upcomingEvents = events.filter(e => e.type === "upcoming");
-    if (upcomingEvents.length === 0 && events.length >= 2) {
-      // Calculate interval from historical data
-      const pastEvents = events.filter(e => e.type === "past").sort(
-        (a, b) => new Date(b.exDividendDate).getTime() - new Date(a.exDividendDate).getTime()
+    const pastEvents = events.filter(e => e.type === "past").sort(
+      (a, b) => new Date(b.exDividendDate).getTime() - new Date(a.exDividendDate).getTime()
+    );
+
+    if (pastEvents.length >= 2) {
+      const lastDate = new Date(pastEvents[0].exDividendDate);
+      const secondLastDate = new Date(pastEvents[1].exDividendDate);
+      const intervalDays = Math.round(
+        (lastDate.getTime() - secondLastDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      if (pastEvents.length >= 2) {
-        const lastDate = new Date(pastEvents[0].exDividendDate);
-        const secondLastDate = new Date(pastEvents[1].exDividendDate);
-        const intervalDays = Math.round(
-          (lastDate.getTime() - secondLastDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
+      if (intervalDays > 0) {
+        // Find the most recent known date (announced or past) to project from
+        const allKnownDates = [
+          ...upcomingEvents.map(e => new Date(e.exDividendDate)),
+          lastDate,
+        ].sort((a, b) => b.getTime() - a.getTime());
+        let projectionBase = allKnownDates[0];
 
-        // Estimate next dividend
-        const nextEstDate = new Date(lastDate.getTime() + intervalDays * 24 * 60 * 60 * 1000);
-        if (nextEstDate <= toDate) {
-          events.push({
-            ticker,
-            exDividendDate: nextEstDate.toISOString().split("T")[0],
-            paymentDate: new Date(nextEstDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            declarationDate: null,
-            amount: pastEvents[0].amount,
-            currency: pastEvents[0].currency,
-            period: pastEvents[0].period,
-            type: "estimated",
+        // Roll forward until we exceed the 2-year horizon, adding estimated events
+        let nextEstDate = new Date(projectionBase.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+        while (nextEstDate <= toDate) {
+          // Only add if no announced event already covers this date (±30 days)
+          const alreadyCovered = events.some(e => {
+            const diff = Math.abs(new Date(e.exDividendDate).getTime() - nextEstDate.getTime());
+            return e.type !== "past" && diff < 30 * 24 * 60 * 60 * 1000;
           });
+          if (!alreadyCovered && nextEstDate > today) {
+            events.push({
+              ticker,
+              exDividendDate: nextEstDate.toISOString().split("T")[0],
+              paymentDate: new Date(nextEstDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+              declarationDate: null,
+              amount: pastEvents[0].amount,
+              currency: pastEvents[0].currency,
+              period: pastEvents[0].period,
+              type: "estimated",
+            });
+          }
+          nextEstDate = new Date(nextEstDate.getTime() + intervalDays * 24 * 60 * 60 * 1000);
         }
       }
     }

@@ -310,7 +310,7 @@ function PerformanceTab({
 // ─── F-06: Dividenden-Tab — anstehende Dividenden dieses Portfolios ───
 function DividendenTab({ portfolioId }: { portfolioId: number }) {
   const { data: dividends = [], isLoading } = trpc.dividendCalendar.getUpcoming.useQuery(
-    { portfolioId, daysAhead: 365 },
+    { portfolioId, daysAhead: 730 },
     { enabled: portfolioId > 0 }
   );
 
@@ -320,6 +320,17 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
       .filter((d) => d.exDividendDate && new Date(d.exDividendDate) >= startOfToday)
       .sort((a, b) => new Date(a.exDividendDate).getTime() - new Date(b.exDividendDate).getTime());
   }, [dividends]);
+
+  // Group by year
+  const rowsByYear = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    for (const row of rows) {
+      const year = new Date(row.exDividendDate).getFullYear().toString();
+      if (!groups[year]) groups[year] = [];
+      groups[year].push(row);
+    }
+    return groups;
+  }, [rows]);
 
   const totalCHF = rows.reduce((s: number, d: any) => s + (d.expectedIncome || 0), 0);
 
@@ -347,11 +358,11 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
     <div className="bg-[#0f1420] border border-white/10 rounded-lg">
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
         <div>
-          <h3 className="text-sm font-semibold text-white">Nächste Dividende je Titel</h3>
-          <p className="text-xs text-gray-400">Angekündigt oder aus der Historie geschätzt · Bestand dieses Portfolios</p>
+          <h3 className="text-sm font-semibold text-white">Anstehende Dividenden</h3>
+          <p className="text-xs text-gray-400">Angekündigt oder aus der Historie geschätzt · Bestand dieses Portfolios · 2 Jahre Vorschau</p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Erwartet (nächste Runde)</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Gesamt (2 Jahre)</p>
           <p className="text-lg font-bold font-mono text-[#00CFC1]">{formatCHF(totalCHF)}</p>
         </div>
       </div>
@@ -368,35 +379,50 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((d: any, i: number) => (
-              <tr key={`${d.ticker}-${d.exDividendDate}-${i}`} className="border-b border-white/5 hover:bg-white/[0.03]">
-                <td className="px-5 py-3">
-                  <span className="font-mono text-xs text-[#00CFC1] mr-2">{d.ticker}</span>
-                  <span className="text-sm text-white">{d.companyName}</span>
-                </td>
-                <td className="px-3 py-3 text-sm text-gray-400">
-                  {formatDate(d.exDividendDate)}
-                  {d.type === 'estimated' && (
-                    <span
-                      className="ml-2 inline-block rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-500/90 align-middle"
-                      title="Termin und Betrag aus der Dividendenhistorie projiziert"
-                    >
-                      geschätzt
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-3 text-sm text-gray-400">{d.paymentDate ? formatDate(d.paymentDate) : '—'}</td>
-                <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(d.amount, d.currency || 'CHF')}</td>
-                <td className="px-3 py-3 text-right text-sm text-gray-300">
-                  {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 2 }).format(parseFloat(d.shares) || 0)}
-                </td>
-                <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">{formatCHF(d.expectedIncome || 0)}</td>
-              </tr>
-            ))}
+            {Object.entries(rowsByYear).sort(([a], [b]) => Number(a) - Number(b)).map(([year, yearRows]) => {
+              const yearTotal = (yearRows as any[]).reduce((s: number, d: any) => s + (d.expectedIncome || 0), 0);
+              return (
+                <>
+                  {/* Jahr-Trennzeile */}
+                  <tr key={`year-${year}`} className="bg-white/[0.04] border-y border-white/10">
+                    <td colSpan={5} className="px-5 py-2">
+                      <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">{year}</span>
+                      <span className="ml-2 text-xs text-gray-500">{(yearRows as any[]).length} Zahlung{(yearRows as any[]).length !== 1 ? 'en' : ''}</span>
+                    </td>
+                    <td className="px-5 py-2 text-right text-xs font-bold font-mono text-[#00CFC1]">{formatCHF(yearTotal)}</td>
+                  </tr>
+                  {(yearRows as any[]).map((d: any, i: number) => (
+                    <tr key={`${d.ticker}-${d.exDividendDate}-${i}`} className="border-b border-white/5 hover:bg-white/[0.03]">
+                      <td className="px-5 py-3">
+                        <span className="font-mono text-xs text-[#00CFC1] mr-2">{d.ticker}</span>
+                        <span className="text-sm text-white">{d.companyName}</span>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-400">
+                        {formatDate(d.exDividendDate)}
+                        {d.type === 'estimated' && (
+                          <span
+                            className="ml-2 inline-block rounded bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-500/90 align-middle"
+                            title="Termin und Betrag aus der Dividendenhistorie projiziert"
+                          >
+                            geschätzt
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-400">{d.paymentDate ? formatDate(d.paymentDate) : '—'}</td>
+                      <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(d.amount, d.currency || 'CHF')}</td>
+                      <td className="px-3 py-3 text-right text-sm text-gray-300">
+                        {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 2 }).format(parseFloat(d.shares) || 0)}
+                      </td>
+                      <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">{formatCHF(d.expectedIncome || 0)}</td>
+                    </tr>
+                  ))}
+                </>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-white/10">
-              <td colSpan={5} className="px-5 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Summe (gesamt)</td>
+              <td colSpan={5} className="px-5 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Summe (2 Jahre gesamt)</td>
               <td className="px-5 py-3 text-right text-sm font-bold font-mono text-[#00CFC1]">{formatCHF(totalCHF)}</td>
             </tr>
           </tfoot>
