@@ -183,18 +183,19 @@ export default function StockDetail() {
   // Fetch stock data
   const { data: stock, isLoading } = trpc.stocks.byTicker.useQuery(ticker, {
     enabled: !!ticker,
+    retry: false,
   });
 
   // Fetch historical prices for chart
   const { data: historicalPrices = [] } = trpc.stocks.getHistoricalPrices.useQuery(
     { ticker, period: selectedPeriod },
-    { enabled: !!ticker }
+    { enabled: !!ticker, retry: false }
   );
 
   // Fetch news for this stock (using the inline router which takes just a string)
   const { data: newsData = [] } = trpc.news.getByTicker.useQuery(
     ticker,
-    { enabled: !!ticker }
+    { enabled: !!ticker, retry: false }
   );
 
   // Check if stock is already in a portfolio (for hiding "Add to Portfolio" button)
@@ -204,7 +205,7 @@ export default function StockDetail() {
   // Signal-Score (Strategie) für den Header-Kreis neben dem Qualitäts-Score.
   const { data: signalScoringData } = trpc.tradingview.stockScoring.useQuery(
     { symbol: ticker },
-    { enabled: !!ticker, staleTime: 5 * 60 * 1000, retry: 1 }
+    { enabled: !!ticker, staleTime: 5 * 60 * 1000, retry: false }
   );
   const signalScoring = (signalScoringData as any)?.json ?? signalScoringData;
   const signalScore: number | null =

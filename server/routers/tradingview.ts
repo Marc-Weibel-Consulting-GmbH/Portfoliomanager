@@ -463,7 +463,10 @@ export const tradingviewRouter = router({
           analysisDate: new Date().toISOString().split('T')[0],
         };
       } catch (err: any) {
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Scoring failed for ${ticker}: ${err.message}` });
+        // Return null instead of throwing so the frontend ErrorBoundary is not triggered.
+        // The StockDetail page handles null gracefully (no signal score shown).
+        console.warn(`[stockScoring] Scoring unavailable for ${ticker}: ${err.message}`);
+        return null;
       }
     }),
 
