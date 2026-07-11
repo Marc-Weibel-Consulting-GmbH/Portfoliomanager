@@ -163,6 +163,15 @@ export default function AdminWatchlist() {
     },
   });
 
+  // Enrich stocks missing sector/category via EODHD + Yahoo Finance fallback
+  const enrichSectorsMutation = trpc.watchlist.enrichWikifolioStocks.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.watchlist.list.invalidate();
+      utils.watchlist.stats.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
   // L-16: Alt-ISIN-Zeilen (Wikifolio-Importe vor dem F-15-Fix) in Ticker auflösen
   const cleanupIsinMutation = trpc.watchlist.cleanupIsinTickers.useMutation({
     onSuccess: (data) => {
@@ -230,6 +239,17 @@ export default function AdminWatchlist() {
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
               Aktualisieren
+            </Button>
+            {/* Sektor/Kategorie-Anreicherung via EODHD + Yahoo Finance Fallback */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => enrichSectorsMutation.mutate({})}
+              disabled={enrichSectorsMutation.isPending}
+              title="Fehlende Sektoren und Kategorien via EODHD und Yahoo Finance nachladen"
+            >
+              <Sparkles className={`w-4 h-4 mr-2 ${enrichSectorsMutation.isPending ? "animate-spin" : ""}`} />
+              {enrichSectorsMutation.isPending ? "Lädt..." : "Sektoren anreichern"}
             </Button>
             {/* L-16: Alt-ISIN-Zeilen in Yahoo-Ticker auflösen (Wikifolio-Importe vor F-15) */}
             <Button

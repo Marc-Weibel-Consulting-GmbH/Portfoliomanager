@@ -1014,9 +1014,10 @@ export const watchlistRouter = router({
       };
     }),
 
-  // Enrich existing Wikifolio-imported stocks with EODHD fundamentals (sector, P/E, Div.%, PEG)
+  // Enrich ALL stocks missing sector/category — uses EODHD first, Yahoo Finance as fallback
   enrichWikifolioStocks: protectedProcedure
-    .mutation(async ({ ctx }) => {
+    .input(z.object({ onlyMissing: z.boolean().optional().default(true) }).optional())
+    .mutation(async ({ ctx, input }) => {
       if (ctx.user.role !== 'admin') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
       }
@@ -1024,17 +1025,20 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
 
-      // Get all Wikifolio stocks that are missing sector or peRatio
-      const stocks = await db.select().from(watchlistStocks)
-        .where(eq(watchlistStocks.source, 'wikifolio'));
+      // Get all stocks (or only those missing sector/category)
+      const allStocks = await db.select().from(watchlistStocks);
+      const stocks = (input?.onlyMissing !== false)
+        ? allStocks.filter((s: any) => !s.sector || !s.category)
+        : allStocks;
 
       const inferCategory = (sector: string | null, dividendYield: number | null): string | null => {
         if (dividendYield !== null && dividendYield > 2.5) return 'Dividendenaktien';
         if (sector) {
           const s = sector.toLowerCase();
-          if (s.includes('technology') || s.includes('communication')) return 'Wachstumsaktien';
-          if (s.includes('financial') || s.includes('real estate')) return 'Value';
-          if (s.includes('consumer') || s.includes('health') || s.includes('utilities')) return 'Dividendenaktien';
+          if (s.includes('technology') || s.includes('communication') || s.includes('semiconductor')) return 'Wachstumsaktien';
+          if (s.includes('financial') || s.includes('real estate') || s.includes('bank')) return 'Value';
+          if (s.includes('consumer') || s.includes('health') || s.includes('utilities') || s.includes('pharma')) return 'Dividendenaktien';
+          if (s.includes('industrial') || s.includes('material') || s.includes('energy')) return 'Value';
         }
         return 'Wachstumsaktien';
       };
@@ -1043,40 +1047,76 @@ export const watchlistRouter = router({
       let failed = 0;
 
       for (const stock of stocks) {
-        // Only enrich if missing sector or peRatio
-        if (stock.sector && stock.peRatio) {
-          continue;
-        }
         try {
-          const fundamentals = await fetchEODHDFundamentals(stock.ticker);
-          const dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals?.dividendYield ?? null);
-
           const updateData: Record<string, any> = { lastMetricsUpdate: new Date() };
-          if (fundamentals.sector && !stock.sector) updateData.sector = fundamentals.sector;
-          if (fundamentals.industry && !stock.industry) updateData.industry = fundamentals.industry;
-          if (fundamentals.companyName && stock.companyName === stock.ticker) updateData.companyName = fundamentals.companyName;
-          if (fundamentals.peRatio != null && !isNaN(fundamentals.peRatio) && !stock.peRatio) {
-            updateData.peRatio = fundamentals.peRatio.toFixed(2);
+          let sector = stock.sector || null;
+          let dividendYield: number | null = null;
+
+          // 1. Try EODHD first
+          try {
+            const fundamentals = await fetchEODHDFundamentals(stock.ticker);
+            if (fundamentals.sector && !sector) {
+              sector = fundamentals.sector;
+              updateData.sector = sector;
+            }
+            if (fundamentals.industry && !stock.industry) updateData.industry = fundamentals.industry;
+            if (fundamentals.companyName && stock.companyName === stock.ticker) updateData.companyName = fundamentals.companyName;
+            if (fundamentals.peRatio != null && !isNaN(fundamentals.peRatio) && !stock.peRatio) {
+              updateData.peRatio = fundamentals.peRatio.toFixed(2);
+            }
+            if (fundamentals.pegRatio != null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0 && !stock.pegRatio) {
+              updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
+            }
+            dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals?.dividendYield ?? null);
+            if (dividendYield != null && !stock.dividendYield) {
+              updateData.dividendYield = dividendYield.toFixed(2);
+            }
+          } catch (_e) { /* EODHD failed, try Yahoo */ }
+
+          // 2. Yahoo Finance fallback for sector if still missing
+          if (!sector || !stock.peRatio) {
+            try {
+              const normalizedT = normalizeTicker(stock.ticker);
+              const quote: any = await yahooFinance.quoteSummary(normalizedT, {
+                modules: ['assetProfile', 'summaryDetail', 'defaultKeyStatistics'],
+              }, { validateResult: false });
+              const profile = quote?.assetProfile;
+              const summary = quote?.summaryDetail;
+              const keyStats = quote?.defaultKeyStatistics;
+              if (profile?.sector && !sector) {
+                sector = profile.sector;
+                updateData.sector = sector;
+              }
+              if (profile?.industry && !stock.industry) updateData.industry = profile.industry;
+              if (profile?.longName && (!stock.companyName || stock.companyName === stock.ticker)) {
+                updateData.companyName = profile.longName;
+              }
+              if (!stock.peRatio) {
+                const pe = summary?.trailingPE || keyStats?.trailingEps;
+                if (pe && !isNaN(pe) && pe > 0) updateData.peRatio = pe.toFixed(2);
+              }
+              if (!stock.dividendYield && summary?.dividendYield) {
+                const dy = summary.dividendYield * 100;
+                updateData.dividendYield = dy.toFixed(2);
+                dividendYield = dy;
+              }
+            } catch (_e) { /* Yahoo also failed */ }
           }
-          if (fundamentals.pegRatio != null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0 && !stock.pegRatio) {
-            updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
-          }
-          if (dividendYield != null && !stock.dividendYield) {
-            updateData.dividendYield = dividendYield.toFixed(2);
-          }
+
+          // 3. Infer category from sector
           if (!stock.category) {
-            const cat = inferCategory(fundamentals.sector, dividendYield);
+            const cat = inferCategory(sector, dividendYield);
             if (cat) updateData.category = cat;
           }
 
-          if (Object.keys(updateData).length > 1) { // more than just lastMetricsUpdate
+          if (Object.keys(updateData).length > 1) {
             await db.update(watchlistStocks).set(updateData).where(eq(watchlistStocks.ticker, stock.ticker));
             enriched++;
           }
         } catch (_e) {
           failed++;
         }
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 300));
       }
 
       return {
@@ -1084,7 +1124,7 @@ export const watchlistRouter = router({
         enriched,
         failed,
         total: stocks.length,
-        message: `${enriched} Titel angereichert, ${failed} fehlgeschlagen (von ${stocks.length} Wikifolio-Titeln)`,
+        message: `${enriched} Titel angereichert, ${failed} fehlgeschlagen (von ${stocks.length} Titeln ohne Sektor/Kategorie)`,
       };
     }),
 });
