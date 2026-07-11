@@ -253,7 +253,6 @@ function OverviewContent() {
     <div className="space-y-6">
       {/* Aus dem früheren Dashboard/Portfolios-Bereich hierher verschoben */}
       <TickerBar />
-      <IndexKpiRow />
       {/* Tägliches Manus Momentum-Update Bericht */}
       <MarketReportSection />
       <IndicesYtdChart />
