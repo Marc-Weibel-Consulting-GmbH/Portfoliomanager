@@ -85,3 +85,9 @@
 - [x] Frontend: Snapshot-Checkbox im Dialog ("Snapshot vor Umsetzung erstellen")
 - [x] Frontend: Kandidaten-Slider (Top 3–10 neue Kandidaten konfigurierbar)
 - [x] Frontend: Undo-Button nach erfolgreicher Buchung (löscht alle soeben gebuchten Transaktionen)
+
+## KI-Boom Historische Charts Backfill (Juli 2026)
+- [x] Backfill-Skript: 65 Handelstage (13.04.–10.07.2026) in ki_boom_metrics_history eingefügt
+- [x] NVDA-Preise und Mag7-YTD aus historicalPrices DB berechnet
+- [x] Statische Metriken (OpenAI, Hyperscaler, VC, ROI) für alle Tage eingetragen
+- [x] Charts zeigen korrekte Zeitreihe mit vollständiger X-Achse (13.04.–11.07.)
