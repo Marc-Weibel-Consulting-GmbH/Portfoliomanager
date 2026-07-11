@@ -1,5 +1,5 @@
 {
-  "include": ["client/src/**/*", "server/**/*", "shared/**/*"],
+  "include": ["client/src/**/*", "server/**/*", "shared/**/*", "drizzle/**/*"],
   "compilerOptions": {
     "noEmit": true,
     "skipLibCheck": true,

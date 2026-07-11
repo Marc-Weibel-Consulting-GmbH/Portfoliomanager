@@ -1192,3 +1192,23 @@ export const kiBoomMetricsHistory = mysqlTable("ki_boom_metrics_history", {
 }));
 export type KiBoomMetricsHistory = typeof kiBoomMetricsHistory.$inferSelect;
 export type InsertKiBoomMetricsHistory = typeof kiBoomMetricsHistory.$inferInsert;
+
+// ── KI-Boom Dynamic Metrics Cache ─────────────────────────────────────────
+// Speichert via Perplexity abgerufene aktuelle Metriken (OpenAI-Bewertung,
+// Hyperscaler CapEx, VC-Anteil, ROI-Quote) mit Quellenangabe und Datum.
+export const kiBoomDynamicMetrics = mysqlTable("ki_boom_dynamic_metrics", {
+  id: int("id").autoincrement().primaryKey(),
+  metricKey: varchar("metricKey", { length: 64 }).notNull(),
+  numericValue: decimal("numericValue", { precision: 12, scale: 2 }),
+  displayValue: varchar("displayValue", { length: 128 }),
+  unit: varchar("unit", { length: 32 }),
+  source: varchar("source", { length: 512 }),
+  description: text("description"),
+  fetchedAt: timestamp("fetchedAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  metricKeyIdx: index("ix_ki_boom_dyn_key").on(t.metricKey),
+  fetchedAtIdx: index("ix_ki_boom_dyn_fetched").on(t.fetchedAt),
+}));
+export type KiBoomDynamicMetric = typeof kiBoomDynamicMetrics.$inferSelect;
+export type InsertKiBoomDynamicMetric = typeof kiBoomDynamicMetrics.$inferInsert;

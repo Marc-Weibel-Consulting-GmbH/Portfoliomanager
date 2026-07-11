@@ -30,6 +30,7 @@ import { initSignalEvaluationCron } from "../cron/signalEvaluationCron";
 import { initSignalCacheCron } from "../cron/signalCacheCron";
 import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
 import { initKiBoomHistoryCron } from "../cron/kiBoomHistoryCron";
+import { initKiBoomDynamicCron } from "../cron/kiBoomDynamicCron";
 import { initRecommendationCron } from "../cron/recommendationCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
 import { handleWalkForwardWeekly, handleLPPLMonitoring, handleEvaluateRecommendations } from "../scheduled/copilotScheduled";
@@ -227,6 +228,8 @@ async function startServer() {
     initRegimeHistoryCron();
     // Start KI-Boom history cron (daily snapshot of all KI-Boom signal values)
     initKiBoomHistoryCron();
+    // Start KI-Boom dynamic metrics cron (daily Perplexity fetch of OpenAI, CapEx, VC, ROI data)
+    initKiBoomDynamicCron();
   });
 }
 

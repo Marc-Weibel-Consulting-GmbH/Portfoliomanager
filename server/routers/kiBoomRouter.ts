@@ -14,6 +14,7 @@ import { publicProcedure, router } from "../_core/trpc";
 import { fetchHistoricalPrices } from "../_core/stockDataApi";
 import { getDb } from "../db";
 import { kiBoomMetricsHistory } from "../../drizzle/schema";
+import { getLatestDynamicMetrics, type DynamicMetricResult } from "../cron/kiBoomDynamicMetricsFetcher";
 
 // ── Typen ──────────────────────────────────────────────────────────────────
 export type BoomZone = "gruen" | "gelb" | "rot";
@@ -156,13 +157,32 @@ const SCENARIOS = {
 // ── Kernberechnung (wiederverwendbar für Router + Snapshot) ───────────────
 
 export async function computeKiBoomData(): Promise<KiBoomData> {
-  const [nvidiaData, mag7Data] = await Promise.allSettled([
+  const [nvidiaData, mag7Data, dynMetricsData] = await Promise.allSettled([
     fetchNvidiaMetrics(),
     fetchMagnificentSevenPerf(),
+    getLatestDynamicMetrics(),
   ]);
 
   const nvidia = nvidiaData.status === "fulfilled" ? nvidiaData.value : { price: 0, prevPrice: 0, pe: null };
   const mag7 = mag7Data.status === "fulfilled" ? mag7Data.value : { avgYtd: 0, prevAvgYtd: 0 };
+  const dyn = dynMetricsData.status === "fulfilled" ? dynMetricsData.value : {};
+
+  // Dynamische Werte mit Fallback auf STATIC_METRICS
+  const openAiLossRate = dyn["openai_loss_rate"]?.numericValue ?? STATIC_METRICS.openAiVerlustquote;
+  const openAiLossRateSource = dyn["openai_loss_rate"]?.source ?? "Research 2025";
+  const openAiRevenue = dyn["openai_revenue"]?.displayValue ?? STATIC_METRICS.openAiUmsatz2025;
+  const openAiValuation = dyn["openai_valuation"]?.displayValue ?? STATIC_METRICS.openAiBewertung;
+
+  const capexYoy = dyn["hyperscaler_capex_yoy"]?.numericValue ?? STATIC_METRICS.hyperscalerCapexWachstum;
+  const capexAbs = dyn["hyperscaler_capex_abs"]?.displayValue ?? STATIC_METRICS.hyperscalerCapex2026;
+  const capexSource = dyn["hyperscaler_capex_yoy"]?.source ?? "Research 2025";
+
+  const vcShare = dyn["vc_ai_share"]?.numericValue ?? STATIC_METRICS.vcAnteilKI;
+  const vcTotal = dyn["vc_total_volume"]?.displayValue ?? STATIC_METRICS.vcGesamtvolumen;
+  const vcSource = dyn["vc_ai_share"]?.source ?? "PitchBook 2025";
+
+  const roiRate = dyn["ai_roi_success_rate"]?.numericValue ?? STATIC_METRICS.pilotProjektROIQuote;
+  const roiSource = dyn["ai_roi_success_rate"]?.source ?? "McKinsey/Gartner 2025";
 
   const signals: SignalResult[] = [
     // 1. Nvidia-Kurs
@@ -206,67 +226,66 @@ export async function computeKiBoomData(): Promise<KiBoomData> {
       trend: calcTrend(mag7.avgYtd, mag7.prevAvgYtd),
     },
 
-    // 3. OpenAI Verlustquote
+    // 3. OpenAI Verlustquote (dynamisch via Perplexity)
     {
       label: "OpenAI Verlustquote",
-      value: `${STATIC_METRICS.openAiVerlustquote}%`,
-      numericValue: STATIC_METRICS.openAiVerlustquote,
-      zone: determineZone(STATIC_METRICS.openAiVerlustquote, 50, 70, false),
-      description: `OpenAI verliert ${STATIC_METRICS.openAiVerlust2025} bei ${STATIC_METRICS.openAiUmsatz2025} Umsatz (H1 2025). Verlustquote: ${STATIC_METRICS.openAiVerlustquote}%. Profitabilität frühestens 2029 erwartet.`,
+      value: `${openAiLossRate.toFixed(0)}%`,
+      numericValue: openAiLossRate,
+      zone: determineZone(openAiLossRate, 50, 70, false),
+      description: `OpenAI-Umsatz: ${openAiRevenue} | Bewertung: ${openAiValuation} | Verlustquote: ${openAiLossRate.toFixed(0)}% des Umsatzes. Profitabilität frühestens 2029 erwartet. (${openAiLossRateSource})`,
       warnThreshold: "> 50%",
       criticalThreshold: "> 70%",
       trend: "up",
     },
 
-    // 4. Hyperscaler CapEx-Wachstum
+    // 4. Hyperscaler CapEx-Wachstum (dynamisch via Perplexity)
     // Logik: Hohes Wachstum (>30%) = Überhitzung = Warnung (gelb)
     //        Normales Wachstum (5-30%) = OK (grün)
     //        Rückgang (<5%) = Warnung, Einbruch (<0%) = Kritisch
-    // Aktuell +81% = Überhitzungswarnung (gelb), KEIN Ausstiegssignal
     {
       label: "Hyperscaler CapEx-Wachstum",
-      value: `+${STATIC_METRICS.hyperscalerCapexWachstum}% YoY`,
-      numericValue: STATIC_METRICS.hyperscalerCapexWachstum,
-      zone: STATIC_METRICS.hyperscalerCapexWachstum > 30
+      value: `+${capexYoy.toFixed(0)}% YoY`,
+      numericValue: capexYoy,
+      zone: capexYoy > 30
         ? "gelb"  // Überhitzung: zu hohes Wachstum ist ein Warnsignal
-        : STATIC_METRICS.hyperscalerCapexWachstum >= 5
+        : capexYoy >= 5
           ? "gruen" // Normales Wachstum
-          : STATIC_METRICS.hyperscalerCapexWachstum >= 0
+          : capexYoy >= 0
             ? "gelb"  // Verlangsamung: Warnung
             : "rot",  // Rückgang: Kritisch (Boom bricht zusammen)
-      description: `Amazon, Google, Microsoft und Meta planen ${STATIC_METRICS.hyperscalerCapex2026} CapEx für 2026 – ein Wachstum von +${STATIC_METRICS.hyperscalerCapexWachstum}% YoY. ${
-        STATIC_METRICS.hyperscalerCapexWachstum > 30
-          ? "Überhitzungssignal: Exponentielles Wachstum ist strukturell nicht nachhaltig – Warnsignal."
-          : STATIC_METRICS.hyperscalerCapexWachstum >= 5
+      description: `Amazon, Google, Microsoft und Meta: ${capexAbs} CapEx – Wachstum +${capexYoy.toFixed(0)}% YoY. ${
+        capexYoy > 30
+          ? "Überhitzungssignal: Exponentielles Wachstum ist strukturell nicht nachhaltig."
+          : capexYoy >= 5
             ? "Normales Wachstum – Boom intakt."
-            : STATIC_METRICS.hyperscalerCapexWachstum >= 0
+            : capexYoy >= 0
               ? "Verlangsamung erkennbar – Warnsignal."
               : "CapEx-Rückgang – Boom bricht zusammen."
-      }`,
+      } (${capexSource})`,
       warnThreshold: "> 30% (Überhitzung) oder < 5% (Verlangsamung)",
       criticalThreshold: "< 0% (Rückgang = Boom-Ende)",
       trend: "up",
     },
 
-    // 5. VC-Anteil KI
+    // 5. VC-Anteil KI (dynamisch via Perplexity)
     {
       label: "VC-Anteil KI-Startups",
-      value: `${STATIC_METRICS.vcAnteilKI}%`,
-      numericValue: STATIC_METRICS.vcAnteilKI,
-      zone: determineZone(STATIC_METRICS.vcAnteilKI, 50, 40, true),
-      description: `${STATIC_METRICS.vcAnteilKI}% aller globalen VC-Investitionen (${STATIC_METRICS.vcGesamtvolumen}) flossen 2025 in KI-Unternehmen (PitchBook). Ein Rückgang unter 50% signalisiert nachlassendes Investorenvertrauen.`,
+      value: `${vcShare.toFixed(0)}%`,
+      numericValue: vcShare,
+      zone: determineZone(vcShare, 50, 40, true),
+      description: `${vcShare.toFixed(0)}% aller globalen VC-Investitionen (${vcTotal}) flossen in KI-Unternehmen. Ein Rückgang unter 50% signalisiert nachlassendes Investorenvertrauen. (${vcSource})`,
       warnThreshold: "< 50%",
       criticalThreshold: "< 40%",
       trend: "stable",
     },
 
-    // 6. KI-Pilotprojekte ROI
+    // 6. KI-Pilotprojekte ROI (dynamisch via Perplexity)
     {
       label: "KI-Projekt ROI-Erfolgsquote",
-      value: `${STATIC_METRICS.pilotProjektROIQuote}%`,
-      numericValue: STATIC_METRICS.pilotProjektROIQuote,
-      zone: determineZone(STATIC_METRICS.pilotProjektROIQuote, 30, 15, true),
-      description: `Nur ${STATIC_METRICS.pilotProjektROIQuote}% der KI-Pilotprojekte erreichen ihre ROI-Ziele (McKinsey/Gartner 2025). Solange die Monetarisierung nicht funktioniert, ist der Boom auf Hoffnungen gebaut.`,
+      value: `${roiRate.toFixed(0)}%`,
+      numericValue: roiRate,
+      zone: determineZone(roiRate, 30, 15, true),
+      description: `Nur ${roiRate.toFixed(0)}% der KI-Pilotprojekte erreichen ihre ROI-Ziele. Solange die Monetarisierung nicht funktioniert, ist der Boom auf Hoffnungen gebaut. (${roiSource})`,
       warnThreshold: "< 30%",
       criticalThreshold: "< 15%",
       trend: "stable",
@@ -409,5 +428,22 @@ export const kiBoomRouter = router({
   triggerSnapshot: publicProcedure.mutation(async () => {
     const result = await recordKiBoomSnapshot();
     return { success: true, ...result };
+  }),
+
+  /**
+   * Liefert die zuletzt gecachten dynamischen Metriken aus der DB
+   */
+  getDynamicMetrics: publicProcedure.query(async () => {
+    const metrics = await getLatestDynamicMetrics();
+    return { metrics };
+  }),
+
+  /**
+   * Manuell einen Perplexity-Fetch der dynamischen Metriken auslösen
+   */
+  triggerDynamicFetch: publicProcedure.mutation(async () => {
+    const { fetchAndSaveDynamicMetrics } = await import("../cron/kiBoomDynamicMetricsFetcher");
+    const result = await fetchAndSaveDynamicMetrics();
+    return { success: result.saved > 0, saved: result.saved, errors: result.errors };
   }),
 });

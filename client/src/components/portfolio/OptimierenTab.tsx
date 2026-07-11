@@ -1050,43 +1050,63 @@ export default function OptimierenTab({
                     </div>
                   </div>
                 )}
-                {/* Buys: Ersatz-Kandidaten */}
-                {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
-                  <div className="mb-3">
-                    <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">Käufe — Ersatz-Kandidaten</p>
-                    <div className="space-y-1">
-                      {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).map((rep) => {
-                        const buyTicker = rep.suggestions[0].ticker;
-                        return (
-                          <div key={buyTicker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
-                            <span className="font-mono font-semibold text-emerald-300">{buyTicker}</span>
-                            <span className="text-emerald-400 font-semibold">↑ Kauf {fmtChf(rep.cashRequired)}</span>
+                {/* Buys: Ersatz-Kandidaten + Neue Kandidaten — mit Skalierung wenn Cash-Constraint */}
+                {(() => {
+                  const sellTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
+                  const buyReplTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
+                  const buyAddTotal = upgradeData.additionSuggestions.slice(0, numAdditions).reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
+                  const totalBuys = buyReplTotal + buyAddTotal;
+                  const availableBudget = (cashBalance ?? 0) + sellTotal;
+                  const willScale = totalBuys > availableBudget + 0.01;
+                  const scaleFactor = willScale ? availableBudget / totalBuys : 1;
+                  return (
+                    <>
+                      {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">Käufe — Ersatz-Kandidaten</p>
+                          <div className="space-y-1">
+                            {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).map((rep) => {
+                              const buyTicker = rep.suggestions[0].ticker;
+                              const scaledAmt = rep.cashRequired * scaleFactor;
+                              return (
+                                <div key={buyTicker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
+                                  <span className="font-mono font-semibold text-emerald-300">{buyTicker}</span>
+                                  <span className="text-emerald-400 font-semibold">
+                                    ↑ Kauf {fmtChf(scaledAmt)}
+                                    {willScale && <span className="text-gray-500 ml-1 line-through text-[10px]">{fmtChf(rep.cashRequired)}</span>}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {/* Buys: Neue Ergänzungen */}
-                {upgradeData.additionSuggestions.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Käufe — Neue Kandidaten</p>
-                    <div className="space-y-1">
-                      {upgradeData.additionSuggestions.slice(0, numAdditions).map((c: any) => {
-                        const amtCHF = c.estimatedWeight * (totalValueCHF ?? 0);
-                        return (
-                          <div key={c.ticker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
-                            <span className="font-mono font-semibold text-indigo-300">{c.ticker}</span>
-                            <span className="text-indigo-400 font-semibold">↑ Kauf {fmtChf(amtCHF)}</span>
-                          </div>
-                        );
-                      })}
-                      {upgradeData.additionSuggestions.length > 5 && (
-                        <p className="text-[10px] text-gray-600 text-center">… und {upgradeData.additionSuggestions.length - 5} weitere</p>
+                        </div>
                       )}
-                    </div>
-                  </div>
-                )}
+                      {upgradeData.additionSuggestions.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Käufe — Neue Kandidaten</p>
+                          <div className="space-y-1">
+                            {upgradeData.additionSuggestions.slice(0, numAdditions).map((c: any) => {
+                              const amtCHF = c.estimatedWeight * (totalValueCHF ?? 0);
+                              const scaledAmt = amtCHF * scaleFactor;
+                              return (
+                                <div key={c.ticker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
+                                  <span className="font-mono font-semibold text-indigo-300">{c.ticker}</span>
+                                  <span className="text-indigo-400 font-semibold">
+                                    ↑ Kauf {fmtChf(scaledAmt)}
+                                    {willScale && <span className="text-gray-500 ml-1 line-through text-[10px]">{fmtChf(amtCHF)}</span>}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {upgradeData.additionSuggestions.length > 5 && (
+                              <p className="text-[10px] text-gray-600 text-center">… und {upgradeData.additionSuggestions.length - 5} weitere</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
                 {/* Snapshot-Checkbox + Kandidaten-Slider */}
                 <div className="mb-4 space-y-3">
                   {/* Slider: Anzahl neue Kandidaten */}
