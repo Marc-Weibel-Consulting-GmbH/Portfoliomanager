@@ -83,6 +83,8 @@ export interface OptimizeInput {
   minPositionChf?: number; // Mindest-Positionsgrösse CHF (Default 3'000)
   minPositionWeight?: number; // Einzelposition-Untergrenze als Anteil 0..1 (Default 0.01)
   maxPositionWeight?: number; // Einzelposition-Obergrenze als Anteil 0..1 (Default 0.10)
+  /** Current portfolio weights as {ticker: weight 0..1}. Used to plot the actual portfolio on the frontier. */
+  currentWeights?: Record<string, number>;
 }
 
 export interface TechnicalAnalysisInput {
@@ -491,30 +493,34 @@ function buildEfficientFrontier(
   mu: number[],
   cov: number[][],
   riskFreeRate: number,
+  tickers: string[],
   numPoints = 30,
   minWeight = 0.01,
   maxWeight = 0.10
-): Array<{ expectedReturn: number; volatility: number; sharpe: number }> {
+): Array<{ expectedReturn: number; volatility: number; sharpe: number; topWeights: Array<{ ticker: string; weight: number }> }> {
   const minRet = Math.min(...mu);
   const maxRet = Math.max(...mu);
+  const retRange = maxRet - minRet;
   const n = mu.length;
-  // R-34b: the frontier must respect the SAME weight bounds as the optimizer,
-  // otherwise the constrained optimum is inconsistent with the displayed curve.
+  // R-34b: the frontier must respect the SAME weight bounds as the optimizer
   const { minW, maxW } = effectiveBounds(n, minWeight, maxWeight);
-  const frontier: Array<{ expectedReturn: number; volatility: number; sharpe: number }> = [];
+  const frontier: Array<{ expectedReturn: number; volatility: number; sharpe: number; topWeights: Array<{ ticker: string; weight: number }> }> = [];
+
+  // Use wider tolerance when return range is narrow (concentrated portfolios)
+  const tolerance = retRange < 0.03 ? 0.15 : 0.08;
 
   for (let i = 0; i < numPoints; i++) {
-    const targetRet = minRet + (i / (numPoints - 1)) * (maxRet - minRet);
+    const targetRet = minRet + (i / (numPoints - 1)) * retRange;
 
     // Find min-variance portfolio for this target return
     let bestVol = Infinity;
     let bestW: number[] = [];
 
-    // Random search for feasible portfolios near target return
-    for (let trial = 0; trial < 500; trial++) {
+    // More trials for better curve shape, wider tolerance for narrow-range portfolios
+    for (let trial = 0; trial < 2000; trial++) {
       const w = randomBoundedWeights(n, minW, maxW);
       const { ret, vol } = portfolioStats(w, mu, cov);
-      if (Math.abs(ret - targetRet) < 0.05 * (maxRet - minRet) && vol < bestVol) {
+      if (Math.abs(ret - targetRet) < tolerance * retRange && vol < bestVol) {
         bestVol = vol;
         bestW = w;
       }
@@ -522,10 +528,16 @@ function buildEfficientFrontier(
 
     if (bestW.length > 0) {
       const { ret, vol } = portfolioStats(bestW, mu, cov);
+      // Build top-5 weights for tooltip
+      const weightedTickers = tickers.map((t, i) => ({ ticker: t, weight: bestW[i] ?? 0 }))
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 5)
+        .map(({ ticker, weight }) => ({ ticker, weight: Math.round(weight * 1000) / 10 }));
       frontier.push({
         expectedReturn: Math.round(ret * 10000) / 10000,
         volatility: Math.round(vol * 10000) / 10000,
         sharpe: vol > 0 ? Math.round(((ret - riskFreeRate) / vol) * 1000) / 1000 : 0,
+        topWeights: weightedTickers,
       });
     }
   }
@@ -1202,7 +1214,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
       },
       weights: weightsMapHrp,
       assets: assetStatsHrp,
-      efficientFrontier: buildEfficientFrontier(mu, cov, riskFreeRate, 30),
+      efficientFrontier: buildEfficientFrontier(mu, cov, riskFreeRate, available, 30),
       tickers: available,
       droppedPositions: droppedHrp,
       minPositionChf: MIN_POSITION_CHF_HRP,
@@ -1271,12 +1283,19 @@ export async function optimizePortfolio(input: OptimizeInput) {
 
   const { ret: optRet, vol: optVol, sharpe: optSharpe } = portfolioStats(finalWeights, mu, cov);
 
-  // Current portfolio (equal weight)
-  const equalWeights = new Array(n).fill(1 / n);
-  const { ret: currRet, vol: currVol, sharpe: currSharpe } = portfolioStats(equalWeights, mu, cov);
+  // Current portfolio: use actual weights if provided, else fall back to equal weight
+  const actualWeights: number[] = available.map((ticker) => {
+    const w = input.currentWeights?.[ticker];
+    return w !== undefined && w > 0 ? w : 0;
+  });
+  const actualWeightSum = actualWeights.reduce((s, w) => s + w, 0);
+  const currentWeightsArr = actualWeightSum > 0.5
+    ? actualWeights.map(w => w / actualWeightSum) // normalise to sum=1
+    : new Array(n).fill(1 / n); // fallback: equal weight
+  const { ret: currRet, vol: currVol, sharpe: currSharpe } = portfolioStats(currentWeightsArr, mu, cov);
 
   // Efficient frontier
-  const efficientFrontier = buildEfficientFrontier(mu, cov, riskFreeRate, 30);
+  const efficientFrontier = buildEfficientFrontier(mu, cov, riskFreeRate, available, 30);
 
   // Per-asset stats
   const assetStats = available.map((ticker, i) => {

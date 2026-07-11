@@ -100,6 +100,8 @@ export const analyticsRouter = router({
         method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp"]).default("max_sharpe"),
         // R-34c (additiv): Portfoliowert in CHF für die Mindest-Positionsgrösse CHF 3'000
         portfolioValue: z.number().positive().optional(),
+        // Current portfolio weights {ticker: weight 0..1} to plot actual portfolio on frontier
+        currentWeights: z.record(z.string(), z.number()).optional(),
       })
     )
     .query(async ({ input, ctx }) => {
@@ -146,6 +148,7 @@ export const analyticsRouter = router({
           minPositionChf: rules.minPositionAmountCHF,
           minPositionWeight,
           maxPositionWeight,
+          currentWeights: input.currentWeights,
         });
       } catch (err: any) {
         throw new TRPCError({

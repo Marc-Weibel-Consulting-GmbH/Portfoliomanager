@@ -219,6 +219,8 @@ export default function OptimierenTab({
       method,
       // R-34c: Portfoliowert für die Mindest-Positionsgrösse CHF 3'000 (Server-Post-Filter)
       ...(totalValueCHF && totalValueCHF > 0 ? { portfolioValue: totalValueCHF } : {}),
+      // Pass actual weights so backend can compute the real current portfolio point
+      ...(Object.keys(currentWeights).length > 0 ? { currentWeights } : {}),
     },
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 5 * 60 * 1000 }
   );
@@ -229,6 +231,7 @@ export default function OptimierenTab({
       x: parseFloat((p.volatility * 100).toFixed(2)),
       y: parseFloat((p.expectedReturn * 100).toFixed(2)),
       sharpe: parseFloat(p.sharpe.toFixed(2)),
+      topWeights: (p.topWeights ?? []) as Array<{ ticker: string; weight: number }>,
     }));
   }, [result]);
 
@@ -471,10 +474,22 @@ export default function OptimierenTab({
                             if (active && payload?.length) {
                               const d = payload[0].payload;
                               return (
-                                <div className="bg-[#1a1f2e] border border-[#00CFC1]/40 rounded p-2 text-xs text-white">
-                                  <p>Rendite: {d.y}%</p>
-                                  <p>Volatilität: {d.x}%</p>
-                                  {d.sharpe !== undefined && <p>Sharpe: {d.sharpe}</p>}
+                                <div className="bg-[#1a1f2e] border border-[#00CFC1]/40 rounded p-2 text-xs text-white min-w-[160px]">
+                                  <p className="font-semibold text-[#00CFC1] mb-1">Frontier-Portfolio</p>
+                                  <p>Rendite: <span className="text-green-400">{d.y}%</span></p>
+                                  <p>Volatilität: <span className="text-amber-400">{d.x}%</span></p>
+                                  {d.sharpe !== undefined && <p>Sharpe: <span className="text-white">{d.sharpe}</span></p>}
+                                  {d.topWeights?.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-white/10">
+                                      <p className="text-gray-400 mb-1">Top-Gewichte:</p>
+                                      {d.topWeights.map((tw: { ticker: string; weight: number }) => (
+                                        <p key={tw.ticker} className="flex justify-between gap-3">
+                                          <span className="text-gray-300">{tw.ticker}</span>
+                                          <span className="text-white font-medium">{tw.weight}%</span>
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }
