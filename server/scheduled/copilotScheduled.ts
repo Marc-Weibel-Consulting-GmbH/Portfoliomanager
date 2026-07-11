@@ -11,7 +11,7 @@ import { Request, Response } from "express";
 import { sdk } from "../_core/sdk";
 import { notifyOwner } from "../_core/notification";
 import { getDb } from "../db";
-import { savedPortfolios, watchlistStocks } from "../../drizzle/schema";
+import { savedPortfolios } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { runWalkForwardValidation, getWatchlistTickers } from "../analytics/walkForwardEngine";
 import { evaluateRecommendations } from "../analytics/copilotHistory";

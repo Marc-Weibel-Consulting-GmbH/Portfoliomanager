@@ -147,16 +147,17 @@ export async function snapshotSignalsForPortfolio(): Promise<void> {
 
   try {
     const { getDb } = await import("../db");
-    const { watchlistStocks, signalHistory } = await import("../../drizzle/schema");
+    const { stocks, signalHistory } = await import("../../drizzle/schema");
+    const { activeCurated } = await import("../lib/stockUniverse");
     const { runSignalOrchestrator } = await import("../lib/signals/signalOrchestrator");
     const db = await getDb();
     if (!db) return;
 
     // F-14: Aktive Watchlist-Titel statt der stocks-Tabelle (Cap: 100)
     const allStocks = await db
-      .select({ ticker: watchlistStocks.ticker, currentPrice: watchlistStocks.currentPrice })
-      .from(watchlistStocks)
-      .where(eq(watchlistStocks.isActive, 1))
+      .select({ ticker: stocks.ticker, currentPrice: stocks.currentPrice })
+      .from(stocks)
+      .where(activeCurated())
       .limit(100);
 
     // Yahoo Finance Instanz einmalig erstellen (v3 API)

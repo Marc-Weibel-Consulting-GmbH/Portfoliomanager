@@ -20,7 +20,8 @@
  */
 
 import { getDb } from "../db";
-import { watchlistStocks, signalWeights } from "../../drizzle/schema";
+import { stocks, signalWeights } from "../../drizzle/schema";
+import { activeCurated } from "../lib/stockUniverse";
 import { eq, desc } from "drizzle-orm";
 import { randomForestSignal } from "./mlEngine";
 
@@ -506,8 +507,8 @@ export async function runOptimizer(
 
   const allStocks = await db
     .select()
-    .from(watchlistStocks)
-    .where(eq(watchlistStocks.isActive, 1));
+    .from(stocks)
+    .where(activeCurated());
 
   logMsg(`${allStocks.length} aktive Watchlist-Titel gefunden`);
 

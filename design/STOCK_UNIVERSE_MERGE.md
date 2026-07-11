@@ -40,9 +40,28 @@ Regeln:
 
 | Phase | Inhalt | Status |
 |---|---|---|
-| **1** | Additive Spalten auf `stocks`; idempotente Admin-Aktion „Universum zusammenführen" (Upsert `watchlistStocks` → `stocks` per Ticker); Design-Doc. Kein Consumer umgestellt → Verhalten identisch. Braucht `pnpm db:push`. | in Arbeit |
-| **2** | Alle Watchlist/Invest/Wikifolio/Analytics/Optimizer/Signal/Dashboard/Cron-Zugriffe auf `stocks` umstellen. | offen |
+| **1** | Additive Spalten auf `stocks`; idempotente Admin-Aktion „Universum zusammenführen" (Upsert `watchlistStocks` → `stocks` per Ticker); Design-Doc. Kein Consumer umgestellt → Verhalten identisch. Braucht `pnpm db:push`. | ✅ (PR #99) |
+| **2** | Alle Watchlist/Invest/Wikifolio/Analytics/Optimizer/Signal/Dashboard/Cron-Zugriffe auf `stocks` umstellen (Filter `curated()` = listType != NULL erhält das bisherige Verhalten). | vorbereitet |
 | **3** | `watchlistStocks` (Tabelle + Typ + Restreferenzen) entfernen. | offen |
+
+## Phase 2 — Umstellungsdetails
+
+Helper `server/lib/stockUniverse.ts`: `curated()` = `isNotNull(stocks.listType)`,
+`activeCurated()` = `isActive=1 AND listType != NULL`. Jede frühere
+`watchlistStocks`-Abfrage (die nur kuratierte Zeilen sah) bekommt diesen Filter,
+damit reine Portfolio-Stammdaten (listType = NULL) nicht ins Universum lecken.
+
+Semantische Feinheiten im `watchlistRouter`:
+- **add**: existiert der Ticker bereits als Portfolio-Stammdatum (listType = NULL),
+  wird er kuratiert statt „bereits vorhanden"-Fehler; neue Titel → listType='watchlist'.
+- **remove**: **kein** Hard-Delete mehr (die Zeile kann Portfolio-Stammdatum sein) —
+  stattdessen `listType = NULL` (aus dem Universum nehmen).
+- **generateRecommendations / Wikifolio-Import**: Dedup gegen alle `stocks`
+  (Ticker ist UNIQUE); Overwrite kuratiert eine bisher reine Stammdaten-Zeile.
+
+**Wichtig:** Phase 2 darf erst deployen, nachdem Phase 1 auf Prod migriert
+(`db:push`) und „Universum zusammenführen" ausgeführt wurde — sonst ist die
+Kuratierungsspalte leer und `/aktien` erschiene leer.
 
 ## Migration/Backfill (Phase 1)
 

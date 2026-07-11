@@ -10,7 +10,8 @@ import { Request, Response } from "express";
 import { sdk } from "../_core/sdk";
 import { invokeLLM } from "../_core/llm";
 import { getDb } from "../db";
-import { watchlistStocks, savedPortfolios, portfolioTransactions, stocks as stocksTable } from "../../drizzle/schema";
+import { savedPortfolios, portfolioTransactions, stocks as stocksTable } from "../../drizzle/schema";
+import { curated } from "../lib/stockUniverse";
 import { eq, and, inArray, isNotNull } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
 
@@ -30,8 +31,9 @@ export async function handleWeeklyReview(req: Request, res: Response) {
 
     // Gather portfolio and watchlist data
     const watchlistTickers = await db
-      .select({ ticker: watchlistStocks.ticker })
-      .from(watchlistStocks);
+      .select({ ticker: stocksTable.ticker })
+      .from(stocksTable)
+      .where(curated());
 
     const portfolios = await db
       .select()

@@ -26,7 +26,8 @@ export async function checkWatchlistAlerts() {
 
   try {
     const { getDb } = await import("../db");
-    const { watchlistStocks } = await import("../../drizzle/schema");
+    const { stocks: stocksTable } = await import("../../drizzle/schema");
+    const { activeCurated } = await import("../lib/stockUniverse");
     const { eq, and } = await import("drizzle-orm");
     const YahooFinanceClass = (await import("yahoo-finance2")).default;
     const yahooFinance: any = new (YahooFinanceClass as any)();
@@ -46,8 +47,8 @@ export async function checkWatchlistAlerts() {
     // Get all active watchlist stocks
     const stocks = await db
       .select()
-      .from(watchlistStocks)
-      .where(eq(watchlistStocks.isActive, 1));
+      .from(stocksTable)
+      .where(activeCurated());
 
     if (stocks.length === 0) {
       console.log("[watchlistAlertsCron] No active watchlist stocks to check");
@@ -137,7 +138,7 @@ export async function checkWatchlistAlerts() {
         const previousScore = stock.signalScore || 50;
 
         // Update the stock in DB with new metrics
-        await db.update(watchlistStocks).set({
+        await db.update(stocksTable).set({
           currentPrice: current?.toString() || stock.currentPrice,
           peRatio: pe?.toString() || stock.peRatio,
           pegRatio: peg?.toString() || stock.pegRatio,
@@ -147,7 +148,7 @@ export async function checkWatchlistAlerts() {
           signalScore,
           signalType: signalType as "buy" | "sell" | "hold",
           lastMetricsUpdate: new Date(),
-        }).where(eq(watchlistStocks.id, stock.id));
+        }).where(eq(stocksTable.id, stock.id));
 
         // Check for strong signals (score change of 15+ or absolute strong signal)
         if (signalScore >= 75 && (previousScore < 70 || signalScore - previousScore >= 10)) {
@@ -176,10 +177,10 @@ export async function checkWatchlistAlerts() {
           console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}: ${errMsg}`);
           // Mark as inactive if consistently failing
           try {
-            await db.update(watchlistStocks).set({
+            await db.update(stocksTable).set({
               signalType: 'hold' as const,
               lastMetricsUpdate: new Date(),
-            }).where(eq(watchlistStocks.id, stock.id));
+            }).where(eq(stocksTable.id, stock.id));
           } catch {}
         } else {
           console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}:`, err);

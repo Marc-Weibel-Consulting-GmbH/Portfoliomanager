@@ -13,7 +13,7 @@ import { getQualityMetrics } from "../lib/qualityMetricsService";
 import { invokeLLM } from "../_core/llm";
 import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
 import { getDb } from "../db";
-import { watchlistStocks, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
+import { stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
 const HoldingSchema = z.object({
@@ -371,11 +371,11 @@ Gib eine strukturierte Analyse zurück.`;
         // Alle aktiven Kandidaten aus Watchlist + Empfehlungen laden
         const candidates = await db
           .select()
-          .from(watchlistStocks)
+          .from(stocksTable)
           .where(
             and(
-              eq(watchlistStocks.isActive, 1),
-              inArray(watchlistStocks.listType, ["empfehlung", "watchlist"])
+              eq(stocksTable.isActive, 1),
+              inArray(stocksTable.listType, ["empfehlung", "watchlist"])
             )
           );
 
