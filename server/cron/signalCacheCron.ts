@@ -10,7 +10,8 @@
 
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
-import { stockSignalCache, watchlistStocks } from "../../drizzle/schema";
+import { stockSignalCache, stocks } from "../../drizzle/schema";
+import { activeCurated } from "../lib/stockUniverse";
 
 let isRunning = false;
 
@@ -37,12 +38,12 @@ export async function refreshSignalCache(): Promise<void> {
     // Get all active watchlist stocks
     const allStocks = await db
       .select({
-        ticker: watchlistStocks.ticker,
-        companyName: watchlistStocks.companyName,
-        currentPrice: watchlistStocks.currentPrice,
+        ticker: stocks.ticker,
+        companyName: stocks.companyName,
+        currentPrice: stocks.currentPrice,
       })
-      .from(watchlistStocks)
-      .where(eq(watchlistStocks.isActive, 1))
+      .from(stocks)
+      .where(activeCurated())
       .limit(250);
 
     console.log(`[signalCacheCron] Processing ${allStocks.length} stocks...`);

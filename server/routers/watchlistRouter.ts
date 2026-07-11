@@ -1,10 +1,14 @@
 import { z } from "zod";
 import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { watchlistStocks } from "../../drizzle/schema";
+// Universum-Merge Phase 2: die kuratierte Watchlist lebt jetzt in der vereinten
+// `stocks`-Tabelle (Alias watchlistStocks minimiert die Umstellung). `curated()`
+// grenzt auf listType != NULL ein — reine Portfolio-Stammdaten bleiben aussen vor.
+import { stocks as watchlistStocks } from "../../drizzle/schema";
 import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, searchWikifolios, getWikifolioTrades, getWikifolioKeyFigures } from '../lib/wikifolioService';
 import { resolveIsinToTicker, isLikelyIsin } from '../lib/isinResolver';
 import { getUniverseListTypeFilter } from '../lib/watchlistUniverse';
+import { curated } from '../lib/stockUniverse';
 import { eq, like, or, and, desc, asc, sql, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
 import { getActiveWeights, type WeightConfig } from "../analytics/optimizerWorker";
@@ -101,7 +105,8 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const conditions: any[] = [];
+      // Nur das kuratierte Universum (nicht die reinen Portfolio-Stammdaten).
+      const conditions: any[] = [curated()];
 
       if (input.source && input.source !== "all") {
         conditions.push(eq(watchlistStocks.source, input.source as "manual" | "ai_recommended" | "wikifolio"));
@@ -132,16 +137,14 @@ export const watchlistRouter = router({
         : input.sortBy === "signalScore" ? watchlistStocks.signalScore
         : input.sortBy === "peRatio" ? watchlistStocks.peRatio
         : input.sortBy === "dividendYield" ? watchlistStocks.dividendYield
-        : watchlistStocks.addedAt;
+        : watchlistStocks.createdAt; // stocks-Tabelle: createdAt statt addedAt
 
       const orderFn = input.sortOrder === "asc" ? asc : desc;
 
-      const query = conditions.length > 0
-        ? db.select().from(watchlistStocks).where(and(...conditions)).orderBy(orderFn(orderCol)).limit(input.limit)
-        : db.select().from(watchlistStocks).orderBy(orderFn(orderCol)).limit(input.limit);
+      const query = db.select().from(watchlistStocks).where(and(...conditions)).orderBy(orderFn(orderCol)).limit(input.limit);
 
       const results = await query;
-      const totalCount = await db.select({ count: count() }).from(watchlistStocks);
+      const totalCount = await db.select({ count: count() }).from(watchlistStocks).where(curated());
 
       return {
         stocks: results,
@@ -159,11 +162,11 @@ export const watchlistRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-    const total = await db.select({ count: count() }).from(watchlistStocks);
-    const manual = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.source, "manual"));
-    const aiRecommended = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.source, "ai_recommended"));
-    const buySignals = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.signalType, "buy"));
-    const sellSignals = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.signalType, "sell"));
+    const total = await db.select({ count: count() }).from(watchlistStocks).where(curated());
+    const manual = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.source, "manual")));
+    const aiRecommended = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.source, "ai_recommended")));
+    const buySignals = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.signalType, "buy")));
+    const sellSignals = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.signalType, "sell")));
     // F-13: counts per listType for the merged Empfehlungen/Watchlist view
     const empfehlung = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "empfehlung"));
     const watchlistOnly = await db.select({ count: count() }).from(watchlistStocks).where(eq(watchlistStocks.listType, "watchlist"));
@@ -235,7 +238,7 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const rows = await db.select({ id: watchlistStocks.id, ticker: watchlistStocks.ticker }).from(watchlistStocks);
+      const rows = await db.select({ id: watchlistStocks.id, ticker: watchlistStocks.ticker }).from(watchlistStocks).where(curated());
       const isinRows = rows.filter((r: any) => isLikelyIsin(r.ticker));
 
       let resolved = 0;
@@ -297,15 +300,16 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      // Check max 200 limit
-      const currentCount = await db.select({ count: count() }).from(watchlistStocks);
+      // Check max 200 limit (nur kuratierte Titel zählen)
+      const currentCount = await db.select({ count: count() }).from(watchlistStocks).where(curated());
       if ((currentCount[0]?.count || 0) >= 200) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Maximale Anzahl von 200 Titeln erreicht" });
       }
 
-      // Check if ticker already exists
+      // Existiert der Ticker bereits in der stocks-Tabelle?
       const existing = await db.select().from(watchlistStocks).where(eq(watchlistStocks.ticker, input.ticker)).limit(1);
-      if (existing.length > 0) {
+      // Bereits im kuratierten Universum → Konflikt.
+      if (existing.length > 0 && existing[0].listType != null) {
         throw new TRPCError({ code: "CONFLICT", message: `${input.ticker} ist bereits in der Watchlist` });
       }
 
@@ -336,8 +340,7 @@ export const watchlistRouter = router({
         console.warn(`[Watchlist] Failed to fetch metrics for ${input.ticker}:`, err);
       }
 
-      await db.insert(watchlistStocks).values({
-        ticker: input.ticker,
+      const curationValues = {
         companyName: input.companyName,
         sector: input.sector || null,
         industry: input.industry || null,
@@ -345,7 +348,8 @@ export const watchlistRouter = router({
         country: input.country || null,
         currency: input.currency || metrics.currency || null,
         notes: input.notes || null,
-        source: "manual",
+        source: "manual" as const,
+        listType: "watchlist" as const, // neue Titel landen im Staging
         currentPrice: metrics.currentPrice || null,
         marketCap: metrics.marketCap || null,
         peRatio: metrics.peRatio || null,
@@ -355,7 +359,14 @@ export const watchlistRouter = router({
         week52High: metrics.week52High || null,
         week52Low: metrics.week52Low || null,
         lastMetricsUpdate: new Date(),
-      });
+      };
+
+      if (existing.length > 0) {
+        // Portfolio-Stammdatum (listType = NULL) existiert bereits → ins Universum aufnehmen.
+        await db.update(watchlistStocks).set(curationValues).where(eq(watchlistStocks.id, existing[0].id));
+      } else {
+        await db.insert(watchlistStocks).values({ ticker: input.ticker, ...curationValues });
+      }
 
       return { success: true, message: `${input.ticker} zur Watchlist hinzugefügt` };
     }),
@@ -371,7 +382,11 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      await db.delete(watchlistStocks).where(eq(watchlistStocks.id, input.id));
+      // Universum-Merge: NICHT löschen — die Zeile kann Portfolio-Stammdatum sein.
+      // Stattdessen aus dem Universum entfernen (Kuratierung zurücksetzen).
+      await db.update(watchlistStocks)
+        .set({ listType: null, source: null })
+        .where(eq(watchlistStocks.id, input.id));
       return { success: true };
     }),
 
@@ -417,7 +432,7 @@ export const watchlistRouter = router({
       if (input?.tickerId) {
         stocksToRefresh = await db.select().from(watchlistStocks).where(eq(watchlistStocks.id, input.tickerId));
       } else {
-        stocksToRefresh = await db.select().from(watchlistStocks);
+        stocksToRefresh = await db.select().from(watchlistStocks).where(curated());
       }
 
       let updated = 0;
@@ -514,8 +529,8 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      // Check how many slots are available
-      const currentCount = await db.select({ count: count() }).from(watchlistStocks);
+      // Check how many slots are available (nur kuratierte Titel zählen)
+      const currentCount = await db.select({ count: count() }).from(watchlistStocks).where(curated());
       const available = 200 - (currentCount[0]?.count || 0);
       const maxNew = Math.min(input?.maxNew || 10, available);
 
@@ -627,6 +642,7 @@ export const watchlistRouter = router({
             currency: price?.currency || null,
             marketCap: price?.marketCap?.toString() || null,
             source: "ai_recommended",
+            listType: "watchlist", // KI-Vorschläge landen im Staging
             aiReason: reasons.join("; "),
             currentPrice: current?.toString() || null,
             peRatio: pe?.toString() || null,
@@ -665,8 +681,8 @@ export const watchlistRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-    const categories = await db.selectDistinct({ category: watchlistStocks.category }).from(watchlistStocks).where(sql`${watchlistStocks.category} IS NOT NULL`);
-    const sectors = await db.selectDistinct({ sector: watchlistStocks.sector }).from(watchlistStocks).where(sql`${watchlistStocks.sector} IS NOT NULL`);
+    const categories = await db.selectDistinct({ category: watchlistStocks.category }).from(watchlistStocks).where(and(curated(), sql`${watchlistStocks.category} IS NOT NULL`));
+    const sectors = await db.selectDistinct({ sector: watchlistStocks.sector }).from(watchlistStocks).where(and(curated(), sql`${watchlistStocks.sector} IS NOT NULL`));
 
     return {
       categories: categories.map(c => c.category).filter(Boolean) as string[],
@@ -687,7 +703,7 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const conditions: any[] = [eq(watchlistStocks.isActive, 1)];
+      const conditions: any[] = [eq(watchlistStocks.isActive, 1), curated()];
 
       // F-13: universe = Empfehlungen (fallback to all active rows while none are marked yet)
       const universeType = await getUniverseListTypeFilter(db);
@@ -964,9 +980,12 @@ export const watchlistRouter = router({
           }
 
           if (existing.length > 0 && input.overwriteExisting) {
-            // Overwrite: update all enrichable fields
+            // Overwrite: update all enrichable fields + ins Universum aufnehmen
+            // (falls die Zeile bisher reines Portfolio-Stammdatum war).
             await db.update(watchlistStocks).set({
               companyName,
+              source: 'wikifolio',
+              listType: 'watchlist',
               currentPrice: item.close?.toString() || null,
               notes,
               ...(sector ? { sector } : {}),

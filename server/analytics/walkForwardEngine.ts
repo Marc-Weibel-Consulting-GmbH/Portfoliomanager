@@ -16,7 +16,8 @@
  */
 
 import { getDb } from "../db";
-import { historicalPrices, watchlistStocks, walkForwardResults } from "../../drizzle/schema";
+import { historicalPrices, stocks, walkForwardResults } from "../../drizzle/schema";
+import { activeCurated } from "../lib/stockUniverse";
 import { eq, and, gte, lte, asc, desc, inArray, sql } from "drizzle-orm";
 import { getEodhdApiKey } from "../_core/env";
 
@@ -217,12 +218,12 @@ export async function getWatchlistTickers(): Promise<string[]> {
   const db = await getDb();
   if (!db) return [];
 
-  const stocks = await db
-    .select({ ticker: watchlistStocks.ticker })
-    .from(watchlistStocks)
-    .where(eq(watchlistStocks.isActive, 1));
+  const rows = await db
+    .select({ ticker: stocks.ticker })
+    .from(stocks)
+    .where(activeCurated());
 
-  return stocks.map(s => s.ticker.trim().toUpperCase());
+  return rows.map(s => s.ticker.trim().toUpperCase());
 }
 
 // ============ SCORING ENGINE ============

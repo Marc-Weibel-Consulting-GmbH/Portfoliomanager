@@ -2384,10 +2384,11 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
 
     // Top-Movers aus Watchlist/Portfolio des Users
     const { getSavedPortfolios, getDb } = await import('../db');
-    const { watchlistStocks } = await import('../../drizzle/schema');
+    const { stocks } = await import('../../drizzle/schema');
+    const { curated } = await import('../lib/stockUniverse');
     const portfolios = await getSavedPortfolios(ctx.user.id);
     const db2 = await getDb();
-    const watchlist = db2 ? await db2.select({ ticker: watchlistStocks.ticker }).from(watchlistStocks).limit(50) : [];
+    const watchlist = db2 ? await db2.select({ ticker: stocks.ticker }).from(stocks).where(curated()).limit(50) : [];
     const portfolioTickers = new Set<string>();
     portfolios.forEach(p => {
       try {

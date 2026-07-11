@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { watchlistStocks } from "../../drizzle/schema";
+import { stocks } from "../../drizzle/schema";
+import { curated } from "../lib/stockUniverse";
 import { eq, like, or, and, desc, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
 import { getUniverseListTypeFilter } from "../lib/watchlistUniverse";
@@ -242,19 +243,19 @@ export const investRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const conditions: any[] = [eq(watchlistStocks.isActive, 1)];
+      const conditions: any[] = [eq(stocks.isActive, 1)];
 
       // F-13: /aktien shows only Empfehlungen (fallback to all active rows while none are marked yet)
       const universeType = await getUniverseListTypeFilter(db);
-      if (universeType) conditions.push(eq(watchlistStocks.listType, universeType));
+      if (universeType) conditions.push(eq(stocks.listType, universeType));
 
-      if (input.category) conditions.push(eq(watchlistStocks.category, input.category));
-      if (input.sector) conditions.push(eq(watchlistStocks.sector, input.sector));
-      if (input.signalType) conditions.push(eq(watchlistStocks.signalType, input.signalType));
+      if (input.category) conditions.push(eq(stocks.category, input.category));
+      if (input.sector) conditions.push(eq(stocks.sector, input.sector));
+      if (input.signalType) conditions.push(eq(stocks.signalType, input.signalType));
 
-      let results = await db.select().from(watchlistStocks)
+      let results = await db.select().from(stocks)
         .where(and(...conditions))
-        .orderBy(desc(watchlistStocks.signalScore))
+        .orderBy(desc(stocks.signalScore))
         .limit(input.limit);
 
       // Apply numeric filters in-memory (since they're stored as varchar)
@@ -280,12 +281,12 @@ export const investRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-    const categories = await db.selectDistinct({ category: watchlistStocks.category })
-      .from(watchlistStocks)
-      .where(and(eq(watchlistStocks.isActive, 1)));
-    const sectors = await db.selectDistinct({ sector: watchlistStocks.sector })
-      .from(watchlistStocks)
-      .where(and(eq(watchlistStocks.isActive, 1)));
+    const categories = await db.selectDistinct({ category: stocks.category })
+      .from(stocks)
+      .where(and(eq(stocks.isActive, 1), curated()));
+    const sectors = await db.selectDistinct({ sector: stocks.sector })
+      .from(stocks)
+      .where(and(eq(stocks.isActive, 1), curated()));
 
     return {
       categories: categories.map(c => c.category).filter(Boolean) as string[],
