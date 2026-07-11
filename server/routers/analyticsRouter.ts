@@ -13,7 +13,7 @@ import { getQualityMetrics } from "../lib/qualityMetricsService";
 import { invokeLLM } from "../_core/llm";
 import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
 import { getDb } from "../db";
-import { watchlistStocks } from "../../drizzle/schema";
+import { watchlistStocks, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
 const HoldingSchema = z.object({
@@ -497,5 +497,82 @@ Gib eine strukturierte Analyse zurück.`;
           message: err.message ?? "Upgrade-Vorschläge konnten nicht berechnet werden",
         });
       }
+    }),
+
+  /**
+   * Optimierungsempfehlungen als Transaktionen umsetzen.
+   * Erwartet eine Liste von Tickers mit Zielgewicht + aktuellem Gewicht,
+   * berechnet den CHF-Betrag und erstellt Kauf- oder Verkauf-Transaktionen.
+   */
+  applyOptimization: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number(),
+      totalValueCHF: z.number().positive(),
+      items: z.array(z.object({
+        ticker: z.string(),
+        currentWeight: z.number().min(0).max(1),
+        targetWeight: z.number().min(0).max(1),
+        currentPriceCHF: z.number().optional(), // optional: Kurs in CHF für Stückzahl-Berechnung
+      })).min(1).max(50),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // HARD AUTH GUARD
+      if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
+      }
+      console.log("[applyOptimization] ctx.user:", ctx.user);
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      // Verify portfolio ownership
+      const portfolio = await db
+        .select({ id: savedPortfolios.id, userId: savedPortfolios.userId })
+        .from(savedPortfolios)
+        .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
+        .limit(1);
+      if (portfolio.length === 0) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Portfolio nicht gefunden oder keine Berechtigung" });
+      }
+
+      const now = new Date();
+      const notes = input.notes ?? `Automatisch umgesetzt via Optimierungs-Tab am ${now.toLocaleDateString('de-CH')}`;
+      const created: { ticker: string; type: string; amountCHF: number }[] = [];
+
+      for (const item of input.items) {
+        const delta = item.targetWeight - item.currentWeight;
+        if (Math.abs(delta) < 0.001) continue; // ignore tiny diffs
+
+        const amountCHF = Math.abs(delta) * input.totalValueCHF;
+        if (amountCHF < 10) continue; // skip negligible amounts < CHF 10
+
+        const transactionType = delta > 0 ? "buy" : "sell";
+
+        // Compute shares if price is known
+        let shares: string | null = null;
+        if (item.currentPriceCHF && item.currentPriceCHF > 0) {
+          shares = (amountCHF / item.currentPriceCHF).toFixed(4);
+        }
+
+        await db.insert(portfolioTransactions).values({
+          portfolioId: input.portfolioId,
+          transactionType,
+          ticker: item.ticker,
+          shares,
+          pricePerShare: item.currentPriceCHF ? item.currentPriceCHF.toFixed(4) : null,
+          currency: "CHF",
+          totalAmount: amountCHF.toFixed(2),
+          fxRate: "1",
+          totalAmountCHF: amountCHF.toFixed(2),
+          fees: "0",
+          notes,
+          transactionDate: now,
+        });
+
+        created.push({ ticker: item.ticker, type: transactionType, amountCHF: Math.round(amountCHF) });
+      }
+
+      return { success: true, transactionsCreated: created.length, transactions: created };
     }),
 });

@@ -5,7 +5,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceDot,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square } from "lucide-react";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -218,6 +218,19 @@ export default function OptimierenTab({
   const [showUpgrades, setShowUpgrades] = useState(true);
   const [showAllWeak, setShowAllWeak] = useState(false);
   const [showAllAdditions, setShowAllAdditions] = useState(false);
+
+  // Transaktions-Umsetzung: Checkboxen + Bestätigungs-Dialog
+  const [selectedTickers, setSelectedTickers] = useState<Set<string>>(new Set());
+  const [showApplyConfirm, setShowApplyConfirm] = useState(false);
+  const [applyResult, setApplyResult] = useState<{ count: number; transactions: { ticker: string; type: string; amountCHF: number }[] } | null>(null);
+
+  const applyMut = trpc.analytics.applyOptimization.useMutation({
+    onSuccess: (data) => {
+      setApplyResult({ count: data.transactionsCreated, transactions: data.transactions });
+      setShowApplyConfirm(false);
+      setSelectedTickers(new Set());
+    },
+  });
 
   // Manuelle Optimierungsziele (Soft-Constraints)
   const [constraintMinDiv, setConstraintMinDiv] = useState<string>("");
@@ -843,10 +856,107 @@ export default function OptimierenTab({
             </div>
           )}
 
+          {/* Erfolgsmeldung nach Umsetzung */}
+          {applyResult && (
+            <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/40 rounded-lg px-4 py-3">
+              <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-emerald-300">{applyResult.count} Transaktion{applyResult.count !== 1 ? 'en' : ''} erstellt</p>
+                <p className="text-xs text-emerald-400/70 mt-0.5">
+                  {applyResult.transactions.map(t =>
+                    `${t.ticker}: ${t.type === 'buy' ? 'Kauf' : 'Verkauf'} CHF ${t.amountCHF.toLocaleString('de-CH')}`
+                  ).join(' · ')}
+                </p>
+              </div>
+              <button onClick={() => setApplyResult(null)} className="text-gray-500 hover:text-gray-300 text-xs">Schliessen</button>
+            </div>
+          )}
+
+          {/* Bestätigungs-Dialog */}
+          {showApplyConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <div className="bg-[#0f1420] border border-white/20 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                <h3 className="text-base font-semibold text-white mb-2">Transaktionen erstellen?</h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Es werden {selectedTickers.size} Transaktion{selectedTickers.size !== 1 ? 'en' : ''} als Kauf oder Verkauf im Portfolio gespeichert.
+                  Gesamtportfoliowert: {fmtChf(totalValueCHF ?? 0)}.
+                </p>
+                <div className="space-y-1.5 mb-5 max-h-48 overflow-y-auto">
+                  {suggestions.filter(s => selectedTickers.has(s.ticker)).map(s => {
+                    const amtCHF = Math.abs(s.diff) * (totalValueCHF ?? 0);
+                    return (
+                      <div key={s.ticker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
+                        <span className="font-mono font-semibold text-gray-200">{s.ticker}</span>
+                        <span className={s.diff > 0 ? 'text-[#00CFC1]' : 'text-red-400'}>
+                          {s.diff > 0 ? 'Kauf' : 'Verkauf'} {fmtChf(amtCHF)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowApplyConfirm(false)}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >Abbrechen</button>
+                  <button
+                    onClick={() => {
+                      const items = suggestions
+                        .filter(s => selectedTickers.has(s.ticker))
+                        .map(s => ({ ticker: s.ticker, currentWeight: s.cur, targetWeight: s.opt }));
+                      applyMut.mutate({ portfolioId, totalValueCHF: totalValueCHF ?? 0, items });
+                    }}
+                    disabled={applyMut.isPending}
+                    className="px-4 py-2 text-sm bg-[#00CFC1] text-black font-semibold rounded-lg hover:bg-[#00b8ab] disabled:opacity-50 transition-colors flex items-center gap-2"
+                  >
+                    {applyMut.isPending ? (
+                      <><span className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />Wird erstellt…</>
+                    ) : (
+                      <><Play className="w-4 h-4" />Jetzt umsetzen</>
+                    )}
+                  </button>
+                </div>
+                {applyMut.error && (
+                  <p className="text-red-400 text-xs mt-2">{(applyMut.error as any)?.message}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="grid lg:grid-cols-2 gap-5">
             {/* KI-Vorschläge (Re-Allocation) — alle Positionen, kein Limit */}
             <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-white mb-1">Gewichts-Empfehlungen</h3>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-sm font-semibold text-white">Gewichts-Empfehlungen</h3>
+                {suggestions.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (selectedTickers.size === suggestions.length) {
+                          setSelectedTickers(new Set());
+                        } else {
+                          setSelectedTickers(new Set(suggestions.map(s => s.ticker)));
+                        }
+                      }}
+                      className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1"
+                    >
+                      {selectedTickers.size === suggestions.length
+                        ? <><CheckSquare className="w-3.5 h-3.5" />Alle abwählen</>
+                        : <><Square className="w-3.5 h-3.5" />Alle wählen</>
+                      }
+                    </button>
+                    {selectedTickers.size > 0 && (
+                      <button
+                        onClick={() => setShowApplyConfirm(true)}
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs bg-[#00CFC1] text-black font-semibold rounded-md hover:bg-[#00b8ab] transition-colors"
+                      >
+                        <Play className="w-3 h-3" />
+                        {selectedTickers.size === suggestions.length ? 'Alle umsetzen' : `${selectedTickers.size} umsetzen`}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-gray-500 mb-4">Re-Allocation für maximale risikoadjustierte Rendite · Bandbreite {rules.minPositionPercent}–{rules.maxPositionPercent}%</p>
               {suggestions.length === 0 ? (
                 <div className="flex items-center gap-2 text-[#00CFC1] text-sm">
@@ -854,12 +964,29 @@ export default function OptimierenTab({
                   <span>Portfolio liegt nahe am Optimum — keine wesentliche Umschichtung nötig.</span>
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {suggestions.map((s) => {
                     const up = s.diff > 0;
+                    const isSelected = selectedTickers.has(s.ticker);
+                    const amtCHF = Math.abs(s.diff) * (totalValueCHF ?? 0);
                     return (
-                      <div key={s.ticker} className="flex items-center justify-between bg-white/[0.03] rounded-md px-3 py-2.5">
+                      <div
+                        key={s.ticker}
+                        onClick={() => {
+                          const next = new Set(selectedTickers);
+                          if (isSelected) next.delete(s.ticker); else next.add(s.ticker);
+                          setSelectedTickers(next);
+                        }}
+                        className={`flex items-center justify-between rounded-md px-3 py-2.5 cursor-pointer transition-colors ${
+                          isSelected ? 'bg-[#00CFC1]/10 border border-[#00CFC1]/30' : 'bg-white/[0.03] border border-transparent hover:bg-white/[0.05]'
+                        }`}
+                      >
                         <div className="flex items-center gap-2">
+                          <span className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${
+                            isSelected ? 'bg-[#00CFC1] border-[#00CFC1]' : 'border-gray-600'
+                          }`}>
+                            {isSelected && <CheckCircle className="w-3 h-3 text-black" />}
+                          </span>
                           <span className={`flex items-center justify-center w-6 h-6 rounded ${up ? "bg-[#00CFC1]/15 text-[#00CFC1]" : "bg-red-500/15 text-red-400"}`}>
                             {up ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
                           </span>
@@ -871,6 +998,9 @@ export default function OptimierenTab({
                           <span className={`font-mono w-14 text-right ${up ? "text-[#00CFC1]" : "text-red-400"}`}>
                             {up ? "+" : ""}{(s.diff * 100).toFixed(1)} pp
                           </span>
+                          {totalValueCHF && amtCHF >= 10 && (
+                            <span className="text-gray-600 w-20 text-right">{fmtChf(amtCHF)}</span>
+                          )}
                         </div>
                       </div>
                     );
