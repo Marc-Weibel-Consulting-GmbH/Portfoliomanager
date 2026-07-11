@@ -125,20 +125,21 @@ describe("CT-16 buildEfficientFrontier via optimizePortfolio (R-34 gefixt)", () 
     // finden ein bounds-konformes Zufallsportfolio — Ziel-Returns nahe
     // min(µ)/max(µ) sind unter dem Cap prinzipiell unerreichbar.
     // vorher (R-34): 28 Punkte, da OHNE Bounds gerechnet.
-    expect(frontier).toHaveLength(8);
+    // Geseedeter Stand (mulberry32) — nach der Optimizer-Überarbeitung (u. a.
+    // topWeights je Frontier-Punkt) neu gepinnt: 10 bounds-konforme Zielpunkte.
+    expect(frontier).toHaveLength(10);
     for (let i = 1; i < frontier.length; i++) {
       expect(frontier[i].volatility).toBeGreaterThanOrEqual(frontier[i - 1].volatility);
     }
-    // Werte aktualisiert nach Black-Litterman: die Renditeschätzer sind komprimiert,
-    // die gesamte Kurve liegt enger und tiefer als unter dem rohen historischen µ.
-    expect(frontier[0]).toEqual({ expectedReturn: 0.0689, volatility: 0.108, sharpe: 0.452 });
-    expect(frontier[frontier.length - 1]).toEqual({ expectedReturn: 0.0911, volatility: 0.1602, sharpe: 0.444 });
+    // Kennzahlen der Endpunkte (toMatchObject — Punkte tragen zusätzlich topWeights).
+    expect(frontier[0]).toMatchObject({ expectedReturn: 0.067, volatility: 0.105, sharpe: 0.447 });
+    expect(frontier[frontier.length - 1]).toMatchObject({ expectedReturn: 0.0916, volatility: 0.1607, sharpe: 0.446 });
 
     // Der max_sharpe-Optimalpunkt liegt jetzt IM Inneren der Kurve (Rendite 0.0762
-    // zwischen Min 0.0688 und Max 0.0911) — nicht mehr am Min-Vol-Ende — und hat
+    // zwischen Min 0.067 und Max 0.0916) — nicht mehr am Min-Vol-Ende — und hat
     // die höchste Sharpe-Ratio aller Kurvenpunkte (das ist das Optimierungsziel).
-    expect(Math.max(...rets)).toBeCloseTo(0.0911, 10);
-    expect(Math.min(...rets)).toBeCloseTo(0.0688, 10);
+    expect(Math.max(...rets)).toBeCloseTo(0.0916, 10);
+    expect(Math.min(...rets)).toBeCloseTo(0.067, 10);
     expect(res.optimalPortfolio.expectedReturn).toBeGreaterThanOrEqual(Math.min(...rets) - 1e-9);
     expect(res.optimalPortfolio.expectedReturn).toBeLessThanOrEqual(Math.max(...rets) + 1e-9);
     expect(res.optimalPortfolio.sharpe).toBeGreaterThanOrEqual(Math.max(...frontier.map((p) => p.sharpe)) - 1e-9);

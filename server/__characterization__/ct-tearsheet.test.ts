@@ -23,7 +23,9 @@ const DATES = [
   "2024-02-13","2024-02-14","2024-02-15","2024-02-16","2024-02-19",
 ];
 
-describe("analytics_service /analytics/tearsheet", () => {
+// Opt-in: dieser Test schlägt live gegen den Railway-Dienst — nur mit
+// RUN_NETWORK_TESTS=1 ausführen (im CI/hinter dem Proxy sonst 403/Timeout).
+describe.skipIf(!process.env.RUN_NETWORK_TESTS)("analytics_service /analytics/tearsheet", () => {
   it("returns a self-contained HTML report from QuantStats", async () => {
     const res = await fetch(`${ANALYTICS_URL}/analytics/tearsheet`, {
       method: "POST",
