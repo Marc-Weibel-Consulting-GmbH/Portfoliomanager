@@ -203,6 +203,7 @@ export default function OptimierenTab({
   portfolioId,
   holdings,
   totalValueCHF,
+  cashBalance = 0,
   method = "max_sharpe",
   strategyNote,
   onNavigateToTransactions,
@@ -210,6 +211,7 @@ export default function OptimierenTab({
   portfolioId: number;
   holdings: any[];
   totalValueCHF?: number;
+  cashBalance?: number;
   /** F3: Optimierungs-Methode, aus dem Anlageprofil abgeleitet. */
   method?: OptimizeMethod;
   /** F3: kurze Begründung, warum diese Strategie (aus dem Profil). */
@@ -360,6 +362,7 @@ export default function OptimierenTab({
       portfolioId: String(portfolioId),
       holdings: holdingsWithScores,
       portfolioValue: totalValueCHF ?? 0,
+      cashBalance: cashBalance ?? 0,
     },
     {
       enabled: portfolioId > 0 && holdingsWithScores.length > 0,
@@ -752,14 +755,26 @@ export default function OptimierenTab({
                     </h4>
                     <div className="space-y-3">
                       {(showAllWeak ? upgradeData.replacementSuggestions : upgradeData.replacementSuggestions.slice(0, 5)).map((rep) => (
-                        <div key={rep.weakTicker} className="bg-white/[0.02] border border-white/5 rounded-lg p-3">
+                        <div key={rep.weakTicker} className={`bg-white/[0.02] border rounded-lg p-3 ${
+                          (rep as any).hasSufficientCash === false ? 'border-amber-500/30' : 'border-white/5'
+                        }`}>
                           {/* Schwache Position */}
                           <div className="flex items-center gap-2 mb-2">
                             <ArrowDownRight className="w-4 h-4 text-red-400 flex-shrink-0" />
                             <span className="font-mono text-sm font-semibold text-red-300">{rep.weakTicker}</span>
                             <span className="text-xs text-gray-500 truncate">{rep.weakCompanyName}</span>
                             <ScoreBadge score={rep.weakScore} />
-                            <span className="text-xs text-gray-600 ml-auto">{(rep.weakWeight * 100).toFixed(1)}%</span>
+                            <span className="text-xs text-gray-600">{(rep.weakWeight * 100).toFixed(1)}%</span>
+                            {(rep as any).cashRequired > 0 && (
+                              <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                (rep as any).hasSufficientCash === false
+                                  ? 'bg-amber-500/20 text-amber-400'
+                                  : 'bg-emerald-500/10 text-emerald-500'
+                              }`}>
+                                {(rep as any).hasSufficientCash === false ? '⚠ Kein Cash' : '✓ Cash ok'}
+                                {' '}CHF {Math.round((rep as any).cashRequired).toLocaleString('de-CH')}
+                              </span>
+                            )}
                           </div>
                           {/* Ersatz-Kandidaten */}
                           {rep.suggestions.length === 0 ? (

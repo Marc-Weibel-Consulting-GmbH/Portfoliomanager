@@ -668,6 +668,7 @@ function OptimierungEmpfehlungenTab({
           portfolioId={portfolioId}
           holdings={holdings}
           totalValueCHF={totalValueCHF}
+          cashBalance={parseFloat(portfolio?.cashBalance || "0")}
           method={method}
           strategyNote={strategyNote}
           onNavigateToTransactions={onNavigateToTransactions}

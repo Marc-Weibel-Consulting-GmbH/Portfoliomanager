@@ -359,6 +359,7 @@ Gib eine strukturierte Analyse zurück.`;
           })
         ),
         portfolioValue: z.number().optional().default(0),
+        cashBalance: z.number().optional().default(0),
       })
     )
     .query(async ({ input }) => {
@@ -392,12 +393,15 @@ Gib eine strukturierte Analyse zurück.`;
           .filter((h) => (h.signalScore ?? 0) < rules.upgradeScoreThreshold)
           .sort((a, b) => (a.signalScore ?? 0) - (b.signalScore ?? 0));
 
-        // Ersatz-Vorschläge: für jede schwache Position Top-3 Kandidaten aus gleichem Sektor
+        // Ersatz-Vorschläge: für jede schwache Position genau 1 besten Kandidaten (kein Duplikat)
+        // Bereits zugewiesene Kandidaten werden aus dem Pool entfernt → keine Wiederholungen.
         const replacementSuggestions: Array<{
           weakTicker: string;
           weakCompanyName: string;
           weakScore: number;
           weakWeight: number;
+          cashRequired: number;
+          hasSufficientCash: boolean;
           suggestions: Array<{
             ticker: string;
             companyName: string;
@@ -410,17 +414,30 @@ Gib eine strukturierte Analyse zurück.`;
           }>;
         }> = [];
 
+        // Pool der noch nicht zugewiesenen Kandidaten (verhindert Duplikate)
+        const assignedCandidateTickers = new Set<string>();
+        // Kumulierter Kauf-Betrag (für Liquiditätsprüfung)
+        let cumulativeBuyCHF = 0;
+        const cashAvailable = input.cashBalance ?? 0;
+
         for (const weak of weakPositions) {
           const sector = weak.sector ?? null;
+          // Kauf-Betrag für diese Position (Gewicht × Portfolio-Wert)
+          const buyAmountCHF = weak.weight * (input.portfolioValue ?? 0);
+          cumulativeBuyCHF += buyAmountCHF;
+          const hasSufficientCash = cashAvailable >= cumulativeBuyCHF;
+
           const sectorCandidates = candidates
             .filter((c) => {
               if (portfolioTickers.has(c.ticker.toUpperCase())) return false;
+              if (assignedCandidateTickers.has(c.ticker.toUpperCase())) return false; // kein Duplikat
               if ((c.signalScore ?? 0) <= (weak.signalScore ?? 0)) return false;
+              // Sektor-Filter: nur wenn BEIDE Sektor-Felder gesetzt sind
               if (sector && c.sector && c.sector.toLowerCase() !== sector.toLowerCase()) return false;
               return true;
             })
             .sort((a, b) => (b.signalScore ?? 0) - (a.signalScore ?? 0))
-            .slice(0, 3)
+            .slice(0, 1) // Genau 1 bester Ersatz pro schwacher Position
             .map((c) => ({
               ticker: c.ticker,
               companyName: c.companyName,
@@ -432,11 +449,16 @@ Gib eine strukturierte Analyse zurück.`;
               scoreDelta: (c.signalScore ?? 0) - (weak.signalScore ?? 0),
             }));
 
+          // Zugewiesenen Kandidaten aus dem Pool entfernen
+          sectorCandidates.forEach((c) => assignedCandidateTickers.add(c.ticker.toUpperCase()));
+
           replacementSuggestions.push({
             weakTicker: weak.ticker,
             weakCompanyName: weak.companyName ?? weak.ticker,
             weakScore: weak.signalScore ?? 0,
             weakWeight: weak.weight,
+            cashRequired: buyAmountCHF,
+            hasSufficientCash,
             suggestions: sectorCandidates,
           });
         }
