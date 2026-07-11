@@ -43,26 +43,34 @@ describe("blendSignal", () => {
 });
 
 describe("blendCombinedScore (Verhaltenswahrung + Regime)", () => {
-  // Referenz: die bisherige Formel 0.4*mNorm + 0.4*qNorm - lpplPenalty.
-  const legacy = (m: number, q: number, lppl = 0) => {
+  // Referenz: die aktuelle Formel bei 50/50-Gewichtung — Faktor 1.0 statt 0.8
+  // (b2f0229): neutrale Aktien (m=0, q=0) ergeben combined=0.5 → HOLD statt SELL.
+  const reference = (m: number, q: number, lppl = 0) => {
     const mNorm = (m + 1) / 2;
     const qNorm = (q + 1) / 2;
-    const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lppl));
+    const combined = Math.max(0, Math.min(1, 0.5 * mNorm + 0.5 * qNorm - lppl));
     return parseFloat((combined * 100).toFixed(1));
   };
 
-  it("ist bei 50/50-Gewichtung identisch zur alten Formel", () => {
+  it("ist bei 50/50-Gewichtung die normalisierte Kombiscore-Formel (Faktor 1.0)", () => {
     const cfg = { default: { quality: 1, trading: 1 } }; // 50/50
     for (const [m, q] of [[0.5, 0.8], [-0.3, 0.2], [1, -1], [0, 0]] as const) {
       const r = blendCombinedScore({ momentumScore: m, qualityScore: q, regime: "x" }, cfg);
-      expect(r.combinedScore).toBeCloseTo(legacy(m, q), 1);
+      expect(r.combinedScore).toBeCloseTo(reference(m, q), 1);
     }
   });
 
-  it("berücksichtigt den LPPL-Abschlag wie die alte Formel", () => {
+  it("neutrale Aktie (m=0, q=0) ergibt 50 → HOLD (Faktor 1.0, nicht mehr SELL)", () => {
+    const cfg = { default: { quality: 1, trading: 1 } };
+    const r = blendCombinedScore({ momentumScore: 0, qualityScore: 0, regime: "x" }, cfg);
+    expect(r.combinedScore).toBe(50);
+    expect(r.signalLabel).toBe("HOLD");
+  });
+
+  it("berücksichtigt den LPPL-Abschlag subtraktiv (Faktor 1.0)", () => {
     const cfg = { default: { quality: 1, trading: 1 } };
     const r = blendCombinedScore({ momentumScore: 0.8, qualityScore: 0.8, regime: "x", lpplPenalty: 0.2 }, cfg);
-    expect(r.combinedScore).toBeCloseTo(legacy(0.8, 0.8, 0.2), 1);
+    expect(r.combinedScore).toBeCloseTo(reference(0.8, 0.8, 0.2), 1);
   });
 
   it("gewichtet Qualität in der Krise stärker als im Bullenmarkt", () => {
