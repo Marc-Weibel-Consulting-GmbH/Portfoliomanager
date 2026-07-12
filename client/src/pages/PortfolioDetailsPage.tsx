@@ -2060,26 +2060,23 @@ export default function PortfolioDetailsPage() {
 
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
           <TabsContent value="transaktionen" className="mt-6">
-            {/* U-19: Demo-Portfolios führen keine Transaktionen — Hinweis statt Liste */}
+            {/* Demo-Info-Banner: Transaktionen sichtbar, aber keine Erfassung möglich */}
             {isDemo && (
-              <div className="bg-[#0f1420] border border-white/10 rounded-lg p-10 text-center">
-                <FileText className="h-10 w-10 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-300 text-sm font-medium">Demo-Portfolios führen keine Transaktionen.</p>
-                <p className="text-gray-400 text-sm mt-1">
-                  Aktivieren Sie Live-Tracking, um Käufe, Verkäufe und Dividenden zu erfassen und auszuwerten.
+              <div className="flex items-center justify-between gap-3 bg-[#0f1420] border border-amber-500/20 rounded-lg px-4 py-3 mb-4">
+                <p className="text-xs text-amber-400/80">
+                  Demo-Portfolio: Transaktionen aus Optimierungen sind sichtbar. Manuelle Erfassung und PDF-Import sind nur für Live-Portfolios verfügbar.
                 </p>
                 <Button
                   size="sm"
                   onClick={() => setIsActivationModalOpen(true)}
-                  className="mt-4 bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+                  className="shrink-0 bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black text-xs h-7 px-3"
                 >
-                  <Play className="h-4 w-4 mr-2" />
-                  Live-Tracking aktivieren
+                  <Play className="h-3 w-3 mr-1" />
+                  Aktivieren
                 </Button>
               </div>
             )}
-            {/* U-03: Transaktion erfassen + PDF-Import — nur für Live-Portfolios
-                (konsistent zu den Lösch-Guards weiter unten) */}
+            {/* U-03: Transaktion erfassen + PDF-Import — nur für Live-Portfolios */}
             {!isDemo && (
               <div className="flex justify-end gap-2 mb-4">
                 <Button
@@ -2101,7 +2098,7 @@ export default function PortfolioDetailsPage() {
                 </Button>
               </div>
             )}
-            {!isDemo && (() => {
+            {(() => {
               const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
               const dividends = transactions.filter((t: any) => (t.type || t.transactionType) === 'dividend');
