@@ -25,6 +25,12 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'EXSA.DE': 'EXSA.XETRA',
   'MTX.DE': 'MTX.XETRA',    // MTU Aero Engines
   'XEON.DE': 'XEON.XETRA',  // Xtrackers EUR Overnight Rate Swap
+  'IOS.DE': 'IOS.XETRA',    // IONOS Group SE
+  'ALV.DE': 'ALV.XETRA',    // Allianz SE
+  'BAYN.DE': 'BAYN.XETRA',  // Bayer AG
+  'DWS.DE': 'DWS.XETRA',    // DWS Group
+  'MUV2.DE': 'MUV2.XETRA',  // Munich Re
+  'PCZ.DE': 'PCZ.XETRA',    // ProCredit Holding
 
   // ─── London Stock Exchange (.L → .LSE) ───
   'VWRL.L': 'VWRL.LSE',     // Vanguard FTSE All-World
@@ -45,6 +51,12 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'IG.MI': 'I10.F',         // Italgas
   'PST.MI': '7PI.F',        // Poste Italiane
   'MONC.MI': 'MONRY',       // Moncler → US ADR
+  // PRY.MI (Prysmian) and SRG.MI (Snam) are not available on EODHD — use US ADR or skip
+  'PRY.MI': 'PRYMY.US',     // Prysmian → US ADR (PRYMY)
+  'SRG.MI': 'SNMRF.US',     // Snam → US OTC (SNMRF)
+
+  // ─── Singapore Exchange (.SI → .SG) ───
+  'D05.SI': 'D05.SG',       // DBS Group (SGX) — EODHD uses .SG not .SI
 
   // ─── Tokyo Stock Exchange (.T → .TSE) ───
   // EODHD erwartet für japanische Aktien das Suffix .TSE statt .T

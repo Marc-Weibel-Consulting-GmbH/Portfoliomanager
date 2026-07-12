@@ -169,6 +169,13 @@
       "when": 1783822338370,
       "tag": "0023_solid_the_enforcers",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1783871326668,
+      "tag": "0024_fuzzy_blockbuster",
+      "breakpoints": true
     }
   ]
 }

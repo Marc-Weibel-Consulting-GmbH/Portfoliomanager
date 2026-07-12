@@ -117,6 +117,13 @@ export const stocks = mysqlTable("stocks", {
   notes: text("notes"), // Admin-Notizen / Import-Herkunft (z. B. Wikifolio-Code)
   isActive: tinyint("isActive").notNull().default(1),
   lastMetricsUpdate: timestamp("lastMetricsUpdate"),
+  /**
+   * Optional override for the EODHD API symbol.
+   * Some exchanges use a different code in EODHD than the standard ticker.
+   * E.g. ALV.DE (Xetra) must be fetched as ALV.XETRA in EODHD.
+   * If NULL, the `ticker` column is used directly.
+   */
+  eodhdTicker: varchar("eodhdTicker", { length: 50 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({
