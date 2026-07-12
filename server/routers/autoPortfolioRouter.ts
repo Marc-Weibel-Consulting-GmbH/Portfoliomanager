@@ -66,6 +66,43 @@ export const autoPortfolioRouter = router({
         .where(eqOp(stocksTable.listType, "empfehlung"));
       const watchlistRecTickers = new Set(watchlistRecs.map((r: any) => r.ticker.toUpperCase()));
 
+      // === SECTOR BENCHMARK FILTER ===
+      // YTD performance of major sector ETFs (updated periodically, used to detect sector underperformers)
+      // Source: approximate YTD returns for 2025 as of mid-year (updated manually or via cron)
+      // These represent the "sector hurdle rate" — stocks must not lag their sector by >20%
+      const SECTOR_BENCHMARK_YTD: Record<string, number> = {
+        // Sector name (as stored in DB) → approximate YTD % of representative ETF
+        "Technologie": 12.0,          // XLK / QQQ proxy
+        "Technology": 12.0,
+        "Informationstechnologie": 12.0,
+        "Gesundheit": 4.0,            // XLV proxy
+        "Healthcare": 4.0,
+        "Gesundheitswesen": 4.0,
+        "Finanzen": 8.0,              // XLF proxy
+        "Financials": 8.0,
+        "Finanzdienstleistungen": 8.0,
+        "Industrie": 2.0,             // XLI proxy
+        "Industrials": 2.0,
+        "Konsumgüter": -2.0,          // XLP proxy (defensive consumer)
+        "Consumer Staples": -2.0,
+        "Nicht-zyklische Konsumgüter": -2.0,
+        "Zyklische Konsumgüter": 0.0, // XLY proxy
+        "Consumer Discretionary": 0.0,
+        "Energie": -5.0,              // XLE proxy
+        "Energy": -5.0,
+        "Rohstoffe": -3.0,            // XLB proxy
+        "Materials": -3.0,
+        "Immobilien": 3.0,            // XLRE proxy
+        "Real Estate": 3.0,
+        "Versorger": 6.0,             // XLU proxy
+        "Utilities": 6.0,
+        "Kommunikation": 5.0,         // XLC proxy
+        "Communication Services": 5.0,
+        "Telekommunikation": 5.0,
+        "Andere": 0.0,
+      };
+      const SECTOR_UNDERPERFORM_THRESHOLD = -20; // exclude if YTD < sectorBenchmark - 20pp
+
       const allStocks = await db.select().from(stocksTable);
       let universe = allStocks.filter((s: any) => {
         const price = parseFloat(s.currentPrice ?? "0");
@@ -73,6 +110,20 @@ export const autoPortfolioRouter = router({
         if (s.sector && excludedSectors.includes(s.sector)) return false;
         // ESG-Filter: wenn esgOnly aktiviert, nur ESG-zertifizierte Titel
         if (esgOnly && !s.esgCertified) return false;
+
+        // === SECTOR BENCHMARK FILTER ===
+        // Exclude stocks that underperform their sector benchmark by more than 20 percentage points
+        // Exception: watchlist recommendations are never excluded by this filter
+        const ytdPerf = parseFloat(s.ytdPerformance ?? "0") || 0;
+        const sectorKey = s.sector || "Andere";
+        const sectorBenchmark = SECTOR_BENCHMARK_YTD[sectorKey] ?? 0;
+        const relativePerf = ytdPerf - sectorBenchmark;
+        if (relativePerf < SECTOR_UNDERPERFORM_THRESHOLD && !watchlistRecTickers.has(s.ticker.toUpperCase())) {
+          // Log for debugging
+          console.log(`[buildProposal] Sector filter excluded ${s.ticker}: YTD ${ytdPerf.toFixed(1)}% vs sector ${sectorKey} benchmark ${sectorBenchmark}% = ${relativePerf.toFixed(1)}pp`);
+          return false;
+        }
+
         return true;
       });
       // Sort: watchlist recommendations first, then by market cap
@@ -315,6 +366,7 @@ export const autoPortfolioRouter = router({
           selectedCount: positions.length,
           watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length,
           maxPositionPct: Math.max(...positions.map((p) => p.weightPct)),
+          sectorBenchmarkFiltered: allStocks.length - universe.length - (excludedSectors.length > 0 ? 0 : 0),
         },
       };
     }),
