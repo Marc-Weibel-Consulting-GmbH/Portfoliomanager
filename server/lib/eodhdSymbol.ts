@@ -46,6 +46,19 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'PST.MI': '7PI.F',        // Poste Italiane
   'MONC.MI': 'MONRY',       // Moncler → US ADR
 
+  // ─── Tokyo Stock Exchange (.T → .TSE) ───
+  // EODHD erwartet für japanische Aktien das Suffix .TSE statt .T
+  '6856.T': '6856.TSE',   // Horiba Seisakusho
+  '7203.T': '7203.TSE',   // Toyota
+  '6758.T': '6758.TSE',   // Sony
+  '9984.T': '9984.TSE',   // SoftBank
+  '6861.T': '6861.TSE',   // Keyence
+  '4519.T': '4519.TSE',   // Chugai Pharmaceutical
+  '8306.T': '8306.TSE',   // Mitsubishi UFJ
+  '6954.T': '6954.TSE',   // Fanuc
+  '7267.T': '7267.TSE',   // Honda
+  '6501.T': '6501.TSE',   // Hitachi
+
   // ─── US / OTC ───
   'MESA': 'RJET',
   'MESA.US': 'RJET',
@@ -62,5 +75,12 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
  */
 export function toEodhdSymbol(ticker: string): string {
   if (!ticker) return ticker;
-  return EODHD_TICKER_MAPPING[ticker] ?? ticker;
+  // Explizite Mappings haben Vorrang
+  if (EODHD_TICKER_MAPPING[ticker]) return EODHD_TICKER_MAPPING[ticker];
+  // Generische Regel: Japanische Aktien (.T) → .TSE
+  // EODHD verwendet .TSE als Suffix für die Tokyo Stock Exchange
+  if (ticker.endsWith('.T') && /^\d+\.T$/.test(ticker)) {
+    return ticker.replace(/\.T$/, '.TSE');
+  }
+  return ticker;
 }
