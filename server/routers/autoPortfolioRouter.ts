@@ -118,12 +118,33 @@ export const autoPortfolioRouter = router({
           // Derive momentum/quality grades from score ranges
           const grade = (score: number) =>
             score >= 80 ? "A" : score >= 65 ? "B" : score >= 50 ? "C" : score >= 35 ? "D" : "F";
-          const combinedScore = rawScore;
+
+          // === ALGORITHM IMPROVEMENT: Momentum-adjusted score ===
+          // YTD performance from DB (already stored as percentage, e.g. -20.9 or +12.0)
+          const ytdPerf = parseFloat(s.ytdPerformance ?? "0") || 0;
+          // Momentum bonus/penalty: +5 pts for YTD > +10%, -10 pts for YTD < -15%
+          // This prevents selecting stocks with strong negative momentum
+          let momentumAdj = 0;
+          if (ytdPerf > 20) momentumAdj = 8;
+          else if (ytdPerf > 10) momentumAdj = 5;
+          else if (ytdPerf > 5) momentumAdj = 2;
+          else if (ytdPerf < -20) momentumAdj = -15;
+          else if (ytdPerf < -15) momentumAdj = -10;
+          else if (ytdPerf < -10) momentumAdj = -5;
+
+          // Goal-based adjustment: growth goal boosts momentum stocks
+          let goalAdj = 0;
+          if (goal === "growth" && ytdPerf > 5) goalAdj = 5;
+          if (goal === "dividends" && ytdPerf < -5) goalAdj = -3; // dividend stocks with falling prices are risky
+
+          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj));
           const momentumGrade = grade(combinedScore);
           const qualityGrade = grade(combinedScore - 5); // slight offset for quality
           return {
             stock: s,
             combinedScore,
+            rawScore,
+            ytdPerf,
             signal,
             momentumGrade,
             qualityGrade,
@@ -141,10 +162,17 @@ export const autoPortfolioRouter = router({
       console.log(`[buildProposal] Step 5: ranking ${scored.length} scored items`);
       // 5) Ranking (Ziel «dividends» bevorzugt Dividendenrendite) + Kaufsignal-Filter
       // Watchlist-Empfehlungen erhalten +10 Punkte Bonus im Ranking
-      const rankKey = (x: any) =>
-        x.combinedScore +
-        (goal === "dividends" ? Math.min(x.dividendYield * 100, 5) * 2 : 0) +
-        (watchlistRecTickers.has(x.stock.ticker.toUpperCase()) ? 10 : 0);
+      // IMPROVEMENT: YTD momentum factor in ranking (growth/balanced goals)
+      const rankKey = (x: any) => {
+        let score = x.combinedScore;
+        // Dividend goal: boost high-yield stocks
+        if (goal === "dividends") score += Math.min(x.dividendYield * 100, 5) * 2;
+        // Growth/balanced goal: boost positive YTD momentum stocks
+        if (goal !== "dividends" && x.ytdPerf > 0) score += Math.min(x.ytdPerf * 0.2, 5);
+        // Watchlist recommendation bonus
+        if (watchlistRecTickers.has(x.stock.ticker.toUpperCase())) score += 10;
+        return score;
+      };
 
       // SELL-Signale und schlechteste Qualität (F) grundsätzlich ausschliessen
       const isBuyable = (x: any) =>
@@ -253,6 +281,7 @@ export const autoPortfolioRouter = router({
             combinedScore: c.combinedScore,
             signal: c.signal,
             reason: `${c.signal} · Momentum ${c.momentumGrade}, Qualität ${c.qualityGrade}` +
+              (c.ytdPerf !== 0 ? ` · YTD ${c.ytdPerf > 0 ? '+' : ''}${c.ytdPerf.toFixed(1)}%` : '') +
               (watchlistRecTickers.has(s.ticker.toUpperCase()) ? " · Watchlist-Empfehlung" : "") +
               (c.regime === "bubble" ? " · LPPL-Warnung" : ""),
           };
