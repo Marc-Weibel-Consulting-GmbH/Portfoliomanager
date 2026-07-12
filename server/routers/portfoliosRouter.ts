@@ -445,16 +445,25 @@ export const portfoliosRouter = router({
           })
         );
         
-        // Calculate total value and avg dividend yield
+        // Calculate total value and weighted avg dividend yield
         let totalValueCHF = 0;
-        let totalDividendYield = 0;
         enrichedStocks.forEach((stock: any) => {
           const shares = parseFloat(stock.shares) || 0;
           const priceCHF = stock.priceCHF || 0;
           totalValueCHF += shares * priceCHF;
-          totalDividendYield += parseFloat(stock.dividendYield) || 0;
         });
-        const avgDividendYield = enrichedStocks.length > 0 ? totalDividendYield / enrichedStocks.length : 0;
+        // Weighted dividend yield: sum(weight_i × dividendYield_i) where weight_i = stockValue_i / totalStocksValue
+        let weightedDividendYield = 0;
+        if (totalValueCHF > 0) {
+          enrichedStocks.forEach((stock: any) => {
+            const shares = parseFloat(stock.shares) || 0;
+            const priceCHF = stock.priceCHF || 0;
+            const stockValue = shares * priceCHF;
+            const weight = stockValue / totalValueCHF;
+            weightedDividendYield += weight * (parseFloat(stock.dividendYield) || 0);
+          });
+        }
+        const avgDividendYield = weightedDividendYield;
         
         // Add cash position if cashBalance exists
         const finalEnrichedStocks = [...enrichedStocks];

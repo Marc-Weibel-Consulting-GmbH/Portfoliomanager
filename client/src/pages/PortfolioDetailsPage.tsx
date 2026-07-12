@@ -1299,7 +1299,7 @@ export default function PortfolioDetailsPage() {
         )}
         
         {/* KPI Row — matches design PDF: WERT | YTD | GESAMT | SHARPE — flat style, no teal top border */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-0 border border-white/10 rounded-lg overflow-hidden">
           {/* WERT */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">WERT</p>
@@ -1375,13 +1375,24 @@ export default function PortfolioDetailsPage() {
           </div>
 
           {/* SHARPE */}
-          <div className="bg-[#0f1420] p-5">
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
               {riskMetrics?.sharpeRatio !== undefined ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
             </p>
             <p className="text-xs text-gray-400 mt-1">
               Bench {riskMetrics?.sharpeBenchmark !== undefined ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
+            </p>
+          </div>
+
+          {/* DIV. RENDITE */}
+          <div className="bg-[#0f1420] p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Durchschnittliche Dividendenrendite der Portfoliopositionen">DIV. RENDITE</p>
+            <p className="text-2xl font-bold font-mono text-[#00CFC1]">
+              {avgDividendYield > 0 ? `${avgDividendYield.toFixed(2)}%` : '—'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Ø gewichtet
             </p>
           </div>
         </div>
