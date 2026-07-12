@@ -18,32 +18,63 @@ const CURRENCY_PAIRS = [
 
 /**
  * Fetch current FX rate from Yahoo Finance
+ * Returns null if the pair is unavailable or an error occurs.
  */
-async function fetchFxRate(currencyPair: string): Promise<number | null> {
+async function fetchFxRateYahoo(currencyPair: string): Promise<number | null> {
   try {
-    // Yahoo Finance format: USDCHF=X
     const symbol = `${currencyPair}=X`;
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
-    
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`[FxRates] Failed to fetch ${currencyPair}: ${response.statusText}`);
-      return null;
-    }
-    
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
     const data = await response.json();
     const quote = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    
-    if (!quote) {
-      console.error(`[FxRates] No quote found for ${currencyPair}`);
-      return null;
-    }
-    
-    return parseFloat(quote);
-  } catch (error) {
-    console.error(`[FxRates] Error fetching ${currencyPair}:`, error);
+    return quote ? parseFloat(quote) : null;
+  } catch {
     return null;
   }
+}
+
+/**
+ * Fetch current FX rate from EODHD as fallback.
+ * EODHD forex format: USDCHF.FOREX
+ */
+async function fetchFxRateEodhd(currencyPair: string): Promise<number | null> {
+  const apiKey = process.env.EODHD_API_KEY;
+  if (!apiKey) return null;
+  try {
+    // EODHD uses e.g. USDCHF.FOREX for the pair
+    const url = `https://eodhd.com/api/real-time/${currencyPair}.FOREX?api_token=${apiKey}&fmt=json`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    // EODHD returns { close: "0.8078", ... } for real-time
+    const close = data?.close ?? data?.previousClose;
+    return close ? parseFloat(close) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch current FX rate: tries Yahoo Finance first, falls back to EODHD.
+ */
+async function fetchFxRate(currencyPair: string): Promise<{ rate: number; source: string } | null> {
+  // Primary: Yahoo Finance
+  const yahooRate = await fetchFxRateYahoo(currencyPair);
+  if (yahooRate !== null) {
+    return { rate: yahooRate, source: 'yahoo' };
+  }
+  console.warn(`[FxRates] Yahoo Finance failed for ${currencyPair}, trying EODHD fallback...`);
+  
+  // Fallback: EODHD
+  const eodhdRate = await fetchFxRateEodhd(currencyPair);
+  if (eodhdRate !== null) {
+    console.log(`[FxRates] EODHD fallback succeeded for ${currencyPair}: ${eodhdRate}`);
+    return { rate: eodhdRate, source: 'eodhd' };
+  }
+  
+  console.error(`[FxRates] Both Yahoo Finance and EODHD failed for ${currencyPair}`);
+  return null;
 }
 
 /**
@@ -79,10 +110,10 @@ async function updateFxRates() {
         continue;
       }
       
-      // Fetch current rate
-      const rate = await fetchFxRate(pair);
-      if (!rate) {
-        console.error(`[FxRates] Failed to fetch rate for ${pair}`);
+      // Fetch current rate (Yahoo Finance with EODHD fallback)
+      const result = await fetchFxRate(pair);
+      if (!result) {
+        console.error(`[FxRates] Failed to fetch rate for ${pair} from all sources`);
         continue;
       }
       
@@ -90,10 +121,10 @@ async function updateFxRates() {
       await db.insert(exchangeRates).values({
         date: today,
         currencyPair: pair,
-        rate: rate.toString(),
+        rate: result.rate.toString(),
       });
       
-      console.log(`[FxRates] Stored ${pair} rate: ${rate} for ${today}`);
+      console.log(`[FxRates] Stored ${pair} rate: ${result.rate} (source: ${result.source}) for ${today}`);
     } catch (error) {
       console.error(`[FxRates] Error processing ${pair}:`, error);
     }
