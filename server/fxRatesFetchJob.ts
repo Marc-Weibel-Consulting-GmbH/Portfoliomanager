@@ -7,10 +7,14 @@
 
 import cron from 'node-cron';
 import { getDb } from './db';
-import { exchangeRates } from '../drizzle/schema';
-import { eq, and } from 'drizzle-orm';
+import { exchangeRates, stocks } from '../drizzle/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 
-const CURRENCY_PAIRS = ['USDCHF', 'EURCHF', 'GBPCHF'];
+const CURRENCY_PAIRS = [
+  'USDCHF', 'EURCHF', 'GBPCHF',
+  // Additional currencies used in the stocks universe
+  'CADCHF', 'JPYCHF', 'SEKCHF', 'NOKCHF', 'DKKCHF', 'AUDCHF', 'PLNCHF', 'SGDCHF', 'ILSCHF',
+];
 
 /**
  * Fetch current FX rate from Yahoo Finance
@@ -96,6 +100,63 @@ async function updateFxRates() {
   }
   
   console.log('[FxRates] Daily FX rates update completed');
+  
+  // Also update exchangeRateToChf in stocks table
+  await syncStockFxRates();
+}
+
+/**
+ * Sync exchangeRateToChf in stocks table from latest exchangeRates
+ */
+export async function syncStockFxRates() {
+  const db = await getDb();
+  if (!db) return;
+  
+  try {
+    // Get latest rates for each currency pair
+    const latestRates = await db
+      .select()
+      .from(exchangeRates)
+      .orderBy(exchangeRates.date)
+      .limit(100);
+    
+    // Build currency → CHF rate map from most recent entries
+    const rateMap: Record<string, number> = { CHF: 1 };
+    const seen = new Set<string>();
+    // Iterate in reverse (latest first) to get most recent rate per pair
+    for (let i = latestRates.length - 1; i >= 0; i--) {
+      const r = latestRates[i];
+      if (!seen.has(r.currencyPair)) {
+        seen.add(r.currencyPair);
+        const currency = r.currencyPair.replace('CHF', '');
+        rateMap[currency] = parseFloat(r.rate);
+      }
+    }
+    // GBp (pence) = GBP / 100
+    if (rateMap['GBP']) rateMap['GBp'] = rateMap['GBP'] / 100;
+    // ILS fallback
+    if (!rateMap['ILS']) rateMap['ILS'] = 0.27;
+    
+    console.log('[FxRates] Syncing stock FX rates:', JSON.stringify(rateMap));
+    
+    // Update each currency group
+    for (const [currency, rate] of Object.entries(rateMap)) {
+      if (currency === 'CHF') continue;
+      await db
+        .update(stocks)
+        .set({ exchangeRateToChf: rate.toString() })
+        .where(eq(stocks.currency, currency));
+    }
+    // Ensure CHF stocks always have rate 1
+    await db
+      .update(stocks)
+      .set({ exchangeRateToChf: '1' })
+      .where(eq(stocks.currency, 'CHF'));
+    
+    console.log('[FxRates] Stock FX rates synced successfully');
+  } catch (error) {
+    console.error('[FxRates] Error syncing stock FX rates:', error);
+  }
 }
 
 /**
@@ -190,5 +251,7 @@ export function initFxRatesCron() {
   // Run immediately on startup to ensure we have today's rates
   setTimeout(async () => {
     await updateFxRates();
+    // Also sync stock FX rates on startup in case rates were already fetched today
+    await syncStockFxRates();
   }, 5000);
 }
