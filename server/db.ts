@@ -1597,25 +1597,56 @@ export async function activatePortfolio(
     const capitalNum = parseFloat(startCapital);
     const transactions = [];
 
+    // Fetch fresh current prices from the stocks table to avoid stale portfolioData prices
+    const { stocks: stocksTable } = await import("../drizzle/schema");
+    const tickers = holdings.map((h: any) => h.ticker).filter(Boolean);
+    let freshPriceMap = new Map<string, { price: number; currency: string; fxRate: number }>();
+    if (tickers.length > 0) {
+      try {
+        const stockRows = await db.select().from(stocksTable).where(inArray(stocksTable.ticker, tickers));
+        for (const row of stockRows) {
+          const rawPrice = row.currentPrice || '0';
+          const price = (rawPrice === 'NA' || rawPrice === 'N/A') ? 0 : parseFloat(rawPrice);
+          if (!isNaN(price) && price > 0) {
+            const fxRate = row.exchangeRateToChf ? parseFloat(row.exchangeRateToChf) : 1.0;
+            freshPriceMap.set(row.ticker, { price, currency: row.currency || 'CHF', fxRate: isNaN(fxRate) ? 1.0 : fxRate });
+          }
+        }
+        console.log(`[activatePortfolio] Fetched fresh prices for ${freshPriceMap.size}/${tickers.length} tickers`);
+      } catch (err) {
+        console.error('[activatePortfolio] Error fetching fresh prices, falling back to portfolioData prices:', err);
+      }
+    }
+
     for (const holding of holdings) {
       const weight = parseFloat(holding.weight || "0") / 100;
       const allocationAmount = capitalNum * weight;
+
+      // Prefer fresh DB price; fall back to stored portfolioData price
+      const fresh = freshPriceMap.get(holding.ticker);
       const rawHoldingPrice = holding.currentPrice || '0';
-      const currentPrice = (rawHoldingPrice === 'NA' || rawHoldingPrice === 'N/A') ? 0 : parseFloat(rawHoldingPrice);
+      const fallbackPrice = (rawHoldingPrice === 'NA' || rawHoldingPrice === 'N/A') ? 0 : parseFloat(rawHoldingPrice);
+      const currentPrice = fresh ? fresh.price : (isNaN(fallbackPrice) ? 0 : fallbackPrice);
+      const currency = fresh ? fresh.currency : (holding.currency || 'CHF');
+      const fxRate = fresh ? fresh.fxRate : parseFloat(holding.exchangeRateToChf || '1.0');
       
       if (!isNaN(currentPrice) && currentPrice > 0) {
-        const shares = (allocationAmount / currentPrice).toFixed(6);
+        const shares = (allocationAmount / (currentPrice * fxRate)).toFixed(6);
+        const totalAmountLocal = (parseFloat(shares) * currentPrice).toFixed(2);
+        const totalAmountCHF = (parseFloat(totalAmountLocal) * fxRate).toFixed(2);
+        
+        console.log(`[activatePortfolio] ${holding.ticker}: price=${currentPrice} ${currency}, fxRate=${fxRate}, shares=${shares}, CHF=${totalAmountCHF} (${fresh ? 'fresh' : 'stale'})`);
         
         transactions.push({
           portfolioId,
           transactionType: "buy" as const,
           ticker: holding.ticker,
           shares,
-          pricePerShare: holding.currentPrice,
-          currency: holding.currency || "CHF",
-          totalAmount: allocationAmount.toFixed(2),
-          fxRate: holding.exchangeRateToChf || "1.0",
-          totalAmountCHF: allocationAmount.toFixed(2),
+          pricePerShare: currentPrice.toString(),
+          currency,
+          totalAmount: totalAmountLocal,
+          fxRate: fxRate.toString(),
+          totalAmountCHF,
           fees: "0",
           notes: `Initial purchase for portfolio activation`,
           transactionDate: new Date(),

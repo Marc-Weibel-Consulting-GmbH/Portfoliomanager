@@ -381,15 +381,18 @@ export const portfoliosRouter = router({
             // Ensure weight is a number before calling toFixed
             const weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight)) || defaultWeight;
             
-            // Calculate shares if missing (for backward compatibility with old portfolios)
+            // Calculate shares:
+            // - For demo portfolios: ALWAYS use weight-based calculation (investmentAmount × weight / priceCHF)
+            //   This ensures totalValueCHF = investmentAmount on day 1, regardless of stored shares.
+            //   Stored shares may be wrong (e.g., GBp FX not applied correctly at creation time).
+            // - For live portfolios: use stored shares from DB (from real transactions)
             let shares = parseFloat(stock.shares) || 0;
-            if (shares === 0 && portfolio.investmentAmount) {
+            const isDemoPortfolio = portfolio.portfolioType === 'demo';
+            if ((isDemoPortfolio || shares === 0) && portfolio.investmentAmount && priceCHF > 0) {
               const investmentAmount = parseFloat(portfolio.investmentAmount) || 0;
               const allocationAmount = investmentAmount * (weight / 100);
-              // For foreign currency stocks, convert CHF allocation to local currency first
-              // allocationAmount is in CHF, currentPrice is in local currency
-              // To get shares: allocationAmount / priceCHF (both in CHF)
-              shares = priceCHF > 0 ? (allocationAmount / priceCHF) : 0;
+              // allocationAmount is in CHF, priceCHF is in CHF → shares = allocationAmount / priceCHF
+              shares = allocationAmount / priceCHF;
               // Don't round - keep decimal precision for accurate value calculation
             }
             
