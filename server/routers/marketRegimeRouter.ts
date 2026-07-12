@@ -403,6 +403,7 @@ export const marketRegimeRouter = router({
     const indexKeys: { key: string; label: string; eodhdTicker: string; currency: string }[] = [
       { key: "smi",     label: "SPI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
       { key: "sp500",   label: "S&P 500",    eodhdTicker: "GSPC.INDX",  currency: "USD" },
+      { key: "msci",    label: "MSCI World", eodhdTicker: "ACWI.US",    currency: "USD" },
       { key: "nasdaq",  label: "NASDAQ",     eodhdTicker: "IXIC.INDX",  currency: "USD" },
       { key: "sox",     label: "SOX",        eodhdTicker: "SOXX.US",    currency: "USD" },
       { key: "gold",    label: "GOLD",       eodhdTicker: "GLD.US",     currency: "USD" },
