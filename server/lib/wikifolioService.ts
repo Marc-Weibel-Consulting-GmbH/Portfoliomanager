@@ -160,6 +160,7 @@ async function request<T = any>(path: string): Promise<T> {
 
   const response = await (got as any)(url, {
     cookieJar,
+    throwHttpErrors: false,
     headers: {
       'X-Requested-With': 'XMLHttpRequest',
       'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -167,16 +168,24 @@ async function request<T = any>(path: string): Promise<T> {
     },
   });
 
+  const statusCode: number = response.statusCode ?? 200;
+
+  if (statusCode === 401 || (typeof response.body === 'string' && response.body.includes('Authorization has been denied'))) {
+    // Session expired, clear and retry once
+    sessionCookie = undefined;
+    await authenticate();
+    return request<T>(path);
+  }
+
+  if (statusCode >= 400) {
+    const bodyPreview = typeof response.body === 'string' ? response.body.substring(0, 300) : String(response.body);
+    console.error(`[wikifolioService] HTTP ${statusCode} for ${url}: ${bodyPreview}`);
+    throw new Error(`Response code ${statusCode} (${response.statusMessage ?? 'Error'})`);
+  }
+
   if (typeof response.body === 'string') {
     try {
-      const parsed = JSON.parse(response.body);
-      if (parsed?.message === 'Authorization has been denied for this request.') {
-        // Session expired, clear and retry once
-        sessionCookie = undefined;
-        await authenticate();
-        return request<T>(path);
-      }
-      return parsed as T;
+      return JSON.parse(response.body) as T;
     } catch {
       return response.body as unknown as T;
     }
@@ -275,20 +284,51 @@ function normalizeTradeSide(order: any): 'buy' | 'sell' | 'other' {
 }
 
 /**
- * Transaktionshistorie eines Wikifolios abrufen (Track B, AI_ALPHA_ROADMAP.md).
- * Endpunkt analog zum gevendorten Client: api/wikifolio/{idOrSymbol}/tradehistory.
- * `idOrSymbol` akzeptiert die Wikifolio-GUID oder das Symbol (die interne API toleriert
- * i. d. R. beides; die GUID ist die robustere Wahl, sobald bekannt).
- *
- * ⚠️ Die exakten Feldnamen der Antwort sind gegen die Live-API zu verifizieren
- * (Credentials nötig) — das Mapping ist defensiv gehalten.
+ * Transaktionshistorie eines Wikifolios abrufen.
+ * Die Wikifolio-API erwartet die interne GUID (nicht das Symbol) für diesen Endpunkt.
+ * Wir lösen das Symbol zuerst über basicdata auf und verwenden dann die GUID.
+ * Response-Struktur: { tradeHistory: { orders: [...], pageCount: N } }
  */
 export async function getWikifolioTrades(idOrSymbol: string, pageSize = 50): Promise<WikifolioTradeRecord[]> {
-  const data = await request<any>(
-    `api/wikifolio/${idOrSymbol}/tradehistory?page=0&pageSize=${pageSize}&country=de&language=de`
-  );
+  const sym = idOrSymbol.toLowerCase();
 
-  const orders: any[] = data?.orders || data?.trades || (Array.isArray(data) ? data : []);
+  // Schritt 1: GUID über basicdata auflösen (falls noch kein GUID übergeben)
+  let wikifolioId: string = sym;
+  const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sym);
+  if (!isGuid) {
+    try {
+      const basicData = await request<any>(`api/wikifolio/${sym}/basicdata`);
+      const resolvedId = basicData?.id || basicData?.wikifolioId;
+      if (resolvedId) {
+        wikifolioId = resolvedId;
+        console.log(`[wikifolioService] Resolved symbol '${sym}' → GUID '${wikifolioId}'`);
+      } else {
+        console.warn(`[wikifolioService] basicdata for '${sym}' returned no id — falling back to symbol`);
+      }
+    } catch (err: any) {
+      console.warn(`[wikifolioService] Could not resolve GUID for '${sym}':`, err?.message);
+    }
+  }
+
+  // Schritt 2: Transaktionshistorie mit GUID abrufen
+  // Wikifolio-API erlaubt max. 20 Einträge pro Seite
+  const MAX_PAGE_SIZE = 20;
+  const effectivePageSize = Math.min(pageSize, MAX_PAGE_SIZE);
+  const maxPages = Math.ceil(pageSize / MAX_PAGE_SIZE);
+
+  const allOrders: any[] = [];
+  for (let page = 0; page < maxPages; page++) {
+    const data = await request<any>(
+      `api/wikifolio/${wikifolioId}/tradehistory?page=${page}&pageSize=${effectivePageSize}&country=de&language=de`
+    );
+    const tradeHistoryObj = data?.tradeHistory ?? data;
+    const orders: any[] = tradeHistoryObj?.orders || tradeHistoryObj?.trades || (Array.isArray(data) ? data : []);
+    allOrders.push(...orders);
+    // Stop early if we got fewer results than requested (last page)
+    if (orders.length < effectivePageSize) break;
+  }
+
+  const orders = allOrders;
   return orders.map((order: any): WikifolioTradeRecord => ({
     externalTradeId: order.id ?? order.orderId ?? null,
     isin: order.isin ?? null,
