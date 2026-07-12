@@ -749,7 +749,7 @@ export const portfoliosRouter = router({
                     updatedHoldings.push({
                       ...holding,
                       shares: shares,
-                      avgCost: holding.currentPrice,
+                      avgBuyPrice: holding.currentPrice, // ← was avgCost (wrong field name)
                     });
                   } else {
                     // Keep original holding if no price

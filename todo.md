@@ -122,6 +122,6 @@
 
 ## Neue Features (12.07.2026)
 
-- [ ] Transaktions-Tab: Filter "Optimierung" als Quelle (source-Feld in portfolioTransactions)
-- [ ] Optimierungs-Tab: Nach Buchung automatisch zum Positionen-Tab navigieren
-- [ ] Optimierungs-Verlauf: Übersicht aller Optimierungen mit Datum, Anzahl Transaktionen und Cash-Effekt
+- [x] Transaktions-Tab: Filter "Optimierung" als Quelle (source-Feld in portfolioTransactions)
+- [x] Optimierungs-Tab: Nach Buchung automatisch zum Positionen-Tab navigieren
+- [x] Optimierungs-Verlauf: Übersicht aller Optimierungen mit Datum, Anzahl Transaktionen und Cash-Effekt
