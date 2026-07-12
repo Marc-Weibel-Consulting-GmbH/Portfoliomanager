@@ -119,3 +119,9 @@
 
 ## Kritischer Bug: Optimierung sichtbar im Depot (12.07.2026)
 - [x] applyRecommendations: portfolioData.stocks JSON nach Buchung aktualisieren (Verkäufe entfernen, Käufe hinzufügen, Gewichte neu berechnen)
+
+## Neue Features (12.07.2026)
+
+- [ ] Transaktions-Tab: Filter "Optimierung" als Quelle (source-Feld in portfolioTransactions)
+- [ ] Optimierungs-Tab: Nach Buchung automatisch zum Positionen-Tab navigieren
+- [ ] Optimierungs-Verlauf: Übersicht aller Optimierungen mit Datum, Anzahl Transaktionen und Cash-Effekt

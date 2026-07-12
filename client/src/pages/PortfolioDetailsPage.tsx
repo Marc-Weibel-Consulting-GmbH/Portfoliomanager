@@ -566,8 +566,8 @@ const PROFILE_GOAL_LABEL: Record<string, string> = {
 };
 
 function OptimierungEmpfehlungenTab({
-  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions,
-}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void }) {
+  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions, onNavigateToPositions,
+}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void; onNavigateToPositions?: () => void }) {
   const [mode, setMode] = useState<"empfehlungen" | "optimierung">("empfehlungen");
   const { data: profile } = trpc.investmentProfile.get.useQuery();
 
@@ -672,6 +672,7 @@ function OptimierungEmpfehlungenTab({
           method={method}
           strategyNote={strategyNote}
           onNavigateToTransactions={onNavigateToTransactions}
+          onNavigateToPositions={onNavigateToPositions}
         />
       )}
     </div>
@@ -2141,10 +2142,12 @@ export default function PortfolioDetailsPage() {
                   {/* Filter Chips + Table */}
                   {(() => {
                     const isRealized = txFilter === 'realisierte';
+                    const optimierungTx = transactions.filter((t: any) => t.source === 'optimization');
                     const filteredTx = txFilter === 'alle' ? transactions :
                       txFilter === 'kaeufe' ? buys :
                       txFilter === 'verkaeufe' ? sells :
-                      txFilter === 'dividenden' ? dividends : transactions;
+                      txFilter === 'dividenden' ? dividends :
+                      txFilter === 'optimierung' ? optimierungTx : transactions;
 
                     // CSV-Export der aktuell sichtbaren Ansicht
                     const handleExport = () => {
@@ -2182,7 +2185,7 @@ export default function PortfolioDetailsPage() {
                     return (
                       <div className="bg-[#0f1420] border border-white/10 rounded-lg">
                         <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10">
-                          {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden'], ['realisierte', 'Realisierte Gewinne']].map(([key, label]) => (
+                          {[['alle', 'Alle'], ['kaeufe', 'Käufe'], ['verkaeufe', 'Verkäufe'], ['dividenden', 'Dividenden'], ['optimierung', `Optimierung${optimierungTx.length > 0 ? ` (${optimierungTx.length})` : ''}`], ['realisierte', 'Realisierte Gewinne']].map(([key, label]) => (
                             <button
                               key={key}
                               onClick={() => { setTxFilter(key); setSelectedTxIds(new Set()); }}
@@ -2308,7 +2311,7 @@ export default function PortfolioDetailsPage() {
 
           {/* OPTIMIERUNG & EMPFEHLUNGEN — F3: konsolidiert (Optimieren KI + Empfehlungen KI) */}
           <TabsContent value="optimierung" className="mt-6">
-            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} />
+            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} />
           </TabsContent>
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}

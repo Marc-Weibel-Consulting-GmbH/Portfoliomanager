@@ -162,6 +162,13 @@
       "when": 1783800023149,
       "tag": "0022_late_star_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1783822338370,
+      "tag": "0023_solid_the_enforcers",
+      "breakpoints": true
     }
   ]
 }

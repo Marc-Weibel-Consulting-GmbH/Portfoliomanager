@@ -1208,6 +1208,7 @@ export async function getPortfolioTransactions(portfolioId: number) {
         totalAmountCHF: portfolioTransactions.totalAmountCHF,
         fees: portfolioTransactions.fees,
         notes: portfolioTransactions.notes,
+        source: portfolioTransactions.source,
         transactionDate: portfolioTransactions.transactionDate,
         createdAt: portfolioTransactions.createdAt,
         // Add realized gain data from join

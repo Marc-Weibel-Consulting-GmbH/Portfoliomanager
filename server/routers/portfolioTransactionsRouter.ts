@@ -546,6 +546,56 @@ export const portfolioTransactionsRouter = router({
       return results;
     }),
 
+  getOptimizationHistory: protectedProcedure
+    .input(z.object({ portfolioId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
+      const { getDb } = await import('../db');
+      const { portfolioTransactions } = await import('../../drizzle/schema');
+      const { eq, and, desc } = await import('drizzle-orm');
+      const db = await getDb();
+      if (!db) throw new Error('Database not available');
+      // Fetch all optimization transactions ordered by creation time
+      const txs = await db.select({
+        id: portfolioTransactions.id,
+        ticker: portfolioTransactions.ticker,
+        transactionType: portfolioTransactions.transactionType,
+        totalAmountCHF: portfolioTransactions.totalAmountCHF,
+        transactionDate: portfolioTransactions.transactionDate,
+        createdAt: portfolioTransactions.createdAt,
+      })
+        .from(portfolioTransactions)
+        .where(and(
+          eq(portfolioTransactions.portfolioId, input.portfolioId),
+          eq(portfolioTransactions.source, 'optimization'),
+        ))
+        .orderBy(desc(portfolioTransactions.createdAt));
+      // Group by minute-precision createdAt to form "batches"
+      const batchMap = new Map<string, typeof txs>();
+      for (const tx of txs) {
+        const key = tx.createdAt.toISOString().slice(0, 16);
+        if (!batchMap.has(key)) batchMap.set(key, []);
+        batchMap.get(key)!.push(tx);
+      }
+      return Array.from(batchMap.entries()).map(([key, items]) => {
+        const buys = items.filter(t => t.transactionType === 'buy');
+        const sells = items.filter(t => t.transactionType === 'sell');
+        const buyTotal = buys.reduce((s, t) => s + parseFloat(t.totalAmountCHF ?? '0'), 0);
+        const sellTotal = sells.reduce((s, t) => s + parseFloat(t.totalAmountCHF ?? '0'), 0);
+        return {
+          batchKey: key,
+          executedAt: items[0].createdAt,
+          transactionCount: items.length,
+          buyCount: buys.length,
+          sellCount: sells.length,
+          buyTotalCHF: buyTotal,
+          sellTotalCHF: sellTotal,
+          netCashChangeCHF: sellTotal - buyTotal,
+          tickers: [...new Set(items.map(t => t.ticker))],
+        };
+      });
+    }),
+
   bulkDelete: protectedProcedure
     .input(z.object({ transactionIds: z.array(z.number()) }))
     .mutation(async ({ input, ctx }) => {

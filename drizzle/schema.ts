@@ -263,11 +263,13 @@ export const portfolioTransactions = mysqlTable("portfolioTransactions", {
   totalAmountCHF: varchar("totalAmountCHF", { length: 50 }), // Total amount converted to CHF
   fees: varchar("fees", { length: 50 }).default("0"), // Transaction fees in CHF
   notes: text("notes"), // Optional user notes
+  source: varchar("source", { length: 50 }).default("manual"), // Origin: "manual", "optimization", "deposit", "import"
   transactionDate: timestamp("transactionDate").notNull(), // Date of the transaction
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (t) => ({
   portfolioIdIdx: index("ix_portfolio_transactions_portfolio_id").on(t.portfolioId),
   tickerIdx: index("ix_portfolio_transactions_ticker").on(t.ticker),
+  sourceIdx: index("ix_portfolio_transactions_source").on(t.source),
 }));
 
 export type PortfolioTransaction = typeof portfolioTransactions.$inferSelect;

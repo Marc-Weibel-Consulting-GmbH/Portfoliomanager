@@ -207,6 +207,7 @@ export default function OptimierenTab({
   method = "max_sharpe",
   strategyNote,
   onNavigateToTransactions,
+  onNavigateToPositions,
 }: {
   portfolioId: number;
   holdings: any[];
@@ -218,6 +219,8 @@ export default function OptimierenTab({
   strategyNote?: string;
   /** Callback: navigiert zum Transaktionen-Tab nach erfolgreicher Umsetzung */
   onNavigateToTransactions?: () => void;
+  /** Callback: navigiert zum Positionen-Tab nach erfolgreicher Buchung */
+  onNavigateToPositions?: () => void;
 }) {
   const [showDivRules, setShowDivRules] = useState(true);
   const [showUpgrades, setShowUpgrades] = useState(true);
@@ -238,6 +241,10 @@ export default function OptimierenTab({
       utils.portfolios.list.invalidate();
       utils.portfolioTransactions.list.invalidate();
       utils.analytics.upgradeProposals.invalidate();
+      // Auto-navigate to Positionen-Tab after 1.5s so user sees new holdings
+      if (onNavigateToPositions) {
+        setTimeout(() => onNavigateToPositions(), 1500);
+      }
     },
   });
   const undoRecMut = trpc.analytics.undoRecommendations.useMutation({
@@ -1639,6 +1646,69 @@ export default function OptimierenTab({
             ⚠️ Basierend auf historischen Renditen (Modern Portfolio Theory). Keine Anlageberatung.
           </p>
         </>
+      )}
+
+      {/* ─── Optimierungs-Verlauf ─── */}
+      <OptimierungsVerlauf portfolioId={portfolioId} />
+    </div>
+  );
+}
+
+function OptimierungsVerlauf({ portfolioId }: { portfolioId: number }) {
+  const [open, setOpen] = useState(false);
+  const { data: history, isLoading } = trpc.portfolioTransactions.getOptimizationHistory.useQuery(
+    { portfolioId },
+    { enabled: portfolioId > 0 && open, staleTime: 60_000 }
+  );
+  const fmtDate = (d: Date | string) => {
+    const dt = new Date(d);
+    return dt.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+  const fmtChfLocal = (v: number) => `CHF ${Math.round(v).toLocaleString('de-CH')}`;
+  return (
+    <div className="bg-[#0f1420] border border-white/10 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <CheckSquare className="w-4 h-4 text-[#00CFC1]" />
+          Optimierungs-Verlauf
+          {history && history.length > 0 && (
+            <span className="text-xs font-normal text-gray-400">({history.length} Buchung{history.length !== 1 ? 'en' : ''})</span>
+          )}
+        </span>
+        <span className="text-gray-500 text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="border-t border-white/10 px-4 py-3">
+          {isLoading ? (
+            <p className="text-xs text-gray-500 py-2">Lade Verlauf…</p>
+          ) : !history || history.length === 0 ? (
+            <p className="text-xs text-gray-500 py-2">Noch keine Optimierungen durchgeführt.</p>
+          ) : (
+            <div className="space-y-2">
+              {history.map((batch) => (
+                <div key={batch.batchKey} className="flex flex-wrap items-start gap-x-4 gap-y-1 py-2 border-b border-white/5 last:border-0">
+                  <span className="text-xs text-gray-400 w-36 flex-shrink-0">{fmtDate(batch.executedAt)}</span>
+                  <span className="text-xs text-white font-medium">
+                    {batch.transactionCount} Tx
+                    {batch.sellCount > 0 && <span className="text-red-400 ml-1">↓{batch.sellCount} Verk.</span>}
+                    {batch.buyCount > 0 && <span className="text-emerald-400 ml-1">↑{batch.buyCount} Käufe</span>}
+                  </span>
+                  <span className={`text-xs font-mono ${
+                    batch.netCashChangeCHF >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {batch.netCashChangeCHF >= 0 ? '+' : ''}{fmtChfLocal(batch.netCashChangeCHF)} Cash
+                  </span>
+                  <span className="text-[11px] text-gray-600 flex-1 min-w-0 truncate">
+                    {(batch.tickers as string[]).filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -965,6 +965,7 @@ Gib eine strukturierte Analyse zurück.`;
           totalAmountCHF: sell.totalCHF.toFixed(2),
           fees: '0',
           notes: `Empfehlung: Schwache Position ${sell.ticker} verkauft (Optimierung vom ${now.toLocaleDateString('de-CH')})`,
+          source: 'optimization',
           transactionDate: now,
         });
         if ((sellResult as any)?.insertId) createdIds.push((sellResult as any).insertId as number);
@@ -986,6 +987,7 @@ Gib eine strukturierte Analyse zurück.`;
           totalAmountCHF: buy.totalCHF.toFixed(2),
           fees: '0',
           notes: `Empfehlung: ${buy.ticker} gekauft als Ersatz/Ergaenzung (Optimierung vom ${now.toLocaleDateString('de-CH')})`,
+          source: 'optimization',
           transactionDate: now,
         });
         if ((buyResult as any)?.insertId) createdIds.push((buyResult as any).insertId as number);

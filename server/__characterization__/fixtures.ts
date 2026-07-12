@@ -61,6 +61,7 @@ export function makeTx(o: {
     totalAmountCHF: o.totalAmountCHF ?? null,
     fees: o.fees ?? "0",
     notes: null,
+    source: 'manual',
     transactionDate: new Date(`${o.date}T10:00:00Z`),
     createdAt: CREATED_AT,
   };
