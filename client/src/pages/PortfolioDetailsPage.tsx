@@ -1584,7 +1584,7 @@ export default function PortfolioDetailsPage() {
                           {new Date(snap.createdAt).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </span>
                         <a
-                          href={`/portfolio-vergleich?a=${portfolioId}&b=${snap.id}`}
+                          href={`/portfolio-comparison?a=${portfolioId}&b=${snap.id}`}
                           className="flex items-center gap-1 text-[#00CFC1] hover:text-[#00CFC1]/80 transition-colors"
                         >
                           <GitCompareArrows className="h-3 w-3" />
