@@ -1182,6 +1182,11 @@ export const kiBoomMetricsHistory = mysqlTable("ki_boom_metrics_history", {
   hyperscalerCapexWachstum: decimal("hyperscalerCapexWachstum", { precision: 8, scale: 2 }),
   vcAnteilKI: decimal("vcAnteilKI", { precision: 6, scale: 2 }),
   pilotProjektROIQuote: decimal("pilotProjektROIQuote", { precision: 6, scale: 2 }),
+  // Market-based metrics (backfillable via EODHD)
+  soxPrice: decimal("soxPrice", { precision: 10, scale: 2 }),
+  arkkPrice: decimal("arkkPrice", { precision: 10, scale: 2 }),
+  nvdaPE: decimal("nvdaPE", { precision: 8, scale: 2 }),
+  vixLevel: decimal("vixLevel", { precision: 6, scale: 2 }),
   overallZone: varchar("overallZone", { length: 10 }),
   activeWarnings: int("activeWarnings").default(0),
   activeCritical: int("activeCritical").default(0),

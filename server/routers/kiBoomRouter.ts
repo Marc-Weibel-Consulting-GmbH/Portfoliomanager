@@ -343,6 +343,18 @@ export async function computeKiBoomData(): Promise<KiBoomData> {
 
 // ── Snapshot-Funktion (für Cron) ───────────────────────────────────────────
 
+/** Fetch latest close price for a ticker (1-day lookback) */
+async function fetchLatestClose(ticker: string): Promise<number | null> {
+  try {
+    const prices = await fetchHistoricalPrices(ticker, 1);
+    if (!prices || prices.length === 0) return null;
+    const sorted = [...prices].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return sorted[sorted.length - 1]?.close ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function recordKiBoomSnapshot(): Promise<{
   overallZone: string;
   activeWarnings: number;
@@ -351,9 +363,26 @@ export async function recordKiBoomSnapshot(): Promise<{
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  const data = await computeKiBoomData();
-  const nvidia = data.signals.find((s) => s.label === "Nvidia Aktienkurs");
-  const mag7 = data.signals.find((s) => s.label === "Magnificent Seven YTD");
+  const [data, soxResult, arkkResult, vixResult] = await Promise.allSettled([
+    computeKiBoomData(),
+    fetchLatestClose("SOXX.US"),
+    fetchLatestClose("ARKK.US"),
+    fetchLatestClose("VIX.INDX"),
+  ]);
+
+  if (data.status !== "fulfilled") throw new Error("computeKiBoomData failed");
+  const d = data.value;
+  const nvidia = d.signals.find((s) => s.label === "Nvidia Aktienkurs");
+  const mag7 = d.signals.find((s) => s.label === "Magnificent Seven YTD");
+  const soxPrice = soxResult.status === "fulfilled" ? soxResult.value : null;
+  const arkkPrice = arkkResult.status === "fulfilled" ? arkkResult.value : null;
+  const vixLevel = vixResult.status === "fulfilled" ? vixResult.value : null;
+
+  // NVDA P/E: approximate from price / EPS TTM (EPS ~2.94 as of 2026)
+  const nvdaEpsTtm = 2.94;
+  const nvdaPE = nvidia?.numericValue != null && nvidia.numericValue > 0
+    ? nvidia.numericValue / nvdaEpsTtm
+    : null;
 
   await db.insert(kiBoomMetricsHistory).values({
     recordedAt: new Date(),
@@ -363,18 +392,22 @@ export async function recordKiBoomSnapshot(): Promise<{
     hyperscalerCapexWachstum: String(STATIC_METRICS.hyperscalerCapexWachstum),
     vcAnteilKI: String(STATIC_METRICS.vcAnteilKI),
     pilotProjektROIQuote: String(STATIC_METRICS.pilotProjektROIQuote),
-    overallZone: data.overallZone,
-    activeWarnings: data.activeWarnings,
-    activeCritical: data.activeCritical,
-    scenarioSanfte: data.scenarioProbabilities.sanfteVerlangsamung,
-    scenarioCrash: data.scenarioProbabilities.schnellerCrash,
-    scenarioBoom: data.scenarioProbabilities.weiterhinBoom,
+    soxPrice: soxPrice != null ? String(soxPrice) : null,
+    arkkPrice: arkkPrice != null ? String(arkkPrice) : null,
+    nvdaPE: nvdaPE != null ? String(nvdaPE) : null,
+    vixLevel: vixLevel != null ? String(vixLevel) : null,
+    overallZone: d.overallZone,
+    activeWarnings: d.activeWarnings,
+    activeCritical: d.activeCritical,
+    scenarioSanfte: d.scenarioProbabilities.sanfteVerlangsamung,
+    scenarioCrash: d.scenarioProbabilities.schnellerCrash,
+    scenarioBoom: d.scenarioProbabilities.weiterhinBoom,
   });
 
   return {
-    overallZone: data.overallZone,
-    activeWarnings: data.activeWarnings,
-    activeCritical: data.activeCritical,
+    overallZone: d.overallZone,
+    activeWarnings: d.activeWarnings,
+    activeCritical: d.activeCritical,
   };
 }
 
@@ -415,6 +448,10 @@ export const kiBoomRouter = router({
           hyperscalerCapexWachstum: r.hyperscalerCapexWachstum != null ? parseFloat(String(r.hyperscalerCapexWachstum)) : null,
           vcAnteilKI: r.vcAnteilKI != null ? parseFloat(String(r.vcAnteilKI)) : null,
           pilotProjektROIQuote: r.pilotProjektROIQuote != null ? parseFloat(String(r.pilotProjektROIQuote)) : null,
+          soxPrice: r.soxPrice != null ? parseFloat(String(r.soxPrice)) : null,
+          arkkPrice: r.arkkPrice != null ? parseFloat(String(r.arkkPrice)) : null,
+          nvdaPE: r.nvdaPE != null ? parseFloat(String(r.nvdaPE)) : null,
+          vixLevel: r.vixLevel != null ? parseFloat(String(r.vixLevel)) : null,
           overallZone: r.overallZone,
           activeWarnings: r.activeWarnings ?? 0,
           activeCritical: r.activeCritical ?? 0,
