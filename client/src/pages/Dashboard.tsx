@@ -616,6 +616,16 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
+                variant="outline"
+                className="h-9 w-9 p-0 bg-[#1a2332] border-[#2a3a4e] text-[#00CFC1] hover:bg-[#243044] hover:text-[#00CFC1]"
+                onClick={() => navigate("/portfolio-builder")}
+                title="Neues Portfolio erstellen"
+                aria-label="Neues Portfolio erstellen"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
                 aria-pressed={scope === "aggregate"}
                 className={`h-9 text-xs font-semibold ${
                   scope === "aggregate"
