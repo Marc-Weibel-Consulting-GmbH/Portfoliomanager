@@ -1208,11 +1208,22 @@ export default function OptimierenTab({
                             ticker: rep.suggestions[0].ticker,
                             companyName: rep.suggestions[0].companyName,
                             totalCHF: rep.cashRequired,
+                            priceCHF: (rep.suggestions[0] as any).currentPriceCHF ?? undefined,
+                            shares: (() => {
+                              const p = (rep.suggestions[0] as any).currentPriceCHF;
+                              return p && p > 0 ? rep.cashRequired / p : undefined;
+                            })(),
                           })),
                         ...upgradeData.additionSuggestions.slice(0, numAdditions).map((c: any) => ({
                           ticker: c.ticker,
                           companyName: c.companyName,
                           totalCHF: c.estimatedWeight * (totalValueCHF ?? 0),
+                          priceCHF: c.currentPriceCHF ?? undefined,
+                          shares: (() => {
+                            const p = c.currentPriceCHF;
+                            const amt = c.estimatedWeight * (totalValueCHF ?? 0);
+                            return p && p > 0 ? amt / p : undefined;
+                          })(),
                         })),
                       ];
                       applyRecMut.mutate({ portfolioId, sells, buys, cloneFirst });

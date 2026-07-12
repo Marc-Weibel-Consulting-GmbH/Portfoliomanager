@@ -411,6 +411,7 @@ Gib eine strukturierte Analyse zurück.`;
             dividendYield: string | null;
             category: string | null;
             scoreDelta: number;
+            currentPriceCHF: number | null;
           }>;
         }> = [];
 
@@ -447,6 +448,7 @@ Gib eine strukturierte Analyse zurück.`;
               dividendYield: c.dividendYield ?? null,
               category: c.category ?? null,
               scoreDelta: (c.signalScore ?? 0) - (weak.signalScore ?? 0),
+              currentPriceCHF: c.currentPrice ? parseFloat(c.currentPrice) : null,
             }));
 
           // Zugewiesenen Kandidaten aus dem Pool entfernen
@@ -482,6 +484,7 @@ Gib eine strukturierte Analyse zurück.`;
             category: c.category ?? null,
             listType: c.listType,
             estimatedWeight: parseFloat((1 / (input.holdings.length + 1)).toFixed(4)),
+            currentPriceCHF: c.currentPrice ? parseFloat(c.currentPrice) : null,
           }));
 
         // Durchschnitts-Score nach Upgrade (beste Ersatz-Vorschläge eingerechnet)
@@ -868,7 +871,7 @@ Gib eine strukturierte Analyse zurück.`;
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       // Verify portfolio ownership
       const portfolio = await db
-        .select({ id: savedPortfolios.id, userId: savedPortfolios.userId, cashBalance: savedPortfolios.cashBalance })
+        .select({ id: savedPortfolios.id, userId: savedPortfolios.userId, cashBalance: savedPortfolios.cashBalance, portfolioData: savedPortfolios.portfolioData, investmentAmount: savedPortfolios.investmentAmount })
         .from(savedPortfolios)
         .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
         .limit(1);
@@ -997,6 +1000,57 @@ Gib eine strukturierte Analyse zurück.`;
           .set({ cashBalance: newCash.toFixed(2) })
           .where(eq(savedPortfolios.id, input.portfolioId));
       }
+      // 3b. Sync portfolioData.stocks: remove sold positions, add/update bought positions
+      try {
+        const rawPortfolioData = portfolio[0]?.portfolioData;
+        let pData: { stocks?: any[]; [key: string]: any } = {};
+        try { pData = JSON.parse(rawPortfolioData || '{}'); } catch { /* ignore */ }
+        const stocks: any[] = pData.stocks || [];
+
+        // Remove fully-sold positions
+        const soldTickers = new Set(input.sells.map((s) => s.ticker));
+        let updatedStocks = stocks.filter((s: any) => !soldTickers.has(s.ticker));
+
+        // Add or update bought positions
+        for (const buy of scaledBuys) {
+          if (buy.totalCHF <= 0) continue;
+          const existingIdx = updatedStocks.findIndex((s: any) => s.ticker === buy.ticker);
+          const buyShares = buy.shares ?? (buy.priceCHF && buy.priceCHF > 0 ? buy.totalCHF / buy.priceCHF : 0);
+          if (existingIdx >= 0) {
+            const existing = updatedStocks[existingIdx];
+            const existingShares = parseFloat(existing.shares) || 0;
+            updatedStocks[existingIdx] = { ...existing, shares: (existingShares + buyShares).toFixed(4) };
+          } else {
+            updatedStocks.push({
+              ticker: buy.ticker,
+              companyName: buy.companyName || buy.ticker,
+              shares: buyShares.toFixed(4),
+              avgBuyPrice: buy.priceCHF?.toFixed(4) ?? '0',
+              portfolioWeight: 0,
+            });
+          }
+        }
+
+        // Recalculate portfolio weights
+        const totalInvested = updatedStocks.reduce((sum: number, s: any) => {
+          return sum + (parseFloat(s.shares) || 0) * (parseFloat(s.avgBuyPrice) || 0);
+        }, 0);
+        if (totalInvested > 0) {
+          updatedStocks = updatedStocks.map((s: any) => {
+            const val = (parseFloat(s.shares) || 0) * (parseFloat(s.avgBuyPrice) || 0);
+            return { ...s, portfolioWeight: parseFloat(((val / totalInvested) * 100).toFixed(2)) };
+          });
+        }
+
+        pData.stocks = updatedStocks;
+        await db.update(savedPortfolios)
+          .set({ portfolioData: JSON.stringify(pData) })
+          .where(eq(savedPortfolios.id, input.portfolioId));
+        console.log(`[applyRecommendations] portfolioData.stocks synced: ${updatedStocks.length} positions (sold: ${soldTickers.size}, bought: ${scaledBuys.length})`);
+      } catch (syncErr) {
+        console.error('[applyRecommendations] portfolioData sync failed:', (syncErr as Error).message);
+      }
+
       // 4. Invalidate Redis cache for this portfolio so next load is fresh
       try {
         const { cacheDel } = await import('../redisClient');
@@ -1039,9 +1093,9 @@ Gib eine strukturierte Analyse zurück.`;
       if (portfolio.length === 0) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Portfolio nicht gefunden oder keine Berechtigung' });
       }
-      // Fetch the transactions to reverse cashBalance
+      // Fetch the transactions to reverse cashBalance and sync portfolioData
       const txs = await db
-        .select({ id: portfolioTransactions.id, transactionType: portfolioTransactions.transactionType, totalAmountCHF: portfolioTransactions.totalAmountCHF })
+        .select({ id: portfolioTransactions.id, transactionType: portfolioTransactions.transactionType, totalAmountCHF: portfolioTransactions.totalAmountCHF, ticker: portfolioTransactions.ticker, shares: portfolioTransactions.shares, pricePerShare: portfolioTransactions.pricePerShare })
         .from(portfolioTransactions)
         .where(and(
           inArray(portfolioTransactions.id, input.transactionIds),
@@ -1071,6 +1125,59 @@ Gib eine strukturierte Analyse zurück.`;
           .set({ cashBalance: newCash.toFixed(2) })
           .where(eq(savedPortfolios.id, input.portfolioId));
       }
+            // Sync portfolioData.stocks: reverse the buy/sell changes
+      try {
+        const portfolioFull = await db.select({ portfolioData: savedPortfolios.portfolioData })
+          .from(savedPortfolios).where(eq(savedPortfolios.id, input.portfolioId)).limit(1);
+        let pData: { stocks?: any[]; [key: string]: any } = {};
+        try { pData = JSON.parse(portfolioFull[0]?.portfolioData || '{}'); } catch { /* ignore */ }
+        let stocks: any[] = pData.stocks || [];
+
+        for (const tx of txs) {
+          if (!tx.ticker) continue;
+          const txShares = parseFloat(tx.shares ?? '0') || 0;
+          const txPrice = parseFloat(tx.pricePerShare ?? '0') || 0;
+          const existingIdx = stocks.findIndex((s: any) => s.ticker === tx.ticker);
+
+          if (tx.transactionType === 'buy') {
+            // Undo buy: remove shares (or whole position if shares go to 0)
+            if (existingIdx >= 0) {
+              const newShares = Math.max(0, (parseFloat(stocks[existingIdx].shares) || 0) - txShares);
+              if (newShares < 0.0001) {
+                stocks.splice(existingIdx, 1); // remove position entirely
+              } else {
+                stocks[existingIdx] = { ...stocks[existingIdx], shares: newShares.toFixed(4) };
+              }
+            }
+          } else if (tx.transactionType === 'sell') {
+            // Undo sell: restore shares
+            if (existingIdx >= 0) {
+              const newShares = (parseFloat(stocks[existingIdx].shares) || 0) + txShares;
+              stocks[existingIdx] = { ...stocks[existingIdx], shares: newShares.toFixed(4) };
+            } else {
+              stocks.push({ ticker: tx.ticker, shares: txShares.toFixed(4), avgBuyPrice: txPrice.toFixed(4), portfolioWeight: 0 });
+            }
+          }
+        }
+
+        // Recalculate weights
+        const totalInvested = stocks.reduce((sum: number, s: any) => sum + (parseFloat(s.shares) || 0) * (parseFloat(s.avgBuyPrice) || 0), 0);
+        if (totalInvested > 0) {
+          stocks = stocks.map((s: any) => {
+            const val = (parseFloat(s.shares) || 0) * (parseFloat(s.avgBuyPrice) || 0);
+            return { ...s, portfolioWeight: parseFloat(((val / totalInvested) * 100).toFixed(2)) };
+          });
+        }
+
+        pData.stocks = stocks;
+        await db.update(savedPortfolios)
+          .set({ portfolioData: JSON.stringify(pData) })
+          .where(eq(savedPortfolios.id, input.portfolioId));
+        console.log(`[undoRecommendations] portfolioData.stocks synced after undo: ${stocks.length} positions`);
+      } catch (syncErr) {
+        console.error('[undoRecommendations] portfolioData sync failed:', (syncErr as Error).message);
+      }
+
       // Invalidate Redis cache for this portfolio
       try {
         const { cacheDel } = await import('../redisClient');
@@ -1078,7 +1185,6 @@ Gib eine strukturierte Analyse zurück.`;
       } catch (e) {
         console.warn('[undoRecommendations] Redis cache invalidation failed (non-critical):', (e as Error).message);
       }
-
       return {
         success: true,
         deletedCount: txs.length,

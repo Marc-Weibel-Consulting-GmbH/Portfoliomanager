@@ -111,8 +111,11 @@
 - [x] Portfolio-Refresh: Nach Buchung Redis-Cache invalidieren + tRPC-Queries neu laden
 
 ## KI-Boom Dynamische Metriken + Optimierungs-Dialog (11.07.2026)
-- [ ] Backend: fetchDynamicKiBoomMetrics() via Perplexity — OpenAI-Bewertung, Hyperscaler CapEx, VC-Anteil, ROI-Quote
-- [ ] Backend: DB-Tabelle ki_boom_dynamic_metrics (key, value, unit, source, fetchedAt) als Cache
-- [ ] Backend: kiBoomRouter.getDynamicMetrics Prozedur + täglicher Heartbeat-Update
-- [ ] Frontend: KI-Boom Dashboard zeigt dynamische Werte mit Quelle + Datum
-- [ ] Frontend: Optimierungs-Dialog zeigt skalierte Kauf-Beträge pro Position
+- [x] Backend: fetchDynamicKiBoomMetrics() via Perplexity — OpenAI-Bewertung, Hyperscaler CapEx, VC-Anteil, ROI-Quote
+- [x] Backend: DB-Tabelle ki_boom_dynamic_metrics (key, value, unit, source, fetchedAt) als Cache
+- [x] Backend: kiBoomRouter.getDynamicMetrics Prozedur + täglicher Heartbeat-Update
+- [x] Frontend: KI-Boom Dashboard zeigt dynamische Werte mit Quelle + Datum
+- [x] Frontend: Optimierungs-Dialog zeigt skalierte Kauf-Beträge pro Position
+
+## Kritischer Bug: Optimierung sichtbar im Depot (12.07.2026)
+- [x] applyRecommendations: portfolioData.stocks JSON nach Buchung aktualisieren (Verkäufe entfernen, Käufe hinzufügen, Gewichte neu berechnen)
