@@ -387,17 +387,18 @@ export default function OptimierenTab({
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 0 }
   );
 
-  // Upgrade-Vorschläge aus Watchlist + Empfehlungen
+  // Upgrade-Vorschläge aus Watchlist + Empfehlungen (zielbasiertes Ranking je nach method)
   const { data: upgradeData, isFetching: isUpgradeFetching, refetch: refetchUpgrades } = trpc.analytics.upgradeProposals.useQuery(
     {
       portfolioId: String(portfolioId),
       holdings: holdingsWithScores,
       portfolioValue: totalValueCHF ?? 0,
       cashBalance: cashBalance ?? 0,
+      method,
     },
     {
       enabled: portfolioId > 0 && holdingsWithScores.length > 0,
-      staleTime: 5 * 60 * 1000,
+      staleTime: 0, // Kein Cache: Ranking ändert sich mit method
     }
   );
 
@@ -720,6 +721,11 @@ export default function OptimierenTab({
                 {upgradeData.weakPositions.length} schwach · {upgradeData.additionSuggestions.length} Kandidaten
               </span>
             )}
+            {(upgradeData as any)?.rankBy && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                ▲ {(upgradeData as any).rankBy}
+              </span>
+            )}
             {upgradeData && upgradeData.avgScoreCurrent > 0 && upgradeData.avgScoreAfterUpgrade > upgradeData.avgScoreCurrent && (
               <span className="text-[10px] text-emerald-400 font-medium">
                 Ø Score: {upgradeData.avgScoreCurrent} → {upgradeData.avgScoreAfterUpgrade} (+{upgradeData.avgScoreAfterUpgrade - upgradeData.avgScoreCurrent})
@@ -773,6 +779,11 @@ export default function OptimierenTab({
                     )}
                     <span className="text-[10px] text-gray-600 ml-auto">
                       {upgradeData.totalCandidates} Kandidaten in Watchlist/Empfehlungen · Schwelle: Score &lt; {upgradeData.upgradeScoreThreshold}
+                      {(upgradeData as any).rankBy && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 font-medium">
+                          Sortiert nach: {(upgradeData as any).rankBy}
+                        </span>
+                      )}
                     </span>
                   </div>
                 )}

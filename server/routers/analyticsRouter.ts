@@ -360,11 +360,44 @@ Gib eine strukturierte Analyse zurück.`;
         ),
         portfolioValue: z.number().optional().default(0),
         cashBalance: z.number().optional().default(0),
+        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp"]).optional().default("max_sharpe"),
       })
     )
     .query(async ({ input }) => {
       try {
         const rules = await _getDiversificationRules();
+
+        // Zielbasiertes Ranking: Sortierkriterium je nach Optimierungsziel
+        // max_dividend → Dividendenrendite (höher = besser)
+        // min_variance  → Beta (tiefer = besser, d.h. aufsteigend sortieren)
+        // max_sharpe    → Sharpe Ratio (höher = besser)
+        // hrp           → Sharpe Ratio (höher = besser)
+        // equal_weight  → Signal-Score (Standard)
+        const method = input.method ?? "max_sharpe";
+        type CandidateRow = { signalScore: number | null; dividendYield: string | null; beta: string | null; sharpeRatio: string | null; ytdPerformance: string | null; [key: string]: unknown };
+        const getCandidateScore = (c: CandidateRow): number => {
+          if (method === "max_dividend") {
+            return parseFloat(c.dividendYield ?? "0") || 0;
+          }
+          if (method === "min_variance") {
+            // Niedrigeres Beta ist besser → negatives Beta als Score
+            const beta = parseFloat(c.beta ?? "1") || 1;
+            return -beta;
+          }
+          if (method === "max_sharpe" || method === "hrp") {
+            const sharpe = parseFloat(c.sharpeRatio ?? "0") || 0;
+            // Fallback auf signalScore wenn kein Sharpe vorhanden
+            return sharpe !== 0 ? sharpe : (c.signalScore ?? 0) / 100;
+          }
+          // equal_weight / default: Signal-Score
+          return c.signalScore ?? 0;
+        };
+        const getRankLabel = (): string => {
+          if (method === "max_dividend") return "Dividendenrendite";
+          if (method === "min_variance") return "Beta (niedrig)";
+          if (method === "max_sharpe" || method === "hrp") return "Sharpe Ratio";
+          return "Signal-Score";
+        };
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB nicht verfügbar" });
 
@@ -437,7 +470,7 @@ Gib eine strukturierte Analyse zurück.`;
               if (sector && c.sector && c.sector.toLowerCase() !== sector.toLowerCase()) return false;
               return true;
             })
-            .sort((a, b) => (b.signalScore ?? 0) - (a.signalScore ?? 0))
+            .sort((a, b) => getCandidateScore(b as CandidateRow) - getCandidateScore(a as CandidateRow))
             .slice(0, 1) // Genau 1 bester Ersatz pro schwacher Position
             .map((c) => ({
               ticker: c.ticker,
@@ -473,7 +506,7 @@ Gib eine strukturierte Analyse zurück.`;
             if ((c.signalScore ?? 0) < additionThreshold) return false;
             return true;
           })
-          .sort((a, b) => (b.signalScore ?? 0) - (a.signalScore ?? 0))
+          .sort((a, b) => getCandidateScore(b as CandidateRow) - getCandidateScore(a as CandidateRow))
           .map((c) => ({
             ticker: c.ticker,
             companyName: c.companyName,
@@ -515,6 +548,8 @@ Gib eine strukturierte Analyse zurück.`;
           avgScoreAfterUpgrade,
           upgradeScoreThreshold: rules.upgradeScoreThreshold,
           totalCandidates: candidates.length,
+          rankBy: getRankLabel(),
+          method,
         };
       } catch (err: any) {
         throw new TRPCError({
