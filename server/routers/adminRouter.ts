@@ -981,4 +981,35 @@ export const adminRouter = router({
       const { getAnalyticsServiceStatus } = await import("../lib/analyticsServiceStatus");
       return getAnalyticsServiceStatus();
     }),
+
+    /**
+     * Manueller Trigger für den täglichen signalScore-Refresh + Preishistorie-Backfill.
+     * Ruft den internen /api/scheduled/signalScoreRefresh Endpoint auf.
+     * Nützlich um nicht auf 07:00 UTC warten zu müssen.
+     */
+    triggerSignalScoreRefresh: adminProcedure.mutation(async () => {
+      try {
+        const port = process.env.PORT || 3000;
+        const response = await fetch(`http://localhost:${port}/api/scheduled/signalScoreRefresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(600_000), // 10 min max
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        const result = await response.json();
+        return {
+          success: true,
+          message: `Refresh abgeschlossen: ${result.updated ?? 0} Scores aktualisiert, ${result.ytdRecalc?.updated ?? 0} YTD-Werte neu berechnet, ${result.backfill?.pricesImported ?? 0} Preise importiert.`,
+          details: result,
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          message: `Fehler: ${err?.message ?? "Unbekannter Fehler"}`,
+          details: null,
+        };
+      }
+    }),
 });

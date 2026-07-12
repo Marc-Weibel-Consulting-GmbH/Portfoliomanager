@@ -1,11 +1,29 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain } from "lucide-react";
+import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
+  const [refreshStatus, setRefreshStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const triggerRefresh = trpc.admin.triggerSignalScoreRefresh.useMutation({
+    onSuccess: (data) => {
+      setRefreshStatus({ success: data.success, message: data.message });
+      if (data.success) {
+        toast.success("Signal-Scores aktualisiert", { description: data.message });
+      } else {
+        toast.error("Fehler beim Aktualisieren", { description: data.message });
+      }
+    },
+    onError: (err) => {
+      setRefreshStatus({ success: false, message: err.message });
+      toast.error("Fehler", { description: err.message });
+    },
+  });
 
   const adminSections = [
     {
@@ -81,6 +99,39 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground mt-2">
             Zentrale Verwaltung der Platform
           </p>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-3 p-4 bg-muted/30 rounded-lg border">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Schnellaktionen</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Manuelle Trigger für geplante Jobs</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {refreshStatus && (
+              <div className={`flex items-center gap-1.5 text-xs ${
+                refreshStatus.success ? "text-green-500" : "text-red-500"
+              }`}>
+                {refreshStatus.success
+                  ? <CheckCircle2 className="h-4 w-4" />
+                  : <XCircle className="h-4 w-4" />}
+                <span className="max-w-xs truncate">{refreshStatus.message}</span>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setRefreshStatus(null);
+                triggerRefresh.mutate();
+              }}
+              disabled={triggerRefresh.isPending}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${triggerRefresh.isPending ? "animate-spin" : ""}`} />
+              {triggerRefresh.isPending ? "Aktualisiert..." : "Scores jetzt aktualisieren"}
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
