@@ -107,7 +107,9 @@ export async function fetchEodSeries(
 }
 
 /**
- * Get all unique tickers from user transactions AND portfolio holdings
+ * Get all unique tickers from user transactions, portfolio holdings, AND the stocks table (watchlist).
+ * The stocks table is the primary source for the KI portfolio algorithm — all stocks there
+ * need historical prices for YTD calculation and performance analysis.
  */
 async function getUniqueTickers(): Promise<string[]> {
   const db = await getDb();
@@ -150,13 +152,24 @@ async function getUniqueTickers(): Promise<string[]> {
     }
   }
 
+  // === BACKFILL: All stocks in the stocks table (watchlist / KI algorithm universe) ===
+  // These need historical prices for YTD calculation, signalScore, and portfolio proposals.
+  const { stocks: stocksTable } = await import("../../drizzle/schema");
+  const watchlistStocks = await db
+    .select({ ticker: stocksTable.ticker })
+    .from(stocksTable)
+    .where(sql`${stocksTable.ticker} IS NOT NULL AND ${stocksTable.ticker} != ''`);
+  const watchlistTickers = watchlistStocks.map((r: any) => r.ticker).filter((t: string) => !!t);
+  console.log(`[importHistoricalPrices] Found ${watchlistTickers.length} tickers in stocks table (watchlist)`);
+
   // Benchmark proxy tickers — always kept up-to-date so KPI header and chart are consistent
   const BENCHMARK_TICKERS = ['ACWI.US', 'CHSPI.SW', 'SPY'];
 
-  // Combine both sources and deduplicate
+  // Combine all sources and deduplicate
   const allTickers = new Set<string>([
     ...transactionTickers.map((r) => r.ticker).filter((t): t is string => !!t),
     ...Array.from(portfolioTickers),
+    ...watchlistTickers,
     ...BENCHMARK_TICKERS,
   ]);
 

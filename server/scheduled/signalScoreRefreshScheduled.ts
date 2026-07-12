@@ -191,6 +191,27 @@ export async function handleSignalScoreRefresh(req: Request, res: Response) {
       `[signalScoreRefresh] Done in ${elapsed}s: updated=${updated}, skipped=${skipped}, failed=${failed}`
     );
 
+    // === BACKFILL: Load historical prices for all stocks missing data ===
+    // This runs after signalScore update so YTD values are fresh.
+    // Uses the existing importHistoricalPrices job which now includes all stocks table tickers.
+    let backfillResult: any = null;
+    try {
+      console.log("[signalScoreRefresh] Starting historical price backfill for all stocks...");
+      const { importHistoricalPrices } = await import("../jobs/importHistoricalPrices");
+      // Backfill 2 years of history (for YTD + performance charts)
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      const fromDate = twoYearsAgo.toISOString().split("T")[0];
+      const toDate = new Date().toISOString().split("T")[0];
+      backfillResult = await importHistoricalPrices(fromDate, toDate, false);
+      console.log(
+        `[signalScoreRefresh] Backfill done: ${backfillResult.tickersProcessed} tickers, ${backfillResult.pricesImported} prices`
+      );
+    } catch (backfillErr: any) {
+      console.error("[signalScoreRefresh] Backfill error (non-fatal):", backfillErr?.message);
+      backfillResult = { error: backfillErr?.message };
+    }
+
     return res.json({
       ok: true,
       updated,
@@ -198,6 +219,7 @@ export async function handleSignalScoreRefresh(req: Request, res: Response) {
       failed,
       total: checkable.length,
       elapsedSeconds: parseFloat(elapsed),
+      backfill: backfillResult,
     });
   } catch (err: any) {
     console.error("[signalScoreRefresh] Fatal error:", err);

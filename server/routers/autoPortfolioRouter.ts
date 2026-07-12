@@ -109,7 +109,8 @@ export const autoPortfolioRouter = router({
         if (!(price > 0)) return false;
         if (s.sector && excludedSectors.includes(s.sector)) return false;
         // ESG-Filter: wenn esgOnly aktiviert, nur ESG-zertifizierte Titel
-        if (esgOnly && !s.esgCertified) return false;
+        // Graceful fallback: if esgCertified field doesn't exist, skip ESG filter
+        if (esgOnly && s.esgCertified !== undefined && !s.esgCertified) return false;
 
         // === SECTOR BENCHMARK FILTER ===
         // Exclude stocks that underperform their sector benchmark by more than 20 percentage points
@@ -170,25 +171,46 @@ export const autoPortfolioRouter = router({
           const grade = (score: number) =>
             score >= 80 ? "A" : score >= 65 ? "B" : score >= 50 ? "C" : score >= 35 ? "D" : "F";
 
-          // === ALGORITHM IMPROVEMENT: Momentum-adjusted score ===
+          // === ALGORITHM IMPROVEMENT v2: Momentum-adjusted score with NULL penalty ===
           // YTD performance from DB (already stored as percentage, e.g. -20.9 or +12.0)
-          const ytdPerf = parseFloat(s.ytdPerformance ?? "0") || 0;
+          const ytdRaw = s.ytdPerformance;
+          const ytdPerf = ytdRaw !== null && ytdRaw !== undefined ? parseFloat(String(ytdRaw)) || 0 : null;
+          const ytdHasData = ytdPerf !== null;
+
           // Momentum bonus/penalty: +5 pts for YTD > +10%, -10 pts for YTD < -15%
-          // This prevents selecting stocks with strong negative momentum
+          // NULL YTD = uncertainty penalty (-5 pts) — we don't know if it's performing
           let momentumAdj = 0;
-          if (ytdPerf > 20) momentumAdj = 8;
-          else if (ytdPerf > 10) momentumAdj = 5;
-          else if (ytdPerf > 5) momentumAdj = 2;
-          else if (ytdPerf < -20) momentumAdj = -15;
-          else if (ytdPerf < -15) momentumAdj = -10;
-          else if (ytdPerf < -10) momentumAdj = -5;
+          if (!ytdHasData) {
+            momentumAdj = -5; // Uncertainty penalty for missing YTD data
+          } else if (ytdPerf! > 20) momentumAdj = 8;
+          else if (ytdPerf! > 10) momentumAdj = 5;
+          else if (ytdPerf! > 5) momentumAdj = 2;
+          else if (ytdPerf! < -20) momentumAdj = -15;
+          else if (ytdPerf! < -15) momentumAdj = -10;
+          else if (ytdPerf! < -10) momentumAdj = -5;
 
-          // Goal-based adjustment: growth goal boosts momentum stocks
+          // Goal-based adjustment: growth goal boosts momentum stocks, penalizes unknowns
           let goalAdj = 0;
-          if (goal === "growth" && ytdPerf > 5) goalAdj = 5;
-          if (goal === "dividends" && ytdPerf < -5) goalAdj = -3; // dividend stocks with falling prices are risky
+          const ytdValue = ytdPerf ?? 0;
+          if (goal === "growth") {
+            if (ytdValue > 5) goalAdj = 5;
+            if (!ytdHasData) goalAdj = -5; // growth needs known momentum
+          }
+          if (goal === "dividends") {
+            if (ytdValue < -5) goalAdj = -3; // dividend stocks with falling prices are risky
+            // Boost dividend yield for dividends goal
+            const divYield = parseFloat(wl?.dividendYield ?? s.dividendYield ?? "0");
+            if (divYield >= 4) goalAdj += 5;
+            else if (divYield >= 2) goalAdj += 2;
+            else if (divYield < 1) goalAdj -= 5; // penalize low-yield stocks in dividend portfolio
+          }
 
-          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj));
+          // Profile-based adjustment: konservativ prefers known, stable stocks
+          let profileAdj = 0;
+          if (riskProfile === "konservativ" && !ytdHasData) profileAdj = -3;
+          if (riskProfile === "aggressiv" && ytdHasData && ytdValue > 10) profileAdj = 3;
+
+          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + profileAdj));
           const momentumGrade = grade(combinedScore);
           const qualityGrade = grade(combinedScore - 5); // slight offset for quality
           return {
