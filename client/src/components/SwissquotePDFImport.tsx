@@ -22,6 +22,7 @@ import {
   Loader2,
   ArrowRight,
   Info,
+  Package,
 } from "lucide-react";
 
 interface ParsedTransaction {
@@ -79,8 +80,19 @@ const CONFIDENCE_COLORS: Record<string, string> = {
   LOW: "text-red-400",
 };
 
+interface DepotauszugPosition {
+  name: string;
+  isin: string | null;
+  currency: string;
+  quantity: number;
+  avgPurchasePrice: number | null;
+  marketPrice: number | null;
+  marketValueCHF: number | null;
+  assetType: 'stock' | 'crypto' | 'cash';
+}
+
 export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComplete }: Props) {
-  const [step, setStep] = useState<"upload" | "review" | "done">("upload");
+  const [step, setStep] = useState<"upload" | "review" | "review-positions" | "done">("upload");
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsedTransactions, setParsedTransactions] = useState<ParsedTransaction[]>([]);
@@ -88,6 +100,46 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [pageCount, setPageCount] = useState(0);
+  // Depotauszug (snapshot) state
+  const [depotPositions, setDepotPositions] = useState<DepotauszugPosition[]>([]);
+  const [depotReportDate, setDepotReportDate] = useState<string | null>(null);
+  const [depotAccountHolder, setDepotAccountHolder] = useState<string | null>(null);
+  const [depotTotalCHF, setDepotTotalCHF] = useState<number | null>(null);
+  const [selectedPositionIndices, setSelectedPositionIndices] = useState<Set<number>>(new Set());
+
+  const parseDepotauszugMutation = trpc.pdfImport.parseDepotauszug.useMutation({
+    onSuccess: (data) => {
+      setDepotPositions(data.positions as DepotauszugPosition[]);
+      setParseErrors(data.parseErrors);
+      setPageCount(data.pageCount);
+      setDepotReportDate(data.reportDate);
+      setDepotAccountHolder(data.accountHolder);
+      setDepotTotalCHF(data.totalValueCHF);
+      // Pre-select all positions
+      setSelectedPositionIndices(new Set(data.positions.map((_, i) => i)));
+      setStep("review-positions");
+    },
+    onError: (err) => {
+      toast.error("Depotauszug-Parsing fehlgeschlagen", { description: err.message });
+    },
+  });
+
+  const importPositionsMutation = trpc.pdfImport.importPositions.useMutation({
+    onSuccess: (data) => {
+      if (data.errorCount > 0) {
+        toast.warning(`${data.importedCount} Positionen importiert`, {
+          description: `${data.errorCount} Fehler: ${data.errors[0]}`,
+        });
+      } else {
+        toast.success(`${data.importedCount} Positionen erfolgreich importiert`);
+      }
+      setStep("done");
+      onImportComplete?.(data.importedCount);
+    },
+    onError: (err) => {
+      toast.error("Import fehlgeschlagen", { description: err.message });
+    },
+  });
 
   const parseMutation = trpc.pdfImport.parseSwissquote.useMutation({
     onSuccess: (data) => {
@@ -139,15 +191,32 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
         return;
       }
       setFileName(file.name);
-      // Read as base64
+      // Read as base64, then auto-detect document type
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const base64 = (e.target?.result as string).split(",")[1];
-        parseMutation.mutate({ pdfBase64: base64, fileName: file.name });
+        // Peek at raw text to detect Depotauszug vs. transaction history
+        // We use a lightweight heuristic: Depotauszug PDFs contain "Portfolio-Performance"
+        // We'll just try parseDepotauszug first; if it finds 0 positions, fall back
+        try {
+          // Decode base64 to check for keyword (client-side)
+          const binaryStr = atob(base64.slice(0, 4000));
+          const isDepotauszug = binaryStr.includes('Portfolio-Performance') ||
+            file.name.toLowerCase().includes('depotauszug') ||
+            file.name.toLowerCase().includes('depot');
+          if (isDepotauszug) {
+            parseDepotauszugMutation.mutate({ pdfBase64: base64, fileName: file.name });
+          } else {
+            parseMutation.mutate({ pdfBase64: base64, fileName: file.name });
+          }
+        } catch {
+          // Fallback: try transaction parser
+          parseMutation.mutate({ pdfBase64: base64, fileName: file.name });
+        }
       };
       reader.readAsDataURL(file);
     },
-    [parseMutation]
+    [parseMutation, parseDepotauszugMutation]
   );
 
   const handleDrop = useCallback(
@@ -215,8 +284,7 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
             Swissquote PDF importieren
           </CardTitle>
           <CardDescription className="text-gray-400">
-            Laden Sie Ihre Swissquote Transaktionsbestätigung als PDF hoch. Kauf, Verkauf,
-            Dividenden und Einzahlungen werden automatisch erkannt.
+            Laden Sie Ihre Swissquote PDF hoch — Transaktionsbestätigung <span className="text-white/60">oder</span> Depotauszug. Der Typ wird automatisch erkannt.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -258,10 +326,132 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
 
           <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 flex gap-2">
             <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-blue-300 text-sm space-y-1">
+              <p><span className="text-white font-medium">Transaktionsauszug:</span> Kauf/Verkauf, Dividenden, Einzahlungen</p>
+              <p><span className="text-white font-medium">Depotauszug:</span> Aktuelle Positionen als Bestandsimport (Kauf zum Durchschnittspreis)</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ── Review Positions Step (Depotauszug) ────────────────────────────────────
+  if (step === "review-positions") {
+    const selectedPositions = depotPositions.filter((_, i) => selectedPositionIndices.has(i));
+    return (
+      <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Package className="h-5 w-5 text-[#00CFC1]" />
+                Positionen überprüfen
+              </CardTitle>
+              <CardDescription className="text-gray-400 mt-1">
+                {fileName} · {pageCount} Seite{pageCount !== 1 ? "n" : ""} · {depotPositions.length} Positionen erkannt
+                {depotReportDate && <> · Stand: {new Date(depotReportDate).toLocaleDateString("de-CH")}</>}
+                {depotAccountHolder && <> · {depotAccountHolder}</>}
+              </CardDescription>
+            </div>
+            <button onClick={() => setStep("upload")} className="text-gray-400 hover:text-white text-sm underline">
+              Andere Datei
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {parseErrors.length > 0 && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+              <p className="text-red-400 text-sm font-medium mb-1">Parse-Warnungen:</p>
+              {parseErrors.map((e, i) => <p key={i} className="text-red-300 text-xs">{e}</p>)}
+            </div>
+          )}
+
+          {/* Info box */}
+          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 flex gap-2">
+            <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
             <p className="text-blue-300 text-sm">
-              Unterstützt: Kauf/Verkauf (DE + EN), Dividenden, Einzahlungen, Auszahlungen.
-              Transaktionen werden vor dem Import zur Überprüfung angezeigt.
+              Positionen werden als Kauf-Transaktionen zum Durchschnittspreis importiert (Datum: {depotReportDate ? new Date(depotReportDate).toLocaleDateString("de-CH") : "heute"}).
+              {depotTotalCHF && <> Gesamtwert laut PDF: <span className="text-white font-medium">CHF {depotTotalCHF.toLocaleString("de-CH", { minimumFractionDigits: 2 })}</span></>}
             </p>
+          </div>
+
+          {/* Select all / none */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3">
+              <button onClick={() => setSelectedPositionIndices(new Set(depotPositions.map((_, i) => i)))} className="text-[#00CFC1] text-sm hover:underline">Alle auswählen</button>
+              <button onClick={() => setSelectedPositionIndices(new Set())} className="text-gray-400 text-sm hover:underline">Keine</button>
+            </div>
+            <span className="text-gray-400 text-sm">{selectedPositionIndices.size} von {depotPositions.length} ausgewählt</span>
+          </div>
+
+          {/* Position list */}
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+            {depotPositions.map((pos, i) => {
+              const isSelected = selectedPositionIndices.has(i);
+              return (
+                <div
+                  key={i}
+                  className={`rounded-lg border transition-all p-3 flex items-center gap-3 ${
+                    isSelected ? "border-[#00CFC1]/40 bg-[#00CFC1]/5" : "border-white/10 bg-white/5"
+                  }`}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => {
+                      setSelectedPositionIndices(prev => {
+                        const next = new Set(prev);
+                        if (next.has(i)) next.delete(i); else next.add(i);
+                        return next;
+                      });
+                    }}
+                    className="border-white/30 data-[state=checked]:bg-[#00CFC1] data-[state=checked]:border-[#00CFC1]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={pos.assetType === 'crypto' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs' : 'bg-green-500/20 text-green-400 border-green-500/30 text-xs'}>
+                        {pos.assetType === 'crypto' ? 'Krypto' : 'Aktie'}
+                      </Badge>
+                      <span className="text-white text-sm font-medium truncate max-w-[220px]">{pos.name}</span>
+                      {pos.isin && <span className="text-gray-500 text-xs font-mono">{pos.isin}</span>}
+                      <span className="text-gray-400 text-xs">{pos.currency}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-gray-400 text-xs">{pos.quantity.toLocaleString("de-CH")} Stk.</span>
+                      {pos.avgPurchasePrice && <span className="text-gray-400 text-xs">Ø {pos.avgPurchasePrice.toLocaleString("de-CH", { minimumFractionDigits: 2 })} {pos.currency}</span>}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {pos.marketValueCHF && (
+                      <p className="text-white font-semibold text-sm">CHF {pos.marketValueCHF.toLocaleString("de-CH", { minimumFractionDigits: 2 })}</p>
+                    )}
+                    {pos.marketPrice && <p className="text-gray-400 text-xs">Kurs: {pos.marketPrice.toLocaleString("de-CH", { minimumFractionDigits: 2 })}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Import button */}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={() => setStep("upload")}>
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => {
+                const toImport = depotPositions.filter((_, i) => selectedPositionIndices.has(i));
+                if (toImport.length === 0) { toast.error("Keine Positionen ausgewählt"); return; }
+                importPositionsMutation.mutate({ portfolioId, reportDate: depotReportDate, positions: toImport });
+              }}
+              disabled={selectedPositionIndices.size === 0 || importPositionsMutation.isPending}
+              className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold"
+            >
+              {importPositionsMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importiere…</>
+              ) : (
+                <><ArrowRight className="h-4 w-4 mr-2" />{selectedPositionIndices.size} Position{selectedPositionIndices.size !== 1 ? "en" : ""} importieren</>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>

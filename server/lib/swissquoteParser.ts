@@ -401,6 +401,247 @@ export async function parseSwissquotePDF(pdfBuffer: Buffer): Promise<SwissquoteP
   return { transactions, parseErrors, rawText, pageCount };
 }
 
+// ─── Depotauszug (Portfolio Snapshot) Parser ─────────────────────────────────
+
+export interface DepotauszugPosition {
+  name: string;
+  isin: string | null;
+  currency: string;
+  quantity: number;
+  avgPurchasePrice: number | null;  // Durchschnittspreis
+  marketPrice: number | null;       // Marktpreis
+  marketValueCHF: number | null;    // Bewertung in CHF
+  assetType: 'stock' | 'crypto' | 'cash';
+}
+
+export interface DepotauszugParseResult {
+  positions: DepotauszugPosition[];
+  parseErrors: string[];
+  rawText: string;
+  pageCount: number;
+  reportDate: string | null;        // YYYY-MM-DD
+  accountHolder: string | null;
+  totalValueCHF: number | null;
+}
+
+/**
+ * Parse a Swissquote Depotauszug (portfolio snapshot) PDF.
+ * Extracts current positions (stocks + crypto) with quantity and average purchase price.
+ */
+export async function parseSwissquoteDepotauszug(pdfBuffer: Buffer): Promise<DepotauszugParseResult> {
+  const parseErrors: string[] = [];
+  let rawText = '';
+  let pageCount = 0;
+
+  try {
+    // Use pdftotext -layout to preserve column alignment (critical for Swissquote Depotauszug)
+    const { execSync } = await import('child_process');
+    const { writeFileSync, unlinkSync, readFileSync } = await import('fs');
+    const { tmpdir } = await import('os');
+    const { join } = await import('path');
+    const tmpPdf = join(tmpdir(), `depot_${Date.now()}.pdf`);
+    const tmpTxt = join(tmpdir(), `depot_${Date.now()}.txt`);
+    try {
+      writeFileSync(tmpPdf, pdfBuffer);
+      execSync(`pdftotext -layout "${tmpPdf}" "${tmpTxt}"`, { timeout: 30000 });
+      rawText = readFileSync(tmpTxt, 'utf-8');
+      // Count pages via pdfinfo
+      try {
+        const info = execSync(`pdfinfo "${tmpPdf}"`, { timeout: 10000 }).toString();
+        const pagesMatch = info.match(/Pages:\s*(\d+)/);
+        if (pagesMatch) pageCount = parseInt(pagesMatch[1], 10);
+      } catch { pageCount = 0; }
+    } finally {
+      try { unlinkSync(tmpPdf); } catch {}
+      try { unlinkSync(tmpTxt); } catch {}
+    }
+  } catch (err: any) {
+    parseErrors.push(`PDF text extraction failed: ${err.message}`);
+    return { positions: [], parseErrors, rawText: '', pageCount: 0, reportDate: null, accountHolder: null, totalValueCHF: null };
+  }
+
+  // Debug: log the raw text around the Aktien section
+  const aktienDebugIdx = rawText.indexOf('Aktien');
+  if (aktienDebugIdx >= 0) {
+    console.log('[Depot DEBUG] Aktien section preview (pdf-parse):', JSON.stringify(rawText.slice(aktienDebugIdx, aktienDebugIdx + 600)));
+  } else {
+    console.log('[Depot DEBUG] No Aktien found in pdf-parse output. First 500 chars:', JSON.stringify(rawText.slice(0, 500)));
+  }
+
+  if (!rawText.toLowerCase().includes('swissquote')) {
+    parseErrors.push('Document does not appear to be a Swissquote statement');
+    return { positions: [], parseErrors, rawText, pageCount, reportDate: null, accountHolder: null, totalValueCHF: null };
+  }
+
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // ── Extract report date ──────────────────────────────────────────────────
+  let reportDate: string | null = null;
+  const dateMatch = rawText.match(/Portfolio-Performance zum (\d{2}\.\d{2}\.\d{4})/);
+  if (dateMatch) reportDate = parseSwissDate(dateMatch[1]);
+
+  // ── Extract account holder ───────────────────────────────────────────────
+  let accountHolder: string | null = null;
+  const holderMatch = rawText.match(/Portfolio-Performance zum \d{2}\.\d{2}\.\d{4} - (?:Herrn|Frau|Mr\.|Mrs\.) (.+?)(?:\n|$)/);
+  if (holderMatch) accountHolder = holderMatch[1].trim();
+
+  // ── Extract total portfolio value ────────────────────────────────────────
+  let totalValueCHF: number | null = null;
+  const totalMatch = rawText.match(/Totalwert Portfolio[\s\S]{0,50}?([\d']+\.\d{2})\s*CHF/);
+  if (totalMatch) totalValueCHF = parseSwissNumber(totalMatch[1]);
+
+  const positions: DepotauszugPosition[] = [];
+
+  // ── Parse Kryptowährung section ──────────────────────────────────────────
+  // Format: Symbol  Beschreibung  Anzahl  Kurs  Bewertung in CHF  %
+  // e.g.: "RND  Render  300.000000  6.633676  1'990.10  2.21"
+  const cryptoSectionMatch = rawText.match(/Kryptow[äa]hrung\s*\n([\s\S]*?)(?=Aktien|Swissquote Bank AG|$)/);
+  if (cryptoSectionMatch) {
+    const cryptoText = cryptoSectionMatch[1];
+    // Each crypto line: SYMBOL  Name  Quantity  Price  ValueCHF  %
+    const cryptoLineRe = /^\s*([A-Z]{2,10})\s+(.+?)\s+([\d'.,]+)\s+([\d'.,]+)\s+([\d'.,]+)\s+[\d.,]+\s*$/gm;
+    let m;
+    while ((m = cryptoLineRe.exec(cryptoText)) !== null) {
+      const symbol = m[1].trim();
+      const name = m[2].trim();
+      const qty = parseSwissNumber(m[3]);
+      const price = parseSwissNumber(m[4]);
+      const valueCHF = parseSwissNumber(m[5]);
+      if (qty > 0 && name && !name.includes('Kryptow')) {
+        positions.push({
+          name,
+          isin: null,
+          currency: symbol, // crypto uses symbol as currency
+          quantity: qty,
+          avgPurchasePrice: null,
+          marketPrice: price,
+          marketValueCHF: valueCHF,
+          assetType: 'crypto',
+        });
+      }
+    }
+  }
+
+  // ── Parse Aktien section ─────────────────────────────────────────────────
+  // The PDF uses a wide-column layout with large whitespace between columns.
+  // Format per position (3 lines in raw text, but with lots of spaces):
+  //   Line 1: <Name> (e.g. "MICROSTRATEGY CL A ORD") - may have leading spaces
+  //   Line 2: <Qty>  [lots of spaces]  <AvgPrice>  <Date>  <MarketPrice>  <MarketValue>  <PnL>  <ValueCHF>  <%>
+  //   Line 3: <ISIN> (e.g. "US5949724083") - may have leading spaces
+  // Currency blocks appear before their positions: "EUR" or "USD" on its own line
+  //
+  // We parse from the raw (non-trimmed) text to preserve column positions.
+  // Match the actual Aktien table (which has 'Anzahl' header), not the table-of-contents entry
+  const aktienSectionMatch = rawText.match(/Aktien\s*\n\s*Anzahl([\s\S]*?)(?=Informationen|$)/);
+  if (aktienSectionMatch) {
+    const aktienText = aktienSectionMatch[1];
+    // Use raw lines (not trimmed) to detect indentation patterns
+    const rawAktienLines = aktienText.split('\n');
+    const aktienLines = rawAktienLines.map(l => l.trim()).filter(Boolean);
+
+    let currentCurrency = 'CHF';
+    let i = 0;
+
+    // Skip header lines
+    while (i < aktienLines.length && (
+      aktienLines[i].includes('Anzahl') ||
+      aktienLines[i].includes('Instrumente') ||
+      aktienLines[i].includes('Durchschnitts') ||
+      aktienLines[i].includes('Treuhandanteil') ||
+      aktienLines[i].includes('Total aktien') ||
+      aktienLines[i].includes('preis')
+    )) i++;
+
+    while (i < aktienLines.length) {
+      const line = aktienLines[i];
+
+      // Currency block header: single 3-letter currency code on its own line
+      if (/^[A-Z]{3}$/.test(line) && ['USD', 'EUR', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD'].includes(line)) {
+        currentCurrency = line;
+        i++;
+        continue;
+      }
+
+      // Skip currency subtotal lines (contain multiple numbers)
+      if (/^[A-Z]{3}\s+[\d'.,]+/.test(line)) {
+        i++;
+        continue;
+      }
+
+      // Skip Swissquote footer lines
+      if (line.includes('Swissquote Bank') || line.includes('Seite ') || line.includes('Portfolio-Performance zum')) {
+        i++;
+        continue;
+      }
+
+      // Check if this looks like a security name (not a number line, not ISIN)
+      const isIsin = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(line);
+      // A numbers line starts with a number (the quantity)
+      const isNumberLine = /^[\d'.,]+\s/.test(line);
+      const isName = !isIsin && !isNumberLine && line.length > 3 && /[A-Za-z]/.test(line);
+
+      if (isName) {
+        const securityName = line;
+        // Next line should be the numbers line
+        const numbersLine = aktienLines[i + 1] || '';
+        const isinLine = aktienLines[i + 2] || '';
+
+        // Parse the wide-column numbers line.
+        // Format: <Qty>  [spaces]  <AvgPrice>  <Date DD.MM.YYYY>  <MarketPrice>  <MarketValue>  <PnL>  <ValueCHF>  <%>
+        // Extract all numbers and the date from the line
+        const allNumbers = numbersLine.match(/[\d'][\d'.,']*(?:\.[\d]+)?/g) || [];
+        const dateInLine = numbersLine.match(/(\d{2}\.\d{2}\.\d{4})/);
+
+        const isin = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isinLine) ? isinLine : null;
+
+        // We need at least: qty, avgPrice, marketPrice, valueCHF
+        // The numbers appear in order: qty, avgPrice, marketPrice, marketValue, pnl, valueCHF, %
+        // Filter out the date parts from numbers
+        const cleanNumbers = allNumbers
+          .map(n => parseSwissNumber(n))
+          .filter(n => !isNaN(n) && n >= 0);
+
+        if (cleanNumbers.length >= 1 && dateInLine) {
+          const qty = cleanNumbers[0];
+          const avgPrice = cleanNumbers.length > 1 ? cleanNumbers[1] : null;
+          // After date: marketPrice, marketValue, pnl, valueCHF, %
+          // Find position of date in the string, then extract numbers after it
+          const datePos = numbersLine.indexOf(dateInLine[1]);
+          const afterDate = numbersLine.slice(datePos + dateInLine[1].length);
+          const afterDateNums = (afterDate.match(/[\d'][\d'.,']*(?:\.[\d]+)?/g) || [])
+            .map(n => parseSwissNumber(n))
+            .filter(n => !isNaN(n) && n >= 0);
+
+          // afterDateNums: [marketPrice, marketValue, pnl, valueCHF, %]
+          const marketPrice = afterDateNums[0] ?? null;
+          // valueCHF is the 4th number after date (index 3), fallback to index 2
+          const valueCHF = afterDateNums.length > 3 ? afterDateNums[3] : (afterDateNums.length > 2 ? afterDateNums[2] : null);
+
+          if (qty > 0) {
+            positions.push({
+              name: securityName,
+              isin,
+              currency: currentCurrency,
+              quantity: qty,
+              avgPurchasePrice: avgPrice > 0 ? avgPrice : null,
+              marketPrice: marketPrice && marketPrice > 0 ? marketPrice : null,
+              marketValueCHF: valueCHF && valueCHF > 0 ? valueCHF : null,
+              assetType: 'stock',
+            });
+          }
+          i += isin ? 3 : 2;
+        } else {
+          i++;
+        }
+      } else {
+        i++;
+      }
+    }
+  }
+
+  return { positions, parseErrors, rawText, pageCount, reportDate, accountHolder, totalValueCHF };
+}
+
 /**
  * Convert a ParsedSwissquoteTransaction to the format expected by the
  * portfolioTransactions.create endpoint.

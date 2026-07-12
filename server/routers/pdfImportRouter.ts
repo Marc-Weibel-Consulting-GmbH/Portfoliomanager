@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { parseSwissquotePDF, toPortfolioTransaction } from "../lib/swissquoteParser";
+import { parseSwissquotePDF, toPortfolioTransaction, parseSwissquoteDepotauszug } from "../lib/swissquoteParser";
 
 export const pdfImportRouter = router({
   /**
@@ -48,6 +48,132 @@ export const pdfImportRouter = router({
           message: `Failed to parse PDF: ${err.message}`,
         });
       }
+    }),
+
+  /**
+   * Parse a Swissquote Depotauszug (portfolio snapshot) PDF and return extracted positions.
+   * Detects automatically if the PDF is a Depotauszug (has "Portfolio-Performance") vs. transaction history.
+   */
+  parseDepotauszug: protectedProcedure
+    .input(
+      z.object({
+        pdfBase64: z.string().min(1, "PDF data is required"),
+        fileName: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const pdfBuffer = Buffer.from(input.pdfBase64, "base64");
+        if (pdfBuffer.length > 20 * 1024 * 1024) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "PDF file is too large (max 20MB)" });
+        }
+        const result = await parseSwissquoteDepotauszug(pdfBuffer);
+        return {
+          positions: result.positions,
+          parseErrors: result.parseErrors,
+          pageCount: result.pageCount,
+          positionCount: result.positions.length,
+          reportDate: result.reportDate,
+          accountHolder: result.accountHolder,
+          totalValueCHF: result.totalValueCHF,
+          fileName: input.fileName || "unknown.pdf",
+        };
+      } catch (err: any) {
+        if (err instanceof TRPCError) throw err;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to parse Depotauszug: ${err.message}`,
+        });
+      }
+    }),
+
+  /**
+   * Import positions from a Swissquote Depotauszug as "buy" transactions
+   * dated at the report date (or today if unknown).
+   */
+  importPositions: protectedProcedure
+    .input(
+      z.object({
+        portfolioId: z.number().int().positive(),
+        reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        positions: z.array(
+          z.object({
+            name: z.string(),
+            isin: z.string().nullable(),
+            currency: z.string(),
+            quantity: z.number(),
+            avgPurchasePrice: z.number().nullable(),
+            marketPrice: z.number().nullable(),
+            marketValueCHF: z.number().nullable(),
+            assetType: z.enum(["stock", "crypto", "cash"]),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { getDb } = await import("../db");
+      const { portfolioTransactions, savedPortfolios } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const { tryGetFxRate } = await import("../fxHelper");
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      // Verify portfolio belongs to user
+      const portfolio = await db.select().from(savedPortfolios).where(eq(savedPortfolios.id, input.portfolioId)).limit(1);
+      if (!portfolio.length) throw new TRPCError({ code: "NOT_FOUND", message: "Portfolio not found" });
+      if (portfolio[0].userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+
+      const txDate = input.reportDate || new Date().toISOString().slice(0, 10);
+      const imported: number[] = [];
+      const errors: string[] = [];
+
+      for (const pos of input.positions) {
+        try {
+          // Skip zero-quantity positions
+          if (pos.quantity <= 0) continue;
+
+          // Use avgPurchasePrice as pricePerShare; fall back to marketPrice
+          const pricePerShare = pos.avgPurchasePrice ?? pos.marketPrice ?? 0;
+          const totalAmount = pricePerShare * pos.quantity;
+
+          // Convert to CHF
+          let totalAmountCHF = totalAmount;
+          let fxRate: number | null = null;
+
+          if (pos.currency !== "CHF" && pos.assetType !== "crypto") {
+            fxRate = await tryGetFxRate(txDate, `${pos.currency}CHF`);
+            if (fxRate) {
+              totalAmountCHF = totalAmount * fxRate;
+            } else if (pos.marketValueCHF) {
+              // Fallback: use market value CHF from the PDF
+              totalAmountCHF = pos.marketValueCHF;
+            }
+          } else if (pos.assetType === "crypto" && pos.marketValueCHF) {
+            totalAmountCHF = pos.marketValueCHF;
+          }
+
+          await db.insert(portfolioTransactions).values({
+            portfolioId: input.portfolioId,
+            transactionType: "buy",
+            ticker: pos.isin || pos.name.split(" ")[0].toUpperCase(),
+            shares: pos.quantity.toString(),
+            pricePerShare: pricePerShare > 0 ? pricePerShare.toString() : null,
+            currency: pos.assetType === "crypto" ? "CHF" : pos.currency,
+            totalAmount: totalAmount.toString(),
+            fxRate: fxRate ? fxRate.toString() : null,
+            totalAmountCHF: totalAmountCHF.toString(),
+            fees: "0",
+            transactionDate: new Date(txDate),
+            notes: `Swissquote Depotauszug Import - ${pos.name}${pos.isin ? ` (${pos.isin})` : ""}`,
+          });
+          imported.push(1);
+        } catch (err: any) {
+          errors.push(`Failed to import ${pos.name}: ${err.message}`);
+        }
+      }
+
+      return { importedCount: imported.length, errorCount: errors.length, errors, portfolioId: input.portfolioId };
     }),
 
   /**
