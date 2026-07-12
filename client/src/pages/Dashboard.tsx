@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, FolderOpen, Info, RefreshCw, AlertTriangle } from "lucide-react";
+import { Plus, FolderOpen, Info, RefreshCw, AlertTriangle, Trash2, Camera } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   PieChart, Pie, Cell, Tooltip as RechartsTooltip,
@@ -466,12 +466,17 @@ function PositionsCard({ scope }: { scope: Scope }) {
 // ----------------------------------------------------------------
 // Portfolio-Übersicht: kompakte Karten, Klick → Portfolio-Details
 // ----------------------------------------------------------------
-function PortfolioOverviewGrid({ portfolios, onOpen, onCompare }: { portfolios: any[]; onOpen: (id: number) => void; onCompare?: (idA: number, idB: number) => void }) {
+function PortfolioOverviewGrid({ portfolios, onOpen, onCompare, onDelete }: { portfolios: any[]; onOpen: (id: number) => void; onCompare?: (idA: number, idB: number) => void; onDelete?: (id: number, name: string) => void }) {
+  // Trenne Haupt-Portfolios von Snapshots
+  const mainPortfolios = portfolios.filter((p: any) => !p.isSnapshot || p.isSnapshot === 0);
+  const snapshots = portfolios.filter((p: any) => p.isSnapshot === 1);
+
   return (
     <div>
       <h2 className="text-base font-semibold text-white mb-2">Meine Portfolios</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {portfolios.map((p: any) => {
+        {mainPortfolios.map((p: any) => {
+          const portfolioSnapshots = snapshots.filter((s: any) => s.snapshotOfPortfolioId === p.id);
           const perf = typeof p.livePerformance === "number" ? p.livePerformance : null;
           const perfColor = perf == null ? "text-gray-400" : perf >= 0 ? "text-[#00CFC1]" : "text-negative";
           return (
@@ -493,14 +498,21 @@ function PortfolioOverviewGrid({ portfolios, onOpen, onCompare }: { portfolios: 
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <h3 className="text-sm font-semibold text-white truncate">{p.name}</h3>
                   <div className="flex items-center gap-1 shrink-0">
-                    {p.isSnapshot === 1 && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Snapshot</span>
-                    )}
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                       p.isLive === 1 ? "bg-emerald-500/15 text-emerald-400" : "bg-white/10 text-gray-400"
                     }`}>
                       {p.isLive === 1 ? "Live" : "Demo"}
                     </span>
+                    {onDelete && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(p.id, p.name); }}
+                        className="ml-1 p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Portfolio löschen"
+                        aria-label="Portfolio löschen"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="text-xl font-bold text-white font-mono">{formatCHF(p.currentValue ?? 0)}</div>
@@ -510,19 +522,43 @@ function PortfolioOverviewGrid({ portfolios, onOpen, onCompare }: { portfolios: 
                     <span className={`text-xs font-medium font-mono ${perfColor}`}>{formatPercent(perf)}</span>
                   )}
                 </div>
-                {/* Compare button: show for snapshots or when there's an original portfolio */}
-                {p.isSnapshot === 1 && p.snapshotOfPortfolioId && onCompare && (() => {
-                  const orig = portfolios.find((x: any) => x.id === p.snapshotOfPortfolioId);
-                  if (!orig) return null;
-                  return (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onCompare(p.snapshotOfPortfolioId!, p.id); }}
-                      className="mt-2 w-full text-[10px] text-[#00CFC1] border border-[#00CFC1]/30 rounded px-2 py-1 hover:bg-[#00CFC1]/10 transition-colors"
-                    >
-                      ⇄ Mit «{orig.name}» vergleichen
-                    </button>
-                  );
-                })()}
+                {/* Snapshot-Unter-Einträge unter dem Haupt-Portfolio */}
+                {portfolioSnapshots.length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-white/10">
+                    <div className="text-[10px] text-gray-500 mb-1.5 uppercase tracking-wider">Snapshots</div>
+                    <div className="space-y-1">
+                      {portfolioSnapshots.map((snap: any) => (
+                        <div key={snap.id} className="flex items-center justify-between gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onOpen(snap.id); }}
+                            className="flex items-center gap-1.5 text-[10px] text-amber-400/80 hover:text-amber-300 transition-colors truncate"
+                          >
+                            <Camera className="h-2.5 w-2.5 shrink-0" />
+                            <span className="truncate">{snap.snapshotNote || snap.name}</span>
+                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {onCompare && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onCompare(p.id, snap.id); }}
+                                className="text-[9px] text-[#00CFC1]/60 hover:text-[#00CFC1] transition-colors"
+                                title="Vergleichen"
+                              >⇄</button>
+                            )}
+                            {onDelete && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(snap.id, snap.snapshotNote || snap.name); }}
+                                className="p-0.5 rounded text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                title="Snapshot löschen"
+                              >
+                                <Trash2 className="h-2.5 w-2.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
@@ -536,8 +572,17 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [scope, setScope] = useState<Scope>("aggregate");
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
 
   const { data: portfolios, isLoading: portfoliosLoading } = trpc.dashboard.getPortfolioCompact.useQuery();
+  const utils = trpc.useUtils();
+  const deleteMut = trpc.portfolios.delete.useMutation({
+    onSuccess: () => {
+      utils.dashboard.getPortfolioCompact.invalidate();
+      utils.portfolios.list.invalidate();
+      setDeleteConfirm(null);
+    },
+  });
 
   const scopeName = useMemo(() => {
     if (scope === "aggregate") return null;
@@ -630,7 +675,35 @@ export default function Dashboard() {
               portfolios={portfolios ?? []}
               onOpen={(id) => navigate(`/portfolios/${id}`)}
               onCompare={(a, b) => navigate(`/portfolio-comparison?a=${a}&b=${b}`)}
+              onDelete={(id, name) => setDeleteConfirm({ id, name })}
             />
+
+            {/* Löschen-Bestätigung */}
+            {deleteConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setDeleteConfirm(null)}>
+                <div className="bg-[#0f1420] border border-white/10 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-base font-semibold text-white mb-2">Portfolio löschen?</h3>
+                  <p className="text-sm text-gray-400 mb-5">
+                    «Das Portfolio <span className="text-white font-medium">{deleteConfirm.name}</span>» und alle zugehörigen Transaktionen werden unwiderruflich gelöscht.
+                  </p>
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="px-4 py-2 text-sm rounded-lg bg-white/10 text-gray-300 hover:bg-white/15 transition-colors"
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      onClick={() => deleteMut.mutate({ id: deleteConfirm.id })}
+                      disabled={deleteMut.isPending}
+                      className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-50"
+                    >
+                      {deleteMut.isPending ? 'Lösche...' : 'Endgültig löschen'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* KPI-Reihe */}
             <KpiRow scope={scope} />

@@ -310,33 +310,61 @@ function DashboardLayoutContent({
                         </button>
                       )}
                     </div>
-                    {/* Portfolio submenu — matches design: portfolio names + Neues Portfolio */}
-                    {showPortfolioSubmenu && portfolioSubmenuOpen && (
-                      <SidebarMenuSub>
-                        {portfolios.slice(0, 6).map((portfolio: any) => (
-                          <SidebarMenuSubItem key={portfolio.id}>
+                    {/* Portfolio submenu — Snapshots als Unter-Einträge des Eltern-Portfolios */}
+                    {showPortfolioSubmenu && portfolioSubmenuOpen && (() => {
+                      // Trenne Haupt-Portfolios von Snapshots
+                      const mainPortfolios = portfolios.filter((p: any) => !p.isSnapshot || p.isSnapshot === 0);
+                      const snapshots = portfolios.filter((p: any) => p.isSnapshot === 1);
+                      return (
+                        <SidebarMenuSub>
+                          {mainPortfolios.slice(0, 8).map((portfolio: any) => {
+                            const portfolioSnapshots = snapshots.filter((s: any) => s.snapshotOfPortfolioId === portfolio.id);
+                            const isActive = location === `/portfolios/${portfolio.id}` || location.startsWith(`/portfolios/${portfolio.id}`);
+                            return (
+                              <SidebarMenuSubItem key={portfolio.id}>
+                                <SidebarMenuSubButton
+                                  isActive={isActive}
+                                  onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
+                                  className="text-xs"
+                                >
+                                  <span className="truncate">{portfolio.name}</span>
+                                  {portfolio.isLive === 1 && (
+                                    <span className="ml-auto text-[9px] text-emerald-400 font-medium">Live</span>
+                                  )}
+                                </SidebarMenuSubButton>
+                                {/* Snapshot-Unter-Einträge */}
+                                {portfolioSnapshots.length > 0 && (
+                                  <div className="ml-3 mt-0.5 space-y-0.5">
+                                    {portfolioSnapshots.map((snap: any) => (
+                                      <button
+                                        key={snap.id}
+                                        onClick={() => setLocation(`/portfolios/${snap.id}`)}
+                                        className={`w-full text-left text-[10px] px-2 py-1 rounded flex items-center gap-1.5 transition-colors ${
+                                          location === `/portfolios/${snap.id}`
+                                            ? 'bg-amber-500/20 text-amber-300'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                                        }`}
+                                      >
+                                        <Camera className="h-2.5 w-2.5 shrink-0 text-amber-400" />
+                                        <span className="truncate">{snap.snapshotNote || snap.name}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </SidebarMenuSubItem>
+                            );
+                          })}
+                          <SidebarMenuSubItem>
                             <SidebarMenuSubButton
-                              isActive={location === `/portfolios/${portfolio.id}` || location.startsWith(`/portfolios/${portfolio.id}`)}
-                              onClick={() => setLocation(`/portfolios/${portfolio.id}`)}
-                              className="text-xs"
+                              onClick={() => setLocation('/portfolio-builder')}
+                              className="text-xs text-muted-foreground"
                             >
-                              <span className="truncate">{portfolio.name}</span>
-                              {portfolio.isLive === 1 && (
-                                <span className="ml-auto text-[9px] text-emerald-400 font-medium">Live</span>
-                              )}
+                              <span>Neues Portfolio</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
-                        ))}
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            onClick={() => setLocation('/portfolio-builder')}
-                            className="text-xs text-muted-foreground"
-                          >
-                            <span>Neues Portfolio</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      </SidebarMenuSub>
-                    )}
+                        </SidebarMenuSub>
+                      );
+                    })()}
                   </SidebarMenuItem>
                 );
               })}
