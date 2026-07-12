@@ -926,9 +926,9 @@ export async function createPortfolioTransaction(transaction: any) {
     }
     
     // Validate currency is correct
-    if (!['USD', 'EUR', 'GBP', 'CHF'].includes(transaction.currency)) {
+    if (!['USD', 'EUR', 'GBP', 'GBp', 'CHF'].includes(transaction.currency)) {
       console.warn(`[Validation] Invalid currency: ${transaction.currency}`);
-      throw new Error(`Invalid currency: ${transaction.currency}. Supported currencies: USD, EUR, GBP, CHF`);
+      throw new Error(`Invalid currency: ${transaction.currency}. Supported currencies: USD, EUR, GBP, GBp, CHF`);
     }
     
     console.log(`[Validation] Foreign currency transaction validated: ${transaction.currency}, FX rate: ${transaction.fxRate}`);

@@ -101,6 +101,13 @@ export async function tryGetFxRate(date: string, currencyPair: string): Promise<
     return 1.0;
   }
 
+  // GBp (British pence) = GBP / 100. EODHD reports .L stocks in GBp.
+  // We don't store a GBpCHF rate; derive it from GBPCHF.
+  if (currencyPair === 'GBpCHF') {
+    const gbpRate = await tryGetFxRate(date, 'GBPCHF');
+    return gbpRate === null ? null : gbpRate / 100;
+  }
+
   const cacheKey = `${date}:${currencyPair}`;
   const cachedRate = fxRateCache.get(cacheKey);
   if (cachedRate !== undefined) {
@@ -226,7 +233,7 @@ export async function getStockCurrency(ticker: string): Promise<string> {
     } else if (ticker.endsWith('.MI') || ticker.endsWith('.PA') || ticker.endsWith('.DE')) {
       return 'EUR';
     } else if (ticker.endsWith('.L')) {
-      return 'GBP';
+      return 'GBp'; // LSE stocks are quoted in pence (GBp), not pounds (GBP)
     }
     
     // Default to USD for US tickers
@@ -263,6 +270,11 @@ export async function convertToCHF(amount: number, currency: string, date: strin
  */
 export function tryGetFxRateSync(date: string, currencyPair: string): number | null {
   if (currencyPair === 'CHFCHF') return 1.0;
+  // GBp (pence) = GBP / 100
+  if (currencyPair === 'GBpCHF') {
+    const gbpRate = lookupCachedRateWithLookback(date, 'GBPCHF');
+    return gbpRate === null ? null : gbpRate / 100;
+  }
   return lookupCachedRateWithLookback(date, currencyPair);
 }
 
