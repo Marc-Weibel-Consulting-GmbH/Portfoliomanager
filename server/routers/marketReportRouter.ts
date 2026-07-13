@@ -105,6 +105,14 @@ export async function handleMarketReportWebhook(req: any, res: any) {
 
     const date = reportDate || new Date().toISOString().split("T")[0];
 
+    // Sanitise title: remove any embedded date (LLM often hallucinates wrong dates).
+    // Replace patterns like "– 22. Juli 2026", "- 13.07.2026", "(22. Juli 2026)" etc.
+    const sanitisedTitle = (title as string)
+      .replace(/[–\-]?\s*\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi, '')
+      .replace(/[–\-]?\s*\d{1,2}\.\d{2}\.\d{4}/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
     const db = await getDb();
     if (!db) {
       return res.status(503).json({ error: "Datenbank nicht verfügbar" });
@@ -123,15 +131,25 @@ export async function handleMarketReportWebhook(req: any, res: any) {
       }
     }
 
+    // Sanitise content: replace any embedded date string with the correct reportDate
+    const correctDateDE = new Date(date + 'T00:00:00').toLocaleDateString('de-CH', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+    const sanitisedContent = (content as string)
+      .replace(
+        /\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi,
+        correctDateDE
+      );
+
     const result = await db.insert(marketReports).values({
-      title: title.slice(0, 500),
-      content,
+      title: sanitisedTitle.slice(0, 500),
+      content: sanitisedContent,
       reportDate: date,
       source: source ?? "manus_task",
       taskId: taskId ?? null,
     });
 
-    console.log(`[MarketReport] Neuer Bericht gespeichert: "${title}" (${date})`);
+    console.log(`[MarketReport] Neuer Bericht gespeichert: "${sanitisedTitle}" (${date})`);
     return res.status(201).json({ success: true, message: "Bericht gespeichert" });
   } catch (err: any) {
     console.error("[MarketReport] Fehler beim Speichern:", err);

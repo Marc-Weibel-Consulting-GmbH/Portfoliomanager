@@ -185,6 +185,13 @@ function MarketReportSection() {
     ? new Date(displayReport.reportDate + "T00:00:00").toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : "";
 
+  // Strip any embedded dates from the title (LLM sometimes hallucinates wrong dates)
+  const cleanTitle = (displayReport?.title ?? "")
+    .replace(/[\u2013\-]?\s*\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi, "")
+    .replace(/[\u2013\-]?\s*\d{1,2}\.\d{2}\.\d{4}/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
   return (
     <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-xl overflow-hidden">
       {/* Header */}
@@ -195,7 +202,7 @@ function MarketReportSection() {
           </div>
           <div>
             <span className="text-[10px] font-semibold text-[#00CFC1] uppercase tracking-widest">TÄGLICHES MARKT-UPDATE</span>
-            <h3 className="text-sm font-semibold text-white mt-0.5 leading-tight">{displayReport?.title}</h3>
+            <h3 className="text-sm font-semibold text-white mt-0.5 leading-tight">{cleanTitle}</h3>
             <p className="text-xs text-gray-500 mt-0.5">{reportDateStr} · Manus KI-Analyse</p>
           </div>
         </div>
