@@ -193,6 +193,29 @@ export async function computeKiBoomData(): Promise<KiBoomData> {
   const roiRate = dyn["ai_roi_success_rate"]?.numericValue ?? STATIC_METRICS.pilotProjektROIQuote;
   const roiSource = dyn["ai_roi_success_rate"]?.source ?? "McKinsey/Gartner 2025";
 
+  // Credit-Spread-Daten (dynamisch via Perplexity, Fallback auf Goldman Sachs Juli 2026)
+  const techBondIssuance = dyn["tech_bond_issuance_bn_usd"]?.numericValue ?? 244;
+  const techBondDisplay = dyn["tech_bond_issuance_bn_usd"]?.displayValue ?? "$244 Mrd.";
+  const techSpreadBps = dyn["tech_ig_spread_bps"]?.numericValue ?? null;
+  const techSpreadChange = dyn["tech_spread_change_bps"]?.numericValue ?? null;
+  const techRatingChange = dyn["tech_rating_change"]?.displayValue ?? "Oracle auf BBB- abgestuft (S&P Global, 9. Juli 2026)";
+  const techCreditSource = dyn["tech_bond_issuance_bn_usd"]?.source ?? "Goldman Sachs / WSJ, Juli 2026";
+
+  // Dynamische Zone: rot wenn Spreads > 200 bps oder Ausweitung > 50 bps, gelb wenn > 150 bps oder Ausweitung > 20 bps
+  const techCreditZone: BoomZone = (() => {
+    if (techSpreadBps !== null) {
+      if (techSpreadBps > 200 || (techSpreadChange !== null && techSpreadChange > 50)) return "rot";
+      if (techSpreadBps > 150 || (techSpreadChange !== null && techSpreadChange > 20)) return "gelb";
+      return "gruen";
+    }
+    // Fallback: Goldman Sachs Warnung = gelb
+    return "gelb";
+  })();
+
+  const techCreditDesc = techSpreadBps !== null
+    ? `Tech-IG-Spread: ${techSpreadBps} bps${techSpreadChange !== null ? ` (${techSpreadChange >= 0 ? "+" : ""}${techSpreadChange} bps Veränderung)` : ""}. ${techBondDisplay} Tech-Anleihen 2025/26. ${techRatingChange}. (${techCreditSource})`
+    : `Goldman Sachs warnt vor 'brutalen' Bewegungen: ${techBondDisplay} Tech-Anleihen 2026 (2× Vorjahr). Steigende Kreditspreads. ${techRatingChange}. (${techCreditSource})`;
+
   const signals: SignalResult[] = [
     // 1. Nvidia-Kurs
     {
@@ -300,18 +323,16 @@ export async function computeKiBoomData(): Promise<KiBoomData> {
       trend: "stable",
     },
 
-    // 7. Tech-Anleihenmarkt / Credit Spreads (Goldman Sachs Warnung, Juli 2026)
-    // Logik: Steigende Credit Spreads = Markt kann Schuldenflut nicht absorbieren = Warnsignal
-    // Datenpunkt: 244 Mrd. USD Tech-Anleihen in 2026 (2× Vorjahr), Oracle auf BBB- abgestuft
+    // 7. Tech-Anleihenmarkt / Credit Spreads (dynamisch via Perplexity, Fallback Goldman Sachs Juli 2026)
     {
       label: "Tech-Anleihenmarkt Stress",
-      value: "$244 Mrd.",
-      numericValue: 244,
-      zone: "gelb" as BoomZone, // Warnsignal: Goldman Sachs warnt vor "brutalen" Bewegungen
-      description: "Goldman Sachs warnt vor 'brutalen' Bewegungen am Anleihenmarkt: Tech-Hyperscaler (Amazon, Alphabet, Meta, Microsoft, Oracle) haben 2026 Anleihen im Wert von $244 Mrd. begeben – mehr als doppelt so viel wie im Vorjahr. Steigende Kreditspreads signalisieren Absorptionsprobleme. Oracle am 9. Juli auf BBB- abgestuft (eine Stufe über Ramsch). (Goldman Sachs / WSJ, Juli 2026)",
+      value: techBondDisplay,
+      numericValue: techBondIssuance,
+      zone: techCreditZone,
+      description: techCreditDesc,
       warnThreshold: "Kreditspreads steigen / Anleiheflut > $200 Mrd.",
       criticalThreshold: "Ratingabstufungen auf Ramsch / Spreads > 300 bps",
-      trend: "up",
+      trend: techSpreadChange !== null && techSpreadChange > 0 ? "up" : techSpreadChange !== null && techSpreadChange < 0 ? "down" : "up",
     },
   ];
 

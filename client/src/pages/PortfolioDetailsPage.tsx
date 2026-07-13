@@ -571,6 +571,15 @@ function OptimierungEmpfehlungenTab({
   const [mode, setMode] = useState<"empfehlungen" | "optimierung">("empfehlungen");
   const { data: profile } = trpc.investmentProfile.get.useQuery();
 
+  // Profil-Mismatch für dieses Portfolio
+  const { data: mismatchData } = trpc.investmentProfile.checkMismatch.useQuery(
+    undefined,
+    { staleTime: 10 * 60 * 1000, retry: false }
+  );
+  const profileMismatch = (mismatchData?.mismatches ?? []).find(
+    (m: any) => m.portfolioId === portfolioId
+  ) ?? null;
+
   // Strategie aus dem Risikoprofil ableiten (nur DB-basierte Methoden — kein Yahoo):
   // konservativ → Risikominimierung (Min. Varianz), sonst Max. Sharpe.
   type OptMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
@@ -675,6 +684,7 @@ function OptimierungEmpfehlungenTab({
           onNavigateToPositions={onNavigateToPositions}
           portfolioCreatedAt={portfolioCreatedAt}
           portfolioType={portfolioType}
+          profileMismatch={profileMismatch ? { reasons: profileMismatch.reasons, severity: profileMismatch.severity, aiSuggestion: profileMismatch.aiSuggestion } : null}
         />
       )}
     </div>

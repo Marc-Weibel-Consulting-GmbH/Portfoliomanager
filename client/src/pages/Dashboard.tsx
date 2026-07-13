@@ -610,6 +610,13 @@ export default function Dashboard() {
 
   const hasPortfolios = (portfolios ?? []).length > 0;
 
+  // Profil-Mismatch-Check: Portfolios die nicht mehr zum Anlegerprofil passen
+  const { data: mismatchData } = trpc.investmentProfile.checkMismatch.useQuery(
+    undefined,
+    { staleTime: 10 * 60 * 1000, retry: false, enabled: hasPortfolios }
+  );
+  const mismatches = mismatchData?.mismatches ?? [];
+
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
@@ -673,6 +680,53 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Profil-Mismatch-Banner: erscheint wenn Portfolios nicht mehr zum Anlegerprofil passen */}
+        {mismatches.length > 0 && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-amber-300 mb-1">
+                  {mismatches.length === 1
+                    ? "1 Portfolio entspricht nicht mehr Ihrem Anlegerprofil"
+                    : `${mismatches.length} Portfolios entsprechen nicht mehr Ihrem Anlegerprofil`}
+                </h3>
+                <div className="space-y-2">
+                  {mismatches.map((m) => (
+                    <div key={m.portfolioId} className="text-xs text-amber-200/80">
+                      <button
+                        onClick={() => navigate(`/portfolios/${m.portfolioId}`)}
+                        className="font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2 mr-2"
+                      >
+                        {m.portfolioName}
+                      </button>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-2 ${
+                        m.severity === "high" ? "bg-red-500/20 text-red-300" :
+                        m.severity === "medium" ? "bg-amber-500/20 text-amber-300" :
+                        "bg-yellow-500/20 text-yellow-300"
+                      }`}>
+                        {m.severity === "high" ? "Hoch" : m.severity === "medium" ? "Mittel" : "Niedrig"}
+                      </span>
+                      {m.reasons.slice(0, 1).map((r, i) => <span key={i}>{r}</span>)}
+                    </div>
+                  ))}
+                </div>
+                {mismatches.some(m => m.aiSuggestion) && (
+                  <div className="mt-3 pt-2 border-t border-amber-500/20">
+                    <div className="text-[11px] text-amber-400/70 font-medium mb-1">KI-Anpassungsvorschläge:</div>
+                    {mismatches.filter(m => m.aiSuggestion).map((m) => (
+                      <div key={m.portfolioId} className="text-xs text-amber-200/70 mb-1">
+                        <span className="font-medium text-amber-300">{m.portfolioName}:</span>{" "}
+                        {m.aiSuggestion}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* U-10: hilfreicher Leerzustand statt leerer Kacheln */}
         {!portfoliosLoading && !hasPortfolios ? (

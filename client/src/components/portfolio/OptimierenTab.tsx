@@ -210,6 +210,7 @@ export default function OptimierenTab({
   onNavigateToPositions,
   portfolioCreatedAt,
   portfolioType,
+  profileMismatch,
 }: {
   portfolioId: number;
   holdings: any[];
@@ -227,6 +228,8 @@ export default function OptimierenTab({
   portfolioCreatedAt?: string | null;
   /** P-ALIGN: Portfolio-Typ ('demo' | 'live') */
   portfolioType?: string | null;
+  /** Profil-Mismatch: Gründe und KI-Vorschlag wenn Portfolio nicht mehr zum Anlegerprofil passt */
+  profileMismatch?: { reasons: string[]; severity: "low" | "medium" | "high"; aiSuggestion: string | null } | null;
 }) {
   // P-ALIGN: Frisch erstelltes KI-Portfolio (demo, < 7 Tage)?
   const isFreshDemoPortfolio = useMemo(() => {
@@ -797,6 +800,25 @@ export default function OptimierenTab({
                         </span>
                       )}
                     </span>
+                  </div>
+                )}
+
+                {/* Profil-Mismatch-Warnung */}
+                {profileMismatch && profileMismatch.reasons.length > 0 && (
+                  <div className="px-4 py-3 flex items-start gap-3 bg-amber-500/5 border-b border-amber-500/20">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-amber-300 mb-1">Portfolio entspricht nicht mehr Ihrem Anlegerprofil</p>
+                      <ul className="text-xs text-amber-200/70 space-y-0.5 list-disc list-inside">
+                        {profileMismatch.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                      </ul>
+                      {profileMismatch.aiSuggestion && (
+                        <div className="mt-2 pt-2 border-t border-amber-500/20">
+                          <p className="text-[11px] text-amber-400/80 font-medium mb-0.5">KI-Empfehlung:</p>
+                          <p className="text-xs text-amber-200/70">{profileMismatch.aiSuggestion}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

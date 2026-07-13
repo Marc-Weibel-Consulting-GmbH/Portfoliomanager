@@ -6,13 +6,139 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
-import { userInvestmentProfile, investorProfileAssessment } from "../../drizzle/schema";
+import { userInvestmentProfile, investorProfileAssessment, savedPortfolios } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import {
   evaluateProfile,
   deriveActiveProfile,
   type ProfileAnswers,
 } from "../lib/investorProfileScoring";
+import { invokeLLM } from "../_core/llm";
+
+// ── Profil-Mismatch-Erkennung ─────────────────────────────────────────────────
+
+type RiskProfile = "konservativ" | "ausgewogen" | "wachstum" | "aggressiv";
+
+const RISK_RANK: Record<RiskProfile, number> = {
+  konservativ: 0,
+  ausgewogen: 1,
+  wachstum: 2,
+  aggressiv: 3,
+};
+
+interface PortfolioMismatch {
+  portfolioId: number;
+  portfolioName: string;
+  reasons: string[];
+  severity: "low" | "medium" | "high";
+  aiSuggestion: string | null;
+}
+
+async function detectProfileMismatch(
+  userId: number,
+  newRiskProfile: RiskProfile,
+  newMaxDrawdown: number,
+  newGoal: string
+): Promise<PortfolioMismatch[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const portfolios = await db
+    .select()
+    .from(savedPortfolios)
+    .where(eq(savedPortfolios.userId, userId));
+
+  const mismatches: PortfolioMismatch[] = [];
+
+  for (const portfolio of portfolios) {
+    if (portfolio.isSnapshot) continue; // Snapshots ignorieren
+    const reasons: string[] = [];
+    let severity: "low" | "medium" | "high" = "low";
+
+    let portfolioData: any = null;
+    try {
+      portfolioData = portfolio.portfolioData ? JSON.parse(portfolio.portfolioData) : null;
+    } catch { /* ignore */ }
+
+    const stocks: any[] = portfolioData?.stocks ?? [];
+
+    if (stocks.length > 0) {
+      // Beta-Analyse
+      const betas = stocks
+        .map((s: any) => parseFloat(s.beta ?? s.metrics?.beta ?? "0"))
+        .filter((b: number) => b > 0 && b < 5);
+      const avgBeta = betas.length > 0 ? betas.reduce((a: number, b: number) => a + b, 0) / betas.length : null;
+
+      if (avgBeta !== null) {
+        const betaThresholds: Record<RiskProfile, number> = {
+          konservativ: 0.9,
+          ausgewogen: 1.2,
+          wachstum: 1.5,
+          aggressiv: 2.0,
+        };
+        if (avgBeta > betaThresholds[newRiskProfile]) {
+          reasons.push(`Durchschnittliches Beta ${avgBeta.toFixed(2)} überschreitet Schwelle für ${newRiskProfile} (max. ${betaThresholds[newRiskProfile]})`);
+          severity = avgBeta > betaThresholds[newRiskProfile] * 1.3 ? "high" : "medium";
+        }
+      }
+
+      // Dividendenrendite für Dividenden-Ziel
+      if (newGoal === "dividends") {
+        const divYields = stocks
+          .map((s: any) => parseFloat(s.dividendYield ?? s.metrics?.dividendYield ?? "0"))
+          .filter((d: number) => d >= 0);
+        const avgDiv = divYields.length > 0 ? divYields.reduce((a: number, b: number) => a + b, 0) / divYields.length : 0;
+        if (avgDiv < 2.0) {
+          reasons.push(`Durchschnittliche Dividendenrendite ${avgDiv.toFixed(1)}% zu niedrig für Dividenden-Ziel (min. 2%)`);
+          if (severity === "low") severity = "medium";
+        }
+      }
+
+      // Anzahl Positionen für konservatives Profil (Diversifikation)
+      if (newRiskProfile === "konservativ" && stocks.length < 10) {
+        reasons.push(`Nur ${stocks.length} Positionen — konservative Portfolios benötigen mindestens 10 Positionen für ausreichende Diversifikation`);
+        if (severity === "low") severity = "medium";
+      }
+    }
+
+    if (reasons.length > 0) {
+      // KI-Anpassungsvorschlag generieren
+      let aiSuggestion: string | null = null;
+      try {
+        const llmResponse = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: "Du bist ein erfahrener Schweizer Vermögensberater. Gib kurze, konkrete Handlungsempfehlungen auf Deutsch.",
+            },
+            {
+              role: "user",
+              content: `Das Portfolio "${portfolio.name}" entspricht nicht mehr dem neuen Anlegerprofil (${newRiskProfile}, Ziel: ${newGoal}, max. Drawdown: ${newMaxDrawdown}%).
+
+Probleme: ${reasons.join("; ")}
+
+Gib 2-3 konkrete Anpassungsvorschläge in maximal 3 Sätzen. Sei spezifisch und praxisnah.`,
+            },
+          ],
+        });
+        const rawContent = llmResponse?.choices?.[0]?.message?.content;
+        aiSuggestion = typeof rawContent === "string" ? rawContent : null;
+      } catch (e) {
+        console.error("[profileMismatch] LLM failed:", (e as Error).message);
+      }
+
+      mismatches.push({
+        portfolioId: portfolio.id,
+        portfolioName: portfolio.name,
+        reasons,
+        severity,
+        aiSuggestion,
+      });
+    }
+  }
+
+  return mismatches;
+}
 
 const RISK = z.enum(["konservativ", "ausgewogen", "wachstum", "aggressiv"]);
 const GOAL = z.enum(["dividends", "growth", "balanced"]);
@@ -129,8 +255,45 @@ export const investmentProfileRouter = router({
         excludedSectors: input.excludedSectors ?? [],
         esgOnly: !!input.esgOnly,
       });
+      // Mismatch-Check nach Profiländerung (asynchron, nicht blockierend)
+      detectProfileMismatch(
+        ctx.user.id,
+        input.riskProfile as RiskProfile,
+        input.maxDrawdownTolerancePct,
+        input.investmentGoal
+      ).catch((e) => console.error("[profileMismatch] Check failed:", (e as Error).message));
+
       return { success: true };
     }),
+
+  /**
+   * Profil-Mismatch-Check: Prüft alle Portfolios des Nutzers gegen das aktuelle Profil.
+   * Gibt eine Liste von Portfolios zurück, die nicht mehr dem Profil entsprechen,
+   * inkl. KI-generierter Anpassungsvorschläge.
+   */
+  checkMismatch: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return { mismatches: [] };
+    try {
+      const [profileRow] = await db
+        .select()
+        .from(userInvestmentProfile)
+        .where(eq(userInvestmentProfile.userId, ctx.user.id))
+        .limit(1);
+      if (!profileRow) return { mismatches: [] };
+
+      const mismatches = await detectProfileMismatch(
+        ctx.user.id,
+        profileRow.riskProfile as RiskProfile,
+        profileRow.maxDrawdownTolerancePct,
+        profileRow.investmentGoal
+      );
+      return { mismatches };
+    } catch (e) {
+      console.error("[profileMismatch] checkMismatch failed:", (e as Error).message);
+      return { mismatches: [] };
+    }
+  }),
 
   /**
    * Anlegerprofil-Bewertung (P1): gespeicherte Auswertung inkl. Scores und

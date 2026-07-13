@@ -291,14 +291,15 @@ export async function fetchAndSaveDynamicMetrics(): Promise<{
   const allMetrics: DynamicMetricResult[] = [];
 
   // Alle Metriken parallel abrufen
-  const [openAiResults, capexResults, vcResults, roiResults] = await Promise.allSettled([
+  const [openAiResults, capexResults, vcResults, roiResults, creditSpreadResults] = await Promise.allSettled([
     fetchOpenAiMetrics(),
     fetchHyperscalerCapex(),
     fetchVcMetrics(),
     fetchRoiMetrics(),
+    fetchTechCreditSpreadMetrics(),
   ]);
 
-  for (const result of [openAiResults, capexResults, vcResults, roiResults]) {
+  for (const result of [openAiResults, capexResults, vcResults, roiResults, creditSpreadResults]) {
     if (result.status === "fulfilled") {
       allMetrics.push(...result.value);
     } else {
@@ -343,6 +344,10 @@ export async function getLatestDynamicMetrics(): Promise<Record<string, DynamicM
     "vc_ai_share",
     "vc_total_volume",
     "ai_roi_success_rate",
+    "tech_bond_issuance_bn_usd",
+    "tech_ig_spread_bps",
+    "tech_spread_change_bps",
+    "tech_rating_change",
   ];
 
   const result: Record<string, DynamicMetricResult> = {};
@@ -372,4 +377,91 @@ export async function getLatestDynamicMetrics(): Promise<Record<string, DynamicM
   );
 
   return result;
+}
+
+// ── Tech-Anleihenmarkt / Credit-Spread Fetcher ────────────────────────────────
+
+export async function fetchTechCreditSpreadMetrics(): Promise<DynamicMetricResult[]> {
+  const prompt = `Search the web for the most recent data (2025 or 2026) about tech hyperscaler bond issuance and investment-grade credit spreads.
+Find data about:
+1. Total bond issuance by tech hyperscalers (Amazon, Alphabet, Meta, Microsoft, Oracle) in 2025/2026
+2. Investment-grade credit spreads for tech sector (basis points over Treasuries)
+3. Any recent credit rating changes for major tech companies
+
+Return a JSON object with these exact keys:
+{
+  "hyperscaler_bond_issuance_bn_usd": <number, total bond issuance in billions USD in 2025 or 2026>,
+  "tech_ig_spread_bps": <number, investment-grade credit spread in basis points, e.g. 85>,
+  "spread_change_bps": <number, change in spread over past month, positive = widening>,
+  "notable_rating_change": "<string, e.g. 'Oracle downgraded to BBB- by S&P Global, July 2026' or 'none'>",
+  "source": "<source name and date, e.g. 'Goldman Sachs / WSJ, July 2026'>",
+  "notes": "<brief context about market stress level>"
+}
+Use the most recent publicly available figures. If exact data is unavailable, use best estimates from credible sources.`;
+
+  try {
+    const raw = await queryPerplexity(prompt);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in response");
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const bondIssuance = typeof parsed.hyperscaler_bond_issuance_bn_usd === "number" ? parsed.hyperscaler_bond_issuance_bn_usd : null;
+    const spreadBps = typeof parsed.tech_ig_spread_bps === "number" ? parsed.tech_ig_spread_bps : null;
+    const spreadChange = typeof parsed.spread_change_bps === "number" ? parsed.spread_change_bps : null;
+    const ratingChange = typeof parsed.notable_rating_change === "string" ? parsed.notable_rating_change : "none";
+    const source = parsed.source ?? "Perplexity Sonar-Pro";
+    const notes = parsed.notes ?? "";
+
+    const results: DynamicMetricResult[] = [];
+
+    if (bondIssuance !== null) {
+      results.push({
+        metricKey: "tech_bond_issuance_bn_usd",
+        numericValue: bondIssuance,
+        displayValue: `$${bondIssuance.toFixed(0)} Mrd.`,
+        unit: "Mrd. USD",
+        source,
+        description: `Tech-Hyperscaler Anleihenemissionen 2025/26 (${notes})`,
+      });
+    }
+
+    if (spreadBps !== null) {
+      results.push({
+        metricKey: "tech_ig_spread_bps",
+        numericValue: spreadBps,
+        displayValue: `${spreadBps} bps`,
+        unit: "bps",
+        source,
+        description: `Investment-Grade Credit Spread Tech-Sektor (${notes})`,
+      });
+    }
+
+    if (spreadChange !== null) {
+      results.push({
+        metricKey: "tech_spread_change_bps",
+        numericValue: spreadChange,
+        displayValue: spreadChange >= 0 ? `+${spreadChange} bps` : `${spreadChange} bps`,
+        unit: "bps",
+        source,
+        description: `Spread-Veränderung letzter Monat (positiv = Ausweitung = Stress)`,
+      });
+    }
+
+    // Rating-Änderung als Text-Metrik
+    if (ratingChange && ratingChange !== "none") {
+      results.push({
+        metricKey: "tech_rating_change",
+        numericValue: null,
+        displayValue: ratingChange,
+        unit: "",
+        source,
+        description: `Aktuelle Rating-Änderung Tech-Sektor`,
+      });
+    }
+
+    return results;
+  } catch (err) {
+    console.error("[kiBoomDynamicMetrics] fetchTechCreditSpreadMetrics failed:", (err as Error).message);
+    return [];
+  }
 }
