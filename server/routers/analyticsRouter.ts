@@ -363,9 +363,34 @@ Gib eine strukturierte Analyse zurück.`;
         method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp"]).optional().default("max_sharpe"),
       })
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       try {
         const rules = await _getDiversificationRules();
+
+        // P-ALIGN: Prüfen, ob das Portfolio frisch durch den KI-Builder erstellt wurde.
+        // Für KI-erstellte Portfolios (< 7 Tage alt) werden schwache Positionen NICHT
+        // als Ersatz-Vorschläge angezeigt, da der Builder sie bewusst ausgewählt hat.
+        // Ergänzungs-Vorschläge (neue Titel) bleiben weiterhin aktiv.
+        let isFreshAiPortfolio = false;
+        const portfolioIdNum = parseInt(input.portfolioId, 10);
+        if (!isNaN(portfolioIdNum)) {
+          try {
+            const db = await getDb();
+            if (db) {
+              const [port] = await db.select({ createdAt: savedPortfolios.createdAt, portfolioType: savedPortfolios.portfolioType })
+                .from(savedPortfolios)
+                .where(and(eq(savedPortfolios.id, portfolioIdNum), eq(savedPortfolios.userId, ctx.user.id)))
+                .limit(1);
+              if (port) {
+                const ageMs = Date.now() - new Date(port.createdAt).getTime();
+                const ageDays = ageMs / (1000 * 60 * 60 * 24);
+                // KI-erstellte Portfolios (demo) die jünger als 7 Tage sind
+                const isAiType = port.portfolioType === 'demo';
+                isFreshAiPortfolio = isAiType && ageDays < 7;
+              }
+            }
+          } catch { /* non-critical */ }
+        }
 
         // Zielbasiertes Ranking: Sortierkriterium je nach Optimierungsziel
         // max_dividend → Dividendenrendite (höher = besser)
@@ -422,9 +447,13 @@ Gib eine strukturierte Analyse zurück.`;
             : 0;
 
         // Schwache Positionen (Score < Schwelle)
-        const weakPositions = input.holdings
-          .filter((h) => (h.signalScore ?? 0) < rules.upgradeScoreThreshold)
-          .sort((a, b) => (a.signalScore ?? 0) - (b.signalScore ?? 0));
+        // P-ALIGN: Für frisch erstellte KI-Portfolios (< 7 Tage) keine Ersatz-Vorschläge,
+        // da der Builder die Positionen bewusst ausgewählt hat.
+        const weakPositions = isFreshAiPortfolio
+          ? [] // Keine Ersatz-Vorschläge für frisch erstellte KI-Portfolios
+          : input.holdings
+              .filter((h) => (h.signalScore ?? 0) < rules.upgradeScoreThreshold)
+              .sort((a, b) => (a.signalScore ?? 0) - (b.signalScore ?? 0));
 
         // Ersatz-Vorschläge: für jede schwache Position genau 1 besten Kandidaten (kein Duplikat)
         // Bereits zugewiesene Kandidaten werden aus dem Pool entfernt → keine Wiederholungen.
@@ -550,6 +579,11 @@ Gib eine strukturierte Analyse zurück.`;
           totalCandidates: candidates.length,
           rankBy: getRankLabel(),
           method,
+          // P-ALIGN: Hinweis für frisch erstellte KI-Portfolios
+          isFreshAiPortfolio,
+          freshAiNotice: isFreshAiPortfolio
+            ? 'Dieses Portfolio wurde kürzlich durch den KI-Builder erstellt. Ersatz-Vorschläge werden erst nach 7 Tagen aktiviert, da die Positionen bewusst ausgewählt wurden.'
+            : null,
         };
       } catch (err: any) {
         throw new TRPCError({

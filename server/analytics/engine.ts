@@ -1305,9 +1305,14 @@ export async function optimizePortfolio(input: OptimizeInput) {
   // Per-asset stats
   const assetStats = available.map((ticker, i) => {
     const ar = returnsMap[ticker];
+    // Use actual portfolio weight if provided, otherwise fall back to equal-weight
+    const actualCurW = input.currentWeights?.[ticker];
+    const curW = (actualCurW !== undefined && actualCurW > 0)
+      ? actualCurW / (actualWeightSum > 0.5 ? actualWeightSum : 1) // normalise to 0..1
+      : 1 / n;
     return {
       ticker,
-      currentWeight: Math.round((1 / n) * 1000) / 10,
+      currentWeight: Math.round(curW * 1000) / 10,
       optimalWeight: Math.round(finalWeights[i] * 1000) / 10,
       annualReturn: Math.round(mu[i] * 10000) / 100,
       volatility: Math.round(Math.sqrt(cov[i][i]) * 10000) / 100,

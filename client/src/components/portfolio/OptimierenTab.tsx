@@ -208,6 +208,8 @@ export default function OptimierenTab({
   strategyNote,
   onNavigateToTransactions,
   onNavigateToPositions,
+  portfolioCreatedAt,
+  portfolioType,
 }: {
   portfolioId: number;
   holdings: any[];
@@ -221,7 +223,17 @@ export default function OptimierenTab({
   onNavigateToTransactions?: () => void;
   /** Callback: navigiert zum Positionen-Tab nach erfolgreicher Buchung */
   onNavigateToPositions?: () => void;
+  /** P-ALIGN: Portfolio-Erstellungsdatum (ISO-String) für frisch-Portfolio-Hinweis */
+  portfolioCreatedAt?: string | null;
+  /** P-ALIGN: Portfolio-Typ ('demo' | 'live') */
+  portfolioType?: string | null;
 }) {
+  // P-ALIGN: Frisch erstelltes KI-Portfolio (demo, < 7 Tage)?
+  const isFreshDemoPortfolio = useMemo(() => {
+    if (!portfolioCreatedAt || portfolioType !== 'demo') return false;
+    const ageDays = (Date.now() - new Date(portfolioCreatedAt).getTime()) / (1000 * 60 * 60 * 24);
+    return ageDays < 7;
+  }, [portfolioCreatedAt, portfolioType]);
   const [showDivRules, setShowDivRules] = useState(true);
   const [showUpgrades, setShowUpgrades] = useState(true);
   const [showAllWeak, setShowAllWeak] = useState(false);
@@ -785,6 +797,14 @@ export default function OptimierenTab({
                         </span>
                       )}
                     </span>
+                  </div>
+                )}
+
+                {/* P-ALIGN: Hinweis für frisch erstellte KI-Portfolios */}
+                {(upgradeData as any).isFreshAiPortfolio && (upgradeData as any).freshAiNotice && (
+                  <div className="px-4 py-3 flex items-start gap-3 bg-[#00CFC1]/5 border-b border-[#00CFC1]/20">
+                    <CheckCircle className="w-4 h-4 text-[#00CFC1] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#00CFC1]/90">{(upgradeData as any).freshAiNotice}</p>
                   </div>
                 )}
 
@@ -1451,6 +1471,15 @@ export default function OptimierenTab({
                 )}
               </div>
               <p className="text-xs text-gray-500 mb-4">Re-Allocation für maximale risikoadjustierte Rendite · Bandbreite {rules.minPositionPercent}–{rules.maxPositionPercent}%</p>
+              {/* P-ALIGN: Hinweis für frisch erstellte KI-Portfolios */}
+              {isFreshDemoPortfolio && (
+                <div className="flex items-start gap-2 bg-[#00CFC1]/5 border border-[#00CFC1]/20 rounded-lg px-3 py-2.5 mb-4">
+                  <CheckCircle className="w-3.5 h-3.5 text-[#00CFC1] flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#00CFC1]/90">
+                    Dieses Portfolio wurde kürzlich durch den KI-Builder erstellt. Der Optimizer verwendet eine andere Gewichtungslogik (Mean-Variance). Die angezeigten Umschichtungen sind optional — wir empfehlen, sie erst nach einigen Wochen Laufzeit zu prüfen.
+                  </p>
+                </div>
+              )}
               {suggestions.length === 0 ? (
                 <div className="flex items-center gap-2 text-[#00CFC1] text-sm">
                   <CheckCircle className="w-4 h-4" />

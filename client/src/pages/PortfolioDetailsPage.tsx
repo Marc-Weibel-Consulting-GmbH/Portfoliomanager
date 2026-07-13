@@ -566,8 +566,8 @@ const PROFILE_GOAL_LABEL: Record<string, string> = {
 };
 
 function OptimierungEmpfehlungenTab({
-  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions, onNavigateToPositions,
-}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void; onNavigateToPositions?: () => void }) {
+  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions, onNavigateToPositions, portfolioCreatedAt, portfolioType,
+}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void; onNavigateToPositions?: () => void; portfolioCreatedAt?: string | null; portfolioType?: string | null }) {
   const [mode, setMode] = useState<"empfehlungen" | "optimierung">("empfehlungen");
   const { data: profile } = trpc.investmentProfile.get.useQuery();
 
@@ -673,6 +673,8 @@ function OptimierungEmpfehlungenTab({
           strategyNote={strategyNote}
           onNavigateToTransactions={onNavigateToTransactions}
           onNavigateToPositions={onNavigateToPositions}
+          portfolioCreatedAt={portfolioCreatedAt}
+          portfolioType={portfolioType}
         />
       )}
     </div>
@@ -2319,7 +2321,7 @@ export default function PortfolioDetailsPage() {
 
           {/* OPTIMIERUNG & EMPFEHLUNGEN — F3: konsolidiert (Optimieren KI + Empfehlungen KI) */}
           <TabsContent value="optimierung" className="mt-6">
-            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} />
+            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} />
           </TabsContent>
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}
