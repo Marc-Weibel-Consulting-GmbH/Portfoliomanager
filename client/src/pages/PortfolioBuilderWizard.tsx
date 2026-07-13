@@ -107,7 +107,7 @@ const EXCLUDED_SECTORS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PortfolioBuilderWizard() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   // ── Global state ──
   const [currentStep, setCurrentStep] = useState(0); // 0 = path picker, 1-5 = manual flow
@@ -141,6 +141,30 @@ export default function PortfolioBuilderWizard() {
     onSuccess: (data) => setAutoProposal(data),
     onError: (e) => toast.error("Vorschlag konnte nicht erstellt werden", { description: e.message }),
   });
+
+  // Reset all wizard state whenever the user navigates (back) to /portfolio-builder.
+  // Using location as dependency ensures the reset fires on every visit, not just on first mount.
+  useEffect(() => {
+    if (location === "/portfolio-builder") {
+      setCurrentStep(0);
+      setPath(null);
+      setAutoStep(1);
+      setAutoGoal("balanced");
+      setAutoRisk("ausgewogen");
+      setAutoHorizon(10);
+      setAutoExcluded([]);
+      setAutoProposal(null);
+      setPortfolioType(null);
+      setPortfolioName("");
+      setPortfolioDescription("");
+      setCurrency("CHF");
+      setInitialCapital("");
+      setSelectedStocks([]);
+      setSearchQuery("");
+      setPerStockInputs({});
+      setIsLive(false);
+    }
+  }, [location]); // fires on every navigation to this route
 
   // Pre-fill auto wizard from saved profile when user selects auto path
   useEffect(() => {
