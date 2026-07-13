@@ -434,27 +434,12 @@ export async function parseSwissquoteDepotauszug(pdfBuffer: Buffer): Promise<Dep
   let pageCount = 0;
 
   try {
-    // Use pdftotext -layout to preserve column alignment (critical for Swissquote Depotauszug)
-    const { execSync } = await import('child_process');
-    const { writeFileSync, unlinkSync, readFileSync } = await import('fs');
-    const { tmpdir } = await import('os');
-    const { join } = await import('path');
-    const tmpPdf = join(tmpdir(), `depot_${Date.now()}.pdf`);
-    const tmpTxt = join(tmpdir(), `depot_${Date.now()}.txt`);
-    try {
-      writeFileSync(tmpPdf, pdfBuffer);
-      execSync(`pdftotext -layout "${tmpPdf}" "${tmpTxt}"`, { timeout: 30000 });
-      rawText = readFileSync(tmpTxt, 'utf-8');
-      // Count pages via pdfinfo
-      try {
-        const info = execSync(`pdfinfo "${tmpPdf}"`, { timeout: 10000 }).toString();
-        const pagesMatch = info.match(/Pages:\s*(\d+)/);
-        if (pagesMatch) pageCount = parseInt(pagesMatch[1], 10);
-      } catch { pageCount = 0; }
-    } finally {
-      try { unlinkSync(tmpPdf); } catch {}
-      try { unlinkSync(tmpTxt); } catch {}
-    }
+    // Use pdf-parse (pure Node.js, no system binary required — works in all environments)
+    const pdfParseModule = await import('pdf-parse');
+    const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+    const data = await pdfParse(pdfBuffer, { max: 0 });
+    rawText = data.text;
+    pageCount = data.numpages;
   } catch (err: any) {
     parseErrors.push(`PDF text extraction failed: ${err.message}`);
     return { positions: [], parseErrors, rawText: '', pageCount: 0, reportDate: null, accountHolder: null, totalValueCHF: null };
