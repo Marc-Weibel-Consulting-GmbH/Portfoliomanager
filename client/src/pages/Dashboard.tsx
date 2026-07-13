@@ -54,18 +54,25 @@ function KpiRow({ scope }: { scope: Scope }) {
   const { data: metrics, isLoading, isError, refetch } =
     trpc.dashboard.getAggregatedMetrics.useQuery({ scope });
   // Use TTWROR from chart timeseries as the authoritative YTD value (consistent with chart line)
-  const { data: perfData } = trpc.dashboard.getPerformanceTimeseries.useQuery(
+  const { data: perfData, refetch: refetchPerf } = trpc.dashboard.getPerformanceTimeseries.useQuery(
     { scope, range: "YTD" as any },
     { staleTime: 5 * 60 * 1000, retry: false },
   );
-  const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(
+  const { data: riskMetrics, refetch: refetchRisk } = trpc.dashboard.getRiskMetrics.useQuery(
     { scope },
     { staleTime: 5 * 60 * 1000, retry: false },
   );
-  const { data: bubbleData } = trpc.dashboard.getBubbleIndicator.useQuery(
+  const { data: bubbleData, refetch: refetchBubble } = trpc.dashboard.getBubbleIndicator.useQuery(
     { scope },
     { staleTime: 5 * 60 * 1000, retry: false },
   );
+
+  const refetchAll = () => {
+    refetch();
+    refetchPerf();
+    refetchRisk();
+    refetchBubble();
+  };
 
   if (isLoading) {
     return (
@@ -88,7 +95,7 @@ function KpiRow({ scope }: { scope: Scope }) {
             size="sm"
             variant="outline"
             className="h-8 text-xs bg-[#1a2332] border-[#2a3a4e] text-gray-200 hover:bg-[#243044]"
-            onClick={() => refetch()}
+            onClick={() => refetchAll()}
           >
             <RefreshCw className="h-3 w-3 mr-1.5" aria-hidden="true" />
             Erneut versuchen
@@ -578,8 +585,17 @@ export default function Dashboard() {
   const utils = trpc.useUtils();
   const deleteMut = trpc.portfolios.delete.useMutation({
     onSuccess: () => {
+      // Invalidate portfolio lists
       utils.dashboard.getPortfolioCompact.invalidate();
       utils.portfolios.list.invalidate();
+      // Invalidate ALL dashboard KPIs so they are recalculated after deletion
+      utils.dashboard.getAggregatedMetrics.invalidate();
+      utils.dashboard.getRiskMetrics.invalidate();
+      utils.dashboard.getPerformanceTimeseries.invalidate();
+      utils.dashboard.getBubbleIndicator.invalidate();
+      utils.dashboard.getSectorAllocation.invalidate();
+      utils.dashboard.getRegionAllocation.invalidate();
+      utils.dashboard.getAggregatedHoldings.invalidate();
       setDeleteConfirm(null);
     },
   });
