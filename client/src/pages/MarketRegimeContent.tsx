@@ -9,6 +9,9 @@ import { Link } from "wouter";
 import { RefreshCw, Info, Target } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
+} from "recharts";
 
 type RegimeLevel = "bullish" | "neutral" | "bearish";
 
@@ -106,32 +109,89 @@ const RISK_LABEL: Record<string, string> = {
 };
 
 // Regime-Verlauf (R4): Sparkline des Gesamt-Scores der letzten Tage.
-// Skala −100…+100, Nulllinie = neutral. Farbe der Endnadel nach Vorzeichen.
+// Dynamic-scale sparkline with hover tooltip. Y-axis auto-fits to actual data range.
 function RegimeSparkline({ points }: { points: { date: string; score: number }[] }) {
-  const W = 600, H = 120, padY = 12;
-  const n = points.length;
-  const x = (i: number) => (n <= 1 ? 0 : (i / (n - 1)) * W);
-  const y = (s: number) => H / 2 - Math.max(-1, Math.min(1, s)) * (H / 2 - padY);
-  const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.score).toFixed(1)}`).join(" ");
-  const area = `${line} L${W} ${H / 2} L0 ${H / 2} Z`;
-  const last = points[n - 1];
+  const last = points[points.length - 1];
   const lastColor = last.score >= 0.05 ? "#34d399" : last.score <= -0.05 ? "#f87171" : "#fbbf24";
   const fmt = (s: number) => `${s >= 0 ? "+" : ""}${Math.round(s * 100)}`;
   const fmtDate = (d: string) => new Date(d).toLocaleDateString("de-CH", { day: "2-digit", month: "short" });
+
+  // Compute dynamic Y domain with 15% padding so the line doesn't hug the edges
+  const scores = points.map((p) => p.score);
+  const minS = Math.min(...scores);
+  const maxS = Math.max(...scores);
+  const pad = Math.max((maxS - minS) * 0.2, 0.05); // at least ±5 pts padding
+  const yMin = Math.floor((minS - pad) * 100) / 100;
+  const yMax = Math.ceil((maxS + pad) * 100) / 100;
+
+  // Convert to integer display values (×100)
+  const chartData = points.map((p) => ({
+    date: p.date,
+    score: Math.round(p.score * 100),
+    label: fmtDate(p.date),
+  }));
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    const val = payload[0].value;
+    const col = val >= 5 ? "#34d399" : val <= -5 ? "#f87171" : "#fbbf24";
+    return (
+      <div className="bg-[#0d1220] border border-[#1e2840] rounded-lg px-3 py-2 text-xs shadow-xl">
+        <p className="text-gray-400 mb-1">{fmtDate(label)}</p>
+        <p style={{ color: col }} className="font-semibold text-sm">{val >= 0 ? "+" : ""}{val}</p>
+      </div>
+    );
+  };
+
+  // Ticks: show ~6 evenly spaced dates
+  const tickIndices = points.length <= 6
+    ? points.map((_, i) => i)
+    : [0, Math.floor(points.length / 5), Math.floor(2 * points.length / 5),
+       Math.floor(3 * points.length / 5), Math.floor(4 * points.length / 5), points.length - 1];
+  const tickDates = new Set(tickIndices.map((i) => points[i].date));
+
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" role="img" aria-label="Regime-Verlauf">
-        <defs>
-          <linearGradient id="regimeSpark" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor={lastColor} stopOpacity="0.25" />
-            <stop offset="1" stopColor={lastColor} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#ffffff" strokeOpacity="0.12" strokeWidth="1" strokeDasharray="4 4" />
-        <path d={area} fill="url(#regimeSpark)" />
-        <path d={line} fill="none" stroke={lastColor} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        <circle cx={x(n - 1)} cy={y(last.score)} r="4" fill={lastColor} />
-      </svg>
+      <div style={{ height: 160 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 28 }}>
+            <defs>
+              <linearGradient id="regimeFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={lastColor} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={lastColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e2840" vertical={false} />
+            <ReferenceLine y={0} stroke="#ffffff" strokeOpacity={0.18} strokeDasharray="4 4" />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 10, fill: '#6b7280' }}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(d) => tickDates.has(d) ? fmtDate(d) : ''}
+              interval={0}
+            />
+            <YAxis
+              domain={[Math.round(yMin * 100), Math.round(yMax * 100)]}
+              tick={{ fontSize: 10, fill: '#6b7280' }}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => `${v >= 0 ? '+' : ''}${v}`}
+              width={28}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff', strokeOpacity: 0.15, strokeWidth: 1 }} />
+            <Area
+              type="monotone"
+              dataKey="score"
+              stroke={lastColor}
+              strokeWidth={2.5}
+              fill="url(#regimeFill)"
+              dot={false}
+              activeDot={{ r: 4, fill: lastColor, strokeWidth: 0 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
       <div className="flex justify-between text-[11px] text-gray-500 mt-1">
         <span>{fmtDate(points[0].date)} · {fmt(points[0].score)}</span>
         <span className="text-gray-400">Nulllinie = neutral</span>
