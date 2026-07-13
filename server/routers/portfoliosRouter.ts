@@ -78,10 +78,20 @@ export const portfoliosRouter = router({
 
             // Calculate value in CHF (U-13: fehlender FX-Kurs → Wert 0 wie
             // bisher, aber mit fxMissing-Flag statt stillschweigend)
-            const priceCHFOrNull = await tryConvertToCHF(currentPrice, currency, todayStr);
+            // Fallback: use exchangeRateToChf from stocks table if exchangeRates table has no entry
+            let priceCHFOrNull = await tryConvertToCHF(currentPrice, currency, todayStr);
             if (priceCHFOrNull === null) {
-              dataQuality.push({ ticker, priceMissing: false, fxMissing: true });
-              continue;
+              // Fallback: use stored exchangeRateToChf from stocks table
+              const storedFxRate = parseFloat((stockData as any).exchangeRateToChf || '0');
+              if (storedFxRate > 0 && currency !== 'CHF') {
+                priceCHFOrNull = currentPrice * storedFxRate;
+                console.warn(`[portfolios.list] Using stored exchangeRateToChf=${storedFxRate} for ${ticker} (${currency}) — no rate in exchangeRates table`);
+              } else if (currency === 'CHF') {
+                priceCHFOrNull = currentPrice;
+              } else {
+                dataQuality.push({ ticker, priceMissing: false, fxMissing: true });
+                continue;
+              }
             }
             const priceCHF = priceCHFOrNull;
 
