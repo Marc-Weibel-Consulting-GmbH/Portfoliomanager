@@ -20,6 +20,8 @@ import {
   Zap,
   History,
   Activity,
+  Newspaper,
+  ExternalLink,
 } from "lucide-react";
 import {
   Tooltip,
@@ -748,6 +750,43 @@ export function KiBoomDashboard() {
         exitReason={data.ausstiegsGrund}
         szenarioKontext={(data as any).szenarioKontext ?? null}
       />
+
+      {/* Goldman Sachs Warnung – Aktuelle Forschungswarnung */}
+      {(data as any).goldmanSachsWarning && (
+        <div className="bg-amber-400/8 border border-amber-400/40 rounded-lg p-5">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="bg-amber-400/15 rounded-md p-1.5 shrink-0 mt-0.5">
+              <Newspaper className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Aktuelle Marktwarnung</span>
+                <span className="text-[9px] text-gray-500">{(data as any).goldmanSachsWarning.date} · {(data as any).goldmanSachsWarning.source}</span>
+              </div>
+              <h3 className="text-sm font-semibold text-white leading-snug">
+                {(data as any).goldmanSachsWarning.headline}
+              </h3>
+            </div>
+          </div>
+          <p className="text-[12px] text-gray-300 leading-relaxed mb-3">
+            {(data as any).goldmanSachsWarning.summary}
+          </p>
+          <ul className="space-y-1.5">
+            {(data as any).goldmanSachsWarning.bullets.map((b: string, i: number) => (
+              <li key={i} className="flex items-start gap-2 text-[11px] text-gray-400">
+                <span className="text-amber-400 mt-0.5 shrink-0">▸</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 pt-3 border-t border-amber-400/20 flex items-center gap-2">
+            <Info className="w-3 h-3 text-amber-400 shrink-0" />
+            <p className="text-[10px] text-gray-500">
+              Dieser Datenpunkt fliesst als Signal «Tech-Anleihenmarkt Stress» in den KI-Blase Monitor ein.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Statische Schlüsselmetriken */}
       <div>

@@ -45,6 +45,15 @@ interface KiBoomData {
   ausstiegsGrund: string | null;
   /** Szenario-Kontext: erklärt warum trotz Warnsignalen kein Sofortausstieg */
   szenarioKontext: string | null;
+  /** Aktuelle Marktwarnung aus Research/News */
+  goldmanSachsWarning: {
+    headline: string;
+    date: string;
+    source: string;
+    summary: string;
+    bullets: string[];
+    severity: BoomZone;
+  } | null;
   staticMetrics: {
     openAiUmsatz2025: string;
     openAiVerlust2025: string;
@@ -290,6 +299,20 @@ export async function computeKiBoomData(): Promise<KiBoomData> {
       criticalThreshold: "< 15%",
       trend: "stable",
     },
+
+    // 7. Tech-Anleihenmarkt / Credit Spreads (Goldman Sachs Warnung, Juli 2026)
+    // Logik: Steigende Credit Spreads = Markt kann Schuldenflut nicht absorbieren = Warnsignal
+    // Datenpunkt: 244 Mrd. USD Tech-Anleihen in 2026 (2× Vorjahr), Oracle auf BBB- abgestuft
+    {
+      label: "Tech-Anleihenmarkt Stress",
+      value: "$244 Mrd.",
+      numericValue: 244,
+      zone: "gelb" as BoomZone, // Warnsignal: Goldman Sachs warnt vor "brutalen" Bewegungen
+      description: "Goldman Sachs warnt vor 'brutalen' Bewegungen am Anleihenmarkt: Tech-Hyperscaler (Amazon, Alphabet, Meta, Microsoft, Oracle) haben 2026 Anleihen im Wert von $244 Mrd. begeben – mehr als doppelt so viel wie im Vorjahr. Steigende Kreditspreads signalisieren Absorptionsprobleme. Oracle am 9. Juli auf BBB- abgestuft (eine Stufe über Ramsch). (Goldman Sachs / WSJ, Juli 2026)",
+      warnThreshold: "Kreditspreads steigen / Anleiheflut > $200 Mrd.",
+      criticalThreshold: "Ratingabstufungen auf Ramsch / Spreads > 300 bps",
+      trend: "up",
+    },
   ];
 
   // ── Gesamtstatus berechnen ──────────────────────────────────────────────
@@ -314,14 +337,29 @@ export async function computeKiBoomData(): Promise<KiBoomData> {
   if (sofortigerAusstieg) {
     ausstiegsGrund = activeCritical >= SCENARIOS.minCriticalForImmediateExit
       ? `${activeCritical} kritische Signale gleichzeitig aktiv – Ausstieg empfohlen`
-      : `${activeWarnings} von 6 Warnsignalen aktiv – erhöhte Vorsicht geboten`;
+      : `${activeWarnings} von 7 Warnsignalen aktiv – erhöhte Vorsicht geboten`;
   } else if (ausstiegPruefen) {
     ausstiegsGrund = activeCritical >= 1
       ? `${activeCritical} kritisches Signal aktiv – Position beobachten`
       : `${activeWarnings} Warnsignale aktiv – Beobachtungsmodus`;
     // Szenario-Kontext: erklärt warum kein Sofortausstieg
     szenarioKontext = `Neutrales Szenario: Heisse Phase erwartet ${SCENARIOS.neutralSzenarioHotPhase}. Sofortiger Ausstieg erst bei ≥${SCENARIOS.minCriticalForImmediateExit} kritischen Signalen oder ≥5 Warnungen.`;
+    // Hinweis: Tech-Anleihenmarkt-Stress (Goldman Sachs, Juli 2026) als aktives Warnsignal berücksichtigt
   }
+
+  // Goldman Sachs Warnung als strukturiertes Objekt für Frontend-Karte
+  const goldmanSachsWarning = {
+    headline: "Goldman Sachs warnt vor 'brutalen' Bewegungen am KI-Anleihenmarkt",
+    date: "13. Juli 2026",
+    source: "Goldman Sachs / Wall Street Journal",
+    summary: "Tech-Hyperscaler haben 2026 Anleihen im Wert von $244 Mrd. begeben – mehr als doppelt so viel wie im Vorjahr. Steigende Kreditspreads signalisieren, dass der Markt Schwierigkeiten hat, die Flut zu absorbieren. Oracle wurde am 9. Juli auf BBB- abgestuft (eine Stufe über Ramsch).",
+    bullets: [
+      "Amazon, Alphabet, Meta, Microsoft und Oracle: $244 Mrd. Anleihen in 2026 (2× Vorjahr)",
+      "Goldman Sachs: Kreditspreads des Tech-Schulden-Korbs haben sich innerhalb einer Woche deutlich ausgeweitet",
+      "S&P Global stufte Oracle am 9. Juli auf BBB- herab – unterschätzte KI-Infrastrukturkosten als Begründung",
+    ],
+    severity: "gelb" as BoomZone,
+  };
 
   return {
     overallZone,
@@ -329,6 +367,7 @@ export async function computeKiBoomData(): Promise<KiBoomData> {
     activeCritical,
     lastUpdated: new Date().toISOString(),
     signals,
+    goldmanSachsWarning,
     scenarioProbabilities: {
       sanfteVerlangsamung: SCENARIOS.sanfteVerlangsamung,
       schnellerCrash: SCENARIOS.schnellerCrash,
