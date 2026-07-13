@@ -440,6 +440,12 @@ export const portfoliosRouter = router({
               // Add missing fields from database
               sector: dbStock?.sector || stock.sector || 'Other',
               ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || '0',
+              // totalReturn = performance since purchase (Seit Kauf)
+              // Uses the already-resolved avgBuyPrice (falls back to currentPrice if missing)
+              // For demo portfolios created today: avgBuyPrice = currentPrice → totalReturn = 0%
+              totalReturn: (avgBuyPrice > 0 && currentPrice > 0)
+                ? (((currentPrice - avgBuyPrice) / avgBuyPrice) * 100).toFixed(4)
+                : '0',
               dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
               companyName: dbStock?.companyName || stock.companyName || ticker,
               category: dbStock?.category || stock.category || 'Aktien',
