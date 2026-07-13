@@ -989,16 +989,15 @@ export const adminRouter = router({
      */
     triggerSignalScoreRefresh: adminProcedure.mutation(async () => {
       try {
-        const port = process.env.PORT || 3000;
-        const response = await fetch(`http://localhost:${port}/api/scheduled/signalScoreRefresh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(600_000), // 10 min max
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        const { runSignalScoreRefresh } = await import("../scheduled/signalScoreRefreshScheduled");
+        const result = await runSignalScoreRefresh();
+        if (!result.ok) {
+          return {
+            success: false,
+            message: `Fehler: ${result.error ?? "Unbekannter Fehler"}`,
+            details: null,
+          };
         }
-        const result = await response.json();
         return {
           success: true,
           message: `Refresh abgeschlossen: ${result.updated ?? 0} Scores aktualisiert, ${result.ytdRecalc?.updated ?? 0} YTD-Werte neu berechnet, ${result.backfill?.pricesImported ?? 0} Preise importiert.`,

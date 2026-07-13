@@ -76,7 +76,19 @@ function calcSignalScore(params: {
   return { score, signalType, reasons };
 }
 
-export async function handleSignalScoreRefresh(req: Request, res: Response) {
+export interface SignalScoreRefreshResult {
+  ok: boolean;
+  updated: number;
+  skipped: number;
+  failed: number;
+  total: number;
+  elapsedSeconds: number;
+  backfill: any;
+  ytdRecalc: { updated: number; skipped: number };
+  error?: string;
+}
+
+export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult> {
   const startTime = Date.now();
   try {
     const { getDb } = await import("../db");
@@ -85,7 +97,7 @@ export async function handleSignalScoreRefresh(req: Request, res: Response) {
 
     const db = await getDb();
     if (!db) {
-      return res.status(500).json({ error: "Database not available" });
+      return { ok: false, updated: 0, skipped: 0, failed: 0, total: 0, elapsedSeconds: 0, backfill: null, ytdRecalc: { updated: 0, skipped: 0 }, error: "Database not available" };
     }
 
     const YahooFinanceClass = (await import("yahoo-finance2")).default;
@@ -280,7 +292,7 @@ export async function handleSignalScoreRefresh(req: Request, res: Response) {
       console.error("[signalScoreRefresh] YTD recalc error (non-fatal):", ytdMainErr?.message);
     }
 
-    return res.json({
+    return {
       ok: true,
       updated,
       skipped,
@@ -289,9 +301,17 @@ export async function handleSignalScoreRefresh(req: Request, res: Response) {
       elapsedSeconds: parseFloat(elapsed),
       backfill: backfillResult,
       ytdRecalc: { updated: ytdUpdated, skipped: ytdSkipped },
-    });
+    };
   } catch (err: any) {
     console.error("[signalScoreRefresh] Fatal error:", err);
-    return res.status(500).json({ error: err?.message ?? "Unknown error" });
+    return { ok: false, updated: 0, skipped: 0, failed: 0, total: 0, elapsedSeconds: 0, backfill: null, ytdRecalc: { updated: 0, skipped: 0 }, error: err?.message ?? "Unknown error" };
   }
+}
+
+export async function handleSignalScoreRefresh(req: Request, res: Response) {
+  const result = await runSignalScoreRefresh();
+  if (!result.ok) {
+    return res.status(500).json({ error: result.error ?? "Unknown error" });
+  }
+  return res.json(result);
 }
