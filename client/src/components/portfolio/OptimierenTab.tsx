@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceDot,
+  Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
 import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square } from "lucide-react";
 
@@ -1647,9 +1647,39 @@ export default function OptimierenTab({
                             return null;
                           }}
                         />
-                        <Scatter data={frontierData} fill="#6366f1" opacity={0.5} />
-                        {optimalPoint && <ReferenceDot x={optimalPoint.x} y={optimalPoint.y} r={7} fill="#00CFC1" stroke="#fff" strokeWidth={2} label={{ value: "Opt.", position: "top", fill: "#00CFC1", fontSize: 9 }} />}
-                        {currentPoint && <ReferenceDot x={currentPoint.x} y={currentPoint.y} r={6} fill="#f59e0b" stroke="#fff" strokeWidth={2} label={{ value: "Aktuell", position: "top", fill: "#f59e0b", fontSize: 9 }} />}
+                        <Scatter name="Frontier" data={frontierData} fill="#6366f1" opacity={0.5} />
+                        {optimalPoint && (
+                          <Scatter
+                            name="Optimum"
+                            data={[{ x: optimalPoint.x, y: optimalPoint.y, label: 'Opt.' }]}
+                            fill="#00CFC1"
+                            shape={(props: any) => {
+                              const { cx, cy } = props;
+                              return (
+                                <g>
+                                  <circle cx={cx} cy={cy} r={8} fill="#00CFC1" stroke="#fff" strokeWidth={2} />
+                                  <text x={cx} y={cy - 12} textAnchor="middle" fill="#00CFC1" fontSize={9} fontWeight="bold">Opt.</text>
+                                </g>
+                              );
+                            }}
+                          />
+                        )}
+                        {currentPoint && (
+                          <Scatter
+                            name="Aktuell"
+                            data={[{ x: currentPoint.x, y: currentPoint.y, label: 'Aktuell' }]}
+                            fill="#f59e0b"
+                            shape={(props: any) => {
+                              const { cx, cy } = props;
+                              return (
+                                <g>
+                                  <circle cx={cx} cy={cy} r={7} fill="#f59e0b" stroke="#fff" strokeWidth={2} />
+                                  <text x={cx} y={cy - 11} textAnchor="middle" fill="#f59e0b" fontSize={9} fontWeight="bold">Aktuell</text>
+                                </g>
+                              );
+                            }}
+                          />
+                        )}
                       </ScatterChart>
                     </ResponsiveContainer>
                   </div>
