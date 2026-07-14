@@ -327,16 +327,6 @@ interface MetricChartConfig {
 
 const METRIC_CHARTS: MetricChartConfig[] = [
   {
-    key: "nvidiaPrice",
-    label: "Nvidia Aktienkurs",
-    unit: "$",
-    color: "#00CFC1",
-    warnLevel: 80,
-    critLevel: 50,
-    higherIsBetter: true,
-    description: "Proxy für KI-Hardware-Nachfrage",
-  },
-  {
     key: "mag7AvgYtd",
     label: "Magnificent Seven YTD",
     unit: "%",
@@ -367,14 +357,24 @@ const METRIC_CHARTS: MetricChartConfig[] = [
     description: "ARKK – Proxy für Spekulationsfieber / Risikoappetit (Warnung <$55, Kritisch <$40)",
   },
   {
-    key: "nvdaPE",
-    label: "NVDA Kurs-Gewinn-Verhältnis",
-    unit: "x",
+    key: "creditSpreadHY",
+    label: "Credit Spreads (High Yield)",
+    unit: "$",
+    color: "#f97316",
+    warnLevel: 75,
+    critLevel: 65,
+    higherIsBetter: true,
+    description: "HYG ETF – High Yield Bond Proxy (fallender Kurs = steigende Spreads = Risikoaversion)",
+  },
+  {
+    key: "creditSpreadIG",
+    label: "Credit Spreads (Investment Grade)",
+    unit: "$",
     color: "#ec4899",
-    warnLevel: 60,
-    critLevel: 100,
-    higherIsBetter: false,
-    description: "NVDA P/E (Kurs / EPS TTM) – Bewertungsexzess (Warnung >60x, Kritisch >100x)",
+    warnLevel: 100,
+    critLevel: 90,
+    higherIsBetter: true,
+    description: "LQD ETF – Investment Grade Bond Proxy (fallender Kurs = steigende IG-Spreads)",
   },
   {
     key: "vixLevel",
@@ -395,11 +395,20 @@ function MetricHistoryChart({
   config: MetricChartConfig;
   history: any[];
 }) {
-  const chartData = history
+  // Deduplicate by date: keep only the last entry per calendar day to avoid
+  // vertical spikes caused by multiple intra-day snapshots on the same date label.
+  const dedupMap = new Map<string, number>();
+  history
     .filter((h) => h[config.key] != null)
-    .map((h) => ({
-      date: formatShortDate(h.date),
-      value: h[config.key],
+    .forEach((h) => {
+      const dateKey = h.date; // already ISO date string YYYY-MM-DD
+      dedupMap.set(dateKey, h[config.key]);
+    });
+  const chartData = Array.from(dedupMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, value]) => ({
+      date: formatShortDate(date),
+      value,
     }));
 
   if (chartData.length === 0) {
@@ -502,7 +511,7 @@ function ExitCriteriaLive({ signals }: { signals: any[] }) {
     { label: "Magnificent Seven YTD unter -10%", signalKey: "Magnificent Seven YTD", threshold: "< -10% YTD" },
     { label: "Hyperscaler CapEx-Wachstum fällt unter 0%", signalKey: "Hyperscaler CapEx-Wachstum", threshold: "< 0% (Rückgang = Boom-Ende)" },
     { label: "OpenAI Verlustquote über 70%", signalKey: "OpenAI Verlustquote", threshold: "> 70%" },
-    { label: "Nvidia-Kurs unter $50", signalKey: "Nvidia Aktienkurs", threshold: "< $50" },
+    { label: "HYG ETF unter $65 (Credit Spreads stark ausgeweitet)", signalKey: "Credit Spreads (High Yield)", threshold: "< $65" },
   ];
 
   function getSignalZone(signalKey: string): BoomZone {
@@ -621,7 +630,7 @@ function ExitCriteriaLive({ signals }: { signals: any[] }) {
 
 function WatchlistTable() {
   const items = [
-    { freq: "Täglich",      metric: "Nvidia, MSFT, GOOGL, AMZN, META, AAPL, TSLA Kurse", source: "Markt-Daten" },
+    { freq: "Täglich",      metric: "MSFT, GOOGL, AMZN, META, AAPL, TSLA Kurse + HYG/LQD Credit Spreads", source: "Markt-Daten" },
     { freq: "Täglich",      metric: "GPU-Preise (H100/H200) und Lieferzeiten", source: "NVIDIA IR / Broker" },
     { freq: "Täglich",      metric: "Fed Funds Rate und 10Y Treasury Yield", source: "Fed / Bloomberg" },
     { freq: "Wöchentlich",  metric: "VC-Finanzierungsankündigungen KI-Startups", source: "Crunchbase / PitchBook" },

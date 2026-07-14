@@ -1194,6 +1194,9 @@ export const kiBoomMetricsHistory = mysqlTable("ki_boom_metrics_history", {
   arkkPrice: decimal("arkkPrice", { precision: 10, scale: 2 }),
   nvdaPE: decimal("nvdaPE", { precision: 8, scale: 2 }),
   vixLevel: decimal("vixLevel", { precision: 6, scale: 2 }),
+  // Credit Spread proxies: HYG = High Yield Bond ETF, LQD = Investment Grade Bond ETF
+  creditSpreadHY: decimal("creditSpreadHY", { precision: 10, scale: 2 }),
+  creditSpreadIG: decimal("creditSpreadIG", { precision: 10, scale: 2 }),
   overallZone: varchar("overallZone", { length: 10 }),
   activeWarnings: int("activeWarnings").default(0),
   activeCritical: int("activeCritical").default(0),

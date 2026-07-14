@@ -423,11 +423,13 @@ export async function recordKiBoomSnapshot(): Promise<{
   const db = await getDb();
   if (!db) throw new Error("DB not available");
 
-  const [data, soxResult, arkkResult, vixResult] = await Promise.allSettled([
+  const [data, soxResult, arkkResult, vixResult, hygResult, lqdResult] = await Promise.allSettled([
     computeKiBoomData(),
     fetchLatestClose("SOXX.US"),
     fetchLatestClose("ARKK.US"),
     fetchLatestClose("VIX.INDX"),
+    fetchLatestClose("HYG.US"),  // High Yield Bond ETF – Credit Spread Proxy
+    fetchLatestClose("LQD.US"),  // Investment Grade Bond ETF – Credit Spread Proxy
   ]);
 
   if (data.status !== "fulfilled") throw new Error("computeKiBoomData failed");
@@ -437,6 +439,8 @@ export async function recordKiBoomSnapshot(): Promise<{
   const soxPrice = soxResult.status === "fulfilled" ? soxResult.value : null;
   const arkkPrice = arkkResult.status === "fulfilled" ? arkkResult.value : null;
   const vixLevel = vixResult.status === "fulfilled" ? vixResult.value : null;
+  const creditSpreadHY = hygResult.status === "fulfilled" ? hygResult.value : null;
+  const creditSpreadIG = lqdResult.status === "fulfilled" ? lqdResult.value : null;
 
   // NVDA P/E: approximate from price / EPS TTM (EPS ~2.94 as of 2026)
   const nvdaEpsTtm = 2.94;
@@ -456,6 +460,8 @@ export async function recordKiBoomSnapshot(): Promise<{
     arkkPrice: arkkPrice != null ? String(arkkPrice) : null,
     nvdaPE: nvdaPE != null ? String(nvdaPE) : null,
     vixLevel: vixLevel != null ? String(vixLevel) : null,
+    creditSpreadHY: creditSpreadHY != null ? String(creditSpreadHY) : null,
+    creditSpreadIG: creditSpreadIG != null ? String(creditSpreadIG) : null,
     overallZone: d.overallZone,
     activeWarnings: d.activeWarnings,
     activeCritical: d.activeCritical,
@@ -512,6 +518,8 @@ export const kiBoomRouter = router({
           arkkPrice: r.arkkPrice != null ? parseFloat(String(r.arkkPrice)) : null,
           nvdaPE: r.nvdaPE != null ? parseFloat(String(r.nvdaPE)) : null,
           vixLevel: r.vixLevel != null ? parseFloat(String(r.vixLevel)) : null,
+          creditSpreadHY: r.creditSpreadHY != null ? parseFloat(String(r.creditSpreadHY)) : null,
+          creditSpreadIG: r.creditSpreadIG != null ? parseFloat(String(r.creditSpreadIG)) : null,
           overallZone: r.overallZone,
           activeWarnings: r.activeWarnings ?? 0,
           activeCritical: r.activeCritical ?? 0,
