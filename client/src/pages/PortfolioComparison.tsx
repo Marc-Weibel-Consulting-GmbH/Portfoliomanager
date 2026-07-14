@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
+import DashboardLayout from "@/components/DashboardLayout";
 import { ArrowLeft, BarChart3, PieChart, Camera, ArrowUpRight, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -97,7 +98,9 @@ export default function PortfolioComparison() {
   }));
 
   return (
-    <div className="min-h-screen bg-[#080d14] text-white">
+    // UX2-6: in die App-Navigation eingebettet (vorher eigene Vollbild-Seite
+    // ohne Sidebar — Kunde «verlor» die Anwendung beim Vergleich)
+    <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -295,6 +298,6 @@ export default function PortfolioComparison() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

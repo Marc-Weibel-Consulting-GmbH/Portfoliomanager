@@ -40,10 +40,10 @@ const DEFAULTS: Answers = {
 
 // DB-Sektornamen (Werte) mit Anzeige-Label — müssen mit buildProposal übereinstimmen.
 const SECTOR_OPTIONS = [
-  { value: "Energy", label: "Fossile Energie" },
-  { value: "Industrials", label: "Rüstung / Industrie" },
-  { value: "Consumer", label: "Alkohol / Tabak" },
-  { value: "Consumer Cyclical", label: "Glücksspiel" },
+  { value: "Energy", label: "Energie (u. a. Öl & Gas)" },
+  { value: "Industrials", label: "Industrie (u. a. Rüstung)" },
+  { value: "Consumer", label: "Basiskonsum (u. a. Alkohol & Tabak)" },
+  { value: "Consumer Cyclical", label: "Zyklischer Konsum (u. a. Glücksspiel, Handel, Reisen)" },
   { value: "Finance", label: "Finanzsektor" },
   { value: "Telecommunications", label: "Telekommunikation" },
 ];

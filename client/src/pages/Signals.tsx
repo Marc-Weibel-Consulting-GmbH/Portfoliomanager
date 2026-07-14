@@ -39,7 +39,14 @@ function SignalBadge({ signal }: { signal: string }) {
     "STRONG BUY": "bg-emerald-500 text-white",
     "BUY": "bg-[#00CFC1] text-black",
   };
-  return <Badge className={map[signal] ?? "bg-secondary"}>{signal}</Badge>;
+  // UX2-8: deutsche Labels für die 50+-Zielgruppe (Datenwert bleibt englisch)
+  const label: Record<string, string> = {
+    "STRONG BUY": "Klar kaufen",
+    "BUY": "Kaufen",
+    "HOLD": "Halten",
+    "SELL": "Verkaufen",
+  };
+  return <Badge className={map[signal] ?? "bg-secondary"}>{label[signal] ?? signal}</Badge>;
 }
 
 export default function Signals() {

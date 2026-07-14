@@ -225,12 +225,14 @@ export default function PriceAlerts() {
     return { active, triggeredToday, disabled };
   }, [alerts]);
 
-  const getTriggerTypeLabel = (alertType: AlertType, targetPrice?: string | null, percentChange?: string | null) => {
+  // UX2-6: Währung des Titels statt fixer CHF-Annahme (USD/EUR-Titel!)
+  const getTriggerTypeLabel = (alertType: AlertType, targetPrice?: string | null, percentChange?: string | null, currency?: string) => {
+    const cur = currency || "CHF";
     switch (alertType) {
       case "above_price":
-        return `Über CHF ${targetPrice}`;
+        return `Über ${cur} ${targetPrice}`;
       case "below_price":
-        return `Unter CHF ${targetPrice}`;
+        return `Unter ${cur} ${targetPrice}`;
       case "percent_change":
         return `Änderung ${percentChange}%`;
       default:
@@ -282,7 +284,7 @@ export default function PriceAlerts() {
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Preisalarme</h1>
             <p className="text-slate-400">
-              Erhalte Benachrichtigungen bei Preisänderungen
+              Erhalten Sie Benachrichtigungen bei Preisänderungen
             </p>
           </div>
 
@@ -386,7 +388,7 @@ export default function PriceAlerts() {
               </p>
               <p className="text-slate-500 text-sm mb-6">
                 {alerts.length === 0 
-                  ? "Erstelle deinen ersten Alarm, um bei Preisänderungen benachrichtigt zu werden"
+                  ? "Erstellen Sie Ihren ersten Alarm, um bei Preisänderungen benachrichtigt zu werden"
                   : "Versuche einen anderen Filter"}
               </p>
               {alerts.length === 0 && (
@@ -417,7 +419,7 @@ export default function PriceAlerts() {
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">Status</th>
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">Benachrichtigung</th>
                     <th className="text-left p-4 text-slate-400 font-medium text-sm">Erstellt am</th>
-                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Actions</th>
+                    <th className="text-left p-4 text-slate-400 font-medium text-sm">Aktionen</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -449,16 +451,16 @@ export default function PriceAlerts() {
                         </td>
                         <td className="p-4">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getTriggerTypeBadgeClass(alert.alertType)}`}>
-                            {getTriggerTypeLabel(alert.alertType, alert.targetPrice, alert.percentChange)}
+                            {getTriggerTypeLabel(alert.alertType, alert.targetPrice, alert.percentChange, stock?.currency)}
                           </span>
                         </td>
                         <td className="p-4 text-white">
                           {alert.alertType === "percent_change" 
                             ? `${alert.percentChange}%`
-                            : `CHF ${alert.targetPrice}`}
+                            : `${stock?.currency || "CHF"} ${alert.targetPrice}`}
                         </td>
                         <td className="p-4 text-white">
-                          {currentPrice ? `CHF ${currentPrice.toFixed(2)}` : "-"}
+                          {currentPrice ? `${stock?.currency || "CHF"} ${currentPrice.toFixed(2)}` : "—"}
                         </td>
                         <td className="p-4">
                           {getStatusBadge(alert.status)}
@@ -520,7 +522,7 @@ export default function PriceAlerts() {
             <DialogHeader>
               <DialogTitle>{editingAlert ? "Alarm bearbeiten" : "Neuer Alarm"}</DialogTitle>
               <DialogDescription className="text-slate-400">
-                {editingAlert ? "Bearbeite die Alarm-Einstellungen" : "Erstelle einen Alarm für Preisänderungen"}
+                {editingAlert ? "Bearbeiten Sie die Alarm-Einstellungen" : "Erstellen Sie einen Alarm für Preisänderungen"}
               </DialogDescription>
             </DialogHeader>
 
@@ -556,8 +558,8 @@ export default function PriceAlerts() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-700">
-                    <SelectItem value="above_price">Über CHF X</SelectItem>
-                    <SelectItem value="below_price">Unter CHF X</SelectItem>
+                    <SelectItem value="above_price">Über Preis X</SelectItem>
+                    <SelectItem value="below_price">Unter Preis X</SelectItem>
                     <SelectItem value="percent_change">Änderung +/- X%</SelectItem>
                   </SelectContent>
                 </Select>
@@ -566,7 +568,9 @@ export default function PriceAlerts() {
               {/* Target Price or Percent Change */}
               {(newAlert.alertType === "above_price" || newAlert.alertType === "below_price") && (
                 <div className="space-y-2">
-                  <Label htmlFor="targetPrice" className="text-white">Zielpreis (CHF) *</Label>
+                  <Label htmlFor="targetPrice" className="text-white">
+                    Zielpreis ({allStocks.find((st: any) => st.ticker === newAlert.ticker)?.currency || "CHF"}) *
+                  </Label>
                   <Input
                     id="targetPrice"
                     type="number"
