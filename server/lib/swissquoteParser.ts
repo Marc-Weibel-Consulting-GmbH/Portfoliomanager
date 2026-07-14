@@ -508,116 +508,118 @@ export async function parseSwissquoteDepotauszug(pdfBuffer: Buffer): Promise<Dep
   }
 
   // ── Parse Aktien section ─────────────────────────────────────────────────
-  // The PDF uses a wide-column layout with large whitespace between columns.
-  // Format per position (3 lines in raw text, but with lots of spaces):
-  //   Line 1: <Name> (e.g. "MICROSTRATEGY CL A ORD") - may have leading spaces
-  //   Line 2: <Qty>  [lots of spaces]  <AvgPrice>  <Date>  <MarketPrice>  <MarketValue>  <PnL>  <ValueCHF>  <%>
-  //   Line 3: <ISIN> (e.g. "US5949724083") - may have leading spaces
-  // Currency blocks appear before their positions: "EUR" or "USD" on its own line
+  // pdf-parse gibt das Format so aus (nach dem Header):
+  //   EUR\n{totalMarketValue}\n{totalCHF}\n{pct}\n{openPL}\n
+  //   {Anzahl}\n{Name}{ISIN}\n{avgPrice}\n{date}\n{marketPrice}\n{marketValue}\n{openPL}\n{valueCHF}\n{pct}\n
   //
-  // We parse from the raw (non-trimmed) text to preserve column positions.
-  // Match the actual Aktien table (which has 'Anzahl' header), not the table-of-contents entry
-  const aktienSectionMatch = rawText.match(/Aktien\s*\n\s*Anzahl([\s\S]*?)(?=Informationen|$)/);
-  if (aktienSectionMatch) {
-    const aktienText = aktienSectionMatch[1];
-    // Use raw lines (not trimmed) to detect indentation patterns
-    const rawAktienLines = aktienText.split('\n');
-    const aktienLines = rawAktienLines.map(l => l.trim()).filter(Boolean);
+  // Wichtig: Name und ISIN sind ZUSAMMENGEKLEBT (kein Newline dazwischen)
+  // z.B. "MICROSTRATEGY CL A ORDUS5949724083"
+  // ISIN ist immer 12 Zeichen: 2 Buchstaben + 10 alphanumerische Zeichen
+  //
+  // Wir finden den dritten "Aktien"-Abschnitt (die eigentliche Tabelle)
+  // und parsen von dort bis "Informationen"
+  
+  // Finde den Aktien-Abschnitt mit dem Anzahl-Header
+  const aktienHeaderMatch = rawText.match(/Aktien\s*\nAnzahl\s*\nInstrumente/);
+  if (aktienHeaderMatch) {
+    const aktienStartIdx = rawText.indexOf(aktienHeaderMatch[0]);
+    const aktienEndIdx = rawText.indexOf('Informationen', aktienStartIdx);
+    const aktienText = rawText.slice(
+      aktienStartIdx,
+      aktienEndIdx > aktienStartIdx ? aktienEndIdx : rawText.length
+    );
+
+    const aktienLines = aktienText.split('\n').map(l => l.trim()).filter(Boolean);
+
+    // ISIN-Regex: 2 Großbuchstaben + 10 alphanumerische Zeichen (genau 12 Zeichen total)
+    const isinRegex = /([A-Z]{2}[A-Z0-9]{10})$/;
+    const currencyCodes = new Set(['USD', 'EUR', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK']);
+    const headerKeywords = new Set([
+      'Anzahl', 'Instrumente', 'Durchschnitts', 'preis', 'Valuta-Datum',
+      'Marktpreis', 'Marktwert', 'Bewertung in CHF', '%', 'Offene P&L',
+      'ISIN', 'Treuhandanteil', 'e', 'Treuhandanteile', 'Total aktien'
+    ]);
 
     let currentCurrency = 'CHF';
     let i = 0;
 
-    // Skip header lines
-    while (i < aktienLines.length && (
-      aktienLines[i].includes('Anzahl') ||
-      aktienLines[i].includes('Instrumente') ||
-      aktienLines[i].includes('Durchschnitts') ||
-      aktienLines[i].includes('Treuhandanteil') ||
-      aktienLines[i].includes('Total aktien') ||
-      aktienLines[i].includes('preis')
-    )) i++;
-
     while (i < aktienLines.length) {
       const line = aktienLines[i];
 
-      // Currency block header: single 3-letter currency code on its own line
-      if (/^[A-Z]{3}$/.test(line) && ['USD', 'EUR', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD'].includes(line)) {
+      // Überspringe Header-Zeilen
+      if (headerKeywords.has(line)) { i++; continue; }
+
+      // Überspringe Swissquote-Footer
+      if (line.includes('Swissquote Bank') || line.includes('Seite ') || line.includes('Portfolio-Performance')) { i++; continue; }
+
+      // Währungsblock-Header: nur ein 3-Buchstaben-Währungscode
+      if (currencyCodes.has(line)) {
         currentCurrency = line;
-        i++;
+        // Überspringe genau 4 Subtotal-Zeilen nach dem Währungscode:
+        // totalMarketValue, totalCHF, pct, openPL
+        // WICHTIG: Nicht alle numerischen Zeilen überspringen, da die erste
+        // Anzahl-Zeile der nächsten Position auch numerisch ist!
+        i += 5; // +1 für Währungscode selbst + 4 Subtotal-Felder
         continue;
       }
 
-      // Skip currency subtotal lines (contain multiple numbers)
-      if (/^[A-Z]{3}\s+[\d'.,]+/.test(line)) {
-        i++;
-        continue;
-      }
+      // Prüfe ob diese Zeile eine Anzahl-Zeile ist (nur Zahl, kein Buchstabe außer Apostroph)
+      const isQuantityLine = /^\d[\d']*$/.test(line);
 
-      // Skip Swissquote footer lines
-      if (line.includes('Swissquote Bank') || line.includes('Seite ') || line.includes('Portfolio-Performance zum')) {
-        i++;
-        continue;
-      }
+      if (isQuantityLine) {
+        const qty = parseSwissNumber(line);
+        const nameIsinLine = aktienLines[i + 1] || '';
 
-      // Check if this looks like a security name (not a number line, not ISIN)
-      const isIsin = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(line);
-      // A numbers line starts with a number (the quantity)
-      const isNumberLine = /^[\d'.,]+\s/.test(line);
-      const isName = !isIsin && !isNumberLine && line.length > 3 && /[A-Za-z]/.test(line);
+        // Extrahiere ISIN aus dem Ende der Name+ISIN-Zeile
+        const isinMatch = nameIsinLine.match(isinRegex);
+        const isin = isinMatch ? isinMatch[1] : null;
+        const securityName = isin
+          ? nameIsinLine.slice(0, nameIsinLine.length - 12).trim()
+          : nameIsinLine.trim();
 
-      if (isName) {
-        const securityName = line;
-        // Next line should be the numbers line
-        const numbersLine = aktienLines[i + 1] || '';
-        const isinLine = aktienLines[i + 2] || '';
+        // Nächste Zeilen: avgPrice, date, marketPrice, marketValue, openPL, valueCHF, [pct]
+        // WICHTIG: Manche Positionen haben kein pct-Feld (z.B. wertlose Positionen)
+        // Wir lesen die Felder und suchen dynamisch nach dem Ende der Position
+        const avgPriceStr = aktienLines[i + 2] || '';
+        const dateStr = aktienLines[i + 3] || '';
+        const marketPriceStr = aktienLines[i + 4] || '';
+        const marketValueStr = aktienLines[i + 5] || '';
+        const openPLStr = aktienLines[i + 6] || '';
+        const valueCHFStr = aktienLines[i + 7] || '';
+        // Zeile i+8 kann pct sein ODER die nächste Anzahl-Zeile
+        const possiblePctOrNext = aktienLines[i + 8] || '';
 
-        // Parse the wide-column numbers line.
-        // Format: <Qty>  [spaces]  <AvgPrice>  <Date DD.MM.YYYY>  <MarketPrice>  <MarketValue>  <PnL>  <ValueCHF>  <%>
-        // Extract all numbers and the date from the line
-        const allNumbers = numbersLine.match(/[\d'][\d'.,']*(?:\.[\d]+)?/g) || [];
-        const dateInLine = numbersLine.match(/(\d{2}\.\d{2}\.\d{4})/);
+        const avgPrice = parseSwissNumber(avgPriceStr);
+        const marketPrice = parseSwissNumber(marketPriceStr);
+        const valueCHF = parseSwissNumber(valueCHFStr);
 
-        const isin = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isinLine) ? isinLine : null;
+        // Bestimme dynamisch wie viele Zeilen diese Position belegt:
+        // Wenn Zeile i+8 eine Anzahl-Zeile ist (nächste Position), dann hat diese Position nur 8 Felder
+        // Wenn Zeile i+8 eine Prozentzahl ist, dann hat diese Position 9 Felder
+        const isNextQty = /^\d[\d']*$/.test(possiblePctOrNext) && 
+          !currencyCodes.has(possiblePctOrNext) &&
+          !headerKeywords.has(possiblePctOrNext);
+        const fieldsCount = isNextQty ? 8 : 9;
 
-        // We need at least: qty, avgPrice, marketPrice, valueCHF
-        // The numbers appear in order: qty, avgPrice, marketPrice, marketValue, pnl, valueCHF, %
-        // Filter out the date parts from numbers
-        const cleanNumbers = allNumbers
-          .map(n => parseSwissNumber(n))
-          .filter(n => !isNaN(n) && n >= 0);
-
-        if (cleanNumbers.length >= 1 && dateInLine) {
-          const qty = cleanNumbers[0];
-          const avgPrice = cleanNumbers.length > 1 ? cleanNumbers[1] : null;
-          // After date: marketPrice, marketValue, pnl, valueCHF, %
-          // Find position of date in the string, then extract numbers after it
-          const datePos = numbersLine.indexOf(dateInLine[1]);
-          const afterDate = numbersLine.slice(datePos + dateInLine[1].length);
-          const afterDateNums = (afterDate.match(/[\d'][\d'.,']*(?:\.[\d]+)?/g) || [])
-            .map(n => parseSwissNumber(n))
-            .filter(n => !isNaN(n) && n >= 0);
-
-          // afterDateNums: [marketPrice, marketValue, pnl, valueCHF, %]
-          const marketPrice = afterDateNums[0] ?? null;
-          // valueCHF is the 4th number after date (index 3), fallback to index 2
-          const valueCHF = afterDateNums.length > 3 ? afterDateNums[3] : (afterDateNums.length > 2 ? afterDateNums[2] : null);
-
-          if (qty > 0) {
-            positions.push({
-              name: securityName,
-              isin,
-              currency: currentCurrency,
-              quantity: qty,
-              avgPurchasePrice: avgPrice > 0 ? avgPrice : null,
-              marketPrice: marketPrice && marketPrice > 0 ? marketPrice : null,
-              marketValueCHF: valueCHF && valueCHF > 0 ? valueCHF : null,
-              assetType: 'stock',
-            });
-          }
-          i += isin ? 3 : 2;
+        // Überspringe Positionen mit Marktpreis = 0 (wertlose Positionen)
+        if (marketPrice > 0 && qty > 0) {
+          positions.push({
+            name: securityName,
+            isin,
+            currency: currentCurrency,
+            quantity: qty,
+            avgPurchasePrice: avgPrice > 0 ? avgPrice : null,
+            marketPrice,
+            marketValueCHF: valueCHF > 0 ? valueCHF : null,
+            assetType: 'stock',
+          });
+          console.log(`[Depot] Position: ${securityName} (${isin}) qty=${qty} avgPrice=${avgPrice} marketPrice=${marketPrice} valueCHF=${valueCHF} currency=${currentCurrency}`);
         } else {
-          i++;
+          console.log(`[Depot] Überspringe wertlose Position: ${securityName} (${isin}) marketPrice=${marketPrice}`);
         }
+
+        // Springe fieldsCount Zeilen weiter (qty + nameIsin + avgPrice + date + marketPrice + marketValue + openPL + valueCHF [+ pct])
+        i += fieldsCount;
       } else {
         i++;
       }

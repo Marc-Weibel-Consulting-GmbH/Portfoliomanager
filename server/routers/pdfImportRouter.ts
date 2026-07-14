@@ -115,6 +115,10 @@ export const pdfImportRouter = router({
       const { portfolioTransactions, savedPortfolios } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
       const { tryGetFxRate } = await import("../fxHelper");
+      const { resolveIsinToTicker } = await import("../lib/isinResolver");
+      const YahooFinanceClass = (await import("yahoo-finance2")).default;
+      const yahooFinance: any = new (YahooFinanceClass as any)();
+      const yahooSearch = (q: string) => yahooFinance.search(q, { quotesCount: 5, newsCount: 0 }, { validateResult: false });
 
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
@@ -127,11 +131,36 @@ export const pdfImportRouter = router({
       const txDate = input.reportDate || new Date().toISOString().slice(0, 10);
       const imported: number[] = [];
       const errors: string[] = [];
+      const importedStocks: Array<{
+        ticker: string;
+        name: string;
+        currency: string;
+        quantity: number;
+        avgPurchasePrice: number;
+        marketPrice: number | null;
+        totalAmountCHF: number;
+      }> = [];
 
       for (const pos of input.positions) {
         try {
           // Skip zero-quantity positions
           if (pos.quantity <= 0) continue;
+
+          // Resolve ISIN to Yahoo ticker for proper portfolio tracking
+          let resolvedTicker: string = pos.isin || pos.name.split(" ")[0].toUpperCase();
+          if (pos.isin) {
+            try {
+              const yahooTicker = await resolveIsinToTicker(yahooSearch, pos.isin);
+              if (yahooTicker) {
+                resolvedTicker = yahooTicker;
+                console.log(`[pdfImport] Resolved ISIN ${pos.isin} → ${yahooTicker}`);
+              } else {
+                console.warn(`[pdfImport] Could not resolve ISIN ${pos.isin}, using ISIN as ticker`);
+              }
+            } catch (resolveErr) {
+              console.warn(`[pdfImport] ISIN resolution failed for ${pos.isin}:`, resolveErr);
+            }
+          }
 
           // Use avgPurchasePrice as pricePerShare; fall back to marketPrice
           const pricePerShare = pos.avgPurchasePrice ?? pos.marketPrice ?? 0;
@@ -156,7 +185,7 @@ export const pdfImportRouter = router({
           await db.insert(portfolioTransactions).values({
             portfolioId: input.portfolioId,
             transactionType: "buy",
-            ticker: pos.isin || pos.name.split(" ")[0].toUpperCase(),
+            ticker: resolvedTicker,
             shares: pos.quantity.toString(),
             pricePerShare: pricePerShare > 0 ? pricePerShare.toString() : null,
             currency: pos.assetType === "crypto" ? "CHF" : pos.currency,
@@ -167,9 +196,118 @@ export const pdfImportRouter = router({
             transactionDate: new Date(txDate),
             notes: `Swissquote Depotauszug Import - ${pos.name}${pos.isin ? ` (${pos.isin})` : ""}`,
           });
+
+          // Track resolved ticker for portfolioData update
           imported.push(1);
+          importedStocks.push({
+            ticker: resolvedTicker,
+            name: pos.name,
+            currency: pos.assetType === "crypto" ? "CHF" : pos.currency,
+            quantity: pos.quantity,
+            avgPurchasePrice: pricePerShare,
+            marketPrice: pos.marketPrice,
+            totalAmountCHF,
+          });
         } catch (err: any) {
           errors.push(`Failed to import ${pos.name}: ${err.message}`);
+        }
+      }
+
+      // Update portfolioData.stocks so positions are visible in the portfolio view
+      if (importedStocks.length > 0) {
+        try {
+          const { fetchCompleteStockData } = await import("../_core/multiApiDataMerger");
+          const { insertStock, getStockByTicker } = await import("../db");
+
+          // Calculate total CHF value for weight computation
+          const totalCHF = importedStocks.reduce((sum, s) => sum + s.totalAmountCHF, 0);
+
+          // Get existing portfolioData
+          const existingData = JSON.parse(portfolio[0].portfolioData || '{"stocks":[]}');
+          const existingStocks: any[] = existingData.stocks || [];
+
+          for (const s of importedStocks) {
+            // Ensure stock exists in stocks table (for price lookups)
+            let stockInDb = await getStockByTicker(s.ticker);
+            if (!stockInDb) {
+              try {
+                const completeData = await fetchCompleteStockData(s.ticker);
+                await insertStock({
+                  ticker: s.ticker,
+                  companyName: completeData.companyName || s.name,
+                  currentPrice: completeData.currentPrice?.toString() || s.marketPrice?.toString() || "0",
+                  currency: s.currency,
+                  dividendYield: completeData.dividendYield?.toString() || "0",
+                  peRatio: completeData.pe?.toString() || "0",
+                  pegRatio: completeData.peg?.toString() || "0",
+                  portfolioWeight: "0",
+                  logoUrl: completeData.logoUrl || null,
+                  moat1: "Imported from Swissquote",
+                  moat2: "",
+                  moat3: "",
+                });
+                stockInDb = await getStockByTicker(s.ticker);
+                console.log(`[pdfImport] Added ${s.ticker} to stocks table`);
+              } catch (stockErr) {
+                console.warn(`[pdfImport] Could not add ${s.ticker} to stocks table:`, stockErr);
+              }
+            }
+
+            // Compute avgBuyPrice in CHF for portfolioData
+            // avgBuyPrice is stored as CHF per share in portfolioData
+            let avgBuyPriceCHF = s.avgPurchasePrice;
+            if (s.currency !== "CHF" && s.currency !== "CHF") {
+              const fxForAvg = await tryGetFxRate(txDate, `${s.currency}CHF`);
+              if (fxForAvg) avgBuyPriceCHF = s.avgPurchasePrice * fxForAvg;
+            }
+
+            const weight = totalCHF > 0 ? ((s.totalAmountCHF / totalCHF) * 100).toFixed(2) : "0";
+
+            // Add or update in existingStocks
+            const existingIdx = existingStocks.findIndex((e: any) => e.ticker === s.ticker);
+            const stockEntry = {
+              ticker: s.ticker,
+              companyName: stockInDb?.companyName || s.name,
+              weight,
+              currentPrice: s.marketPrice?.toString() || stockInDb?.currentPrice || "0",
+              currency: s.currency,
+              avgBuyPrice: avgBuyPriceCHF.toFixed(4),
+              shares: s.quantity.toString(),
+            };
+            if (existingIdx >= 0) {
+              existingStocks[existingIdx] = stockEntry;
+            } else {
+              existingStocks.push(stockEntry);
+            }
+          }
+
+          // Recalculate weights based on all stocks
+          const totalValue = existingStocks.reduce((sum: number, s: any) => {
+            const val = parseFloat(s.avgBuyPrice || "0") * parseFloat(s.shares || "0");
+            return sum + val;
+          }, 0);
+          if (totalValue > 0) {
+            for (const s of existingStocks) {
+              const val = parseFloat(s.avgBuyPrice || "0") * parseFloat(s.shares || "0");
+              s.weight = ((val / totalValue) * 100).toFixed(2);
+            }
+          }
+
+          await db.update(savedPortfolios)
+            .set({ portfolioData: JSON.stringify({ ...existingData, stocks: existingStocks }) })
+            .where(eq(savedPortfolios.id, input.portfolioId));
+          console.log(`[pdfImport] Updated portfolioData.stocks for portfolio ${input.portfolioId}`);
+          // Invalidate the Redis cache for this portfolio so the UI sees the updated positions immediately
+          try {
+            const { cacheDel } = await import('../redisClient');
+            await cacheDel(`portfolio:detail:${input.portfolioId}:${ctx.user.id}`);
+            console.log(`[pdfImport] Invalidated cache for portfolio ${input.portfolioId}`);
+          } catch (cacheErr) {
+            // Non-critical
+          }
+        } catch (pdErr) {
+          console.error(`[pdfImport] Failed to update portfolioData:`, pdErr);
+          // Non-fatal: transactions were already imported
         }
       }
 
