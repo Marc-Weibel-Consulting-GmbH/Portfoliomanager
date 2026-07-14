@@ -1337,23 +1337,28 @@ export const portfoliosRouter = router({
           
           const currency = stock.currency || 'CHF';
           const currentPrice = safeParseFloat(stock.currentPrice);
-          const ytdStartPrice = await getHistoricalPrice(ticker, ytdStartDate) || currentPrice;
+          // FIN-4 (Audit 2026-07): fehlender Jahresanfangskurs wird NICHT mehr
+          // still durch currentPrice ersetzt (das zeigte YTD = 0 % statt «n/a»
+          // und verzerrte Aggregate) — stattdessen geflaggt und YTD auf 0 mit Flag.
+          const ytdStartPriceRaw = await getHistoricalPrice(ticker, ytdStartDate);
+          const ytdStartMissing = !(ytdStartPriceRaw && ytdStartPriceRaw > 0);
+          const ytdStartPrice = ytdStartMissing ? 0 : ytdStartPriceRaw;
 
           // U-13: fehlender Kurs/FX-Kurs → Wert 0 (wie bisher), aber geflaggt.
           const priceMissing = !(currentPrice > 0);
           const currentPriceCHFOrNull = await tryConvertToCHF(currentPrice, currency, todayStr);
-          const ytdStartPriceCHFOrNull = await tryConvertToCHF(ytdStartPrice, currency, ytdStartDate);
-          const fxMissing = currentPriceCHFOrNull === null || ytdStartPriceCHFOrNull === null;
+          const ytdStartPriceCHFOrNull = ytdStartMissing ? null : await tryConvertToCHF(ytdStartPrice, currency, ytdStartDate);
+          const fxMissing = currentPriceCHFOrNull === null || (!ytdStartMissing && ytdStartPriceCHFOrNull === null);
           const currentPriceCHF = currentPriceCHFOrNull ?? 0;
           const ytdStartPriceCHF = ytdStartPriceCHFOrNull ?? 0;
 
           const currentValueCHF = holding.shares * currentPriceCHF;
           const ytdStartValueCHF = holding.shares * ytdStartPriceCHF;
-          const performanceCHF = currentValueCHF - ytdStartValueCHF;
-          const performancePercent = ytdStartValueCHF > 0 
-            ? (performanceCHF / ytdStartValueCHF) * 100 
+          const performanceCHF = ytdStartValueCHF > 0 ? currentValueCHF - ytdStartValueCHF : 0;
+          const performancePercent = ytdStartValueCHF > 0
+            ? (performanceCHF / ytdStartValueCHF) * 100
             : 0;
-          
+
           results.push({
             ticker,
             companyName: stock.companyName,
@@ -1368,6 +1373,7 @@ export const portfoliosRouter = router({
             // U-13: Datenqualitäts-Flags (additiv, Client-Badges Phase 4)
             priceMissing,
             fxMissing,
+            ytdStartMissing,
           });
         }
         

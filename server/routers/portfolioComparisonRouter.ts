@@ -1,7 +1,14 @@
-import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 // D-01: unified holdings replay (buy/entry/sell, chronological, DESC-safe)
 import { buildHoldings } from "../lib/holdings";
+import { convertToCHF, getFxRate } from "../fxHelper";
+import { toChfPriceMap } from "../lib/performanceCore";
+import { computeWeightedReturnSeries, type WeightedReturnInput } from "../lib/weightedReturnSeries";
+
+/** Zeitraum der echten Verlaufskurve (FIN-2): 90 Tage, auf max. 30 Punkte gesampelt. */
+const HISTORY_DAYS = 90;
+const HISTORY_MAX_POINTS = 30;
 
 export const portfolioComparisonRouter = router({
     compare: protectedProcedure
@@ -13,8 +20,9 @@ export const portfolioComparisonRouter = router({
           throw new Error("Database not available");
         }
 
-        const { stocks: stocksTable } = await import("../../drizzle/schema");
-        const { inArray } = await import("drizzle-orm");
+        const { stocks: stocksTable, historicalPrices } = await import("../../drizzle/schema");
+        const { inArray, gte, and, asc } = await import("drizzle-orm");
+        const todayStr = new Date().toISOString().split("T")[0];
 
         // Fetch all selected portfolios
         const portfolios = await Promise.all(
@@ -26,6 +34,46 @@ export const portfolioComparisonRouter = router({
 
         if (validPortfolios.length < 2) {
           throw new Error("At least 2 valid portfolios required for comparison");
+        }
+
+        // Stammdaten (Währung, aktueller Kurs, Sektor) für ALLE beteiligten Ticker einmalig laden.
+        const allTickers = Array.from(new Set(validPortfolios.flatMap((portfolio) => {
+          const portfolioData = JSON.parse(portfolio.portfolioData);
+          return (portfolioData.stocks || []).map((s: any) => s.ticker).filter(Boolean);
+        })));
+        const stockData = allTickers.length > 0
+          ? await db.select().from(stocksTable).where(inArray(stocksTable.ticker, allTickers))
+          : [];
+        const stockByTicker = new Map(stockData.map((s: any) => [s.ticker, s]));
+
+        // Kurshistorie (90 Tage + Puffer) für die echte Verlaufskurve.
+        const historyFrom = new Date(Date.now() - (HISTORY_DAYS + 10) * 24 * 60 * 60 * 1000)
+          .toISOString().split("T")[0];
+        const priceRows = allTickers.length > 0
+          ? await db
+              .select({ ticker: historicalPrices.ticker, date: historicalPrices.date, close: historicalPrices.close, adj: historicalPrices.adjustedClose })
+              .from(historicalPrices)
+              .where(and(inArray(historicalPrices.ticker, allTickers), gte(historicalPrices.date, historyFrom)))
+              .orderBy(asc(historicalPrices.date))
+          : [];
+        const priceMapByTicker: Record<string, Record<string, number>> = {};
+        for (const r of priceRows as any[]) {
+          const v = parseFloat((r.adj ?? r.close) as any);
+          if (!Number.isFinite(v) || v <= 0) continue;
+          const d = String(r.date).slice(0, 10);
+          (priceMapByTicker[r.ticker] ||= {})[d] = v;
+        }
+        const allDates = Array.from(new Set((priceRows as any[]).map((r) => String(r.date).slice(0, 10)))).sort();
+        const sampleInterval = Math.max(1, Math.floor(allDates.length / HISTORY_MAX_POINTS));
+        const sampledDates = allDates.filter((_, i) => i % sampleInterval === 0 || i === allDates.length - 1);
+        const historyStart = allDates[0] ?? historyFrom;
+
+        // CHF-Preiskarten je Ticker (per-Datum-FX) — dieselbe Methodik wie der
+        // Performance-Chart in portfoliosRouter (kein 1:1-Fallback, R-10).
+        const chfPriceMapByTicker: Record<string, Record<string, number>> = {};
+        for (const ticker of Object.keys(priceMapByTicker)) {
+          const currency = (stockByTicker.get(ticker) as any)?.currency || "CHF";
+          chfPriceMapByTicker[ticker] = await toChfPriceMap(priceMapByTicker[ticker], currency, getFxRate);
         }
 
         // Calculate metrics for each portfolio
@@ -42,25 +90,22 @@ export const portfolioComparisonRouter = router({
             if (portfolio.isLive) {
               const transactions = await getPortfolioTransactions(portfolio.id);
 
-              // Calculate holdings (D-01: unified replay; shares x pricePerShare
-              // cost basis == buildHoldings.totalCostLocal, moving average with
-              // clamped oversell instead of the previous NaN on sell-before-buy)
+              // Calculate holdings (D-01: unified replay; CHF-Kostenbasis aus
+              // totalAmountCHF, moving average with clamped oversell)
               const holdings = buildHoldings(transactions);
 
-              // Calculate current value
-              const tickers = Array.from(holdings.entries())
-                .filter(([, h]) => h.shares > 0)
-                .map(([ticker]) => ticker);
-              if (tickers.length > 0) {
-                const stockData = await db.select().from(stocksTable).where(inArray(stocksTable.ticker, tickers));
-
-                tickers.forEach((ticker) => {
-                  const stock = stockData.find((s) => s.ticker === ticker);
-                  const currentPrice = stock?.currentPrice ? parseFloat(stock.currentPrice) : 0;
-                  const holding = holdings.get(ticker)!;
-                  currentValue += holding.shares * currentPrice;
-                  totalInvested += holding.totalCostLocal;
-                });
+              // FIN-2 (Audit 2026-07): Bewertung in CHF — vorher wurden Kurse in
+              // Lokalwährung roh summiert (USD + CHF 1:1) und wichen damit
+              // systematisch von der CHF-korrekten Detailseite ab.
+              for (const [ticker, holding] of holdings.entries()) {
+                if (holding.shares <= 0) continue;
+                const stock: any = stockByTicker.get(ticker);
+                const currentPrice = stock?.currentPrice ? parseFloat(stock.currentPrice) : 0;
+                const priceCHF = currentPrice > 0
+                  ? await convertToCHF(currentPrice, stock?.currency || "CHF", todayStr)
+                  : 0;
+                currentValue += holding.shares * priceCHF;
+                totalInvested += holding.totalCostChf;
               }
 
               performance = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0;
@@ -76,17 +121,28 @@ export const portfolioComparisonRouter = router({
 
             // Calculate sector allocation
             const sectorAllocation: Record<string, number> = {};
-            const tickers = stocks.map((s: any) => s.ticker).filter(Boolean);
-            if (tickers.length > 0) {
-              const stockData = await db.select().from(stocksTable).where(inArray(stocksTable.ticker, tickers));
-              
-              stocks.forEach((stock: any) => {
-                const dbStock = stockData.find((s) => s.ticker === stock.ticker);
-                const sector = dbStock?.sector || 'Other';
-                const weight = parseFloat(stock.weight || stock.portfolioWeight || '0');
-                sectorAllocation[sector] = (sectorAllocation[sector] || 0) + weight;
-              });
-            }
+            stocks.forEach((stock: any) => {
+              const dbStock: any = stockByTicker.get(stock.ticker);
+              const sector = dbStock?.sector || 'Other';
+              const weight = parseFloat(stock.weight || stock.portfolioWeight || '0');
+              sectorAllocation[sector] = (sectorAllocation[sector] || 0) + weight;
+            });
+
+            // FIN-2: ECHTE Verlaufskurve — gewichtete CHF-Renditeserie über 90 Tage
+            // (identische Methodik wie der Performance-Chart der Detailseite) statt
+            // der früheren fabrizierten ×0.7/×0.85-Punkte.
+            const seriesInputs: WeightedReturnInput[] = stocks
+              .filter((s: any) => s.ticker && s.ticker !== 'CASH')
+              .map((s: any) => ({
+                ticker: s.ticker,
+                weight: parseFloat(s.weight || s.portfolioWeight || '0') || 0,
+                prices: chfPriceMapByTicker[s.ticker] || {},
+              }))
+              .filter((inp: WeightedReturnInput) => Object.keys(inp.prices).length > 0);
+            const history = seriesInputs.length > 0
+              ? computeWeightedReturnSeries(seriesInputs, sampledDates, historyStart)
+                  .map((p) => ({ date: p.date, performance: Math.round(p.portfolio * 100) / 100 }))
+              : [];
 
             return {
               id: portfolio.id,
@@ -102,23 +158,19 @@ export const portfolioComparisonRouter = router({
                 name,
                 value,
               })),
+              history,
             };
           })
         );
 
-        // Generate performance history (simplified - using current data)
         const performanceHistory = comparisonResults.map((p) => ({
           id: p.id,
           name: p.name,
-          history: [
-            { date: '30 days ago', performance: p.performance * 0.7 },
-            { date: '15 days ago', performance: p.performance * 0.85 },
-            { date: 'Today', performance: p.performance },
-          ],
+          history: p.history,
         }));
 
         return {
-          portfolios: comparisonResults,
+          portfolios: comparisonResults.map(({ history: _h, ...rest }) => rest),
           performanceHistory,
         };
       }),

@@ -320,58 +320,10 @@ export default function StockDetail() {
       }
     }
     
-    // Last resort: Generate simulated data based on current price
-    if (!stock) return [];
-    
-    const basePrice = parseFloat(stock.currentPrice || "100");
-    const data: any[] = [];
-    const now = new Date();
-    
-    // Determine how many days to generate based on period
-    let daysToGenerate = 180; // Default 6M
-    switch (selectedPeriod) {
-      case "1D": daysToGenerate = 1; break;
-      case "1W": daysToGenerate = 7; break;
-      case "1M": daysToGenerate = 30; break;
-      case "3M": daysToGenerate = 90; break;
-      case "6M": daysToGenerate = 180; break;
-      case "1Y": daysToGenerate = 365; break;
-      case "3Y": daysToGenerate = 1095; break;
-      case "5Y": daysToGenerate = 1825; break;
-      case "10Y": daysToGenerate = 3650; break;
-      case "YTD": 
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        daysToGenerate = Math.ceil((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
-        break;
-      case "All": daysToGenerate = 3650; break;
-    }
-    
-    for (let i = daysToGenerate; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      
-      // Skip weekends
-      if (date.getDay() === 0 || date.getDay() === 6) continue;
-      
-      const randomWalk = (Math.random() - 0.48) * 0.02;
-      const prevClose = data.length > 0 ? data[data.length - 1].close : basePrice;
-      const open = prevClose * (1 + (Math.random() - 0.5) * 0.01);
-      const close = open * (1 + randomWalk);
-      const high = Math.max(open, close) * (1 + Math.random() * 0.01);
-      const low = Math.min(open, close) * (1 - Math.random() * 0.01);
-      const volume = Math.floor(Math.random() * 1000000) + 500000;
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        open: parseFloat(open.toFixed(2)),
-        high: parseFloat(high.toFixed(2)),
-        low: parseFloat(low.toFixed(2)),
-        close: parseFloat(close.toFixed(2)),
-        volume,
-      });
-    }
-    
-    return data;
+    // DAT-1 (Audit 2026-07): KEINE simulierten Kursverläufe mehr — der frühere
+    // Random-Walk-Fallback zeigte erfundene Kurse (inkl. Performance-Badge) als
+    // echte Historie an. Ohne Daten wird ein ehrlicher Leerzustand gerendert.
+    return [];
   }, [stock, historicalPrices, selectedPeriod]);
 
   // Calculate price change
@@ -466,18 +418,20 @@ export default function StockDetail() {
     }
   };
 
-  // Moats data - use individual moat fields from stock
+  // DAT-1 (Audit 2026-07): keine generischen Fantasie-Moats mehr — es werden
+  // nur real hinterlegte Wettbewerbsvorteile gezeigt, sonst ein Leer-Hinweis.
   const moats = [
-    { title: stock.moat1 || "Starke Markenbekanntheit und Kundenloyalität", icon: Shield },
-    { title: stock.moat2 || "Hohe Wechselkosten für Kunden", icon: Users },
-    { title: stock.moat3 || "Innovationsführerschaft in der Branche", icon: Lightbulb },
-  ];
+    stock.moat1 ? { title: stock.moat1, icon: Shield } : null,
+    stock.moat2 ? { title: stock.moat2, icon: Users } : null,
+    stock.moat3 ? { title: stock.moat3, icon: Lightbulb } : null,
+  ].filter(Boolean) as Array<{ title: string; icon: any }>;
 
-  // Financial highlights
+  // DAT-1 (Audit 2026-07): keine erfundenen Kennzahlen mehr («+12.5 % YoY» für
+  // jeden datenlosen Titel) — fehlende Werte werden ehrlich als «—» gezeigt.
   const financialHighlights = [
-    { label: "Revenue Growth", value: stock.financialHighlight1 || "+12.5% YoY", isPositive: true },
-    { label: "Net Income Margin", value: stock.financialHighlight2 || "24.1%", isPositive: false },
-    { label: "Free Cash Flow", value: stock.financialHighlight3 || `${currency} 95B`, isPositive: false },
+    { label: "Revenue Growth", value: stock.financialHighlight1 || "—", isPositive: !!stock.financialHighlight1 },
+    { label: "Net Income Margin", value: stock.financialHighlight2 || "—", isPositive: false },
+    { label: "Free Cash Flow", value: stock.financialHighlight3 || "—", isPositive: false },
   ];
 
   const periods: TimePeriod[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y", "YTD", "All"];
@@ -620,6 +574,12 @@ export default function StockDetail() {
                 </div>
 
                 {/* Chart - Price Only (without Volume) */}
+                {chartData.length === 0 ? (
+                  <div className="h-[400px] flex flex-col items-center justify-center text-center gap-2">
+                    <p className="text-gray-400 text-sm">Für diesen Titel liegen keine Kursdaten vor.</p>
+                    <p className="text-gray-500 text-xs">Die Kurshistorie wird automatisch nachgeladen, sobald sie verfügbar ist.</p>
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height={400}>
                   <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
@@ -683,17 +643,22 @@ export default function StockDetail() {
                     )}
                   </ComposedChart>
                 </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
             {/* Moats Section */}
             <div>
               <h3 className="text-lg font-semibold text-white mb-3">Wettbewerbsvorteile (Moats)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {moats.map((moat: any, index: number) => (
-                  <MoatCard key={index} number={index + 1} title={moat.title || moat} icon={moat.icon || Shield} />
-                ))}
-              </div>
+              {moats.length === 0 ? (
+                <p className="text-sm text-gray-500">Für diesen Titel sind noch keine Wettbewerbsvorteile hinterlegt.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {moats.map((moat: any, index: number) => (
+                    <MoatCard key={index} number={index + 1} title={moat.title || moat} icon={moat.icon || Shield} />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Financial Highlights */}

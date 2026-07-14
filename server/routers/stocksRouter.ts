@@ -1349,16 +1349,18 @@ export const stocksRouter = router({
             )
             .orderBy(historicalPrices.date);
           
+          // DAT-1 (Audit 2026-07): KEINE fabrizierten Werte mehr — die DB führt nur
+          // Schlusskurse; Open/High/Low/Volumen wurden vorher bei jedem Request per
+          // Math.random() erfunden und als echte Daten ausgeliefert. Ehrlich: null.
           return prices.map(p => {
             const closePrice = p.close ? parseFloat(p.close) : null;
-            // Simulate OHLV from close price (since we only have close)
             return {
               date: p.date,
-              open: closePrice ? closePrice * (1 + (Math.random() - 0.5) * 0.01) : null,
-              high: closePrice ? closePrice * (1 + Math.random() * 0.01) : null,
-              low: closePrice ? closePrice * (1 - Math.random() * 0.01) : null,
+              open: null as number | null,
+              high: null as number | null,
+              low: null as number | null,
               close: closePrice,
-              volume: Math.floor(Math.random() * 1000000) + 500000, // Simulated volume
+              volume: null as number | null,
             };
           });
         } catch (error) {

@@ -38,6 +38,8 @@ export interface HoldingsSourceTransaction {
   ticker?: string | null;
   shares?: string | null;
   pricePerShare?: string | null;
+  /** CHF-Betrag der Transaktion (falls vorhanden) — speist totalCostChf. */
+  totalAmountCHF?: string | null;
 }
 
 export interface HoldingPosition {
@@ -45,6 +47,12 @@ export interface HoldingPosition {
   shares: number;
   /** Remaining cost basis in LOCAL currency (moving average, clamped >= 0). */
   totalCostLocal: number;
+  /**
+   * Remaining cost basis in CHF (moving average, clamped >= 0) — accumulated
+   * from `totalAmountCHF` per buy/entry (FX zum Kaufdatum). Fällt für Alt-
+   * Transaktionen ohne CHF-Betrag auf shares x pricePerShare (lokal) zurück.
+   */
+  totalCostChf: number;
 }
 
 function toIsoDate(date: Date | string): string {
@@ -84,16 +92,19 @@ export function buildHoldings(
     const shares = toNum(tx.shares);
 
     if (tx.transactionType === "buy" || tx.transactionType === "entry") {
-      const pos = holdings.get(tx.ticker) || { shares: 0, totalCostLocal: 0 };
+      const pos = holdings.get(tx.ticker) || { shares: 0, totalCostLocal: 0, totalCostChf: 0 };
       pos.shares += shares;
       pos.totalCostLocal += shares * toNum(tx.pricePerShare);
+      const chf = toNum(tx.totalAmountCHF);
+      pos.totalCostChf += chf > 0 ? chf : shares * toNum(tx.pricePerShare);
       holdings.set(tx.ticker, pos);
     } else if (tx.transactionType === "sell") {
-      const pos = holdings.get(tx.ticker) || { shares: 0, totalCostLocal: 0 };
+      const pos = holdings.get(tx.ticker) || { shares: 0, totalCostLocal: 0, totalCostChf: 0 };
       // Moving-average cost of the sold shares, clamped so an oversell (or a
       // sell into an empty position) can never push the cost basis below 0.
       const sellRatio = pos.shares > 0 ? Math.min(1, shares / pos.shares) : 1;
       pos.totalCostLocal -= pos.totalCostLocal * sellRatio;
+      pos.totalCostChf -= pos.totalCostChf * sellRatio;
       pos.shares -= shares;
       holdings.set(tx.ticker, pos);
     }

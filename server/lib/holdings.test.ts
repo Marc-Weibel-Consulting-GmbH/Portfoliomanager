@@ -21,9 +21,10 @@ describe("buildHoldings", () => {
     ]);
 
     // NESN: 200 bought for 20'000, moving-average 100/share, 50 sold -> 150 @ 15'000.
-    expect(holdings.get("NESN")).toEqual({ shares: 150, totalCostLocal: 15000 });
+    // Ohne totalAmountCHF fällt totalCostChf auf shares x pricePerShare zurück.
+    expect(holdings.get("NESN")).toEqual({ shares: 150, totalCostLocal: 15000, totalCostChf: 15000 });
     // entry behaves like buy (performanceEngine semantics).
-    expect(holdings.get("ROG")).toEqual({ shares: 10, totalCostLocal: 2500 });
+    expect(holdings.get("ROG")).toEqual({ shares: 10, totalCostLocal: 2500, totalCostChf: 2500 });
   });
 
   it("ignores non-position transaction types and rows without ticker", () => {
@@ -35,7 +36,7 @@ describe("buildHoldings", () => {
     ]);
 
     expect(holdings.size).toBe(1);
-    expect(holdings.get("NESN")).toEqual({ shares: 100, totalCostLocal: 9500 });
+    expect(holdings.get("NESN")).toEqual({ shares: 100, totalCostLocal: 9500, totalCostChf: 9500 });
   });
 
   it("oversell: shares go negative (consumers filter <= 0), cost basis clamps at 0", () => {
@@ -81,7 +82,7 @@ describe("buildHoldings", () => {
     const desc = [...asc].reverse();
 
     expect(buildHoldings(desc)).toEqual(buildHoldings(asc));
-    expect(buildHoldings(desc).get("ORD")).toEqual({ shares: 50, totalCostLocal: 500 });
+    expect(buildHoldings(desc).get("ORD")).toEqual({ shares: 50, totalCostLocal: 500, totalCostChf: 500 });
   });
 
   it("accepts string transaction dates and non-finite share values", () => {
@@ -90,6 +91,22 @@ describe("buildHoldings", () => {
       { transactionType: "buy", transactionDate: "2024-01-03", ticker: "NESN", shares: "garbage", pricePerShare: "95" },
     ]);
 
-    expect(holdings.get("NESN")).toEqual({ shares: 100, totalCostLocal: 9500 });
+    expect(holdings.get("NESN")).toEqual({ shares: 100, totalCostLocal: 9500, totalCostChf: 9500 });
+  });
+
+  it("totalCostChf accumulates totalAmountCHF and falls back to local for legacy rows", () => {
+    const holdings = buildHoldings([
+      // USD-Kauf: 100 x 10 USD = 1'000 lokal, aber 900 CHF laut Transaktion.
+      { transactionType: "buy", transactionDate: "2024-01-02", ticker: "AAPL", shares: "100", pricePerShare: "10", totalAmountCHF: "900" },
+      // Alt-Transaktion ohne CHF-Betrag: Fallback shares x pricePerShare.
+      { transactionType: "buy", transactionDate: "2024-02-01", ticker: "AAPL", shares: "100", pricePerShare: "12" },
+      // Verkauf der Hälfte reduziert beide Kostenbasen proportional.
+      { transactionType: "sell", transactionDate: "2024-03-01", ticker: "AAPL", shares: "100", pricePerShare: "15" },
+    ]);
+
+    const pos = holdings.get("AAPL")!;
+    expect(pos.shares).toBe(100);
+    expect(pos.totalCostLocal).toBe(1100); // (1000 + 1200) / 2
+    expect(pos.totalCostChf).toBe(1050); // (900 + 1200) / 2
   });
 });
