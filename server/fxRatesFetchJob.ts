@@ -8,7 +8,7 @@
 import cron from 'node-cron';
 import { getDb } from './db';
 import { exchangeRates, stocks } from '../drizzle/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 
 const CURRENCY_PAIRS = [
   'USDCHF', 'EURCHF', 'GBPCHF',
@@ -144,19 +144,18 @@ export async function syncStockFxRates() {
   if (!db) return;
   
   try {
-    // Get latest rates for each currency pair
+    // Get latest rates for each currency pair (DESC order → newest first)
+    // Use a large enough limit to cover all currency pairs across recent days
     const latestRates = await db
       .select()
       .from(exchangeRates)
-      .orderBy(exchangeRates.date)
-      .limit(100);
+      .orderBy(desc(exchangeRates.date))
+      .limit(500);
     
-    // Build currency → CHF rate map from most recent entries
+    // Build currency → CHF rate map from most recent entries (first occurrence = newest)
     const rateMap: Record<string, number> = { CHF: 1 };
     const seen = new Set<string>();
-    // Iterate in reverse (latest first) to get most recent rate per pair
-    for (let i = latestRates.length - 1; i >= 0; i--) {
-      const r = latestRates[i];
+    for (const r of latestRates) {
       if (!seen.has(r.currencyPair)) {
         seen.add(r.currencyPair);
         const currency = r.currencyPair.replace('CHF', '');
