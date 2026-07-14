@@ -1,7 +1,7 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { savedPortfolios } from "../../drizzle/schema";
 
 type OptimizationCriterion = "sharpe" | "dividend" | "minVolatility" | "maxReturn" | "balanced";
@@ -270,11 +270,11 @@ export const portfolioOptimizerRouter = router({
         throw new Error("Database not available");
       }
 
-      // Fetch portfolio
+      // Fetch portfolio (SEC-1: nur eigene Portfolios — Ownership-Guard)
       const [portfolio] = await db
         .select()
         .from(savedPortfolios)
-        .where(eq(savedPortfolios.id, input.portfolioId))
+        .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
         .limit(1);
 
       if (!portfolio) {
