@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, FileText, ExternalLink, X, Info, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, ExternalLink, X, Info, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
 import DashboardLayout from "@/components/DashboardLayout";
 import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
@@ -34,10 +34,12 @@ function ScoreCircle({ score, onClick }: { score: number; onClick?: () => void }
   const circumference = 2 * Math.PI * 40;
   const strokeDashoffset = circumference - (score / 100) * circumference;
   
-  // Color based on score
+  // UX2-7: Farbskala deckungsgleich mit der erklärten Notenskala im
+  // Score-Dialog (>80 Ausgezeichnet · 61–80 Gut · 41–60 Mittel · ≤40 Schwach).
   const getColor = (score: number) => {
-    if (score >= 80) return "#00CFC1";
-    if (score >= 60) return "#f59e0b";
+    if (score > 80) return "#00CFC1";
+    if (score > 60) return "#eab308";
+    if (score > 40) return "#fb923c";
     return "#ef4444";
   };
   
@@ -148,6 +150,11 @@ export default function StockDetail() {
   const [showSignalExplanation, setShowSignalExplanation] = useState(false);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
+  // UX2-1: Alarm-Dialog verdrahtet (vorher toter Button ohne onClick/State)
+  const [alertType, setAlertType] = useState<"above_price" | "below_price" | "percent_change">("above_price");
+  const [alertValue, setAlertValue] = useState("");
+  const [alertEmail, setAlertEmail] = useState(true);
+  const [alertWhatsapp, setAlertWhatsapp] = useState(false);
   // Kauf-Modal-State (echte Transaktion)
   const [buyPortfolioId, setBuyPortfolioId] = useState<string>("");
   const [buyShares, setBuyShares] = useState<string>("");
@@ -227,6 +234,30 @@ export default function StockDetail() {
     },
     onError: (e) => toast.error(`Fehler beim Kauf: ${e.message}`),
   });
+
+  // UX2-1: Preisalarm wirklich anlegen (gleicher Endpoint wie die Alarme-Seite)
+  const createAlert = trpc.priceAlerts.create.useMutation({
+    onSuccess: () => {
+      toast.success("Alarm erfolgreich erstellt");
+      setShowPriceAlert(false);
+      setAlertValue("");
+    },
+    onError: (e) => toast.error(`Fehler: ${e.message}`),
+  });
+
+  const handleCreateAlert = () => {
+    if (!alertValue || !(parseFloat(alertValue) !== 0)) {
+      toast.error(alertType === "percent_change" ? "Bitte Prozentänderung eingeben" : "Bitte Zielpreis eingeben");
+      return;
+    }
+    createAlert.mutate({
+      ticker,
+      alertType,
+      targetPrice: alertType === "percent_change" ? undefined : alertValue,
+      percentChange: alertType === "percent_change" ? alertValue : undefined,
+      notificationMethod: alertEmail && alertWhatsapp ? "both" : alertWhatsapp ? "whatsapp" : "email",
+    });
+  };
 
   const handleBuy = () => {
     const pid = Number(buyPortfolioId || userPortfolios[0]?.id);
@@ -663,7 +694,7 @@ export default function StockDetail() {
 
             {/* Financial Highlights */}
             <div>
-              <h3 className="text-lg font-semibold text-white mb-3">Financial Highlights</h3>
+              <h3 className="text-lg font-semibold text-white mb-3">Finanzkennzahlen</h3>
               <div className="flex flex-wrap gap-4">
                 <div className="flex gap-4">
                   {financialHighlights.map((highlight, index) => (
@@ -687,7 +718,7 @@ export default function StockDetail() {
             </div>
 
             {/* Action Buttons - Only show "Add to Portfolio" if not already in portfolio */}
-            <div className={`grid grid-cols-1 ${isInPortfolio ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
+            <div className={`grid grid-cols-1 ${isInPortfolio ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-4`}>
               {!isInPortfolio && (
                 <Button 
                   onClick={() => setShowAddToPortfolio(true)}
@@ -697,18 +728,16 @@ export default function StockDetail() {
                   Kaufen
                 </Button>
               )}
-              <Button 
+              <Button
                 onClick={() => setShowPriceAlert(true)}
-                variant="outline" 
+                variant="outline"
                 className="border-white/20 text-white hover:bg-white/10 h-12"
               >
                 <Bell className="w-4 h-4 mr-2" />
                 Preisalarm erstellen
               </Button>
-              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10 h-12">
-                <FileText className="w-4 h-4 mr-2" />
-                Factsheet ansehen
-              </Button>
+              {/* UX2-1: toter «Factsheet ansehen»-Button entfernt — es gibt (noch)
+                  keine Factsheet-Funktion; ein Button ohne Wirkung untergräbt Vertrauen. */}
             </div>
           </div>
 
@@ -935,37 +964,44 @@ export default function StockDetail() {
                 
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Alarm-Typ</label>
-                  <select className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none">
-                    <option>Über Preis</option>
-                    <option>Unter Preis</option>
-                    <option>Änderung +%</option>
-                    <option>Änderung -%</option>
+                  <select
+                    value={alertType}
+                    onChange={(e) => setAlertType(e.target.value as typeof alertType)}
+                    className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none"
+                  >
+                    <option value="above_price">Über Preis</option>
+                    <option value="below_price">Unter Preis</option>
+                    <option value="percent_change">Änderung in % (±)</option>
                   </select>
                 </div>
-                
+
                 <div>
-                  <label className="text-sm text-gray-400 mb-2 block">Zielpreis / Schwellenwert</label>
-                  <input 
-                    type="number" 
-                    placeholder={(currentPrice * 1.1).toFixed(2)}
+                  <label className="text-sm text-gray-400 mb-2 block">
+                    {alertType === "percent_change" ? `Änderung in % (z. B. 5 oder -5)` : `Zielpreis (${currency})`}
+                  </label>
+                  <input
+                    type="number"
+                    value={alertValue}
+                    onChange={(e) => setAlertValue(e.target.value)}
+                    placeholder={alertType === "percent_change" ? "5" : (currentPrice * 1.1).toFixed(2)}
                     className="w-full bg-[#1a1f2e] border border-white/10 rounded-lg px-3 py-2 text-white focus:border-[#00CFC1] focus:outline-none"
                   />
                 </div>
-                
+
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Benachrichtigung via</label>
                   <div className="flex gap-3">
                     <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                      <input type="checkbox" className="rounded" defaultChecked />
-                      Email
+                      <input type="checkbox" className="rounded" checked={alertEmail} onChange={(e) => setAlertEmail(e.target.checked)} />
+                      E-Mail
                     </label>
                     <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                      <input type="checkbox" className="rounded" />
+                      <input type="checkbox" className="rounded" checked={alertWhatsapp} onChange={(e) => setAlertWhatsapp(e.target.checked)} />
                       WhatsApp
                     </label>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-3 pt-2">
                   <Button
                     onClick={() => setShowPriceAlert(false)}
@@ -975,9 +1011,11 @@ export default function StockDetail() {
                     Abbrechen
                   </Button>
                   <Button
+                    onClick={handleCreateAlert}
+                    disabled={createAlert.isPending}
                     className="flex-1 bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold"
                   >
-                    Alarm erstellen
+                    {createAlert.isPending ? "Wird erstellt…" : "Alarm erstellen"}
                   </Button>
                 </div>
               </div>

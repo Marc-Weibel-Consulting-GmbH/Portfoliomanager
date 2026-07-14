@@ -419,6 +419,20 @@ export default function MarktHub() {
   const rawTab = new URLSearchParams(searchString).get("tab") || "ueberblick";
   const [activeMarktTab, setActiveMarktTab] = useState(LEGACY_TAB_MAP[rawTab] || rawTab);
   const [, navigate] = useLocation();
+  // UX2-7: Badge am Regime-Tab aus dem ECHTEN Regime statt hartkodiert «Bull»
+  // (das widersprach ggf. der Ampel im Tab selbst).
+  const { data: regimeBadgeData } = trpc.marketRegime.getRegime.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  const regimeBadge = (() => {
+    const r = (regimeBadgeData?.overallRegime || "").toLowerCase();
+    if (!r) return undefined;
+    if (r.includes("on")) return "Risk-On";
+    if (r.includes("neutral")) return "Neutral";
+    if (r.includes("defensive")) return "Defensiv";
+    return "Risk-Off";
+  })();
 
   const handleMarktTabChange = (tab: string) => {
     setActiveMarktTab(tab);
@@ -441,7 +455,7 @@ export default function MarktHub() {
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
               { value: "ueberblick", label: "Überblick", icon: Globe },
-              { value: "regime", label: "Regime", icon: Activity, badge: "Bull" },
+              { value: "regime", label: "Regime", icon: Activity, badge: regimeBadge },
               { value: "heatmap", label: "Heatmap", icon: BarChart3 },
               { value: "news", label: "News", icon: Newspaper },
               { value: "ki-blase", label: "KI-Blase Monitor", icon: AlertTriangle },

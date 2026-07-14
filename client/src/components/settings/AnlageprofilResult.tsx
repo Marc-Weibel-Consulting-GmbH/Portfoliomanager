@@ -179,8 +179,9 @@ export default function AnlageprofilResult({
             In einem typischen Jahr liegt die Bandbreite etwa zwischen{" "}
             <span className="text-white tabular-nums">{badYear}%</span> und{" "}
             <span className="text-white tabular-nums">+{goodYear}%</span>.
-            {horizonYears ? <> Über {horizonYears} Jahre erwarten wir im Mittel</> : <> Langfristig erwarten wir</>}{" "}
-            <span className="text-white tabular-nums">~{exp}% p.a.</span> — mit zwischenzeitlichen Rückschlägen, die zu Ihrem Profil passen.
+            {horizonYears ? <> Über {horizonYears} Jahre liegt der Richtwert für dieses Profil bei</> : <> Langfristig liegt der Richtwert für dieses Profil bei</>}{" "}
+            <span className="text-white tabular-nums">~{exp}% p.a.</span>{" "}
+            (Marktannahme, keine Prognose) — mit zwischenzeitlichen Rückschlägen, die zu Ihrem Profil passen.
           </div>
           {capacityBinds && (
             <div className="flex items-start gap-2 text-xs text-amber-400">

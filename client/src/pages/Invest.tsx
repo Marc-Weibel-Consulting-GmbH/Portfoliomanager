@@ -478,9 +478,14 @@ export default function Invest() {
                         <td className="p-3 text-right font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(1)}%` : "—"}</td>
                         <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
                         <td className="p-3 text-center">
-                          <span className={`font-mono font-semibold ${(stock.signalScore || 0) >= 65 ? "text-green-600" : (stock.signalScore || 0) <= 35 ? "text-red-600" : ""}`}>
-                            {stock.signalScore || 0}
-                          </span>
+                          {/* UX2-7: fehlender Score als «—» statt irreführender 0 */}
+                          {stock.signalScore != null ? (
+                            <span className={`font-mono font-semibold ${stock.signalScore >= 65 ? "text-green-600" : stock.signalScore <= 35 ? "text-red-600" : ""}`}>
+                              {stock.signalScore}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="p-3 text-right font-mono">
                           {(stock as any).pegRatio ? (() => {

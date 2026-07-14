@@ -18,8 +18,10 @@ export default function DividendenTab() {
         </div>
         {dividends.length > 0 && (
           <div className="text-right">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Erwartet (12M)</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Erwartet brutto (12M)</p>
             <p className="text-lg font-bold font-mono text-[#00CFC1]">{formatCurrency(totalIncome)}</p>
+            {/* FIN-5: Brutto-Kennzeichnung — vorher wirkte der Betrag wie Netto-Einkommen */}
+            <p className="text-xs text-gray-500">vor Verrechnungs-/Quellensteuer</p>
           </div>
         )}
       </div>
@@ -44,7 +46,7 @@ export default function DividendenTab() {
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Typ</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Betrag/Aktie</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Stk.</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Erwartet (CHF)</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Erwartet brutto (CHF)</th>
               </tr>
             </thead>
             <tbody>
@@ -65,7 +67,13 @@ export default function DividendenTab() {
                   </td>
                   <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(d.amount, d.currency)}</td>
                   <td className="px-3 py-3 text-right text-sm text-gray-300 hidden sm:table-cell">{d.shares}</td>
-                  <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">{formatCurrency(d.expectedIncome)}</td>
+                  <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">
+                    {d.fxMissing ? (
+                      <span className="text-gray-500" title={`Kein ${d.currency}/CHF-Wechselkurs verfügbar`}>—</span>
+                    ) : (
+                      formatCurrency(d.expectedIncome)
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

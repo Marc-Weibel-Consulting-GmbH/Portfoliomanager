@@ -93,7 +93,8 @@ export const dividendCalendarRouter = router({
 
         // Convert to CHF via echte FX-Kurse (R-31)
         const amountInCHF = await dividendAmountCHF(div.amount, div.currency);
-        const expectedIncome = shares * amountInCHF;
+        // FIN-5: fehlender FX-Kurs darf nicht als «CHF 0» erscheinen — flaggen.
+        const fxMissing = div.amount > 0 && !(amountInCHF > 0);
 
         return {
           ticker: div.ticker,
@@ -106,7 +107,9 @@ export const dividendCalendarRouter = router({
           period: div.period,
           type: div.type,
           shares,
-          expectedAmount: expectedIncome,
+          // FIN-5: BRUTTO (vor Verrechnungs-/Quellensteuer) — Kennzeichnung im Client.
+          expectedAmount: fxMissing ? null : shares * amountInCHF,
+          fxMissing,
         };
       }))).filter(div => div.shares > 0); // Only show dividends for stocks we actually hold
 
@@ -265,7 +268,8 @@ export const dividendCalendarRouter = router({
         const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
 
         const amountInCHF = await dividendAmountCHF(div.amount, div.currency);
-        const expectedIncome = shares * amountInCHF;
+        // FIN-5: fehlender FX-Kurs darf nicht als «CHF 0» erscheinen — flaggen.
+        const fxMissing = div.amount > 0 && !(amountInCHF > 0);
 
         return {
           ticker: div.ticker,
@@ -277,7 +281,9 @@ export const dividendCalendarRouter = router({
           period: div.period,
           type: div.type,
           shares,
-          expectedIncome,
+          // FIN-5: BRUTTO (vor Verrechnungs-/Quellensteuer) — Kennzeichnung im Client.
+          expectedIncome: fxMissing ? null : shares * amountInCHF,
+          fxMissing,
         };
       }))).filter(div => div.shares > 0);
 
@@ -325,6 +331,8 @@ export const dividendCalendarRouter = router({
         .map(async (div) => {
           const shares = holdings[div.ticker] || holdings[div.ticker.toUpperCase()] || 0;
           const amountCHF = await dividendAmountCHF(div.amount, div.currency);
+          // FIN-5: fehlender FX-Kurs darf nicht als «CHF 0» erscheinen — flaggen.
+          const fxMissing = div.amount > 0 && !(amountCHF > 0);
           return {
             ticker: div.ticker,
             companyName: nameByTicker[div.ticker] || nameByTicker[div.ticker.toUpperCase()] || div.ticker,
@@ -335,7 +343,9 @@ export const dividendCalendarRouter = router({
             period: div.period,
             type: div.type,
             shares,
-            expectedIncome: shares * amountCHF,
+            // FIN-5: BRUTTO (vor Verrechnungs-/Quellensteuer) — Kennzeichnung im Client.
+            expectedIncome: fxMissing ? null : shares * amountCHF,
+            fxMissing,
           };
         })))
         .filter((d) => d.shares > 0 && d.exDividendDate && new Date(d.exDividendDate) >= startOfToday && new Date(d.exDividendDate) <= horizon)

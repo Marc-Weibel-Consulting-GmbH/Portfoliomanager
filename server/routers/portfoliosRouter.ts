@@ -3205,10 +3205,12 @@ export const portfoliosRouter = router({
         '1Y': new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().split('T')[0],
       };
       
-      // Get benchmark (SPY) prices for all periods
-      const benchmarkTicker = 'SPY';
+      // UX2-4 (Audit 2026-07): Benchmark SPI (CHSPI.SW) statt SPY — das Dashboard
+      // vergleicht gegen den SPI; die Portfolio-Details zeigten bisher S&P 500.
+      // Eine Benchmark für beide Ansichten, passend zur CHF-Referenzwährung.
+      const benchmarkTicker = 'CHSPI.SW';
       const benchmarkPrices: Record<string, number> = {};
-      
+
       // Get the latest available benchmark price
       const [latestBenchmarkPrice] = await db
         .select()
@@ -3216,12 +3218,12 @@ export const portfoliosRouter = router({
         .where(eq(historicalPrices.ticker, benchmarkTicker))
         .orderBy(desc(historicalPrices.date))
         .limit(1);
-      
-      // SPY is quoted in USD — convert to CHF so the benchmark return is comparable
-      // to the CHF portfolio return (a USD-vs-CHF ratio comparison would be wrong).
-      const benchmarkCurrency = 'USD';
+
+      // CHSPI.SW ist in CHF quotiert — keine FX-Umrechnung nötig; toChf bleibt
+      // als Hülle für einen allfälligen späteren Benchmark-Wechsel.
+      const benchmarkCurrency = 'CHF';
       const toChf = async (price: number, date: string | null | undefined): Promise<number> => {
-        if (!(price > 0) || !date) return price;
+        if (!(price > 0) || !date || benchmarkCurrency === 'CHF') return price;
         return price * (await getFxRate(date, `${benchmarkCurrency}CHF`));
       };
 

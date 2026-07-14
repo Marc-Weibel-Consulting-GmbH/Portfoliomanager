@@ -96,10 +96,10 @@ const HORIZONS = [
 
 // Values must match DB sector names exactly for filtering to work in buildProposal
 const EXCLUDED_SECTORS = [
-  { value: "Energy", label: "Fossile Energie", icon: <Flame className="h-5 w-5" /> },
-  { value: "Industrials", label: "Rüstung / Industrie", icon: <Shield className="h-5 w-5" /> },
-  { value: "Consumer", label: "Alkohol / Tabak", icon: <Ban className="h-5 w-5" /> },
-  { value: "Consumer Cyclical", label: "Glücksspiel", icon: <Ban className="h-5 w-5" /> },
+  { value: "Energy", label: "Energie (u. a. Öl & Gas)", icon: <Flame className="h-5 w-5" /> },
+  { value: "Industrials", label: "Industrie (u. a. Rüstung)", icon: <Shield className="h-5 w-5" /> },
+  { value: "Consumer", label: "Basiskonsum (u. a. Alkohol & Tabak)", icon: <Ban className="h-5 w-5" /> },
+  { value: "Consumer Cyclical", label: "Zyklischer Konsum (u. a. Glücksspiel, Handel, Reisen)", icon: <Ban className="h-5 w-5" /> },
   { value: "Finance", label: "Finanzsektor", icon: <Ban className="h-5 w-5" /> },
   { value: "Telecommunications", label: "Telekommunikation", icon: <Ban className="h-5 w-5" /> },
 ];
@@ -583,7 +583,7 @@ export default function PortfolioBuilderWizard() {
                   ))}
                   {autoExcluded.map((s) => (
                     <span key={s} className="px-3 py-1 rounded-full bg-red-500/15 text-red-400 text-sm">
-                      Kein {s}
+                      Ohne {EXCLUDED_SECTORS.find((e) => e.value === s)?.label ?? s}
                     </span>
                   ))}
                 </div>

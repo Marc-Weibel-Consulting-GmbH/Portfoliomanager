@@ -51,8 +51,11 @@ export default function BubbleRiskCard({ ticker }: { ticker: string }) {
             <AlertTriangle className="w-5 h-5" />
             <div>
               <div className="font-semibold text-sm">{getRiskLabel(bubbleConfidence)}</div>
-              <div className="text-xs text-gray-400 mt-0.5">
-                LPPLS-Modell (Sornette) · Konfidenz:{" "}
+              <div
+                className="text-xs text-gray-400 mt-0.5"
+                title="LPPLS: mathematisches Modell (Sornette), das typische Beschleunigungsmuster vor Kursblasen erkennt"
+              >
+                Blasen-Modell (LPPLS, Sornette) · Konfidenz:{" "}
                 <span className="font-mono">{(bubbleConfidence * 100).toFixed(0)}%</span>
                 {regime === "negative_bubble" && " · Negativblase"}
               </div>

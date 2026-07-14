@@ -364,8 +364,10 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
           <p className="text-xs text-gray-400">Angekündigt oder aus der Historie geschätzt · Bestand dieses Portfolios · 2 Jahre Vorschau</p>
         </div>
         <div className="text-right">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Gesamt (2 Jahre)</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Gesamt brutto (2 Jahre)</p>
           <p className="text-lg font-bold font-mono text-[#00CFC1]">{formatCHF(totalCHF)}</p>
+          {/* FIN-5: Brutto-Kennzeichnung — vorher wirkte der Betrag wie Netto-Einkommen */}
+          <p className="text-xs text-gray-500">vor Verrechnungs-/Quellensteuer</p>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -377,7 +379,7 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
               <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Zahldatum</th>
               <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Betrag je Aktie</th>
               <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Stück</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Erwartet (CHF)</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Erwartet brutto (CHF)</th>
             </tr>
           </thead>
           <tbody>
@@ -415,7 +417,13 @@ function DividendenTab({ portfolioId }: { portfolioId: number }) {
                       <td className="px-3 py-3 text-right text-sm text-gray-300">
                         {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 2 }).format(parseFloat(d.shares) || 0)}
                       </td>
-                      <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">{formatCHF(d.expectedIncome || 0)}</td>
+                      <td className="px-5 py-3 text-right text-sm font-semibold text-[#00CFC1]">
+                        {d.fxMissing ? (
+                          <span className="text-gray-500" title={`Kein ${d.currency}/CHF-Wechselkurs verfügbar`}>—</span>
+                        ) : (
+                          formatCHF(d.expectedIncome || 0)
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </>
@@ -961,7 +969,8 @@ export default function PortfolioDetailsPage() {
   });
 
   const [selectedPeriod, setSelectedPeriod] = useState("YTD");
-  const [selectedBenchmark, setSelectedBenchmark] = useState("SPY");
+  // UX2-4: Standard-Benchmark SPI (wie Dashboard); S&P 500 bleibt wählbar.
+  const [selectedBenchmark, setSelectedBenchmark] = useState("SSMI.SW");
   // Performance view: stocks-only vs. total portfolio incl. cash drag.
   const [includeCash, setIncludeCash] = useState(false);
   // Bulk delete state for transactions tab (must be at top level, not inside JSX)
@@ -1455,7 +1464,8 @@ export default function PortfolioDetailsPage() {
                     {ytdPerf !== null ? `${ytdPerf >= 0 ? '+' : ''}${ytdPerf.toFixed(1)}%` : '—'}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    S&amp;P 500 {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
+                    {/* UX2-4: SPI wie im Dashboard (vorher S&P 500 — zwei Benchmarks verwirrten) */}
+                    SPI {benchPerf !== null ? `${benchPerf >= 0 ? '+' : ''}${benchPerf.toFixed(1)}%` : '—'}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     in CHF · gewichtete Rendite · {includeCash ? 'inkl. Cash' : 'nur Aktien'}

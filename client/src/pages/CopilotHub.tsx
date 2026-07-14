@@ -12,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  Brain,
   Send,
   Plus,
   Trash2,
@@ -48,13 +47,10 @@ export default function CopilotHub() {
             <p className="text-sm text-gray-400 mt-1">Chat und Verlauf — Ihre KI-Gesprächsoberfläche.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-[#00CFC1]/30 text-[#00CFC1] text-[10px] px-2 py-1">
-              <Brain className="w-3 h-3 mr-1" />
-              CLAUDE · HAIKU 4.5
-            </Badge>
-            <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px] px-2 py-1">
+            {/* UX2-8: technischer Modellname entfernt — für Kunden ohne Aussage */}
+            <Badge variant="outline" className="border-[#00CFC1]/30 text-[#00CFC1] text-xs px-2 py-1">
               <Sparkles className="w-3 h-3 mr-1" />
-              AI-POWERED
+              KI-gestützt
             </Badge>
           </div>
         </div>
@@ -172,10 +168,13 @@ function ChatTab() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">{conv.title}</span>
+                    {/* UX2-6: Löschen immer sichtbar (vorher nur bei Hover —
+                        auf Touch-Geräten und für 50+ praktisch unauffindbar) */}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                      aria-label="Konversation löschen"
+                      className="h-6 w-6 text-slate-500 hover:text-red-400"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteConversation.mutate({ conversationId: conv.id });
@@ -197,7 +196,7 @@ function ChatTab() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <MessageSquare className="w-12 h-12 mx-auto text-slate-600 mb-3" />
-              <p className="text-slate-400 text-sm">Wähle eine Konversation oder erstelle eine neue.</p>
+              <p className="text-slate-400 text-sm">Wählen Sie eine Konversation oder erstellen Sie eine neue.</p>
               <Button
                 variant="outline"
                 size="sm"
@@ -219,7 +218,7 @@ function ChatTab() {
                   </div>
                 ) : chatMessages?.length === 0 ? (
                   <p className="text-center text-slate-500 text-sm py-8">
-                    Stelle eine Frage zu deinem Portfolio...
+                    Stellen Sie eine Frage zu Ihrem Portfolio …
                   </p>
                 ) : (
                   chatMessages?.map((msg: any) => (
@@ -252,7 +251,7 @@ function ChatTab() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                  placeholder="Frage stellen + Copilot..."
+                  placeholder="Ihre Frage an den Copilot …"
                   className="bg-slate-900/50 border-slate-700/50 text-white placeholder:text-slate-500"
                 />
                 <Button
