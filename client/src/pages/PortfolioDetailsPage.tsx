@@ -1252,6 +1252,15 @@ export default function PortfolioDetailsPage() {
     utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
     utils.portfolios.getPerformanceMetrics.invalidate({ portfolioId });
     utils.portfolios.getHistoricalPerformance.invalidate({ portfolioId });
+    // Invalidate ALL aggregated dashboard metrics so Sharpe/YTD update after buy/sell
+    utils.dashboard.getAggregatedMetrics.invalidate();
+    utils.dashboard.getPerformanceTimeseries.invalidate();
+    utils.dashboard.getRiskMetrics.invalidate();
+    utils.dashboard.getBubbleIndicator.invalidate();
+    utils.dashboard.getSectorAllocation.invalidate();
+    utils.dashboard.getRegionAllocation.invalidate();
+    utils.dashboard.getAggregatedHoldings.invalidate();
+    utils.dashboard.getPortfolioCompact.invalidate();
     refetch();
   };
   
@@ -2759,8 +2768,10 @@ export default function PortfolioDetailsPage() {
         open={isDeactivateDialogOpen}
         onOpenChange={setIsDeactivateDialogOpen}
         title="Live-Tracking deaktivieren?"
-        description="Beim Deaktivieren werden die Transaktionen entfernt; die Positionen bleiben erhalten. Das Portfolio wird wieder als Demo-Portfolio geführt. Diese Aktion kann nicht rückgängig gemacht werden."
+        description="Beim Deaktivieren werden die Transaktionen entfernt; die Positionen bleiben erhalten. Das Portfolio wird wieder als Demo-Portfolio geführt. Diese Aktion kann nicht rükgängig gemacht werden."
         confirmLabel="Deaktivieren"
+        pendingLabel="Wird deaktiviert…"
+        confirmVariant="default"
         onConfirm={() => deactivateLive.mutate({ id: portfolioId, isLive: false })}
         isPending={deactivateLive.isPending}
       />

@@ -20,16 +20,20 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "Löschen",
+  pendingLabel,
   onConfirm,
   isPending = false,
+  confirmVariant = 'destructive',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description: React.ReactNode;
   confirmLabel?: string;
+  pendingLabel?: string;
   onConfirm: () => void;
   isPending?: boolean;
+  confirmVariant?: 'destructive' | 'default';
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -49,10 +53,18 @@ export function ConfirmDialog({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            className={confirmVariant === 'destructive' ? 'bg-red-600 hover:bg-red-700 text-white disabled:opacity-70' : 'bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-70'}
             disabled={isPending}
           >
-            {isPending ? "Wird gelöscht..." : confirmLabel}
+            {isPending ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                {pendingLabel ?? 'Wird ausgeführt…'}
+              </span>
+            ) : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

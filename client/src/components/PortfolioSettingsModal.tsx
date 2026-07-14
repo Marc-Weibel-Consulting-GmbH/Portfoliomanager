@@ -78,8 +78,24 @@ export function PortfolioSettingsModal({
     setHasChanges(changed);
   }, [name, description, investmentAmount, inceptionDate, initialName, initialDescription, initialInvestmentAmount, initialInceptionDate]);
 
-  // Update portfolio mutation
+  // Update portfolio mutation with optimistic update for instant sidebar rename
   const updatePortfolio = trpc.portfolios.update.useMutation({
+    onMutate: async (variables: { id: number; name?: string; [key: string]: unknown }) => {
+      // Cancel outgoing refetches to avoid overwriting our optimistic update
+      await utils.portfolios.list.cancel();
+      // Snapshot previous value for rollback
+      const previousList = utils.portfolios.list.getData();
+      // Optimistically update the portfolio name in the sidebar list
+      const newName = typeof variables.name === 'string' ? variables.name : undefined;
+      if (newName) {
+        utils.portfolios.list.setData(undefined, (old) =>
+          old?.map((p) =>
+            p.id === portfolioId ? { ...p, name: newName } : p
+          )
+        );
+      }
+      return { previousList };
+    },
     onSuccess: () => {
       toast.success("Portfolio-Einstellungen erfolgreich aktualisiert");
       utils.portfolios.list.invalidate();
@@ -87,7 +103,11 @@ export function PortfolioSettingsModal({
       onSuccess?.();
       onClose();
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousList) {
+        utils.portfolios.list.setData(undefined, context.previousList);
+      }
       toast.error(`Fehler beim Speichern: ${error.message}`);
     },
   });
