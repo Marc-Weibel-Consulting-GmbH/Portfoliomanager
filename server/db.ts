@@ -354,9 +354,11 @@ export async function deleteAllTransactions() {
 
 
 // Saved Portfolio queries
-export async function getSavedPortfolios(userId: number) {
+export async function getSavedPortfolios(userId: number, options?: { includeSnapshots?: boolean }) {
   const db = await getDb();
   if (!db) return [];
+  
+  const includeSnapshots = options?.includeSnapshots ?? false; // Default: exclude snapshots from aggregated views
   
   try {
     const result = await db
@@ -364,6 +366,9 @@ export async function getSavedPortfolios(userId: number) {
       .from(savedPortfolios)
       .where(eq(savedPortfolios.userId, userId))
       .orderBy(desc(savedPortfolios.updatedAt));
+    
+    // Filter out snapshot portfolios by default (they are backup copies, not real portfolios)
+    const filteredResult = includeSnapshots ? result : result.filter(p => !p.isSnapshot || p.isSnapshot === 0);
     
     // Batch load all transactions for LIVE portfolios (performance optimization)
     const livePortfolios = result.filter(p => p.isLive);
@@ -392,7 +397,7 @@ export async function getSavedPortfolios(userId: number) {
     }
     
     // Parse portfolioData JSON and extract fields for display
-    const portfoliosWithData = result.map(portfolio => {
+    const portfoliosWithData = filteredResult.map(portfolio => {
       try {
         const data = JSON.parse(portfolio.portfolioData);
         

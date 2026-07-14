@@ -586,17 +586,17 @@ export default function Dashboard() {
   const deleteMut = trpc.portfolios.delete.useMutation({
     onSuccess: () => {
       // Invalidate portfolio lists
-      utils.dashboard.getPortfolioCompact.invalidate();
-      utils.portfolios.list.invalidate();
-      utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
-      // Invalidate ALL dashboard KPIs so they are recalculated after deletion
-      utils.dashboard.getAggregatedMetrics.invalidate();
-      utils.dashboard.getRiskMetrics.invalidate();
-      utils.dashboard.getPerformanceTimeseries.invalidate();
-      utils.dashboard.getBubbleIndicator.invalidate();
-      utils.dashboard.getSectorAllocation.invalidate();
-      utils.dashboard.getRegionAllocation.invalidate();
-      utils.dashboard.getAggregatedHoldings.invalidate();
+      // Use refetchType:'all' to force refetch even for inactive/unmounted queries
+      utils.dashboard.getPortfolioCompact.invalidate(undefined, { refetchType: 'all' });
+      utils.portfolios.list.invalidate(undefined, { refetchType: 'all' });
+      utils.portfolios.getMultiPeriodPerformanceV2.invalidate(undefined, { refetchType: 'all' });
+      utils.dashboard.getAggregatedMetrics.invalidate(undefined, { refetchType: 'all' });
+      utils.dashboard.getRiskMetrics.invalidate(undefined, { refetchType: 'all' });
+      utils.dashboard.getPerformanceTimeseries.invalidate(undefined, { refetchType: 'all' });
+      utils.dashboard.getBubbleIndicator.invalidate(undefined, { refetchType: 'all' });
+      utils.dashboard.getSectorAllocation.invalidate(undefined, { refetchType: 'all' });
+      utils.dashboard.getRegionAllocation.invalidate(undefined, { refetchType: 'all' });
+      utils.dashboard.getAggregatedHoldings.invalidate(undefined, { refetchType: 'all' });
       setDeleteConfirm(null);
     },
   });

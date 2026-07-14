@@ -1201,17 +1201,20 @@ export default function PortfolioDetailsPage() {
       await deletePortfolio.mutateAsync({ id: portfolioId });
       // Invalidate ALL dashboard and portfolio-list queries so aggregated metrics
       // (YTD, Sharpe, Gesamtwert) update immediately after deletion.
+      // Use invalidate with refetchType:'all' to force refetch even for inactive
+      // (currently unmounted) queries. Plain invalidate() only refetches active queries;
+      // 'all' ensures the Dashboard KPIs (YTD, Sharpe) are fresh when the user navigates back.
       await Promise.all([
-        utils.portfolios.list.invalidate(),
-        utils.portfolios.getMultiPeriodPerformanceV2.invalidate(),
-        utils.dashboard.getAggregatedMetrics.invalidate(),
-        utils.dashboard.getPerformanceTimeseries.invalidate(),
-        utils.dashboard.getRiskMetrics.invalidate(),
-        utils.dashboard.getBubbleIndicator.invalidate(),
-        utils.dashboard.getSectorAllocation.invalidate(),
-        utils.dashboard.getRegionAllocation.invalidate(),
-        utils.dashboard.getAggregatedHoldings.invalidate(),
-        utils.dashboard.getPortfolioCompact.invalidate(),
+        utils.portfolios.list.invalidate(undefined, { refetchType: 'all' }),
+        utils.portfolios.getMultiPeriodPerformanceV2.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getAggregatedMetrics.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getPerformanceTimeseries.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getRiskMetrics.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getBubbleIndicator.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getSectorAllocation.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getRegionAllocation.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getAggregatedHoldings.invalidate(undefined, { refetchType: 'all' }),
+        utils.dashboard.getPortfolioCompact.invalidate(undefined, { refetchType: 'all' }),
       ]);
       toast.success("Portfolio gelöscht");
       navigate("/dashboard");

@@ -2586,7 +2586,8 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
   getPortfolioCompact: protectedProcedure.query(async ({ ctx }) => {
     const { getSavedPortfolios, getStockByTicker } = await import('../db');
     const { convertToCHF } = await import('../fxHelper');
-    const portfolios = await getSavedPortfolios(ctx.user.id);
+    // Include snapshots so dashboard cards can show them as sub-entries under parent portfolios
+    const portfolios = await getSavedPortfolios(ctx.user.id, { includeSnapshots: true });
     const todayStr = new Date().toISOString().split('T')[0];
     
     const results = await Promise.all(portfolios.map(async (p) => {
