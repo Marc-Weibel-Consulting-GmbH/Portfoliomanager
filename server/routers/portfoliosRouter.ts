@@ -418,26 +418,33 @@ export const portfoliosRouter = router({
             }
             
             // Calculate avgBuyPrice in CHF.
-            // stock.avgBuyPrice is stored as CHF price (set by PortfolioBuilderWizard as priceCHF).
-            // For live portfolios, avgBuyPrice is stored as local-currency price from transactions.
-            // We need to compare apples to apples: both avgBuyPrice and currentPrice must be in CHF.
             //
-            // Strategy:
-            // 1. If stock.avgBuyPrice is stored and the stock currency is CHF → use as-is (already CHF)
-            // 2. If stock.avgBuyPrice is stored and currency is NOT CHF:
-            //    - For demo portfolios: avgBuyPrice was stored as CHF (priceCHF at creation time) → use as-is
-            //    - For live portfolios: avgBuyPrice is in local currency → convert to CHF using fxRate
-            // 3. Fallback to priceCHF (→ 0% performance)
+            // STANDARDIZED STORAGE (since fix R-CHF-PRICE):
+            // avgBuyPrice is ALWAYS stored as CHF per share in portfolioData.
+            // - PortfolioBuilderWizard: stores priceCHF directly
+            // - portfolios.create (live): stores actualInvestedCHF / shares
+            // - toggleLive: entry transactions use priceCHF
+            //
+            // LEGACY FALLBACK for portfolios created before R-CHF-PRICE:
+            // If avgBuyPriceCHF field is present, use it directly (explicit CHF marker).
+            // Otherwise fall back to the old heuristic (FX conversion for live/foreign).
+            //
+            // Detection: stock.avgBuyPriceCHF is set by the new code path.
+            // If it's missing, assume legacy and apply old conversion logic.
             const storedAvgBuyPrice = parseFloat(stock.avgBuyPrice) || 0;
+            const storedAvgBuyPriceCHF = parseFloat(stock.avgBuyPriceCHF) || 0;
             let avgBuyPriceCHF: number;
-            if (storedAvgBuyPrice > 0) {
+            if (storedAvgBuyPriceCHF > 0) {
+              // New path: avgBuyPriceCHF is explicitly stored as CHF — use directly
+              avgBuyPriceCHF = storedAvgBuyPriceCHF;
+            } else if (storedAvgBuyPrice > 0) {
+              // Legacy path: apply old heuristic for backward compatibility
               const isDemo = portfolio.portfolioType === 'demo' || !portfolio.portfolioType;
               if (currency === 'CHF' || isDemo) {
-                // CHF stocks: avgBuyPrice is already in CHF
-                // Demo portfolios: avgBuyPrice was stored as CHF price by PortfolioBuilderWizard
+                // CHF stocks or demo portfolios: avgBuyPrice was stored as CHF
                 avgBuyPriceCHF = storedAvgBuyPrice;
               } else {
-                // Live portfolios with foreign currency: avgBuyPrice is in local currency → convert
+                // Legacy live portfolios with foreign currency: avgBuyPrice was in local currency
                 avgBuyPriceCHF = storedAvgBuyPrice * fxRate;
               }
             } else {
@@ -813,11 +820,18 @@ export const portfoliosRouter = router({
                       transactionDate: new Date(),
                     });
                     
-                    // Store the updated holding with calculated shares
+                    // Store the updated holding with calculated shares.
+                    // avgBuyPrice is ALWAYS stored in CHF (not local currency) so the
+                    // portfoliosRouter.detail can use it directly without FX conversion.
+                    // avgBuyPriceCHF = totalInvestedCHF / sharesCount
+                    const avgBuyPriceCHF_creation = parseFloat(shares) > 0
+                      ? actualInvestedCHF / parseFloat(shares)
+                      : 0;
                     updatedHoldings.push({
                       ...holding,
                       shares: shares,
-                      avgBuyPrice: holding.currentPrice, // ← was avgCost (wrong field name)
+                      avgBuyPrice: avgBuyPriceCHF_creation.toFixed(4), // CHF per share
+                      avgBuyPriceCHF: avgBuyPriceCHF_creation.toFixed(4), // explicit CHF field
                     });
                   } else {
                     // Keep original holding if no price
