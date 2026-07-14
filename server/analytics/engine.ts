@@ -188,24 +188,6 @@ function normalizeTicker(ticker: string): string {
 // ─────────────────────────────────────────────
 // Data Fetching
 // ─────────────────────────────────────────────
-async function fetchReturns(
-  tickers: string[],
-  lookbackDays: number
-): Promise<{ [ticker: string]: number[] }> {
-  const pricesMap = await fetchPricesFromDB(tickers, lookbackDays);
-  const returnsMap: { [ticker: string]: number[] } = {};
-  for (const [orig, series] of Object.entries(pricesMap)) {
-    if (series.length > 1) {
-      const returns: number[] = [];
-      for (let i = 1; i < series.length; i++) {
-        returns.push((series[i].price - series[i - 1].price) / series[i - 1].price);
-      }
-      returnsMap[orig] = returns;
-    }
-  }
-  return returnsMap;
-}
-
 /**
  * Like fetchReturns, but keeps the trading date for each return so series from
  * different exchanges can be aligned by date (see alignReturnsByDate). Each
@@ -321,12 +303,15 @@ function shrunkCovarianceMatrix(returnsMap: { [ticker: string]: number[] }, tick
 function portfolioStats(
   weights: number[],
   mu: number[],
-  cov: number[][]
+  cov: number[][],
+  riskFreeRate: number = DEFAULT_RISK_FREE_RATE
 ): { ret: number; vol: number; sharpe: number } {
   const ret = dotProduct(weights, mu);
   const covW = matVecMul(cov, weights);
   const vol = Math.sqrt(dotProduct(weights, covW));
-  const sharpe = vol > 0 ? (ret - DEFAULT_RISK_FREE_RATE) / vol : 0;
+  // OPT-3: rf parametrisiert — der ausgewiesene Sharpe muss zum selben Zins
+  // gerechnet sein wie Zielfunktion und Frontier (vorher fix 0.02).
+  const sharpe = vol > 0 ? (ret - riskFreeRate) / vol : 0;
   return { ret, vol, sharpe };
 }
 
@@ -995,9 +980,11 @@ export async function calcDCF(input: DCFInput) {
   let dataSource = 'EODHD';
   
   if (!fundamentals) {
-    console.log(`[DCF] EODHD failed for ${ticker}, trying Yahoo Finance fallback...`);
+    console.log(`[DCF] EODHD failed for ${ticker}, trying DB fallback...`);
     fundamentals = await fetchDCFFromYahoo(ticker);
-    dataSource = 'Yahoo Finance';
+    // Ehrliches Quellen-Label: der Fallback liest die stocks-Tabelle und SCHÄTZT
+    // FCF (5 % der MarketCap) und Wachstum (5 %) — das ist kein Yahoo-Datenbezug.
+    dataSource = 'Stammdaten (Schätzung)';
   }
 
   if (!fundamentals) {
@@ -1115,11 +1102,28 @@ export async function optimizePortfolio(input: OptimizeInput) {
     throw new Error("At least 2 tickers required for optimization.");
   }
 
-  const returnsMap = await fetchReturns(tickers, lookbackDays);
-  const available = tickers.filter((t) => returnsMap[t]);
+  // OPT-1 (Audit 2026-07): Renditen wie im Risk-Pfad (calcRiskMetrics) aufbereiten —
+  // (a) Preise VOR der Renditeberechnung in CHF (Reporting-Währung) umrechnen und
+  // (b) Reihen verschiedener Börsen per HANDELSDATUM alignieren statt per Array-Index.
+  // Vorher wurden Renditen unterschiedlicher Kalendertage gepaart (SIX- vs. US-Feiertage)
+  // und FX-Risiko ignoriert → Kovarianz/BL/HRP/Frontier systematisch verzerrt.
+  const currencyByTicker: { [ticker: string]: string } = {};
+  for (const t of tickers) currencyByTicker[t] = await getStockCurrency(t);
+  const datedMap = await fetchReturnsWithDates(tickers, lookbackDays, currencyByTicker);
+  const available = tickers.filter((t) => datedMap[t]);
 
   if (available.length < 2) {
     throw new Error("Insufficient data for optimization (need at least 2 tickers with data).");
+  }
+
+  const { returnsByTicker: returnsMap, dates: alignedDates } = alignReturnsByDate(datedMap, available);
+  // Nach dem Datums-Alignment bleibt die Schnittmenge gemeinsamer Handelstage.
+  // Unter 30 Tagen ist jede Kovarianzschätzung Rauschen — ehrlich abbrechen.
+  if (alignedDates.length < 30) {
+    throw new Error(
+      `Zu wenig gemeinsame Handelstage für eine Optimierung (${alignedDates.length} < 30). ` +
+      `Bitte Kurshistorie der Titel prüfen.`
+    );
   }
 
   // Annualisierte Kovarianz (Ledoit-Wolf-geschrumpft) und Erwartungsrenditen.
@@ -1185,8 +1189,8 @@ export async function optimizePortfolio(input: OptimizeInput) {
     }
 
     // Portfolio stats using HRP weights
-    const { ret: hrpRet, vol: hrpVol, sharpe: hrpSharpe } = portfolioStats(finalHrpWeights, mu, cov);
-    const { ret: currRet2, vol: currVol2, sharpe: currSharpe2 } = portfolioStats(new Array(available.length).fill(1 / available.length), mu, cov);
+    const { ret: hrpRet, vol: hrpVol, sharpe: hrpSharpe } = portfolioStats(finalHrpWeights, mu, cov, riskFreeRate);
+    const { ret: currRet2, vol: currVol2, sharpe: currSharpe2 } = portfolioStats(new Array(available.length).fill(1 / available.length), mu, cov, riskFreeRate);
 
     const assetStatsHrp = available.map((ticker, i) => ({
       ticker,
@@ -1216,7 +1220,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
       },
       weights: weightsMapHrp,
       assets: assetStatsHrp,
-      efficientFrontier: buildEfficientFrontier(mu, cov, riskFreeRate, available, 30),
+      efficientFrontier: buildEfficientFrontier(mu, cov, riskFreeRate, available, 30, minPositionWeight, maxPositionWeight),
       tickers: available,
       droppedPositions: droppedHrp,
       minPositionChf: MIN_POSITION_CHF_HRP,
@@ -1286,7 +1290,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
     }
   }
 
-  const { ret: optRet, vol: optVol, sharpe: optSharpe } = portfolioStats(finalWeights, mu, cov);
+  const { ret: optRet, vol: optVol, sharpe: optSharpe } = portfolioStats(finalWeights, mu, cov, riskFreeRate);
 
   // Current portfolio: use actual weights if provided, else fall back to equal weight
   const actualWeights: number[] = available.map((ticker) => {
@@ -1297,10 +1301,11 @@ export async function optimizePortfolio(input: OptimizeInput) {
   const currentWeightsArr = actualWeightSum > 0.5
     ? actualWeights.map(w => w / actualWeightSum) // normalise to sum=1
     : new Array(n).fill(1 / n); // fallback: equal weight
-  const { ret: currRet, vol: currVol, sharpe: currSharpe } = portfolioStats(currentWeightsArr, mu, cov);
+  const { ret: currRet, vol: currVol, sharpe: currSharpe } = portfolioStats(currentWeightsArr, mu, cov, riskFreeRate);
 
   // Efficient frontier
-  const efficientFrontier = buildEfficientFrontier(mu, cov, riskFreeRate, available, 30);
+  // OPT-3: Frontier mit DENSELBEN Bounds wie das Optimum (vorher Default 1-10 %).
+  const efficientFrontier = buildEfficientFrontier(mu, cov, riskFreeRate, available, 30, minPositionWeight, maxPositionWeight);
 
   // Per-asset stats
   const assetStats = available.map((ticker, i) => {
@@ -1780,12 +1785,22 @@ export async function calcRiskScoreHistory(input: RiskScoreHistoryInput): Promis
   // We need enough data: windowDays + (weeks * 5 trading days per week) + buffer
   const totalDaysNeeded = windowDays + weeks * 5 + 30;
 
-  // Fetch all prices with dates
+  // OPT-1 (Audit 2026-07): gleiche Aufbereitung wie calcRiskMetrics — Preise werden
+  // VOR der Renditeberechnung nach CHF konvertiert und Reihen verschiedener Börsen
+  // per Handelsdatum aligniert. Vorher: rohe Lokalwährung + Index-Zipping über die
+  // kürzeste Reihe → der Score-Verlauf widersprach dem Headline-Risikoscore.
   const allTickers = Array.from(new Set([...tickers, benchmark]));
-  const pricesWithDates = await fetchPricesWithDates(allTickers, totalDaysNeeded);
+  const currencyByTicker: { [ticker: string]: string } = {};
+  for (const h of holdings) {
+    currencyByTicker[h.ticker] = h.currency || (await getStockCurrency(h.ticker));
+  }
+  if (!currencyByTicker[benchmark]) {
+    currencyByTicker[benchmark] = await getStockCurrency(benchmark);
+  }
+  const datedMap = await fetchReturnsWithDates(allTickers, totalDaysNeeded, currencyByTicker);
 
   // Find available tickers
-  const available = tickers.filter((t) => pricesWithDates[t] && pricesWithDates[t].length > windowDays + 5);
+  const available = tickers.filter((t) => datedMap[t] && datedMap[t].returns.length > windowDays + 5);
   if (available.length === 0) {
     return [];
   }
@@ -1796,44 +1811,13 @@ export async function calcRiskScoreHistory(input: RiskScoreHistoryInput): Promis
   const wSum = weightsAvail.reduce((s, v) => s + v, 0);
   if (wSum > 0) weightsAvail = weightsAvail.map((w) => w / wSum);
 
-  // Find the minimum common length across all available tickers
-  const minLen = Math.min(...available.map((t) => pricesWithDates[t].length));
-  
-  // Compute daily returns for each ticker (aligned to same length)
-  const returnsWithDates: { dates: string[]; returns: { [ticker: string]: number[] } } = {
-    dates: [],
-    returns: {},
-  };
+  // Auf gemeinsame Handelstage alignieren (inkl. Benchmark, falls vorhanden).
+  const hasBenchmark = !!datedMap[benchmark];
+  const alignList = hasBenchmark ? [...available, benchmark] : [...available];
+  const { dates: commonDates, returnsByTicker: aligned } = alignReturnsByDate(datedMap, alignList);
+  const benchmarkReturns: number[] | null = hasBenchmark ? (aligned[benchmark] ?? null) : null;
 
-  // Use the ticker with the shortest data as the date reference
-  const refTicker = available.reduce((a, b) => 
-    pricesWithDates[a].length <= pricesWithDates[b].length ? a : b
-  );
-  
-  for (let i = 1; i < Math.min(minLen, pricesWithDates[refTicker].length); i++) {
-    returnsWithDates.dates.push(pricesWithDates[refTicker][i].date);
-  }
-
-  for (const ticker of available) {
-    const prices = pricesWithDates[ticker];
-    const returns: number[] = [];
-    for (let i = 1; i < Math.min(minLen, prices.length); i++) {
-      returns.push((prices[i].price - prices[i - 1].price) / prices[i - 1].price);
-    }
-    returnsWithDates.returns[ticker] = returns;
-  }
-
-  // Also compute benchmark returns
-  const benchmarkPrices = pricesWithDates[benchmark];
-  let benchmarkReturns: number[] | null = null;
-  if (benchmarkPrices && benchmarkPrices.length > windowDays) {
-    benchmarkReturns = [];
-    for (let i = 1; i < Math.min(minLen, benchmarkPrices.length); i++) {
-      benchmarkReturns.push((benchmarkPrices[i].price - benchmarkPrices[i - 1].price) / benchmarkPrices[i - 1].price);
-    }
-  }
-
-  const totalReturns = returnsWithDates.dates.length;
+  const totalReturns = commonDates.length;
   if (totalReturns < windowDays + 5) {
     return [];
   }
@@ -1851,7 +1835,7 @@ export async function calcRiskScoreHistory(input: RiskScoreHistoryInput): Promis
     // Extract window returns for portfolio
     const windowPortfolioRets: number[] = new Array(windowDays).fill(0);
     for (let t = 0; t < available.length; t++) {
-      const tickerReturns = returnsWithDates.returns[available[t]];
+      const tickerReturns = aligned[available[t]];
       for (let d = startIdx; d <= endIdx; d++) {
         windowPortfolioRets[d - startIdx] += (tickerReturns[d] ?? 0) * weightsAvail[t];
       }
@@ -1893,7 +1877,7 @@ export async function calcRiskScoreHistory(input: RiskScoreHistoryInput): Promis
     );
 
     dataPoints.push({
-      date: returnsWithDates.dates[endIdx],
+      date: commonDates[endIdx],
       score: riskScore,
       volatility: Math.round(volatility * 10000) / 100,
       sharpe: Math.round(sharpe * 100) / 100,
@@ -1906,14 +1890,3 @@ export async function calcRiskScoreHistory(input: RiskScoreHistoryInput): Promis
   return dataPoints;
 }
 
-/**
- * Fetch daily prices with dates for multiple tickers.
- * Returns an object mapping ticker -> array of {date, price} sorted chronologically.
- */
-async function fetchPricesWithDates(
-  tickers: string[],
-  lookbackDays: number
-): Promise<{ [ticker: string]: Array<{ date: string; price: number }> }> {
-  // Delegate to DB-based helper (EODHD-sourced historicalPrices table)
-  return fetchPricesFromDB(tickers, lookbackDays);
-}
