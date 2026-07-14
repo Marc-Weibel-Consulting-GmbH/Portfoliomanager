@@ -412,6 +412,199 @@ export const autoPortfolioRouter = router({
       }
 
       console.log(`[buildProposal] Done: ${positions.length} positions built, returning result`);
+
+      // ===================================================================
+      // MULTI-AGENT CHALLENGE LAYER (3 Agenten: Selektor → Challenger → Synthesizer)
+      // ===================================================================
+      // Agent 2: Challenger — hinterfragt den deterministischen Vorschlag kritisch
+      // Agent 3: Synthesizer — moderiert und erstellt finalen Vorschlag mit Begründung
+      // Beide Agenten laufen parallel-sequenziell nach dem deterministischen Selektor.
+      // Das Ergebnis wird als `challengeReport` im Return-Objekt mitgeliefert.
+      let challengeReport: {
+        challengerCritique: string;
+        challengerRejected: Array<{ ticker: string; reason: string }>;
+        challengerAlternatives: Array<{ ticker: string; reason: string }>;
+        synthesizerVerdict: string;
+        finalAdjustments: Array<{ ticker: string; action: 'keep' | 'replace' | 'reduce' | 'increase'; reason: string }>;
+        overallConfidence: 'hoch' | 'mittel' | 'niedrig';
+        agentDuration: number;
+      } | null = null;
+
+      try {
+        const agentStart = Date.now();
+
+        // Prepare compact position summary for agents
+        const positionSummary = positions.map(p => ({
+          ticker: p.ticker,
+          name: p.companyName,
+          sector: p.sector,
+          currency: p.currency,
+          weight: p.weightPct,
+          score: p.combinedScore,
+          signal: p.signal,
+          ytd: (p as any).ytdPerf ?? null,
+          reason: p.reason,
+        }));
+
+        // Prepare non-selected candidates for challenger alternatives
+        const candidatePool = scored
+          .filter(x => !positions.find(p => p.ticker === x.stock.ticker))
+          .slice(0, 15)
+          .map(x => ({ ticker: x.stock.ticker, name: x.stock.companyName, sector: x.stock.sector, score: x.combinedScore, signal: x.signal }));
+
+        const profileSummary = `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%, ESG: ${esgOnly}`;
+
+        // ---- AGENT 2: CHALLENGER ----
+        console.log('[buildProposal] Agent 2 (Challenger) starting...');
+        const challengerResponse = await invokeLLM({
+          messages: [
+            {
+              role: 'system',
+              content: `Du bist ein kritischer Portfolio-Analyst ("Challenger"). Deine Aufgabe ist es, einen algorithmisch erstellten Portfolio-Vorschlag zu hinterfragen und Schwachstellen zu identifizieren. Antworte immer auf Deutsch. Sei präzise und konstruktiv kritisch — nicht destruktiv. Fokussiere auf: Klumpenrisiken, fehlende Diversifikation, fragwürdige Einzeltitel, Widersprüche zum Anlegerprofil.`,
+            },
+            {
+              role: 'user',
+              content: `Analysiere diesen Portfolio-Vorschlag kritisch:
+
+Anlegerprofil: ${profileSummary}
+
+Vorgeschlagene Positionen:
+${JSON.stringify(positionSummary, null, 2)}
+
+Verfügbare Alternativen (nicht ausgewählt):
+${JSON.stringify(candidatePool, null, 2)}
+
+Identifiziere:
+1. Welche 1-3 Titel würdest du NICHT nehmen? (mit konkreter Begründung)
+2. Welche 1-3 Alternativen aus dem Kandidatenpool wären besser geeignet?
+3. Gibt es Klumpenrisiken (Sektor/Währung/Korrelation)?
+
+Antworte im JSON-Format.`,
+            },
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'challenger_analysis',
+              strict: true,
+              schema: {
+                type: 'object',
+                properties: {
+                  critique: { type: 'string', description: 'Gesamteinschätzung in 2-3 Sätzen' },
+                  rejected: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        ticker: { type: 'string' },
+                        reason: { type: 'string' },
+                      },
+                      required: ['ticker', 'reason'],
+                      additionalProperties: false,
+                    },
+                  },
+                  alternatives: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        ticker: { type: 'string' },
+                        reason: { type: 'string' },
+                      },
+                      required: ['ticker', 'reason'],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ['critique', 'rejected', 'alternatives'],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const challengerContent = challengerResponse.choices[0]?.message?.content as string | undefined;
+        const challengerResult = challengerContent ? JSON.parse(challengerContent) : { critique: '', rejected: [], alternatives: [] };
+        console.log(`[buildProposal] Agent 2 done: rejected=${challengerResult.rejected.length}, alternatives=${challengerResult.alternatives.length}`);
+
+        // ---- AGENT 3: SYNTHESIZER ----
+        console.log('[buildProposal] Agent 3 (Synthesizer) starting...');
+        const synthesizerResponse = await invokeLLM({
+          messages: [
+            {
+              role: 'system',
+              content: `Du bist ein erfahrener Portfolio-Manager ("Synthesizer"). Du erhältst einen algorithmischen Portfolio-Vorschlag und eine kritische Analyse eines Challengers. Deine Aufgabe: Moderiere die Erkenntnisse, entscheide welche Kritikpunkte berechtigt sind, und erstelle eine finale Empfehlung mit konkreten Anpassungsvorschlägen. Antworte immer auf Deutsch. Sei ausgewogen — nicht jede Kritik des Challengers ist berechtigt.`,
+            },
+            {
+              role: 'user',
+              content: `Algorithmischer Vorschlag:
+${JSON.stringify(positionSummary, null, 2)}
+
+Challenger-Kritik:
+Gesamteinschätzung: ${challengerResult.critique}
+Abgelehnte Titel: ${JSON.stringify(challengerResult.rejected)}
+Alternativen: ${JSON.stringify(challengerResult.alternatives)}
+
+Anlegerprofil: ${profileSummary}
+
+Erstelle:
+1. Dein Gesamturteil (2-3 Sätze): Ist der Vorschlag gut? Was sind die wichtigsten Stärken/Schwächen?
+2. Konkrete Anpassungen: Für jeden Titel: behalten/reduzieren/erhöhen/ersetzen?
+3. Gesamtvertrauen in den Vorschlag: hoch/mittel/niedrig
+
+Antworte im JSON-Format.`,
+            },
+          ],
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'synthesizer_verdict',
+              strict: true,
+              schema: {
+                type: 'object',
+                properties: {
+                  verdict: { type: 'string', description: 'Gesamturteil in 2-3 Sätzen' },
+                  adjustments: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        ticker: { type: 'string' },
+                        action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] },
+                        reason: { type: 'string' },
+                      },
+                      required: ['ticker', 'action', 'reason'],
+                      additionalProperties: false,
+                    },
+                  },
+                  overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
+                },
+                required: ['verdict', 'adjustments', 'overallConfidence'],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const synthContent = synthesizerResponse.choices[0]?.message?.content as string | undefined;
+        const synthResult = synthContent ? JSON.parse(synthContent) : { verdict: '', adjustments: [], overallConfidence: 'mittel' };
+        const agentDuration = Date.now() - agentStart;
+        console.log(`[buildProposal] Agent 3 done: confidence=${synthResult.overallConfidence}, duration=${agentDuration}ms`);
+
+        challengeReport = {
+          challengerCritique: challengerResult.critique,
+          challengerRejected: challengerResult.rejected,
+          challengerAlternatives: challengerResult.alternatives,
+          synthesizerVerdict: synthResult.verdict,
+          finalAdjustments: synthResult.adjustments,
+          overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig',
+          agentDuration,
+        };
+      } catch (agentErr: any) {
+        console.warn(`[buildProposal] Multi-agent layer failed (non-fatal): ${agentErr?.message}`);
+        // challengeReport bleibt null — deterministischer Vorschlag wird ohne Challenge zurückgegeben
+      }
+
       return {
         positions,
         method,
@@ -446,6 +639,7 @@ export const autoPortfolioRouter = router({
           maxPositionPct: Math.max(...positions.map((p) => p.weightPct)),
           sectorBenchmarkFiltered: allStocks.length - universe.length - (excludedSectors.length > 0 ? 0 : 0),
         },
+        challengeReport,
       };
     }),
 

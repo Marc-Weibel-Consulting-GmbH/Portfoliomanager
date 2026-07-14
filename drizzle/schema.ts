@@ -1283,3 +1283,18 @@ export const alertConfig = mysqlTable("alertConfig", {
 });
 export type AlertConfig = typeof alertConfig.$inferSelect;
 export type InsertAlertConfig = typeof alertConfig.$inferInsert;
+
+// ─── Gap-Fill Log ────────────────────────────────────────────────────────────
+// Tracks each EODHD Gap-Filling run: which gaps were found and which stocks added.
+export const gapFillLog = mysqlTable("gapFillLog", {
+  id: int("id").autoincrement().primaryKey(),
+  runAt: timestamp("runAt").defaultNow().notNull(),
+  triggeredBy: varchar("triggeredBy", { length: 32 }).notNull().default("cron"), // "cron" | "manual"
+  gapsFound: json("gapsFound").notNull(), // Array<{ type: string; label: string; count: number; needed: number }>
+  stocksAdded: json("stocksAdded").notNull(), // Array<{ ticker: string; name: string; sector: string; gapType: string }>
+  stocksSkipped: int("stocksSkipped").notNull().default(0), // already in DB or API error
+  durationMs: int("durationMs"),
+  error: text("error"), // non-null if the run failed
+});
+export type GapFillLog = typeof gapFillLog.$inferSelect;
+export type InsertGapFillLog = typeof gapFillLog.$inferInsert;

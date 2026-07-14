@@ -1011,4 +1011,49 @@ export const adminRouter = router({
         };
       }
     }),
+
+    /**
+     * Manually trigger the EODHD Gap-Filling job
+     */
+    triggerGapFilling: adminProcedure.mutation(async () => {
+      const { runGapFilling } = await import("../cron/gapFillingCron");
+      try {
+        const result = await runGapFilling("manual");
+        return {
+          success: true,
+          gapsFound: result.gapsFound,
+          stocksAdded: result.stocksAdded,
+          stocksSkipped: result.stocksSkipped,
+          durationMs: result.durationMs,
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          gapsFound: [],
+          stocksAdded: [],
+          stocksSkipped: 0,
+          durationMs: 0,
+          error: err?.message ?? "Unbekannter Fehler",
+        };
+      }
+    }),
+
+    /**
+     * Get the last N gap-filling log entries
+     */
+    getGapFillLogs: adminProcedure
+      .input(z.object({ limit: z.number().min(1).max(50).default(10) }))
+      .query(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { gapFillLog } = await import("../../drizzle/schema");
+        const { desc } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const rows = await db
+          .select()
+          .from(gapFillLog)
+          .orderBy(desc(gapFillLog.runAt))
+          .limit(input.limit);
+        return rows;
+      }),
 });

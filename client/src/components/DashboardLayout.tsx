@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera, Search } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -76,6 +76,7 @@ const adminMenuItems = [
   { icon: Calculator, label: "Berechnungen", path: "/admin/berechnungen" },
   { icon: Camera, label: "Screenshots", path: "/admin/screenshots" },
   { icon: Bell, label: "Alert-Kriterien", path: "/admin/alert-config" },
+  { icon: Search, label: "Universum Gap-Filling", path: "/admin/gap-filling" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
