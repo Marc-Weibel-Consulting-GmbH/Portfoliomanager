@@ -117,6 +117,7 @@ export const stocks = mysqlTable("stocks", {
   notes: text("notes"), // Admin-Notizen / Import-Herkunft (z. B. Wikifolio-Code)
   isActive: tinyint("isActive").notNull().default(1),
   lastMetricsUpdate: timestamp("lastMetricsUpdate"),
+  lastAlertSentAt: timestamp("lastAlertSentAt"), // Zeitpunkt des letzten Alert-Versands (für Cooldown)
   /**
    * Optional override for the EODHD API symbol.
    * Some exchanges use a different code in EODHD than the standard ticker.
@@ -1274,6 +1275,8 @@ export const alertConfig = mysqlTable("alertConfig", {
   buyPreviousScoreThreshold: int("buyPreviousScoreThreshold").notNull().default(70),
   sellPreviousScoreThreshold: int("sellPreviousScoreThreshold").notNull().default(35),
   scoreChangeTrigger: int("scoreChangeTrigger").notNull().default(10),
+  // Alert Cooldown: suppress repeated alerts for the same stock
+  alertCooldownDays: int("alertCooldownDays").notNull().default(7),
   // Metadata
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   updatedBy: varchar("updatedBy", { length: 64 }),

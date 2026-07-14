@@ -42,6 +42,8 @@ const alertConfigSchema = z.object({
   buyPreviousScoreThreshold: z.number().min(0).max(100),
   sellPreviousScoreThreshold: z.number().min(0).max(100),
   scoreChangeTrigger: z.number().min(1).max(50),
+  // Alert cooldown
+  alertCooldownDays: z.number().min(0).max(365),
 });
 
 export const alertConfigRouter = router({
@@ -71,6 +73,7 @@ export const alertConfigRouter = router({
         buyTriggerScore: 75, sellTriggerScore: 25,
         buyPreviousScoreThreshold: 70, sellPreviousScoreThreshold: 35,
         scoreChangeTrigger: 10,
+        alertCooldownDays: 7,
         updatedAt: null as Date | null,
         updatedBy: null as string | null,
       };
@@ -107,6 +110,7 @@ export const alertConfigRouter = router({
       buyPreviousScoreThreshold: row.buyPreviousScoreThreshold,
       sellPreviousScoreThreshold: row.sellPreviousScoreThreshold,
       scoreChangeTrigger: row.scoreChangeTrigger,
+      alertCooldownDays: row.alertCooldownDays ?? 7,
       updatedAt: row.updatedAt,
       updatedBy: row.updatedBy,
     };
@@ -157,6 +161,7 @@ export const alertConfigRouter = router({
         buyPreviousScoreThreshold: input.buyPreviousScoreThreshold,
         sellPreviousScoreThreshold: input.sellPreviousScoreThreshold,
         scoreChangeTrigger: input.scoreChangeTrigger,
+        alertCooldownDays: input.alertCooldownDays,
         updatedBy: ctx.user.name || ctx.user.email || "admin",
       }).onDuplicateKeyUpdate({
         set: {
@@ -189,6 +194,7 @@ export const alertConfigRouter = router({
           buyPreviousScoreThreshold: input.buyPreviousScoreThreshold,
           sellPreviousScoreThreshold: input.sellPreviousScoreThreshold,
           scoreChangeTrigger: input.scoreChangeTrigger,
+          alertCooldownDays: input.alertCooldownDays,
           updatedBy: ctx.user.name || ctx.user.email || "admin",
         },
       });

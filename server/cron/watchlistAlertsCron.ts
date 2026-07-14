@@ -134,7 +134,16 @@ export async function checkWatchlistAlerts() {
         }).where(eq(stocksTable.id, stock.id));
 
         // Check for strong signals (using DB config thresholds)
-        if (signalScore >= C.buyTriggerScore && (previousScore < C.buyPreviousScoreThreshold || signalScore - previousScore >= C.scoreChangeTrigger)) {
+        // Cooldown: suppress repeated alerts for the same stock within alertCooldownDays
+        const cooldownDays = C.alertCooldownDays ?? 7;
+        const lastAlert = stock.lastAlertSentAt ? new Date(stock.lastAlertSentAt) : null;
+        const daysSinceLastAlert = lastAlert
+          ? (Date.now() - lastAlert.getTime()) / (1000 * 60 * 60 * 24)
+          : Infinity;
+        const inCooldown = cooldownDays > 0 && daysSinceLastAlert < cooldownDays;
+        if (inCooldown) {
+          console.log(`[watchlistAlertsCron] ${stock.ticker}: in cooldown (last alert ${Math.floor(daysSinceLastAlert)}d ago, cooldown=${cooldownDays}d) — skipping alert`);
+        } else if (signalScore >= C.buyTriggerScore && (previousScore < C.buyPreviousScoreThreshold || signalScore - previousScore >= C.scoreChangeTrigger)) {
           strongBuySignals.push({
             ticker: stock.ticker,
             companyName: stock.companyName || stock.ticker,
@@ -203,6 +212,19 @@ export async function checkWatchlistAlerts() {
       try {
         await notifyOwner({ title, content });
         console.log(`[watchlistAlertsCron] Notification sent: ${title}`);
+
+        // Update lastAlertSentAt for all alerted stocks (for cooldown tracking)
+        const alertedTickers = [
+          ...strongBuySignals.map(s => s.ticker),
+          ...strongSellSignals.map(s => s.ticker),
+        ];
+        if (alertedTickers.length > 0) {
+          const { inArray } = await import("drizzle-orm");
+          await db.update(stocksTable)
+            .set({ lastAlertSentAt: new Date() })
+            .where(inArray(stocksTable.ticker, alertedTickers));
+          console.log(`[watchlistAlertsCron] lastAlertSentAt updated for: ${alertedTickers.join(", ")}`);
+        }
       } catch (notifyErr) {
         console.error("[watchlistAlertsCron] Failed to send notification:", notifyErr);
       }

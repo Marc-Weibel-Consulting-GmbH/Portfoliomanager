@@ -26,6 +26,8 @@ export interface AlertScoreConfig {
   buyTriggerScore: number; sellTriggerScore: number;
   buyPreviousScoreThreshold: number; sellPreviousScoreThreshold: number;
   scoreChangeTrigger: number;
+  /** Mindestabstand in Tagen zwischen zwei Alerts für dieselbe Aktie (0 = kein Cooldown). */
+  alertCooldownDays: number;
 }
 
 export const DEFAULT_ALERT_SCORE_CONFIG: AlertScoreConfig = {
@@ -40,6 +42,7 @@ export const DEFAULT_ALERT_SCORE_CONFIG: AlertScoreConfig = {
   buyTriggerScore: 75, sellTriggerScore: 25,
   buyPreviousScoreThreshold: 70, sellPreviousScoreThreshold: 35,
   scoreChangeTrigger: 10,
+  alertCooldownDays: 7,
 };
 
 /** Admin-Konfiguration aus der alertConfig-Tabelle laden (Fallback: Defaults). */
@@ -83,6 +86,7 @@ export async function loadAlertScoreConfig(): Promise<AlertScoreConfig> {
       buyPreviousScoreThreshold: cfg.buyPreviousScoreThreshold ?? D.buyPreviousScoreThreshold,
       sellPreviousScoreThreshold: cfg.sellPreviousScoreThreshold ?? D.sellPreviousScoreThreshold,
       scoreChangeTrigger: cfg.scoreChangeTrigger ?? D.scoreChangeTrigger,
+      alertCooldownDays: cfg.alertCooldownDays ?? D.alertCooldownDays,
     };
   } catch {
     return DEFAULT_ALERT_SCORE_CONFIG;

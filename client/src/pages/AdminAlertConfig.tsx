@@ -24,6 +24,8 @@ const DEFAULT_CONFIG = {
   buyTriggerScore: 75, sellTriggerScore: 25,
   buyPreviousScoreThreshold: 70, sellPreviousScoreThreshold: 35,
   scoreChangeTrigger: 10,
+  // Cooldown
+  alertCooldownDays: 7,
 };
 
 type Config = typeof DEFAULT_CONFIG;
@@ -113,6 +115,7 @@ export default function AdminAlertConfig() {
         buyPreviousScoreThreshold: data.buyPreviousScoreThreshold,
         sellPreviousScoreThreshold: data.sellPreviousScoreThreshold,
         scoreChangeTrigger: data.scoreChangeTrigger,
+        alertCooldownDays: (data as any).alertCooldownDays ?? 7,
       });
       setIsDirty(false);
     }
@@ -155,7 +158,7 @@ export default function AdminAlertConfig() {
           min={min}
           max={max}
           value={config[field]}
-          onChange={e => set(field, parseFloat(e.target.value) || 0)}
+          onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) set(field, v); }}
           className={inputCls}
         />
         {hint && <p className={hintCls}>{hint}</p>}
@@ -337,6 +340,15 @@ export default function AdminAlertConfig() {
                 hint="Alert nur wenn vorheriger Score > diesem Wert (z.B. 35)"
                 min={0} max={100}
               />
+              <div className="col-span-2 border-t border-[#1e2840] pt-3 mt-1">
+                <p className="text-xs text-[#00CFC1] font-medium mb-2">Wiederholungs-Unterdrückung</p>
+                <NumField
+                  label="Cooldown (Tage)"
+                  field="alertCooldownDays"
+                  hint="Max. 1 Alert pro Aktie alle X Tage (0 = kein Cooldown)"
+                  min={0} max={365}
+                />
+              </div>
             </div>
 
             <ScorePreview config={config} />
