@@ -208,35 +208,52 @@ async function calculateCreditEngine(): Promise<EngineResult> {
 }
 
 /**
- * Sentiment Engine: VIX Z-Score as contrarian sentiment proxy
+ * Sentiment Engine: Risikoappetit via XLY/XLP-Ratio (zyklischer Konsum vs.
+ * Basiskonsum).
+ *
+ * SIG-8 (Audit 2026-07): Vorher war das Sentiment ein VIX-Z-Score — damit
+ * hingen 25 % des Gesamtscores doppelt am VIX (Volatility-Engine 20 % +
+ * Sentiment 5 %, teils gegenläufig interpretiert). Die XLY/XLP-Relative-
+ * Stärke ist ein etablierter, VIX-unabhängiger Risk-On/Risk-Off-Indikator:
+ * steigt zyklischer Konsum relativ zu defensivem Basiskonsum, sind Anleger
+ * risikofreudig (bullish) — und umgekehrt.
  */
 async function calculateSentimentEngine(): Promise<EngineResult> {
   try {
-    const prices = await fetchHistoricalPrices('VIX.INDX', 1);
-    
-    if (!prices || prices.length < 60) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 60 Tage Daten" };
+    const [xly, xlp] = await Promise.all([
+      fetchHistoricalPrices('XLY.US', 1),
+      fetchHistoricalPrices('XLP.US', 1),
+    ]);
+
+    if (!xly || !xlp || xly.length < 60 || xlp.length < 60) {
+      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 60 Tage XLY/XLP-Daten" };
     }
 
-    const closes = prices.map((p: any) => p.close);
-    const currentVix = closes[closes.length - 1];
-    
-    // Calculate Z-Score of VIX (contrarian: extreme fear = buy opportunity)
-    const mean = closes.reduce((a: number, b: number) => a + b, 0) / closes.length;
-    const std = Math.sqrt(closes.reduce((a: number, b: number) => a + (b - mean) ** 2, 0) / closes.length);
-    const zScore = std > 0 ? (currentVix - mean) / std : 0;
-    
-    // Contrarian: high VIX z-score (extreme fear) = bullish signal
-    // Low VIX z-score (complacency) = bearish signal
-    let score = 0;
-    if (zScore > 2) score = 0.6; // Extreme fear = contrarian buy
-    else if (zScore > 1) score = 0.3;
-    else if (zScore < -1.5) score = -0.4; // Extreme complacency = warning
-    else if (zScore < -0.5) score = -0.2;
-    
+    // Ratio-Serie über die letzten gemeinsamen Handelstage (beide US-Kalender).
+    const len = Math.min(xly.length, xlp.length);
+    const ratios: number[] = [];
+    for (let i = 0; i < len; i++) {
+      const y = xly[xly.length - len + i]?.close;
+      const p = xlp[xlp.length - len + i]?.close;
+      if (y > 0 && p > 0) ratios.push(y / p);
+    }
+    if (ratios.length < 60) {
+      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Zu wenige gültige XLY/XLP-Kurse" };
+    }
+
+    const current = ratios[ratios.length - 1];
+    const avg50 = ratios.slice(-50).reduce((a, b) => a + b, 0) / 50;
+    const prev20 = ratios[ratios.length - 21] ?? current;
+
+    // Niveau vs. 50-Tage-Schnitt (±3 % ≈ ±0.3) + 20-Tage-Trend (±2 % ≈ ±0.2),
+    // je begrenzt — Gesamtscore in [-0.5, 0.5].
+    const levelSignal = Math.max(-0.3, Math.min(0.3, (current / avg50 - 1) * 10));
+    const trendSignal = Math.max(-0.2, Math.min(0.2, (current / prev20 - 1) * 10));
+    const score = levelSignal + trendSignal;
+
     const level = classify(score);
-    const desc = `VIX Z-Score: ${zScore.toFixed(2)} | ${zScore > 1 ? 'Extreme Angst (konträr bullish)' : zScore < -1 ? 'Sorglosigkeit (Warnung)' : 'Normal'}`;
-    
+    const desc = `Risikoappetit (XLY/XLP): ${current.toFixed(2)} | 50T-Schnitt: ${avg50.toFixed(2)} | ${score > 0.15 ? 'Risk-On' : score < -0.15 ? 'Defensiv' : 'Neutral'}`;
+
     return { label: labelFromLevel(level), score, level, description: desc };
   } catch (e) {
     console.error('[MarketRegime] Sentiment engine error:', e);

@@ -329,6 +329,7 @@ export default function TradingViewSignalsTab({ ticker, exchange }: Props) {
           <Activity className="w-4 h-4 text-[#00CFC1]" />
           <span className="text-white font-medium">Technische Signale — {ticker}</span>
           <Badge className="bg-[#00CFC1]/10 text-[#00CFC1] border-[#00CFC1]/20 text-xs">LIVE</Badge>
+          <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-xs">Zweitmeinung</Badge>
         </div>
         <Button
           variant="ghost"
@@ -338,6 +339,18 @@ export default function TradingViewSignalsTab({ ticker, exchange }: Props) {
         >
           <RefreshCw className="w-3 h-3 mr-1" /> Aktualisieren
         </Button>
+      </div>
+
+      {/* SIG-5: TradingView klar als unabhängige Zweitmeinung deklariert —
+          eigene Datenquelle/Methodik, fliesst NICHT in den App-Score ein. */}
+      <div className="flex items-start gap-2 text-xs text-gray-400 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2">
+        <AlertCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+        <span>
+          <strong className="text-amber-400">Unabhängige Zweitmeinung von TradingView:</strong>{" "}
+          Diese technischen Signale stammen aus einer eigenen Datenquelle mit eigener Methodik und
+          fliessen <strong>nicht</strong> in den Score und das Signal des Portfolio Managers ein.
+          Abweichungen zum App-Signal sind deshalb möglich und normal.
+        </span>
       </div>
 
       {/* Overall Signal */}

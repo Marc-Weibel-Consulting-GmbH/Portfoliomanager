@@ -264,11 +264,20 @@ function evaluateEngine(
 /**
  * A-priori Gewichtung der Engines je Regime.
  * Kombiniert mit dem Walk-Forward-Score für die finale Auswahl.
+ *
+ * SIG-7 (Audit 2026-07): Liegen GELERNTE Priors vor (aus dem gemessenen
+ * Out-of-Sample-Alpha, regime_signal_config → learnRegimeWeights), gehen sie
+ * den hartkodierten Defaults vor — damit schliesst sich die Gedächtnis-Schleife.
  */
 function getRegimePrior(
   engine: SignalEngineType,
-  regime: MarketRegime
+  regime: MarketRegime,
+  learnedPriors?: Record<string, number> | null
 ): number {
+  const learned = learnedPriors?.[engine];
+  if (typeof learned === "number" && Number.isFinite(learned) && learned > 0) {
+    return learned;
+  }
   const priors: Record<MarketRegime, Partial<Record<SignalEngineType, number>>> = {
     bull_trend:         { trend: 0.50, breakout: 0.30, mean_reversion: 0.10, ensemble: 0.10 },
     bear_trend:         { trend: 0.45, breakout: 0.30, mean_reversion: 0.15, ensemble: 0.10 },
@@ -303,13 +312,17 @@ export interface ModelSelectionResult {
 export function selectBestModel(
   prices: number[],
   regime: MarketRegime,
-  signals: Map<SignalEngineType, SignalOutput>
+  signals: Map<SignalEngineType, SignalOutput>,
+  learnedPriors?: Record<string, number> | null
 ): ModelSelectionResult {
   const rationale: string[] = [];
   const evaluations: ModelEvaluation[] = [];
   const walkForwardEnabled = prices.length >= MIN_PRICES_FOR_WF;
 
   rationale.push(`Walk-Forward: ${walkForwardEnabled ? `aktiv (${N_FOLDS} Folds, IS=${IS_WINDOW}T, OOS=${OOS_WINDOW}T)` : `deaktiviert (< ${MIN_PRICES_FOR_WF} Datenpunkte)`}`);
+  if (learnedPriors && Object.keys(learnedPriors).length > 0) {
+    rationale.push(`Priors: GELERNT aus Out-of-Sample-Alpha (${regime}) statt Default`);
+  }
 
   // Alle Engines evaluieren
   const scoredEngines: Array<{ engine: SignalEngineType; combinedScore: number; eval: ModelEvaluation }> = [];
@@ -319,7 +332,7 @@ export function selectBestModel(
     evaluations.push(evaluation);
 
     // Kombinierter Score: Walk-Forward-Score × 0.7 + Regime-Prior × 0.3
-    const prior = getRegimePrior(engineType, regime);
+    const prior = getRegimePrior(engineType, regime, learnedPriors);
     const combinedScore = evaluation.totalScore * 0.70 + prior * 0.30;
 
     scoredEngines.push({ engine: engineType, combinedScore, eval: evaluation });

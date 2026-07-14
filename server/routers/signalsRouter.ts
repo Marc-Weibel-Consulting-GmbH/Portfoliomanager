@@ -658,6 +658,8 @@ async function processStock(
         const lpplRisk = signal.bubbleScore !== undefined
           ? { bubbleScore: signal.bubbleScore, regime: signal.bubbleRegime ?? 'normal', confidence: 0.6 }
           : null;
+        // SIG-7: gelernte Engine-Priors laden (gecacht) — schliesst die Gedächtnis-Schleife.
+        const { getLearnedEnginePriors } = await import('../analytics/regimeSignalMemory');
         signal.regimeSignal = runSignalOrchestrator({
           ticker,
           marketType: 'single_stock',
@@ -666,6 +668,7 @@ async function processStock(
           lpplRisk: signal.bubbleScore ?? null,
           qualityScore: signal.qualityScore ?? null,
           momentumScore: signal.momentumScore ?? null,
+          learnedEnginePriorsByRegime: await getLearnedEnginePriors(),
         });
       } catch (e) {
         // Regime signal failed silently
@@ -759,6 +762,8 @@ export const signalsRouter = router({
         const { score: momentumScore } = calculateMomentumScore({ prices });
         const bubbleResult = detectBubble({ prices });
 
+        // SIG-7: gelernte Engine-Priors laden (gecacht) — schliesst die Gedächtnis-Schleife.
+        const { getLearnedEnginePriors } = await import('../analytics/regimeSignalMemory');
         return runSignalOrchestrator({
           ticker,
           marketType: 'single_stock',
@@ -767,6 +772,7 @@ export const signalsRouter = router({
           lpplRisk: bubbleResult.bubbleScore ?? null,
           momentumScore,
           qualityScore: null,
+          learnedEnginePriorsByRegime: await getLearnedEnginePriors(),
         });
       } catch (e) {
         console.warn(`[signals.getRegimeSignal] Failed for ${ticker}:`, (e as Error).message);

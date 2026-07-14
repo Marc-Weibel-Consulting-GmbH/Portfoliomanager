@@ -27,8 +27,8 @@ const DIM_META: Record<string, { name: string; sub: string; tip: string; weight:
     tip: "Anleihen (TLT) und US-Dollar als Gradmesser der Finanzierungsbedingungen — locker (gut) vs. straff." },
   credit: { name: "Credit-Spreads", sub: "Ramsch- vs. Qualitätsanleihen", weight: 10,
     tip: "Verhältnis HYG/LQD (High-Yield zu Investment-Grade). Enger werdende Spreads = Vertrauen, weiter werdende = Risikoaversion." },
-  sentiment: { name: "Stimmung", sub: "VIX-Extreme (kontrarisch)", weight: 5,
-    tip: "Extreme Sorglosigkeit oder Panik als Gegenindikator: sehr niedrige Angst kann Vorsicht rechtfertigen." },
+  sentiment: { name: "Stimmung", sub: "Risikoappetit (XLY/XLP)", weight: 5,
+    tip: "Zyklischer Konsum (XLY) im Verhältnis zu Basiskonsum (XLP): steigt das Verhältnis, greifen Anleger zu Risiko (Risk-On) — fällt es, wird defensiv umgeschichtet." },
   bubble: { name: "Blasenrisiko", sub: "LPPL-Überhitzung", weight: 5,
     tip: "Ein Modell (LPPL) erkennt exponentiell überhitzte, blasenartige Kursverläufe." },
 };

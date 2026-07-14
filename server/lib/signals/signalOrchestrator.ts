@@ -98,7 +98,10 @@ export function runSignalOrchestrator(input: OrchestratorInput): PortfolioAction
     ["ensemble", ensembleSignal],
   ]);
 
-  const modelSelection = selectBestModel(prices, regimeSnapshot.regime, signalMap);
+  // SIG-7: gelernte Engine-Priors des aktuellen Regimes (falls vom Aufrufer
+  // geladen) ersetzen die hartkodierten Defaults im Selector.
+  const learnedPriors = input.learnedEnginePriorsByRegime?.[regimeSnapshot.regime] ?? null;
+  const modelSelection = selectBestModel(prices, regimeSnapshot.regime, signalMap, learnedPriors);
   const selectedSignal = modelSelection.selectedSignal;
 
   // ── 4. Risk Overlay ──────────────────────────────────────────────────────
