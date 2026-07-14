@@ -663,6 +663,26 @@ export default function PortfolioBuilderWizard() {
                         Hinweis zur Gewichtung: {(autoProposal as any).weighting.note}
                       </p>
                     )}
+                    {/* Erwartete Kennzahlen des optimierten Vorschlags («was darf ich erwarten?») */}
+                    {(autoProposal as any).metrics && (
+                      <div className="flex flex-wrap gap-4 text-xs bg-[#0f1420] border border-white/10 rounded-lg px-4 py-2.5">
+                        <span className="text-gray-400">Erwartet (historisch geschätzt):</span>
+                        <span className="text-white font-mono">Rendite ~{(autoProposal as any).metrics.expectedReturnPct.toFixed(1)}% p.a.</span>
+                        <span className="text-white font-mono">Schwankung ~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
+                        <span className="text-white font-mono">Sharpe {(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
+                        {(autoProposal as any).allocation && (
+                          <span className="text-gray-400">Fremdwährung {(autoProposal as any).allocation.fxWeightPct.toFixed(0)}%</span>
+                        )}
+                      </div>
+                    )}
+                    {/* Ehrliche Hinweise (ESG nicht verfügbar, Qualitätsstufe, Cap-Überschreitungen) */}
+                    {Array.isArray((autoProposal as any).notes) && (autoProposal as any).notes.length > 0 && (
+                      <div className="space-y-1">
+                        {(autoProposal as any).notes.map((n: string, i: number) => (
+                          <p key={i} className="text-xs text-amber-400">⚠ {n}</p>
+                        ))}
+                      </div>
+                    )}
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
                       {autoProposal.positions.map((p: any) => (
                         <div key={p.ticker} className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">
@@ -738,6 +758,12 @@ export default function PortfolioBuilderWizard() {
                               </div>
                             </div>
                           )}
+                          {/* Unverbindlichkeit klar machen (analog SIG-5): die Hinweise
+                              werden beim Übernehmen NICHT automatisch angewendet. */}
+                          <p className="text-xs text-gray-500 border-t border-white/10 pt-2">
+                            Unabhängige KI-Zweitmeinung — die Empfehlungen sind Hinweise und werden beim Übernehmen
+                            des Vorschlags nicht automatisch angewendet.
+                          </p>
                           <p className="text-xs text-gray-600">Analyse in {(cr.agentDuration / 1000).toFixed(1)}s · Challenger + Synthesizer</p>
                         </div>
                       );

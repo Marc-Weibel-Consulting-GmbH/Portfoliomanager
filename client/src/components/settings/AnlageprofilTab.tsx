@@ -349,7 +349,14 @@ function EditForm({
                   onChange={(e) => set({ esgOnly: e.target.checked })}
                   className="h-4 w-4 accent-[#00CFC1]"
                 />
-                Nur nachhaltige Anlagen (ESG)
+                <span>
+                  Nur nachhaltige Anlagen (ESG)
+                  {/* Ehrlichkeit: es gibt noch keine ESG-Daten — der Wunsch wird
+                      gespeichert, aber noch nicht angewendet. */}
+                  <span className="block text-xs text-amber-400">
+                    In Vorbereitung — wird gespeichert, aber noch nicht angewendet (ESG-Daten fehlen).
+                  </span>
+                </span>
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FieldGroup label="Zielrendite p.a. (%, optional)">
