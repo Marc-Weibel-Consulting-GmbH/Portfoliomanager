@@ -1374,7 +1374,21 @@ export default function PortfolioDetailsPage() {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="YTD = seit Jahresbeginn">YTD</p>
             {(() => {
               const entry = (multiPeriod as any[] | undefined)?.find(p => p.portfolioId === portfolioId);
-              const ytdStocks = entry?.performance?.YTD ?? null;
+              // Primary: multiPeriod entry; Fallback: weighted average of holdings ytdPerformance
+              let ytdStocks: number | null = entry?.performance?.YTD ?? null;
+              if (ytdStocks === null && holdings.length > 0) {
+                let totalWeight = 0;
+                let weightedYtd = 0;
+                holdings.forEach((h: any) => {
+                  const w = parseFloat(h.weight || '0');
+                  const y = parseFloat(h.ytdPerformance || '0');
+                  if (w > 0 && h.ytdPerformance != null) {
+                    weightedYtd += y * w;
+                    totalWeight += w;
+                  }
+                });
+                if (totalWeight > 0) ytdStocks = weightedYtd / totalWeight;
+              }
               const ytdInclCash = entry?.performanceInclCash?.YTD ?? ytdStocks;
               const ytdPerf = includeCash ? ytdInclCash : ytdStocks;
               const benchPerf = entry?.benchmarkPerformance?.YTD ?? null;
@@ -1564,8 +1578,8 @@ export default function PortfolioDetailsPage() {
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
                             <span className="text-gray-300 text-xs">{parseFloat(h.weight || '0').toFixed(1)}%</span>
-                            <span className={`text-xs font-mono ${parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
-                              {parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%
+                            <span className={`text-xs font-mono ${parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`} title="YTD = seit Jahresbeginn">
+                              <span className="text-gray-500 mr-0.5">YTD</span>{parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%
                             </span>
                           </div>
                         </div>

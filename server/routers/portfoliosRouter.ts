@@ -331,7 +331,7 @@ export const portfoliosRouter = router({
         } catch { /* non-critical — fall through to compute */ }
 
         const { getSavedPortfolioById, getStockByTicker, getStocksByTickers, getPortfolioTransactions } = await import("../db");
-        const { getStockCurrency, tryConvertToCHF } = await import("../fxHelper");
+        const { getStockCurrency, tryConvertToCHF, getHistoricalPrice } = await import("../fxHelper");
         const { calculateStockScore } = await import("../scoring");
 
         const portfolio = await getSavedPortfolioById(input, ctx.user.id);
@@ -475,7 +475,21 @@ export const portfoliosRouter = router({
               valueCHF: totalValue,
               // Add missing fields from database
               sector: dbStock?.sector || stock.sector || 'Other',
-              ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || '0',
+              // Dynamic YTD fallback: if DB field is missing/zero, compute from historicalPrices
+              ytdPerformance: await (async () => {
+                const stored = dbStock?.ytdPerformance || stock.ytdPerformance;
+                if (stored && stored !== '0' && stored !== '0.00') return stored;
+                // Fallback: compute from historical price on Jan 1
+                try {
+                  const ytdStart = `${new Date().getFullYear()}-01-01`;
+                  const ytdStartPrice = await getHistoricalPrice(ticker, ytdStart);
+                  if (ytdStartPrice && ytdStartPrice > 0 && currentPrice > 0) {
+                    const ytdPct = ((currentPrice - ytdStartPrice) / ytdStartPrice) * 100;
+                    return ytdPct.toFixed(2);
+                  }
+                } catch { /* non-critical */ }
+                return stored || '0';
+              })(),
               // totalReturn = performance since purchase (Seit Kauf)
               // IMPORTANT: Compare priceCHF (current CHF price) vs avgBuyPriceCHF (purchase CHF price)
               // Using currentPrice (local currency) vs avgBuyPrice (CHF) caused massive FX distortion
