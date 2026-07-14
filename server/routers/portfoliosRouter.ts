@@ -1087,6 +1087,7 @@ export const portfoliosRouter = router({
             }
             
             let totalPositionValue = 0;
+            const skippedTickers: string[] = [];
             const todayStr = new Date().toISOString().split('T')[0];
             
             // Create "entry" transactions for each position based on current weights
@@ -1114,18 +1115,20 @@ export const portfoliosRouter = router({
               
               console.log(`[toggleLive] ${ticker} price: ${currentPrice} ${currency}`);
               
-              // Convert price to CHF
+              // Convert price to CHF. Achtung (FIN-1): convertToCHF wirft seit R-10
+              // NICHT mehr, sondern liefert 0, wenn kein FX-Kurs existiert — die
+              // Division unten würde sonst shares = Infinity in die DB schreiben.
               let priceCHF = currentPrice;
               if (currency !== 'CHF') {
-                try {
-                  priceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                  console.log(`[toggleLive] ${ticker} converted to CHF: ${priceCHF}`);
-                } catch (fxError) {
-                  console.error(`[toggleLive] FX conversion failed for ${ticker}, using 1:1 rate`, fxError);
-                  priceCHF = currentPrice; // Fallback to 1:1 if conversion fails
-                }
+                priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                console.log(`[toggleLive] ${ticker} converted to CHF: ${priceCHF}`);
               }
-              
+              if (!(priceCHF > 0)) {
+                console.error(`[toggleLive] ${ticker} übersprungen: kein gültiger CHF-Kurs (Preis ${currentPrice} ${currency}, FX fehlt)`);
+                skippedTickers.push(ticker);
+                continue;
+              }
+
               // Calculate number of shares
               const shares = positionValueCHF / priceCHF;
               
@@ -1150,6 +1153,10 @@ export const portfoliosRouter = router({
             }
             
             console.log(`[toggleLive] Total position value: ${totalPositionValue} CHF`);
+            if (skippedTickers.length > 0) {
+              // Übersprungene Positionen bleiben als Liquidität stehen (kein Eingang gebucht).
+              console.warn(`[toggleLive] Ohne gültigen CHF-Kurs übersprungen: ${skippedTickers.join(', ')}`);
+            }
             
             // Calculate and store cash balance (Liquidität)
             const cashBalance = startCapital - totalPositionValue;
