@@ -2094,6 +2094,70 @@ export default function PortfolioDetailsPage() {
                                     </div>
                                   </div>
                                 </div>
+                                {/* Performance seit Kauf — Kursgewinn vs FX-Gewinn Aufschlüsselung */}
+                                {(() => {
+                                  const totalRet = parseFloat(h.totalReturn || '0');
+                                  const priceRet = parseFloat(h.priceReturnPct || '0');
+                                  const fxRet = parseFloat(h.fxReturnPct || '0');
+                                  const isFx = h.currency && h.currency !== 'CHF';
+                                  const avgBuyLocal = parseFloat(h.avgBuyPriceLocal || '0');
+                                  const avgBuyCHF = parseFloat(h.avgBuyPrice || '0');
+                                  // Only show if we have meaningful data
+                                  if (avgBuyCHF <= 0) return null;
+                                  return (
+                                    <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">
+                                      <div className="flex items-center gap-1.5 mb-2">
+                                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Performance seit Kauf</p>
+                                        {isFx && (
+                                          <UiTooltip>
+                                            <TooltipTrigger asChild>
+                                              <svg className="w-3.5 h-3.5 text-gray-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[280px] p-3">
+                                              <p className="text-xs"><strong>Kursgewinn:</strong> Reine Kursbewegung in {h.currency} (Lokalwährung)</p>
+                                              <p className="text-xs mt-1"><strong>FX-Effekt:</strong> Gewinn/Verlust durch Wechselkursveränderung {h.currency}/CHF</p>
+                                              <p className="text-xs mt-1"><strong>Gesamt:</strong> Summe beider Effekte in CHF</p>
+                                            </TooltipContent>
+                                          </UiTooltip>
+                                        )}
+                                      </div>
+                                      <div className={`grid gap-2 ${isFx ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                        {/* Gesamt */}
+                                        <div className="bg-[#0a0f1a] rounded-md p-2.5">
+                                          <p className="text-[10px] text-gray-500 mb-1">Gesamt (CHF)</p>
+                                          <p className={`text-sm font-bold font-mono ${totalRet >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
+                                            {totalRet >= 0 ? '+' : ''}{totalRet.toFixed(2)}%
+                                          </p>
+                                          <p className="text-[10px] text-gray-500 mt-0.5">
+                                            Ø {avgBuyCHF.toFixed(2)} CHF
+                                          </p>
+                                        </div>
+                                        {/* Kursgewinn */}
+                                        <div className="bg-[#0a0f1a] rounded-md p-2.5">
+                                          <p className="text-[10px] text-gray-500 mb-1">Kursgewinn {isFx ? `(${h.currency})` : '(CHF)'}</p>
+                                          <p className={`text-sm font-bold font-mono ${priceRet >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
+                                            {priceRet >= 0 ? '+' : ''}{priceRet.toFixed(2)}%
+                                          </p>
+                                          {isFx && avgBuyLocal > 0 && (
+                                            <p className="text-[10px] text-gray-500 mt-0.5">
+                                              Ø {avgBuyLocal.toFixed(2)} {h.currency}
+                                            </p>
+                                          )}
+                                        </div>
+                                        {/* FX-Effekt — nur für Fremdwährungspositionen */}
+                                        {isFx && (
+                                          <div className="bg-[#0a0f1a] rounded-md p-2.5">
+                                            <p className="text-[10px] text-gray-500 mb-1">FX-Effekt ({h.currency}/CHF)</p>
+                                            <p className={`text-sm font-bold font-mono ${fxRet >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
+                                              {fxRet >= 0 ? '+' : ''}{fxRet.toFixed(2)}%
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 mt-0.5">Wechselkurseffekt</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                                 {/* Signal Reason */}
                                 {sig?.reason && (
                                   <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">

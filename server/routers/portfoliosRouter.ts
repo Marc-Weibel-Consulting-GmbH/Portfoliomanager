@@ -339,12 +339,38 @@ export const portfoliosRouter = router({
 
         // Get earliest buy/entry transaction date for display
         let earliestBuyDate: Date | null = null;
+        // Per-ticker maps for price vs FX return breakdown
+        // avgBuyPriceLocalMap: weighted avg purchase price in local currency
+        // avgFxRateAtPurchaseMap: weighted avg FX rate at purchase time
+        const avgBuyPriceLocalMap = new Map<string, number>();
+        const avgFxRateAtPurchaseMap = new Map<string, number>();
         try {
           const transactions = await getPortfolioTransactions(input);
           const buyTxs = transactions.filter((t: any) => t.transactionType === 'buy' || t.transactionType === 'entry');
           if (buyTxs.length > 0) {
             buyTxs.sort((a: any, b: any) => new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime());
             earliestBuyDate = new Date(buyTxs[0].transactionDate);
+            // Build per-ticker weighted average buy price (local currency) and FX rate
+            const byTicker = new Map<string, { totalShares: number; totalCostLocal: number; totalCostCHF: number }>();
+            for (const tx of buyTxs) {
+              const tk = tx.ticker;
+              const qty = parseFloat(tx.shares) || 0;
+              const priceLocal = parseFloat(tx.pricePerShare) || 0;
+              const fxAtPurchase = parseFloat(tx.fxRate) || 1;
+              if (!tk || qty <= 0 || priceLocal <= 0) continue;
+              const existing = byTicker.get(tk) || { totalShares: 0, totalCostLocal: 0, totalCostCHF: 0 };
+              existing.totalShares += qty;
+              existing.totalCostLocal += qty * priceLocal;
+              existing.totalCostCHF += qty * priceLocal * fxAtPurchase;
+              byTicker.set(tk, existing);
+            }
+            for (const [tk, data] of byTicker.entries()) {
+              if (data.totalShares > 0) {
+                avgBuyPriceLocalMap.set(tk, data.totalCostLocal / data.totalShares);
+                // Implied avg FX rate at purchase = totalCostCHF / totalCostLocal
+                avgFxRateAtPurchaseMap.set(tk, data.totalCostLocal > 0 ? data.totalCostCHF / data.totalCostLocal : 1);
+              }
+            }
           }
         } catch (e) {
           // ignore — not critical
@@ -498,6 +524,35 @@ export const portfoliosRouter = router({
               totalReturn: (avgBuyPriceCHF > 0 && priceCHF > 0)
                 ? (((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100).toFixed(4)
                 : '0',
+              // FX breakdown: price gain (local currency) vs FX gain (exchange rate effect)
+              // For CHF positions, both values equal totalReturn (no FX effect).
+              // For foreign currency positions:
+              //   priceReturnPct = pure stock price movement in local currency
+              //   fxReturnPct    = exchange rate effect (totalReturn - priceReturnPct)
+              // Data source priority: transaction-derived avgBuyPriceLocal > demo portfolio approximation
+              ...(() => {
+                if (currency === 'CHF') {
+                  // No FX effect for CHF positions
+                  const tr = (avgBuyPriceCHF > 0 && priceCHF > 0)
+                    ? ((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100 : 0;
+                  return { priceReturnPct: tr.toFixed(4), fxReturnPct: '0', avgBuyPriceLocal: avgBuyPriceCHF.toFixed(4) };
+                }
+                const totalReturnNum = (avgBuyPriceCHF > 0 && priceCHF > 0)
+                  ? ((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100 : 0;
+                // Use transaction-derived local price if available, otherwise approximate
+                const txAvgLocal = avgBuyPriceLocalMap.get(ticker);
+                const buyPriceLocal = txAvgLocal && txAvgLocal > 0
+                  ? txAvgLocal
+                  : (avgBuyPriceCHF > 0 && fxRate > 0 ? avgBuyPriceCHF / fxRate : 0);
+                const priceReturnNum = (buyPriceLocal > 0 && currentPrice > 0)
+                  ? ((currentPrice - buyPriceLocal) / buyPriceLocal) * 100 : 0;
+                const fxReturnNum = totalReturnNum - priceReturnNum;
+                return {
+                  priceReturnPct: priceReturnNum.toFixed(4),
+                  fxReturnPct: fxReturnNum.toFixed(4),
+                  avgBuyPriceLocal: buyPriceLocal.toFixed(4),
+                };
+              })(),
               dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
               companyName: dbStock?.companyName || stock.companyName || ticker,
               category: dbStock?.category || stock.category || 'Aktien',
