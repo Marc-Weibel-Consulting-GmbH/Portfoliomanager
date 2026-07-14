@@ -55,6 +55,7 @@ export async function refreshSignalCache(): Promise<void> {
     const { calculateQualityScore, calculateMomentumScore } = await import("../analytics/qualityMomentumEngine");
     const { getQualityMetrics } = await import("../lib/qualityMetricsService");
     const { getActiveWeights } = await import("../analytics/optimizerWorker");
+    const { generateSignal } = await import("../lib/baseSignal");
     const { blendCombinedScore } = await import("../lib/signalBlend");
     const { getRegimeBlendConfig } = await import("../analytics/regimeSignalMemory");
     const { computeRegime } = await import("../lib/signals/regimeEngine");
@@ -125,41 +126,27 @@ export async function refreshSignalCache(): Promise<void> {
               if (prices.length >= 15) rsi14 = calcRSI(prices, 14);
             }
 
-            // 3. Generate base signal
-            let signalType: "buy" | "sell" | "hold" = "hold";
-            let signalStrength: "strong" | "moderate" | "weak" = "weak";
-            let reason = "Neutrale Bewertung: Aktuelle Position beibehalten und Entwicklung beobachten.";
-            let targetPrice = currentPrice;
-            const criteria: string[] = [];
-
-            // Simple scoring
-            let score = 0;
-            if (peRatio !== null && peRatio > 0) {
-              if (peRatio < 12) { score += 3; criteria.push(`Sehr niedriges P/E (${peRatio.toFixed(1)})`); }
-              else if (peRatio < 18) { score += 1; criteria.push(`Moderates P/E (${peRatio.toFixed(1)})`); }
-              else if (peRatio > 35) { score -= 2; criteria.push(`Hohes P/E (${peRatio.toFixed(1)})`); }
-              else if (peRatio > 25) { score -= 1; criteria.push(`Erhöhtes P/E (${peRatio.toFixed(1)})`); }
-            }
-            if (pegRatio !== null && pegRatio > 0) {
-              if (pegRatio < 0.8) { score += 2; criteria.push(`Sehr attraktives PEG (${pegRatio.toFixed(2)})`); }
-              else if (pegRatio < 1.2) { score += 1; criteria.push(`Faires PEG (${pegRatio.toFixed(2)})`); }
-              else if (pegRatio > 2.5) { score -= 2; criteria.push(`Teures PEG (${pegRatio.toFixed(2)})`); }
-            }
-            if (dividendYield > 5) { score += 2; criteria.push(`Hohe Dividende (${dividendYield.toFixed(1)}%)`); }
-            else if (dividendYield > 3) { score += 1; criteria.push(`Gute Dividende (${dividendYield.toFixed(1)}%)`); }
-            if (rsi14 !== null) {
-              if (rsi14 < 30) { score += 2; criteria.push(`RSI überverkauft (${rsi14.toFixed(0)})`); }
-              else if (rsi14 < 40) { score += 1; criteria.push(`RSI niedrig (${rsi14.toFixed(0)})`); }
-              else if (rsi14 > 75) { score -= 2; criteria.push(`RSI überkauft (${rsi14.toFixed(0)})`); }
-              else if (rsi14 > 65) { score -= 1; criteria.push(`RSI hoch (${rsi14.toFixed(0)})`); }
-            }
-
-            if (score >= 5) { signalType = "buy"; signalStrength = "strong"; reason = "Starkes Kaufsignal: Mehrere positive Indikatoren."; targetPrice = currentPrice * 1.15; }
-            else if (score >= 3) { signalType = "buy"; signalStrength = "moderate"; reason = "Kaufsignal: Positive Indikatoren überwiegen."; targetPrice = currentPrice * 1.10; }
-            else if (score >= 1) { signalType = "buy"; signalStrength = "weak"; reason = "Leichte Kauftendenz: Einige positive Signale."; targetPrice = currentPrice * 1.05; }
-            else if (score <= -5) { signalType = "sell"; signalStrength = "strong"; reason = "Starkes Verkaufssignal: Mehrere negative Indikatoren."; targetPrice = currentPrice * 0.85; }
-            else if (score <= -3) { signalType = "sell"; signalStrength = "moderate"; reason = "Verkaufssignal: Negative Indikatoren überwiegen."; targetPrice = currentPrice * 0.90; }
-            else if (score <= -1) { signalType = "sell"; signalStrength = "weak"; reason = "Leichte Verkaufstendenz."; targetPrice = currentPrice * 0.96; }
+            // 3. Generate base signal — SIG-4 (Audit 2026-07): dieselbe GEWICHTETE
+            // Basis-Scoring-Funktion wie der Live-Pfad (generateSignal mit den
+            // optimierten Gewichten). Vorher wurden die Gewichte zwar geladen
+            // (getActiveWeights), aber eine ungewichtete Inline-Kopie gerechnet.
+            const base = generateSignal({
+              ticker,
+              companyName,
+              peRatio,
+              pegRatio,
+              dividendYield,
+              currentPrice,
+              fiftyTwoWeekHigh,
+              fiftyTwoWeekLow,
+              ytdPerformance,
+              rsi14,
+            }, optimizedWeights);
+            let signalType: "buy" | "sell" | "hold" = base.type;
+            let signalStrength: "strong" | "moderate" | "weak" = base.strength;
+            let reason = base.reason;
+            let targetPrice = base.targetPrice;
+            const criteria: string[] = base.criteria;
 
             // 4. ML + Quality + Momentum (only if enough price history)
             let rfSignal: string | undefined;

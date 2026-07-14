@@ -13,6 +13,7 @@ import { eq, desc } from "drizzle-orm";
 
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
+import { calcWilderRSI } from "../lib/watchlistSignalScore";
 export interface WeightConfig {
   pe: number;
   peg: number;
@@ -167,23 +168,10 @@ async function fetchPricesEODHD(ticker: string): Promise<{
   }
 }
 
-/**
- * Calculate RSI from closing prices
- */
-function calcRSI(prices: number[], period: number = 14): number | null {
-  if (prices.length < period + 1) return null;
-  const changes: number[] = [];
-  for (let i = prices.length - period - 1; i < prices.length; i++) {
-    if (i > 0) changes.push(prices[i] - prices[i - 1]);
-  }
-  const gains = changes.filter(c => c > 0);
-  const losses = changes.filter(c => c < 0).map(c => Math.abs(c));
-  const avgGain = gains.length > 0 ? gains.reduce((a, b) => a + b, 0) / period : 0;
-  const avgLoss = losses.length > 0 ? losses.reduce((a, b) => a + b, 0) / period : 0;
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - (100 / (1 + rs));
-}
+// SIG-4 (Audit 2026-07): Der Backtest rechnete mit einem UNGEGLÄTTETEN RSI,
+// die Produktion (signalCacheCron/signalsRouter/watchlistSignalScore) mit
+// Wilder-Glättung — die getunten RSI-Gewichte wurden also für einen anderen
+// Indikator optimiert, als sie später bewerten. Jetzt: derselbe Wilder-RSI.
 
 /**
  * Calculate MACD signal (simplified)
@@ -328,7 +316,7 @@ function backtestStock(
 
     if (!currentPrice || !futurePrice || currentPrice === 0) continue;
 
-    const rsi14 = calcRSI(historicalPrices, 14);
+    const rsi14 = calcWilderRSI(historicalPrices, 14);
     const macdSignal = calcMACD(historicalPrices);
 
     const last252 = historicalPrices.slice(-252);
@@ -366,6 +354,13 @@ function backtestStock(
 
 /**
  * Generate weight grid (200 random combinations)
+ *
+ * SIG-4 (Audit 2026-07): Nur die 7 Gewichte variieren, die die Backtest-
+ * Zielfunktion (generateWeightedScore) tatsächlich bewertet. Die übrigen 5
+ * (rf/sentiment/bubble/quality/momentum) gehen dort NIE ein — sie zufällig
+ * mitzuvariieren war reines Rauschen in der Suche und gaukelte im Admin-UI
+ * «getunte» Werte vor. Sie bleiben fix auf den Defaults; ihre Wirkung im
+ * Produktions-Score läuft über eigene Pfade (RF-Adjustment, blendCombinedScore).
  */
 function generateWeightGrid(): WeightConfig[] {
   const combinations: WeightConfig[] = [];
@@ -376,11 +371,6 @@ function generateWeightGrid(): WeightConfig[] {
   const dividendOptions = [0.04, 0.07, 0.12];
   const week52Options = [0.04, 0.07, 0.12];
   const ytdOptions = [0.04, 0.07, 0.12];
-  const rfOptions = [0.05, 0.08, 0.14];
-  const sentimentOptions = [0.02, 0.05, 0.08];
-  const bubbleOptions = [0.0, 0.04, 0.06, 0.10];
-  const qualityOptions = [0.06, 0.12, 0.18, 0.22];
-  const momentumOptions = [0.05, 0.10, 0.15, 0.20];
 
   const SAMPLE_SIZE = 200;
   for (let i = 0; i < SAMPLE_SIZE; i++) {
@@ -392,11 +382,12 @@ function generateWeightGrid(): WeightConfig[] {
       dividend: dividendOptions[Math.floor(Math.random() * dividendOptions.length)],
       week52: week52Options[Math.floor(Math.random() * week52Options.length)],
       ytd: ytdOptions[Math.floor(Math.random() * ytdOptions.length)],
-      rf: rfOptions[Math.floor(Math.random() * rfOptions.length)],
-      sentiment: sentimentOptions[Math.floor(Math.random() * sentimentOptions.length)],
-      bubble: bubbleOptions[Math.floor(Math.random() * bubbleOptions.length)],
-      quality: qualityOptions[Math.floor(Math.random() * qualityOptions.length)],
-      momentum: momentumOptions[Math.floor(Math.random() * momentumOptions.length)],
+      // Nicht Teil der Backtest-Zielfunktion — fix auf Default (kein Pseudo-Tuning).
+      rf: DEFAULT_WEIGHTS.rf,
+      sentiment: DEFAULT_WEIGHTS.sentiment,
+      bubble: DEFAULT_WEIGHTS.bubble,
+      quality: DEFAULT_WEIGHTS.quality,
+      momentum: DEFAULT_WEIGHTS.momentum,
     });
   }
   combinations.push(DEFAULT_WEIGHTS);
@@ -514,6 +505,7 @@ export async function runOptimizerNonBlocking(
   // Pass 2: Grid search with optimized parameters
   const weightGrid = generateWeightGrid();
   logMsg(`Pass 2: Grid Search über ${weightGrid.length} Gewichtungskombinationen (LF=${bestLookforward}d, TH=${bestThreshold})...`);
+  logMsg(`Getunt werden die 7 Backtest-Faktoren (pe/peg/rsi/macd/dividend/week52/ytd); rf/sentiment/bubble/quality/momentum bleiben auf Default (nicht Teil der Zielfunktion).`);
 
   const results: Array<{ weights: WeightConfig; hitRate: number; correct: number; total: number }> = [];
 
