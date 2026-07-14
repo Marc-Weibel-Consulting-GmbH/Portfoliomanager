@@ -350,6 +350,7 @@ export const autoPortfolioRouter = router({
             sector: s.sector || "Andere",
             currency: s.currency || "CHF",
             currentPrice: parseFloat(s.currentPrice ?? "0"),
+            exchangeRateToChf: s.exchangeRateToChf ? parseFloat(s.exchangeRateToChf) : 1,
             weightPct: parseFloat(((w / wSum) * 100).toFixed(2)),
             combinedScore: c.combinedScore,
             signal: c.signal,
