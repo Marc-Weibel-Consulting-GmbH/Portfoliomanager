@@ -71,78 +71,65 @@ export const autoPortfolioRouter = router({
         .where(eqOp(stocksTable.listType, "empfehlung"));
       const watchlistRecTickers = new Set(watchlistRecs.map((r: any) => r.ticker.toUpperCase()));
 
-      // === SECTOR BENCHMARK FILTER ===
-      // YTD performance of major sector ETFs (updated periodically, used to detect sector underperformers)
-      // Source: approximate YTD returns for 2025 as of mid-year (updated manually or via cron)
-      // These represent the "sector hurdle rate" — stocks must not lag their sector by >20%
-      const SECTOR_BENCHMARK_YTD: Record<string, number> = {
-        // Sector name (as stored in DB) → approximate YTD % of representative ETF
-        "Technologie": 12.0,          // XLK / QQQ proxy
-        "Technology": 12.0,
-        "Informationstechnologie": 12.0,
-        "Gesundheit": 4.0,            // XLV proxy
-        "Healthcare": 4.0,
-        "Gesundheitswesen": 4.0,
-        "Finanzen": 8.0,              // XLF proxy
-        "Financials": 8.0,
-        "Finanzdienstleistungen": 8.0,
-        "Industrie": 2.0,             // XLI proxy
-        "Industrials": 2.0,
-        "Konsumgüter": -2.0,          // XLP proxy (defensive consumer)
-        "Consumer Staples": -2.0,
-        "Nicht-zyklische Konsumgüter": -2.0,
-        "Zyklische Konsumgüter": 0.0, // XLY proxy
-        "Consumer Discretionary": 0.0,
-        "Energie": -5.0,              // XLE proxy
-        "Energy": -5.0,
-        "Rohstoffe": -3.0,            // XLB proxy
-        "Materials": -3.0,
-        "Immobilien": 3.0,            // XLRE proxy
-        "Real Estate": 3.0,
-        "Versorger": 6.0,             // XLU proxy
-        "Utilities": 6.0,
-        "Kommunikation": 5.0,         // XLC proxy
-        "Communication Services": 5.0,
-        "Telekommunikation": 5.0,
-        "Andere": 0.0,
-      };
-      const SECTOR_UNDERPERFORM_THRESHOLD = -20; // exclude if YTD < sectorBenchmark - 20pp
+      // Ehrliche Hinweise an den Kunden (Response-Feld `notes`).
+      const notes: string[] = [];
+
+      // ESG: Es gibt (noch) keine ESG-Daten im Bestand — der frühere Filter
+      // (`s.esgCertified !== undefined`) war ein Placebo, der NIE griff. Statt
+      // still nicht zu filtern, sagen wir es offen (und den Agenten, s. unten).
+      if (esgOnly) {
+        notes.push(
+          "Ihr ESG-Wunsch ist hinterlegt, kann aber noch nicht angewendet werden — für die Titel liegen keine ESG-Daten vor. Der Vorschlag ist NICHT ESG-gefiltert."
+        );
+      }
 
       const allStocks = await db.select().from(stocksTable);
-      let universe = allStocks.filter((s: any) => {
+
+      // === SECTOR BENCHMARK FILTER ===
+      // Hürde je Sektor = Median-YTD der Titel dieses Sektors im Bestand —
+      // selbstaktualisierend aus der DB (vorher: hartkodierte 2025er-Schätzwerte,
+      // die 2026 als Fantasie-Hürden weiterliefen). Titel, die ihren Sektor um
+      // mehr als 20 Prozentpunkte unterlaufen, fliegen raus (ausser Empfehlungen).
+      const SECTOR_UNDERPERFORM_THRESHOLD = -20;
+      const ytdBySector: Record<string, number[]> = {};
+      for (const s of allStocks as any[]) {
+        const ytd = s.ytdPerformance != null ? parseFloat(String(s.ytdPerformance)) : NaN;
+        if (!Number.isFinite(ytd)) continue;
+        const key = s.sector || "Andere";
+        (ytdBySector[key] ||= []).push(ytd);
+      }
+      const median = (arr: number[]) => {
+        const a = [...arr].sort((x, y) => x - y);
+        const mid = Math.floor(a.length / 2);
+        return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+      };
+      const sectorBenchmarkYtd: Record<string, number> = {};
+      for (const [sec, vals] of Object.entries(ytdBySector)) {
+        // Unter 3 Titeln ist ein Median keine Hürde — dann neutral 0.
+        sectorBenchmarkYtd[sec] = vals.length >= 3 ? median(vals) : 0;
+      }
+
+      const universe = allStocks.filter((s: any) => {
         const price = parseFloat(s.currentPrice ?? "0");
         if (!(price > 0)) return false;
         if (s.sector && excludedSectors.includes(s.sector)) return false;
-        // ESG-Filter: wenn esgOnly aktiviert, nur ESG-zertifizierte Titel
-        // Graceful fallback: if esgCertified field doesn't exist, skip ESG filter
-        if (esgOnly && s.esgCertified !== undefined && !s.esgCertified) return false;
 
-        // === SECTOR BENCHMARK FILTER ===
-        // Exclude stocks that underperform their sector benchmark by more than 20 percentage points
-        // Exception: watchlist recommendations are never excluded by this filter
+        // Sektor-Underperformer raus (Empfehlungen sind ausgenommen)
         const ytdPerf = parseFloat(s.ytdPerformance ?? "0") || 0;
         const sectorKey = s.sector || "Andere";
-        const sectorBenchmark = SECTOR_BENCHMARK_YTD[sectorKey] ?? 0;
+        const sectorBenchmark = sectorBenchmarkYtd[sectorKey] ?? 0;
         const relativePerf = ytdPerf - sectorBenchmark;
         if (relativePerf < SECTOR_UNDERPERFORM_THRESHOLD && !watchlistRecTickers.has(s.ticker.toUpperCase())) {
-          // Log for debugging
-          console.log(`[buildProposal] Sector filter excluded ${s.ticker}: YTD ${ytdPerf.toFixed(1)}% vs sector ${sectorKey} benchmark ${sectorBenchmark}% = ${relativePerf.toFixed(1)}pp`);
+          console.log(`[buildProposal] Sector filter excluded ${s.ticker}: YTD ${ytdPerf.toFixed(1)}% vs sector ${sectorKey} median ${sectorBenchmark.toFixed(1)}% = ${relativePerf.toFixed(1)}pp`);
           return false;
         }
 
         return true;
       });
-      // Sort: watchlist recommendations first, then by market cap
-      universe.sort((a: any, b: any) => {
-        const aRec = watchlistRecTickers.has(a.ticker.toUpperCase()) ? 1 : 0;
-        const bRec = watchlistRecTickers.has(b.ticker.toUpperCase()) ? 1 : 0;
-        if (bRec !== aRec) return bRec - aRec; // recommendations first
-        return parseFloat(b.marketCap ?? "0") - parseFloat(a.marketCap ?? "0");
-      });
-      // Take top 40, but ensure all watchlist recommendations are included (up to 20 extra)
-      const recStocks = universe.filter((s: any) => watchlistRecTickers.has(s.ticker.toUpperCase()));
-      const nonRecStocks = universe.filter((s: any) => !watchlistRecTickers.has(s.ticker.toUpperCase()));
-      universe = [...recStocks, ...nonRecStocks.slice(0, Math.max(0, 40 - recStocks.length))];
+      // Kein Top-40-Marktkap-Schnitt mehr VOR dem Scoring: alle Daten sind
+      // bereits geladen, das Scoring ist eine billige Map — ein hoch bewerteter
+      // Titel auf «Rang 41» wurde vorher nie betrachtet. Die Begrenzung passiert
+      // ehrlich NACH dem Ranking (Auswahl bis rules.maxTitles).
 
       // 4) Scoring aus watchlistStocks (signalScore + signalType) — kein Yahoo Finance, kein Preishistorie-Scoring
       //    Alle Watchlist-Titel haben bereits berechnete Scores (0-100) und Signale (buy/sell/hold)
@@ -255,8 +242,9 @@ export const autoPortfolioRouter = router({
         let score = x.combinedScore;
         // Dividend goal: boost high-yield stocks
         if (goal === "dividends") score += Math.min(x.dividendYield * 100, 5) * 2;
-        // Growth/balanced goal: boost positive YTD momentum stocks
-        if (goal !== "dividends" && x.ytdPerf > 0) score += Math.min(x.ytdPerf * 0.2, 5);
+        // KEIN zusätzlicher YTD-Boost mehr: YTD-Momentum steckt bereits im
+        // combinedScore (momentumAdj) und indirekt im signalScore (52W/RSI) —
+        // die frühere dritte Zählung übersteuerte alles Richtung «was zuletzt lief».
         // Watchlist recommendation bonus
         if (watchlistRecTickers.has(x.stock.ticker.toUpperCase())) score += 10;
         return score;
@@ -267,21 +255,33 @@ export const autoPortfolioRouter = router({
         x.signal !== "SELL" &&
         x.scoreGrade !== "F";
 
-      // Score-Schwelle: 55 für echte Kaufkandidaten (vorher 45 war zu niedrig)
+      // Score-Schwelle: 55 für echte Kaufkandidaten (vorher 45 war zu niedrig).
+      // Die verwendete Qualitäts-Stufe wird ausgewiesen (stats.qualityTier) —
+      // vorher wurde die Schwelle STILL gesenkt, ohne dass der Kunde es erfuhr.
+      let qualityTier: "kaufkandidaten" | "erweitert" | "basis" = "kaufkandidaten";
       let ranked = scored
         .filter((x) => isBuyable(x) && x.combinedScore >= 55)
         .sort((a, b) => rankKey(b) - rankKey(a));
       if (ranked.length < rules.minTitles) {
         // Zu wenige Kaufsignale — HOLD-Titel mit Score >= 45 einbeziehen, aber SELL bleibt draussen
+        qualityTier = "erweitert";
         ranked = scored
           .filter((x) => x.signal !== "SELL" && x.scoreGrade !== "F" && x.combinedScore >= 45)
           .sort((a, b) => rankKey(b) - rankKey(a));
       }
       if (ranked.length < rules.minTitles) {
         // Letzter Fallback: alle Nicht-SELL, nach Score sortiert
+        qualityTier = "basis";
         ranked = scored
           .filter((x) => x.signal !== "SELL")
           .sort((a, b) => rankKey(b) - rankKey(a));
+      }
+      if (qualityTier !== "kaufkandidaten") {
+        notes.push(
+          qualityTier === "erweitert"
+            ? "Zu wenige klare Kaufkandidaten (Score ≥ 55) — die Auswahl enthält auch neutrale Titel mit Score ≥ 45."
+            : "Sehr wenige geeignete Kandidaten — die Auswahl umfasst alle Titel ohne Verkaufssignal, unabhängig vom Score."
+        );
       }
 
       console.log(`[buildProposal] Step 6: ranked=${ranked.length}, selecting under sector cap`);
@@ -318,11 +318,17 @@ export const autoPortfolioRouter = router({
       // Varianz» etikettiert. Schlägt die Optimierung fehl (z. B. zu wenig
       // Kurshistorie), fällt sie auf die Score-Gewichtung zurück — dann aber
       // mit EHRLICHEM Label.
-      const method = params.method;
+      // Das Anlageziel steuert jetzt auch das OPTIMIERUNGSZIEL: «Dividenden &
+      // Ertrag» optimiert die Dividendenrendite (vol-bereinigt, max_dividend)
+      // statt Max-Sharpe — vorher beeinflusste das Ziel nur die Titel-Auswahl.
+      const method = goal === "dividends" ? "max_dividend" : params.method;
       const selectedTickers = selected.map((c) => c.stock.ticker);
       let weights: Record<string, number> = {};
       let weightingSource: "optimizer" | "score_fallback" = "optimizer";
       let weightingNote: string | null = null;
+      // Erwartete Kennzahlen des optimierten Vorschlags (vorher weggeworfen —
+      // der Kunde sah einen Vorschlag ohne «was darf ich erwarten?»).
+      let proposalMetrics: { expectedReturnPct: number; volatilityPct: number; sharpe: number } | null = null;
       try {
         const { optimizePortfolio } = await import("../analytics/engine");
         const opt = await optimizePortfolio({
@@ -332,6 +338,11 @@ export const autoPortfolioRouter = router({
           maxPositionWeight: params.maxPositionWeight,
         });
         weights = { ...opt.weights };
+        proposalMetrics = {
+          expectedReturnPct: Math.round(opt.optimalPortfolio.expectedReturn * 1000) / 10,
+          volatilityPct: Math.round(opt.optimalPortfolio.volatility * 1000) / 10,
+          sharpe: opt.optimalPortfolio.sharpe,
+        };
         const excluded = opt.excludedShortHistory ?? [];
         if (excluded.length > 0) {
           weightingNote =
@@ -405,6 +416,29 @@ export const autoPortfolioRouter = router({
         })
         .sort((a, b) => b.weightPct - a.weightPct);
 
+      // Post-Optimierungs-Check: Sektor- und FX-GEWICHTE nachrechnen. Die Caps
+      // in Schritt 6 zählen Titel bzw. schätzen Gleichgewichte — die echte
+      // Optimierung kann beide verletzen. Statt still: berechnen, ausweisen, flaggen.
+      const sectorWeightMap: Record<string, number> = {};
+      let fxWeightPct = 0;
+      for (const p of positions) {
+        sectorWeightMap[p.sector] = (sectorWeightMap[p.sector] || 0) + p.weightPct;
+        const cur = p.currency === "GBp" ? "GBP" : p.currency;
+        if (cur !== referenceCurrency) fxWeightPct += p.weightPct;
+      }
+      fxWeightPct = Math.round(fxWeightPct * 10) / 10;
+      const sectorWeights = Object.entries(sectorWeightMap)
+        .map(([name, weightPct]) => ({ name, weightPct: Math.round(weightPct * 10) / 10 }))
+        .sort((a, b) => b.weightPct - a.weightPct);
+      for (const sw of sectorWeights) {
+        if (sw.weightPct > rules.maxSectorPercent + 0.5) {
+          notes.push(`Sektor ${sw.name} liegt nach der Optimierung bei ${sw.weightPct.toFixed(1)}% und damit über dem Sektor-Limit von ${rules.maxSectorPercent}%.`);
+        }
+      }
+      if (fxWeightPct > maxFxExposurePct + 0.5) {
+        notes.push(`Fremdwährungsanteil liegt nach der Optimierung bei ${fxWeightPct.toFixed(1)}% und damit über Ihrem FX-Limit von ${maxFxExposurePct}%.`);
+      }
+
       // Cash-Quote berücksichtigen: Positionen auf (100 - liquidityNeedPct)% skalieren
       if (liquidityNeedPct > 0 && liquidityNeedPct < 100) {
         const equityPct = 1 - liquidityNeedPct / 100;
@@ -446,13 +480,32 @@ export const autoPortfolioRouter = router({
           reason: p.reason,
         }));
 
-        // Prepare non-selected candidates for challenger alternatives
+        // Alternativen-Pool für den Challenger: nur KAUFBARE Kandidaten (kein
+        // SELL, Note ≥ E, Score ≥ 45), nach Score sortiert. Vorher: die ersten
+        // 15 nicht gewählten Titel in Marktkap-Reihenfolge — inklusive
+        // Verkaufskandidaten, die der Challenger dann als «bessere Alternative»
+        // vorschlagen konnte.
         const candidatePool = scored
           .filter(x => !positions.find(p => p.ticker === x.stock.ticker))
+          .filter(x => isBuyable(x) && x.combinedScore >= 45)
+          .sort((a, b) => b.combinedScore - a.combinedScore)
           .slice(0, 15)
           .map(x => ({ ticker: x.stock.ticker, name: x.stock.companyName, sector: x.stock.sector, score: x.combinedScore, signal: x.signal }));
 
-        const profileSummary = `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%, ESG: ${esgOnly}`;
+        // Ehrliches Profil (ESG-Wunsch ist NICHT angewendet — s. notes) +
+        // BERECHNETE Fakten, damit die Agenten Klumpenrisiken nicht aus der
+        // Positionsliste raten müssen.
+        const profileSummary =
+          `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%` +
+          (esgOnly ? ", ESG-Wunsch: ja (Filter noch NICHT verfügbar — Vorschlag ist nicht ESG-gefiltert)" : "");
+        const factsSummary = [
+          `Sektor-Gewichte: ${sectorWeights.map((s) => `${s.name} ${s.weightPct.toFixed(1)}%`).join(", ")} (Limit je Sektor: ${rules.maxSectorPercent}%)`,
+          `Fremdwährungsanteil: ${fxWeightPct.toFixed(1)}% (Limit: ${maxFxExposurePct}%)`,
+          proposalMetrics
+            ? `Erwartete Kennzahlen (optimiert, historisch geschätzt): Rendite ${proposalMetrics.expectedReturnPct.toFixed(1)}% p.a., Volatilität ${proposalMetrics.volatilityPct.toFixed(1)}%, Sharpe ${proposalMetrics.sharpe.toFixed(2)}`
+            : `Gewichtung: Score-Fallback (Optimierung nicht möglich)`,
+          `Auswahl-Qualitätsstufe: ${qualityTier}`,
+        ].join("\n");
 
         // ---- AGENT 2: CHALLENGER ----
         console.log('[buildProposal] Agent 2 (Challenger) starting...');
@@ -468,10 +521,13 @@ export const autoPortfolioRouter = router({
 
 Anlegerprofil: ${profileSummary}
 
+Berechnete Fakten (nutze diese Zahlen — nicht schätzen):
+${factsSummary}
+
 Vorgeschlagene Positionen:
 ${JSON.stringify(positionSummary, null, 2)}
 
-Verfügbare Alternativen (nicht ausgewählt):
+Verfügbare Alternativen (nicht ausgewählt; NUR diese Ticker dürfen als Alternativen vorgeschlagen werden):
 ${JSON.stringify(candidatePool, null, 2)}
 
 Identifiziere:
@@ -525,6 +581,16 @@ Antworte im JSON-Format.`,
 
         const challengerContent = challengerResponse.choices[0]?.message?.content as string | undefined;
         const challengerResult = challengerContent ? JSON.parse(challengerContent) : { critique: '', rejected: [], alternatives: [] };
+        // Ticker-Validierung: abgelehnte Titel müssen im Vorschlag existieren,
+        // Alternativen im Kandidaten-Pool — halluzinierte Ticker fliegen raus.
+        const positionTickers = new Set(positions.map((p) => p.ticker.toUpperCase()));
+        const poolTickers = new Set(candidatePool.map((c) => c.ticker.toUpperCase()));
+        challengerResult.rejected = (challengerResult.rejected ?? []).filter(
+          (r: any) => r?.ticker && positionTickers.has(String(r.ticker).toUpperCase())
+        );
+        challengerResult.alternatives = (challengerResult.alternatives ?? []).filter(
+          (a: any) => a?.ticker && poolTickers.has(String(a.ticker).toUpperCase())
+        );
         console.log(`[buildProposal] Agent 2 done: rejected=${challengerResult.rejected.length}, alternatives=${challengerResult.alternatives.length}`);
 
         // ---- AGENT 3: SYNTHESIZER ----
@@ -539,6 +605,9 @@ Antworte im JSON-Format.`,
               role: 'user',
               content: `Algorithmischer Vorschlag:
 ${JSON.stringify(positionSummary, null, 2)}
+
+Berechnete Fakten (nutze diese Zahlen — nicht schätzen):
+${factsSummary}
 
 Challenger-Kritik:
 Gesamteinschätzung: ${challengerResult.critique}
@@ -588,6 +657,11 @@ Antworte im JSON-Format.`,
 
         const synthContent = synthesizerResponse.choices[0]?.message?.content as string | undefined;
         const synthResult = synthContent ? JSON.parse(synthContent) : { verdict: '', adjustments: [], overallConfidence: 'mittel' };
+        // Ticker-Validierung: Anpassungen nur für Titel aus Vorschlag oder Pool.
+        synthResult.adjustments = (synthResult.adjustments ?? []).filter((adj: any) => {
+          const t = adj?.ticker ? String(adj.ticker).toUpperCase() : "";
+          return t && (positionTickers.has(t) || poolTickers.has(t));
+        });
         const agentDuration = Date.now() - agentStart;
         console.log(`[buildProposal] Agent 3 done: confidence=${synthResult.overallConfidence}, duration=${agentDuration}ms`);
 
@@ -608,10 +682,10 @@ Antworte im JSON-Format.`,
       return {
         positions,
         method,
-        // OPT-2: Das Label sagt jetzt die Wahrheit — «Max. Sharpe/Min. Varianz»
-        // nur, wenn wirklich optimiert wurde; sonst ehrlich «Score-gewichtet».
+        // OPT-2: Das Label sagt jetzt die Wahrheit — «Max. Sharpe/Min. Varianz/
+        // Max. Dividende» nur, wenn wirklich optimiert wurde; sonst «Score-gewichtet».
         methodLabel: weightingSource === "optimizer"
-          ? (method === "min_variance" ? "Min. Varianz" : "Max. Sharpe")
+          ? (method === "min_variance" ? "Min. Varianz" : method === "max_dividend" ? "Max. Dividende" : "Max. Sharpe")
           : "Score-gewichtet (Fallback)",
         weighting: {
           source: weightingSource,
@@ -619,6 +693,18 @@ Antworte im JSON-Format.`,
           minPositionPct: Math.round(params.minPositionWeight * 1000) / 10,
           maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10,
         },
+        // Erwartete Kennzahlen des optimierten Vorschlags (null bei Score-Fallback).
+        metrics: proposalMetrics,
+        // Nachgerechnete Allokation (Basis: Aktienanteil = 100 %, vor Cash-Quote).
+        allocation: {
+          sectors: sectorWeights,
+          fxWeightPct,
+          sectorCapPct: rules.maxSectorPercent,
+          fxCapPct: maxFxExposurePct,
+        },
+        // Ehrliche Hinweise (ESG nicht verfügbar, Qualitätsstufe gesenkt,
+        // Cap-Überschreitungen nach Optimierung, ...).
+        notes,
         profile: {
           riskProfile,
           investmentGoal: goal,
@@ -638,189 +724,14 @@ Antworte im JSON-Format.`,
           watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length,
           maxPositionPct: Math.max(...positions.map((p) => p.weightPct)),
           sectorBenchmarkFiltered: allStocks.length - universe.length - (excludedSectors.length > 0 ? 0 : 0),
+          qualityTier,
         },
         challengeReport,
       };
     }),
 
-  generatePortfolio: protectedProcedure
-    .input(
-      z.object({
-        strategy: z.enum(['growth', 'dividends', 'balanced']),
-        investmentHorizon: z.enum(['short', 'medium', 'long']),
-        riskTolerance: z.enum(['low', 'medium', 'high']).optional(),
-        targetStockCount: z.number().min(5).max(20).default(10),
-      })
-    )
-    .mutation(async ({ input, ctx }) => {
-      const { getDb } = await import("../db");
-      const db = await getDb();
-      
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
-      // Fetch all available stocks
-      const { stocks: stocksTable } = await import("../../drizzle/schema");
-      const allStocks = await db.select().from(stocksTable);
-
-      if (allStocks.length === 0) {
-        throw new Error("No stocks available in database");
-      }
-
-      // Prepare stock data for LLM
-      const stocksData = allStocks.map(stock => ({
-        ticker: stock.ticker,
-        companyName: stock.companyName,
-        sector: stock.sector,
-        currentPrice: stock.currentPrice,
-        ytdPerformance: stock.ytdPerformance,
-        dividendYield: stock.dividendYield,
-        marketCap: stock.marketCap,
-      }));
-
-      // Create prompt for LLM
-      const strategyDescription = {
-        growth: 'high capital appreciation with focus on growth stocks',
-        dividends: 'steady income through dividend-paying stocks',
-        balanced: 'balanced mix of growth and dividend stocks',
-      }[input.strategy];
-
-      const horizonDescription = {
-        short: 'short-term (< 3 years)',
-        medium: 'medium-term (3-7 years)',
-        long: 'long-term (> 7 years)',
-      }[input.investmentHorizon];
-
-      const prompt = `You are a professional portfolio manager. Create a diversified stock portfolio with the following criteria:
-
-Strategy: ${strategyDescription}
-Investment Horizon: ${horizonDescription}
-Target Number of Stocks: ${input.targetStockCount}
-
-Available stocks (JSON):
-${JSON.stringify(stocksData, null, 2)}
-
-Requirements:
-1. Select exactly ${input.targetStockCount} stocks from the available list
-2. Ensure good sector diversification (max 30% in any single sector)
-3. Assign percentage weights that sum to exactly 100%
-4. For growth strategy: prioritize stocks with high YTD performance and growth potential
-5. For dividends strategy: prioritize stocks with high dividend yields (> 2%)
-6. For balanced strategy: mix of both growth and dividend stocks
-7. Consider market cap for stability (prefer larger caps for conservative strategies)
-
-Return ONLY a valid JSON array with this exact structure (no additional text):
-[
-  {
-    "ticker": "AAPL",
-    "weight": 15.5,
-    "reason": "Strong growth potential and market leader"
-  }
-]
-
-The weights must sum to exactly 100.0. Include a brief reason for each selection.`;
-
-      try {
-        // Call LLM to generate portfolio
-        const response = await invokeLLM({
-          messages: [
-            {
-              role: "system",
-              content: "You are a professional portfolio manager. Return only valid JSON, no markdown formatting.",
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "portfolio_selection",
-              strict: true,
-              schema: {
-                type: "object",
-                properties: {
-                  selections: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        ticker: { type: "string", description: "Stock ticker symbol" },
-                        weight: { type: "number", description: "Percentage weight in portfolio (0-100)" },
-                        reason: { type: "string", description: "Brief reason for selection" },
-                      },
-                      required: ["ticker", "weight", "reason"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["selections"],
-                additionalProperties: false,
-              },
-            },
-          },
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (!content || typeof content !== 'string') {
-          throw new Error("No valid response from LLM");
-        }
-
-        const result = JSON.parse(content);
-        const selections = result.selections || [];
-
-        // Validate and normalize weights
-        const totalWeight = selections.reduce((sum: number, s: any) => sum + s.weight, 0);
-        const normalizedSelections = selections.map((s: any) => ({
-          ...s,
-          weight: (s.weight / totalWeight) * 100, // Normalize to exactly 100%
-        }));
-
-        // Enrich with stock data
-        const enrichedSelections = normalizedSelections
-          .map((selection: any) => {
-            const stock = allStocks.find(s => s.ticker === selection.ticker);
-            if (!stock) return null;
-
-            return {
-              ticker: stock.ticker,
-              companyName: stock.companyName,
-              weight: parseFloat(selection.weight.toFixed(2)),
-              type: 'stock' as const,
-              currentPrice: stock.currentPrice,
-              currency: stock.currency || 'CHF',
-              exchangeRateToChf: stock.exchangeRateToChf || '1',
-              ytdPerformance: stock.ytdPerformance,
-              dividendYield: stock.dividendYield,
-              sector: stock.sector,
-              reason: selection.reason,
-            };
-          })
-          .filter(Boolean);
-
-        // Final weight adjustment to ensure exactly 100%
-        const finalTotalWeight = enrichedSelections.reduce((sum: number, s: any) => sum + s.weight, 0);
-        if (Math.abs(finalTotalWeight - 100) > 0.01) {
-          const adjustment = (100 - finalTotalWeight) / enrichedSelections.length;
-          enrichedSelections.forEach((s: any) => {
-            s.weight = parseFloat((s.weight + adjustment).toFixed(2));
-          });
-        }
-
-        return {
-          success: true,
-          positions: enrichedSelections,
-          metadata: {
-            strategy: input.strategy,
-            investmentHorizon: input.investmentHorizon,
-            generatedAt: new Date().toISOString(),
-          },
-        };
-      } catch (error: any) {
-        console.error("Error generating portfolio:", error);
-        throw new Error(`Failed to generate portfolio: ${error.message}`);
-      }
-    }),
+  // Der frühere LLM-Endpoint `generatePortfolio` (gesamte Aktientabelle an ein
+  // LLM, Gewichte vom Modell geraten) wurde von keiner Client-Seite aufgerufen
+  // und ist entfernt — der echte Pfad ist buildProposal (deterministisch
+  // + optimiert + Challenge-Layer).
 });
