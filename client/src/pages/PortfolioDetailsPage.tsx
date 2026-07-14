@@ -914,6 +914,17 @@ export default function PortfolioDetailsPage() {
       setStartCapital("");
       utils.portfolios.getWithCurrency.invalidate(portfolioId);
       utils.portfolios.list.invalidate();
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      // Invalidate ALL aggregated dashboard metrics so Live activation is reflected immediately
+      utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+      utils.dashboard.getAggregatedMetrics.invalidate();
+      utils.dashboard.getPerformanceTimeseries.invalidate();
+      utils.dashboard.getRiskMetrics.invalidate();
+      utils.dashboard.getBubbleIndicator.invalidate();
+      utils.dashboard.getSectorAllocation.invalidate();
+      utils.dashboard.getRegionAllocation.invalidate();
+      utils.dashboard.getAggregatedHoldings.invalidate();
+      utils.dashboard.getPortfolioCompact.invalidate();
       refetch();
     },
     onError: (error) => {
@@ -931,6 +942,16 @@ export default function PortfolioDetailsPage() {
       utils.portfolios.list.invalidate();
       utils.portfolioTransactions.list.invalidate({ portfolioId });
       utils.realizedGainsHistory.getAll.invalidate({ portfolioId });
+      // Invalidate ALL aggregated dashboard metrics so Live/Demo switch is reflected immediately
+      utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+      utils.dashboard.getAggregatedMetrics.invalidate();
+      utils.dashboard.getPerformanceTimeseries.invalidate();
+      utils.dashboard.getRiskMetrics.invalidate();
+      utils.dashboard.getBubbleIndicator.invalidate();
+      utils.dashboard.getSectorAllocation.invalidate();
+      utils.dashboard.getRegionAllocation.invalidate();
+      utils.dashboard.getAggregatedHoldings.invalidate();
+      utils.dashboard.getPortfolioCompact.invalidate();
       refetch();
     },
     onError: (error) => {
@@ -1205,10 +1226,20 @@ export default function PortfolioDetailsPage() {
   };
   
   const handleEditSuccess = () => {
-    // Invalidate and refetch data
+    // Invalidate portfolio-level and ALL aggregated dashboard queries
+    // so that renaming/editing a portfolio is immediately reflected everywhere.
     utils.portfolios.list.invalidate();
     utils.portfolios.getWithCurrency.invalidate(portfolioId);
     utils.portfolios.getHistoricalPerformance.invalidate({ portfolioId });
+    utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+    utils.dashboard.getAggregatedMetrics.invalidate();
+    utils.dashboard.getPerformanceTimeseries.invalidate();
+    utils.dashboard.getRiskMetrics.invalidate();
+    utils.dashboard.getBubbleIndicator.invalidate();
+    utils.dashboard.getSectorAllocation.invalidate();
+    utils.dashboard.getRegionAllocation.invalidate();
+    utils.dashboard.getAggregatedHoldings.invalidate();
+    utils.dashboard.getPortfolioCompact.invalidate();
     refetch();
   };
 
@@ -2756,14 +2787,26 @@ export default function PortfolioDetailsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-white/20 text-white hover:bg-white/10">
+            <AlertDialogCancel
+              disabled={deletePortfolio.isPending}
+              className="bg-transparent border-white/20 text-white hover:bg-white/10 disabled:opacity-50"
+            >
               Abbrechen
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deletePortfolio.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Portfolio löschen
+              {deletePortfolio.isPending ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  Wird gelöscht…
+                </span>
+              ) : 'Portfolio löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
