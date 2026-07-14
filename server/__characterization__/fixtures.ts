@@ -456,23 +456,3 @@ export const S15 = {
     shares: "200", pricePerShare: "20", totalAmount: "4000", fxRate: "0.92", totalAmountCHF: "3680",
   }),
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Szenario 19 — DCF-Referenzfall: stabiler CHF-Titel für CT-15 (R-32)
-// FCF-Yield 5 % (FCF 5 Mio auf MarketCap 100 Mio), Wachstum 4 %, Beta 0.8.
-// Als Yahoo-quoteSummary-Fixture (EODHD-Pfad ist ohne API-Key deaktiviert).
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const S19 = {
-  quoteSummary: {
-    financialData: {
-      currentPrice: 100,
-      freeCashflow: 5_000_000,
-      revenueGrowth: 0.04,
-      currency: "CHF",
-    },
-    defaultKeyStatistics: { sharesOutstanding: 1_000_000, beta: 0.8 },
-    summaryDetail: {},
-    quoteType: { longName: "Stabil AG" },
-  },
-};

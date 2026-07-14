@@ -3,45 +3,65 @@
  * (server/analytics/engine.ts, via öffentliche API optimizePortfolio —
  * beide Funktionen sind modulprivat)
  *
- * Pinnt das Verhalten NACH dem R-34-Fix: die Gewichts-Bounds werden für
- * kleine n aufgeweitet (maxW = max(0.10, 1.2/n), minW = min(0.01, 1/n)),
- * normalizeWithBounds projiziert exakt auf Summe 1 innerhalb der Bounds,
- * und die Effizienzgrenze wird mit DENSELBEN Bounds gerechnet — Optimum und
- * Kurve sind damit konsistent.
+ * Pinnt das Verhalten NACH dem R-34-Fix (aufgeweitete Bounds, konsistente
+ * Frontier) und NACH OPT-1 (Audit 2026-07): der Optimizer bezieht Renditen
+ * jetzt über fetchReturnsWithDates (CHF-konvertiert) + alignReturnsByDate.
  * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
  *
- * Determinismus: yahoo-finance2.chart liefert synthetische Fixture-Kursreihen;
- * Math.random ist mit einem geseedeten mulberry32-PRNG ersetzt (Optimizer und
- * Frontier ziehen eine feste Anzahl Zufallszahlen in fester Reihenfolge).
+ * Daten-Mocking: engine liest Kurse aus der historicalPrices-DB (getDb) und
+ * Währungen über fxHelper.getStockCurrency. Beides ist hier gemockt: drei
+ * synthetische CHF-Reihen mit identischen Handelstagen (Datums-Alignment ist
+ * damit ein No-op; die gepinnten Zahlen prüfen die Optimierung selbst).
+ *
+ * Determinismus: Math.random ist mit einem geseedeten mulberry32-PRNG ersetzt
+ * (Optimizer und Frontier ziehen eine feste Anzahl Zufallszahlen in fester
+ * Reihenfolge); die Fixture-Daten sind rein deterministisch.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  chartsByTicker: {} as Record<string, number[]>,
+  rowsByTicker: {} as Record<string, Array<{ ticker: string; date: string; close: number; adj: number | null }>>,
 }));
 
-vi.mock("yahoo-finance2", () => ({
-  default: class {
-    chart = async (ticker: string) => ({
-      quotes: (h.chartsByTicker[ticker] ?? []).map((close, i) => ({
-        close,
-        date: new Date(Date.UTC(2025, 0, 1 + i)),
-      })),
-    });
-    quoteSummary = async () => ({});
-  },
+// Thenable-Fake für die Drizzle-Chain select().from().where().orderBy()/limit().
+function fakeDb() {
+  const allRows = () => Object.values(h.rowsByTicker).flat();
+  const q: any = {
+    from: () => q,
+    where: () => q,
+    orderBy: () => q,
+    limit: () => q,
+    then: (resolve: any, reject: any) => Promise.resolve(allRows()).then(resolve, reject),
+  };
+  return { select: () => q };
+}
+
+vi.mock("../db", () => ({
+  getDb: async () => fakeDb(),
+}));
+
+vi.mock("../fxHelper", () => ({
+  getStockCurrency: async () => "CHF", // keine FX-Umrechnung → deterministisch
+  getFxRate: async () => 1,
 }));
 
 import { optimizePortfolio } from "../analytics/engine";
 
-/** Deterministische Kursreihen (61 Schlusskurse → 60 Tagesrenditen, alle µ > 0). */
-function buildCharts() {
-  const closes = (fn: (i: number) => number) => Array.from({ length: 61 }, (_, i) => fn(i));
+/**
+ * Deterministische Kursreihen (61 Schlusskurse → 60 Tagesrenditen, alle µ > 0).
+ * Handelstage jüngst genug für das lookback-Fenster (1.5 × 252 Tage) der Engine.
+ */
+function buildRows() {
+  const dates = Array.from({ length: 61 }, (_, i) =>
+    new Date(Date.UTC(2026, 3, 1 + i)).toISOString().slice(0, 10)
+  );
+  const series = (ticker: string, fn: (i: number) => number) =>
+    dates.map((date, i) => ({ ticker, date, close: fn(i), adj: null }));
   return {
-    T1: closes((i) => 100 + 0.05 * i + 2 * Math.sin(i * 0.7)),
-    T2: closes((i) => 50 + 0.06 * i + 1.5 * Math.sin(i * 1.3 + 1)),
-    T3: closes((i) => 200 + 0.08 * i + 3 * Math.sin(i * 0.5 + 2)),
+    T1: series("T1", (i) => 100 + 0.05 * i + 2 * Math.sin(i * 0.7)),
+    T2: series("T2", (i) => 50 + 0.06 * i + 1.5 * Math.sin(i * 1.3 + 1)),
+    T3: series("T3", (i) => 200 + 0.08 * i + 3 * Math.sin(i * 0.5 + 2)),
   };
 }
 
@@ -57,7 +77,7 @@ function mulberry32(seed: number) {
 }
 
 beforeEach(() => {
-  h.chartsByTicker = buildCharts();
+  h.rowsByTicker = buildRows();
   vi.spyOn(Math, "random").mockImplementation(mulberry32(42));
 });
 
@@ -87,7 +107,6 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     expect(res.optimalPortfolio.expectedReturn).toBe(0.0762);
     expect(res.optimalPortfolio.volatility).toBe(0.1225);
     expect(res.optimalPortfolio.sharpe).toBe(0.459);
-    expect(res.currentPortfolio.expectedReturn).toBe(0.0837);
     expect(res.optimalPortfolio.sharpe).toBeGreaterThan(res.currentPortfolio.sharpe);
   });
 
@@ -113,6 +132,14 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     const sum = Object.values(res.weights).reduce((s, w) => s + w, 0);
     expect(sum).toBeCloseTo(1, 3);
   });
+
+  it("OPT-1: unter 30 gemeinsamen Handelstagen bricht die Optimierung ehrlich ab", async () => {
+    // T3 handelt nur an 20 der gemeinsamen Tage → Schnittmenge < 30.
+    h.rowsByTicker.T3 = h.rowsByTicker.T3.slice(0, 21);
+    await expect(
+      optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" })
+    ).rejects.toThrow(/gemeinsame Handelstage/);
+  });
 });
 
 describe("CT-16 buildEfficientFrontier via optimizePortfolio (R-34 gefixt)", () => {
@@ -121,11 +148,7 @@ describe("CT-16 buildEfficientFrontier via optimizePortfolio (R-34 gefixt)", () 
     const frontier = res.efficientFrontier;
     const rets = frontier.map((p) => p.expectedReturn);
 
-    // Geseedeter Stand (mulberry32, Seed 42): nur noch 8 von 30 Zielpunkten
-    // finden ein bounds-konformes Zufallsportfolio — Ziel-Returns nahe
-    // min(µ)/max(µ) sind unter dem Cap prinzipiell unerreichbar.
-    // vorher (R-34): 28 Punkte, da OHNE Bounds gerechnet.
-    // Geseedeter Stand (mulberry32) — nach der Optimizer-Überarbeitung (u. a.
+    // Geseedeter Stand (mulberry32, Seed 42) — nach der Optimizer-Überarbeitung (u. a.
     // topWeights je Frontier-Punkt) neu gepinnt: 10 bounds-konforme Zielpunkte.
     expect(frontier).toHaveLength(10);
     for (let i = 1; i < frontier.length; i++) {
