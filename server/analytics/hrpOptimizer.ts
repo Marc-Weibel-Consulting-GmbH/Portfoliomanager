@@ -18,7 +18,8 @@
  *            Out-of-Sample. Journal of Portfolio Management, 42(4), 59–69.
  */
 
-import { DEFAULT_RISK_FREE_RATE } from "./riskStats";
+import { DEFAULT_RISK_FREE_RATE, effectiveBounds, normalizeWithBounds } from "./riskStats";
+import { ledoitWolfConstantCorr } from "../lib/ledoitWolf";
 
 // ─────────────────────────────────────────────
 // Types
@@ -43,46 +44,7 @@ export interface HRPResult {
 // Step 1: Correlation & Covariance Matrix
 // ─────────────────────────────────────────────
 
-/** Compute correlation matrix from returns map */
-function correlationMatrix(
-  tickers: string[],
-  returnsMap: Record<string, number[]>
-): number[][] {
-  const n = tickers.length;
-  const corr: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
-
-  for (let i = 0; i < n; i++) {
-    corr[i][i] = 1;
-    for (let j = i + 1; j < n; j++) {
-      const ri = returnsMap[tickers[i]];
-      const rj = returnsMap[tickers[j]];
-      const len = Math.min(ri.length, rj.length);
-      if (len < 5) {
-        corr[i][j] = 0;
-        corr[j][i] = 0;
-        continue;
-      }
-      const meanI = ri.slice(-len).reduce((a, b) => a + b, 0) / len;
-      const meanJ = rj.slice(-len).reduce((a, b) => a + b, 0) / len;
-      let cov = 0, varI = 0, varJ = 0;
-      for (let k = 0; k < len; k++) {
-        const di = ri[ri.length - len + k] - meanI;
-        const dj = rj[rj.length - len + k] - meanJ;
-        cov += di * dj;
-        varI += di * di;
-        varJ += dj * dj;
-      }
-      const denom = Math.sqrt(varI * varJ);
-      const r = denom > 0 ? cov / denom : 0;
-      // Clamp to [-1, 1] to handle floating point edge cases
-      corr[i][j] = Math.max(-1, Math.min(1, r));
-      corr[j][i] = corr[i][j];
-    }
-  }
-  return corr;
-}
-
-/** Compute covariance matrix from returns map */
+/** Compute covariance matrix from returns map (sample estimator, fallback for very short series) */
 function covarianceMatrix(
   tickers: string[],
   returnsMap: Record<string, number[]>,
@@ -110,6 +72,42 @@ function covarianceMatrix(
     }
   }
   return cov;
+}
+
+/**
+ * OPT-6 (Audit 2026-07): Ledoit-Wolf-geschrumpfte, annualisierte Kovarianz —
+ * DERSELBE Schätzer wie im MVO-Pfad der Engine, damit HRP-Gewichte und die
+ * ausgewiesenen Kennzahlen nicht mehr aus zwei Welten (Sample vs. LW) stammen.
+ * Fällt bei sehr kurzer Historie auf die Stichproben-Kovarianz zurück.
+ */
+function lwCovarianceMatrix(
+  tickers: string[],
+  returnsMap: Record<string, number[]>,
+  tradingDaysPerYear = 252
+): number[][] {
+  const minLen = Math.min(...tickers.map((t) => returnsMap[t]?.length ?? 0));
+  if (!Number.isFinite(minLen) || minLen < 5) {
+    return covarianceMatrix(tickers, returnsMap, tradingDaysPerYear);
+  }
+  const matrix = tickers.map((t) => returnsMap[t].slice(-minLen));
+  const { cov } = ledoitWolfConstantCorr(matrix);
+  return cov.map((row) => row.map((v) => v * tradingDaysPerYear));
+}
+
+/** Correlation derived from the (shrunk) covariance — clustering and weights share one estimator. */
+function covToCorr(cov: number[][]): number[][] {
+  const n = cov.length;
+  const corr: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    corr[i][i] = 1;
+    for (let j = i + 1; j < n; j++) {
+      const denom = Math.sqrt(Math.max(0, cov[i][i]) * Math.max(0, cov[j][j]));
+      const r = denom > 0 ? cov[i][j] / denom : 0;
+      corr[i][j] = Math.max(-1, Math.min(1, r));
+      corr[j][i] = corr[i][j];
+    }
+  }
+  return corr;
 }
 
 // ─────────────────────────────────────────────
@@ -280,37 +278,10 @@ function recursiveBisection(
 // Step 4: Apply Position Constraints
 // ─────────────────────────────────────────────
 
-/**
- * Clamp weights to [minWeight, maxWeight] and renormalize.
- * Iterative approach: clamp, renormalize, repeat until stable.
- */
-function applyWeightConstraints(
-  weights: number[],
-  minWeight: number,
-  maxWeight: number,
-  maxIter = 50
-): number[] {
-  let w = [...weights];
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    let changed = false;
-
-    // Clamp
-    for (let i = 0; i < w.length; i++) {
-      const clamped = Math.max(minWeight, Math.min(maxWeight, w[i]));
-      if (Math.abs(clamped - w[i]) > 1e-8) changed = true;
-      w[i] = clamped;
-    }
-
-    // Renormalize
-    const sum = w.reduce((a, b) => a + b, 0);
-    if (sum > 0) w = w.map(wi => wi / sum);
-
-    if (!changed) break;
-  }
-
-  return w;
-}
+// OPT-6: Die alte, lokale Clamp-und-Renormalisieren-Schleife konnte den Cap
+// verletzen (Renormalisierung hob geclampte Gewichte wieder über maxWeight).
+// Constraints laufen jetzt über die konvergente Simplex-Projektion
+// normalizeWithBounds (riskStats) — dieselbe wie im MVO-Pfad der Engine.
 
 // ─────────────────────────────────────────────
 // Step 5: Portfolio Statistics
@@ -429,9 +400,10 @@ export function runHRP(input: HRPInput): HRPResult {
     throw new Error('HRP requires at least 2 tickers.');
   }
 
-  // Step 1: Build matrices
-  const corr = correlationMatrix(tickers, returnsMap);
-  const cov = covarianceMatrix(tickers, returnsMap);
+  // Step 1: Build matrices (OPT-6: Ledoit-Wolf-Kovarianz wie im MVO-Pfad;
+  // Korrelation fürs Clustering aus DERSELBEN Matrix abgeleitet)
+  const cov = lwCovarianceMatrix(tickers, returnsMap);
+  const corr = covToCorr(cov);
 
   // Step 2: Distance matrix & hierarchical clustering
   const dist = corrToDistance(corr);
@@ -448,8 +420,10 @@ export function runHRP(input: HRPInput): HRPResult {
   const sumRaw = rawWeights.reduce((a, b) => a + b, 0);
   const normWeights = sumRaw > 0 ? rawWeights.map(w => w / sumRaw) : new Array(n).fill(1 / n);
 
-  // Step 5: Apply position constraints
-  const constrainedWeights = applyWeightConstraints(normWeights, minPositionWeight, maxPositionWeight);
+  // Step 5: Apply position constraints (OPT-6: konvergente Projektion mit
+  // R-34-Machbarkeits-Aufweitung — identisch zum MVO-Pfad)
+  const { minW, maxW } = effectiveBounds(n, minPositionWeight, maxPositionWeight);
+  const constrainedWeights = normalizeWithBounds(normWeights, minW, maxW);
 
   // Step 6: Build output
   const weightsMap: Record<string, number> = {};
