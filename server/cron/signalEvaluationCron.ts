@@ -150,6 +150,9 @@ export async function snapshotSignalsForPortfolio(): Promise<void> {
     const { stocks, signalHistory } = await import("../../drizzle/schema");
     const { activeCurated } = await import("../lib/stockUniverse");
     const { runSignalOrchestrator } = await import("../lib/signals/signalOrchestrator");
+    // SIG-7: gelernte Engine-Priors einmalig laden — schliesst die Gedächtnis-Schleife.
+    const { getLearnedEnginePriors } = await import("../analytics/regimeSignalMemory");
+    const learnedEnginePriorsByRegime = await getLearnedEnginePriors();
     const db = await getDb();
     if (!db) return;
 
@@ -185,6 +188,7 @@ export async function snapshotSignalsForPortfolio(): Promise<void> {
           lpplRisk: null,
           momentumScore: null,
           qualityScore: null,
+          learnedEnginePriorsByRegime,
         });
         if (!result) continue;
 

@@ -191,4 +191,10 @@ export interface OrchestratorInput {
   lpplRisk?: number | null;       // Vorberechneter LPPLS BubbleScore [-1, 1]
   qualityScore?: number | null;   // Vorberechneter Quality-Score [0, 100]
   momentumScore?: number | null;  // Vorberechneter Momentum-Score [0, 100]
+  /**
+   * SIG-7: Gelernte Engine-Priors je Regime (aus regime_signal_config,
+   * recomputeRegimeEngineWeights). regime → engine → Gewicht (Summe 1).
+   * Ersetzen die hartkodierten Regime-Priors des modelSelectors, wo vorhanden.
+   */
+  learnedEnginePriorsByRegime?: Record<string, Record<string, number>> | null;
 }

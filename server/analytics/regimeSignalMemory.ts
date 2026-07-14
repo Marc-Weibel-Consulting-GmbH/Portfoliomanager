@@ -97,16 +97,55 @@ export async function recomputeRegimeEngineWeights(): Promise<RecomputeResult> {
     };
   }
 
+  invalidateBlendConfigCache(); // SIG-7: neu gelernte Priors sofort wirksam
   return { updatedRegimes: updated, evaluatedRows: evaluated.length };
 }
 
 // Kurzer Cache, damit der Signal-Pfad (pro Titel aufgerufen) die DB nicht wiederholt trifft.
 let blendConfigCache: { at: number; config: RegimeBlendConfig } | null = null;
+let enginePriorsCache: { at: number; priors: Record<string, Record<string, number>> } | null = null;
 const BLEND_CONFIG_TTL_MS = 5 * 60 * 1000;
 
-/** Cache invalidieren (nach setRegimeBlend), damit Admin-Änderungen sofort greifen. */
+/** Cache invalidieren (nach setRegimeBlend/recompute), damit Änderungen sofort greifen. */
 export function invalidateBlendConfigCache(): void {
   blendConfigCache = null;
+  enginePriorsCache = null;
+}
+
+/**
+ * SIG-7 (Audit 2026-07): Gelernte Engine-Priors je Regime für den Signal-Pfad —
+ * schliesst die Gedächtnis-Schleife. Liest die von recomputeRegimeEngineWeights
+ * persistierten engineWeights (regime → engine → Gewicht); Regimes ohne gelernte
+ * Gewichte fehlen im Ergebnis und fallen im modelSelector auf die Default-Priors
+ * zurück. Cache 5 Min; ohne DB/Tabelle: leeres Objekt (reine Defaults).
+ */
+export async function getLearnedEnginePriors(nowMs = Date.now()): Promise<Record<string, Record<string, number>>> {
+  if (enginePriorsCache && nowMs - enginePriorsCache.at < BLEND_CONFIG_TTL_MS) {
+    return enginePriorsCache.priors;
+  }
+  const priors: Record<string, Record<string, number>> = {};
+  const db = await getDb();
+  if (db) {
+    try {
+      const rows = await db.select().from(regimeSignalConfig);
+      for (const r of rows) {
+        if (r.engineWeights == null) continue;
+        const raw = typeof r.engineWeights === "string" ? JSON.parse(r.engineWeights) : r.engineWeights;
+        if (!raw || typeof raw !== "object") continue;
+        const weights: Record<string, number> = {};
+        for (const [engine, w] of Object.entries(raw as Record<string, unknown>)) {
+          const v = typeof w === "number" ? w : parseFloat(String(w));
+          if (Number.isFinite(v) && v > 0) weights[engine] = v;
+        }
+        if (Object.keys(weights).length > 0) priors[r.regime] = weights;
+      }
+    } catch (e) {
+      // Tabelle fehlt/veraltet → Defaults verwenden, Signal-Pfad läuft weiter.
+      console.error("[regimeSignalMemory] engine priors read failed:", (e as Error).message);
+    }
+  }
+  enginePriorsCache = { at: nowMs, priors };
+  return priors;
 }
 
 /**

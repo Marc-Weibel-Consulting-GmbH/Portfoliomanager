@@ -1189,6 +1189,12 @@ function TradingViewSection({ ticker, stock }: { ticker: string; stock: any }) {
           })}
         </div>
 
+        {/* SIG-5: TradingView-Inhalte sind eine unabhängige Zweitmeinung. */}
+        <p className="text-xs text-gray-500 mb-3">
+          Unabhängige Zweitmeinung von TradingView (eigene Datenquelle und Methodik) —
+          fliesst nicht in den Score und das Signal des Portfolio Managers ein.
+        </p>
+
         {/* Tab Content */}
         {activeTab === "chart" && (
           <TradingViewWidget
