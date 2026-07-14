@@ -20,6 +20,7 @@ import { historicalPrices, stocks, walkForwardResults } from "../../drizzle/sche
 import { activeCurated } from "../lib/stockUniverse";
 import { eq, and, gte, lte, asc, desc, inArray, sql } from "drizzle-orm";
 import { getEodhdApiKey } from "../_core/env";
+import { DEFAULT_RISK_FREE_RATE } from "./riskStats";
 
 // A-10: key resolved lazily per call (env with DB-secret fallback)
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -276,7 +277,7 @@ function calculateTickerScore(
   const volatility = Math.sqrt(variance) * Math.sqrt(252);
   
   const annualizedReturn = avgReturn * 252;
-  const sharpe = volatility > 0 ? (annualizedReturn - 0.02) / volatility : 0;
+  const sharpe = volatility > 0 ? (annualizedReturn - DEFAULT_RISK_FREE_RATE) / volatility : 0;
   
   let relativeStrength = 0;
   if (benchmarkPrices.length >= 22) {

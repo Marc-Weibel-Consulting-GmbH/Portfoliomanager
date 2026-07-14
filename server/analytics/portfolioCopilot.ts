@@ -14,6 +14,7 @@
 import { randomForestSignal } from './mlEngine';
 import { signalForSeries, getActiveSignalModel } from './signalService';
 import * as ss from 'simple-statistics';
+import { DEFAULT_RISK_FREE_RATE } from "./riskStats";
 
 // ============================================================
 // TYPES
@@ -136,7 +137,7 @@ function calculateMaxDrawdown(prices: number[]): number {
   return maxDD;
 }
 
-function calculateSharpeForStock(prices: number[], riskFreeRate = 0.02): number {
+function calculateSharpeForStock(prices: number[], riskFreeRate = DEFAULT_RISK_FREE_RATE): number {
   if (prices.length < 60) return 0;
   const returns = [];
   for (let i = 1; i < prices.length; i++) {
@@ -681,7 +682,7 @@ function calculatePortfolioMetrics(holdings: PortfolioHolding[]) {
 
   const expectedReturn = Math.round(ss.mean(portfolioReturns) * 252 * 10000) / 10000;
   const expectedVolatility = Math.round(ss.standardDeviation(portfolioReturns) * Math.sqrt(252) * 10000) / 10000;
-  const sharpeRatio = expectedVolatility > 0 ? Math.round((expectedReturn - 0.02) / expectedVolatility * 100) / 100 : 0;
+  const sharpeRatio = expectedVolatility > 0 ? Math.round((expectedReturn - DEFAULT_RISK_FREE_RATE) / expectedVolatility * 100) / 100 : 0;
   
   // Max drawdown risk (historical)
   let cumReturn = 1;

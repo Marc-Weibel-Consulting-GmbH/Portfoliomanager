@@ -12,6 +12,7 @@ import { apiCache, CACHE_TTL } from './apiCache';
 import { toEodhdSymbol } from '../lib/eodhdSymbol';
 
 import { ENV } from "./env";
+import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
 export interface StockMetrics {
   currentPrice: number | null;
   currency: string | null;
@@ -65,8 +66,9 @@ function calculateSharpeRatio(prices: number[]): { sharpe: number; volatility: n
   const annualizedReturn = avgReturn * 252;
   const annualizedVolatility = stdDev * Math.sqrt(252);
 
-  // Sharpe Ratio (using 0% risk-free rate)
-  const sharpeRatio = annualizedReturn / annualizedVolatility;
+  // DAT-4 (Audit 2026-07): Sharpe MIT Abzug des risikofreien Zinses —
+  // vorher (r/vol, rf=0) war der gespeicherte stocks.sharpeRatio überzeichnet.
+  const sharpeRatio = (annualizedReturn - DEFAULT_RISK_FREE_RATE) / annualizedVolatility;
 
   return {
     sharpe: sharpeRatio,

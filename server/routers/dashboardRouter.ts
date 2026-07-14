@@ -4,6 +4,7 @@ import { ENV } from "../_core/env";
 // D-01: unified holdings replay (buy/entry/sell, chronological, DESC-safe) —
 // replaces the previously inline re-implemented per-router replay loops.
 import { buildHoldings } from "../lib/holdings";
+import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -1812,7 +1813,7 @@ export const dashboardRouter = router({
       const var95 = sortedReturns[var95Index] * 100;
 
       // Sharpe Ratio (rf = 1.5% annual = 0.006 daily)
-      const rf = 0.015 / 252;
+      const rf = DEFAULT_RISK_FREE_RATE / 252; // DAT-3: zentraler rf statt lokal 0.015
       const excessMean = mean - rf;
       const sharpeRatio = variance > 0 ? (excessMean / Math.sqrt(variance)) * Math.sqrt(252) : 0;
 
@@ -2281,6 +2282,9 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     if (symbols.length === 0) return [];
     const { calculateQualityScore, calculateMomentumScore } = await import('../analytics/qualityMomentumEngine');
     const { detectBubble } = await import('../analytics/lpplsEngine');
+    const { blendCombinedScore } = await import('../lib/signalBlend');
+    const { getRegimeBlendConfig } = await import('../analytics/regimeSignalMemory');
+    const { computeRegime: computeRegimeForBlend } = await import('../lib/signals/regimeEngine');
     // Kursreihen aus der historicalPrices-DB (EODHD) statt Live-Yahoo (in Prod blockiert
     // → sonst «ERROR» pro Titel). Quality-Fundamentals (ROE/FCF) liegen nicht in der DB →
     // Quality degradiert graziös auf C; Momentum + LPPL bleiben belastbar.
@@ -2311,15 +2315,20 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         try { qualityResult = calculateQualityScore(qualityMetrics); } catch (e) { console.warn('[dashboardRouter] calculateQualityScore fehlgeschlagen:', e); }
         let bubbleScore = 0, bubbleRegime = 'normal';
         if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (e) { console.warn('[dashboardRouter] detectBubble fehlgeschlagen:', e); } }
-        const mNorm = (momentumResult.score + 1) / 2;
-        const qNorm = (qualityResult.score + 1) / 2;
+        // SIG-1 (Audit 2026-07): zentrale Kombiscore-Formel (blendCombinedScore) statt
+        // der alten Inline-0.8-Formel — identisches Verdikt wie Signale-&-Scores/StockDetail.
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
-        const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+        let regimeKey = 'default';
+        if (prices.length >= 60) { try { regimeKey = computeRegimeForBlend(prices).regime; } catch (e) { /* Preise zu kurz */ } }
+        const blended = blendCombinedScore(
+          { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
+          await getRegimeBlendConfig()
+        );
         results.push({
           ticker,
-          combinedScore: parseFloat((combined * 100).toFixed(1)),
-          overallGrade: combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F',
-          signal: combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL',
+          combinedScore: blended.combinedScore,
+          overallGrade: blended.grade,
+          signal: blended.signalLabel,
           momentum: { grade: momentumResult.grade, trend: momentumResult.trend },
           quality: { grade: qualityResult.grade },
           lppl: { regime: bubbleRegime },
