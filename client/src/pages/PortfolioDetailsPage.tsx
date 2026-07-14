@@ -1178,6 +1178,20 @@ export default function PortfolioDetailsPage() {
   const handleDeleteConfirm = async () => {
     try {
       await deletePortfolio.mutateAsync({ id: portfolioId });
+      // Invalidate ALL dashboard and portfolio-list queries so aggregated metrics
+      // (YTD, Sharpe, Gesamtwert) update immediately after deletion.
+      await Promise.all([
+        utils.portfolios.list.invalidate(),
+        utils.portfolios.getMultiPeriodPerformanceV2.invalidate(),
+        utils.dashboard.getAggregatedMetrics.invalidate(),
+        utils.dashboard.getPerformanceTimeseries.invalidate(),
+        utils.dashboard.getRiskMetrics.invalidate(),
+        utils.dashboard.getBubbleIndicator.invalidate(),
+        utils.dashboard.getSectorAllocation.invalidate(),
+        utils.dashboard.getRegionAllocation.invalidate(),
+        utils.dashboard.getAggregatedHoldings.invalidate(),
+        utils.dashboard.getPortfolioCompact.invalidate(),
+      ]);
       toast.success("Portfolio gelöscht");
       navigate("/dashboard");
     } catch (error: any) {

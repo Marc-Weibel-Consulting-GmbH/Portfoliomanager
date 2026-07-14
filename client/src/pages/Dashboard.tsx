@@ -588,6 +588,7 @@ export default function Dashboard() {
       // Invalidate portfolio lists
       utils.dashboard.getPortfolioCompact.invalidate();
       utils.portfolios.list.invalidate();
+      utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
       // Invalidate ALL dashboard KPIs so they are recalculated after deletion
       utils.dashboard.getAggregatedMetrics.invalidate();
       utils.dashboard.getRiskMetrics.invalidate();
