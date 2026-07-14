@@ -658,6 +658,11 @@ export default function PortfolioBuilderWizard() {
                         </>
                       )}
                     </div>
+                    {(autoProposal as any).weighting?.note && (
+                      <p className="text-xs text-amber-400">
+                        Hinweis zur Gewichtung: {(autoProposal as any).weighting.note}
+                      </p>
+                    )}
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
                       {autoProposal.positions.map((p: any) => (
                         <div key={p.ticker} className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">

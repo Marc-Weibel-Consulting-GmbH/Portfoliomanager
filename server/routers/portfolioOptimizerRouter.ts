@@ -1,112 +1,13 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
-import { and, eq } from "drizzle-orm";
 import { savedPortfolios } from "../../drizzle/schema";
 
-type OptimizationCriterion = "sharpe" | "dividend" | "minVolatility" | "maxReturn" | "balanced";
-
-interface OptimizationResult {
-  stocks: any[];
-  expectedReturn: number;
-  risk: number;
-  sharpeRatio: number;
-  dividendYield: number;
-}
-
-/**
- * Optimize portfolio based on selected criterion
- */
-function optimizePortfolio(stocks: any[], criterion: OptimizationCriterion, targetReturn?: number, maxRisk?: number): OptimizationResult {
-  // Simple optimization logic (in production, use proper portfolio optimization libraries)
-  let optimizedStocks = [...stocks];
-  
-  switch (criterion) {
-    case "sharpe":
-      // Maximize Sharpe Ratio: favor stocks with high return/risk ratio
-      optimizedStocks.sort((a, b) => (b.sharpeRatio || 0) - (a.sharpeRatio || 0));
-      break;
-      
-    case "dividend":
-      // Maximize Dividend Yield
-      optimizedStocks.sort((a, b) => (b.dividendYield || 0) - (a.dividendYield || 0));
-      break;
-      
-    case "minVolatility":
-      // Minimize Volatility: favor stable stocks
-      optimizedStocks.sort((a, b) => {
-        const volatilityA = Math.abs(a.ytdPerformance || 0);
-        const volatilityB = Math.abs(b.ytdPerformance || 0);
-        return volatilityA - volatilityB;
-      });
-      break;
-      
-    case "maxReturn":
-      // Maximize Return: favor high-performing stocks
-      optimizedStocks.sort((a, b) => (b.ytdPerformance || 0) - (a.ytdPerformance || 0));
-      break;
-      
-    case "balanced":
-    default:
-      // Balanced approach: consider multiple factors
-      optimizedStocks.sort((a, b) => {
-        const scoreA = (a.sharpeRatio || 0) * 0.3 + (a.dividendYield || 0) * 0.3 + (a.ytdPerformance || 0) * 0.01 * 0.4;
-        const scoreB = (b.sharpeRatio || 0) * 0.3 + (b.dividendYield || 0) * 0.3 + (b.ytdPerformance || 0) * 0.01 * 0.4;
-        return scoreB - scoreA;
-      });
-      break;
-  }
-
-  // Take top 10-15 stocks for diversification
-  const topStocks = optimizedStocks.slice(0, 15);
-  
-  // Redistribute weights based on criterion
-  const totalWeight = 100;
-  let weights: number[];
-  
-  if (criterion === "minVolatility") {
-    // Equal weighting for minimum volatility
-    weights = topStocks.map(() => totalWeight / topStocks.length);
-  } else {
-    // Weighted by score (exponential decay)
-    weights = topStocks.map((_, i) => Math.exp(-i * 0.2));
-    const sumWeights = weights.reduce((a, b) => a + b, 0);
-    weights = weights.map(w => (w / sumWeights) * totalWeight);
-  }
-
-  // Apply weights to stocks
-  const optimizedWithWeights = topStocks.map((stock, i) => ({
-    ...stock,
-    portfolioWeight: weights[i],
-    shares: Math.floor((weights[i] / 100) * 10000 / stock.currentPrice) // Assume 10k investment
-  }));
-
-  // Calculate portfolio metrics
-  const expectedReturn = optimizedWithWeights.reduce((sum, s) => 
-    sum + (s.ytdPerformance || 0) * (s.portfolioWeight / 100), 0
-  );
-  
-  const dividendYield = optimizedWithWeights.reduce((sum, s) => 
-    sum + (s.dividendYield || 0) * (s.portfolioWeight / 100), 0
-  );
-  
-  const avgSharpe = optimizedWithWeights.reduce((sum, s) => 
-    sum + (s.sharpeRatio || 0) * (s.portfolioWeight / 100), 0
-  );
-
-  // Estimate risk (volatility) as weighted average of absolute YTD performance
-  const risk = optimizedWithWeights.reduce((sum, s) => 
-    sum + Math.abs(s.ytdPerformance || 0) * (s.portfolioWeight / 100), 0
-  );
-
-  return {
-    stocks: optimizedWithWeights,
-    expectedReturn,
-    risk,
-    sharpeRatio: avgSharpe,
-    dividendYield
-  };
-}
+// OPT-4 (Audit 2026-07): Der frühere `optimize`-Endpoint war ein Pseudo-
+// Optimizer («Volatilität» = gewichteter |YTD|, «expectedReturn» = YTD-
+// Vergangenheit, «Sharpe» = Durchschnitt der Titel-Sharpes) und wurde von
+// keiner Client-Seite aufgerufen — entfernt. Echte Optimierung läuft über
+// analytics.optimize (server/analytics/engine.ts).
 
 /**
  * Generate smart portfolio based on investment amount and investor type
@@ -166,7 +67,7 @@ async function generateSmartPortfolio(
 
   // Sort by score and select top stocks
   scoredStocks.sort((a, b) => b.score - a.score);
-  
+
   // Determine number of positions based on investment amount
   let numberOfPositions: number;
   if (investmentAmount < 5000) {
@@ -178,15 +79,34 @@ async function generateSmartPortfolio(
   } else {
     numberOfPositions = 12;
   }
-  
-  const selectedStocks = scoredStocks.slice(0, numberOfPositions);
+
+  // OPT-4 (Audit 2026-07): Die CHF-Allokation wurde vorher durch den
+  // LOKALWÄHRUNGS-Kurs geteilt (USD/GBp als CHF behandelt) — Stückzahlen und
+  // Positionswerte waren für Fremdwährungstitel systematisch falsch. Jetzt:
+  // Kurs per convertToCHF in CHF umrechnen; Titel ohne verfügbaren Wechselkurs
+  // werden übersprungen (kein 1:1-Fallback, R-10).
+  const { convertToCHF } = await import("../fxHelper");
+  const todayStr = new Date().toISOString().split("T")[0];
+  const selectedStocks: Array<(typeof scoredStocks)[number] & { priceChf: number }> = [];
+  for (const stock of scoredStocks) {
+    if (selectedStocks.length >= numberOfPositions) break;
+    const priceChf = await convertToCHF(stock.currentPrice, stock.currency || "CHF", todayStr);
+    if (!(priceChf > 0)) {
+      console.warn(`[generateSmartPortfolio] ${stock.ticker}: kein ${stock.currency}/CHF-Kurs — übersprungen`);
+      continue;
+    }
+    selectedStocks.push(Object.assign(stock, { priceChf }));
+  }
+  if (selectedStocks.length < 2) {
+    throw new Error("Zu wenige Titel mit gültigem CHF-Kurs für ein Portfolio gefunden.");
+  }
 
   // Calculate weights based on investor type
   let weights: number[];
-  
+
   if (investorType === "conservative") {
     // More equal weighting for conservative
-    weights = selectedStocks.map(() => 100 / numberOfPositions);
+    weights = selectedStocks.map(() => 100 / selectedStocks.length);
   } else {
     // Exponential decay for balanced/dynamic (favor top performers)
     weights = selectedStocks.map((_, i) => Math.exp(-i * 0.15));
@@ -194,18 +114,20 @@ async function generateSmartPortfolio(
     weights = weights.map(w => (w / sumWeights) * 100);
   }
 
-  // Calculate shares for each stock
+  // Calculate shares for each stock (CHF-Allokation ÷ CHF-Kurs; value in CHF)
   const portfolioStocks = selectedStocks.map((stock, i) => {
     const allocation = (weights[i] / 100) * investmentAmount;
-    const shares = Math.floor(allocation / stock.currentPrice);
-    
+    const shares = Math.floor(allocation / stock.priceChf);
+
     return {
       ticker: stock.ticker,
       companyName: stock.companyName,
       currentPrice: stock.currentPrice,
+      currency: stock.currency || "CHF",
+      priceChf: stock.priceChf,
       portfolioWeight: weights[i],
       shares,
-      value: shares * stock.currentPrice,
+      value: shares * stock.priceChf,
       dividendYield: stock.dividendYield,
       ytdPerformance: stock.ytdPerformance,
       peRatio: stock.peRatio,
@@ -231,7 +153,7 @@ async function generateSmartPortfolio(
       totalValue,
       avgDividendYield,
       expectedReturn,
-      numberOfPositions,
+      numberOfPositions: portfolioStocks.length,
       investorType,
     },
   };
@@ -254,47 +176,6 @@ async function generateSmartPortfolio(
 }
 
 export const portfolioOptimizerRouter = router({
-  /**
-   * Optimize a portfolio based on selected criterion
-   */
-  optimize: protectedProcedure
-    .input(z.object({
-      portfolioId: z.number(),
-      criterion: z.enum(["sharpe", "dividend", "minVolatility", "maxReturn", "balanced"]),
-      targetReturn: z.number().optional(),
-      maxRisk: z.number().optional()
-    }))
-    .mutation(async ({ input, ctx }) => {
-      const db = await getDb();
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
-      // Fetch portfolio (SEC-1: nur eigene Portfolios — Ownership-Guard)
-      const [portfolio] = await db
-        .select()
-        .from(savedPortfolios)
-        .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
-        .limit(1);
-
-      if (!portfolio) {
-        throw new Error("Portfolio not found");
-      }
-
-      // Parse portfolio data
-      const portfolioData = JSON.parse(portfolio.portfolioData);
-      const stocks = portfolioData.stocks || [];
-
-      if (stocks.length === 0) {
-        throw new Error("Portfolio has no stocks");
-      }
-
-      // Optimize portfolio
-      const result = optimizePortfolio(stocks, input.criterion, input.targetReturn, input.maxRisk);
-
-      return result;
-    }),
-
   /**
    * Generate smart portfolio based on investment amount and investor type
    */

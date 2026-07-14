@@ -33,6 +33,8 @@ import {
   calcVolatility,
   calcCalmar,
   alignReturnsByDate,
+  effectiveBounds,
+  normalizeWithBounds,
   type DatedReturns,
 } from "./riskStats";
 import { getFxRate, getStockCurrency } from "../fxHelper";
@@ -316,51 +318,27 @@ function portfolioStats(
 }
 
 /**
- * R-34: make the configured bounds feasible for the actual number of titles.
- * With n < 10 a 10 %-cap is infeasible (n·max < 1); raising the cap to 1.2/n
- * keeps the sum-to-1 constraint reachable with 20 % slack. Mirrored guard for
- * the floor (n > 1/min would make n·min > 1).
+ * OPT-5 (Audit 2026-07): geseedeter mulberry32-PRNG statt Math.random für die
+ * Zufallssuche — zweimal «Optimieren» mit identischen Inputs liefert jetzt
+ * identische Gewichte (vorher jedes Mal ein anderes Portfolio). Optimizer und
+ * Frontier seeden sich beim Einstieg jeweils neu, damit jede Funktion für sich
+ * deterministisch ist, unabhängig davon, wer vorher wie viele Zahlen gezogen hat.
  */
-function effectiveBounds(n: number, minWeight: number, maxWeight: number) {
-  return {
-    minW: Math.min(minWeight, 1 / n),
-    maxW: Math.max(maxWeight, 1.2 / n),
+function mulberry32(seed: number): () => number {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-/**
- * Project weights onto {minW ≤ w_i ≤ maxW, Σw = 1}: clip to bounds, then
- * redistribute the deficit/surplus proportionally to the remaining headroom/
- * slack of the non-saturated components until the sum is exactly 1 (R-34 —
- * the old version divided by the sum and re-clipped, which never converged
- * when the bounds were infeasible or tight).
- */
-function normalizeWithBounds(w: number[], minW: number, maxW: number): number[] {
-  const x = w.map((v) => Math.max(minW, Math.min(maxW, v)));
-  for (let iter = 0; iter < 50; iter++) {
-    const sum = x.reduce((s, v) => s + v, 0);
-    const diff = 1 - sum;
-    if (Math.abs(diff) < 1e-12) break;
-    if (diff > 0) {
-      const headroom = x.map((v) => maxW - v);
-      const total = headroom.reduce((s, v) => s + v, 0);
-      if (total <= 0) break; // infeasible: everything at the cap
-      const scale = Math.min(1, diff / total);
-      for (let i = 0; i < x.length; i++) x[i] += headroom[i] * scale;
-    } else {
-      const slack = x.map((v) => v - minW);
-      const total = slack.reduce((s, v) => s + v, 0);
-      if (total <= 0) break; // infeasible: everything at the floor
-      const scale = Math.min(1, -diff / total);
-      for (let i = 0; i < x.length; i++) x[i] -= slack[i] * scale;
-    }
-  }
-  return x;
-}
+const OPTIMIZER_SEED = 0x51ab1e;
+let rng: () => number = mulberry32(OPTIMIZER_SEED);
 
 /** Random weight vector within [minW, maxW] summing to 1 (used by optimizer and frontier, R-34b). */
 function randomBoundedWeights(n: number, minW: number, maxW: number): number[] {
-  const raw = Array.from({ length: n }, () => minW + Math.random() * (maxW - minW));
+  const raw = Array.from({ length: n }, () => minW + rng() * (maxW - minW));
   return normalizeWithBounds(raw, minW, maxW);
 }
 
@@ -383,6 +361,8 @@ function optimizeWeights(
   const x0 = new Array(n).fill(1 / n);
 
   if (method === "equal_weight") return x0;
+
+  rng = mulberry32(OPTIMIZER_SEED); // OPT-5: deterministische Zufallssuche
 
   // Apply diversification constraints (default: min 1%, max 10%),
   // widened to a feasible range for small n (R-34a).
@@ -495,6 +475,7 @@ function buildEfficientFrontier(
   minWeight = 0.01,
   maxWeight = 0.10
 ): Array<{ expectedReturn: number; volatility: number; sharpe: number; topWeights: Array<{ ticker: string; weight: number }> }> {
+  rng = mulberry32(OPTIMIZER_SEED); // OPT-5: deterministische Frontier
   const minRet = Math.min(...mu);
   const maxRet = Math.max(...mu);
   const retRange = maxRet - minRet;
@@ -1110,10 +1091,25 @@ export async function optimizePortfolio(input: OptimizeInput) {
   const currencyByTicker: { [ticker: string]: string } = {};
   for (const t of tickers) currencyByTicker[t] = await getStockCurrency(t);
   const datedMap = await fetchReturnsWithDates(tickers, lookbackDays, currencyByTicker);
-  const available = tickers.filter((t) => datedMap[t]);
+
+  // OPT-7 (Audit 2026-07): Mindesthistorie erzwingen. Titel mit zu kurzer
+  // Kursreihe werden geflaggt AUSGESCHLOSSEN statt einbezogen — vorher drückte
+  // ein einzelner junger Titel die gemeinsame Datums-Schnittmenge aller Titel
+  // stillschweigend auf wenige Tage (Kovarianz aus ~6 Punkten = Rauschen).
+  const MIN_HISTORY_RETURNS = 60;
+  const excludedShortHistory: Array<{ ticker: string; dataPoints: number }> = [];
+  const available: string[] = [];
+  for (const t of tickers) {
+    const points = datedMap[t]?.returns.length ?? 0;
+    if (points >= MIN_HISTORY_RETURNS) available.push(t);
+    else excludedShortHistory.push({ ticker: t, dataPoints: points });
+  }
 
   if (available.length < 2) {
-    throw new Error("Insufficient data for optimization (need at least 2 tickers with data).");
+    throw new Error(
+      `Zu wenig Kurshistorie für eine Optimierung: nur ${available.length} von ${tickers.length} Titeln ` +
+      `haben mindestens ${MIN_HISTORY_RETURNS} Handelstage.`
+    );
   }
 
   const { returnsByTicker: returnsMap, dates: alignedDates } = alignReturnsByDate(datedMap, available);
@@ -1223,6 +1219,8 @@ export async function optimizePortfolio(input: OptimizeInput) {
       efficientFrontier: buildEfficientFrontier(mu, cov, riskFreeRate, available, 30, minPositionWeight, maxPositionWeight),
       tickers: available,
       droppedPositions: droppedHrp,
+      // OPT-7: Titel, die mangels Kurshistorie NICHT optimiert wurden.
+      excludedShortHistory,
       minPositionChf: MIN_POSITION_CHF_HRP,
       hrpMeta: {
         clusterOrder: hrpResult.sortedTickers,
@@ -1380,6 +1378,9 @@ export async function optimizePortfolio(input: OptimizeInput) {
     // R-34c (additiv): Positionen, die wegen der Mindestgrösse CHF 3'000
     // auf 0 gesetzt wurden (leer, wenn kein portfolioValue übergeben wurde).
     droppedPositions,
+    // OPT-7 (additiv): Titel, die mangels Kurshistorie (< 60 Handelstage)
+    // NICHT in die Optimierung eingeflossen sind.
+    excludedShortHistory,
     minPositionChf: MIN_POSITION_CHF,
     // Constraint-Zielerreichung (nur wenn userConstraints gesetzt)
     constraintAchievement,

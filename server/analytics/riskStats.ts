@@ -200,3 +200,46 @@ export function alignReturnsByDate(
   }
   return { dates: common, returnsByTicker };
 }
+
+/**
+ * R-34: make the configured bounds feasible for the actual number of titles.
+ * With n < 10 a 10 %-cap is infeasible (n·max < 1); raising the cap to 1.2/n
+ * keeps the sum-to-1 constraint reachable with 20 % slack. Mirrored guard for
+ * the floor (n > 1/min would make n·min > 1).
+ */
+export function effectiveBounds(n: number, minWeight: number, maxWeight: number) {
+  return {
+    minW: Math.min(minWeight, 1 / n),
+    maxW: Math.max(maxWeight, 1.2 / n),
+  };
+}
+
+/**
+ * Project weights onto {minW ≤ w_i ≤ maxW, Σw = 1}: clip to bounds, then
+ * redistribute the deficit/surplus proportionally to the remaining headroom/
+ * slack of the non-saturated components until the sum is exactly 1 (R-34 —
+ * the old version divided by the sum and re-clipped, which never converged
+ * when the bounds were infeasible or tight).
+ */
+export function normalizeWithBounds(w: number[], minW: number, maxW: number): number[] {
+  const x = w.map((v) => Math.max(minW, Math.min(maxW, v)));
+  for (let iter = 0; iter < 50; iter++) {
+    const sum = x.reduce((s, v) => s + v, 0);
+    const diff = 1 - sum;
+    if (Math.abs(diff) < 1e-12) break;
+    if (diff > 0) {
+      const headroom = x.map((v) => maxW - v);
+      const total = headroom.reduce((s, v) => s + v, 0);
+      if (total <= 0) break; // infeasible: everything at the cap
+      const scale = Math.min(1, diff / total);
+      for (let i = 0; i < x.length; i++) x[i] += headroom[i] * scale;
+    } else {
+      const slack = x.map((v) => v - minW);
+      const total = slack.reduce((s, v) => s + v, 0);
+      if (total <= 0) break; // infeasible: everything at the floor
+      const scale = Math.min(1, -diff / total);
+      for (let i = 0; i < x.length; i++) x[i] -= slack[i] * scale;
+    }
+  }
+  return x;
+}

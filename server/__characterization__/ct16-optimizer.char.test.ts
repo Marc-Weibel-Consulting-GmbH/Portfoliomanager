@@ -13,12 +13,13 @@
  * synthetische CHF-Reihen mit identischen Handelstagen (Datums-Alignment ist
  * damit ein No-op; die gepinnten Zahlen prüfen die Optimierung selbst).
  *
- * Determinismus: Math.random ist mit einem geseedeten mulberry32-PRNG ersetzt
- * (Optimizer und Frontier ziehen eine feste Anzahl Zufallszahlen in fester
- * Reihenfolge); die Fixture-Daten sind rein deterministisch.
+ * Determinismus: seit OPT-5 (Audit 2026-07) nutzt die Engine INTERN einen
+ * geseedeten mulberry32-PRNG statt Math.random — die Ergebnisse sind damit
+ * von Haus aus reproduzierbar (kein Math.random-Mock mehr nötig). Die Pins
+ * wurden nach der Seed-Einführung durch Ausführen des Codes neu ermittelt.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   rowsByTicker: {} as Record<string, Array<{ ticker: string; date: string; close: number; adj: number | null }>>,
@@ -65,24 +66,8 @@ function buildRows() {
   };
 }
 
-/** mulberry32 — geseedeter Ersatz für Math.random. */
-function mulberry32(seed: number) {
-  let a = seed | 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 beforeEach(() => {
   h.rowsByTicker = buildRows();
-  vi.spyOn(Math, "random").mockImplementation(mulberry32(42));
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
 });
 
 describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
@@ -94,20 +79,27 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     // rohen historischen Jahresmittel werden als unsichere Views gegen den Equal-Weight-
     // Gleichgewichts-Prior geschrumpft → die Renditeschätzer liegen enger beieinander,
     // die Gewichte sind weniger extrem (Ledoit-Wolf-Kovarianz-Shrinkage weiterhin aktiv).
-    expect(res.weights).toEqual({ T1: 0.3266, T2: 0.2736, T3: 0.3999 });
+    expect(res.weights).toEqual({ T1: 0.3275, T2: 0.2725, T3: 0.3999 });
     const sum = Object.values(res.weights).reduce((s, w) => s + w, 0);
     expect(sum).toBeCloseTo(1, 3);
     for (const w of Object.values(res.weights)) {
       expect(w).toBeGreaterThanOrEqual(0.01);
       expect(w).toBeLessThanOrEqual(0.4 + 1e-9);
     }
-    expect(res.assets.map((a) => a.optimalWeight)).toEqual([32.7, 27.4, 40]);
+    expect(res.assets.map((a) => a.optimalWeight)).toEqual([32.8, 27.3, 40]);
 
     // Sharpe-Ratio des Optimums liegt ÜBER dem Equal-Weight-Portfolio:
-    expect(res.optimalPortfolio.expectedReturn).toBe(0.0762);
-    expect(res.optimalPortfolio.volatility).toBe(0.1225);
+    expect(res.optimalPortfolio.expectedReturn).toBe(0.076);
+    expect(res.optimalPortfolio.volatility).toBe(0.1222);
     expect(res.optimalPortfolio.sharpe).toBe(0.459);
     expect(res.optimalPortfolio.sharpe).toBeGreaterThan(res.currentPortfolio.sharpe);
+  });
+
+  it("OPT-5: zweimal optimieren mit identischen Inputs liefert identische Gewichte", async () => {
+    const a = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" });
+    const b = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" });
+    expect(b.weights).toEqual(a.weights);
+    expect(b.efficientFrontier).toEqual(a.efficientFrontier);
   });
 
   it("min_variance liefert andere Gewichte als max_sharpe (Methode wirkt wieder)", async () => {
@@ -116,8 +108,8 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     // vorher (R-34): identisch [0.1, 0.1, 0.1] mit max_sharpe, da jede
     // Kandidatenlösung auf den Cap geclippt wurde — Methode wirkungslos.
     // min_variance ignoriert μ → von der Black-Litterman-Umstellung unberührt.
-    expect(res.weights).toEqual({ T1: 0.3997, T2: 0.2042, T3: 0.3962 });
-    expect(res.optimalPortfolio.expectedReturn).toBe(0.0671);
+    expect(res.weights).toEqual({ T1: 0.3974, T2: 0.2029, T3: 0.3997 });
+    expect(res.optimalPortfolio.expectedReturn).toBe(0.067);
   });
 
   it("equal_weight: 33.3 % liegt innerhalb der effektiven Bounds (Cap 40 % bei n = 3)", async () => {
@@ -133,11 +125,38 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     expect(sum).toBeCloseTo(1, 3);
   });
 
-  it("OPT-1: unter 30 gemeinsamen Handelstagen bricht die Optimierung ehrlich ab", async () => {
-    // T3 handelt nur an 20 der gemeinsamen Tage → Schnittmenge < 30.
+  it("OPT-7: Titel mit zu kurzer Historie wird geflaggt ausgeschlossen statt die Schnittmenge zu drücken", async () => {
+    // T3 hat nur 20 Renditen (< 60) → wird ausgeschlossen; T1/T2 werden
+    // normal optimiert. Vorher drückte T3 die gemeinsame Datums-Schnittmenge
+    // aller drei Titel auf 20 Tage und die GESAMTE Optimierung brach ab.
+    h.rowsByTicker.T3 = h.rowsByTicker.T3.slice(0, 21);
+    const res = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" });
+    expect(res.tickers).toEqual(["T1", "T2"]);
+    expect(res.excludedShortHistory).toEqual([{ ticker: "T3", dataPoints: 20 }]);
+    expect(res.weights).toEqual({ T1: 0.4865, T2: 0.5135 });
+  });
+
+  it("OPT-7: unter 2 Titeln mit Mindesthistorie bricht die Optimierung ehrlich ab", async () => {
+    h.rowsByTicker.T2 = h.rowsByTicker.T2.slice(0, 21);
     h.rowsByTicker.T3 = h.rowsByTicker.T3.slice(0, 21);
     await expect(
       optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" })
+    ).rejects.toThrow(/Zu wenig Kurshistorie/);
+  });
+
+  it("OPT-1: unter 30 gemeinsamen Handelstagen bricht die Optimierung ehrlich ab", async () => {
+    // T1 und T2 haben je 60 Renditen (Mindesthistorie erfüllt), handeln aber
+    // an verschobenen Kalendern: T2 beginnt 41 Tage später → nur 19 gemeinsame
+    // Rendite-Tage < 30.
+    const shiftedDates = Array.from({ length: 61 }, (_, i) =>
+      new Date(Date.UTC(2026, 3, 42 + i)).toISOString().slice(0, 10)
+    );
+    h.rowsByTicker.T2 = shiftedDates.map((date, i) => ({
+      ticker: "T2", date, close: 50 + 0.06 * i + 1.5 * Math.sin(i * 1.3 + 1), adj: null,
+    }));
+    delete (h.rowsByTicker as any).T3;
+    await expect(
+      optimizePortfolio({ tickers: ["T1", "T2"], method: "max_sharpe" })
     ).rejects.toThrow(/gemeinsame Handelstage/);
   });
 });
@@ -148,21 +167,21 @@ describe("CT-16 buildEfficientFrontier via optimizePortfolio (R-34 gefixt)", () 
     const frontier = res.efficientFrontier;
     const rets = frontier.map((p) => p.expectedReturn);
 
-    // Geseedeter Stand (mulberry32, Seed 42) — nach der Optimizer-Überarbeitung (u. a.
-    // topWeights je Frontier-Punkt) neu gepinnt: 10 bounds-konforme Zielpunkte.
+    // Interner Engine-Seed (OPT-5, mulberry32) — nach der Seed-Einführung neu
+    // gepinnt: 10 bounds-konforme Zielpunkte.
     expect(frontier).toHaveLength(10);
     for (let i = 1; i < frontier.length; i++) {
       expect(frontier[i].volatility).toBeGreaterThanOrEqual(frontier[i - 1].volatility);
     }
     // Kennzahlen der Endpunkte (toMatchObject — Punkte tragen zusätzlich topWeights).
-    expect(frontier[0]).toMatchObject({ expectedReturn: 0.067, volatility: 0.105, sharpe: 0.447 });
-    expect(frontier[frontier.length - 1]).toMatchObject({ expectedReturn: 0.0916, volatility: 0.1607, sharpe: 0.446 });
+    expect(frontier[0]).toMatchObject({ expectedReturn: 0.0679, volatility: 0.1064, sharpe: 0.45 });
+    expect(frontier[frontier.length - 1]).toMatchObject({ expectedReturn: 0.092, volatility: 0.1619, sharpe: 0.445 });
 
-    // Der max_sharpe-Optimalpunkt liegt jetzt IM Inneren der Kurve (Rendite 0.0762
-    // zwischen Min 0.067 und Max 0.0916) — nicht mehr am Min-Vol-Ende — und hat
+    // Der max_sharpe-Optimalpunkt liegt jetzt IM Inneren der Kurve (Rendite 0.076
+    // zwischen Min 0.0679 und Max 0.092) — nicht mehr am Min-Vol-Ende — und hat
     // die höchste Sharpe-Ratio aller Kurvenpunkte (das ist das Optimierungsziel).
-    expect(Math.max(...rets)).toBeCloseTo(0.0916, 10);
-    expect(Math.min(...rets)).toBeCloseTo(0.067, 10);
+    expect(Math.max(...rets)).toBeCloseTo(0.092, 10);
+    expect(Math.min(...rets)).toBeCloseTo(0.0677, 10);
     expect(res.optimalPortfolio.expectedReturn).toBeGreaterThanOrEqual(Math.min(...rets) - 1e-9);
     expect(res.optimalPortfolio.expectedReturn).toBeLessThanOrEqual(Math.max(...rets) + 1e-9);
     expect(res.optimalPortfolio.sharpe).toBeGreaterThanOrEqual(Math.max(...frontier.map((p) => p.sharpe)) - 1e-9);

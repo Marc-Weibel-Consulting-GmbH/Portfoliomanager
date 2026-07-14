@@ -226,16 +226,16 @@ export const autoPortfolioRouter = router({
           }
 
           const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + profileAdj + fxAdj));
-          const momentumGrade = grade(combinedScore);
-          const qualityGrade = grade(combinedScore - 5); // slight offset for quality
+          // OPT-2: EINE Note aus dem Score — die frühere separate «Qualitäts»-Note
+          // war nur Score−5 (kosmetisch) und gaukelte eine zweite Dimension vor.
+          const scoreGrade = grade(combinedScore);
           return {
             stock: s,
             combinedScore,
             rawScore,
             ytdPerf,
             signal,
-            momentumGrade,
-            qualityGrade,
+            scoreGrade,
             dividendYield: parseFloat(wl?.dividendYield ?? s.dividendYield ?? "0"),
             regime: "normal" as const,
           };
@@ -262,11 +262,10 @@ export const autoPortfolioRouter = router({
         return score;
       };
 
-      // SELL-Signale und schlechteste Qualität (F) grundsätzlich ausschliessen
+      // SELL-Signale und schlechteste Note (F) grundsätzlich ausschliessen
       const isBuyable = (x: any) =>
         x.signal !== "SELL" &&
-        x.qualityGrade !== "F" &&
-        x.momentumGrade !== "F";
+        x.scoreGrade !== "F";
 
       // Score-Schwelle: 55 für echte Kaufkandidaten (vorher 45 war zu niedrig)
       let ranked = scored
@@ -275,7 +274,7 @@ export const autoPortfolioRouter = router({
       if (ranked.length < rules.minTitles) {
         // Zu wenige Kaufsignale — HOLD-Titel mit Score >= 45 einbeziehen, aber SELL bleibt draussen
         ranked = scored
-          .filter((x) => x.signal !== "SELL" && x.qualityGrade !== "F" && x.combinedScore >= 45)
+          .filter((x) => x.signal !== "SELL" && x.scoreGrade !== "F" && x.combinedScore >= 45)
           .sort((a, b) => rankKey(b) - rankKey(a));
       }
       if (ranked.length < rules.minTitles) {
@@ -312,34 +311,57 @@ export const autoPortfolioRouter = router({
       }
 
       console.log(`[buildProposal] Step 7: weighting ${selected.length} selected positions`);
-      // 7) Gewichtung: Score-proportional mit hartem 10%-Cap (DB-only, kein Yahoo Finance)
-      // Diversifikationsregel: Max. 10% pro Position (unabhängig vom Admin-Default von 25%)
-      const MAX_POSITION_WEIGHT = 0.10;
+      // 7) Gewichtung (OPT-2, Audit 2026-07): ECHTE Optimierung über die
+      // Analytics-Engine mit der Methode aus dem Risikoprofil und den
+      // Profil-Caps aus optimizerParamsForProfile — vorher war die Gewichtung
+      // score-proportional mit hartem 10%-Cap, aber als «Max. Sharpe/Min.
+      // Varianz» etikettiert. Schlägt die Optimierung fehl (z. B. zu wenig
+      // Kurshistorie), fällt sie auf die Score-Gewichtung zurück — dann aber
+      // mit EHRLICHEM Label.
       const method = params.method;
+      const selectedTickers = selected.map((c) => c.stock.ticker);
       let weights: Record<string, number> = {};
-      // Score-proportionale Gewichtung: höherer Score = höheres Gewicht
-      // Zusätzlicher Bonus für Watchlist-Empfehlungen (+10 Punkte)
-      const scoringWithBonus = selected.map((c) => ({
-        ticker: c.stock.ticker,
-        adjustedScore: c.combinedScore + (watchlistRecTickers.has(c.stock.ticker.toUpperCase()) ? 10 : 0),
-      }));
-      const total = scoringWithBonus.reduce((s, c) => s + c.adjustedScore, 0) || 1;
-      scoringWithBonus.forEach((c) => { weights[c.ticker] = c.adjustedScore / total; });
-
-      // Hartes Cap: Kein Titel darf mehr als 10% erhalten (auch nach Optimizer)
-      const capAndRenormalize = (w: Record<string, number>) => {
+      let weightingSource: "optimizer" | "score_fallback" = "optimizer";
+      let weightingNote: string | null = null;
+      try {
+        const { optimizePortfolio } = await import("../analytics/engine");
+        const opt = await optimizePortfolio({
+          tickers: selectedTickers,
+          method,
+          minPositionWeight: params.minPositionWeight,
+          maxPositionWeight: params.maxPositionWeight,
+        });
+        weights = { ...opt.weights };
+        const excluded = opt.excludedShortHistory ?? [];
+        if (excluded.length > 0) {
+          weightingNote =
+            `Ohne ${excluded.map((e) => e.ticker).join(", ")} — zu wenig Kurshistorie für die Optimierung.`;
+        }
+      } catch (e: any) {
+        weightingSource = "score_fallback";
+        weightingNote = `Optimierung nicht möglich (${e?.message ?? "unbekannter Fehler"}) — Gewichtung score-proportional.`;
+        console.warn(`[buildProposal] optimizePortfolio failed, score fallback: ${e?.message}`);
+        // Score-proportionale Gewichtung mit Profil-Cap (nicht mehr hart 10%),
+        // für kleine n auf ein erfüllbares Cap aufgeweitet (R-34-Logik).
+        const maxCap = Math.max(params.maxPositionWeight, 1.2 / selected.length);
+        const scoringWithBonus = selected.map((c) => ({
+          ticker: c.stock.ticker,
+          adjustedScore: c.combinedScore + (watchlistRecTickers.has(c.stock.ticker.toUpperCase()) ? 10 : 0),
+        }));
+        const total = scoringWithBonus.reduce((s, c) => s + c.adjustedScore, 0) || 1;
+        scoringWithBonus.forEach((c) => { weights[c.ticker] = c.adjustedScore / total; });
         let changed = true;
         while (changed) {
           changed = false;
-          const total = Object.values(w).reduce((s, v) => s + v, 0) || 1;
+          const sum = Object.values(weights).reduce((s, v) => s + v, 0) || 1;
           const normalized: Record<string, number> = {};
           let cappedSum = 0;
           let uncappedSum = 0;
-          for (const [t, v] of Object.entries(w)) {
-            const norm = v / total;
-            if (norm > MAX_POSITION_WEIGHT) {
-              normalized[t] = MAX_POSITION_WEIGHT;
-              cappedSum += MAX_POSITION_WEIGHT;
+          for (const [t, v] of Object.entries(weights)) {
+            const norm = v / sum;
+            if (norm > maxCap) {
+              normalized[t] = maxCap;
+              cappedSum += maxCap;
               changed = true;
             } else {
               normalized[t] = norm;
@@ -349,15 +371,12 @@ export const autoPortfolioRouter = router({
           if (changed && uncappedSum > 0) {
             const scale = (1 - cappedSum) / uncappedSum;
             for (const t of Object.keys(normalized)) {
-              if (normalized[t] < MAX_POSITION_WEIGHT) normalized[t] *= scale;
+              if (normalized[t] < maxCap) normalized[t] *= scale;
             }
           }
-          Object.assign(w, normalized);
-          if (!changed) break;
+          Object.assign(weights, normalized);
         }
-        return w;
-      };
-      weights = capAndRenormalize(weights);
+      }
 
       console.log(`[buildProposal] Step 8: building positions`);
       // 8) Positionen bauen (0-Gewichte fallen weg, Rest auf 100 % normiert)
@@ -378,8 +397,8 @@ export const autoPortfolioRouter = router({
             weightPct: parseFloat(((w / wSum) * 100).toFixed(2)),
             combinedScore: c.combinedScore,
             signal: c.signal,
-            reason: `${c.signal} · Momentum ${c.momentumGrade}, Qualität ${c.qualityGrade}` +
-              (c.ytdPerf !== 0 ? ` · YTD ${c.ytdPerf > 0 ? '+' : ''}${c.ytdPerf.toFixed(1)}%` : '') +
+            reason: `${c.signal} · Score-Note ${c.scoreGrade}` +
+              (c.ytdPerf !== 0 && c.ytdPerf !== null ? ` · YTD ${c.ytdPerf > 0 ? '+' : ''}${c.ytdPerf.toFixed(1)}%` : '') +
               (watchlistRecTickers.has(s.ticker.toUpperCase()) ? " · Watchlist-Empfehlung" : "") +
               (c.regime === "bubble" ? " · LPPL-Warnung" : ""),
           };
@@ -396,7 +415,17 @@ export const autoPortfolioRouter = router({
       return {
         positions,
         method,
-        methodLabel: method === "min_variance" ? "Min. Varianz" : "Max. Sharpe",
+        // OPT-2: Das Label sagt jetzt die Wahrheit — «Max. Sharpe/Min. Varianz»
+        // nur, wenn wirklich optimiert wurde; sonst ehrlich «Score-gewichtet».
+        methodLabel: weightingSource === "optimizer"
+          ? (method === "min_variance" ? "Min. Varianz" : "Max. Sharpe")
+          : "Score-gewichtet (Fallback)",
+        weighting: {
+          source: weightingSource,
+          note: weightingNote,
+          minPositionPct: Math.round(params.minPositionWeight * 1000) / 10,
+          maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10,
+        },
         profile: {
           riskProfile,
           investmentGoal: goal,
