@@ -71,6 +71,7 @@ const AdminResearch = lazy(() => import("./pages/AdminResearch"));
 const AdminBerechnungen = lazy(() => import("./pages/AdminBerechnungen"));
 const AdminSignalConfig = lazy(() => import("./pages/AdminSignalConfig"));
 const AdminScreenshots = lazy(() => import("./pages/AdminScreenshots"));
+const AdminAlertConfig = lazy(() => import("./pages/AdminAlertConfig"));
 
 function Router() {
   return (
@@ -174,6 +175,7 @@ function Router() {
         <Route path="/admin/berechnungen"><RequireAdmin><AdminBerechnungen /></RequireAdmin></Route>
         <Route path="/admin/signal-config"><RequireAdmin><AdminSignalConfig /></RequireAdmin></Route>
         <Route path="/admin/screenshots"><RequireAdmin><AdminScreenshots /></RequireAdmin></Route>
+        <Route path="/admin/alert-config"><RequireAdmin><AdminAlertConfig /></RequireAdmin></Route>
 
         {/* ═══ Legacy Redirects ═══ */}
         <Route path="/home"><Redirect to="/dashboard" /></Route>

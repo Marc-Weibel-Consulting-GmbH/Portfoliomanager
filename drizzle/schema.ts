@@ -1232,3 +1232,51 @@ export const kiBoomDynamicMetrics = mysqlTable("ki_boom_dynamic_metrics", {
 }));
 export type KiBoomDynamicMetric = typeof kiBoomDynamicMetrics.$inferSelect;
 export type InsertKiBoomDynamicMetric = typeof kiBoomDynamicMetrics.$inferInsert;
+
+// ============================================
+// Alert-Konfiguration (Watchlist Alert Criteria)
+// Speichert die konfigurierbaren Schwellenwerte für den Watchlist-Alert-Cron.
+// Singleton-Tabelle: immer nur ein Eintrag (id = 1), via upsert verwaltet.
+// ============================================
+export const alertConfig = mysqlTable("alertConfig", {
+  id: int("id").primaryKey().default(1),
+  // Scoring: P/E Thresholds
+  peLow: decimal("peLow", { precision: 6, scale: 1 }).notNull().default("15"),
+  peMedium: decimal("peMedium", { precision: 6, scale: 1 }).notNull().default("20"),
+  peHigh: decimal("peHigh", { precision: 6, scale: 1 }).notNull().default("40"),
+  peVeryHigh: decimal("peVeryHigh", { precision: 6, scale: 1 }).notNull().default("60"),
+  peLowPoints: int("peLowPoints").notNull().default(12),
+  peMediumPoints: int("peMediumPoints").notNull().default(6),
+  peHighPoints: int("peHighPoints").notNull().default(-8),
+  peVeryHighPoints: int("peVeryHighPoints").notNull().default(-15),
+  // Scoring: Dividend Thresholds
+  divHigh: decimal("divHigh", { precision: 5, scale: 3 }).notNull().default("0.04"),
+  divMedium: decimal("divMedium", { precision: 5, scale: 3 }).notNull().default("0.025"),
+  divHighPoints: int("divHighPoints").notNull().default(12),
+  divMediumPoints: int("divMediumPoints").notNull().default(6),
+  // Scoring: 52W Position Thresholds
+  week52NearLow: decimal("week52NearLow", { precision: 4, scale: 2 }).notNull().default("0.20"),
+  week52BelowMid: decimal("week52BelowMid", { precision: 4, scale: 2 }).notNull().default("0.35"),
+  week52NearHigh: decimal("week52NearHigh", { precision: 4, scale: 2 }).notNull().default("0.95"),
+  week52NearLowPoints: int("week52NearLowPoints").notNull().default(15),
+  week52BelowMidPoints: int("week52BelowMidPoints").notNull().default(8),
+  week52NearHighPoints: int("week52NearHighPoints").notNull().default(-10),
+  // Scoring: PEG Thresholds
+  pegVeryLow: decimal("pegVeryLow", { precision: 5, scale: 2 }).notNull().default("0.80"),
+  pegModerate: decimal("pegModerate", { precision: 5, scale: 2 }).notNull().default("1.20"),
+  pegHigh: decimal("pegHigh", { precision: 5, scale: 2 }).notNull().default("3.00"),
+  pegVeryLowPoints: int("pegVeryLowPoints").notNull().default(12),
+  pegModeratePoints: int("pegModeratePoints").notNull().default(5),
+  pegHighPoints: int("pegHighPoints").notNull().default(-8),
+  // Alert Trigger Thresholds
+  buyTriggerScore: int("buyTriggerScore").notNull().default(75),
+  sellTriggerScore: int("sellTriggerScore").notNull().default(25),
+  buyPreviousScoreThreshold: int("buyPreviousScoreThreshold").notNull().default(70),
+  sellPreviousScoreThreshold: int("sellPreviousScoreThreshold").notNull().default(35),
+  scoreChangeTrigger: int("scoreChangeTrigger").notNull().default(10),
+  // Metadata
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedBy: varchar("updatedBy", { length: 64 }),
+});
+export type AlertConfig = typeof alertConfig.$inferSelect;
+export type InsertAlertConfig = typeof alertConfig.$inferInsert;

@@ -51,6 +51,7 @@ import { researchRouter } from "./routers/researchRouter";
 import { marketReportRouter } from "./routers/marketReportRouter";
 import { kiBoomRouter } from "./routers/kiBoomRouter";
 import { userSettingsRouter } from "./routers/userSettingsRouter";
+import { alertConfigRouter } from "./routers/alertConfigRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -252,6 +253,7 @@ export const appRouter = router({
   // Tägliche Market-Update Berichte
   marketReport: marketReportRouter,
   kiBoom: kiBoomRouter,
+  alertConfig: alertConfigRouter,
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

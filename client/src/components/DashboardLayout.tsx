@@ -75,6 +75,7 @@ const adminMenuItems = [
   { icon: Settings, label: "Einstellungen", path: "/admin/settings" },
   { icon: Calculator, label: "Berechnungen", path: "/admin/berechnungen" },
   { icon: Camera, label: "Screenshots", path: "/admin/screenshots" },
+  { icon: Bell, label: "Alert-Kriterien", path: "/admin/alert-config" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

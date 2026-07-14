@@ -1,0 +1,38 @@
+CREATE TABLE `alertConfig` (
+	`id` int NOT NULL DEFAULT 1,
+	`peLow` decimal(6,1) NOT NULL DEFAULT '15',
+	`peMedium` decimal(6,1) NOT NULL DEFAULT '20',
+	`peHigh` decimal(6,1) NOT NULL DEFAULT '40',
+	`peVeryHigh` decimal(6,1) NOT NULL DEFAULT '60',
+	`peLowPoints` int NOT NULL DEFAULT 12,
+	`peMediumPoints` int NOT NULL DEFAULT 6,
+	`peHighPoints` int NOT NULL DEFAULT -8,
+	`peVeryHighPoints` int NOT NULL DEFAULT -15,
+	`divHigh` decimal(5,3) NOT NULL DEFAULT '0.04',
+	`divMedium` decimal(5,3) NOT NULL DEFAULT '0.025',
+	`divHighPoints` int NOT NULL DEFAULT 12,
+	`divMediumPoints` int NOT NULL DEFAULT 6,
+	`week52NearLow` decimal(4,2) NOT NULL DEFAULT '0.20',
+	`week52BelowMid` decimal(4,2) NOT NULL DEFAULT '0.35',
+	`week52NearHigh` decimal(4,2) NOT NULL DEFAULT '0.95',
+	`week52NearLowPoints` int NOT NULL DEFAULT 15,
+	`week52BelowMidPoints` int NOT NULL DEFAULT 8,
+	`week52NearHighPoints` int NOT NULL DEFAULT -10,
+	`pegVeryLow` decimal(5,2) NOT NULL DEFAULT '0.80',
+	`pegModerate` decimal(5,2) NOT NULL DEFAULT '1.20',
+	`pegHigh` decimal(5,2) NOT NULL DEFAULT '3.00',
+	`pegVeryLowPoints` int NOT NULL DEFAULT 12,
+	`pegModeratePoints` int NOT NULL DEFAULT 5,
+	`pegHighPoints` int NOT NULL DEFAULT -8,
+	`buyTriggerScore` int NOT NULL DEFAULT 75,
+	`sellTriggerScore` int NOT NULL DEFAULT 25,
+	`buyPreviousScoreThreshold` int NOT NULL DEFAULT 70,
+	`sellPreviousScoreThreshold` int NOT NULL DEFAULT 35,
+	`scoreChangeTrigger` int NOT NULL DEFAULT 10,
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`updatedBy` varchar(64),
+	CONSTRAINT `alertConfig_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+ALTER TABLE `user_investment_profile` ADD `referenceCurrency` varchar(3) DEFAULT 'CHF' NOT NULL;--> statement-breakpoint
+ALTER TABLE `user_investment_profile` ADD `maxFxExposurePct` int DEFAULT 50 NOT NULL;

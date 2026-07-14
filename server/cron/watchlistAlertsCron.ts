@@ -26,7 +26,7 @@ export async function checkWatchlistAlerts() {
 
   try {
     const { getDb } = await import("../db");
-    const { stocks: stocksTable } = await import("../../drizzle/schema");
+    const { stocks: stocksTable, alertConfig: alertConfigTable } = await import("../../drizzle/schema");
     const { activeCurated } = await import("../lib/stockUniverse");
     const { eq, and } = await import("drizzle-orm");
     const YahooFinanceClass = (await import("yahoo-finance2")).default;
@@ -67,6 +67,42 @@ export async function checkWatchlistAlerts() {
       );
     }
 
+    // Load alert configuration from DB (with fallback to defaults)
+    const configRows = await db.select().from(alertConfigTable).limit(1);
+    const cfg = configRows.length > 0 ? configRows[0] : null;
+    const C = {
+      peLow: cfg ? parseFloat(cfg.peLow as string) : 15,
+      peMedium: cfg ? parseFloat(cfg.peMedium as string) : 20,
+      peHigh: cfg ? parseFloat(cfg.peHigh as string) : 40,
+      peVeryHigh: cfg ? parseFloat(cfg.peVeryHigh as string) : 60,
+      peLowPoints: cfg?.peLowPoints ?? 12,
+      peMediumPoints: cfg?.peMediumPoints ?? 6,
+      peHighPoints: cfg?.peHighPoints ?? -8,
+      peVeryHighPoints: cfg?.peVeryHighPoints ?? -15,
+      divHigh: cfg ? parseFloat(cfg.divHigh as string) : 0.04,
+      divMedium: cfg ? parseFloat(cfg.divMedium as string) : 0.025,
+      divHighPoints: cfg?.divHighPoints ?? 12,
+      divMediumPoints: cfg?.divMediumPoints ?? 6,
+      week52NearLow: cfg ? parseFloat(cfg.week52NearLow as string) : 0.20,
+      week52BelowMid: cfg ? parseFloat(cfg.week52BelowMid as string) : 0.35,
+      week52NearHigh: cfg ? parseFloat(cfg.week52NearHigh as string) : 0.95,
+      week52NearLowPoints: cfg?.week52NearLowPoints ?? 15,
+      week52BelowMidPoints: cfg?.week52BelowMidPoints ?? 8,
+      week52NearHighPoints: cfg?.week52NearHighPoints ?? -10,
+      pegVeryLow: cfg ? parseFloat(cfg.pegVeryLow as string) : 0.80,
+      pegModerate: cfg ? parseFloat(cfg.pegModerate as string) : 1.20,
+      pegHigh: cfg ? parseFloat(cfg.pegHigh as string) : 3.00,
+      pegVeryLowPoints: cfg?.pegVeryLowPoints ?? 12,
+      pegModeratePoints: cfg?.pegModeratePoints ?? 5,
+      pegHighPoints: cfg?.pegHighPoints ?? -8,
+      buyTriggerScore: cfg?.buyTriggerScore ?? 75,
+      sellTriggerScore: cfg?.sellTriggerScore ?? 25,
+      buyPreviousScoreThreshold: cfg?.buyPreviousScoreThreshold ?? 70,
+      sellPreviousScoreThreshold: cfg?.sellPreviousScoreThreshold ?? 35,
+      scoreChangeTrigger: cfg?.scoreChangeTrigger ?? 10,
+    };
+    console.log(`[watchlistAlertsCron] Using config: buyTrigger=${C.buyTriggerScore}, sellTrigger=${C.sellTriggerScore}`);
+
     console.log(`[watchlistAlertsCron] Checking ${checkableStocks.length} watchlist stocks...`);
 
     const strongBuySignals: Array<{
@@ -104,34 +140,34 @@ export async function checkWatchlistAlerts() {
         let signalScore = 50;
         const reasons: string[] = [];
 
-        // P/E scoring
+        // P/E scoring (using DB config)
         const pe = summary?.trailingPE;
-        if (pe && pe < 15) { signalScore += 12; reasons.push(`Niedriges P/E (${pe.toFixed(1)})`); }
-        else if (pe && pe < 20) { signalScore += 6; reasons.push(`Moderates P/E (${pe.toFixed(1)})`); }
-        else if (pe && pe > 40) { signalScore -= 8; reasons.push(`Hohes P/E (${pe.toFixed(1)})`); }
-        else if (pe && pe > 60) { signalScore -= 15; reasons.push(`Sehr hohes P/E (${pe.toFixed(1)})`); }
+        if (pe && pe < C.peLow) { signalScore += C.peLowPoints; reasons.push(`Niedriges P/E (${pe.toFixed(1)})`); }
+        else if (pe && pe < C.peMedium) { signalScore += C.peMediumPoints; reasons.push(`Moderates P/E (${pe.toFixed(1)})`); }
+        else if (pe && pe > C.peVeryHigh) { signalScore += C.peVeryHighPoints; reasons.push(`Sehr hohes P/E (${pe.toFixed(1)})`); }
+        else if (pe && pe > C.peHigh) { signalScore += C.peHighPoints; reasons.push(`Hohes P/E (${pe.toFixed(1)})`); }
 
-        // Dividend scoring
+        // Dividend scoring (using DB config)
         const divYield = summary?.dividendYield;
-        if (divYield && divYield > 0.04) { signalScore += 12; reasons.push(`Hohe Dividende (${(divYield * 100).toFixed(1)}%)`); }
-        else if (divYield && divYield > 0.025) { signalScore += 6; reasons.push(`Gute Dividende (${(divYield * 100).toFixed(1)}%)`); }
+        if (divYield && divYield > C.divHigh) { signalScore += C.divHighPoints; reasons.push(`Hohe Dividende (${(divYield * 100).toFixed(1)}%)`); }
+        else if (divYield && divYield > C.divMedium) { signalScore += C.divMediumPoints; reasons.push(`Gute Dividende (${(divYield * 100).toFixed(1)}%)`); }
 
-        // 52W position scoring
+        // 52W position scoring (using DB config)
         const high = summary?.fiftyTwoWeekHigh;
         const low = summary?.fiftyTwoWeekLow;
         const current = price?.regularMarketPrice;
         if (high && low && current && high !== low) {
           const position = (current - low) / (high - low);
-          if (position < 0.2) { signalScore += 15; reasons.push(`Nahe 52W-Tief (${(position * 100).toFixed(0)}%)`); }
-          else if (position < 0.35) { signalScore += 8; reasons.push(`Unter 52W-Mitte (${(position * 100).toFixed(0)}%)`); }
-          else if (position > 0.95) { signalScore -= 10; reasons.push(`Am 52W-Hoch (${(position * 100).toFixed(0)}%)`); }
+          if (position < C.week52NearLow) { signalScore += C.week52NearLowPoints; reasons.push(`Nahe 52W-Tief (${(position * 100).toFixed(0)}%)`); }
+          else if (position < C.week52BelowMid) { signalScore += C.week52BelowMidPoints; reasons.push(`Unter 52W-Mitte (${(position * 100).toFixed(0)}%)`); }
+          else if (position > C.week52NearHigh) { signalScore += C.week52NearHighPoints; reasons.push(`Am 52W-Hoch (${(position * 100).toFixed(0)}%)`); }
         }
 
-        // PEG scoring
+        // PEG scoring (using DB config)
         const peg = keyStats?.pegRatio;
-        if (peg && peg < 0.8) { signalScore += 12; reasons.push(`PEG sehr niedrig (${peg.toFixed(2)})`); }
-        else if (peg && peg < 1.2) { signalScore += 5; reasons.push(`PEG moderat (${peg.toFixed(2)})`); }
-        else if (peg && peg > 3) { signalScore -= 8; reasons.push(`PEG hoch (${peg.toFixed(2)})`); }
+        if (peg && peg < C.pegVeryLow) { signalScore += C.pegVeryLowPoints; reasons.push(`PEG sehr niedrig (${peg.toFixed(2)})`); }
+        else if (peg && peg < C.pegModerate) { signalScore += C.pegModeratePoints; reasons.push(`PEG moderat (${peg.toFixed(2)})`); }
+        else if (peg && peg > C.pegHigh) { signalScore += C.pegHighPoints; reasons.push(`PEG hoch (${peg.toFixed(2)})`); }
 
         signalScore = Math.max(0, Math.min(100, signalScore));
         const signalType = signalScore >= 70 ? "buy" : signalScore <= 30 ? "sell" : "hold";
@@ -150,8 +186,8 @@ export async function checkWatchlistAlerts() {
           lastMetricsUpdate: new Date(),
         }).where(eq(stocksTable.id, stock.id));
 
-        // Check for strong signals (score change of 15+ or absolute strong signal)
-        if (signalScore >= 75 && (previousScore < 70 || signalScore - previousScore >= 10)) {
+        // Check for strong signals (using DB config thresholds)
+        if (signalScore >= C.buyTriggerScore && (previousScore < C.buyPreviousScoreThreshold || signalScore - previousScore >= C.scoreChangeTrigger)) {
           strongBuySignals.push({
             ticker: stock.ticker,
             companyName: stock.companyName || stock.ticker,
@@ -160,7 +196,7 @@ export async function checkWatchlistAlerts() {
             currentPrice: current?.toString() || "—",
             previousScore,
           });
-        } else if (signalScore <= 25 && (previousScore > 35 || previousScore - signalScore >= 10)) {
+        } else if (signalScore <= C.sellTriggerScore && (previousScore > C.sellPreviousScoreThreshold || previousScore - signalScore >= C.scoreChangeTrigger)) {
           strongSellSignals.push({
             ticker: stock.ticker,
             companyName: stock.companyName || stock.ticker,
