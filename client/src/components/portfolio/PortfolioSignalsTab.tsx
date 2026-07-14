@@ -8,7 +8,8 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Info } from "lucide-react";
+import { Link } from "wouter";
 
 type SignalType = "all" | "buy" | "sell" | "hold";
 type SignalStrength = "all" | "strong" | "moderate" | "weak";
@@ -130,6 +131,14 @@ export function PortfolioSignalsTab({
                               {signal.overallGrade}
                             </span>
                           )}
+                          <Link href={`/aktien/${signal.ticker}`}>
+                            <button
+                              title={`Detailseite von ${signal.ticker} öffnen`}
+                              className="ml-1 p-1 rounded hover:bg-muted text-muted-foreground hover:text-[#00CFC1] transition-colors"
+                            >
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </Link>
                         </div>
                         <p className="text-sm text-muted-foreground">{signal.companyName}</p>
                       </div>
