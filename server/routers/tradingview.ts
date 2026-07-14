@@ -20,6 +20,9 @@ import { TRPCError } from "@trpc/server";
 import YahooFinanceClass from 'yahoo-finance2';
 import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
 import { detectBubble } from '../analytics/lpplsEngine';
+import { blendCombinedScore } from '../lib/signalBlend';
+import { getRegimeBlendConfig } from '../analytics/regimeSignalMemory';
+import { computeRegime } from '../lib/signals/regimeEngine';
 // yahoo-finance2 v3: default export is a constructor class
 const yahooFinance = new (YahooFinanceClass as any)();
 
@@ -434,18 +437,21 @@ export const tradingviewRouter = router({
             bubbleRegime = bubble.regime ?? 'normal';
           } catch (_) {}
         }
-        // 6. Combined Score: 40% Momentum + 40% Quality + 20% LPPL penalty
-        const mNorm = (momentumResult.score + 1) / 2; // -1..1 → 0..1
-        const qNorm = (qualityResult.score + 1) / 2;  // -1..1 → 0..1
+        // 6. Combined Score — SIG-1 (Audit 2026-07): zentrale Formel blendCombinedScore
+        // statt der alten Inline-0.8-Formel (neutral → 40/SELL statt 50/HOLD), damit
+        // StockDetail-Widget, Dashboard-Watchlist und Signale-&-Scores identisch urteilen.
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
-        const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
-        const overallGrade = combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F';
-        const signal = combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL';
+        let regimeKey = 'default';
+        if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) {} }
+        const blended = blendCombinedScore(
+          { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
+          await getRegimeBlendConfig()
+        );
         return {
           ticker,
-          combinedScore: parseFloat((combined * 100).toFixed(1)),
-          overallGrade,
-          signal,
+          combinedScore: blended.combinedScore,
+          overallGrade: blended.grade,
+          signal: blended.signalLabel,
           momentum: { score: parseFloat((momentumResult.score ?? 0).toFixed(3)), grade: momentumResult.grade, trend: momentumResult.trend },
           quality: { score: parseFloat((qualityResult.score ?? 0).toFixed(3)), grade: qualityResult.grade },
           lppl: {
@@ -499,15 +505,19 @@ export const tradingviewRouter = router({
           try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
           let bubbleScore = 0, bubbleRegime = 'normal';
           if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (_) {} }
-          const mNorm = (momentumResult.score + 1) / 2;
-          const qNorm = (qualityResult.score + 1) / 2;
+          // SIG-1: zentrale Kombiscore-Formel (identisch zu stockScoring/Signale-&-Scores).
           const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
-          const combined = Math.max(0, Math.min(1, 0.4 * mNorm + 0.4 * qNorm - lpplPenalty));
+          let regimeKey = 'default';
+          if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) {} }
+          const blended = blendCombinedScore(
+            { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
+            await getRegimeBlendConfig()
+          );
           results.push({
             ticker,
-            combinedScore: parseFloat((combined * 100).toFixed(1)),
-            overallGrade: combined >= 0.75 ? 'A' : combined >= 0.60 ? 'B' : combined >= 0.45 ? 'C' : combined >= 0.30 ? 'D' : 'F',
-            signal: combined >= 0.70 ? 'STRONG BUY' : combined >= 0.55 ? 'BUY' : combined >= 0.45 ? 'HOLD' : combined >= 0.30 ? 'SELL' : 'STRONG SELL',
+            combinedScore: blended.combinedScore,
+            overallGrade: blended.grade,
+            signal: blended.signalLabel,
             momentum: { score: parseFloat((momentumResult.score ?? 0).toFixed(3)), grade: momentumResult.grade, trend: momentumResult.trend },
             quality: { score: parseFloat((qualityResult.score ?? 0).toFixed(3)), grade: qualityResult.grade },
             lppl: { bubbleScore: parseFloat((bubbleScore ?? 0).toFixed(3)), regime: bubbleRegime },

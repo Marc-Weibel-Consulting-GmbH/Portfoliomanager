@@ -18,6 +18,8 @@
  *            Out-of-Sample. Journal of Portfolio Management, 42(4), 59–69.
  */
 
+import { DEFAULT_RISK_FREE_RATE } from "./riskStats";
+
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
@@ -416,7 +418,7 @@ export function runHRP(input: HRPInput): HRPResult {
   const {
     tickers,
     returnsMap,
-    riskFreeRate = 0.01, // Swiss risk-free rate (SNB ~0.5–1%)
+    riskFreeRate = DEFAULT_RISK_FREE_RATE, // DAT-3: zentraler rf statt lokal 0.01
     minPositionWeight = 0.01,
     maxPositionWeight = 0.15,
   } = input;

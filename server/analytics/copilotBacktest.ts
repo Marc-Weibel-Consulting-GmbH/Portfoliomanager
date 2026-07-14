@@ -14,6 +14,7 @@
 
 import { calculateRankings, calculateRebalancingSuggestions, type PortfolioHolding, type RankingResult } from './portfolioCopilot';
 import * as ss from 'simple-statistics';
+import { DEFAULT_RISK_FREE_RATE } from "./riskStats";
 
 // ============================================================
 // TYPES
@@ -455,7 +456,7 @@ function calculateSharpeFromReturns(monthlyReturns: number[]): number {
   const std = ss.standardDeviation(monthlyReturns);
   if (std === 0) return 0;
   // Annualize: monthly Sharpe * sqrt(12), subtract risk-free (2% / 12 per month)
-  const riskFreeMonthly = 0.02 / 12;
+  const riskFreeMonthly = DEFAULT_RISK_FREE_RATE / 12;
   return ((mean - riskFreeMonthly) / std) * Math.sqrt(12);
 }
 
