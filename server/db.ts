@@ -1115,69 +1115,82 @@ export async function createPortfolioTransaction(transaction: any) {
 
       const sellDateStr = new Date(transaction.transactionDate).toISOString().split('T')[0];
       const sellFxRate = await getFxRate(sellDateStr, currencyPair);
-      // R-19: cost-weighted average buy FX rate of the REMAINING position
-      // (was: FX rate at the FIRST buy's date). Empty basis → neutral (sell rate).
-      const buyFxRate = totalCost > 0 ? totalCostChf / totalCost : sellFxRate;
+      // FIN-3 (Audit 2026-07): getFxRate liefert bei fehlendem Kurs 0 (R-10).
+      // Mit sellFxRate = 0 würde sellPriceCHF = 0 und ein grosser PHANTOM-Verlust
+      // als realisierter Gewinn persistiert. Der Verkauf ist zu diesem Zeitpunkt
+      // bereits gebucht — deshalb wird der Gewinn-Datensatz ÜBERSPRUNGEN (statt
+      // falsch geschrieben) und kann via Admin → Berechnungen nachgerechnet werden.
+      if (currencyPair !== 'CHFCHF' && !(sellFxRate > 0)) {
+        console.error(
+          `[DB] FIN-3: Kein ${currencyPair}-Wechselkurs für ${sellDateStr} — realisierter Gewinn für ${transaction.ticker} NICHT verbucht (kein Phantom-Verlust).`
+        );
+        returnValue.realizedGainSkipped =
+          `Kein ${currencyPair}-Wechselkurs für ${sellDateStr} verfügbar — der realisierte Gewinn wird nachgetragen, sobald der Kurs vorliegt.`;
+      } else {
+        // R-19: cost-weighted average buy FX rate of the REMAINING position
+        // (was: FX rate at the FIRST buy's date). Empty basis → neutral (sell rate).
+        const buyFxRate = totalCost > 0 ? totalCostChf / totalCost : sellFxRate;
       
-      // Calculate stock gain in local currency
-      const stockGainLocal = (sellPrice - avgCostBasis) * sharesSold;
+        // Calculate stock gain in local currency
+        const stockGainLocal = (sellPrice - avgCostBasis) * sharesSold;
       
-      // Calculate FX gain: (sellPrice * sellFxRate - avgCostBasis * buyFxRate) * shares - stockGainLocal * sellFxRate
-      const avgCostBasisCHF = avgCostBasis * buyFxRate;
-      const sellPriceCHF = sellPrice * sellFxRate;
-      const totalGainCHF = (sellPriceCHF - avgCostBasisCHF) * sharesSold;
-      const stockGainCHF = stockGainLocal * sellFxRate;
-      const fxGain = totalGainCHF - stockGainCHF;
+        // Calculate FX gain: (sellPrice * sellFxRate - avgCostBasis * buyFxRate) * shares - stockGainLocal * sellFxRate
+        const avgCostBasisCHF = avgCostBasis * buyFxRate;
+        const sellPriceCHF = sellPrice * sellFxRate;
+        const totalGainCHF = (sellPriceCHF - avgCostBasisCHF) * sharesSold;
+        const stockGainCHF = stockGainLocal * sellFxRate;
+        const fxGain = totalGainCHF - stockGainCHF;
       
-      const realizedGainPercent = avgCostBasis > 0 ? ((sellPrice - avgCostBasis) / avgCostBasis) * 100 : 0;
+        const realizedGainPercent = avgCostBasis > 0 ? ((sellPrice - avgCostBasis) / avgCostBasis) * 100 : 0;
       
-      console.log("[DB] Realized gain calculation:", {
-        avgCostBasis,
-        sellPrice,
-        sharesSold,
-        stockGainLocal,
-        stockGainCHF,
-        fxGain,
-        totalGainCHF,
-        buyFxRate,
-        sellFxRate,
-        currency
-      });
+        console.log("[DB] Realized gain calculation:", {
+          avgCostBasis,
+          sellPrice,
+          sharesSold,
+          stockGainLocal,
+          stockGainCHF,
+          fxGain,
+          totalGainCHF,
+          buyFxRate,
+          sellFxRate,
+          currency
+        });
       
-      // Save realized gain/loss to database with FX breakdown
-      await db.insert(realizedGains).values({
-        portfolioId: transaction.portfolioId,
-        transactionId: transactionId,
-        ticker: transaction.ticker,
-        shares: transaction.shares,
-        avgCostBasis: avgCostBasis.toFixed(2),
-        sellPrice: sellPrice.toFixed(2),
-        realizedGain: totalGainCHF.toFixed(2),
-        realizedGainPercent: realizedGainPercent.toFixed(2),
-        transactionDate: transaction.transactionDate,
-        stockGainLocal: stockGainLocal.toFixed(2),
-        fxGain: fxGain.toFixed(2),
-        currency: currency,
-        buyFxRate: buyFxRate.toFixed(4),
-        sellFxRate: sellFxRate.toFixed(4),
-      });
+        // Save realized gain/loss to database with FX breakdown
+        await db.insert(realizedGains).values({
+          portfolioId: transaction.portfolioId,
+          transactionId: transactionId,
+          ticker: transaction.ticker,
+          shares: transaction.shares,
+          avgCostBasis: avgCostBasis.toFixed(2),
+          sellPrice: sellPrice.toFixed(2),
+          realizedGain: totalGainCHF.toFixed(2),
+          realizedGainPercent: realizedGainPercent.toFixed(2),
+          transactionDate: transaction.transactionDate,
+          stockGainLocal: stockGainLocal.toFixed(2),
+          fxGain: fxGain.toFixed(2),
+          currency: currency,
+          buyFxRate: buyFxRate.toFixed(4),
+          sellFxRate: sellFxRate.toFixed(4),
+        });
       
-      // Add realized gain data to return value for UI display
-      returnValue.realizedGain = {
-        amount: totalGainCHF,
-        percent: realizedGainPercent,
-        avgCostBasis: avgCostBasis,
-        sellPrice: sellPrice,
-        shares: sharesSold,
-        stockGainLocal: stockGainLocal,
-        stockGainCHF: stockGainCHF,
-        fxGain: fxGain,
-        currency: currency,
-        buyFxRate: buyFxRate,
-        sellFxRate: sellFxRate,
-      };
+        // Add realized gain data to return value for UI display
+        returnValue.realizedGain = {
+          amount: totalGainCHF,
+          percent: realizedGainPercent,
+          avgCostBasis: avgCostBasis,
+          sellPrice: sellPrice,
+          shares: sharesSold,
+          stockGainLocal: stockGainLocal,
+          stockGainCHF: stockGainCHF,
+          fxGain: fxGain,
+          currency: currency,
+          buyFxRate: buyFxRate,
+          sellFxRate: sellFxRate,
+        };
       
-      console.log("[DB] Realized gain saved successfully");
+        console.log("[DB] Realized gain saved successfully");
+      }
     }
     
     console.log("[DB] Returning:", returnValue);
