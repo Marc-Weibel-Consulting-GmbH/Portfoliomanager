@@ -132,5 +132,7 @@ export function deriveActiveProfile(a: ProfileAnswers, r: ProfileResult) {
     liquidityNeedPct: clamp(Math.round(a.liquidityNeedPct), 0, 100),
     excludedSectors: a.excludedSectors ?? [],
     esgOnly: !!a.esgOnly,
+    referenceCurrency: (a as any).referenceCurrency ?? 'CHF',
+    maxFxExposurePct: (a as any).maxFxExposurePct ?? 50,
   };
 }

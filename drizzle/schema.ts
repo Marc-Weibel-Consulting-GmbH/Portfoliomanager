@@ -730,6 +730,9 @@ export const userInvestmentProfile = mysqlTable("user_investment_profile", {
   liquidityNeedPct: int("liquidityNeedPct").notNull().default(0),
   excludedSectors: json("excludedSectors"),
   esgOnly: tinyint("esgOnly").notNull().default(0),
+  // Referenzwährung & Währungsrisiko
+  referenceCurrency: varchar("referenceCurrency", { length: 3 }).notNull().default("CHF"), // CHF, EUR, USD
+  maxFxExposurePct: int("maxFxExposurePct").notNull().default(50), // Max. Fremdwährungsanteil in % (0–100)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({

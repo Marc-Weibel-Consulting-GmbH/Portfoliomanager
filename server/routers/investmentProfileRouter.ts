@@ -160,6 +160,8 @@ const ANSWERS = z.object({
   esgOnly: z.boolean().default(false),
   targetReturnPct: z.number().min(0).max(100).nullable().default(null),
   liquidityNeedPct: z.number().int().min(0).max(100).default(0),
+  referenceCurrency: z.enum(['CHF', 'EUR', 'USD']).default('CHF'),
+  maxFxExposurePct: z.number().int().min(0).max(100).default(50),
 });
 
 /** user_investment_profile upsert (aktives Profil, das Optimizer/Builder lesen). */
@@ -167,6 +169,7 @@ async function upsertActiveProfile(db: any, userId: number, p: {
   riskProfile: string; investmentHorizonYears: number; maxDrawdownTolerancePct: number;
   investmentGoal: string; targetReturnPct: number | null; liquidityNeedPct: number;
   excludedSectors: string[]; esgOnly: boolean;
+  referenceCurrency?: string; maxFxExposurePct?: number;
 }) {
   const common = {
     riskProfile: p.riskProfile as any,
@@ -177,6 +180,8 @@ async function upsertActiveProfile(db: any, userId: number, p: {
     liquidityNeedPct: p.liquidityNeedPct,
     excludedSectors: (p.excludedSectors ?? []) as any,
     esgOnly: p.esgOnly ? 1 : 0,
+    referenceCurrency: p.referenceCurrency ?? 'CHF',
+    maxFxExposurePct: p.maxFxExposurePct ?? 50,
   };
   const existing = await db.select().from(userInvestmentProfile)
     .where(eq(userInvestmentProfile.userId, userId)).limit(1);
@@ -196,6 +201,8 @@ const DEFAULTS = {
   liquidityNeedPct: 0,
   excludedSectors: [] as string[],
   esgOnly: false,
+  referenceCurrency: "CHF",
+  maxFxExposurePct: 50,
   isSet: false,
 };
 
@@ -220,6 +227,8 @@ export const investmentProfileRouter = router({
         liquidityNeedPct: row.liquidityNeedPct,
         excludedSectors: (row.excludedSectors as string[] | null) ?? [],
         esgOnly: row.esgOnly === 1,
+        referenceCurrency: row.referenceCurrency ?? 'CHF',
+        maxFxExposurePct: row.maxFxExposurePct ?? 50,
         isSet: true,
       };
     } catch (e) {
@@ -240,6 +249,8 @@ export const investmentProfileRouter = router({
         liquidityNeedPct: z.number().int().min(0).max(100),
         excludedSectors: z.array(z.string()).optional(),
         esgOnly: z.boolean().optional(),
+        referenceCurrency: z.enum(['CHF', 'EUR', 'USD']).optional(),
+        maxFxExposurePct: z.number().int().min(0).max(100).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -254,6 +265,8 @@ export const investmentProfileRouter = router({
         liquidityNeedPct: input.liquidityNeedPct,
         excludedSectors: input.excludedSectors ?? [],
         esgOnly: !!input.esgOnly,
+        referenceCurrency: input.referenceCurrency ?? 'CHF',
+        maxFxExposurePct: input.maxFxExposurePct ?? 50,
       });
       // Mismatch-Check nach Profiländerung (asynchron, nicht blockierend)
       detectProfileMismatch(

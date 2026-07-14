@@ -40,6 +40,11 @@ export const autoPortfolioRouter = router({
       const esgOnly = profile.esgOnly === 1;
       const liquidityNeedPct = profile.liquidityNeedPct ?? 0;
       const targetReturnPct = profile.targetReturnPct != null ? parseFloat(String(profile.targetReturnPct)) : null;
+      const referenceCurrency: string = (profile.referenceCurrency as string | null) ?? 'CHF';
+      // maxFxExposurePct: max. allowed foreign-currency weight (0-100). Default: 80% for aggressive, 50% for balanced/conservative
+      const maxFxExposurePct: number = profile.maxFxExposurePct != null
+        ? parseFloat(String(profile.maxFxExposurePct))
+        : riskProfile === 'aggressiv' ? 80 : riskProfile === 'konservativ' ? 40 : 60;
 
       // 2) Diversifikationsregeln (Admin) + Profil-abgeleitete Optimizer-Parameter (P3)
       const { getDiversificationRules } = await import("../lib/diversificationRules");
@@ -210,7 +215,17 @@ export const autoPortfolioRouter = router({
           if (riskProfile === "konservativ" && !ytdHasData) profileAdj = -3;
           if (riskProfile === "aggressiv" && ytdHasData && ytdValue > 10) profileAdj = 3;
 
-          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + profileAdj));
+          // FX penalty: non-reference-currency stocks get penalised based on risk profile
+          const stockCurrency = (s.currency || 'CHF') === 'GBp' ? 'GBP' : (s.currency || 'CHF');
+          const isForeignCurrency = stockCurrency !== referenceCurrency;
+          let fxAdj = 0;
+          if (isForeignCurrency) {
+            if (riskProfile === 'konservativ') fxAdj = -8;  // strong penalty for conservative
+            else if (riskProfile === 'ausgewogen') fxAdj = -4;
+            else fxAdj = -2; // mild penalty for aggressive
+          }
+
+          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + profileAdj + fxAdj));
           const momentumGrade = grade(combinedScore);
           const qualityGrade = grade(combinedScore - 5); // slight offset for quality
           return {
@@ -271,17 +286,26 @@ export const autoPortfolioRouter = router({
       }
 
       console.log(`[buildProposal] Step 6: ranked=${ranked.length}, selecting under sector cap`);
-      // 6) Auswahl unter Sektor-Cap bis maxTitles
+      // 6) Auswahl unter Sektor-Cap bis maxTitles + FX-Cap
       const target = Math.min(rules.maxTitles, ranked.length);
       const maxPerSector = Math.max(1, Math.floor((rules.maxSectorPercent / 100) * target));
       const selected: any[] = [];
       const sectorCount: Record<string, number> = {};
+      let currentFxWeightPct = 0; // track accumulated foreign-currency weight estimate
       for (const c of ranked) {
         if (selected.length >= rules.maxTitles) break;
+        // FX cap: estimate weight as 1/selected.length and check if adding this stock exceeds limit
+        const estimatedWeight = 100 / Math.max(1, target);
+        const stockCur = (c.stock.currency || 'CHF') === 'GBp' ? 'GBP' : (c.stock.currency || 'CHF');
+        const isFx = stockCur !== referenceCurrency;
+        if (isFx && currentFxWeightPct + estimatedWeight > maxFxExposurePct && selected.length >= rules.minTitles) {
+          continue; // skip this foreign-currency stock if FX cap would be exceeded
+        }
         const sec = c.stock.sector || "Andere";
         if ((sectorCount[sec] || 0) >= maxPerSector) continue;
         selected.push(c);
         sectorCount[sec] = (sectorCount[sec] || 0) + 1;
+        if (isFx) currentFxWeightPct += estimatedWeight;
       }
       if (selected.length < 2) {
         throw new Error("Zu wenige geeignete Kandidaten nach Anwendung der Diversifikationsregeln.");
@@ -380,6 +404,8 @@ export const autoPortfolioRouter = router({
           esgOnly,
           liquidityNeedPct,
           targetReturnPct,
+          referenceCurrency,
+          maxFxExposurePct,
         },
         stats: {
           universeCount: universe.length,

@@ -73,6 +73,8 @@ type FormState = {
   esgOnly: boolean;
   targetReturnPct: string;
   liquidityNeedPct: number;
+  referenceCurrency: 'CHF' | 'EUR' | 'USD';
+  maxFxExposurePct: number;
 };
 
 const FORM_DEFAULTS: FormState = {
@@ -91,6 +93,8 @@ const FORM_DEFAULTS: FormState = {
   esgOnly: false,
   targetReturnPct: "",
   liquidityNeedPct: 0,
+  referenceCurrency: 'CHF' as const,
+  maxFxExposurePct: 50,
 };
 
 // ─── Chips helper ─────────────────────────────────────────────────────────────
@@ -366,6 +370,46 @@ function EditForm({
                   />
                 </FieldGroup>
               </div>
+
+              {/* Referenzwährung & Währungsrisiko */}
+              <div className="border-t border-white/10 pt-4 mt-2">
+                <p className="text-xs text-[#00CFC1] uppercase tracking-wider mb-3 font-semibold">Referenzwährung &amp; Währungsrisiko</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FieldGroup label="Referenzwährung" hint="Ihre Heimwährung – Basis für Performance-Berechnung und Währungsrisiko-Analyse.">
+                    <div className="flex gap-2">
+                      {(['CHF', 'EUR', 'USD'] as const).map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => set({ referenceCurrency: c })}
+                          className={`flex-1 py-2 rounded text-sm font-mono font-semibold border transition-colors ${
+                            form.referenceCurrency === c
+                              ? 'bg-[#00CFC1]/20 border-[#00CFC1] text-[#00CFC1]'
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:border-white/30'
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </FieldGroup>
+                  <FieldGroup
+                    label={`Max. Fremdwährungsanteil: ${form.maxFxExposurePct}%`}
+                    hint="Maximaler Anteil des Portfolios in Fremdwährungen (USD, EUR, GBP etc.). Empfehlung für CHF-Anleger: 30–50%.">
+                    <input
+                      type="range" min={0} max={100} step={5}
+                      value={form.maxFxExposurePct}
+                      onChange={(e) => set({ maxFxExposurePct: Number(e.target.value) })}
+                      className="w-full accent-[#00CFC1]"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>0% (nur {form.referenceCurrency})</span>
+                      <span>50% (ausgewogen)</span>
+                      <span>100% (unbegrenzt)</span>
+                    </div>
+                  </FieldGroup>
+                </div>
+              </div>
             </>
           )}
         </CardContent>
@@ -437,6 +481,8 @@ export default function AnlageprofilTab() {
         esgOnly: a.esgOnly ?? false,
         targetReturnPct: a.targetReturnPct != null ? String(a.targetReturnPct) : "",
         liquidityNeedPct: a.liquidityNeedPct ?? 0,
+        referenceCurrency: ((a as any).referenceCurrency ?? 'CHF') as 'CHF' | 'EUR' | 'USD',
+        maxFxExposurePct: (a as any).maxFxExposurePct ?? 50,
       });
     } else if (data?.isSet) {
       // Fallback: populate from active profile (partial data)
@@ -449,6 +495,8 @@ export default function AnlageprofilTab() {
         esgOnly: data.esgOnly ?? false,
         targetReturnPct: data.targetReturnPct != null ? String(data.targetReturnPct) : "",
         liquidityNeedPct: data.liquidityNeedPct ?? 0,
+        referenceCurrency: (data.referenceCurrency ?? 'CHF') as 'CHF' | 'EUR' | 'USD',
+        maxFxExposurePct: data.maxFxExposurePct ?? 50,
       }));
     } else if (!isLoading && !data?.isSet) {
       setEditing(true);
@@ -484,6 +532,8 @@ export default function AnlageprofilTab() {
       esgOnly: form.esgOnly,
       targetReturnPct: tr !== "" ? Number(tr) : null,
       liquidityNeedPct: form.liquidityNeedPct,
+      referenceCurrency: form.referenceCurrency,
+      maxFxExposurePct: form.maxFxExposurePct,
     });
   };
 
@@ -644,6 +694,24 @@ export default function AnlageprofilTab() {
                 <span className="text-white font-mono">{data.liquidityNeedPct}%</span>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Referenzwährung & Währungsrisiko */}
+        <Card className="bg-[#1a1f2e] border-white/10">
+          <CardContent className="p-5">
+            <p className="text-xs text-gray-500 mb-3 uppercase tracking-wide">Referenzwährung &amp; Währungsrisiko</p>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl font-bold font-mono text-[#00CFC1]">{data.referenceCurrency ?? 'CHF'}</span>
+              <span className="text-sm text-gray-400">Referenzwährung</span>
+            </div>
+            <div className="text-sm text-gray-400 flex justify-between">
+              <span>Max. Fremdwährungsanteil</span>
+              <span className={`font-mono font-semibold ${
+                (data.maxFxExposurePct ?? 50) <= 30 ? 'text-green-400' :
+                (data.maxFxExposurePct ?? 50) <= 60 ? 'text-yellow-400' : 'text-orange-400'
+              }`}>{data.maxFxExposurePct ?? 50}%</span>
+            </div>
           </CardContent>
         </Card>
 

@@ -901,6 +901,8 @@ export default function PortfolioDetailsPage() {
   const { data: allPortfolios } = trpc.portfolios.list.useQuery();
   // Canonical YTD source — same as the Portfolios list ("eine Quelle der Wahrheit")
   const { data: multiPeriod } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
+  // Investor profile for reference currency and FX limit
+  const { data: profile } = trpc.investmentProfile.get.useQuery();
   const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
   
@@ -984,6 +986,32 @@ export default function PortfolioDetailsPage() {
   const cashBalance = parseFloat(portfolio?.cashBalance || "0");
   const totalValueCHF = Number(portfolio?.totalValueCHF) || 0;
   const avgDividendYield = portfolio?.avgDividendYield || 0;
+
+  // Calculate currency allocation
+  const currencyAllocationData = useMemo(() => {
+    const weights: Record<string, number> = {};
+    const refCurrency = (profile?.referenceCurrency as string) || 'CHF';
+    holdings.forEach((h: any) => {
+      const cur = h.currency || 'CHF';
+      // Normalise GBp → GBP for display
+      const displayCur = cur === 'GBp' ? 'GBP' : cur;
+      weights[displayCur] = (weights[displayCur] || 0) + (h.weight || 0);
+    });
+    // Add cash as reference currency
+    const cashPct = totalValueCHF > 0 ? (cashBalance / totalValueCHF) * 100 : 0;
+    if (cashPct > 0.1) weights[refCurrency] = (weights[refCurrency] || 0) + cashPct;
+    return Object.entries(weights)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(1)) }));
+  }, [holdings, profile?.referenceCurrency, cashBalance, totalValueCHF]);
+
+  const fxExposurePct = useMemo(() => {
+    const refCurrency = (profile?.referenceCurrency as string) || 'CHF';
+    const refWeight = currencyAllocationData
+      .filter(d => d.name === refCurrency)
+      .reduce((sum, d) => sum + d.value, 0);
+    return Math.max(0, 100 - refWeight);
+  }, [currencyAllocationData, profile?.referenceCurrency]);
   
   // Determine creation date for visual separation in chart
   const creationDate = useMemo(() => {
@@ -1577,6 +1605,47 @@ export default function PortfolioDetailsPage() {
                 </div>
               </div>
             </div>
+
+            {/* WÄHRUNGSALLOKATION */}
+            {currencyAllocationData.length > 0 && (
+              <div className="mt-4 bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">Währungsallokation</h3>
+                  {profile?.maxFxExposurePct != null && (
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                      fxExposurePct > (profile.maxFxExposurePct as number)
+                        ? 'bg-red-500/20 text-red-400'
+                        : 'bg-[#00CFC1]/10 text-[#00CFC1]'
+                    }`}>
+                      FX-Anteil: {fxExposurePct.toFixed(0)}%
+                      {fxExposurePct > (profile.maxFxExposurePct as number) && ` (Limit: ${profile.maxFxExposurePct}%)`}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {currencyAllocationData.map((d, i) => {
+                    const refCurrency = (profile?.referenceCurrency as string) || 'CHF';
+                    const isRef = d.name === refCurrency;
+                    const CURRENCY_COLORS = ['#00CFC1','#6366f1','#f59e0b','#ec4899','#10b981','#3b82f6','#a855f7'];
+                    const color = isRef ? '#00CFC1' : CURRENCY_COLORS[i % CURRENCY_COLORS.length];
+                    return (
+                      <div key={d.name} className="flex items-center gap-2 bg-white/[0.04] rounded px-3 py-1.5">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-xs font-mono text-white">{d.name}</span>
+                        <span className="text-xs text-gray-400">{d.value.toFixed(1)}%</span>
+                        {isRef && <span className="text-xs text-[#00CFC1]/60">Ref.</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {profile?.maxFxExposurePct != null && fxExposurePct > (profile.maxFxExposurePct as number) && (
+                  <p className="text-xs text-red-400 mt-2">
+                    ⚠ Fremdwährungsanteil ({fxExposurePct.toFixed(0)}%) überschreitet Ihr Profil-Limit von {profile.maxFxExposurePct}%. Prüfen Sie die Empfehlungen für Absicherungsoptionen.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* SNAPSHOTS SECTION — Kopien dieses Portfolios */}
           {allPortfolios && (allPortfolios as any[]).filter((p: any) => p.snapshotOfPortfolioId === portfolioId).length > 0 && (
             <div className="mt-4 bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-amber-500/20 rounded-lg p-4">

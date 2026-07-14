@@ -341,6 +341,9 @@ export default function OptimierenTab({
   const hasActiveConstraints = userConstraints !== undefined;
 
   // F2: Diversifikationsregeln aus der Admin-Konfig (statt hartkodiert)
+  // FX exposure: load investor profile for reference currency and FX limit
+  const { data: investorProfile } = trpc.investmentProfile.get.useQuery(undefined, { staleTime: 60_000 });
+
   const { data: rulesData } = trpc.analytics.getDiversificationRules.useQuery(undefined, {
     staleTime: 10 * 60 * 1000,
   });
@@ -802,6 +805,39 @@ export default function OptimierenTab({
                     </span>
                   </div>
                 )}
+
+                {/* FX-Risikowarnung: Fremdwährungsanteil über Profil-Limit */}
+                {(() => {
+                  if (!investorProfile || !holdings || holdings.length === 0) return null;
+                  const refCurrency: string = (investorProfile.referenceCurrency as string) || 'CHF';
+                  const maxFxPct: number = investorProfile.maxFxExposurePct != null ? parseFloat(String(investorProfile.maxFxExposurePct)) : 60;
+                  const total = holdings.reduce((s: number, h: any) => s + (parseFloat(h.totalValueCHF || h.value || '0')), 0) || 1;
+                  const fxValue = holdings
+                    .filter((h: any) => h.ticker && h.ticker !== 'CASH')
+                    .filter((h: any) => {
+                      const cur = (h.currency || 'CHF') === 'GBp' ? 'GBP' : (h.currency || 'CHF');
+                      return cur !== refCurrency;
+                    })
+                    .reduce((s: number, h: any) => s + parseFloat(h.totalValueCHF || h.value || '0'), 0);
+                  const fxPct = (fxValue / total) * 100;
+                  if (fxPct <= maxFxPct) return null;
+                  return (
+                    <div className="px-4 py-3 flex items-start gap-3 bg-red-500/5 border-b border-red-500/20">
+                      <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-red-300 mb-1">
+                          Fremdwährungsrisiko überschreitet Ihr Profil-Limit
+                        </p>
+                        <p className="text-xs text-red-200/70">
+                          Aktueller Fremdwährungsanteil: <span className="font-semibold text-red-300">{fxPct.toFixed(0)}%</span> · Ihr Limit: <span className="font-semibold">{maxFxPct}%</span> · Referenzwährung: <span className="font-mono">{refCurrency}</span>
+                        </p>
+                        <p className="text-xs text-red-200/50 mt-1">
+                          Erwägen Sie, einige Fremdwährungspositionen durch {refCurrency}-denominierte Alternativen zu ersetzen oder Währungsabsicherungen (Hedging) einzusetzen.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Profil-Mismatch-Warnung */}
                 {profileMismatch && profileMismatch.reasons.length > 0 && (

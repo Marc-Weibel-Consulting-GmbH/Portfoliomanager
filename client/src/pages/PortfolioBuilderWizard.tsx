@@ -649,6 +649,14 @@ export default function PortfolioBuilderWizard() {
                           </span>
                         </>
                       )}
+                      {autoProposal.profile?.referenceCurrency && (
+                        <>
+                          <span>·</span>
+                          <span className="text-blue-300">
+                            Ref.-Währung: {autoProposal.profile.referenceCurrency} · FX-Limit: {autoProposal.profile.maxFxExposurePct}%
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
                       {autoProposal.positions.map((p: any) => (
