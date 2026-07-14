@@ -417,8 +417,35 @@ export const portfoliosRouter = router({
               // Don't round - keep decimal precision for accurate value calculation
             }
             
-            // Calculate avgBuyPrice if missing
-            const avgBuyPrice = parseFloat(stock.avgBuyPrice) || currentPrice;
+            // Calculate avgBuyPrice in CHF.
+            // stock.avgBuyPrice is stored as CHF price (set by PortfolioBuilderWizard as priceCHF).
+            // For live portfolios, avgBuyPrice is stored as local-currency price from transactions.
+            // We need to compare apples to apples: both avgBuyPrice and currentPrice must be in CHF.
+            //
+            // Strategy:
+            // 1. If stock.avgBuyPrice is stored and the stock currency is CHF → use as-is (already CHF)
+            // 2. If stock.avgBuyPrice is stored and currency is NOT CHF:
+            //    - For demo portfolios: avgBuyPrice was stored as CHF (priceCHF at creation time) → use as-is
+            //    - For live portfolios: avgBuyPrice is in local currency → convert to CHF using fxRate
+            // 3. Fallback to priceCHF (→ 0% performance)
+            const storedAvgBuyPrice = parseFloat(stock.avgBuyPrice) || 0;
+            let avgBuyPriceCHF: number;
+            if (storedAvgBuyPrice > 0) {
+              const isDemo = portfolio.portfolioType === 'demo' || !portfolio.portfolioType;
+              if (currency === 'CHF' || isDemo) {
+                // CHF stocks: avgBuyPrice is already in CHF
+                // Demo portfolios: avgBuyPrice was stored as CHF price by PortfolioBuilderWizard
+                avgBuyPriceCHF = storedAvgBuyPrice;
+              } else {
+                // Live portfolios with foreign currency: avgBuyPrice is in local currency → convert
+                avgBuyPriceCHF = storedAvgBuyPrice * fxRate;
+              }
+            } else {
+              // No avgBuyPrice stored → use current CHF price (0% performance)
+              avgBuyPriceCHF = priceCHF;
+            }
+            // Keep backward-compat field name (used by client)
+            const avgBuyPrice = avgBuyPriceCHF;
             
             // Calculate totalValue
             const totalValue = shares * priceCHF;
@@ -443,10 +470,12 @@ export const portfoliosRouter = router({
               sector: dbStock?.sector || stock.sector || 'Other',
               ytdPerformance: dbStock?.ytdPerformance || stock.ytdPerformance || '0',
               // totalReturn = performance since purchase (Seit Kauf)
-              // Uses the already-resolved avgBuyPrice (falls back to currentPrice if missing)
-              // For demo portfolios created today: avgBuyPrice = currentPrice → totalReturn = 0%
-              totalReturn: (avgBuyPrice > 0 && currentPrice > 0)
-                ? (((currentPrice - avgBuyPrice) / avgBuyPrice) * 100).toFixed(4)
+              // IMPORTANT: Compare priceCHF (current CHF price) vs avgBuyPriceCHF (purchase CHF price)
+              // Using currentPrice (local currency) vs avgBuyPrice (CHF) caused massive FX distortion
+              // e.g. DGE.L: currentPrice=1547 GBp vs avgBuyPrice=270 CHF → +472% (WRONG!)
+              // Correct: priceCHF=19.83 CHF vs avgBuyPriceCHF=19.50 CHF → +1.7% (RIGHT)
+              totalReturn: (avgBuyPriceCHF > 0 && priceCHF > 0)
+                ? (((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100).toFixed(4)
                 : '0',
               dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
               companyName: dbStock?.companyName || stock.companyName || ticker,

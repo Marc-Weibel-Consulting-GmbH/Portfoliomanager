@@ -4,6 +4,7 @@ import { calculateHoldingsPerformance } from "../lib/holdingsPerformance";
 import { calculatePortfolioPerformance } from "../lib/performanceService";
 import { extractPortfolioCashFlows } from "../lib/performanceEngine";
 import { getGrossAmountCHF, getFeesCHF, getSignedFlowCHF } from "../lib/transactionSemantics";
+import { tryConvertToCHF } from "../fxHelper";
 import type { PortfolioTransaction } from "../../drizzle/schema";
 
 /**
@@ -136,11 +137,21 @@ export const portfolioMetricsRouter = router({
         if (tx.ticker) tickers.add(tx.ticker);
       });
 
+      // Build currentPrices map with CHF prices (not local currency)
+      // to ensure cost basis (always CHF) and current value are in the same currency
       const currentPrices = new Map<string, number>();
+      const todayStr1 = new Date().toISOString().split('T')[0];
       for (const ticker of Array.from(tickers)) {
         const stock = await getStockByTicker(ticker);
         if (stock && stock.currentPrice) {
-          currentPrices.set(ticker, parseFloat(stock.currentPrice));
+          const localPrice = parseFloat(stock.currentPrice);
+          const currency = stock.currency || 'CHF';
+          if (currency === 'CHF') {
+            currentPrices.set(ticker, localPrice);
+          } else {
+            const priceCHF = await tryConvertToCHF(localPrice, currency, todayStr1);
+            currentPrices.set(ticker, priceCHF ?? localPrice);
+          }
         }
       }
 
@@ -183,14 +194,23 @@ export const portfolioMetricsRouter = router({
         if (tx.ticker) tickers.add(tx.ticker);
       });
 
+      // Build currentPrices map with CHF prices (not local currency)
       const currentPrices = new Map<string, number>();
       const stockDetails = new Map<string, any>();
+      const todayStr2 = new Date().toISOString().split('T')[0];
 
       for (const ticker of Array.from(tickers)) {
         const stock = await getStockByTicker(ticker);
         if (stock) {
           if (stock.currentPrice) {
-            currentPrices.set(ticker, parseFloat(stock.currentPrice));
+            const localPrice = parseFloat(stock.currentPrice);
+            const currency = stock.currency || 'CHF';
+            if (currency === 'CHF') {
+              currentPrices.set(ticker, localPrice);
+            } else {
+              const priceCHF = await tryConvertToCHF(localPrice, currency, todayStr2);
+              currentPrices.set(ticker, priceCHF ?? localPrice);
+            }
           }
           stockDetails.set(ticker, stock);
         }
@@ -314,11 +334,20 @@ export const portfolioMetricsRouter = router({
           if (tx.ticker) tickers.add(tx.ticker);
         });
 
+        // Build currentPrices map with CHF prices (not local currency)
         const currentPrices = new Map<string, number>();
+        const todayStr3 = new Date().toISOString().split('T')[0];
         for (const ticker of Array.from(tickers)) {
           const stock = await getStockByTicker(ticker);
           if (stock && stock.currentPrice) {
-            currentPrices.set(ticker, parseFloat(stock.currentPrice));
+            const localPrice = parseFloat(stock.currentPrice);
+            const currency = stock.currency || 'CHF';
+            if (currency === 'CHF') {
+              currentPrices.set(ticker, localPrice);
+            } else {
+              const priceCHF = await tryConvertToCHF(localPrice, currency, todayStr3);
+              currentPrices.set(ticker, priceCHF ?? localPrice);
+            }
           }
         }
 
@@ -399,11 +428,20 @@ export const portfolioMetricsRouter = router({
         if (tx.ticker) tickers.add(tx.ticker);
       });
 
+      // Build currentPrices map with CHF prices (not local currency)
       const currentPrices = new Map<string, number>();
+      const todayStr4 = new Date().toISOString().split('T')[0];
       for (const ticker of Array.from(tickers)) {
         const stock = await getStockByTicker(ticker);
         if (stock && stock.currentPrice) {
-          currentPrices.set(ticker, parseFloat(stock.currentPrice));
+          const localPrice = parseFloat(stock.currentPrice);
+          const currency = stock.currency || 'CHF';
+          if (currency === 'CHF') {
+            currentPrices.set(ticker, localPrice);
+          } else {
+            const priceCHF = await tryConvertToCHF(localPrice, currency, todayStr4);
+            currentPrices.set(ticker, priceCHF ?? localPrice);
+          }
         }
       }
 
