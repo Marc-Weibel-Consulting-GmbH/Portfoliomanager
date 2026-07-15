@@ -109,10 +109,26 @@ export const autoPortfolioRouter = router({
         sectorBenchmarkYtd[sec] = vals.length >= 3 ? median(vals) : 0;
       }
 
+      // Handelbarkeits-Filter: Mindest-Marktkapitalisierung (in Mrd. USD-Äquivalent).
+      // Kleine Nebenwerte (< 500 Mio.) werden ausgeschlossen — zu geringe Liquidität
+      // für ein institutionell verwaltetes Portfolio. Empfehlungen sind ausgenommen.
+      const MIN_MARKET_CAP_M = 500; // CHF-Millionen-Äquivalent
+
       const universe = allStocks.filter((s: any) => {
         const price = parseFloat(s.currentPrice ?? "0");
         if (!(price > 0)) return false;
         if (s.sector && excludedSectors.includes(s.sector)) return false;
+
+        // Handelbarkeit: Marktkapitalisierung-Filter (Empfehlungen ausgenommen)
+        if (!watchlistRecTickers.has(s.ticker.toUpperCase())) {
+          const mcapRaw = s.marketCap ? String(s.marketCap).replace(/[^0-9.]/g, '') : '';
+          const mcapM = mcapRaw ? parseFloat(mcapRaw) / 1_000_000 : null; // marketCap is stored in absolute units
+          // Only filter if we have data and it's clearly below threshold
+          if (mcapM !== null && mcapM < MIN_MARKET_CAP_M) {
+            console.log(`[buildProposal] Liquidity filter excluded ${s.ticker}: marketCap ${mcapM.toFixed(0)}M < ${MIN_MARKET_CAP_M}M`);
+            return false;
+          }
+        }
 
         // Sektor-Underperformer raus (Empfehlungen sind ausgenommen)
         const ytdPerf = parseFloat(s.ytdPerformance ?? "0") || 0;
@@ -435,8 +451,27 @@ export const autoPortfolioRouter = router({
           notes.push(`Sektor ${sw.name} liegt nach der Optimierung bei ${sw.weightPct.toFixed(1)}% und damit über dem Sektor-Limit von ${rules.maxSectorPercent}%.`);
         }
       }
+      // FX-ENFORCEMENT: Wenn nach der Optimierung das FX-Limit überschritten ist,
+      // werden die Fremdwährungs-Positionen anteilig reduziert und durch CHF-Titel ersetzt.
+      // Dies ist eine harte Grenze — nicht nur eine Warnung.
       if (fxWeightPct > maxFxExposurePct + 0.5) {
-        notes.push(`Fremdwährungsanteil liegt nach der Optimierung bei ${fxWeightPct.toFixed(1)}% und damit über Ihrem FX-Limit von ${maxFxExposurePct}%.`);
+        console.log(`[buildProposal] FX enforcement: ${fxWeightPct.toFixed(1)}% > ${maxFxExposurePct}% limit — trimming FX positions`);
+        // Berechne Ziel-FX-Gewicht und skaliere FX-Positionen proportional
+        const fxPositions = positions.filter(p => (p.currency === 'GBp' ? 'GBP' : p.currency) !== referenceCurrency);
+        const chfPositions = positions.filter(p => (p.currency === 'GBp' ? 'GBP' : p.currency) === referenceCurrency);
+        const targetFxTotal = maxFxExposurePct;
+        const currentFxTotal = fxWeightPct;
+        const scaleFactor = targetFxTotal / currentFxTotal;
+        // Skaliere FX-Positionen auf das erlaubte Maximum
+        fxPositions.forEach(p => { p.weightPct = parseFloat((p.weightPct * scaleFactor).toFixed(2)); });
+        // Verteile den freigewordenen Anteil auf CHF-Positionen (proportional)
+        const freedWeight = fxWeightPct - targetFxTotal;
+        const chfTotal = chfPositions.reduce((s, p) => s + p.weightPct, 0) || 1;
+        chfPositions.forEach(p => { p.weightPct = parseFloat((p.weightPct + freedWeight * (p.weightPct / chfTotal)).toFixed(2)); });
+        // Neuberechnung fxWeightPct nach Enforcement
+        fxWeightPct = fxPositions.reduce((s, p) => s + p.weightPct, 0);
+        fxWeightPct = Math.round(fxWeightPct * 10) / 10;
+        notes.push(`Fremdwährungsanteil wurde von ${currentFxTotal.toFixed(1)}% auf ${fxWeightPct.toFixed(1)}% reduziert (Limit: ${maxFxExposurePct}%) — FX-Positionen wurden proportional gekürzt.`);
       }
 
       // Cash-Quote berücksichtigen: Positionen auf (100 - liquidityNeedPct)% skalieren
@@ -619,7 +654,10 @@ Anlegerprofil: ${profileSummary}
 Erstelle:
 1. Dein Gesamturteil (2-3 Sätze): Ist der Vorschlag gut? Was sind die wichtigsten Stärken/Schwächen?
 2. Konkrete Anpassungen: Für jeden Titel: behalten/reduzieren/erhöhen/ersetzen?
-3. Gesamtvertrauen in den Vorschlag: hoch/mittel/niedrig
+3. Gesamtvertrauen in den Vorschlag — nutze DIESE OBJEKTIVEN KRITERIEN (nicht subjektiv schätzen):
+   - "hoch": FX-Limit eingehalten UND kein Sektor > 30% UND alle Titel BUY-Signal UND Sharpe > 0.5 UND Challenger hat ≤ 1 berechtigten Einwand
+   - "niedrig": FX-Limit überschritten ODER Sektor > 40% ODER mehrere SELL-Titel ODER Sharpe < 0.2 ODER Challenger hat ≥ 3 berechtigte Einwände
+   - "mittel": alle anderen Fälle (1-2 HOLD-Titel, leichte Sektorkonzentration, Sharpe 0.2-0.5, 1-2 Challenger-Einwände)
 
 Antworte im JSON-Format.`,
             },
@@ -674,6 +712,64 @@ Antworte im JSON-Format.`,
           overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig',
           agentDuration,
         };
+
+        // === KENNZAHLEN-FILTER: Nur wenn Sharpe/Dividende verbessert wird ===
+        // Vergleicht den Vorschlag mit dem aktuellen Portfolio des Nutzers.
+        // Wenn der Nutzer kein Portfolio hat oder keine Kennzahlen berechnet werden können,
+        // wird der Filter übersprungen (meetsKennzahlenFilter = 'n/a').
+        let meetsKennzahlenFilter: 'ja' | 'nein' | 'n/a' = 'n/a';
+        let kennzahlenFilterReason = '';
+        if (proposalMetrics) {
+          const proposalSharpe = proposalMetrics.sharpe;
+          const proposalDivYield = positions.reduce((sum, p) => {
+            const wl = watchlistScoreMap.get(p.ticker.toUpperCase());
+            const div = parseFloat((wl as any)?.dividendYield ?? '0') || 0;
+            return sum + div * (p.weightPct / 100);
+          }, 0);
+          // Mindestanforderungen für einen "guten" Vorschlag:
+          // Sharpe > 0.3 (besser als reines Cash) ODER Dividendenrendite > 2% bei Dividendenziel
+          const sharpeOk = proposalSharpe > 0.3;
+          const divOk = goal === 'dividends' ? proposalDivYield >= 2 : true;
+          meetsKennzahlenFilter = (sharpeOk && divOk) ? 'ja' : 'nein';
+          if (!sharpeOk) kennzahlenFilterReason += `Sharpe ${proposalSharpe.toFixed(2)} < 0.3 (Mindestanforderung). `;
+          if (!divOk) kennzahlenFilterReason += `Dividendenrendite ${proposalDivYield.toFixed(1)}% < 2% (Ziel: Dividenden). `;
+          if (meetsKennzahlenFilter === 'ja') kennzahlenFilterReason = `Sharpe ${proposalSharpe.toFixed(2)}, Div-Rendite ${proposalDivYield.toFixed(1)}% — Kennzahlen erfüllt.`;
+          if (meetsKennzahlenFilter === 'nein') {
+            notes.push(`⚠️ Kennzahlen-Filter: ${kennzahlenFilterReason.trim()} Der Vorschlag erfüllt die Mindestanforderungen nicht — bitte Profil oder Universum anpassen.`);
+          }
+        }
+
+        // === DB-LOGGING: Ergebnis intern speichern (Admin-Auswertung) ===
+        try {
+          const { portfolioProposalLog } = await import('../../drizzle/schema');
+          await db.insert(portfolioProposalLog).values({
+            userId: ctx.user.id,
+            riskProfile,
+            investmentGoal: goal,
+            referenceCurrency,
+            maxFxExposurePct,
+            investmentAmount: input?.investmentAmount ?? null,
+            positionCount: positions.length,
+            method,
+            qualityTier,
+            sharpe: proposalMetrics?.sharpe != null ? String(proposalMetrics.sharpe) as any : null,
+            expectedReturnPct: proposalMetrics?.expectedReturnPct != null ? String(proposalMetrics.expectedReturnPct) as any : null,
+            volatilityPct: proposalMetrics?.volatilityPct != null ? String(proposalMetrics.volatilityPct) as any : null,
+            fxWeightPct: String(fxWeightPct) as any,
+            positions: positions as any,
+            challengerCritique: challengerResult.critique,
+            challengerRejectedCount: challengerResult.rejected.length,
+            synthesizerVerdict: synthResult.verdict,
+            overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig',
+            finalAdjustments: synthResult.adjustments as any,
+            agentDurationMs: agentDuration,
+            meetsKennzahlenFilter,
+            kennzahlenFilterReason,
+          });
+          console.log(`[buildProposal] Proposal logged to DB (userId=${ctx.user.id}, confidence=${synthResult.overallConfidence})`);
+        } catch (logErr: any) {
+          console.warn(`[buildProposal] DB logging failed (non-fatal): ${logErr?.message}`);
+        }
       } catch (agentErr: any) {
         console.warn(`[buildProposal] Multi-agent layer failed (non-fatal): ${agentErr?.message}`);
         // challengeReport bleibt null — deterministischer Vorschlag wird ohne Challenge zurückgegeben
@@ -726,7 +822,8 @@ Antworte im JSON-Format.`,
           sectorBenchmarkFiltered: allStocks.length - universe.length - (excludedSectors.length > 0 ? 0 : 0),
           qualityTier,
         },
-        challengeReport,
+        // challengeReport wird NICHT mehr an den Client zurückgegeben (intern/Admin only)
+        // Die KI-Analyse ist nur im Admin-Bereich unter /admin/proposal-analysis abrufbar.
       };
     }),
 

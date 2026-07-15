@@ -697,77 +697,7 @@ export default function PortfolioBuilderWizard() {
                         </div>
                       ))}
                     </div>
-                    {/* Multi-Agent Challenge Report */}
-                    {(autoProposal as any).challengeReport && (() => {
-                      const cr = (autoProposal as any).challengeReport;
-                      const confidenceColor = cr.overallConfidence === 'hoch' ? 'text-emerald-400' : cr.overallConfidence === 'mittel' ? 'text-amber-400' : 'text-red-400';
-                      const confidenceBg = cr.overallConfidence === 'hoch' ? 'bg-emerald-400/10 border-emerald-400/20' : cr.overallConfidence === 'mittel' ? 'bg-amber-400/10 border-amber-400/20' : 'bg-red-400/10 border-red-400/20';
-                      return (
-                        <div className={`rounded-xl border p-4 space-y-3 ${confidenceBg}`}>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">🤖 KI-Analyse (3-Agenten-Prüfung)</span>
-                            <span className={`text-xs font-bold ${confidenceColor}`}>Vertrauen: {cr.overallConfidence}</span>
-                          </div>
-                          {/* Synthesizer Verdict */}
-                          <p className="text-sm text-white/85 leading-relaxed">{cr.synthesizerVerdict}</p>
-                          {/* Challenger Critique */}
-                          {cr.challengerCritique && (
-                            <div className="border-t border-white/10 pt-3">
-                              <p className="text-xs text-amber-400 font-medium mb-1">⚡ Challenger-Einwände:</p>
-                              <p className="text-xs text-gray-400">{cr.challengerCritique}</p>
-                            </div>
-                          )}
-                          {/* Rejected tickers */}
-                          {cr.challengerRejected?.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {cr.challengerRejected.map((r: any) => (
-                                <div key={r.ticker} className="text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-2 py-1">
-                                  <span className="font-mono text-red-400">{r.ticker}</span>
-                                  <span className="text-gray-500 ml-1">— {r.reason}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {/* Alternatives */}
-                          {cr.challengerAlternatives?.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              <span className="text-xs text-gray-500 w-full">Vorgeschlagene Alternativen:</span>
-                              {cr.challengerAlternatives.map((a: any) => (
-                                <div key={a.ticker} className="text-xs bg-[#00CFC1]/10 border border-[#00CFC1]/20 rounded-lg px-2 py-1">
-                                  <span className="font-mono text-[#00CFC1]">{a.ticker}</span>
-                                  <span className="text-gray-500 ml-1">— {a.reason}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {/* Final adjustments */}
-                          {cr.finalAdjustments?.length > 0 && (
-                            <div className="border-t border-white/10 pt-3">
-                              <p className="text-xs text-white/60 font-medium mb-2">Synthesizer-Empfehlungen:</p>
-                              <div className="space-y-1">
-                                {cr.finalAdjustments.map((adj: any) => {
-                                  const actionLabel: Record<string, string> = { keep: '✅ Behalten', replace: '🔄 Ersetzen', reduce: '⬇️ Reduzieren', increase: '⬆️ Erhöhen' };
-                                  const actionColor: Record<string, string> = { keep: 'text-emerald-400', replace: 'text-red-400', reduce: 'text-amber-400', increase: 'text-blue-400' };
-                                  return (
-                                    <div key={adj.ticker} className="flex items-start gap-2 text-xs">
-                                      <span className={`font-mono shrink-0 ${actionColor[adj.action] ?? 'text-gray-400'}`}>{actionLabel[adj.action] ?? adj.action} {adj.ticker}</span>
-                                      <span className="text-gray-500">— {adj.reason}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                          {/* Unverbindlichkeit klar machen (analog SIG-5): die Hinweise
-                              werden beim Übernehmen NICHT automatisch angewendet. */}
-                          <p className="text-xs text-gray-500 border-t border-white/10 pt-2">
-                            Unabhängige KI-Zweitmeinung — die Empfehlungen sind Hinweise und werden beim Übernehmen
-                            des Vorschlags nicht automatisch angewendet.
-                          </p>
-                          <p className="text-xs text-gray-600">Analyse in {(cr.agentDuration / 1000).toFixed(1)}s · Challenger + Synthesizer</p>
-                        </div>
-                      );
-                    })()}
+                    {/* KI-Analyse (3-Agenten-Prüfung) ist intern — nur im Admin-Bereich unter /admin/proposal-analysis sichtbar */}
                     <p className="text-xs text-gray-600">
                       ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung. Sie können jede Position in den nächsten Schritten anpassen.
                     </p>

@@ -1056,4 +1056,59 @@ export const adminRouter = router({
           .limit(input.limit);
         return rows;
       }),
+
+    /**
+     * List portfolio proposal logs (Multi-Agent KI-Analyse Resultate)
+     * Nur im Admin-Bereich sichtbar — nicht für Endnutzer.
+     */
+    listProposalLogs: adminProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        confidence: z.enum(['hoch', 'mittel', 'niedrig']).optional(),
+        meetsFilter: z.enum(['ja', 'nein', 'n/a']).optional(),
+      }))
+      .query(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { portfolioProposalLog } = await import("../../drizzle/schema");
+        const { desc, eq, and, sql } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const conditions: any[] = [];
+        if (input.confidence) conditions.push(eq(portfolioProposalLog.overallConfidence, input.confidence));
+        if (input.meetsFilter) conditions.push(eq(portfolioProposalLog.meetsKennzahlenFilter, input.meetsFilter));
+        const rows = await db
+          .select()
+          .from(portfolioProposalLog)
+          .where(conditions.length > 0 ? and(...conditions) : undefined)
+          .orderBy(desc(portfolioProposalLog.createdAt))
+          .limit(input.limit)
+          .offset(input.offset);
+        const [countRow] = await db
+          .select({ total: sql<number>`count(*)` })
+          .from(portfolioProposalLog)
+          .where(conditions.length > 0 ? and(...conditions) : undefined);
+        return { rows, total: Number(countRow?.total ?? 0) };
+      }),
+
+    /**
+     * Mark a proposal log as accepted/rejected (Nutzer-Feedback für Training)
+     */
+    updateProposalAccepted: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        accepted: z.enum(['ja', 'nein']),
+      }))
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { portfolioProposalLog } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.update(portfolioProposalLog)
+          .set({ accepted: input.accepted })
+          .where(eq(portfolioProposalLog.id, input.id));
+        return { success: true };
+      }),
 });
+

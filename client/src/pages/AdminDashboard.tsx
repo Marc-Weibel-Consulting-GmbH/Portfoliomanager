@@ -89,6 +89,13 @@ export default function AdminDashboard() {
       path: "/admin/research",
       color: "text-pink-500",
     },
+    {
+      icon: Brain,
+      title: "KI-Analyse Protokoll",
+      description: "Multi-Agent Portfolio-Vorschläge: Vertrauen, Kennzahlen-Filter, Challenger-Kritik — intern für Training",
+      path: "/admin/proposal-analysis",
+      color: "text-violet-500",
+    },
   ];
 
   return (

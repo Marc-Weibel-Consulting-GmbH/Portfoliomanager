@@ -1298,3 +1298,41 @@ export const gapFillLog = mysqlTable("gapFillLog", {
 });
 export type GapFillLog = typeof gapFillLog.$inferSelect;
 export type InsertGapFillLog = typeof gapFillLog.$inferInsert;
+
+// ─── Portfolio Proposal Log ───────────────────────────────────────────────────
+// Stores every buildProposal result (deterministisch + Multi-Agent-Analyse)
+// für Admin-Auswertung und kontinuierliches Training des Algorithmus.
+// Nicht sichtbar für Endnutzer — nur im Admin-Bereich abrufbar.
+export const portfolioProposalLog = mysqlTable("portfolioProposalLog", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  riskProfile: varchar("riskProfile", { length: 32 }),
+  investmentGoal: varchar("investmentGoal", { length: 32 }),
+  referenceCurrency: varchar("referenceCurrency", { length: 8 }),
+  maxFxExposurePct: int("maxFxExposurePct"),
+  investmentAmount: int("investmentAmount"),
+  // Deterministisches Ergebnis
+  positionCount: int("positionCount"),
+  method: varchar("method", { length: 32 }),
+  qualityTier: varchar("qualityTier", { length: 16 }),
+  sharpe: decimal("sharpe", { precision: 6, scale: 3 }),
+  expectedReturnPct: decimal("expectedReturnPct", { precision: 6, scale: 2 }),
+  volatilityPct: decimal("volatilityPct", { precision: 6, scale: 2 }),
+  fxWeightPct: decimal("fxWeightPct", { precision: 6, scale: 2 }),
+  positions: json("positions"), // Array of position objects
+  // Multi-Agent Analyse
+  challengerCritique: text("challengerCritique"),
+  challengerRejectedCount: int("challengerRejectedCount"),
+  synthesizerVerdict: text("synthesizerVerdict"),
+  overallConfidence: mysqlEnum("overallConfidence", ["hoch", "mittel", "niedrig"]),
+  finalAdjustments: json("finalAdjustments"),
+  agentDurationMs: int("agentDurationMs"),
+  // Kennzahlen-Filter Ergebnis
+  meetsKennzahlenFilter: mysqlEnum("meetsKennzahlenFilter", ["ja", "nein", "n/a"]).default("n/a"),
+  kennzahlenFilterReason: text("kennzahlenFilterReason"),
+  // Wurde der Vorschlag übernommen?
+  accepted: mysqlEnum("accepted", ["ja", "nein", "unbekannt"]).default("unbekannt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PortfolioProposalLog = typeof portfolioProposalLog.$inferSelect;
+export type InsertPortfolioProposalLog = typeof portfolioProposalLog.$inferInsert;
