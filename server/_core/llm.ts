@@ -30,6 +30,8 @@ export type Message = {
   content: MessageContent | MessageContent[];
   name?: string;
   tool_call_id?: string;
+  /** Assistant-Nachrichten in Tool-Schleifen tragen die angeforderten Tool-Calls. */
+  tool_calls?: ToolCall[];
 };
 
 export type Tool = {
@@ -154,12 +156,20 @@ const normalizeMessage = (message: Message) => {
 
   const contentParts = ensureArray(message.content).map(normalizeContentPart);
 
+  // Assistant-Nachrichten mit tool_calls (Tool-Schleife) durchreichen — ohne
+  // dieses Feld lehnt die OpenAI-kompatible API nachfolgende role:"tool"-
+  // Nachrichten ab.
+  const toolCalls = role === "assistant" && message.tool_calls?.length
+    ? { tool_calls: message.tool_calls }
+    : {};
+
   // If there's only text content, collapse to a single string for compatibility
   if (contentParts.length === 1 && contentParts[0].type === "text") {
     return {
       role,
       name,
       content: contentParts[0].text,
+      ...toolCalls,
     };
   }
 
@@ -167,6 +177,7 @@ const normalizeMessage = (message: Message) => {
     role,
     name,
     content: contentParts,
+    ...toolCalls,
   };
 };
 
