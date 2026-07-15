@@ -1110,5 +1110,83 @@ export const adminRouter = router({
           .where(eq(portfolioProposalLog.id, input.id));
         return { success: true };
       }),
+
+    /**
+     * Admin: Vorschlag mit angepassten Positionen genehmigen und Portfolio erstellen.
+     * Nimmt einen Proposal-Log-Eintrag + editierte Positionen und erstellt daraus
+     * ein neues Portfolio für den ursprünglichen Nutzer.
+     */
+    approveProposalAndCreate: adminProcedure
+      .input(z.object({
+        proposalId: z.number(),
+        portfolioName: z.string().min(1),
+        investmentAmount: z.number().positive(),
+        portfolioType: z.enum(['demo', 'live']).default('demo'),
+        // Editierte Positionen (nach Admin-Review)
+        positions: z.array(z.object({
+          ticker: z.string(),
+          companyName: z.string(),
+          sector: z.string().optional(),
+          currency: z.string().default('CHF'),
+          currentPrice: z.number(),
+          exchangeRateToChf: z.number().default(1),
+          weightPct: z.number().min(0).max(100),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { getDb } = await import("../db");
+        const { portfolioProposalLog } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // 1) Proposal-Log laden um userId zu ermitteln
+        const [proposal] = await db
+          .select()
+          .from(portfolioProposalLog)
+          .where(eq(portfolioProposalLog.id, input.proposalId))
+          .limit(1);
+        if (!proposal) throw new Error(`Proposal #${input.proposalId} nicht gefunden`);
+
+        // 2) Positionen normieren (Summe muss 100% ergeben)
+        const totalWeight = input.positions.reduce((s, p) => s + p.weightPct, 0);
+        if (totalWeight <= 0) throw new Error('Positionen haben Gesamtgewicht 0');
+        const normalizedPositions = input.positions.map(p => ({
+          ...p,
+          weightPct: parseFloat(((p.weightPct / totalWeight) * 100).toFixed(2)),
+        }));
+
+        // 3) portfolioData im Format der portfolios.create-Mutation aufbauen
+        const portfolioData = {
+          stocks: normalizedPositions.map(p => ({
+            ticker: p.ticker,
+            companyName: p.companyName,
+            sector: p.sector ?? 'Andere',
+            currency: p.currency,
+            currentPrice: p.currentPrice,
+            exchangeRateToChf: p.exchangeRateToChf,
+            weight: p.weightPct,
+          })),
+        };
+
+        // 4) Portfolio über den bestehenden DB-Helper anlegen
+        const { createSavedPortfolio } = await import("../db");
+        const portfolioId = await createSavedPortfolio({
+          userId: proposal.userId,
+          name: input.portfolioName,
+          description: `KI-Vorschlag #${input.proposalId} — vom Admin geprüft und genehmigt`,
+          portfolioData: JSON.stringify(portfolioData),
+          portfolioType: input.portfolioType,
+          investmentAmount: String(input.investmentAmount),
+        });
+
+        // 5) Proposal als übernommen markieren
+        await db.update(portfolioProposalLog)
+          .set({ accepted: 'ja' })
+          .where(eq(portfolioProposalLog.id, input.proposalId));
+
+        console.log(`[admin.approveProposalAndCreate] Portfolio ${portfolioId} created for user ${proposal.userId} from proposal #${input.proposalId}`);
+        return { success: true, portfolioId };
+      }),
 });
 

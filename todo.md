@@ -137,3 +137,10 @@
 ## Positionsgrössenstreuung + Liquiditätsfilter Fix (Jul 2026)
 - [x] Positionsgrössen-Cap: maxPositionPercent von 25% → 15%, minPositionPercent von 1% → 3%
 - [x] Liquiditätsfilter: NULL-marketCap Werte werden jetzt als "unbekannt/zu klein" ausgeschlossen (nicht mehr übersprungen)
+
+## Admin Pre-Approval Workflow (Jul 2026)
+- [x] Backend: Admin-Endpunkt `approveProposalAndCreate` — Proposal mit editierten Positionen genehmigen und Portfolio erstellen
+- [x] Frontend: AdminProposalAnalysis — KI-Empfehlungen (finalAdjustments) mit Aktions-Icons anzeigen (↓ reduzieren / ↑ aufstocken / ↔ austauschen / ✓ behalten)
+- [x] Frontend: Positions-Editor mit editierbaren Gewichten und automatischer Normierung auf 100%
+- [x] Frontend: «Portfolio erstellen»-Button öffnet Approve-Panel mit Portfolio-Name, Betrag, Typ (Demo/Live)
+- [x] Frontend: Positions-Vorschau mit farbkodierten Aktions-Icons aus finalAdjustments

@@ -2,15 +2,27 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Brain, TrendingUp, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import {
+  ChevronDown, ChevronRight, Brain, TrendingUp, AlertTriangle,
+  CheckCircle, XCircle, ArrowDown, ArrowUp, ArrowLeftRight, Check,
+  Pencil, Save, X, PlusCircle, Trash2
+} from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "sonner";
+
+// ─── Badges ──────────────────────────────────────────────────────────────────
 
 function ConfidenceBadge({ value }: { value: string | null }) {
   if (!value) return <Badge variant="outline">—</Badge>;
-  const map: Record<string, string> = { hoch: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", mittel: "bg-amber-500/20 text-amber-400 border-amber-500/30", niedrig: "bg-red-500/20 text-red-400 border-red-500/30" };
+  const map: Record<string, string> = {
+    hoch: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    mittel: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    niedrig: "bg-red-500/20 text-red-400 border-red-500/30",
+  };
   return <Badge className={map[value] ?? ""}>{value}</Badge>;
 }
 
@@ -26,11 +38,197 @@ function AcceptedBadge({ value }: { value: string | null }) {
   return <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">Abgelehnt</Badge>;
 }
 
+// ─── Action icon + colour helpers ────────────────────────────────────────────
+
+function actionMeta(action: string) {
+  switch (action) {
+    case "reduce":   return { icon: <ArrowDown className="w-3.5 h-3.5" />, label: "Reduzieren",  cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" };
+    case "increase": return { icon: <ArrowUp className="w-3.5 h-3.5" />,   label: "Aufstocken", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
+    case "replace":  return { icon: <ArrowLeftRight className="w-3.5 h-3.5" />, label: "Austauschen", cls: "bg-violet-500/15 text-violet-400 border-violet-500/30" };
+    default:         return { icon: <Check className="w-3.5 h-3.5" />,     label: "Behalten",   cls: "bg-slate-500/15 text-slate-400 border-slate-500/30" };
+  }
+}
+
+// ─── Editable position row ────────────────────────────────────────────────────
+
+type EditablePosition = {
+  ticker: string;
+  companyName: string;
+  sector?: string;
+  currency: string;
+  currentPrice: number;
+  exchangeRateToChf: number;
+  weightPct: number;
+};
+
+function PositionEditor({
+  positions,
+  onChange,
+}: {
+  positions: EditablePosition[];
+  onChange: (updated: EditablePosition[]) => void;
+}) {
+  const totalWeight = positions.reduce((s, p) => s + p.weightPct, 0);
+
+  const update = (idx: number, field: keyof EditablePosition, value: any) => {
+    const next = positions.map((p, i) => i === idx ? { ...p, [field]: value } : p);
+    onChange(next);
+  };
+
+  const remove = (idx: number) => onChange(positions.filter((_, i) => i !== idx));
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-slate-500">Positionen bearbeiten</span>
+        <span className={`text-xs font-mono ${Math.abs(totalWeight - 100) < 0.5 ? "text-emerald-400" : "text-amber-400"}`}>
+          Summe: {totalWeight.toFixed(1)}% {Math.abs(totalWeight - 100) < 0.5 ? "✓" : "(wird auf 100% normiert)"}
+        </span>
+      </div>
+      {positions.map((p, idx) => (
+        <div key={idx} className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1.5">
+          <span className="font-mono text-xs text-teal-400 w-20 shrink-0">{p.ticker}</span>
+          <span className="text-xs text-slate-300 flex-1 truncate">{p.companyName}</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={p.weightPct}
+              onChange={(e) => update(idx, "weightPct", parseFloat(e.target.value) || 0)}
+              className="w-16 h-6 text-xs bg-slate-800 border-slate-600 text-white text-right px-1 py-0"
+            />
+            <span className="text-xs text-slate-500">%</span>
+            <button
+              onClick={() => remove(idx)}
+              className="text-slate-600 hover:text-red-400 transition-colors ml-1"
+              title="Position entfernen"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Approve dialog (inline) ──────────────────────────────────────────────────
+
+function ApprovePanel({
+  row,
+  onDone,
+}: {
+  row: any;
+  onDone: () => void;
+}) {
+  const rawPositions: EditablePosition[] = (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
+    ticker: p.ticker ?? "",
+    companyName: p.companyName ?? p.ticker ?? "",
+    sector: p.sector,
+    currency: p.currency ?? "CHF",
+    currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
+    exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
+    weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+  }));
+
+  const [positions, setPositions] = useState<EditablePosition[]>(rawPositions);
+  const [portfolioName, setPortfolioName] = useState(`KI-Portfolio #${row.id}`);
+  const [investmentAmount, setInvestmentAmount] = useState(String(row.investmentAmount ?? 10000));
+  const [portfolioType, setPortfolioType] = useState<"demo" | "live">("demo");
+
+  const approveMutation = trpc.admin.approveProposalAndCreate.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Portfolio erstellt (ID: ${data.portfolioId})`);
+      onDone();
+    },
+    onError: (e) => toast.error("Fehler beim Erstellen", { description: e.message }),
+  });
+
+  const handleApprove = () => {
+    const amount = parseFloat(investmentAmount);
+    if (!(amount > 0)) { toast.error("Bitte gültigen Anlagebetrag eingeben"); return; }
+    if (positions.length === 0) { toast.error("Mindestens eine Position erforderlich"); return; }
+    approveMutation.mutate({
+      proposalId: row.id,
+      portfolioName,
+      investmentAmount: amount,
+      portfolioType,
+      positions,
+    });
+  };
+
+  return (
+    <div className="border border-violet-500/30 rounded-lg p-4 bg-violet-900/10 space-y-4">
+      <div className="flex items-center gap-2">
+        <PlusCircle className="w-4 h-4 text-violet-400" />
+        <span className="text-sm font-medium text-violet-300">Portfolio aus diesem Vorschlag erstellen</span>
+      </div>
+
+      {/* Form fields */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="text-xs text-slate-500 mb-1 block">Portfolio-Name</label>
+          <Input
+            value={portfolioName}
+            onChange={(e) => setPortfolioName(e.target.value)}
+            className="bg-slate-800 border-slate-600 text-white text-sm h-8"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 mb-1 block">Anlagebetrag (CHF)</label>
+          <Input
+            type="number"
+            value={investmentAmount}
+            onChange={(e) => setInvestmentAmount(e.target.value)}
+            className="bg-slate-800 border-slate-600 text-white text-sm h-8"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-slate-500 mb-1 block">Portfolio-Typ</label>
+          <Select value={portfolioType} onValueChange={(v) => setPortfolioType(v as any)}>
+            <SelectTrigger className="bg-slate-800 border-slate-600 text-white h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectItem value="demo">Demo (Simulation)</SelectItem>
+              <SelectItem value="live">Live (echte Transaktionen)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Editable positions */}
+      <PositionEditor positions={positions} onChange={setPositions} />
+
+      {/* Action buttons */}
+      <div className="flex gap-2 pt-1">
+        <Button
+          size="sm"
+          className="bg-violet-600 hover:bg-violet-700 text-white text-xs"
+          onClick={handleApprove}
+          disabled={approveMutation.isPending}
+        >
+          <Save className="w-3.5 h-3.5 mr-1.5" />
+          {approveMutation.isPending ? "Erstelle Portfolio…" : "Portfolio erstellen & genehmigen"}
+        </Button>
+        <Button size="sm" variant="outline" className="border-slate-600 text-slate-400 text-xs" onClick={onDone}>
+          <X className="w-3.5 h-3.5 mr-1" /> Abbrechen
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export default function AdminProposalAnalysis() {
   const [confidence, setConfidence] = useState<string>("all");
   const [meetsFilter, setMeetsFilter] = useState<string>("all");
   const [offset, setOffset] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [approveId, setApproveId] = useState<number | null>(null);
   const LIMIT = 20;
 
   const { data, isLoading, refetch } = trpc.admin.listProposalLogs.useQuery({
@@ -56,7 +254,9 @@ export default function AdminProposalAnalysis() {
             <Brain className="w-6 h-6 text-violet-400" />
             <div>
               <h1 className="text-xl font-semibold text-white">KI-Analyse Protokoll</h1>
-              <p className="text-sm text-slate-400">Multi-Agent Portfolio-Vorschläge — intern, nicht für Endnutzer sichtbar</p>
+              <p className="text-sm text-slate-400">
+                Multi-Agent Portfolio-Vorschläge — Admin-Review &amp; Portfolio-Erstellung
+              </p>
             </div>
           </div>
           <div className="text-sm text-slate-400">{total} Einträge gesamt</div>
@@ -90,7 +290,7 @@ export default function AdminProposalAnalysis() {
 
         {/* Table */}
         {isLoading ? (
-          <div className="text-slate-400 text-sm">Lade Daten...</div>
+          <div className="text-slate-400 text-sm">Lade Daten…</div>
         ) : rows.length === 0 ? (
           <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="py-12 text-center text-slate-400">
@@ -102,13 +302,22 @@ export default function AdminProposalAnalysis() {
         ) : (
           <div className="space-y-3">
             {rows.map((row: any) => (
-              <Collapsible key={row.id} open={expandedId === row.id} onOpenChange={(open) => setExpandedId(open ? row.id : null)}>
+              <Collapsible
+                key={row.id}
+                open={expandedId === row.id}
+                onOpenChange={(open) => {
+                  setExpandedId(open ? row.id : null);
+                  if (!open) setApproveId(null);
+                }}
+              >
                 <Card className="bg-slate-800/50 border-slate-700">
                   <CollapsibleTrigger asChild>
                     <CardHeader className="cursor-pointer hover:bg-slate-700/30 transition-colors rounded-t-lg py-3 px-4">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
-                          {expandedId === row.id ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
+                          {expandedId === row.id
+                            ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                            : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-white text-sm font-medium">#{row.id}</span>
@@ -129,8 +338,10 @@ export default function AdminProposalAnalysis() {
                       </div>
                     </CardHeader>
                   </CollapsibleTrigger>
+
                   <CollapsibleContent>
                     <CardContent className="pt-0 pb-4 px-4 space-y-4">
+
                       {/* Metrics row */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {[
@@ -174,38 +385,88 @@ export default function AdminProposalAnalysis() {
 
                       {/* Kennzahlen Filter Reason */}
                       {row.kennzahlenFilterReason && (
-                        <div className={`rounded p-3 border ${row.meetsKennzahlenFilter === 'ja' ? 'bg-emerald-900/20 border-emerald-500/20' : 'bg-red-900/20 border-red-500/20'}`}>
+                        <div className={`rounded p-3 border ${row.meetsKennzahlenFilter === "ja" ? "bg-emerald-900/20 border-emerald-500/20" : "bg-red-900/20 border-red-500/20"}`}>
                           <div className="flex items-center gap-2 mb-1">
-                            <TrendingUp className={`w-4 h-4 ${row.meetsKennzahlenFilter === 'ja' ? 'text-emerald-400' : 'text-red-400'}`} />
-                            <span className={`text-xs font-medium ${row.meetsKennzahlenFilter === 'ja' ? 'text-emerald-400' : 'text-red-400'}`}>Kennzahlen-Filter</span>
+                            <TrendingUp className={`w-4 h-4 ${row.meetsKennzahlenFilter === "ja" ? "text-emerald-400" : "text-red-400"}`} />
+                            <span className={`text-xs font-medium ${row.meetsKennzahlenFilter === "ja" ? "text-emerald-400" : "text-red-400"}`}>Kennzahlen-Filter</span>
                           </div>
                           <p className="text-sm text-slate-300">{row.kennzahlenFilterReason}</p>
                         </div>
                       )}
 
-                      {/* Positions preview */}
-                      {row.positions && Array.isArray(row.positions) && row.positions.length > 0 && (
+                      {/* ── KI-Empfehlungen (finalAdjustments) ── */}
+                      {Array.isArray(row.finalAdjustments) && row.finalAdjustments.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Pencil className="w-4 h-4 text-teal-400" />
+                            <span className="text-xs font-medium text-teal-400">KI-Empfehlungen (Synthesizer)</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {(row.finalAdjustments as any[]).map((adj: any, i: number) => {
+                              const meta = actionMeta(adj.action);
+                              return (
+                                <div key={i} className="flex items-start gap-2 bg-slate-900/50 rounded px-3 py-2">
+                                  <Badge className={`${meta.cls} text-xs shrink-0 flex items-center gap-1 mt-0.5`}>
+                                    {meta.icon}
+                                    {meta.label}
+                                  </Badge>
+                                  <div className="min-w-0">
+                                    <span className="font-mono text-xs text-teal-400 mr-2">{adj.ticker}</span>
+                                    <span className="text-xs text-slate-300">{adj.reason}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-xs text-slate-600 mt-2">
+                            ℹ️ Diese Empfehlungen sind informativ. Beim Erstellen des Portfolios können Sie die Gewichte unten manuell anpassen.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Positions preview (collapsed) */}
+                      {row.positions && Array.isArray(row.positions) && row.positions.length > 0 && approveId !== row.id && (
                         <div>
                           <div className="text-xs text-slate-500 mb-2">Positionen ({row.positions.length})</div>
                           <div className="flex flex-wrap gap-2">
-                            {(row.positions as any[]).map((p: any) => (
-                              <div key={p.ticker} className="bg-slate-900/60 rounded px-2 py-1 text-xs">
-                                <span className="text-teal-400 font-mono">{p.ticker}</span>
-                                <span className="text-slate-400 ml-1">{p.weightPct?.toFixed(1)}%</span>
-                              </div>
-                            ))}
+                            {(row.positions as any[]).map((p: any) => {
+                              // Find matching adjustment for colour coding
+                              const adj = Array.isArray(row.finalAdjustments)
+                                ? (row.finalAdjustments as any[]).find((a: any) => a.ticker?.toUpperCase() === p.ticker?.toUpperCase())
+                                : null;
+                              const meta = adj ? actionMeta(adj.action) : null;
+                              return (
+                                <div
+                                  key={p.ticker}
+                                  className={`rounded px-2 py-1 text-xs flex items-center gap-1 ${meta ? "bg-slate-900/80 border border-slate-700" : "bg-slate-900/60"}`}
+                                  title={adj ? `${actionMeta(adj.action).label}: ${adj.reason}` : undefined}
+                                >
+                                  {meta && <span className={meta.cls.split(" ").find(c => c.startsWith("text-")) ?? ""}>{meta.icon}</span>}
+                                  <span className="text-teal-400 font-mono">{p.ticker}</span>
+                                  <span className="text-slate-400">{p.weightPct?.toFixed(1)}%</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
 
-                      {/* Accept / Reject buttons */}
-                      <div className="flex gap-2 pt-2 border-t border-slate-700">
+                      {/* Approve panel */}
+                      {approveId === row.id && (
+                        <ApprovePanel
+                          row={row}
+                          onDone={() => { setApproveId(null); refetch(); }}
+                        />
+                      )}
+
+                      {/* Bottom action bar */}
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-700">
                         <span className="text-xs text-slate-500 self-center mr-2">Feedback für Training:</span>
                         <Button
                           size="sm"
                           variant="outline"
-                          className={`text-xs ${row.accepted === 'ja' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'border-slate-600 text-slate-400'}`}
-                          onClick={() => updateAccepted.mutate({ id: row.id, accepted: 'ja' })}
+                          className={`text-xs ${row.accepted === "ja" ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" : "border-slate-600 text-slate-400"}`}
+                          onClick={() => updateAccepted.mutate({ id: row.id, accepted: "ja" })}
                           disabled={updateAccepted.isPending}
                         >
                           <CheckCircle className="w-3 h-3 mr-1" /> Übernommen
@@ -213,12 +474,24 @@ export default function AdminProposalAnalysis() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className={`text-xs ${row.accepted === 'nein' ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'border-slate-600 text-slate-400'}`}
-                          onClick={() => updateAccepted.mutate({ id: row.id, accepted: 'nein' })}
+                          className={`text-xs ${row.accepted === "nein" ? "bg-red-500/20 border-red-500/40 text-red-400" : "border-slate-600 text-slate-400"}`}
+                          onClick={() => updateAccepted.mutate({ id: row.id, accepted: "nein" })}
                           disabled={updateAccepted.isPending}
                         >
                           <XCircle className="w-3 h-3 mr-1" /> Abgelehnt
                         </Button>
+
+                        {/* ── Admin: Portfolio erstellen ── */}
+                        {approveId !== row.id && (
+                          <Button
+                            size="sm"
+                            className="ml-auto bg-violet-600 hover:bg-violet-700 text-white text-xs"
+                            onClick={() => setApproveId(row.id)}
+                          >
+                            <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
+                            Portfolio erstellen
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </CollapsibleContent>
