@@ -967,8 +967,14 @@ export const copilotRouter = router({
 
       if (stocks.length === 0) return { error: 'Keine Positionen im Portfolio', holdings: [], sectorBreakdown: [], portfolioMetrics: null, topDividend: [], highBeta: [], aiSummary: null };
 
-      const totalValue = stocks.reduce((sum: number, s: any) =>
-        sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
+      // Prefer explicit weight field (set at portfolio creation time) over shares×price calculation.
+      // shares×price can be misleading after transactions because avgPrice reflects purchase price,
+      // not current market price, leading to distorted sector weights (e.g. SON.LS at 58.9%).
+      const hasExplicitWeights = stocks.some((s: any) => s.weight !== undefined && s.weight !== null && parseFloat(s.weight) > 0);
+      const totalValue = hasExplicitWeights
+        ? 100 // weights are already in percent, totalValue=100 makes weight = s.weight directly
+        : stocks.reduce((sum: number, s: any) =>
+            sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
 
       // Fetch EODHD fundamentals in parallel batches of 4
       const fundamentalsMap: Record<string, EODHDFundamentals> = {};
@@ -986,8 +992,12 @@ export const copilotRouter = router({
 
       // Build enriched holdings
       const holdings = stocks.map((s: any) => {
-        const value = (s.shares || 1) * (s.currentPrice || s.avgPrice || 100);
-        const weight = totalValue > 0 ? Math.round((value / totalValue) * 1000) / 10 : Math.round(1000 / stocks.length) / 10;
+        const value = hasExplicitWeights
+          ? parseFloat(s.weight || '0') // weight is already in percent (e.g. 8.9 = 8.9%)
+          : (s.shares || 1) * (s.currentPrice || s.avgPrice || 100);
+        const weight = hasExplicitWeights
+          ? Math.round(parseFloat(s.weight || '0') * 10) / 10 // already a percentage
+          : (totalValue > 0 ? Math.round((value / totalValue) * 1000) / 10 : Math.round(1000 / stocks.length) / 10);
         const f = fundamentalsMap[s.ticker] || {} as EODHDFundamentals;
         return {
           ticker: s.ticker,
