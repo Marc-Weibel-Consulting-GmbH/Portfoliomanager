@@ -942,39 +942,40 @@ export const copilotRouter = router({
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
       if (!portfolio) throw new Error('Portfolio nicht gefunden');
 
-      let stocks: any[] = [];
+      // Use the same enriched stocks as the Positionen tab (portfolios.getWithCurrency)
+      // This ensures weights, deduplication, and positions are always consistent.
+      let liveStocks: any[] = [];
       try {
-        const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
-        stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
-      } catch { stocks = []; }
-
-      // Deduplicate by ticker: merge shares and keep first entry's metadata
-      // This prevents the same stock (e.g. RO.SW) from appearing multiple times
-      // when portfolioData has duplicate entries from multiple buy transactions.
-      const tickerMap = new Map<string, any>();
-      for (const s of stocks) {
-        if (!s.ticker) continue;
-        const key = s.ticker.toUpperCase();
-        if (tickerMap.has(key)) {
-          // Accumulate shares
-          const existing = tickerMap.get(key);
-          existing.shares = (parseFloat(existing.shares || '0') + parseFloat(s.shares || '0'));
-        } else {
-          tickerMap.set(key, { ...s, shares: parseFloat(s.shares || '0') });
-        }
+        const { getEnrichedPortfolioStocks } = await import('../helpers/portfolioEnrichment');
+        liveStocks = await getEnrichedPortfolioStocks(input.portfolioId, ctx.user.id);
+      } catch (e) {
+        // Fallback: parse portfolioData directly if enrichment fails
+        console.warn('[portfolioDeepDive] Enrichment fallback:', e);
+        try {
+          const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
+          const rawStocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
+          const tickerMap = new Map<string, any>();
+          for (const s of rawStocks) {
+            if (!s.ticker) continue;
+            const key = s.ticker.toUpperCase();
+            if (tickerMap.has(key)) {
+              const existing = tickerMap.get(key);
+              existing.shares = (parseFloat(existing.shares || '0') + parseFloat(s.shares || '0'));
+            } else {
+              tickerMap.set(key, { ...s, shares: parseFloat(s.shares || '0') });
+            }
+          }
+          liveStocks = Array.from(tickerMap.values());
+        } catch { liveStocks = []; }
       }
-      stocks = Array.from(tickerMap.values());
+
+      const stocks = liveStocks;
 
       if (stocks.length === 0) return { error: 'Keine Positionen im Portfolio', holdings: [], sectorBreakdown: [], portfolioMetrics: null, topDividend: [], highBeta: [], aiSummary: null };
 
-      // Prefer explicit weight field (set at portfolio creation time) over shares×price calculation.
-      // shares×price can be misleading after transactions because avgPrice reflects purchase price,
-      // not current market price, leading to distorted sector weights (e.g. SON.LS at 58.9%).
-      const hasExplicitWeights = stocks.some((s: any) => s.weight !== undefined && s.weight !== null && parseFloat(s.weight) > 0);
-      const totalValue = hasExplicitWeights
-        ? 100 // weights are already in percent, totalValue=100 makes weight = s.weight directly
-        : stocks.reduce((sum: number, s: any) =>
-            sum + (s.shares || 1) * (s.currentPrice || s.avgPrice || 100), 0);
+      // Use live weights from enriched stocks (shares × currentPriceCHF / totalPortfolioValue)
+      // These match the Positionen tab exactly.
+      const totalValue = stocks.reduce((sum: number, s: any) => sum + (parseFloat(s.totalValue) || 0), 0) || 100;
 
       // Fetch EODHD fundamentals in parallel batches of 4
       const fundamentalsMap: Record<string, EODHDFundamentals> = {};
@@ -990,14 +991,11 @@ export const copilotRouter = router({
         if (i + batchSize < stocks.length) await new Promise(res => setTimeout(res, 250));
       }
 
-      // Build enriched holdings
+      // Build enriched holdings using live weights from enriched stocks
       const holdings = stocks.map((s: any) => {
-        const value = hasExplicitWeights
-          ? parseFloat(s.weight || '0') // weight is already in percent (e.g. 8.9 = 8.9%)
-          : (s.shares || 1) * (s.currentPrice || s.avgPrice || 100);
-        const weight = hasExplicitWeights
-          ? Math.round(parseFloat(s.weight || '0') * 10) / 10 // already a percentage
-          : (totalValue > 0 ? Math.round((value / totalValue) * 1000) / 10 : Math.round(1000 / stocks.length) / 10);
+        // Use live weight from enrichedStocks (already computed as shares×priceCHF/totalPortfolioValue×100)
+        const weight = Math.round((parseFloat(s.weight) || 0) * 10) / 10;
+        const value = parseFloat(s.totalValue) || 0;
         const f = fundamentalsMap[s.ticker] || {} as EODHDFundamentals;
         return {
           ticker: s.ticker,

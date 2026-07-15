@@ -222,3 +222,6 @@
 - [x] Fix: Forward PEG = 0 wenn EODHD ForwardPE = 0 (Guard forwardPE > 0.1 hinzugefügt)
 - [x] Fix: EPS-Stabilität = 0/100 (negative EPS-Werte wurden ausgeschlossen; jetzt werden alle Werte != 0 einbezogen, CV mit |prev| berechnet)
 - [x] Performance seit Kauf: Runtime-Fallback auf Transaktions-avgBuyPrice bereits aktiv (kein JSON-Backfill nötig)
+
+## Positions Discrepancy Bug (Jul 2026)
+- [x] Fix: Positionen-Tab und Deep-Dive-Fundamentaldaten zeigen unterschiedliche Positionen/Gewichte (verschiedene Datenquellen)
