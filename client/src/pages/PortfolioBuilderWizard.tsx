@@ -848,22 +848,25 @@ export default function PortfolioBuilderWizard() {
                           onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
                           Neu erstellen
                         </Button>
-                        <div className="flex gap-2 flex-wrap">
-                          {(autoProposal as any).adjustedPositions && (
-                            <Button
-                              variant="outline"
-                              className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
-                              onClick={() => handleAcceptProposal(false)}
-                              title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
-                            >
-                              Ohne KI-Anpassungen
+                        {/* Admins use the Admin-Review block above — hide direct accept buttons */}
+                        {!isAdmin && (
+                          <div className="flex gap-2 flex-wrap">
+                            {(autoProposal as any).adjustedPositions && (
+                              <Button
+                                variant="outline"
+                                className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
+                                onClick={() => handleAcceptProposal(false)}
+                                title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
+                              >
+                                Ohne KI-Anpassungen
+                              </Button>
+                            )}
+                            <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
+                              {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'In den Builder übernehmen'}
+                              <ChevronRight className="h-4 w-4 ml-1" />
                             </Button>
-                          )}
-                          <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
-                            {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'In den Builder übernehmen'}
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
