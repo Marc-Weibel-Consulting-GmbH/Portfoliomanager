@@ -361,6 +361,33 @@ function PositionEditor({
   );
 }
 
+// ─── Backfill Button ────────────────────────────────────────────────────────
+
+function BackfillButton({ portfolioId, tickers }: { portfolioId: number; tickers: string[] }) {
+  const backfillMutation = trpc.admin.triggerMaxBackfill.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Backfill abgeschlossen`, {
+        description: `${data.summary.successful}/${data.summary.total} Titel, ${data.summary.totalPricesInserted.toLocaleString('de-CH')} Preispunkte importiert.`,
+        duration: 6000,
+      });
+    },
+    onError: (e) => toast.error('Backfill fehlgeschlagen', { description: e.message }),
+  });
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="border-teal-600 text-teal-400 hover:bg-teal-900/20 text-xs"
+      onClick={() => backfillMutation.mutate({ tickers, force: false })}
+      disabled={backfillMutation.isPending || backfillMutation.isSuccess}
+    >
+      <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${backfillMutation.isPending ? 'animate-spin' : ''}`} />
+      {backfillMutation.isPending ? 'Lade Kurse…' : backfillMutation.isSuccess ? 'Kurse geladen ✓' : 'Historische Kurse nachladen'}
+    </Button>
+  );
+}
+
 // ─── Approve panel (inline) ───────────────────────────────────────────────────
 
 function ApprovePanel({
@@ -391,6 +418,7 @@ function ApprovePanel({
   const [portfolioType, setPortfolioType] = useState<"demo" | "live">("demo");
   const [notificationSent, setNotificationSent] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'pending' | 'sent' | 'no-email' | 'failed'>('pending');
+  const [createdPortfolioId, setCreatedPortfolioId] = useState<number | null>(null);
 
   const approveMutation = trpc.admin.approveProposalAndCreate.useMutation({
     onSuccess: (data) => {
@@ -400,11 +428,13 @@ function ApprovePanel({
           ? "Kein E-Mail-Konto hinterlegt."
           : "E-Mail-Versand fehlgeschlagen.";
       toast.success(`Portfolio erstellt (ID: ${data.portfolioId})`, {
-        description: emailMsg,
+        description: `${emailMsg} Historische Kurse werden automatisch nachgeladen (Backfill gestartet).`,
+        duration: 6000,
       });
       setNotificationSent(true);
       setEmailStatus(data.userEmailSent ? 'sent' : data.noEmailOnFile ? 'no-email' : 'failed');
-      setTimeout(onDone, 2500);
+      setCreatedPortfolioId(data.portfolioId);
+      // Don't auto-close — let admin trigger backfill manually if needed
     },
     onError: (e) => toast.error("Fehler beim Erstellen", { description: e.message }),
   });
@@ -503,7 +533,7 @@ function ApprovePanel({
       />
 
       {/* Action buttons */}
-      <div className="flex gap-2 pt-1">
+      <div className="flex flex-wrap gap-2 pt-1">
         <Button
           size="sm"
           className="bg-violet-600 hover:bg-violet-700 text-white text-xs"
@@ -513,8 +543,11 @@ function ApprovePanel({
           <Save className="w-3.5 h-3.5 mr-1.5" />
           {approveMutation.isPending ? "Erstelle Portfolio…" : notificationSent ? "Erstellt ✓" : "Portfolio erstellen & genehmigen"}
         </Button>
+        {notificationSent && createdPortfolioId && (
+          <BackfillButton portfolioId={createdPortfolioId} tickers={positions.map(p => p.ticker)} />
+        )}
         <Button size="sm" variant="outline" className="border-slate-600 text-slate-400 text-xs" onClick={onDone}>
-          <X className="w-3.5 h-3.5 mr-1" /> Abbrechen
+          <X className="w-3.5 h-3.5 mr-1" /> Schliessen
         </Button>
       </div>
     </div>

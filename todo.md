@@ -181,3 +181,9 @@
 - [x] Admin-Review: «Alle Empfehlungen übernehmen»-Button
 - [x] Admin-Review: Inline-Gewichts-Editierung pro Position (direkt im 2-Spalten-View)
 - [x] Admin-Review: Vorschau der resultierenden Positionen nach Übernahme der Empfehlungen (live in der rechten Spalte sichtbar)
+
+## Backfill-Fix für KI-Portfolios (Jul 2026)
+- [x] Bug: approveProposalAndCreate löste keinen automatischen Backfill aus (fehlende historische Daten)
+- [x] Fix: autoBackfillNewSymbols nach createSavedPortfolio in approveProposalAndCreate eingefügt
+- [x] UX: BackfillButton nach Portfolio-Erstellung in ApprovePanel (teal, mit Spinner)
+- [x] UX: Toast-Meldung informiert über gestarteten Backfill

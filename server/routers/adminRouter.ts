@@ -1234,7 +1234,26 @@ export const adminRouter = router({
 
         console.log(`[admin.approveProposalAndCreate] Portfolio ${portfolioId} created for user ${proposal.userId} from proposal #${input.proposalId}`);
 
-                // 6) Nutzer per E-Mail benachrichtigen (nicht-blockierend)
+        // 6) Automatischen Backfill für neue Symbole anstoßen (fire-and-forget)
+        try {
+          const tickers = normalizedPositions.map(p => p.ticker).filter(Boolean);
+          if (tickers.length > 0) {
+            console.log(`[admin.approveProposalAndCreate] Triggering auto-backfill for ${tickers.length} symbols: ${tickers.join(',')}`);
+            import("../autoBackfill").then(({ autoBackfillNewSymbols }) => {
+              autoBackfillNewSymbols(tickers).then(result => {
+                if (result.newSymbolsDetected > 0) {
+                  console.log(`[admin.approveProposalAndCreate] Auto-backfill completed: ${result.newSymbolsDetected} new symbols processed`);
+                }
+              }).catch(err => {
+                console.error(`[admin.approveProposalAndCreate] Auto-backfill error:`, err);
+              });
+            });
+          }
+        } catch (backfillErr) {
+          console.warn('[admin.approveProposalAndCreate] Backfill trigger failed (non-blocking):', backfillErr);
+        }
+
+        // 7) Nutzer per E-Mail benachrichtigen (nicht-blockierend)
         let userEmailSent = false;
         let ownerNotificationSent = false;
         let noEmailOnFile = false;
