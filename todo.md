@@ -208,3 +208,10 @@
 ## Transaktions-Tab Bugfixes (Jul 2026)
 - [x] Fix: Preis = CHF 0.00 bei Optimierungs-Transaktionen (applyRecommendations speichert keinen Preis)
 - [x] Fix: Firmenname fehlt in Transaktions-Tabelle (nur Ticker sichtbar, kein companyName)
+
+## Score & Performance Bugfixes (Jul 2026)
+- [x] Fix: Qualitäts-Signal im Score-Verlauf = 1/100 (signalCacheCron skaliert jetzt -1..+1 → 0..100 beim DB-Schreiben)
+- [x] Fix: Score-Komponenten zeigen immer 100/100 (Frontend-Anzeige rückwärtskompatibel für alte + neue DB-Werte)
+- [x] Fix: Performance seit Kauf = 0% (portfoliosRouter nutzt jetzt Transaktions-avgBuyPrice als Fallback wenn portfolioData leer)
+- [x] Fix: Score-Diskrepanz Positionen vs. Aktiendetails (Spalte umbenannt zu "Bewertung" mit erklärendem Tooltip)
+- [x] DB: Alte fehlerhafte qualityScore/momentumScore Werte (0/1) aus stock_signal_cache und stock_score_snapshot gelöscht

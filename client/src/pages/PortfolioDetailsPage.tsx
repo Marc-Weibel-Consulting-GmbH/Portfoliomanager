@@ -1904,8 +1904,8 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
                         <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Qualitäts-Score 0-100 — klicken zum Sortieren" onClick={() => handleSort('qualityScore')}>
-                        <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Qualität {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0-100 (P/E, PEG, Beta, Volatilität, Sharpe) — klicken zum Sortieren. Hinweis: Der Qualitäts-Score in den Aktiendetails misst Fundamentaldaten (ROE, Verschuldung, FCF, Marge) und ist daher ein anderer Wert." onClick={() => handleSort('qualityScore')}>
+                        <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Bewertung {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0-100 (Momentum + Qualität + LPPL) — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
                         <span className={sortKey === 'signalScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Signal {sortKey === 'signalScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
@@ -2113,10 +2113,11 @@ export default function PortfolioDetailsPage() {
                                               <span className="text-[10px] text-gray-400">Momentum</span>
                                               <div className="flex items-center gap-1">
                                                 {sig.momentumScore !== undefined ? (
-                                                  <span className={`text-xs font-mono font-semibold ${
-                                                    sig.momentumScore >= 0.3 ? 'text-emerald-400' :
-                                                    sig.momentumScore >= -0.1 ? 'text-yellow-400' : 'text-red-400'
-                                                  }`}>{Math.round((sig.momentumScore + 1) * 50)}/100</span>
+                                                  <span className={`text-xs font-mono font-semibold ${(() => {
+                                                    // Handle both old (-1..+1) and new (0..100) DB values
+                                                    const v = sig.momentumScore > 1 ? sig.momentumScore : Math.round((sig.momentumScore + 1) * 50);
+                                                    return v >= 65 ? 'text-emerald-400' : v >= 45 ? 'text-yellow-400' : 'text-red-400';
+                                                  })()}`}>{sig.momentumScore > 1 ? Math.round(sig.momentumScore) : Math.round((sig.momentumScore + 1) * 50)}/100</span>
                                                 ) : <span className="text-xs text-gray-500">—</span>}
                                                 {sig.momentumGrade && sig.momentumGrade !== 'N/A' && (
                                                   <span className={`text-[10px] font-bold px-1 rounded ${
@@ -2133,10 +2134,11 @@ export default function PortfolioDetailsPage() {
                                               <span className="text-[10px] text-gray-400">Qualität (Fund.)</span>
                                               <div className="flex items-center gap-1">
                                                 {sig.qualityScore !== undefined ? (
-                                                  <span className={`text-xs font-mono font-semibold ${
-                                                    sig.qualityScore >= 0.3 ? 'text-emerald-400' :
-                                                    sig.qualityScore >= -0.1 ? 'text-yellow-400' : 'text-red-400'
-                                                  }`}>{Math.round((sig.qualityScore + 1) * 50)}/100</span>
+                                                  <span className={`text-xs font-mono font-semibold ${(() => {
+                                                    // Handle both old (-1..+1) and new (0..100) DB values
+                                                    const v = sig.qualityScore > 1 ? sig.qualityScore : Math.round((sig.qualityScore + 1) * 50);
+                                                    return v >= 65 ? 'text-emerald-400' : v >= 45 ? 'text-yellow-400' : 'text-red-400';
+                                                  })()}`}>{sig.qualityScore > 1 ? Math.round(sig.qualityScore) : Math.round((sig.qualityScore + 1) * 50)}/100</span>
                                                 ) : <span className="text-xs text-gray-500">—</span>}
                                                 {sig.qualityGrade && sig.qualityGrade !== 'N/A' ? (
                                                   <span className={`text-[10px] font-bold px-1 rounded ${

@@ -474,8 +474,16 @@ export const portfoliosRouter = router({
                 avgBuyPriceCHF = storedAvgBuyPrice * fxRate;
               }
             } else {
-              // No avgBuyPrice stored → use current CHF price (0% performance)
-              avgBuyPriceCHF = priceCHF;
+              // No avgBuyPrice stored → try transaction-derived price first
+              const txAvgLocal = avgBuyPriceLocalMap.get(ticker);
+              const txFxRate = avgFxRateAtPurchaseMap.get(ticker);
+              if (txAvgLocal && txAvgLocal > 0) {
+                // Use transaction-derived local price × FX rate at purchase for CHF value
+                avgBuyPriceCHF = txAvgLocal * (txFxRate ?? fxRate);
+              } else {
+                // Absolute fallback: use current CHF price (0% performance)
+                avgBuyPriceCHF = priceCHF;
+              }
             }
             // Keep backward-compat field name (used by client)
             const avgBuyPrice = avgBuyPriceCHF;

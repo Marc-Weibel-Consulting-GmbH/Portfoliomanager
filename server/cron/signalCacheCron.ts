@@ -200,13 +200,13 @@ export async function refreshSignalCache(): Promise<void> {
                 } catch { /* silent - use nulls as fallback */ }
                 const qualityResult = calculateQualityScore({ roe, debtToEquity, fcfYield, grossMargin });
                 qualityGrade = qualityResult.grade;
-                qualityScore = qualityResult.score;
+                qualityScore = qualityResult.score; // keep -1..+1 for blending
               } catch { /* silent */ }
 
               try {
                 const momentumResult = calculateMomentumScore({ prices });
                 momentumGrade = momentumResult.grade;
-                momentumScore = momentumResult.score;
+                momentumScore = momentumResult.score; // keep -1..+1 for blending
               } catch { /* silent */ }
 
               if (momentumScore !== undefined && qualityScore !== undefined) {
@@ -298,9 +298,10 @@ export async function refreshSignalCache(): Promise<void> {
               rfSignal: rfSignal ?? null,
               rfScore: rfScore ?? null,
               qualityGrade: qualityGrade ?? null,
-              qualityScore: qualityScore ?? null,
+              // Scale -1..+1 float to 0..100 int for DB storage
+              qualityScore: qualityScore !== undefined ? Math.round((qualityScore + 1) * 50) : null,
               momentumGrade: momentumGrade ?? null,
-              momentumScore: momentumScore ?? null,
+              momentumScore: momentumScore !== undefined ? Math.round((momentumScore + 1) * 50) : null,
               combinedScore: combinedScore !== undefined ? combinedScore.toFixed(2) : null,
               combinedSignal: combinedSignal ?? null,
               overallGrade: overallGrade ?? null,
@@ -328,9 +329,10 @@ export async function refreshSignalCache(): Promise<void> {
                 rfSignal: rfSignal ?? null,
                 rfScore: rfScore ?? null,
                 qualityGrade: qualityGrade ?? null,
-                qualityScore: qualityScore ?? null,
+                // Scale -1..+1 float to 0..100 int for DB storage
+                qualityScore: qualityScore !== undefined ? Math.round((qualityScore + 1) * 50) : null,
                 momentumGrade: momentumGrade ?? null,
-                momentumScore: momentumScore ?? null,
+                momentumScore: momentumScore !== undefined ? Math.round((momentumScore + 1) * 50) : null,
                 combinedScore: combinedScore !== undefined ? combinedScore.toFixed(2) : null,
                 combinedSignal: combinedSignal ?? null,
                 overallGrade: overallGrade ?? null,
