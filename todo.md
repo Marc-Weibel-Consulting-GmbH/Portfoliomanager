@@ -194,3 +194,8 @@
 - [x] Admin-Kommentarfeld: saveAdminReview speichert Kommentare, beim Öffnen werden bestehende Kommentare geladen
 - [x] E-Mail-Notification: notifyOwner nach Proposal-Generierung in autoPortfolioRouter (fire-and-forget)
 - [x] Review-Status-Badge: «Pending Review» (amber) / «Reviewed» (teal) Badge in der Admin-Proposal-Tabelle
+
+## Admin Review Panel UX-Fixes (Jul 2026)
+- [x] Fix: isApplied-Erkennung — expliziter acceptedSet statt Diff-Erkennung, alle Aktionstypen korrekt
+- [x] Fix: Layout-Entkopplung — Klick auf Empfehlung zeigt Detail-Panel inline, Positionstabelle rechts bleibt fix
+- [x] Fix: returnTo-Navigation — window.location.href statt navigate() für korrekte Query-Param-Übergabe
