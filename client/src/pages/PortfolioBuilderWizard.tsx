@@ -134,6 +134,7 @@ export default function PortfolioBuilderWizard() {
   const [perStockInputs, setPerStockInputs] = useState<Record<string, { quantity: string; price: string }>>({});
   const [isLive, setIsLive] = useState(false);
   const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
+  const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
 
   // ── Queries & mutations ──
   const { data: savedProfile } = trpc.investmentProfile.get.useQuery();
@@ -432,6 +433,7 @@ export default function PortfolioBuilderWizard() {
     setPath('auto');
     setAutoStep(5);
     setInitialCapital(capital.toString());
+    setIsAdminReviewed(true);
     toast.success('Admin-geprüfter Vorschlag geladen — Sie können ihn jetzt übernehmen');
     // Clean up URL param
     window.history.replaceState({}, '', '/portfolio-builder');
@@ -773,8 +775,8 @@ export default function PortfolioBuilderWizard() {
                         </div>
                       )}
                     </div>
-                    {/* KI-Empfehlungen des Synthesizers (finalAdjustments) */}
-                    {(autoProposal as any).finalAdjustments?.length > 0 && (
+                    {/* KI-Empfehlungen des Synthesizers (finalAdjustments) — für Admins ausgeblendet */}
+                    {(autoProposal as any).finalAdjustments?.length > 0 && !isAdmin && (
                       <div className="border border-white/10 rounded-xl overflow-hidden">
                         <div className="px-4 py-2.5 bg-[#0f1420] border-b border-white/5 flex items-center gap-2">
                           <Sparkles className="h-3.5 w-3.5 text-[#00CFC1]" />
@@ -821,12 +823,23 @@ export default function PortfolioBuilderWizard() {
                       </div>
                     )}
 
+                    {/* Admin-geprüft Badge — erscheint nach Rückkehr vom Admin-Review */}
+                    {isAdminReviewed && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                        <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <div>
+                          <span className="text-xs font-semibold text-emerald-400">Admin-geprüft</span>
+                          <p className="text-xs text-emerald-400/70">Dieser Vorschlag wurde vom Admin überprüft und angepasst. Sie können ihn jetzt direkt übernehmen.</p>
+                        </div>
+                      </div>
+                    )}
+
                     <p className="text-xs text-gray-600">
                       ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung.
                     </p>
                     <div className="flex flex-col gap-2">
-                      {/* Admin-Review Button (nur für Admins sichtbar) */}
-                      {isAdmin && (
+                      {/* Admin-Review Button (nur für Admins sichtbar, nicht wenn bereits geprüft) */}
+                      {isAdmin && !isAdminReviewed && (
                         <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5">
                           <div className="flex items-center gap-2 mb-2">
                             <ShieldCheck className="h-4 w-4 text-amber-400" />
@@ -848,7 +861,18 @@ export default function PortfolioBuilderWizard() {
                           onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
                           Neu erstellen
                         </Button>
-                        {/* Admins use the Admin-Review block above — hide direct accept buttons */}
+                        {/* After admin review: show green accept button */}
+                        {isAdmin && isAdminReviewed && (
+                          <Button
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                            onClick={() => handleAcceptProposal(true)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Admin-geprüften Vorschlag übernehmen
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        )}
+                        {/* Non-admins: show standard accept buttons */}
                         {!isAdmin && (
                           <div className="flex gap-2 flex-wrap">
                             {(autoProposal as any).adjustedPositions && (
