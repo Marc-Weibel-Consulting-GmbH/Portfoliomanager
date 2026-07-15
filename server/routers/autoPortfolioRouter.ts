@@ -675,7 +675,8 @@ Antworte im JSON-Format.`,
             const patterns = Object.entries(tickerActions)
               .filter(([, v]) => v.total >= 2)
               .map(([ticker, v]) => {
-                const dominant = (['reduce', 'increase', 'replace'] as const).sort((a, b) => v[b] - v[a])[0];
+                // .sort() mutiert — auf readonly-Tupel nicht erlaubt; Kopie sortieren.
+                const dominant = [...(['reduce', 'increase', 'replace'] as const)].sort((a, b) => v[b] - v[a])[0];
                 return `${ticker}: Admin hat ${v.total}x ${dominant === 'reduce' ? 'reduziert' : dominant === 'increase' ? 'erhöht' : 'ersetzt'}`;
               });
             if (patterns.length > 0) {
