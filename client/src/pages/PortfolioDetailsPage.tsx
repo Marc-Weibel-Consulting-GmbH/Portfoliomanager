@@ -970,7 +970,7 @@ export default function PortfolioDetailsPage() {
 
   const [selectedPeriod, setSelectedPeriod] = useState("YTD");
   // UX2-4: Standard-Benchmark SPI (wie Dashboard); S&P 500 bleibt wählbar.
-  const [selectedBenchmark, setSelectedBenchmark] = useState("SSMI.SW");
+  const [selectedBenchmark, setSelectedBenchmark] = useState("CHSPI.SW");
   // Performance view: stocks-only vs. total portfolio incl. cash drag.
   const [includeCash, setIncludeCash] = useState(false);
   // Bulk delete state for transactions tab (must be at top level, not inside JSX)
@@ -990,7 +990,7 @@ export default function PortfolioDetailsPage() {
   const benchmarkOptions = [
     { value: "SPY", label: "S&P 500" },
     { value: "QQQ", label: "Nasdaq 100" },
-    { value: "SSMI.SW", label: "SPI" },
+    { value: "CHSPI.SW", label: "SPI" },
     { value: "FEZ", label: "EuroStoxx 50" },
   ];
   

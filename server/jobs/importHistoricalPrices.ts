@@ -163,7 +163,7 @@ async function getUniqueTickers(): Promise<string[]> {
   console.log(`[importHistoricalPrices] Found ${watchlistTickers.length} tickers in stocks table (watchlist)`);
 
   // Benchmark proxy tickers — always kept up-to-date so KPI header and chart are consistent
-  const BENCHMARK_TICKERS = ['ACWI.US', 'CHSPI.SW', 'SPY'];
+  const BENCHMARK_TICKERS = ['ACWI.US', 'CHSPI.SW', 'SPY', 'QQQ', 'FEZ'];
 
   // Combine all sources and deduplicate
   const allTickers = new Set<string>([
