@@ -1439,6 +1439,36 @@ export const adminRouter = router({
       return { success: true, proposalId: input.proposalId };
     }),
 
+  /**
+   * Refresh EODHD sectors for all stocks in the DB
+   * Fixes sector classification discrepancy between Positionen tab and Deep Dive
+   */
+  refreshSectors: adminProcedure.mutation(async () => {
+    const { getDb } = await import('../db');
+    const { stocks: stocksTable } = await import('../../drizzle/schema');
+    const { fetchEODHDFundamentals } = await import('../_core/eodhdApi');
+    const db = await getDb();
+    if (!db) return { success: false, updated: 0, message: 'DB not available' };
+    const allStocks = await db.select({ id: stocksTable.id, ticker: stocksTable.ticker }).from(stocksTable).limit(500);
+    let updated = 0;
+    const batchSize = 5;
+    for (let i = 0; i < allStocks.length; i += batchSize) {
+      const batch = allStocks.slice(i, i + batchSize);
+      await Promise.allSettled(batch.map(async (s) => {
+        try {
+          const f = await fetchEODHDFundamentals(s.ticker);
+          if (f.sector) {
+            const { eq } = await import('drizzle-orm');
+            await db.update(stocksTable).set({ sector: f.sector }).where(eq(stocksTable.id, s.id));
+            updated++;
+          }
+        } catch {}
+      }));
+      if (i + batchSize < allStocks.length) await new Promise(r => setTimeout(r, 200));
+    }
+    return { success: true, updated, message: `${updated} von ${allStocks.length} Aktien mit EODHD-Sektoren aktualisiert.` };
+  }),
+
   // Get a single proposal by ID (for deep-link from wizard)
   getProposalById: adminProcedure
     .input(z.object({ proposalId: z.number() }))

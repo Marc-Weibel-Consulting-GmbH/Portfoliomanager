@@ -225,3 +225,8 @@
 
 ## Positions Discrepancy Bug (Jul 2026)
 - [x] Fix: Positionen-Tab und Deep-Dive-Fundamentaldaten zeigen unterschiedliche Positionen/Gewichte (verschiedene Datenquellen)
+
+## Deep Dive Optimierungen (Jul 2026)
+- [x] Perf: 24h In-Memory-Cache für EODHD-Fundamentaldaten in qualityMetricsService (Ladezeit ~7s → <1s)
+- [x] Perf: Sektor-Klassifikation vereinheitlichen — EODHD-Sektoren beim Aktien-Refresh in DB schreiben
+- [x] Perf: 6h-Cache für Deep-Dive-KI-Zusammenfassung (LLM-Kosten sparen, Antwortzeit verbessern)

@@ -11,7 +11,7 @@ interface CacheEntry<T> {
 
 class ApiCache {
   private cache: Map<string, CacheEntry<any>> = new Map();
-  private readonly MAX_CACHE_SIZE = 100; // Limit cache to 100 entries
+  private readonly MAX_CACHE_SIZE = 500; // Limit cache to 500 entries (enough for all portfolio stocks)
 
   /**
    * Get cached data if available and not expired
@@ -104,7 +104,7 @@ setInterval(() => {
 
 // Cache TTL constants (in milliseconds)
 export const CACHE_TTL = {
-  FUNDAMENTALS: 60 * 60 * 1000, // 1 hour
+  FUNDAMENTALS: 24 * 60 * 60 * 1000, // 24 hours
   QUOTE: 5 * 60 * 1000, // 5 minutes
   HISTORICAL: 24 * 60 * 60 * 1000, // 24 hours
   SEARCH: 30 * 60 * 1000, // 30 minutes

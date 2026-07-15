@@ -31,6 +31,10 @@ import type { WalkForwardResult } from '../analytics/walkForwardEngine';
 
 const yf = new YahooFinance();
 
+// ============ Deep Dive LLM Summary Cache (6h TTL) ============
+const deepDiveSummaryCache = new Map<string, { summary: string; expiresAt: number }>();
+const DEEP_DIVE_SUMMARY_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
 // ============ Walk-Forward In-Memory State (Non-blocking) ============
 let walkForwardRunning = false;
 let walkForwardProgress: string[] = [];
@@ -1058,24 +1062,33 @@ export const copilotRouter = router({
         .slice(0, 5)
         .map(h => ({ ticker: h.ticker, name: h.name, beta: h.beta }));
 
-      // AI summary
+      // AI summary (6h cache keyed by portfolioId + positionCount + avgPE)
       let aiSummary: string | null = null;
-      try {
-        const topSectors = sectorBreakdown.slice(0, 3).map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ');
-        const prompt = `Erstelle eine pr\u00e4zise Portfolio-Zusammenfassung auf Deutsch (max. 180 W\u00f6rter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen: ${portfolioMetrics.positionCount}\nTop-Sektoren: ${topSectors}\nDurchschn. KGV: ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG: ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta: ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum: ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nBewerte: Ist das Portfolio g\u00fcnstig oder teuer bewertet? Defensiv oder aggressiv? Dividendenst\u00e4rke? Gib 2 konkrete Handlungsempfehlungen.`;
-        // Inject research context into AI recommendations
-        const researchCtx = await getResearchContextForLLM();
-        const systemContent = 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte pr\u00e4zise auf Deutsch.' + researchCtx.contextString;
-        const response = await invokeLLM({
-          messages: [
-            { role: 'system', content: systemContent },
-            { role: 'user', content: prompt },
-          ],
-        });
-        const content = response?.choices?.[0]?.message?.content;
-        aiSummary = typeof content === 'string' ? content : null;
-      } catch (e) {
-        console.warn('[portfolioDeepDive] LLM failed:', e);
+      const summaryKey = `${input.portfolioId}:${portfolioMetrics.positionCount}:${portfolioMetrics.avgPE}`;
+      const cachedSummary = deepDiveSummaryCache.get(summaryKey);
+      if (cachedSummary && cachedSummary.expiresAt > Date.now()) {
+        aiSummary = cachedSummary.summary;
+      } else {
+        try {
+          const topSectors = sectorBreakdown.slice(0, 3).map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ');
+          const prompt = `Erstelle eine präzise Portfolio-Zusammenfassung auf Deutsch (max. 180 Wörter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen: ${portfolioMetrics.positionCount}\nTop-Sektoren: ${topSectors}\nDurchschn. KGV: ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG: ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta: ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum: ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nBewerte: Ist das Portfolio günstig oder teuer bewertet? Defensiv oder aggressiv? Dividendenstärke? Gib 2 konkrete Handlungsempfehlungen.`;
+          // Inject research context into AI recommendations
+          const researchCtx = await getResearchContextForLLM();
+          const systemContent = 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte präzise auf Deutsch.' + researchCtx.contextString;
+          const response = await invokeLLM({
+            messages: [
+              { role: 'system', content: systemContent },
+              { role: 'user', content: prompt },
+            ],
+          });
+          const content = response?.choices?.[0]?.message?.content;
+          aiSummary = typeof content === 'string' ? content : null;
+          if (aiSummary) {
+            deepDiveSummaryCache.set(summaryKey, { summary: aiSummary, expiresAt: Date.now() + DEEP_DIVE_SUMMARY_TTL_MS });
+          }
+        } catch (e) {
+          console.warn('[portfolioDeepDive] LLM failed:', e);
+        }
       }
 
       return { error: null, portfolioName: (portfolio as any).name, holdings, sectorBreakdown, portfolioMetrics, topDividend, highBeta, aiSummary };

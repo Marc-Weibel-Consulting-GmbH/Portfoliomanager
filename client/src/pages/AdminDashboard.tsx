@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const [refreshStatus, setRefreshStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [cacheStatus, setCacheStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [qualityCacheStatus, setQualityCacheStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [sectorStatus, setSectorStatus] = useState<{ success: boolean; message: string } | null>(null);
   const clearQualityCache = trpc.admin.clearQualityMetricsCache.useMutation({
     onSuccess: (data) => {
       setQualityCacheStatus({ success: data.success, message: data.message });
@@ -33,6 +34,20 @@ export default function AdminDashboard() {
     },
     onError: (err) => {
       setCacheStatus({ success: false, message: err.message });
+      toast.error('Fehler', { description: err.message });
+    },
+  });
+  const refreshSectors = trpc.admin.refreshSectors.useMutation({
+    onSuccess: (data) => {
+      setSectorStatus({ success: data.success, message: data.message });
+      if (data.success) {
+        toast.success('Sektoren aktualisiert', { description: data.message });
+      } else {
+        toast.error('Fehler', { description: data.message });
+      }
+    },
+    onError: (err) => {
+      setSectorStatus({ success: false, message: err.message });
       toast.error('Fehler', { description: err.message });
     },
   });
@@ -176,6 +191,19 @@ export default function AdminDashboard() {
             >
               <RefreshCw className={`h-4 w-4 ${triggerCacheRefresh.isPending ? 'animate-spin' : ''}`} />
               {triggerCacheRefresh.isPending ? 'Cache läuft...' : 'Signal-Cache neu berechnen'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSectorStatus(null);
+                refreshSectors.mutate();
+              }}
+              disabled={refreshSectors.isPending}
+              className="gap-2 border-amber-500/50 text-amber-400 hover:text-amber-300"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshSectors.isPending ? 'animate-spin' : ''}`} />
+              {refreshSectors.isPending ? 'Aktualisiert...' : 'Sektoren aktualisieren'}
             </Button>
             <Button
               variant="outline"
