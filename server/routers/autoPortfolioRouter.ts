@@ -500,6 +500,9 @@ export const autoPortfolioRouter = router({
         overallConfidence: 'hoch' | 'mittel' | 'niedrig';
         agentDuration: number;
       } | null = null;
+      // proposalLogId muss AUSSERHALB des try-Blocks deklariert werden,
+      // damit es im return-Statement (nach dem catch) zugreifbar ist.
+      let proposalLogId: number | null = null;
 
       try {
         const agentStart = Date.now();
@@ -742,7 +745,6 @@ Antworte im JSON-Format.`,
         }
 
         // === DB-LOGGING: Ergebnis intern speichern (Admin-Auswertung) ===
-        let proposalLogId: number | null = null;
         try {
           const { portfolioProposalLog } = await import('../../drizzle/schema');
           const insertResult = await db.insert(portfolioProposalLog).values({
