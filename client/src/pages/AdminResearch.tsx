@@ -440,6 +440,26 @@ function MacroSourcesTab() {
   const [fetchingWb, setFetchingWb] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState<any | null>(null);
 
+  // Upload-Dialog für Bibliothek-Karten
+  const uploadMutation = trpc.researchAdmin.uploadDocument.useMutation();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const handleUpload = async () => {
+    if (!selectedFile || !title.trim()) { toast.error("Bitte Titel und Datei angeben"); return; }
+    setUploading(true);
+    try {
+      const buffer = await selectedFile.arrayBuffer();
+      const base64 = btoa(new Uint8Array(buffer).reduce((d, b) => d + String.fromCharCode(b), ""));
+      await uploadMutation.mutateAsync({ title: title.trim(), filename: selectedFile.name, fileBase64: base64 });
+      toast.success("Dokument hochgeladen – Analyse läuft...");
+      setUploadOpen(false); setTitle(""); setSelectedFile(null);
+    } catch (e: any) { toast.error(`Upload fehlgeschlagen: ${e.message}`); }
+    finally { setUploading(false); }
+  };
+
   const handleFetchFred = async () => {
     setFetchingFred(true);
     try {
@@ -716,13 +736,64 @@ function MacroSourcesTab() {
                   Quelle öffnen
                 </a>
                 {!src.auto && (
-                  <span className="text-xs text-gray-600">· PDF hochladen via "Dokument hochladen" oben</span>
+                  <button
+                    onClick={() => {
+                      setTitle(src.name);
+                      setUploadOpen(true);
+                    }}
+                    className="text-xs text-[#00CFC1] hover:underline flex items-center gap-1 ml-1"
+                  >
+                    <Upload className="h-3 w-3" />
+                    PDF hochladen
+                  </button>
                 )}
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Upload-Dialog für Bibliothek-Karten */}
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Research-Dokument hochladen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Titel</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="z.B. Damodaran ERP 2025" />
+            </div>
+            <div>
+              <Label>Datei (PDF, Word, PPT, Excel)</Label>
+              <div
+                className="mt-2 border-2 border-dashed border-zinc-700 rounded-lg p-6 text-center cursor-pointer hover:border-[#00CFC1] transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const f = e.dataTransfer.files[0]; if (f) setSelectedFile(f); }}
+              >
+                {selectedFile ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <FileText className="h-5 w-5 text-[#00CFC1]" />
+                    <span className="text-sm">{selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Datei hier ablegen oder klicken</p>
+                    <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, PPTX, XLSX (max 20 MB)</p>
+                  </div>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
+            </div>
+            <Button onClick={handleUpload} disabled={uploading || !selectedFile || !title.trim()} className="w-full">
+              {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+              {uploading ? "Wird hochgeladen..." : "Hochladen & Analysieren"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
