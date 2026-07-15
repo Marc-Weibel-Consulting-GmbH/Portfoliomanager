@@ -267,9 +267,24 @@ function PerformanceCard({ scope }: { scope: Scope }) {
         <div className="flex items-start justify-between flex-wrap gap-2 mb-3">
           <div>
             <h2 className="text-base font-semibold text-white">Performance</h2>
-            <p className="text-xs text-gray-400">
-              <span className="text-[#00CFC1]">Portfolio</span> · SPI · MSCI World
-            </p>
+            <div className="flex items-center gap-3 mt-0.5">
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                <span className="inline-block w-3 h-0.5 bg-[#00CFC1]" />
+                <span className="text-[#00CFC1]">Portfolio</span>
+              </span>
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                <span className="inline-block w-3 h-0.5 bg-[#94A3B8]" style={{borderTop:'1.5px dashed #94A3B8'}} />
+                SPI
+              </span>
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                <span className="inline-block w-3 h-0.5" style={{background:'rgba(255,165,0,0.85)',borderTop:'1.5px dashed rgba(255,165,0,0.85)'}} />
+                S&amp;P 500
+              </span>
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                <span className="inline-block w-3 h-0.5 bg-[#A78BFA]" style={{borderTop:'1.5px dashed #A78BFA'}} />
+                MSCI
+              </span>
+            </div>
           </div>
           <div className="flex bg-[#1a2332] rounded-md p-0.5" role="group" aria-label="Zeitraum wählen">
             {RANGES.map((r) => (
@@ -318,11 +333,12 @@ function PerformanceCard({ scope }: { scope: Scope }) {
                   contentStyle={CHART_TOOLTIP_STYLE}
                   formatter={(value: any, name: any) => [
                     formatPercent(Number(value)),
-                    name === "portfolio" ? "Portfolio" : name === "smi" ? "SPI" : "MSCI World",
+                    name === "portfolio" ? "Portfolio" : name === "smi" ? "SPI" : name === "spy" ? "S&P 500" : "MSCI World",
                   ]}
                 />
                 <Line type="monotone" dataKey="portfolio" stroke="#00CFC1" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="smi" stroke="#94A3B8" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                <Line type="monotone" dataKey="spy" stroke="rgba(255,165,0,0.85)" strokeWidth={2} strokeDasharray="3 3" dot={false} />
                 <Line type="monotone" dataKey="msci" stroke="#A78BFA" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
               </LineChart>
             </ResponsiveContainer>

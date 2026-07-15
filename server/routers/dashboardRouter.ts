@@ -958,11 +958,13 @@ export const dashboardRouter = router({
         return { range: input.range, scope: input.scope, points: [], portfolioIncomplete: true };
       }
 
-      // Get benchmark data (SMI + MSCI World)
+      // Get benchmark data (SMI + MSCI World + S&P 500)
       const smiData = await getBenchmarkData("SMI", startDateStr, todayStr);
       const msciData = await getBenchmarkData("MSCI_WORLD", startDateStr, todayStr);
+      const sp500Data = await getBenchmarkData("SP500", startDateStr, todayStr);
       const smiMap = new Map(smiData.map(d => [d.date, parseFloat(d.close)]));
       const msciMap = new Map(msciData.map(d => [d.date, parseFloat(d.close)]));
+      const sp500Map = new Map(sp500Data.map(d => [d.date, parseFloat(d.close)]));
 
       // Pre-warm FX cache: trigger one async call per currency to bulk-load all historical rates
       const uniqueCurrencies = new Set<string>();
@@ -1054,8 +1056,9 @@ export const dashboardRouter = router({
 
       const smiStart = getNearestValue(smiMap, sampledDates[0]) || 0;
       const msciStart = getNearestValue(msciMap, sampledDates[0]) || 0;
+      const sp500Start = getNearestValue(sp500Map, sampledDates[0]) || 0;
 
-      const points: Array<{ label: string; portfolio: number | null; smi: number; msci: number }> = [];
+      const points: Array<{ label: string; portfolio: number | null; smi: number; msci: number; spy: number }> = [];
 
       for (let i = 0; i < sampledDates.length; i++) {
         const date = sampledDates[i];
@@ -1102,20 +1105,23 @@ export const dashboardRouter = router({
         // Benchmark performance (use nearest date matching)
         let smiPerf = 0;
         let msciPerf = 0;
+        let spyPerf = 0;
         const smiVal = getNearestValue(smiMap, date);
         const msciVal = getNearestValue(msciMap, date);
+        const sp500Val = getNearestValue(sp500Map, date);
         if (smiVal && smiStart > 0) smiPerf = ((smiVal - smiStart) / smiStart) * 100;
         if (msciVal && msciStart > 0) msciPerf = ((msciVal - msciStart) / msciStart) * 100;
+        if (sp500Val && sp500Start > 0) spyPerf = ((sp500Val - sp500Start) / sp500Start) * 100;
 
         const d = new Date(date);
         const label = d.toLocaleDateString('de-CH', { day: '2-digit', month: 'short' });
-        points.push({ label, portfolio: Number(portfolioPerf.toFixed(2)), smi: Number(smiPerf.toFixed(2)), msci: Number(msciPerf.toFixed(2)) });
+        points.push({ label, portfolio: Number(portfolioPerf.toFixed(2)), smi: Number(smiPerf.toFixed(2)), msci: Number(msciPerf.toFixed(2)), spy: Number(spyPerf.toFixed(2)) });
       }
 
       console.log(`[getPerformanceTimeseries] calculation loop took ${Date.now()-t0}ms for ${sampledDates.length} dates`);
 
       // Filter out leading zero points (where no portfolio data exists yet)
-      const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0);
+      const firstNonZeroIdx = points.findIndex(p => p.portfolio !== 0 || p.smi !== 0 || p.msci !== 0 || p.spy !== 0);
       const filteredPoints = firstNonZeroIdx > 0 ? points.slice(firstNonZeroIdx) : points;
 
       // Selbstheilung: einen Backfill anstoßen für Titel, die am/vor dem Startdatum KEINEN Kurs

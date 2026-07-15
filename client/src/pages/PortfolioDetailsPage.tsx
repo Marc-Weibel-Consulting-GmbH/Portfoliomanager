@@ -1610,6 +1610,17 @@ export default function PortfolioDetailsPage() {
                           >{v === 'total' ? 'Gesamt' : 'Aktien'}</button>
                         ))}
                       </div>
+                      {/* Benchmark-Dropdown direkt im Chart-Header */}
+                      <select
+                        value={selectedBenchmark}
+                        onChange={e => setSelectedBenchmark(e.target.value)}
+                        title="Primäre Benchmark wechseln"
+                        className="px-2 py-1 text-xs rounded bg-white/5 border border-white/10 text-gray-300 hover:border-white/20 focus:outline-none focus:border-[#00CFC1]/50 cursor-pointer"
+                      >
+                        {benchmarkOptions.map(opt => (
+                          <option key={opt.value} value={opt.value} className="bg-[#1a1f2e]">{opt.label}</option>
+                        ))}
+                      </select>
                       <div className="flex gap-1">
                         {['1M', 'YTD', '1J', 'Max'].map(p => (
                           <button
