@@ -742,9 +742,10 @@ Antworte im JSON-Format.`,
         }
 
         // === DB-LOGGING: Ergebnis intern speichern (Admin-Auswertung) ===
+        let proposalLogId: number | null = null;
         try {
           const { portfolioProposalLog } = await import('../../drizzle/schema');
-          await db.insert(portfolioProposalLog).values({
+          const insertResult = await db.insert(portfolioProposalLog).values({
             userId: ctx.user.id,
             riskProfile,
             investmentGoal: goal,
@@ -768,7 +769,8 @@ Antworte im JSON-Format.`,
             meetsKennzahlenFilter,
             kennzahlenFilterReason,
           });
-          console.log(`[buildProposal] Proposal logged to DB (userId=${ctx.user.id}, confidence=${synthResult.overallConfidence})`);
+          proposalLogId = (insertResult as any)?.insertId ?? null;
+          console.log(`[buildProposal] Proposal logged to DB (userId=${ctx.user.id}, confidence=${synthResult.overallConfidence}, logId=${proposalLogId})`);
         } catch (logErr: any) {
           console.warn(`[buildProposal] DB logging failed (non-fatal): ${logErr?.message}`);
         }
@@ -824,8 +826,56 @@ Antworte im JSON-Format.`,
           sectorBenchmarkFiltered: allStocks.length - universe.length - (excludedSectors.length > 0 ? 0 : 0),
           qualityTier,
         },
-        // challengeReport wird NICHT mehr an den Client zurückgegeben (intern/Admin only)
-        // Die KI-Analyse ist nur im Admin-Bereich unter /admin/proposal-analysis abrufbar.
+        // KI-Analyse: finalAdjustments und Synthesizer-Urteil an den Client zurückgeben,
+        // damit der Wizard die Empfehlungen automatisch einarbeiten kann.
+        proposalLogId: proposalLogId ?? null,
+        finalAdjustments: challengeReport?.finalAdjustments ?? [],
+        synthesizerVerdict: challengeReport?.synthesizerVerdict ?? null,
+        overallConfidence: challengeReport?.overallConfidence ?? null,
+        // adjustedPositions: Positionen mit automatisch eingearbeiteten KI-Empfehlungen
+        // reduce → Gewicht -35%, increase → Gewicht +35%, replace → bester Kandidat
+        adjustedPositions: (() => {
+          if (!challengeReport?.finalAdjustments?.length) return null;
+          const adj = challengeReport.finalAdjustments;
+          let adjusted = positions.map(p => ({ ...p }));
+          // Schritt 1: reduce / increase anwenden
+          for (const a of adj) {
+            const pos = adjusted.find(p => p.ticker.toUpperCase() === a.ticker.toUpperCase());
+            if (!pos) continue;
+            if (a.action === 'reduce') pos.weightPct = Math.max(pos.weightPct * 0.65, 3);
+            if (a.action === 'increase') pos.weightPct = Math.min(pos.weightPct * 1.35, 15);
+          }
+          // Schritt 2: replace — Titel durch besten Kandidaten aus dem Pool ersetzen
+          const replaceAdj = adj.filter((a: any) => a.action === 'replace');
+          if (replaceAdj.length > 0) {
+            const usedTickers = new Set(adjusted.map(p => p.ticker.toUpperCase()));
+            const candidates = scored
+              .filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45)
+              .sort((a, b) => b.combinedScore - a.combinedScore);
+            for (const ra of replaceAdj) {
+              const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase());
+              if (idx < 0) continue;
+              const replacement = candidates.shift();
+              if (!replacement) continue;
+              usedTickers.add(replacement.stock.ticker.toUpperCase());
+              adjusted[idx] = {
+                ...adjusted[idx],
+                ticker: replacement.stock.ticker,
+                companyName: replacement.stock.companyName,
+                sector: replacement.stock.sector,
+                currency: replacement.stock.currency,
+                currentPrice: replacement.stock.currentPrice,
+                combinedScore: replacement.combinedScore,
+                signal: replacement.signal,
+                reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung`,
+              };
+            }
+          }
+          // Schritt 3: Normieren auf 100%
+          const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
+          if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
+          return adjusted;
+        })(),
       };
     }),
 

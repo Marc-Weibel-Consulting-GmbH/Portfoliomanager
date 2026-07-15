@@ -11,8 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import {
   ChevronLeft, ChevronRight, Check, Search, Plus, X,
   TrendingUp, DollarSign, Scale, PieChart, PencilRuler,
-  Upload, Shield, Flame, Sparkles, Clock, Ban, Leaf
+  Upload, Shield, Flame, Sparkles, Clock, Ban, Leaf,
+  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck
 } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +139,9 @@ export default function PortfolioBuilderWizard() {
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const createPortfolioMutation = trpc.portfolios.create.useMutation();
   const setProfileMutation = trpc.investmentProfile.set.useMutation();
+  const { user } = useAuth();
+  const isAdmin = (user as any)?.role === 'admin';
+
   const buildProposal = trpc.autoPortfolio.buildProposal.useMutation({
     onSuccess: (data) => setAutoProposal(data),
     onError: (e) => toast.error("Vorschlag konnte nicht erstellt werden", { description: e.message }),
@@ -358,13 +363,16 @@ export default function PortfolioBuilderWizard() {
     buildProposal.mutate({ investmentAmount: capital });
   };
 
-  const handleAcceptProposal = () => {
+  // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
+  const handleAcceptProposal = (useAdjusted = true) => {
     if (!autoProposal?.positions?.length) return;
     const capital = parseFloat(initialCapital) || 0;
-    const seeded: StockSelection[] = autoProposal.positions.map((p: any) => {
+    // Use adjustedPositions (KI-Empfehlungen automatically applied) if available and requested
+    const positionsToUse = (useAdjusted && (autoProposal as any).adjustedPositions?.length)
+      ? (autoProposal as any).adjustedPositions
+      : autoProposal.positions;
+    const seeded: StockSelection[] = positionsToUse.map((p: any) => {
       const value = (p.weightPct / 100) * capital;
-      // Convert price to CHF for correct share quantity calculation
-      // investmentAmount is in CHF, so we need priceCHF for consistent share count
       const fxRate = parseFloat(p.exchangeRateToChf || '1') || 1;
       const priceCHF = p.currentPrice * fxRate;
       const qty = priceCHF > 0 ? value / priceCHF : 0;
@@ -376,6 +384,15 @@ export default function PortfolioBuilderWizard() {
     if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
     setPath("auto");
     setCurrentStep(1);
+  };
+
+  const handleSendToAdminReview = () => {
+    const logId = (autoProposal as any)?.proposalLogId;
+    if (logId) {
+      navigate(`/admin/proposal-analysis?proposalId=${logId}`);
+    } else {
+      navigate('/admin/proposal-analysis');
+    }
   };
 
   const toggleExcluded = (sector: string) => {
@@ -714,19 +731,86 @@ export default function PortfolioBuilderWizard() {
                         </div>
                       )}
                     </div>
-                    {/* KI-Analyse (3-Agenten-Prüfung) ist intern — nur im Admin-Bereich unter /admin/proposal-analysis sichtbar */}
+                    {/* KI-Empfehlungen des Synthesizers (finalAdjustments) */}
+                    {(autoProposal as any).finalAdjustments?.length > 0 && (
+                      <div className="border border-white/10 rounded-xl overflow-hidden">
+                        <div className="px-4 py-2.5 bg-[#0f1420] border-b border-white/5 flex items-center gap-2">
+                          <Sparkles className="h-3.5 w-3.5 text-[#00CFC1]" />
+                          <span className="text-xs font-semibold text-[#00CFC1]">KI-Empfehlungen (Synthesizer)</span>
+                          {(autoProposal as any).adjustedPositions && (
+                            <span className="ml-auto text-xs text-emerald-400 flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3" /> Automatisch eingearbeitet
+                            </span>
+                          )}
+                        </div>
+                        <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
+                          {(autoProposal as any).finalAdjustments.map((adj: any, i: number) => (
+                            <div key={i} className="flex items-start gap-3 px-4 py-2.5 bg-[#0a0f1a]">
+                              <span className={`shrink-0 mt-0.5 ${
+                                adj.action === 'reduce' ? 'text-orange-400' :
+                                adj.action === 'increase' ? 'text-emerald-400' :
+                                adj.action === 'replace' ? 'text-blue-400' : 'text-gray-500'
+                              }`}>
+                                {adj.action === 'reduce' && <ArrowDownCircle className="h-3.5 w-3.5" />}
+                                {adj.action === 'increase' && <ArrowUpCircle className="h-3.5 w-3.5" />}
+                                {adj.action === 'replace' && <RefreshCw className="h-3.5 w-3.5" />}
+                                {adj.action === 'keep' && <CheckCircle className="h-3.5 w-3.5" />}
+                              </span>
+                              <div className="min-w-0">
+                                <span className={`text-xs font-semibold font-mono ${
+                                  adj.action === 'reduce' ? 'text-orange-400' :
+                                  adj.action === 'increase' ? 'text-emerald-400' :
+                                  adj.action === 'replace' ? 'text-blue-400' : 'text-gray-400'
+                                }`}>
+                                  {adj.action === 'reduce' ? 'Reduzieren' :
+                                   adj.action === 'increase' ? 'Aufstocken' :
+                                   adj.action === 'replace' ? 'Austauschen' : 'Behalten'}: {adj.ticker}
+                                </span>
+                                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{adj.reason}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {(autoProposal as any).adjustedPositions && (
+                          <div className="px-4 py-2 bg-emerald-500/5 border-t border-emerald-500/20">
+                            <p className="text-xs text-emerald-400">Die angepassten Positionen wurden bereits in den Vorschlag eingearbeitet. Sie können diese in den nächsten Schritten weiter anpassen.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <p className="text-xs text-gray-600">
-                      ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung. Sie können jede Position in den nächsten Schritten anpassen.
+                      ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung.
                     </p>
-                    <div className="flex justify-between gap-3">
-                      <Button variant="outline" className="border-white/10 text-gray-300"
-                        onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
-                        Neu erstellen
-                      </Button>
-                      <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={handleAcceptProposal}>
-                        In den Builder übernehmen
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      {/* Admin-Review Button (nur für Admins sichtbar) */}
+                      {isAdmin && (
+                        <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ShieldCheck className="h-4 w-4 text-amber-400" />
+                            <span className="text-xs font-semibold text-amber-400">Admin-Review</span>
+                          </div>
+                          <p className="text-xs text-gray-400 mb-2">Vorschlag im Admin-Bereich prüfen und genehmigen, bevor das Portfolio erstellt wird.</p>
+                          <Button
+                            variant="outline"
+                            className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-sm"
+                            onClick={handleSendToAdminReview}
+                          >
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Im Admin-Bereich prüfen &amp; genehmigen
+                          </Button>
+                        </div>
+                      )}
+                      <div className="flex justify-between gap-3">
+                        <Button variant="outline" className="border-white/10 text-gray-300"
+                          onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
+                          Neu erstellen
+                        </Button>
+                        <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
+                          {(autoProposal as any).adjustedPositions ? 'Angepassten Vorschlag übernehmen' : 'In den Builder übernehmen'}
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : (
