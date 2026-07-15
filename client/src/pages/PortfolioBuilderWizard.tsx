@@ -133,6 +133,7 @@ export default function PortfolioBuilderWizard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [perStockInputs, setPerStockInputs] = useState<Record<string, { quantity: string; price: string }>>({});
   const [isLive, setIsLive] = useState(false);
+  const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
 
   // ── Queries & mutations ──
   const { data: savedProfile } = trpc.investmentProfile.get.useQuery();
@@ -310,6 +311,7 @@ export default function PortfolioBuilderWizard() {
         portfolioData: JSON.stringify(portfolioData),
         investmentAmount: parseFloat(initialCapital) || 0,
         portfolioType: isLive ? "live" : "demo",
+        isAiOptimized,
       });
       toast.success("Portfolio erstellt 🎉");
       if (result?.portfolio?.id) navigate(`/portfolios/${result.portfolio.id}`);
@@ -371,6 +373,8 @@ export default function PortfolioBuilderWizard() {
     const positionsToUse = (useAdjusted && (autoProposal as any).adjustedPositions?.length)
       ? (autoProposal as any).adjustedPositions
       : autoProposal.positions;
+    // Track whether KI adjustments were applied
+    setIsAiOptimized(useAdjusted && !!(autoProposal as any).adjustedPositions?.length);
     const seeded: StockSelection[] = positionsToUse.map((p: any) => {
       const value = (p.weightPct / 100) * capital;
       const fxRate = parseFloat(p.exchangeRateToChf || '1') || 1;
@@ -801,15 +805,27 @@ export default function PortfolioBuilderWizard() {
                           </Button>
                         </div>
                       )}
-                      <div className="flex justify-between gap-3">
+                      <div className="flex flex-wrap justify-between gap-3">
                         <Button variant="outline" className="border-white/10 text-gray-300"
                           onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
                           Neu erstellen
                         </Button>
-                        <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
-                          {(autoProposal as any).adjustedPositions ? 'Angepassten Vorschlag übernehmen' : 'In den Builder übernehmen'}
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
+                        <div className="flex gap-2 flex-wrap">
+                          {(autoProposal as any).adjustedPositions && (
+                            <Button
+                              variant="outline"
+                              className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
+                              onClick={() => handleAcceptProposal(false)}
+                              title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
+                            >
+                              Ohne KI-Anpassungen
+                            </Button>
+                          )}
+                          <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
+                            {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'In den Builder übernehmen'}
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

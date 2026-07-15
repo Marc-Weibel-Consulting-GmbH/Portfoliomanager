@@ -149,3 +149,8 @@
 - [x] Frontend: Titel-Austausch mit Suchfeld im Approve-Panel (Ersatztitel aus Universum wählen)
 - [x] Frontend: Vorschlag-Vergleich — Original-Gewichte neben editierten Gewichten anzeigen
 - [x] Backend + Frontend: Nutzer-Benachrichtigung nach Portfolio-Erstellung durch Admin (E-Mail + Owner-Notification)
+
+## UX-Verbesserungen Wizard + Badge (Jul 2026)
+- [ ] Frontend: «Ohne KI-Anpassungen übernehmen»-Button neben Hauptbutton im PortfolioBuilderWizard
+- [ ] Backend + DB: isAiOptimized-Feld in savedPortfolios-Tabelle
+- [ ] Frontend: «KI-optimiert»-Badge im Portfolio-Header wenn isAiOptimized=true

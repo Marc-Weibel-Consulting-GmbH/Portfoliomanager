@@ -204,6 +204,13 @@
       "when": 1784101042845,
       "tag": "0028_lyrical_carlie_cooper",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "5",
+      "when": 1784105736317,
+      "tag": "0029_light_zaran",
+      "breakpoints": true
     }
   ]
 }

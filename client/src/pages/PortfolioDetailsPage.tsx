@@ -1337,7 +1337,15 @@ export default function PortfolioDetailsPage() {
 
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-3xl font-bold text-white">{portfolio.name}</h1>
+                {(portfolio as any).isAiOptimized === 1 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#00CFC1]/15 text-[#00CFC1] border border-[#00CFC1]/30" title="Dieses Portfolio wurde aus einem KI-angepassten Vorschlag erstellt (finalAdjustments angewendet)">
+                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    KI-optimiert
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-400 mt-1">
                 {typeConfig?.label || 'Portfolio'} · {holdings.length} Positionen
                 {(() => {
