@@ -394,9 +394,11 @@ export default function PortfolioBuilderWizard() {
   const handleSendToAdminReview = () => {
     const logId = (autoProposal as any)?.proposalLogId;
     if (logId) {
-      navigate(`/admin/proposal-analysis?proposalId=${logId}&returnTo=/portfolio-builder`);
+      // Use window.location.href so query params (proposalId, returnTo) are preserved
+      // Wouter's navigate() does not pass query params to window.location.search
+      window.location.href = `/admin/proposal-analysis?proposalId=${logId}&returnTo=/portfolio-builder`;
     } else {
-      navigate('/admin/proposal-analysis');
+      window.location.href = '/admin/proposal-analysis';
     }
   };
 
