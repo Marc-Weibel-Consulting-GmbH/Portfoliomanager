@@ -206,5 +206,5 @@
 - [x] Info: Div. Rendite Header (2.5%) vs Deep-Dive (3.3%) — unterschiedliche Datenquellen (DB vs EODHD). Erklärungstext unter der KPI-Karte ergänzt (EODHD vs lokale DB).
 
 ## Transaktions-Tab Bugfixes (Jul 2026)
-- [ ] Fix: Preis = CHF 0.00 bei Optimierungs-Transaktionen (applyRecommendations speichert keinen Preis)
-- [ ] Fix: Firmenname fehlt in Transaktions-Tabelle (nur Ticker sichtbar, kein companyName)
+- [x] Fix: Preis = CHF 0.00 bei Optimierungs-Transaktionen (applyRecommendations speichert keinen Preis)
+- [x] Fix: Firmenname fehlt in Transaktions-Tabelle (nur Ticker sichtbar, kein companyName)
