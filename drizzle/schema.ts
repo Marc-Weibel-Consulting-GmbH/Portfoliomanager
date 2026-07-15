@@ -1333,6 +1333,8 @@ export const portfolioProposalLog = mysqlTable("portfolioProposalLog", {
   kennzahlenFilterReason: text("kennzahlenFilterReason"),
   // Wurde der Vorschlag übernommen?
   accepted: mysqlEnum("accepted", ["ja", "nein", "unbekannt"]).default("unbekannt"),
+  // Training-Feedback: Differenz zwischen Original- und Admin-Version
+  adminFeedback: json("adminFeedback"), // { changes: [{ticker, action, originalWeight, adminWeight, reason}], summary: string }
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type PortfolioProposalLog = typeof portfolioProposalLog.$inferSelect;

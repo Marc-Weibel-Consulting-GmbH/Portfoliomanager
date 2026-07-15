@@ -1181,10 +1181,55 @@ export const adminRouter = router({
           isAiOptimized: 1, // Portfolio wurde vom Admin aus KI-Vorschlag mit finalAdjustments erstellt
         });
 
-        // 5) Proposal als übernommen markieren
+        // 5) Training-Feedback berechnen: Differenz zwischen Original und Admin-Version
+        const originalPositions = Array.isArray(proposal.positions) ? (proposal.positions as any[]) : [];
+        const feedbackChanges: Array<{
+          ticker: string;
+          action: string;
+          originalWeight: number;
+          adminWeight: number;
+          delta: number;
+          replaced: boolean;
+        }> = [];
+
+        // Check for weight changes and removals
+        for (const orig of originalPositions) {
+          const adminPos = normalizedPositions.find(p => p.ticker.toUpperCase() === orig.ticker?.toUpperCase());
+          if (!adminPos) {
+            // Position removed by admin
+            feedbackChanges.push({ ticker: orig.ticker, action: 'removed', originalWeight: parseFloat(orig.weightPct ?? orig.weight ?? '0'), adminWeight: 0, delta: -parseFloat(orig.weightPct ?? orig.weight ?? '0'), replaced: false });
+          } else {
+            const origW = parseFloat(orig.weightPct ?? orig.weight ?? '0');
+            const adminW = adminPos.weightPct;
+            const delta = adminW - origW;
+            if (Math.abs(delta) > 0.5) {
+              feedbackChanges.push({ ticker: orig.ticker, action: delta > 0 ? 'increased' : 'reduced', originalWeight: origW, adminWeight: adminW, delta, replaced: false });
+            }
+          }
+        }
+        // Check for new positions added by admin
+        for (const adminPos of normalizedPositions) {
+          const wasOriginal = originalPositions.find((p: any) => p.ticker?.toUpperCase() === adminPos.ticker.toUpperCase());
+          if (!wasOriginal) {
+            feedbackChanges.push({ ticker: adminPos.ticker, action: 'added', originalWeight: 0, adminWeight: adminPos.weightPct, delta: adminPos.weightPct, replaced: false });
+          }
+        }
+
+        const adminFeedback = feedbackChanges.length > 0 ? {
+          changes: feedbackChanges,
+          summary: `Admin änderte ${feedbackChanges.length} Positionen: ${feedbackChanges.map(c => `${c.ticker} ${c.action} (${c.delta > 0 ? '+' : ''}${c.delta.toFixed(1)}%)`).join(', ')}`,
+          approvedAt: new Date().toISOString(),
+          adminId: ctx.user.id,
+        } : null;
+
+        // 5) Proposal als übernommen markieren + Feedback speichern
         await db.update(portfolioProposalLog)
-          .set({ accepted: 'ja' })
+          .set({ accepted: 'ja', ...(adminFeedback ? { adminFeedback } : {}) })
           .where(eq(portfolioProposalLog.id, input.proposalId));
+
+        if (feedbackChanges.length > 0) {
+          console.log(`[admin.approveProposalAndCreate] Training feedback saved: ${feedbackChanges.length} changes for proposal #${input.proposalId}`);
+        }
 
         console.log(`[admin.approveProposalAndCreate] Portfolio ${portfolioId} created for user ${proposal.userId} from proposal #${input.proposalId}`);
 

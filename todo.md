@@ -154,3 +154,8 @@
 - [x] Frontend: «Ohne KI-Anpassungen übernehmen»-Button neben Hauptbutton im PortfolioBuilderWizard
 - [x] Backend + DB: isAiOptimized-Feld in savedPortfolios-Tabelle (ALTER TABLE + portfoliosRouter.create)
 - [x] Frontend: «KI-optimiert»-Badge im Portfolio-Header wenn isAiOptimized=true
+
+## KI-Empfehlung direkt anwenden + Training-Feedback-Loop (Jul 2026)
+- [x] Frontend: «Empfehlung anwenden»-Button in AdminProposalAnalysis — Klick auf Empfehlung passt Gewicht automatisch an (reduce −30%, increase +30%, replace → Ticker tauschen)
+- [x] Backend + DB: Training-Feedback-Loop — adminFeedback JSON-Feld in portfolioProposalLog (ALTER TABLE + Schema) + Diff-Berechnung in approveProposalAndCreate
+- [ ] Backend: Synthesizer-Agent liest historische adminFeedback-Signale beim nächsten Vorschlag ein (Phase 2 — nach Trainingsphase)

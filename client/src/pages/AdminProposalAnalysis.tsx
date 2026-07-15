@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,74 @@ function StockSearchDropdown({
         ))}
       </div>
     </div>
+  );
+}
+
+
+// ─── ApplyRecommendationButton ────────────────────────────────────────────────
+
+function ApplyRecommendationButton({
+  adj,
+  rowId,
+  allStocks,
+  onApply,
+}: {
+  adj: any;
+  rowId: number;
+  allStocks: any[];
+  onApply?: React.Dispatch<React.SetStateAction<EditablePosition[]>>;
+}) {
+  const handleApply = () => {
+    if (!onApply) return;
+    onApply((prev) => {
+      let updated = prev.map(p => {
+        if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
+        if (adj.action === 'reduce') {
+          const newWeight = Math.max(1, p.weightPct * 0.7);
+          return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
+        }
+        if (adj.action === 'increase') {
+          const newWeight = p.weightPct * 1.3;
+          return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
+        }
+        if (adj.action === 'replace' && adj.replaceTicker) {
+          const replacement = allStocks.find(
+            (s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase()
+          );
+          if (replacement) {
+            return {
+              ...p,
+              ticker: replacement.ticker,
+              companyName: replacement.companyName ?? replacement.name ?? replacement.ticker,
+              sector: replacement.sector ?? replacement.industry ?? p.sector,
+              currency: replacement.currency ?? 'CHF',
+              currentPrice: parseFloat(replacement.currentPrice ?? replacement.price ?? '0') || 0,
+              exchangeRateToChf: parseFloat(replacement.exchangeRateToChf ?? '1') || 1,
+            };
+          }
+        }
+        return p;
+      });
+      // Normalize to 100%
+      const total = updated.reduce((s, p) => s + p.weightPct, 0);
+      if (total > 0 && Math.abs(total - 100) > 0.5) {
+        updated = updated.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total * 100) * 10) / 10 }));
+      }
+      return updated;
+    });
+    toast.success(`Empfehlung angewendet: ${adj.ticker} ${adj.action}`, { duration: 2000 });
+  };
+
+  const label = adj.action === 'reduce' ? '−30%' : adj.action === 'increase' ? '+30%' : adj.replaceTicker ? `→ ${adj.replaceTicker}` : 'Anwenden';
+
+  return (
+    <button
+      onClick={handleApply}
+      className="shrink-0 text-xs px-2 py-0.5 rounded border border-slate-600 text-slate-400 hover:border-teal-500 hover:text-teal-400 transition-colors"
+      title={`Empfehlung direkt anwenden: ${adj.action} ${adj.ticker}`}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -296,10 +365,14 @@ function ApprovePanel({
   row,
   allStocks,
   onDone,
+  positions,
+  setPositions,
 }: {
   row: any;
   allStocks: any[];
   onDone: () => void;
+  positions: EditablePosition[];
+  setPositions: React.Dispatch<React.SetStateAction<EditablePosition[]>>;
 }) {
   const rawPositions: EditablePosition[] = (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
     ticker: p.ticker ?? "",
@@ -311,8 +384,6 @@ function ApprovePanel({
     weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
     originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0, // Snapshot des Original-Gewichts
   }));
-
-  const [positions, setPositions] = useState<EditablePosition[]>(rawPositions);
   const [portfolioName, setPortfolioName] = useState(`KI-Portfolio #${row.id}`);
   const [investmentAmount, setInvestmentAmount] = useState(String(row.investmentAmount ?? 10000));
   const [portfolioType, setPortfolioType] = useState<"demo" | "live">("demo");
@@ -456,6 +527,8 @@ export default function AdminProposalAnalysis() {
   const [offset, setOffset] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [approveId, setApproveId] = useState<number | null>(null);
+  // Lifted positions state so recommendation buttons can mutate approve-panel positions
+  const [approvePositions, setApprovePositions] = useState<EditablePosition[]>([]);
   const LIMIT = 20;
 
   const { data, isLoading, refetch } = trpc.admin.listProposalLogs.useQuery({
@@ -631,7 +704,9 @@ export default function AdminProposalAnalysis() {
                           <div className="flex items-center gap-2 mb-2">
                             <ArrowLeftRight className="w-4 h-4 text-teal-400" />
                             <span className="text-xs font-medium text-teal-400">KI-Empfehlungen (Synthesizer)</span>
-                            <span className="text-xs text-slate-600">— Ticker anklicken um Titel auszutauschen</span>
+                            {approveId === row.id && (
+                              <span className="text-xs text-slate-500">— Klick auf «Anwenden» übernimmt Empfehlung direkt</span>
+                            )}
                           </div>
                           <div className="space-y-1.5">
                             {(row.finalAdjustments as any[]).map((adj: any, i: number) => {
@@ -642,10 +717,22 @@ export default function AdminProposalAnalysis() {
                                     {meta.icon}
                                     {meta.label}
                                   </Badge>
-                                  <div className="min-w-0">
+                                  <div className="min-w-0 flex-1">
                                     <span className="font-mono text-xs text-teal-400 mr-2">{adj.ticker}</span>
+                                    {adj.replaceTicker && (
+                                      <span className="text-xs text-violet-400 mr-2">→ {adj.replaceTicker}</span>
+                                    )}
                                     <span className="text-xs text-slate-300">{adj.reason}</span>
                                   </div>
+                                  {/* Empfehlung direkt anwenden — nur wenn Approve-Panel offen */}
+                                  {approveId === row.id && adj.action !== 'keep' && (
+                                    <ApplyRecommendationButton
+                                      adj={adj}
+                                      rowId={row.id}
+                                      allStocks={allStocks}
+                                      onApply={setApprovePositions}
+                                    />
+                                  )}
                                 </div>
                               );
                             })}
@@ -684,7 +771,18 @@ export default function AdminProposalAnalysis() {
                         <ApprovePanel
                           row={row}
                           allStocks={allStocks}
-                          onDone={() => { setApproveId(null); refetch(); }}
+                          onDone={() => { setApproveId(null); setApprovePositions([]); refetch(); }}
+                          positions={approvePositions.length > 0 ? approvePositions : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
+                            ticker: p.ticker ?? "",
+                            companyName: p.companyName ?? p.ticker ?? "",
+                            sector: p.sector,
+                            currency: p.currency ?? "CHF",
+                            currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
+                            exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
+                            weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                            originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                          }))}
+                          setPositions={setApprovePositions}
                         />
                       )}
 
