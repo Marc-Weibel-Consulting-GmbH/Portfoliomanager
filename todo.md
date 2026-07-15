@@ -127,9 +127,9 @@
 - [x] Optimierungs-Verlauf: Übersicht aller Optimierungen mit Datum, Anzahl Transaktionen und Cash-Effekt
 
 ## Multi-Agent Layer Verbesserungen (Jul 2026)
-- [ ] KI-Analyse aus Nutzer-UI entfernen (nicht sichtbar im PortfolioBuilderWizard)
-- [ ] KI-Analyse-Resultate in Admin-Bereich speichern und abrufbar machen (DB-Tabelle + Admin-Seite)
-- [ ] Kennzahlen-Filter: Vorschläge nur umsetzen wenn Sharpe/Dividende verbessert wird
-- [ ] Handelbarkeit (Marktkapitalisierung/Liquidität) als Kriterium im Algorithmus
-- [ ] Fremdwährungsanteil strikt durchsetzen (harte Grenze, kein Überschreiten)
-- [ ] Vertrauen-Logik verbessern: klare Kriterien für hoch/mittel/niedrig
+- [x] KI-Analyse aus Nutzer-UI entfernen (nicht sichtbar im PortfolioBuilderWizard)
+- [x] KI-Analyse-Resultate in Admin-Bereich speichern und abrufbar machen (DB-Tabelle + Admin-Seite)
+- [x] Kennzahlen-Filter: Vorschläge nur umsetzen wenn Sharpe/Dividende verbessert wird
+- [x] Handelbarkeit (Marktkapitalisierung/Liquidität) als Kriterium im Algorithmus
+- [x] Fremdwährungsanteil strikt durchsetzen (harte Grenze, kein Überschreiten)
+- [x] Vertrauen-Logik verbessern: klare Kriterien für hoch/mittel/niedrig

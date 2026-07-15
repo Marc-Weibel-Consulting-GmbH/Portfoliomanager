@@ -31,7 +31,7 @@ export const portfoliosRouter = router({
       const { batchGetPortfolioTransactions, batchGetStocks, batchGetHistoricalPrices } = await import("../db-optimized");
       const { convertToCHF, tryConvertToCHF } = await import("../fxHelper");
 
-      // Step 1: Get all portfolios for user (include snapshots so sidebar/dashboard cards can show them)
+      // Step 1: Get all portfolios for user (include snapshots for sidebar access)
       const portfolios = await getSavedPortfolios(ctx.user.id, { includeSnapshots: true });
       const livePortfolios = portfolios.filter(p => p.isLive && p.liveStartDate);
 
