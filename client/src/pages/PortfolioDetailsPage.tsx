@@ -1103,14 +1103,33 @@ export default function PortfolioDetailsPage() {
     },
     { enabled: portfolioId > 0 }
   );
+
+  // Dual-Benchmark: Always fetch SPY (S&P 500) as second benchmark line
+  // Only fetch if the primary benchmark is NOT already SPY
+  const { data: historicalDataSpy } = trpc.portfolios.getHistoricalPerformance.useQuery(
+    {
+      portfolioId,
+      period: selectedPeriod as '1M' | '3M' | '6M' | '1Y' | 'YTD' | '3Y' | '5Y' | 'All',
+      benchmark: 'SPY',
+    },
+    { enabled: portfolioId > 0 && selectedBenchmark !== 'SPY' }
+  );
   
-  // Process chart data - SIMPLIFIED (12.01.2026): No hypothetical line, only Portfolio and Benchmark
+  // Process chart data - Dual-Benchmark: Portfolio + SPI (primary) + S&P 500 (secondary)
   const chartData = useMemo(() => {
     if (!historicalData?.chartData || historicalData.chartData.length === 0) {
       return { data: [], creationDateIndex: -1, hasHypothetical: false };
     }
     
     const realData = historicalData.chartData;
+    
+    // Build a date→benchmark2 lookup map from SPY data
+    const spyMap: Record<string, number | null> = {};
+    if (historicalDataSpy?.chartData) {
+      for (const d of historicalDataSpy.chartData) {
+        spyMap[d.date] = d.benchmark ?? null;
+      }
+    }
     
     // Sample data to show roughly one point per week for better visualization
     const sampleInterval = Math.max(1, Math.floor(realData.length / 52));
@@ -1122,6 +1141,8 @@ export default function PortfolioDetailsPage() {
       portfolio: includeCash ? (d.portfolioInclCash ?? d.portfolio) : d.portfolio,
       hypothetical: null, // No hypothetical data anymore
       benchmark: d.benchmark,
+      // Second benchmark (S&P 500 / SPY) — only when primary is not already SPY
+      benchmark2: selectedBenchmark !== 'SPY' ? (spyMap[d.date] ?? null) : null,
     }));
 
     return {
@@ -1129,7 +1150,7 @@ export default function PortfolioDetailsPage() {
       creationDateIndex: -1,
       hasHypothetical: false // No hypothetical data anymore
     };
-  }, [historicalData, includeCash]);
+  }, [historicalData, historicalDataSpy, includeCash, selectedBenchmark]);
   
   // Prepare pie chart data for asset allocation
   const assetAllocationData = useMemo(() => {
@@ -1557,6 +1578,22 @@ export default function PortfolioDetailsPage() {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <h3 className="text-sm font-semibold text-white">Wertentwicklung seit Ersterfassung</h3>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="flex items-center gap-1 text-xs text-gray-400">
+                          <span className="inline-block w-4 h-0.5 bg-[#00CFC1]" />
+                          Portfolio
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-gray-400">
+                          <span className="inline-block w-4 h-0.5" style={{background: 'rgba(255,255,255,0.4)', borderTop: '1.5px dashed rgba(255,255,255,0.4)'}} />
+                          {selectedBenchmark === 'CHSPI.SW' ? 'SPI' : selectedBenchmark === 'SPY' ? 'S&P 500' : selectedBenchmark === 'QQQ' ? 'Nasdaq 100' : selectedBenchmark}
+                        </span>
+                        {selectedBenchmark !== 'SPY' && (
+                          <span className="flex items-center gap-1 text-xs text-gray-400">
+                            <span className="inline-block w-4 h-0.5" style={{background: 'rgba(255,165,0,0.85)', borderTop: '2px dashed rgba(255,165,0,0.85)'}} />
+                            S&P 500
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2 items-center">
                       <div className="flex gap-1">
@@ -1612,10 +1649,22 @@ export default function PortfolioDetailsPage() {
                           <Tooltip
                             contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid #00CFC1', borderRadius: '6px', fontSize: '12px' }}
                             labelStyle={{ color: '#fff' }}
-                            formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name === 'portfolio' ? portfolio.name : 'Benchmark']}
+                            formatter={(value: number, name: string) => {
+                              if (value == null) return [null, null];
+                              const label = name === 'portfolio'
+                                ? portfolio.name
+                                : name === 'benchmark'
+                                  ? (selectedBenchmark === 'SPY' ? 'S&P 500' : selectedBenchmark === 'CHSPI.SW' ? 'SPI' : selectedBenchmark === 'QQQ' ? 'Nasdaq 100' : selectedBenchmark === 'FEZ' ? 'EuroStoxx 50' : selectedBenchmark)
+                                  : 'S&P 500';
+                              return [`${value.toFixed(2)}%`, label];
+                            }}
                           />
                           <Area type="monotone" dataKey="portfolio" stroke="#00CFC1" strokeWidth={2} fill="url(#overviewGradient)" />
                           <Area type="monotone" dataKey="benchmark" stroke="rgba(255,255,255,0.3)" strokeWidth={1.5} strokeDasharray="4 4" fill="none" />
+                          {/* Second benchmark: S&P 500 (SPY) — shown when primary benchmark is not SPY */}
+                          {selectedBenchmark !== 'SPY' && (
+                            <Area type="monotone" dataKey="benchmark2" stroke="rgba(255,165,0,0.85)" strokeWidth={2} strokeDasharray="3 3" fill="none" />
+                          )}
                         </AreaChart>
                       </ResponsiveContainer>
                     )}
