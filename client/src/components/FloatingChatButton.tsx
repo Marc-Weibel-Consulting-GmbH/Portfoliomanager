@@ -3,8 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Send, X, Loader2 } from "lucide-react";
+import { MessageSquare, Send, Loader2 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -19,24 +18,14 @@ export function FloatingChatButton() {
 
   const utils = trpc.useUtils();
 
-  // Fetch conversations
-  const { data: conversations } = trpc.chat.getConversations.useQuery(
-    undefined,
-    { enabled: isAuthenticated && isOpen }
-  );
-
   // Fetch messages for selected conversation
   const { data: messages } = trpc.chat.getMessages.useQuery(
     { conversationId: selectedConversationId! },
     { enabled: !!selectedConversationId && isOpen }
   );
 
-  // Create conversation mutation
+  // Create conversation mutation (lazy — erst beim ersten Senden)
   const createConversation = trpc.chat.createConversation.useMutation({
-    onSuccess: (data) => {
-      utils.chat.getConversations.invalidate();
-      setSelectedConversationId(data.id);
-    },
     onError: (error) => {
       toast.error("Fehler beim Erstellen der Konversation: " + error.message);
     },
@@ -44,8 +33,13 @@ export function FloatingChatButton() {
 
   // Send message mutation
   const sendMessage = trpc.chat.sendMessage.useMutation({
-    onSuccess: () => {
-      utils.chat.getMessages.invalidate({ conversationId: selectedConversationId! });
+    onSuccess: (_data, variables) => {
+      // variables kann laut tRPC-Typ auch void sein — defensiv invalidieren.
+      if (variables && "conversationId" in variables) {
+        utils.chat.getMessages.invalidate({ conversationId: variables.conversationId });
+      } else {
+        utils.chat.getMessages.invalidate();
+      }
       utils.chat.getConversations.invalidate();
       setMessage("");
     },
@@ -57,25 +51,30 @@ export function FloatingChatButton() {
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, sendMessage.isPending]);
 
-  // Auto-select or create conversation when opening
+  // Jedes Öffnen startet einen FRISCHEN Chat (vorher wurde automatisch die
+  // letzte Konversation samt alter Antwort geladen). Die Konversation wird
+  // erst beim ersten Senden angelegt; der Verlauf bleibt im Copilot-Hub.
   useEffect(() => {
-    if (isOpen && isAuthenticated) {
-      if (conversations && conversations.length > 0 && !selectedConversationId) {
-        setSelectedConversationId(conversations[0].id);
-      } else if (conversations && conversations.length === 0) {
-        createConversation.mutate({});
+    if (isOpen) setSelectedConversationId(null);
+  }, [isOpen]);
+
+  const handleSendMessage = async () => {
+    const text = message.trim();
+    if (!text || sendMessage.isPending || createConversation.isPending) return;
+    let conversationId = selectedConversationId;
+    if (!conversationId) {
+      try {
+        const created = await createConversation.mutateAsync({});
+        conversationId = created.id;
+        setSelectedConversationId(created.id);
+        utils.chat.getConversations.invalidate();
+      } catch {
+        return; // Fehler-Toast kommt aus onError
       }
     }
-  }, [isOpen, conversations, selectedConversationId, isAuthenticated]);
-
-  const handleSendMessage = () => {
-    if (!message.trim() || !selectedConversationId) return;
-    sendMessage.mutate({
-      conversationId: selectedConversationId,
-      message: message.trim(),
-    });
+    sendMessage.mutate({ conversationId, message: text });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -95,7 +94,7 @@ export function FloatingChatButton() {
       <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 group">
         {/* Tooltip Text */}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg text-sm font-medium whitespace-nowrap">
-          Wie kann ich Dir helfen?
+          Wie kann ich Ihnen helfen?
         </div>
         
         {/* Avatar Button */}
@@ -114,7 +113,7 @@ export function FloatingChatButton() {
 
       {/* Chat Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[600px] h-[600px] flex flex-col p-0">
+        <DialogContent className="sm:max-w-[600px] h-[600px] max-h-[85vh] flex flex-col p-0">
           <DialogHeader className="px-6 py-4 border-b">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -125,14 +124,16 @@ export function FloatingChatButton() {
                 </Avatar>
                 <div>
                   <DialogTitle>KI-Assistent</DialogTitle>
-                  <p className="text-xs text-muted-foreground">Wie kann ich Dir helfen?</p>
+                  <p className="text-xs text-muted-foreground">Wie kann ich Ihnen helfen?</p>
                 </div>
               </div>
             </div>
           </DialogHeader>
 
-          {/* Messages Area */}
-          <ScrollArea className="flex-1 px-6 py-4">
+          {/* Messages Area — min-h-0 + overflow-y-auto: die Radix-ScrollArea
+              kollabierte im Flex-Dialog nicht (kein Scrollen bei langen
+              Antworten); ein normaler Scroll-Container ist hier robust. */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
             <div className="space-y-4">
               {messages && messages.length > 0 ? (
                 messages.map((msg: any) => (
@@ -180,7 +181,7 @@ export function FloatingChatButton() {
               )}
               <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Input Area */}
           <div className="border-t px-6 py-4">
@@ -190,12 +191,12 @@ export function FloatingChatButton() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                disabled={sendMessage.isPending || !selectedConversationId}
+                disabled={sendMessage.isPending || createConversation.isPending}
                 className="flex-1"
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={!message.trim() || sendMessage.isPending || !selectedConversationId}
+                disabled={!message.trim() || sendMessage.isPending || createConversation.isPending}
                 size="icon"
               >
                 {sendMessage.isPending ? (

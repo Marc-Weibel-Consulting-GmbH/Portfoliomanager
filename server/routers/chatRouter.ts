@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { chatConversations, chatMessages, savedPortfolios, stocks } from "../../drizzle/schema";
+import { chatConversations, chatMessages } from "../../drizzle/schema";
 import { invokeLLM } from "../_core/llm";
 import { TRPCError } from "@trpc/server";
 
@@ -135,36 +135,17 @@ export const chatRouter = router({
       // Reverse to get chronological order
       const contextMessages = history.reverse();
 
-      // Build portfolio context if available
+      // Portfolio-Steckbrief (Stufe 1): kompakter Überblick über ALLE eigenen
+      // Portfolios + Live-Bewertung des Fokus-Portfolios (verknüpft oder
+      // grösstes Live-Portfolio) — vorher sah der Assistent nur 10 Positionen
+      // und auch das nur bei verknüpfter Konversation.
+      const { buildPortfolioBriefing, APP_HANDBUCH } = await import("../lib/copilotContext");
       let portfolioContext = "";
-      if (conversation.portfolioId) {
-        const [portfolio] = await db
-          .select()
-          .from(savedPortfolios)
-          .where(eq(savedPortfolios.id, conversation.portfolioId))
-          .limit(1);
-
-        if (portfolio) {
-          portfolioContext = `\n\nAktuelles Portfolio-Kontext:\n`;
-          portfolioContext += `- Portfolio Name: ${portfolio.name}\n`;
-          portfolioContext += `- Status: ${portfolio.isLive ? "LIVE" : "TEST"}\n`;
-          portfolioContext += `- Erstellt am: ${portfolio.createdAt}\n`;
-
-          if (portfolio.portfolioData) {
-            try {
-              const data = JSON.parse(portfolio.portfolioData);
-              if (data.stocks && Array.isArray(data.stocks)) {
-                portfolioContext += `- Anzahl Positionen: ${data.stocks.length}\n`;
-                portfolioContext += `\nPositionen:\n`;
-                for (const stock of data.stocks.slice(0, 10)) {
-                  portfolioContext += `  * ${stock.ticker}: ${stock.weight || 0}% (${stock.shares || 0} Aktien)\n`;
-                }
-              }
-            } catch (e) {
-              console.error("Failed to parse portfolio data:", e);
-            }
-          }
-        }
+      try {
+        const briefing = await buildPortfolioBriefing(ctx.user.id, conversation.portfolioId);
+        if (briefing) portfolioContext = `\n\n${briefing}`;
+      } catch (e) {
+        console.warn("[chat] Portfolio-Steckbrief fehlgeschlagen:", (e as Error).message);
       }
 
       // Live-Fundamentaldaten (Financial Datasets, nur US-Titel): Wenn die
@@ -205,12 +186,14 @@ Deine Aufgaben:
 - Fragen zu Finanzen, Investitionen und Portfolios beantworten
 
 Wichtige Hinweise:
-- Antworte auf Deutsch
+- Antworte auf Deutsch, in der Sie-Form
 - Sei präzise und fundiert
-- Verwende den Portfolio-Kontext, wenn verfügbar
+- Nutze die untenstehenden Portfolio-Daten für Fragen zum eigenen Portfolio — rechne mit DIESEN Zahlen statt zu schätzen; fehlt eine Angabe, sage das ehrlich
+- Bei Fragen zu App-Funktionen: nutze ausschliesslich die Funktionsübersicht und nenne den Ort in der App — erfinde keine Funktionen
 - Erkläre komplexe Konzepte verständlich
 - Gib keine Finanzberatung, sondern nur allgemeine Informationen
-- Bei spezifischen Fragen zu Aktien, verwende dein Wissen über Finanzmärkte
+
+${APP_HANDBUCH}
 ${portfolioContext}${fundamentalsContext}`;
 
       // Prepare messages for LLM
