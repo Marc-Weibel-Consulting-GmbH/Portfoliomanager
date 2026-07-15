@@ -817,6 +817,18 @@ Antworte im JSON-Format.`,
           });
           proposalLogId = (insertResult as any)?.insertId ?? null;
           console.log(`[buildProposal] Proposal logged to DB (userId=${ctx.user.id}, confidence=${synthResult.overallConfidence}, logId=${proposalLogId})`);
+
+          // Notify admin about new proposal awaiting review
+          try {
+            const { notifyOwner } = await import('../_core/notification');
+            const adminUrl = `/admin/proposal-analysis?proposalId=${proposalLogId}&returnTo=/portfolio-builder`;
+            await notifyOwner({
+              title: `⚠️ Neuer KI-Vorschlag #${proposalLogId} wartet auf Review`,
+              content: `Nutzer ${ctx.user.name ?? ctx.user.openId} hat einen neuen Portfolio-Vorschlag generiert.\n\nKonfidenz: ${synthResult.overallConfidence} | Positionen: ${positions.length} | Kennzahlen-Filter: ${meetsKennzahlenFilter}\n\nZum Review: ${adminUrl}`,
+            });
+          } catch (notifyErr: any) {
+            console.warn(`[buildProposal] Admin notification failed (non-fatal): ${notifyErr?.message}`);
+          }
         } catch (logErr: any) {
           console.warn(`[buildProposal] DB logging failed (non-fatal): ${logErr?.message}`);
         }

@@ -187,3 +187,10 @@
 - [x] Fix: autoBackfillNewSymbols nach createSavedPortfolio in approveProposalAndCreate eingefügt
 - [x] UX: BackfillButton nach Portfolio-Erstellung in ApprovePanel (teal, mit Spinner)
 - [x] UX: Toast-Meldung informiert über gestarteten Backfill
+
+## Admin Review Erweiterungen (Jul 2026)
+- [x] Admin-Kommentarfeld: adminComments-Feld bereits im Schema (JSON: {[ticker]: string, __global__: string})
+- [x] Admin-Kommentarfeld: Kommentar-Inputs im 2-Spalten-Review-Panel (global + pro Empfehlung)
+- [x] Admin-Kommentarfeld: saveAdminReview speichert Kommentare, beim Öffnen werden bestehende Kommentare geladen
+- [x] E-Mail-Notification: notifyOwner nach Proposal-Generierung in autoPortfolioRouter (fire-and-forget)
+- [x] Review-Status-Badge: «Pending Review» (amber) / «Reviewed» (teal) Badge in der Admin-Proposal-Tabelle

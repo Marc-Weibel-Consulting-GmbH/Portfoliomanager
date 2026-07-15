@@ -41,6 +41,22 @@ function AcceptedBadge({ value }: { value: string | null }) {
   return <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30">Abgelehnt</Badge>;
 }
 
+function ReviewStatusBadge({ status, reviewedAt }: { status: string | null; reviewedAt: Date | string | null }) {
+  if (!status || status === 'pending') {
+    return <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-xs">Pending Review</Badge>;
+  }
+  if (status === 'reviewed' || status === 'approved') {
+    const dateStr = reviewedAt ? new Date(reviewedAt).toLocaleDateString('de-CH') : '';
+    return (
+      <Badge className="bg-teal-500/15 text-teal-400 border-teal-500/30 text-xs flex items-center gap-1">
+        <ShieldCheck className="w-3 h-3" />
+        Reviewed{dateStr ? ` ${dateStr}` : ''}
+      </Badge>
+    );
+  }
+  return null;
+}
+
 // ─── Action icon + colour helpers ────────────────────────────────────────────
 
 function actionMeta(action: string) {
@@ -618,6 +634,9 @@ export default function AdminProposalAnalysis() {
     if (row) {
       setExpandedId(urlProposalId);
       setApproveId(urlProposalId);
+      // Pre-fill existing adminComments if this proposal was already reviewed
+      const existing = row.adminComments as Record<string, string> | null;
+      setAdminComments(existing && typeof existing === 'object' ? existing : {});
       autoExpandDone.current = true;
       // Scroll to the row after a short delay
       setTimeout(() => {
@@ -691,7 +710,14 @@ export default function AdminProposalAnalysis() {
                 open={expandedId === row.id}
                 onOpenChange={(open) => {
                   setExpandedId(open ? row.id : null);
-                  if (!open) setApproveId(null);
+                  if (!open) {
+                    setApproveId(null);
+                    setAdminComments({});
+                  } else {
+                    // Pre-fill existing adminComments if this proposal was already reviewed
+                    const existing = row.adminComments as Record<string, string> | null;
+                    setAdminComments(existing && typeof existing === 'object' ? existing : {});
+                  }
                 }}
               >
                 <Card id={`proposal-row-${row.id}`} className="bg-slate-800/50 border-slate-700">
@@ -712,6 +738,7 @@ export default function AdminProposalAnalysis() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                          <ReviewStatusBadge status={row.reviewStatus} reviewedAt={row.reviewedAt} />
                           <ConfidenceBadge value={row.overallConfidence} />
                           <KennzahlenBadge value={row.meetsKennzahlenFilter} />
                           <AcceptedBadge value={row.accepted} />
@@ -1010,6 +1037,15 @@ export default function AdminProposalAnalysis() {
                                               </button>
                                             </div>
                                           </div>
+                                          {/* Per-recommendation comment field */}
+                                          <textarea
+                                            rows={1}
+                                            placeholder="Interne Notiz zu dieser Empfehlung (optional)…"
+                                            value={adminComments[adj.ticker ?? ''] ?? ''}
+                                            onChange={e => setAdminComments(prev => ({ ...prev, [adj.ticker ?? '']: e.target.value }))}
+                                            className="w-full mt-1.5 text-xs bg-slate-800/60 border border-slate-700/50 rounded px-2 py-1 text-slate-300 placeholder-slate-600 resize-none focus:outline-none focus:border-teal-500/50"
+                                            style={{ minHeight: '28px' }}
+                                          />
                                         </div>
                                       );
                                     })}
@@ -1030,6 +1066,18 @@ export default function AdminProposalAnalysis() {
                           </div>
                         );
                       })()}
+
+                      {/* Global admin comment */}
+                      <div className="pt-2">
+                        <label className="text-xs text-slate-500 mb-1 block">Globale Admin-Notiz (wird im Wizard als Begründung angezeigt)</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Allgemeine Anmerkungen zum Vorschlag für den Kunden…"
+                          value={adminComments['__global__'] ?? ''}
+                          onChange={e => setAdminComments(prev => ({ ...prev, '__global__': e.target.value }))}
+                          className="w-full text-xs bg-slate-800/60 border border-slate-700/50 rounded px-2 py-1.5 text-slate-300 placeholder-slate-600 resize-none focus:outline-none focus:border-teal-500/50"
+                        />
+                      </div>
 
                       {/* Bottom action bar */}
                       <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-700">

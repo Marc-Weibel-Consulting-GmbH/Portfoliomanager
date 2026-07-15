@@ -211,6 +211,13 @@
       "when": 1784105736317,
       "tag": "0029_light_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1784115382871,
+      "tag": "0030_faithful_cloak",
+      "breakpoints": true
     }
   ]
 }
