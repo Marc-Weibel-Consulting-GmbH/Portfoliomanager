@@ -690,12 +690,20 @@ export function KiBoomDashboard() {
     retry: 2,
   });
 
+  const utils = trpc.useUtils();
   const { data: historyData, isLoading: historyLoading } = trpc.kiBoom.getHistory.useQuery(
     { days: historyDays },
     { staleTime: 10 * 60 * 1000 }
   );
 
   const triggerSnapshot = trpc.kiBoom.triggerSnapshot.useMutation();
+  const backfillCreditSpreads = trpc.kiBoom.backfillCreditSpreads.useMutation({
+    onSuccess: (data) => {
+      alert(`Backfill abgeschlossen: ${data.inserted} Einträge eingefügt (${data.dateRange?.from} – ${data.dateRange?.to})`);
+      utils.kiBoom.getHistory.invalidate();
+    },
+    onError: (err) => alert(`Backfill fehlgeschlagen: ${err.message}`),
+  });
 
   if (isLoading) {
     return (
@@ -868,6 +876,14 @@ export function KiBoomDashboard() {
               title="Manuell einen Snapshot speichern"
             >
               {triggerSnapshot.isPending ? "..." : "Snapshot"}
+            </button>
+            <button
+              onClick={() => backfillCreditSpreads.mutate({ yearsBack: 5 })}
+              disabled={backfillCreditSpreads.isPending}
+              className="text-[10px] px-2 py-0.5 rounded border border-orange-500/30 text-orange-400 hover:border-orange-500/60 transition-colors disabled:opacity-50"
+              title="5 Jahre HYG/LQD Preishistorie von EODHD laden und in DB speichern"
+            >
+              {backfillCreditSpreads.isPending ? "Lade..." : "Backfill HYG/LQD"}
             </button>
           </div>
         </div>

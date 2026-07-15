@@ -9,12 +9,30 @@
  * - Historische Zeitreihen für jeden Signalwert
  */
 import { z } from "zod";
-import { desc, gte, sql } from "drizzle-orm";
+import { desc, gte, sql, eq } from "drizzle-orm";
 import { publicProcedure, router } from "../_core/trpc";
 import { fetchHistoricalPrices } from "../_core/stockDataApi";
 import { getDb } from "../db";
 import { kiBoomMetricsHistory } from "../../drizzle/schema";
 import { getLatestDynamicMetrics, type DynamicMetricResult } from "../cron/kiBoomDynamicMetricsFetcher";
+import { ENV } from "../_core/env";
+
+// ── EODHD Backfill Helper ──────────────────────────────────────────────────────
+async function fetchEodhdHistorical(
+  ticker: string,
+  yearsBack = 5
+): Promise<Array<{ date: string; close: number }>> {
+  const apiKey = ENV.eodhdApiKey || process.env.EODHD_API_KEY;
+  if (!apiKey) throw new Error("EODHD_API_KEY not set");
+  const to = new Date().toISOString().split("T")[0];
+  const from = new Date(Date.now() - yearsBack * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const url = `https://eodhd.com/api/eod/${ticker}?api_token=${apiKey}&from=${from}&to=${to}&fmt=json&period=d`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`EODHD ${ticker} → HTTP ${res.status}`);
+  const data = await res.json() as Array<{ date: string; close: number; adjusted_close?: number }>;
+  if (!Array.isArray(data)) return [];
+  return data.map(d => ({ date: d.date, close: d.adjusted_close ?? d.close }));
+}
 
 // ── Typen ──────────────────────────────────────────────────────────────────
 export type BoomZone = "gruen" | "gelb" | "rot";
@@ -551,4 +569,85 @@ export const kiBoomRouter = router({
     const result = await fetchAndSaveDynamicMetrics();
     return { success: result.saved > 0, saved: result.saved, errors: result.errors };
   }),
+
+  /**
+   * Backfill: Lädt 5 Jahre HYG und LQD Preisdaten via EODHD
+   * und befüllt ki_boom_metrics_history rückwirkend.
+   * Nur für Admin-Nutzung.
+   */
+  backfillCreditSpreads: publicProcedure
+    .input(z.object({ yearsBack: z.number().min(1).max(10).default(5) }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("DB nicht verfügbar");
+
+      // Lade historische Preise für HYG und LQD
+      const [hygData, lqdData] = await Promise.all([
+        fetchEodhdHistorical("HYG.US", input.yearsBack),
+        fetchEodhdHistorical("LQD.US", input.yearsBack),
+      ]);
+
+      if (hygData.length === 0 || lqdData.length === 0) {
+        throw new Error(`Keine Daten: HYG=${hygData.length}, LQD=${lqdData.length}`);
+      }
+
+      // Erstelle Map für schnellen Lookup
+      const lqdMap = new Map(lqdData.map(d => [d.date, d.close]));
+
+      // Für jeden HYG-Tag einen Eintrag erstellen
+      let inserted = 0;
+      let skipped = 0;
+
+      for (const hyg of hygData) {
+        const lqdClose = lqdMap.get(hyg.date);
+        if (!lqdClose) { skipped++; continue; }
+
+        const recordedAt = new Date(hyg.date + "T12:00:00Z");
+
+        // Prüfe ob bereits ein Eintrag für diesen Tag existiert
+        const existing = await db
+          .select({ id: kiBoomMetricsHistory.id, creditSpreadHY: kiBoomMetricsHistory.creditSpreadHY })
+          .from(kiBoomMetricsHistory)
+          .where(
+            sql`DATE(${kiBoomMetricsHistory.recordedAt}) = ${hyg.date}`
+          )
+          .limit(1);
+
+        if (existing.length > 0) {
+          // Aktualisiere nur die Credit-Spread-Felder wenn noch nicht gesetzt
+          if (existing[0].creditSpreadHY === null) {
+            await db
+              .update(kiBoomMetricsHistory)
+              .set({
+                creditSpreadHY: String(hyg.close) as any,
+                creditSpreadIG: String(lqdClose) as any,
+              })
+              .where(eq(kiBoomMetricsHistory.id, existing[0].id));
+            inserted++;
+          } else {
+            skipped++;
+          }
+        } else {
+          // Neuen Eintrag mit nur Credit-Spread-Daten erstellen
+          await db.insert(kiBoomMetricsHistory).values({
+            recordedAt,
+            creditSpreadHY: String(hyg.close) as any,
+            creditSpreadIG: String(lqdClose) as any,
+          });
+          inserted++;
+        }
+      }
+
+      return {
+        success: true,
+        hygPoints: hygData.length,
+        lqdPoints: lqdData.length,
+        inserted,
+        skipped,
+        dateRange: {
+          from: hygData[0]?.date,
+          to: hygData[hygData.length - 1]?.date,
+        },
+      };
+    }),
 });
