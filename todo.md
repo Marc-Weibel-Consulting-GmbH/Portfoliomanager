@@ -174,3 +174,10 @@
 - [x] Frontend: Admin-Seite — «Angepassten Vorschlag speichern»-Button + Zurück-zum-Wizard-Link mit returnTo-Param
 - [x] Frontend: Wizard — nach Admin-Review-Rückkehr den gespeicherten Vorschlag laden (?reviewedProposalId=X) und normalen Flow fortführen
 - [x] TS-Fehler behoben: korrekte Feldnamen (sharpe, expectedReturnPct, volatilityPct, fxWeightPct, meetsKennzahlenFilter)
+
+## Admin-Review Panel Redesign (Jul 2026)
+- [x] Admin-Review: 2-Spalten-Layout — Links: Originale Positionen (Algorithmus), Rechts: KI-Synthesizer-Empfehlungen mit Aktions-Badges
+- [x] Admin-Review: Pro Empfehlung «Übernehmen»/«Ablehnen»-Toggle-Buttons
+- [x] Admin-Review: «Alle Empfehlungen übernehmen»-Button
+- [x] Admin-Review: Inline-Gewichts-Editierung pro Position (direkt im 2-Spalten-View)
+- [x] Admin-Review: Vorschau der resultierenden Positionen nach Übernahme der Empfehlungen (live in der rechten Spalte sichtbar)

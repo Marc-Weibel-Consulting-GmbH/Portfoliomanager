@@ -11,7 +11,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   ChevronDown, ChevronRight, Brain, TrendingUp, AlertTriangle,
   CheckCircle, XCircle, ArrowDown, ArrowUp, ArrowLeftRight, Check,
-  Save, X, PlusCircle, Trash2, Search, Mail, Bell
+  Save, X, PlusCircle, Trash2, Search, Mail, Bell,
+  ShieldCheck, RefreshCw, Columns2
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "sonner";
@@ -744,137 +745,258 @@ export default function AdminProposalAnalysis() {
                         </div>
                       )}
 
-                      {/* ── KI-Empfehlungen (finalAdjustments) ── */}
-                      {Array.isArray(row.finalAdjustments) && row.finalAdjustments.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <ArrowLeftRight className="w-4 h-4 text-teal-400" />
-                            <span className="text-xs font-medium text-teal-400">KI-Empfehlungen (Synthesizer)</span>
-                            {approveId === row.id && (
-                              <>
-                                <span className="text-xs text-slate-500">— Klick auf «Anwenden» übernimmt Empfehlung direkt</span>
+                      {/* ═══════════════════════════════════════════════════════
+                           2-SPALTEN REVIEW PANEL
+                           Immer sichtbar wenn der Eintrag aufgeklappt ist.
+                           Links: Originale Positionen (Algorithmus)
+                           Rechts: KI-Synthesizer-Empfehlungen + bearbeitbare Positionen
+                      ════════════════════════════════════════════════════════ */}
+                      {(() => {
+                        // Build raw positions from row.positions
+                        const rawPos: EditablePosition[] = (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
+                          ticker: p.ticker ?? "",
+                          companyName: p.companyName ?? p.ticker ?? "",
+                          sector: p.sector,
+                          currency: p.currency ?? "CHF",
+                          currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
+                          exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
+                          weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                          originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                        }));
+
+                        // Effective working positions (edited or fallback to raw)
+                        const effectivePositions: EditablePosition[] = approvePositions.length > 0
+                          ? approvePositions
+                          : rawPos;
+
+                        // Per-adjustment accepted state (null = undecided, true = accepted, false = rejected)
+                        // We use approvePositions to track state: if a recommendation was applied, it shows in the diff
+
+                        const adjustments: any[] = Array.isArray(row.finalAdjustments) ? row.finalAdjustments : [];
+                        const actionableAdjs = adjustments.filter(a => a.action !== 'keep');
+
+                        const applyAllAdjustments = () => {
+                          let updated = [...rawPos];
+                          for (const adj of actionableAdjs) {
+                            updated = updated.map(p => {
+                              if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
+                              if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
+                              if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
+                              if (adj.action === 'replace' && adj.replaceTicker) {
+                                const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
+                                if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
+                              }
+                              return p;
+                            });
+                          }
+                          const total = updated.reduce((s, p) => s + p.weightPct, 0);
+                          if (total > 0 && Math.abs(total - 100) > 0.5) {
+                            updated = updated.map(p => ({ ...p, weightPct: Math.round(p.weightPct / total * 100 * 10) / 10 }));
+                          }
+                          setApprovePositions(updated);
+                          toast.success(`${actionableAdjs.length} Empfehlungen angewendet`);
+                        };
+
+                        const applySingleAdj = (adj: any) => {
+                          setApprovePositions(prev => {
+                            let updated = (prev.length > 0 ? prev : rawPos).map(p => {
+                              if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
+                              if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
+                              if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
+                              if (adj.action === 'replace' && adj.replaceTicker) {
+                                const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
+                                if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
+                              }
+                              return p;
+                            });
+                            const total = updated.reduce((s, p) => s + p.weightPct, 0);
+                            if (total > 0 && Math.abs(total - 100) > 0.5) {
+                              updated = updated.map(p => ({ ...p, weightPct: Math.round(p.weightPct / total * 100 * 10) / 10 }));
+                            }
+                            return updated;
+                          });
+                          toast.success(`Empfehlung angewendet: ${adj.ticker}`, { duration: 1500 });
+                        };
+
+                        const rejectAdj = (adj: any) => {
+                          // Revert this ticker back to its original state
+                          // For replace: the position may now have replaceTicker — find it by either ticker
+                          setApprovePositions(prev => {
+                            const base = prev.length > 0 ? prev : rawPos;
+                            const orig = rawPos.find(p => p.ticker.toUpperCase() === adj.ticker?.toUpperCase());
+                            if (!orig) return base;
+                            // For replace: find the position that is now the replaceTicker (if applied)
+                            const replTickerUpper = adj.replaceTicker?.toUpperCase();
+                            return base.map(p => {
+                              const matchesOrig = p.ticker.toUpperCase() === adj.ticker?.toUpperCase();
+                              const matchesRepl = replTickerUpper && p.ticker.toUpperCase() === replTickerUpper;
+                              if (matchesOrig || matchesRepl) {
+                                // Restore original ticker + metadata + weight
+                                return { ...p, ticker: orig.ticker, companyName: orig.companyName, sector: orig.sector, currency: orig.currency, currentPrice: orig.currentPrice, exchangeRateToChf: orig.exchangeRateToChf, weightPct: orig.weightPct, originalWeightPct: orig.originalWeightPct };
+                              }
+                              return p;
+                            });
+                          });
+                          toast.info(`Empfehlung abgelehnt: ${adj.ticker} auf Original zurückgesetzt`, { duration: 1500 });
+                        };
+
+                        const resetAll = () => {
+                          setApprovePositions([]);
+                          toast.info('Alle Anpassungen zurückgesetzt');
+                        };
+
+                        return (
+                          <div className="space-y-3">
+                            {/* Header bar */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Columns2 className="w-4 h-4 text-teal-400" />
+                              <span className="text-sm font-semibold text-white">Vorschlag überprüfen &amp; anpassen</span>
+                              {approvePositions.length > 0 && (
+                                <span className="text-xs text-amber-400 ml-1">(bearbeitet)</span>
+                              )}
+                              {actionableAdjs.length > 0 && (
                                 <button
-                                  className="ml-auto text-xs px-2.5 py-1 rounded bg-teal-600/20 border border-teal-500/40 text-teal-400 hover:bg-teal-600/30 transition-colors font-medium"
-                                  onClick={() => {
-                                    const adjustments = (row.finalAdjustments as any[]).filter(a => a.action !== 'keep');
-                                    setApprovePositions(prev => {
-                                      // Start from current positions (or raw if empty)
-                                      let updated = prev.length > 0 ? [...prev] : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
-                                        ticker: p.ticker ?? "",
-                                        companyName: p.companyName ?? p.ticker ?? "",
-                                        sector: p.sector,
-                                        currency: p.currency ?? "CHF",
-                                        currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
-                                        exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
-                                        weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                                        originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                                      }));
-                                      // Apply each adjustment
-                                      for (const adj of adjustments) {
-                                        updated = updated.map(p => {
-                                          if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
-                                          if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
-                                          if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
-                                          if (adj.action === 'replace' && adj.replaceTicker) {
-                                            const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
-                                            if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
-                                          }
-                                          return p;
-                                        });
-                                      }
-                                      // Normalize to 100%
-                                      const total = updated.reduce((s, p) => s + p.weightPct, 0);
-                                      if (total > 0 && Math.abs(total - 100) > 0.5) {
-                                        updated = updated.map(p => ({ ...p, weightPct: Math.round(p.weightPct / total * 100 * 10) / 10 }));
-                                      }
-                                      return updated;
-                                    });
-                                    toast.success(`${adjustments.length} Empfehlungen angewendet`);
-                                  }}
+                                  className="ml-auto text-xs px-3 py-1.5 rounded-md bg-teal-600 hover:bg-teal-700 text-white font-medium transition-colors flex items-center gap-1.5"
+                                  onClick={applyAllAdjustments}
                                   title="Alle KI-Empfehlungen auf einmal anwenden"
                                 >
-                                  ✓ Alle anwenden ({(row.finalAdjustments as any[]).filter((a: any) => a.action !== 'keep').length})
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  Alle {actionableAdjs.length} Empfehlungen übernehmen
                                 </button>
-                              </>
-                            )}
-                          </div>
-                          <div className="space-y-1.5">
-                            {(row.finalAdjustments as any[]).map((adj: any, i: number) => {
-                              const meta = actionMeta(adj.action);
-                              return (
-                                <div key={i} className="flex items-start gap-2 bg-slate-900/50 rounded px-3 py-2">
-                                  <Badge className={`${meta.cls} text-xs shrink-0 flex items-center gap-1 mt-0.5`}>
-                                    {meta.icon}
-                                    {meta.label}
-                                  </Badge>
-                                  <div className="min-w-0 flex-1">
-                                    <span className="font-mono text-xs text-teal-400 mr-2">{adj.ticker}</span>
-                                    {adj.replaceTicker && (
-                                      <span className="text-xs text-violet-400 mr-2">→ {adj.replaceTicker}</span>
-                                    )}
-                                    <span className="text-xs text-slate-300">{adj.reason}</span>
-                                  </div>
-                                  {/* Empfehlung direkt anwenden — nur wenn Approve-Panel offen */}
-                                  {approveId === row.id && adj.action !== 'keep' && (
-                                    <ApplyRecommendationButton
-                                      adj={adj}
-                                      rowId={row.id}
-                                      allStocks={allStocks}
-                                      onApply={setApprovePositions}
-                                    />
+                              )}
+                              {approvePositions.length > 0 && (
+                                <button
+                                  className="text-xs px-2.5 py-1.5 rounded-md border border-slate-600 text-slate-400 hover:text-white transition-colors"
+                                  onClick={resetAll}
+                                >
+                                  Zurücksetzen
+                                </button>
+                              )}
+                            </div>
+
+                            {/* 2-column layout */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                              {/* LEFT: Original Positionen */}
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 px-1">
+                                  <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                                  <span className="text-xs font-semibold text-slate-300">Original (Algorithmus)</span>
+                                  <span className="text-xs text-slate-600 ml-auto">{rawPos.length} Positionen</span>
+                                </div>
+                                <div className="space-y-1">
+                                  {rawPos.map((p) => {
+                                    const adj = adjustments.find(a => a.ticker?.toUpperCase() === p.ticker.toUpperCase());
+                                    const meta = adj ? actionMeta(adj.action) : null;
+                                    return (
+                                      <div key={p.ticker} className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs ${
+                                        meta && meta.label !== 'Behalten' ? 'bg-slate-900/80 border border-slate-700/60' : 'bg-slate-900/40'
+                                      }`}>
+                                        <span className="font-mono text-teal-400 w-20 shrink-0">{p.ticker}</span>
+                                        <span className="text-slate-400 flex-1 truncate">{p.companyName}</span>
+                                        <span className="font-mono text-slate-300 w-12 text-right shrink-0">{p.weightPct.toFixed(1)}%</span>
+                                        {meta && meta.label !== 'Behalten' && (
+                                          <Badge className={`${meta.cls} text-xs shrink-0 flex items-center gap-1`}>
+                                            {meta.icon}
+                                            {meta.label}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* RIGHT: KI-Empfehlungen + Bearbeitbare Positionen */}
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 px-1">
+                                  <div className="w-2 h-2 rounded-full bg-teal-400"></div>
+                                  <span className="text-xs font-semibold text-teal-300">KI-Empfehlungen (Synthesizer)</span>
+                                  {approvePositions.length > 0 && (
+                                    <span className="text-xs text-amber-400 ml-auto">{effectivePositions.length} Positionen</span>
                                   )}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
 
-                      {/* Positions preview (when approve panel is closed) */}
-                      {row.positions && Array.isArray(row.positions) && row.positions.length > 0 && approveId !== row.id && (
-                        <div>
-                          <div className="text-xs text-slate-500 mb-2">Positionen ({row.positions.length})</div>
-                          <div className="flex flex-wrap gap-2">
-                            {(row.positions as any[]).map((p: any) => {
-                              const adj = Array.isArray(row.finalAdjustments)
-                                ? (row.finalAdjustments as any[]).find((a: any) => a.ticker?.toUpperCase() === p.ticker?.toUpperCase())
-                                : null;
-                              const meta = adj ? actionMeta(adj.action) : null;
-                              return (
-                                <div
-                                  key={p.ticker}
-                                  className={`rounded px-2 py-1 text-xs flex items-center gap-1 ${meta ? "bg-slate-900/80 border border-slate-700" : "bg-slate-900/60"}`}
-                                  title={adj ? `${actionMeta(adj.action).label}: ${adj.reason}` : undefined}
-                                >
-                                  {meta && <span className={meta.cls.split(" ").find(c => c.startsWith("text-")) ?? ""}>{meta.icon}</span>}
-                                  <span className="text-teal-400 font-mono">{p.ticker}</span>
-                                  <span className="text-slate-400">{p.weightPct?.toFixed(1)}%</span>
+                                {/* KI Recommendations with per-item accept/reject */}
+                                {actionableAdjs.length > 0 && (
+                                  <div className="space-y-1">
+                                    {adjustments.map((adj: any, i: number) => {
+                                      if (adj.action === 'keep') return null;
+                                      const meta = actionMeta(adj.action);
+                                      // Check if this adjustment was applied (position differs from original)
+                                      const origP = rawPos.find(p => p.ticker.toUpperCase() === adj.ticker?.toUpperCase());
+                                      const currP = effectivePositions.find(p =>
+                                        p.ticker.toUpperCase() === adj.ticker?.toUpperCase() ||
+                                        (adj.action === 'replace' && adj.replaceTicker && p.ticker.toUpperCase() === adj.replaceTicker?.toUpperCase())
+                                      );
+                                      const isApplied = origP && currP && (
+                                        adj.action === 'replace' ? currP.ticker.toUpperCase() !== origP.ticker.toUpperCase() :
+                                        Math.abs(currP.weightPct - origP.weightPct) > 0.3
+                                      );
+
+                                      return (
+                                        <div key={i} className={`rounded-md px-3 py-2 border transition-colors ${
+                                          isApplied
+                                            ? 'bg-teal-900/20 border-teal-500/30'
+                                            : 'bg-slate-900/60 border-slate-700/50'
+                                        }`}>
+                                          <div className="flex items-start gap-2">
+                                            <Badge className={`${meta.cls} text-xs shrink-0 flex items-center gap-1 mt-0.5`}>
+                                              {meta.icon} {meta.label}
+                                            </Badge>
+                                            <div className="min-w-0 flex-1">
+                                              <span className="font-mono text-xs text-teal-400">{adj.ticker}</span>
+                                              {adj.replaceTicker && (
+                                                <span className="text-xs text-violet-400 ml-1">→ {adj.replaceTicker}</span>
+                                              )}
+                                              <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{adj.reason}</p>
+                                            </div>
+                                            {/* Accept / Reject buttons */}
+                                            <div className="flex gap-1 shrink-0">
+                                              <button
+                                                onClick={() => applySingleAdj(adj)}
+                                                className={`text-xs px-2 py-1 rounded border transition-colors ${
+                                                  isApplied
+                                                    ? 'bg-teal-600/30 border-teal-500/50 text-teal-300'
+                                                    : 'border-slate-600 text-slate-400 hover:border-teal-500 hover:text-teal-400'
+                                                }`}
+                                                title="Empfehlung übernehmen"
+                                              >
+                                                <CheckCircle className="w-3.5 h-3.5" />
+                                              </button>
+                                              <button
+                                                onClick={() => rejectAdj(adj)}
+                                                className={`text-xs px-2 py-1 rounded border transition-colors ${
+                                                  !isApplied && approvePositions.length > 0
+                                                    ? 'bg-red-600/20 border-red-500/40 text-red-400'
+                                                    : 'border-slate-600 text-slate-400 hover:border-red-500 hover:text-red-400'
+                                                }`}
+                                                title="Empfehlung ablehnen (Original beibehalten)"
+                                              >
+                                                <XCircle className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {/* Editable positions (always visible on right side) */}
+                                <div className="mt-3">
+                                  <PositionEditor
+                                    positions={effectivePositions}
+                                    originalPositions={rawPos}
+                                    allStocks={allStocks}
+                                    onChange={setApprovePositions}
+                                  />
                                 </div>
-                              );
-                            })}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Approve panel */}
-                      {approveId === row.id && (
-                        <ApprovePanel
-                          row={row}
-                          allStocks={allStocks}
-                          onDone={() => { setApproveId(null); setApprovePositions([]); refetch(); }}
-                          positions={approvePositions.length > 0 ? approvePositions : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
-                            ticker: p.ticker ?? "",
-                            companyName: p.companyName ?? p.ticker ?? "",
-                            sector: p.sector,
-                            currency: p.currency ?? "CHF",
-                            currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
-                            exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
-                            weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                            originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                          }))}
-                          setPositions={setApprovePositions}
-                        />
-                      )}
+                        );
+                      })()}
 
                       {/* Bottom action bar */}
                       <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-700">
@@ -898,44 +1020,17 @@ export default function AdminProposalAnalysis() {
                           <XCircle className="w-3 h-3 mr-1" /> Abgelehnt
                         </Button>
 
-                        {approveId !== row.id && (
-                          <div className="ml-auto flex gap-2">
-                            {/* «Angepassten Vorschlag speichern» — nur wenn returnTo gesetzt (Wizard-Flow) */}
-                            {returnTo && approvePositions.length > 0 && (
-                              <Button
-                                size="sm"
-                                className="bg-teal-600 hover:bg-teal-700 text-white text-xs"
-                                onClick={() => saveAdminReviewMutation.mutate({
-                                  proposalId: row.id,
-                                  reviewedPositions: approvePositions,
-                                  adminComments,
-                                })}
-                                disabled={saveAdminReviewMutation.isPending}
-                              >
-                                <Save className="w-3.5 h-3.5 mr-1.5" />
-                                {saveAdminReviewMutation.isPending ? 'Speichert…' : 'Angepassten Vorschlag speichern & zurück'}
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              className="bg-violet-600 hover:bg-violet-700 text-white text-xs"
-                              onClick={() => setApproveId(row.id)}
-                            >
-                              <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
-                              {returnTo ? 'Vorschlag bearbeiten' : 'Portfolio erstellen'}
-                            </Button>
-                          </div>
-                        )}
-                        {/* When approve panel is open and returnTo is set: show save-and-return button */}
-                        {approveId === row.id && returnTo && (() => {
-                          // Use edited positions if any, otherwise fall back to the displayed positions
-                          const effectivePositions = approvePositions.length > 0
+                        {/* Save-and-return button — always visible, uses effective positions */}
+                        {(() => {
+                          const savePositions = approvePositions.length > 0
                             ? approvePositions
                             : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
                                 ticker: p.ticker ?? "",
                                 companyName: p.companyName ?? p.ticker ?? "",
                                 sector: p.sector,
                                 currency: p.currency ?? "CHF",
+                                currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
+                                exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
                                 weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                                 originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                               }));
@@ -945,13 +1040,18 @@ export default function AdminProposalAnalysis() {
                               className="ml-auto bg-teal-600 hover:bg-teal-700 text-white text-xs"
                               onClick={() => saveAdminReviewMutation.mutate({
                                 proposalId: row.id,
-                                reviewedPositions: effectivePositions,
+                                reviewedPositions: savePositions,
                                 adminComments,
                               })}
-                              disabled={saveAdminReviewMutation.isPending || effectivePositions.length === 0}
+                              disabled={saveAdminReviewMutation.isPending || savePositions.length === 0}
                             >
                               <Save className="w-3.5 h-3.5 mr-1.5" />
-                              {saveAdminReviewMutation.isPending ? 'Speichert…' : 'Angepassten Vorschlag speichern & zurück zum Wizard'}
+                              {saveAdminReviewMutation.isPending
+                                ? 'Speichert…'
+                                : returnTo
+                                  ? 'Vorschlag speichern & zurück zum Wizard'
+                                  : 'Angepassten Vorschlag speichern'
+                              }
                             </Button>
                           );
                         })()}
