@@ -1178,6 +1178,7 @@ export const adminRouter = router({
           portfolioData: JSON.stringify(portfolioData),
           portfolioType: input.portfolioType,
           investmentAmount: String(input.investmentAmount),
+          isAiOptimized: 1, // Portfolio wurde vom Admin aus KI-Vorschlag mit finalAdjustments erstellt
         });
 
         // 5) Proposal als übernommen markieren

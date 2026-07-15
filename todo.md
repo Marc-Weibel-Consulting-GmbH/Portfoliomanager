@@ -151,6 +151,6 @@
 - [x] Backend + Frontend: Nutzer-Benachrichtigung nach Portfolio-Erstellung durch Admin (E-Mail + Owner-Notification)
 
 ## UX-Verbesserungen Wizard + Badge (Jul 2026)
-- [ ] Frontend: «Ohne KI-Anpassungen übernehmen»-Button neben Hauptbutton im PortfolioBuilderWizard
-- [ ] Backend + DB: isAiOptimized-Feld in savedPortfolios-Tabelle
-- [ ] Frontend: «KI-optimiert»-Badge im Portfolio-Header wenn isAiOptimized=true
+- [x] Frontend: «Ohne KI-Anpassungen übernehmen»-Button neben Hauptbutton im PortfolioBuilderWizard
+- [x] Backend + DB: isAiOptimized-Feld in savedPortfolios-Tabelle (ALTER TABLE + portfoliosRouter.create)
+- [x] Frontend: «KI-optimiert»-Badge im Portfolio-Header wenn isAiOptimized=true

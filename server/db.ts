@@ -503,6 +503,7 @@ export async function createSavedPortfolio(portfolio: InsertSavedPortfolio) {
     // Add optional fields if they exist
     if (portfolio.description !== undefined) validData.description = portfolio.description;
     if (portfolio.liveStartDate !== undefined) validData.liveStartDate = portfolio.liveStartDate;
+    if (portfolio.isAiOptimized !== undefined) validData.isAiOptimized = portfolio.isAiOptimized;
     
     console.log('[Database] Inserting with validData:', JSON.stringify(validData, null, 2));
     
