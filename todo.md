@@ -144,3 +144,8 @@
 - [x] Frontend: Positions-Editor mit editierbaren Gewichten und automatischer Normierung auf 100%
 - [x] Frontend: «Portfolio erstellen»-Button öffnet Approve-Panel mit Portfolio-Name, Betrag, Typ (Demo/Live)
 - [x] Frontend: Positions-Vorschau mit farbkodierten Aktions-Icons aus finalAdjustments
+
+## Admin Pre-Approval Workflow Erweiterungen (Jul 2026)
+- [x] Frontend: Titel-Austausch mit Suchfeld im Approve-Panel (Ersatztitel aus Universum wählen)
+- [x] Frontend: Vorschlag-Vergleich — Original-Gewichte neben editierten Gewichten anzeigen
+- [x] Backend + Frontend: Nutzer-Benachrichtigung nach Portfolio-Erstellung durch Admin (E-Mail + Owner-Notification)

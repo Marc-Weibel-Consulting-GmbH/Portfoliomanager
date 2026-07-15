@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   ChevronDown, ChevronRight, Brain, TrendingUp, AlertTriangle,
   CheckCircle, XCircle, ArrowDown, ArrowUp, ArrowLeftRight, Check,
-  Pencil, Save, X, PlusCircle, Trash2
+  Save, X, PlusCircle, Trash2, Search, Mail, Bell
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "sonner";
@@ -49,6 +49,72 @@ function actionMeta(action: string) {
   }
 }
 
+// ─── Stock search dropdown ────────────────────────────────────────────────────
+
+function StockSearchDropdown({
+  allStocks,
+  onSelect,
+  onClose,
+}: {
+  allStocks: any[];
+  onSelect: (stock: any) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return allStocks.slice(0, 12);
+    const q = query.toLowerCase();
+    return allStocks
+      .filter(s =>
+        s.ticker?.toLowerCase().includes(q) ||
+        s.companyName?.toLowerCase().includes(q) ||
+        s.name?.toLowerCase().includes(q)
+      )
+      .slice(0, 12);
+  }, [query, allStocks]);
+
+  return (
+    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden">
+      <div className="p-2 border-b border-slate-700">
+        <div className="flex items-center gap-2">
+          <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Ticker oder Name suchen…"
+            className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-slate-500"
+          />
+          <button onClick={onClose} className="text-slate-500 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      <div className="max-h-48 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <div className="px-3 py-2 text-xs text-slate-500">Keine Treffer</div>
+        ) : filtered.map((s: any) => (
+          <button
+            key={s.ticker}
+            onClick={() => { onSelect(s); onClose(); }}
+            className="w-full text-left px-3 py-2 hover:bg-slate-700 transition-colors flex items-center gap-2"
+          >
+            <span className="font-mono text-xs text-teal-400 w-20 shrink-0">{s.ticker}</span>
+            <span className="text-xs text-slate-300 truncate">{s.companyName ?? s.name}</span>
+            <span className="text-xs text-slate-500 ml-auto shrink-0">{s.currency ?? s.exchange}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Editable position row ────────────────────────────────────────────────────
 
 type EditablePosition = {
@@ -59,16 +125,22 @@ type EditablePosition = {
   currentPrice: number;
   exchangeRateToChf: number;
   weightPct: number;
+  originalWeightPct?: number; // Original KI-Gewicht für Vergleich
 };
 
 function PositionEditor({
   positions,
+  originalPositions,
+  allStocks,
   onChange,
 }: {
   positions: EditablePosition[];
+  originalPositions: EditablePosition[];
+  allStocks: any[];
   onChange: (updated: EditablePosition[]) => void;
 }) {
   const totalWeight = positions.reduce((s, p) => s + p.weightPct, 0);
+  const [searchOpenIdx, setSearchOpenIdx] = useState<number | null>(null);
 
   const update = (idx: number, field: keyof EditablePosition, value: any) => {
     const next = positions.map((p, i) => i === idx ? { ...p, [field]: value } : p);
@@ -77,50 +149,156 @@ function PositionEditor({
 
   const remove = (idx: number) => onChange(positions.filter((_, i) => i !== idx));
 
+  const replaceWithStock = (idx: number, stock: any) => {
+    const next = positions.map((p, i) => i === idx ? {
+      ...p,
+      ticker: stock.ticker,
+      companyName: stock.companyName ?? stock.name ?? stock.ticker,
+      sector: stock.sector ?? stock.industry ?? p.sector,
+      currency: stock.currency ?? 'CHF',
+      currentPrice: parseFloat(stock.currentPrice ?? stock.price ?? '0') || 0,
+      exchangeRateToChf: parseFloat(stock.exchangeRateToChf ?? '1') || 1,
+      originalWeightPct: undefined, // Kein Original-Vergleich für neu hinzugefügte Titel
+    } : p);
+    onChange(next);
+  };
+
+  const addFromStock = (stock: any) => {
+    onChange([...positions, {
+      ticker: stock.ticker,
+      companyName: stock.companyName ?? stock.name ?? stock.ticker,
+      sector: stock.sector ?? stock.industry ?? 'Andere',
+      currency: stock.currency ?? 'CHF',
+      currentPrice: parseFloat(stock.currentPrice ?? stock.price ?? '0') || 0,
+      exchangeRateToChf: parseFloat(stock.exchangeRateToChf ?? '1') || 1,
+      weightPct: 5,
+    }]);
+  };
+
+  const [addSearchOpen, setAddSearchOpen] = useState(false);
+
   return (
     <div className="space-y-1">
+      {/* Header row */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-slate-500">Positionen bearbeiten</span>
         <span className={`text-xs font-mono ${Math.abs(totalWeight - 100) < 0.5 ? "text-emerald-400" : "text-amber-400"}`}>
           Summe: {totalWeight.toFixed(1)}% {Math.abs(totalWeight - 100) < 0.5 ? "✓" : "(wird auf 100% normiert)"}
         </span>
       </div>
-      {positions.map((p, idx) => (
-        <div key={idx} className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1.5">
-          <span className="font-mono text-xs text-teal-400 w-20 shrink-0">{p.ticker}</span>
-          <span className="text-xs text-slate-300 flex-1 truncate">{p.companyName}</span>
-          <div className="flex items-center gap-1 shrink-0">
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step={0.5}
-              value={p.weightPct}
-              onChange={(e) => update(idx, "weightPct", parseFloat(e.target.value) || 0)}
-              className="w-16 h-6 text-xs bg-slate-800 border-slate-600 text-white text-right px-1 py-0"
-            />
-            <span className="text-xs text-slate-500">%</span>
-            <button
-              onClick={() => remove(idx)}
-              className="text-slate-600 hover:text-red-400 transition-colors ml-1"
-              title="Position entfernen"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+
+      {/* Column headers */}
+      <div className="grid grid-cols-[1fr_2fr_80px_80px_24px] gap-2 px-2 mb-1">
+        <span className="text-xs text-slate-600">Ticker</span>
+        <span className="text-xs text-slate-600">Name</span>
+        <span className="text-xs text-slate-600 text-right">Original</span>
+        <span className="text-xs text-slate-600 text-right">Neu</span>
+        <span></span>
+      </div>
+
+      {positions.map((p, idx) => {
+        const origWeight = p.originalWeightPct;
+        const diff = origWeight !== undefined ? p.weightPct - origWeight : null;
+        const diffColor = diff === null ? "" : diff > 0.5 ? "text-emerald-400" : diff < -0.5 ? "text-amber-400" : "text-slate-500";
+
+        return (
+          <div key={idx} className="relative">
+            <div className="flex items-center gap-2 bg-slate-900/60 rounded px-2 py-1.5">
+              {/* Ticker (clickable to open search) */}
+              <div className="relative w-20 shrink-0">
+                <button
+                  onClick={() => setSearchOpenIdx(searchOpenIdx === idx ? null : idx)}
+                  className="font-mono text-xs text-teal-400 hover:text-teal-300 hover:underline text-left w-full truncate"
+                  title="Klicken um Titel auszutauschen"
+                >
+                  {p.ticker}
+                </button>
+              </div>
+
+              {/* Name */}
+              <span className="text-xs text-slate-300 flex-1 truncate">{p.companyName}</span>
+
+              {/* Original weight (read-only) */}
+              <div className="w-20 shrink-0 text-right">
+                {origWeight !== undefined ? (
+                  <span className="text-xs text-slate-500 font-mono">{origWeight.toFixed(1)}%</span>
+                ) : (
+                  <span className="text-xs text-slate-700">—</span>
+                )}
+              </div>
+
+              {/* Editable weight */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={p.weightPct}
+                  onChange={(e) => update(idx, "weightPct", parseFloat(e.target.value) || 0)}
+                  className="w-16 h-6 text-xs bg-slate-800 border-slate-600 text-white text-right px-1 py-0"
+                />
+                <span className="text-xs text-slate-500">%</span>
+                {diff !== null && Math.abs(diff) > 0.5 && (
+                  <span className={`text-xs font-mono ml-1 ${diffColor}`}>
+                    {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                  </span>
+                )}
+              </div>
+
+              {/* Delete */}
+              <button
+                onClick={() => remove(idx)}
+                className="text-slate-600 hover:text-red-400 transition-colors"
+                title="Position entfernen"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Stock search dropdown for this row */}
+            {searchOpenIdx === idx && (
+              <StockSearchDropdown
+                allStocks={allStocks}
+                onSelect={(stock) => replaceWithStock(idx, stock)}
+                onClose={() => setSearchOpenIdx(null)}
+              />
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
+
+      {/* Add position */}
+      <div className="relative mt-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-dashed border-slate-600 text-slate-500 hover:text-white text-xs w-full"
+          onClick={() => setAddSearchOpen(true)}
+        >
+          <PlusCircle className="w-3.5 h-3.5 mr-1.5" /> Titel hinzufügen
+        </Button>
+        {addSearchOpen && (
+          <StockSearchDropdown
+            allStocks={allStocks}
+            onSelect={(stock) => { addFromStock(stock); setAddSearchOpen(false); }}
+            onClose={() => setAddSearchOpen(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-// ─── Approve dialog (inline) ──────────────────────────────────────────────────
+// ─── Approve panel (inline) ───────────────────────────────────────────────────
 
 function ApprovePanel({
   row,
+  allStocks,
   onDone,
 }: {
   row: any;
+  allStocks: any[];
   onDone: () => void;
 }) {
   const rawPositions: EditablePosition[] = (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
@@ -131,17 +309,29 @@ function ApprovePanel({
     currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
     exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
     weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+    originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0, // Snapshot des Original-Gewichts
   }));
 
   const [positions, setPositions] = useState<EditablePosition[]>(rawPositions);
   const [portfolioName, setPortfolioName] = useState(`KI-Portfolio #${row.id}`);
   const [investmentAmount, setInvestmentAmount] = useState(String(row.investmentAmount ?? 10000));
   const [portfolioType, setPortfolioType] = useState<"demo" | "live">("demo");
+  const [notificationSent, setNotificationSent] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<'pending' | 'sent' | 'no-email' | 'failed'>('pending');
 
   const approveMutation = trpc.admin.approveProposalAndCreate.useMutation({
     onSuccess: (data) => {
-      toast.success(`Portfolio erstellt (ID: ${data.portfolioId})`);
-      onDone();
+      const emailMsg = data.userEmailSent
+        ? "E-Mail wurde gesendet."
+        : data.noEmailOnFile
+          ? "Kein E-Mail-Konto hinterlegt."
+          : "E-Mail-Versand fehlgeschlagen.";
+      toast.success(`Portfolio erstellt (ID: ${data.portfolioId})`, {
+        description: emailMsg,
+      });
+      setNotificationSent(true);
+      setEmailStatus(data.userEmailSent ? 'sent' : data.noEmailOnFile ? 'no-email' : 'failed');
+      setTimeout(onDone, 2500);
     },
     onError: (e) => toast.error("Fehler beim Erstellen", { description: e.message }),
   });
@@ -159,11 +349,30 @@ function ApprovePanel({
     });
   };
 
+  // Summary: how many positions were changed vs original
+  const changedCount = positions.filter(p => {
+    if (p.originalWeightPct === undefined) return true; // new position
+    return Math.abs(p.weightPct - p.originalWeightPct) > 0.5;
+  }).length;
+  const removedCount = rawPositions.filter(orig =>
+    !positions.find(p => p.ticker === orig.ticker)
+  ).length;
+  const addedCount = positions.filter(p => p.originalWeightPct === undefined).length;
+
   return (
     <div className="border border-violet-500/30 rounded-lg p-4 bg-violet-900/10 space-y-4">
-      <div className="flex items-center gap-2">
-        <PlusCircle className="w-4 h-4 text-violet-400" />
-        <span className="text-sm font-medium text-violet-300">Portfolio aus diesem Vorschlag erstellen</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <PlusCircle className="w-4 h-4 text-violet-400" />
+          <span className="text-sm font-medium text-violet-300">Portfolio aus diesem Vorschlag erstellen</span>
+        </div>
+        {(changedCount > 0 || removedCount > 0 || addedCount > 0) && (
+          <div className="flex gap-2 text-xs">
+            {changedCount > 0 && <span className="text-amber-400">{changedCount} geändert</span>}
+            {addedCount > 0 && <span className="text-emerald-400">+{addedCount} neu</span>}
+            {removedCount > 0 && <span className="text-red-400">−{removedCount} entfernt</span>}
+          </div>
+        )}
       </div>
 
       {/* Form fields */}
@@ -199,8 +408,26 @@ function ApprovePanel({
         </div>
       </div>
 
-      {/* Editable positions */}
-      <PositionEditor positions={positions} onChange={setPositions} />
+      {/* Notification info */}
+      <div className={`flex items-center gap-2 text-xs rounded px-3 py-2 ${
+        emailStatus === 'sent' ? 'bg-emerald-900/20 text-emerald-400' :
+        emailStatus === 'no-email' ? 'bg-amber-900/20 text-amber-400' :
+        emailStatus === 'failed' ? 'bg-red-900/20 text-red-400' :
+        'bg-slate-900/40 text-slate-500'
+      }`}>
+        {emailStatus === 'sent' && <><Mail className="w-3.5 h-3.5" /> E-Mail-Benachrichtigung erfolgreich gesendet</>}
+        {emailStatus === 'no-email' && <><Bell className="w-3.5 h-3.5" /> Kein E-Mail-Konto beim Nutzer hinterlegt</>}
+        {emailStatus === 'failed' && <><XCircle className="w-3.5 h-3.5" /> E-Mail-Versand fehlgeschlagen</>}
+        {emailStatus === 'pending' && <><Bell className="w-3.5 h-3.5" /> Nach Erstellung wird der Nutzer automatisch per E-Mail benachrichtigt</>}
+      </div>
+
+      {/* Editable positions with comparison */}
+      <PositionEditor
+        positions={positions}
+        originalPositions={rawPositions}
+        allStocks={allStocks}
+        onChange={setPositions}
+      />
 
       {/* Action buttons */}
       <div className="flex gap-2 pt-1">
@@ -208,10 +435,10 @@ function ApprovePanel({
           size="sm"
           className="bg-violet-600 hover:bg-violet-700 text-white text-xs"
           onClick={handleApprove}
-          disabled={approveMutation.isPending}
+          disabled={approveMutation.isPending || notificationSent}
         >
           <Save className="w-3.5 h-3.5 mr-1.5" />
-          {approveMutation.isPending ? "Erstelle Portfolio…" : "Portfolio erstellen & genehmigen"}
+          {approveMutation.isPending ? "Erstelle Portfolio…" : notificationSent ? "Erstellt ✓" : "Portfolio erstellen & genehmigen"}
         </Button>
         <Button size="sm" variant="outline" className="border-slate-600 text-slate-400 text-xs" onClick={onDone}>
           <X className="w-3.5 h-3.5 mr-1" /> Abbrechen
@@ -237,6 +464,10 @@ export default function AdminProposalAnalysis() {
     confidence: confidence !== "all" ? (confidence as any) : undefined,
     meetsFilter: meetsFilter !== "all" ? (meetsFilter as any) : undefined,
   });
+
+  // Load all stocks for the search dropdown (once)
+  const { data: stocksData } = trpc.stocks.list.useQuery();
+  const allStocks: any[] = useMemo(() => stocksData ?? [], [stocksData]);
 
   const updateAccepted = trpc.admin.updateProposalAccepted.useMutation({
     onSuccess: () => refetch(),
@@ -398,8 +629,9 @@ export default function AdminProposalAnalysis() {
                       {Array.isArray(row.finalAdjustments) && row.finalAdjustments.length > 0 && (
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <Pencil className="w-4 h-4 text-teal-400" />
+                            <ArrowLeftRight className="w-4 h-4 text-teal-400" />
                             <span className="text-xs font-medium text-teal-400">KI-Empfehlungen (Synthesizer)</span>
+                            <span className="text-xs text-slate-600">— Ticker anklicken um Titel auszutauschen</span>
                           </div>
                           <div className="space-y-1.5">
                             {(row.finalAdjustments as any[]).map((adj: any, i: number) => {
@@ -418,19 +650,15 @@ export default function AdminProposalAnalysis() {
                               );
                             })}
                           </div>
-                          <p className="text-xs text-slate-600 mt-2">
-                            ℹ️ Diese Empfehlungen sind informativ. Beim Erstellen des Portfolios können Sie die Gewichte unten manuell anpassen.
-                          </p>
                         </div>
                       )}
 
-                      {/* Positions preview (collapsed) */}
+                      {/* Positions preview (when approve panel is closed) */}
                       {row.positions && Array.isArray(row.positions) && row.positions.length > 0 && approveId !== row.id && (
                         <div>
                           <div className="text-xs text-slate-500 mb-2">Positionen ({row.positions.length})</div>
                           <div className="flex flex-wrap gap-2">
                             {(row.positions as any[]).map((p: any) => {
-                              // Find matching adjustment for colour coding
                               const adj = Array.isArray(row.finalAdjustments)
                                 ? (row.finalAdjustments as any[]).find((a: any) => a.ticker?.toUpperCase() === p.ticker?.toUpperCase())
                                 : null;
@@ -455,6 +683,7 @@ export default function AdminProposalAnalysis() {
                       {approveId === row.id && (
                         <ApprovePanel
                           row={row}
+                          allStocks={allStocks}
                           onDone={() => { setApproveId(null); refetch(); }}
                         />
                       )}
@@ -481,7 +710,6 @@ export default function AdminProposalAnalysis() {
                           <XCircle className="w-3 h-3 mr-1" /> Abgelehnt
                         </Button>
 
-                        {/* ── Admin: Portfolio erstellen ── */}
                         {approveId !== row.id && (
                           <Button
                             size="sm"

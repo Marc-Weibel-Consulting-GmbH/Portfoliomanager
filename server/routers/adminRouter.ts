@@ -1186,7 +1186,58 @@ export const adminRouter = router({
           .where(eq(portfolioProposalLog.id, input.proposalId));
 
         console.log(`[admin.approveProposalAndCreate] Portfolio ${portfolioId} created for user ${proposal.userId} from proposal #${input.proposalId}`);
-        return { success: true, portfolioId };
+
+                // 6) Nutzer per E-Mail benachrichtigen (nicht-blockierend)
+        let userEmailSent = false;
+        let ownerNotificationSent = false;
+        let noEmailOnFile = false;
+        try {
+          const { getUserById } = await import("../db");
+          const { sendEmail } = await import("../_core/email");
+          const { notifyOwner } = await import("../_core/notification");
+          const targetUser = await getUserById(proposal.userId);
+          const appUrl = process.env.VITE_APP_URL || 'https://portfoliodash-aqvizp6n.manus.space';
+          const positionCount = normalizedPositions.length;
+          const topPositions = [...normalizedPositions]
+            .sort((a, b) => b.weightPct - a.weightPct)
+            .slice(0, 5)
+            .map(p => `${p.ticker} (${p.weightPct.toFixed(1)}%)`);
+          if (targetUser?.email) {
+            userEmailSent = await sendEmail({
+              to: targetUser.email,
+              subject: `Ihr KI-Portfolio «${input.portfolioName}» ist bereit`,
+              html: `
+<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"></head>
+<body style="font-family:sans-serif;background:#0f172a;color:#e2e8f0;padding:40px 20px;">
+  <div style="max-width:600px;margin:0 auto;background:#1e293b;border-radius:12px;padding:40px;">
+    <h1 style="color:#14b8a6;font-size:24px;margin:0 0 8px;">Portfolio bereit ✓</h1>
+    <p style="color:#94a3b8;font-size:14px;margin:0 0 24px;">Ihr KI-generiertes Portfolio wurde vom Administrator geprüft und genehmigt.</p>
+    <div style="background:#0f172a;border-radius:8px;padding:20px;margin-bottom:24px;">
+      <div style="font-size:18px;font-weight:600;color:#f1f5f9;margin-bottom:4px;">«${input.portfolioName}»</div>
+      <div style="color:#64748b;font-size:13px;">${positionCount} Positionen · ${input.portfolioType === 'live' ? 'Live-Portfolio' : 'Demo-Portfolio'} · CHF ${input.investmentAmount.toLocaleString('de-CH')}</div>
+    </div>
+    <p style="color:#94a3b8;font-size:13px;margin:0 0 8px;">Top-Positionen:</p>
+    <p style="color:#e2e8f0;font-size:14px;font-family:monospace;margin:0 0 24px;">${topPositions.join(' · ')}</p>
+    <a href="${appUrl}/portfolios" style="display:inline-block;padding:12px 28px;background:#14b8a6;color:#0f172a;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Portfolio ansehen →</a>
+    <p style="color:#475569;font-size:12px;margin:32px 0 0;">Diese E-Mail wurde automatisch generiert. Bitte antworten Sie nicht auf diese E-Mail.</p>
+  </div>
+</body></html>`,
+            });
+            if (userEmailSent) console.log(`[admin.approveProposalAndCreate] Email sent to ${targetUser.email}`);
+          } else {
+            noEmailOnFile = true;
+            console.log(`[admin.approveProposalAndCreate] No email on file for user ${proposal.userId}`);
+          }
+          // Owner-Benachrichtigung
+          ownerNotificationSent = await notifyOwner({
+            title: `Admin: Portfolio «${input.portfolioName}» erstellt`,
+            content: `Portfolio #${portfolioId} für Nutzer ${targetUser?.name ?? proposal.userId} (${positionCount} Titel, CHF ${input.investmentAmount.toLocaleString('de-CH')}) wurde aus KI-Vorschlag #${input.proposalId} genehmigt.`,
+          }).catch(() => false);
+        } catch (notifyErr) {
+          console.warn('[admin.approveProposalAndCreate] Notification failed (non-blocking):', notifyErr);
+        }
+
+        return { success: true, portfolioId, userEmailSent, ownerNotificationSent, noEmailOnFile };
       }),
 });
 
