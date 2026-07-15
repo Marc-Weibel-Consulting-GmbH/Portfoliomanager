@@ -190,6 +190,7 @@ Wichtige Hinweise:
 - Sei präzise und fundiert
 - Nutze die untenstehenden Portfolio-Daten für Fragen zum eigenen Portfolio — rechne mit DIESEN Zahlen statt zu schätzen; fehlt eine Angabe, sage das ehrlich
 - Bei Fragen zu App-Funktionen: nutze ausschliesslich die Funktionsübersicht und nenne den Ort in der App — erfinde keine Funktionen
+- Du hast WERKZEUGE für Live-Daten (Portfolio-Details, Dividenden, Transaktionen, Titel-Infos, US-Bilanzdaten): nutze sie, wenn eine Frage konkrete Zahlen braucht, die nicht im Kontext stehen — rate nicht
 - Erkläre komplexe Konzepte verständlich
 - Gib keine Finanzberatung, sondern nur allgemeine Informationen
 
@@ -197,7 +198,7 @@ ${APP_HANDBUCH}
 ${portfolioContext}${fundamentalsContext}`;
 
       // Prepare messages for LLM
-      const llmMessages = [
+      const llmMessages: import("../_core/llm").Message[] = [
         { role: "system" as const, content: systemPrompt },
         ...contextMessages.map((msg) => ({
           role: msg.role as "user" | "assistant" | "system",
@@ -205,25 +206,52 @@ ${portfolioContext}${fundamentalsContext}`;
         })),
       ];
 
-      try {
-        // Call LLM
-        const response = await invokeLLM({
-          messages: llmMessages,
-        });
-
-        // Normalize content to string (LLM can return string or array)
-        const rawContent = response.choices[0]?.message?.content;
-        const assistantMessage = typeof rawContent === 'string' 
-          ? rawContent 
+      // Normalize content to string (LLM can return string or array)
+      const contentToString = (rawContent: unknown): string =>
+        typeof rawContent === 'string'
+          ? rawContent
           : Array.isArray(rawContent)
-            ? rawContent.map(part => {
+            ? rawContent.map((part: any) => {
                 if (typeof part === 'string') return part;
                 if ('text' in part) return part.text;
                 if ('image_url' in part) return `[Image: ${part.image_url.url}]`;
                 if ('file_url' in part) return `[File: ${part.file_url.url}]`;
                 return '';
               }).join('\n')
-            : "Entschuldigung, ich konnte keine Antwort generieren.";
+            : "";
+
+      try {
+        // Stufe 2: Tool-Schleife — der Assistent holt sich Daten gezielt selbst
+        // (max. 3 Werkzeug-Runden; die letzte Runde läuft ohne Tools und
+        // erzwingt damit eine Antwort). Alle Werkzeuge sind nur-lesen und auf
+        // die Daten des Nutzers begrenzt; Fehler kommen als ehrliche Meldung
+        // zurück statt den Chat zu brechen.
+        const { COPILOT_TOOLS, executeCopilotTool } = await import("../lib/copilotTools");
+        const MAX_TOOL_ROUNDS = 3;
+        let assistantMessage = "";
+        for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+          const response = await invokeLLM({
+            messages: llmMessages,
+            ...(round < MAX_TOOL_ROUNDS ? { tools: COPILOT_TOOLS } : {}),
+          });
+          const msg = response.choices[0]?.message;
+          const toolCalls = msg?.tool_calls ?? [];
+          if (toolCalls.length === 0) {
+            assistantMessage = contentToString(msg?.content) || "Entschuldigung, ich konnte keine Antwort generieren.";
+            break;
+          }
+          console.log(`[chat] Tool-Runde ${round + 1}: ${toolCalls.map((t) => t.function.name).join(", ")}`);
+          llmMessages.push({ role: "assistant", content: contentToString(msg?.content), tool_calls: toolCalls });
+          const results = await Promise.all(
+            toolCalls.map((tc) => executeCopilotTool(ctx.user.id, tc.function.name, tc.function.arguments))
+          );
+          toolCalls.forEach((tc, i) => {
+            llmMessages.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: results[i] });
+          });
+        }
+        if (!assistantMessage) {
+          assistantMessage = "Entschuldigung, ich konnte keine Antwort generieren.";
+        }
 
         // Save assistant response
         await db.insert(chatMessages).values({
