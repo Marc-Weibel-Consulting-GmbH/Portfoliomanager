@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   Upload, FileText, Brain, Sparkles, Trash2, RefreshCw, Clock,
   CheckCircle, AlertCircle, Loader2, Send, Bot, Eye, Plus, Key, Download,
-  Globe, TrendingUp, TrendingDown, Minus, Database
+  Globe, TrendingUp, TrendingDown, Minus, Database, BookOpen, ExternalLink
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
@@ -631,6 +631,98 @@ function MacroSourcesTab() {
           </div>
         ))
       )}
+
+      {/* ===== Research-Quellen-Bibliothek ===== */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-4">
+          <BookOpen className="h-5 w-5 text-[#00CFC1]" />
+          <h2 className="text-lg font-semibold">Research-Quellen-Bibliothek</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Kuratierte Quellen für strategische Allokation, Faktorqualität und Risikobewertung.
+          PDFs können direkt hochgeladen werden und fliessen in KI-Empfehlungen ein.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            {
+              priority: 1, name: "SNB Data Portal", category: "Automatisch (FRED)",
+              desc: "CHF-Wechselkurse, Zinsen, Schweizer Renditen, CHF-Risikozinssatz",
+              url: "https://data.snb.ch", auto: true,
+              use: "FX-Kalkulation, DCF, Sharpe-Ratio, CHF-Portfolios",
+            },
+            {
+              priority: 2, name: "FRED / St. Louis Fed", category: "Automatisch",
+              desc: "Makro-, Zins-, Inflations-, Spread- und Rezessionsdaten",
+              url: "https://fred.stlouisfed.org", auto: true,
+              use: "Regime-Indikatoren, Zinskurve, Credit Spreads",
+            },
+            {
+              priority: 3, name: "SEC EDGAR", category: "Manueller Upload",
+              desc: "Offizielle US-Unternehmensberichte: 10-K, 10-Q, 8-K",
+              url: "https://www.sec.gov/cgi-bin/browse-edgar", auto: false,
+              use: "Fundamentalanalyse US-Aktien, Bilanzprüfung",
+            },
+            {
+              priority: 4, name: "Aswath Damodaran Data", category: "Manueller Upload",
+              desc: "Equity Risk Premiums, WACC, Country Risk Premiums",
+              url: "https://pages.stern.nyu.edu/~adamodar/", auto: false,
+              use: "Bewertungsannahmen, DCF-Modelle, Länderrisiko",
+            },
+            {
+              priority: 5, name: "Kenneth French Data Library", category: "Manueller Upload",
+              desc: "Faktor-Renditen: Value, Size, Momentum, Profitability",
+              url: "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html", auto: false,
+              use: "Faktorprämien, Backtest, Smart Beta",
+            },
+            {
+              priority: 6, name: "Research Affiliates (RAFI)", category: "Manueller Upload",
+              desc: "Langfristige erwartete Renditen nach Anlageklasse und Region",
+              url: "https://www.researchaffiliates.com/asset-allocation-interactive", auto: false,
+              use: "Strategische Asset-Allokation, 10J-Erwartungen",
+            },
+            {
+              priority: 7, name: "J.P. Morgan Guide to the Markets", category: "Manueller Upload",
+              desc: "Marktgrafiken, Makro-Zyklen, Bewertungen, Zinsen, Aktien/Bonds",
+              url: "https://am.jpmorgan.com/us/en/asset-management/adv/insights/market-insights/guide-to-the-markets/", auto: false,
+              use: "Marktregime-Kontext, Bewertungsniveaus, Zyklusanalyse",
+            },
+            {
+              priority: 8, name: "BIS Data Portal", category: "Manueller Upload",
+              desc: "Kreditzyklen, Debt Service Ratios, globale Liquidität",
+              url: "https://data.bis.org", auto: false,
+              use: "Systemisches Risiko, Kreditblase-Frühindikatoren",
+            },
+          ].map((src) => (
+            <div key={src.name} className="border border-white/10 rounded-lg p-4 bg-[#0f1420] hover:border-white/20 transition-colors">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-gray-600">#{src.priority}</span>
+                  <span className="font-medium text-sm text-white">{src.name}</span>
+                </div>
+                <Badge variant={src.auto ? "default" : "outline"} className={`text-[10px] shrink-0 ${src.auto ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "text-gray-400"}`}>
+                  {src.category}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">{src.desc}</p>
+              <p className="text-xs text-[#00CFC1]/70 mb-3">→ {src.use}</p>
+              <div className="flex items-center gap-2">
+                <a
+                  href={src.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-[#00CFC1] hover:underline flex items-center gap-1"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Quelle öffnen
+                </a>
+                {!src.auto && (
+                  <span className="text-xs text-gray-600">· PDF hochladen via "Dokument hochladen" oben</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

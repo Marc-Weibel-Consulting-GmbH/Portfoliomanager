@@ -550,6 +550,75 @@ export const marketRegimeRouter = router({
         return { points: [] as RegimeHistoryPoint[] };
       }
     }),
+
+  /** MSCI-Faktor-ETF Performance (IWVL, IWMO, IWQU, MVOL, WSML) */
+  getFactorETFs: publicProcedure
+    .input(z.object({ period: z.enum(["ytd", "1y", "3y", "5y"]).default("ytd") }))
+    .query(async ({ input }) => {
+      const EODHD_API_KEY = process.env.EODHD_API_KEY;
+      if (!EODHD_API_KEY) return { factors: [], chart: [] };
+
+      const FACTORS = [
+        { key: "value",    label: "Value",          ticker: "IWVL.LSE",  color: "#f59e0b" },
+        { key: "momentum", label: "Momentum",       ticker: "IWMO.LSE",  color: "#8b5cf6" },
+        { key: "quality",  label: "Quality",        ticker: "IWQU.LSE",  color: "#00CFC1" },
+        { key: "minvol",   label: "Min Volatility", ticker: "MVOL.LSE",  color: "#3b82f6" },
+        { key: "smallcap", label: "Small Cap",      ticker: "WSML.LSE",  color: "#ec4899" },
+      ];
+
+      const today = new Date();
+      let fromDate: Date;
+      if (input.period === "ytd") {
+        fromDate = new Date(today.getFullYear(), 0, 1);
+      } else if (input.period === "1y") {
+        fromDate = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+      } else if (input.period === "3y") {
+        fromDate = new Date(today.getTime() - 3 * 365 * 24 * 60 * 60 * 1000);
+      } else {
+        fromDate = new Date(today.getTime() - 5 * 365 * 24 * 60 * 60 * 1000);
+      }
+      const from = fromDate.toISOString().split("T")[0];
+      const to = today.toISOString().split("T")[0];
+
+      const results = await Promise.allSettled(
+        FACTORS.map(async (f) => {
+          const url = `https://eodhd.com/api/eod/${f.ticker}?api_token=${EODHD_API_KEY}&from=${from}&to=${to}&fmt=json&period=d`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data: Array<{ date: string; adjusted_close: number; close: number }> = await res.json();
+          if (!Array.isArray(data) || data.length === 0) throw new Error("No data");
+          const prices = data.map(d => ({ date: d.date, price: d.adjusted_close ?? d.close }));
+          const first = prices[0].price;
+          const last = prices[prices.length - 1].price;
+          const totalReturn = ((last - first) / first) * 100;
+          const normalised = prices.map(p => ({ date: p.date, [f.key]: parseFloat(((p.price / first) * 100 - 100).toFixed(3)) }));
+          return { ...f, totalReturn: parseFloat(totalReturn.toFixed(2)), latestPrice: parseFloat(last.toFixed(4)), normalised };
+        })
+      );
+
+      const factors = results
+        .map((r, i) => r.status === "fulfilled" ? r.value : { ...FACTORS[i], totalReturn: null as number | null, latestPrice: null as number | null, normalised: [] as Array<Record<string, number | string>> })
+        .filter(f => f.normalised.length > 0);
+
+      // Merge all normalised series into a single chart array keyed by date
+      const dateMap = new Map<string, Record<string, number>>();
+      for (const f of factors) {
+        for (const pt of f.normalised) {
+          const existing = dateMap.get(pt.date as string) ?? {};
+          const val = pt[f.key];
+          if (typeof val === "number") existing[f.key] = val;
+          dateMap.set(pt.date as string, existing);
+        }
+      }
+      const chart = Array.from(dateMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, vals]) => ({ date, ...vals }));
+
+      return {
+        factors: factors.map(f => ({ key: f.key, label: f.label, color: f.color, totalReturn: f.totalReturn, latestPrice: f.latestPrice })),
+        chart,
+      };
+    }),
 });
 
 export type RegimeHistoryPoint = { date: string; score: number; regime: string };

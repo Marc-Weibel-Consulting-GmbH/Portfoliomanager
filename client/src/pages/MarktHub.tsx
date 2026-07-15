@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { formatNumber } from "@/lib/format";
-import { Globe, Activity, BarChart3, Newspaper, AlertTriangle } from "lucide-react";
+import { Globe, Activity, BarChart3, Newspaper, AlertTriangle, TrendingUp } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -13,6 +13,7 @@ import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER
 
 import MarketRegimeContent from "./MarketRegimeContent";
 import { KiBoomDashboard } from "@/components/markt/KiBoomDashboard";
+import { FactorETFContent } from "@/components/markt/FactorETFContent";
 import NewsroomContent from "./Newsroom";
 import { TickerBar, KIAnalyse } from "@/components/dashboard/MarketSections";
 import { useState as useStateAlias } from "react";
@@ -456,6 +457,7 @@ export default function MarktHub() {
             {[
               { value: "ueberblick", label: "Überblick", icon: Globe },
               { value: "regime", label: "Regime", icon: Activity, badge: regimeBadge },
+              { value: "faktoren", label: "Faktoren", icon: TrendingUp },
               { value: "heatmap", label: "Heatmap", icon: BarChart3 },
               { value: "news", label: "News", icon: Newspaper },
               { value: "ki-blase", label: "KI-Blase Monitor", icon: AlertTriangle },
@@ -485,6 +487,9 @@ export default function MarktHub() {
           </TabsContent>
           <TabsContent value="news" className="mt-6">
             <NewsroomContent />
+          </TabsContent>
+          <TabsContent value="faktoren" className="mt-6">
+            <FactorETFContent />
           </TabsContent>
           <TabsContent value="ki-blase" className="mt-6">
             <KiBoomDashboard />
