@@ -167,6 +167,32 @@ export const chatRouter = router({
         }
       }
 
+      // Live-Fundamentaldaten (Financial Datasets, nur US-Titel): Wenn die
+      // Nachricht Ticker aus dem Bestand erwähnt, echte Bilanz-Fakten in den
+      // Kontext geben statt Modellwissen raten zu lassen. Non-fatal + begrenzt.
+      let fundamentalsContext = "";
+      try {
+        const { isFinancialDatasetsConfigured, getFundamentalsFactsBatch } = await import("../lib/financialDatasets");
+        if (isFinancialDatasetsConfigured()) {
+          const { stocks: stocksTable } = await import("../../drizzle/schema");
+          const knownTickers = new Set(
+            (await db.select({ ticker: stocksTable.ticker }).from(stocksTable)).map((r) => r.ticker.toUpperCase())
+          );
+          const mentioned = Array.from(new Set(
+            (input.message.toUpperCase().match(/\b[A-Z]{1,6}(?:\.[A-Z]{1,3})?\b/g) ?? [])
+              .filter((t) => knownTickers.has(t))
+          ));
+          const facts = await getFundamentalsFactsBatch(mentioned, 2);
+          if (facts.length > 0) {
+            fundamentalsContext =
+              `\n\nLive-Fundamentaldaten (Quelle: Financial Datasets, nur US-Titel — nutze diese Zahlen statt Schätzungen):\n` +
+              facts.map((f) => `- ${f.summary}`).join("\n");
+          }
+        }
+      } catch (e) {
+        console.warn("[chat] Fundamentaldaten-Anreicherung fehlgeschlagen:", (e as Error).message);
+      }
+
       // Build system prompt for portfolio assistant
       const systemPrompt = `Du bist ein hilfreicher Portfolio-Assistent für eine Aktienportfolio-Analyse-Plattform.
 
@@ -185,7 +211,7 @@ Wichtige Hinweise:
 - Erkläre komplexe Konzepte verständlich
 - Gib keine Finanzberatung, sondern nur allgemeine Informationen
 - Bei spezifischen Fragen zu Aktien, verwende dein Wissen über Finanzmärkte
-${portfolioContext}`;
+${portfolioContext}${fundamentalsContext}`;
 
       // Prepare messages for LLM
       const llmMessages = [

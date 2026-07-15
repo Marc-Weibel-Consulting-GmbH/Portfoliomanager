@@ -538,6 +538,12 @@ export const autoPortfolioRouter = router({
         const profileSummary =
           `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%` +
           (esgOnly ? ", ESG-Wunsch: ja (Filter noch NICHT verfügbar — Vorschlag ist nicht ESG-gefiltert)" : "");
+        // Echte Bilanz-Fakten für die grössten US-Positionen (Financial
+        // Datasets) — der Challenger prüft damit gegen Zahlen statt
+        // Modellwissen. Non-fatal; ohne Konfiguration bleibt die Liste leer.
+        const { getFundamentalsFactsBatch } = await import("../lib/financialDatasets");
+        const usFundamentals = await getFundamentalsFactsBatch(positions.map((p) => p.ticker), 5);
+
         const factsSummary = [
           `Sektor-Gewichte: ${sectorWeights.map((s) => `${s.name} ${s.weightPct.toFixed(1)}%`).join(", ")} (Limit je Sektor: ${rules.maxSectorPercent}%)`,
           `Fremdwährungsanteil: ${fxWeightPct.toFixed(1)}% (Limit: ${maxFxExposurePct}%)`,
@@ -545,6 +551,9 @@ export const autoPortfolioRouter = router({
             ? `Erwartete Kennzahlen (optimiert, historisch geschätzt): Rendite ${proposalMetrics.expectedReturnPct.toFixed(1)}% p.a., Volatilität ${proposalMetrics.volatilityPct.toFixed(1)}%, Sharpe ${proposalMetrics.sharpe.toFixed(2)}`
             : `Gewichtung: Score-Fallback (Optimierung nicht möglich)`,
           `Auswahl-Qualitätsstufe: ${qualityTier}`,
+          ...(usFundamentals.length > 0
+            ? [`Fundamentaldaten (Financial Datasets, nur US-Titel):\n${usFundamentals.map((f) => `  - ${f.summary}`).join("\n")}`]
+            : []),
         ].join("\n");
 
         // ---- AGENT 2: CHALLENGER ----
@@ -666,7 +675,8 @@ Antworte im JSON-Format.`,
             const patterns = Object.entries(tickerActions)
               .filter(([, v]) => v.total >= 2)
               .map(([ticker, v]) => {
-                const dominant = (['reduce', 'increase', 'replace'] as const).sort((a, b) => v[b] - v[a])[0];
+                // .sort() mutiert — auf readonly-Tupel nicht erlaubt; Kopie sortieren.
+                const dominant = [...(['reduce', 'increase', 'replace'] as const)].sort((a, b) => v[b] - v[a])[0];
                 return `${ticker}: Admin hat ${v.total}x ${dominant === 'reduce' ? 'reduziert' : dominant === 'increase' ? 'erhöht' : 'ersetzt'}`;
               });
             if (patterns.length > 0) {
