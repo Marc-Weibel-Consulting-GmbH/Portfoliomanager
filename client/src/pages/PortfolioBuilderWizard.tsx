@@ -346,7 +346,8 @@ export default function PortfolioBuilderWizard() {
         investmentHorizonYears: autoHorizon,
         maxDrawdownTolerancePct: autoRisk === "konservativ" ? 15 : autoRisk === "ausgewogen" ? 25 : autoRisk === "wachstum" ? 35 : 50,
         investmentGoal: autoGoal as any,
-        liquidityNeedPct: 0,
+        // Gespeicherte Cash-Quote aus dem Anlegerprofil übernehmen (nicht überschreiben)
+        liquidityNeedPct: savedProfile?.liquidityNeedPct ?? 0,
         excludedSectors: autoExcluded,
         esgOnly: false,
       });
@@ -673,6 +674,9 @@ export default function PortfolioBuilderWizard() {
                         {(autoProposal as any).allocation && (
                           <span className="text-gray-400">Fremdwährung {(autoProposal as any).allocation.fxWeightPct.toFixed(0)}%</span>
                         )}
+                        {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
+                          <span className="text-emerald-400 font-mono">Cash-Reserve {(autoProposal as any).profile.liquidityNeedPct}%</span>
+                        )}
                       </div>
                     )}
                     {/* Ehrliche Hinweise (ESG nicht verfügbar, Qualitätsstufe, Cap-Überschreitungen) */}
@@ -696,6 +700,19 @@ export default function PortfolioBuilderWizard() {
                           <span className="text-sm font-mono font-semibold text-white ml-3 shrink-0">{p.weightPct.toFixed(1)}%</span>
                         </div>
                       ))}
+                      {/* Cash-Reserve Position anzeigen wenn Cash-Quote > 0 */}
+                      {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-emerald-400">CASH</span>
+                              <span className="text-sm text-white">Liquiditätsreserve</span>
+                            </div>
+                            <p className="text-xs text-gray-500">Gemäss Anlegerprofil — nicht investiert</p>
+                          </div>
+                          <span className="text-sm font-mono font-semibold text-emerald-400 ml-3 shrink-0">{(autoProposal as any).profile.liquidityNeedPct.toFixed(1)}%</span>
+                        </div>
+                      )}
                     </div>
                     {/* KI-Analyse (3-Agenten-Prüfung) ist intern — nur im Admin-Bereich unter /admin/proposal-analysis sichtbar */}
                     <p className="text-xs text-gray-600">
