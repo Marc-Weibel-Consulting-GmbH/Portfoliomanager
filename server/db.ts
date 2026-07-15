@@ -1210,9 +1210,9 @@ export async function getPortfolioTransactions(portfolioId: number) {
   if (!db) return [];
   
   try {
-    const { portfolioTransactions, realizedGains } = await import("../drizzle/schema");
+    const { portfolioTransactions, realizedGains, stocks: stocksTable } = await import("../drizzle/schema");
     
-    // Get transactions with realized gains data (LEFT JOIN)
+    // Get transactions with realized gains data + company name (LEFT JOINs)
     const transactions = await db
       .select({
         id: portfolioTransactions.id,
@@ -1233,11 +1233,17 @@ export async function getPortfolioTransactions(portfolioId: number) {
         // Add realized gain data from join
         realizedGain: realizedGains.realizedGain,
         realizedGainPercent: realizedGains.realizedGainPercent,
+        // Add company name from stocks table
+        companyName: stocksTable.companyName,
       })
       .from(portfolioTransactions)
       .leftJoin(
         realizedGains,
         eq(portfolioTransactions.id, realizedGains.transactionId)
+      )
+      .leftJoin(
+        stocksTable,
+        eq(portfolioTransactions.ticker, stocksTable.ticker)
       )
       .where(eq(portfolioTransactions.portfolioId, portfolioId))
       .orderBy(sql`${portfolioTransactions.transactionDate} ASC, ${portfolioTransactions.id} ASC`);

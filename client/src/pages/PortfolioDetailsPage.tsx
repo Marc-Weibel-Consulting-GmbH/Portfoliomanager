@@ -2564,7 +2564,12 @@ export default function PortfolioDetailsPage() {
                                           {isBuy ? 'Kauf' : isSell ? 'Verkauf' : isDiv ? 'Dividende' : txType}
                                         </span>
                                       </td>
-                                      <td className="px-3 py-3 text-sm font-mono font-semibold text-gray-300">{t.ticker}</td>
+                                      <td className="px-3 py-3">
+                                        <div className="font-mono font-semibold text-sm text-gray-300">{t.ticker}</div>
+                                        {t.companyName && t.companyName !== t.ticker && (
+                                          <div className="text-xs text-gray-500 truncate max-w-[120px]">{t.companyName}</div>
+                                        )}
+                                      </td>
                                       <td className="px-3 py-3 text-right text-sm text-white">{t.shares || t.quantity || '—'}</td>
                                       <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(t.price || t.pricePerShare || 0, t.currency || 'CHF')}</td>
                                       <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency((t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), t.currency || 'CHF')}</td>

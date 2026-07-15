@@ -1471,7 +1471,12 @@ export default function OptimierenTab({
                     onClick={() => {
                       const items = suggestions
                         .filter(s => selectedTickers.has(s.ticker))
-                        .map(s => ({ ticker: s.ticker, currentWeight: s.cur, targetWeight: s.opt }));
+                        .map(s => ({
+                          ticker: s.ticker,
+                          currentWeight: s.cur,
+                          targetWeight: s.opt,
+                          currentPriceCHF: (holdings as any[]).find(h => h.ticker === s.ticker)?.currentPriceCHF ?? undefined,
+                        }));
                       // Automatischer Snapshot vor der Umsetzung (ohne Dialog)
                       const snapshotName = `Snapshot vor Optimierung ${new Date().toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: '2-digit' })}`;
                       autoSnapshotMut.mutate({ portfolioId, cloneName: snapshotName });
