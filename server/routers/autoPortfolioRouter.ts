@@ -634,6 +634,50 @@ Antworte im JSON-Format.`,
         console.log(`[buildProposal] Agent 2 done: rejected=${challengerResult.rejected.length}, alternatives=${challengerResult.alternatives.length}`);
 
         // ---- AGENT 3: SYNTHESIZER ----
+        // Load recent adminFeedback signals to improve recommendations
+        let adminFeedbackContext = '';
+        try {
+          const { portfolioProposalLog } = await import('../../drizzle/schema');
+          const { isNotNull, desc } = await import('drizzle-orm');
+          const recentFeedback = await db!.select({
+            adminFeedback: portfolioProposalLog.adminFeedback,
+          }).from(portfolioProposalLog)
+            .where(isNotNull(portfolioProposalLog.adminFeedback))
+            .orderBy(desc(portfolioProposalLog.createdAt))
+            .limit(8);
+          if (recentFeedback.length >= 2) {
+            // Aggregate: which tickers were consistently reduced/increased/replaced by admin
+            const tickerActions: Record<string, { reduce: number; increase: number; replace: number; total: number }> = {};
+            for (const row of recentFeedback) {
+              const fb = row.adminFeedback as any;
+              if (!fb) continue;
+              const changes: Array<{ ticker: string; action: string }> = [
+                ...(fb.reduced ?? []).map((t: string) => ({ ticker: t, action: 'reduce' })),
+                ...(fb.increased ?? []).map((t: string) => ({ ticker: t, action: 'increase' })),
+                ...(fb.replaced ?? []).map((t: string) => ({ ticker: t, action: 'replace' })),
+              ];
+              for (const c of changes) {
+                if (!tickerActions[c.ticker]) tickerActions[c.ticker] = { reduce: 0, increase: 0, replace: 0, total: 0 };
+                tickerActions[c.ticker][c.action as 'reduce' | 'increase' | 'replace']++;
+                tickerActions[c.ticker].total++;
+              }
+            }
+            // Only include tickers that appear in at least 2 feedbacks
+            const patterns = Object.entries(tickerActions)
+              .filter(([, v]) => v.total >= 2)
+              .map(([ticker, v]) => {
+                const dominant = (['reduce', 'increase', 'replace'] as const).sort((a, b) => v[b] - v[a])[0];
+                return `${ticker}: Admin hat ${v.total}x ${dominant === 'reduce' ? 'reduziert' : dominant === 'increase' ? 'erhöht' : 'ersetzt'}`;
+              });
+            if (patterns.length > 0) {
+              adminFeedbackContext = `\n\nHistorisches Admin-Feedback (letzte ${recentFeedback.length} genehmigte Vorschläge):\n${patterns.join('\n')}\nBerücksichtige diese Muster bei deinen Empfehlungen — wenn ein Titel regelmässig vom Admin angepasst wird, empfehle die entsprechende Aktion proaktiv.`;
+              console.log(`[buildProposal] Synthesizer: injecting ${patterns.length} admin feedback patterns`);
+            }
+          }
+        } catch (fbErr) {
+          console.warn('[buildProposal] Could not load admin feedback:', fbErr);
+        }
+
         console.log('[buildProposal] Agent 3 (Synthesizer) starting...');
         const synthesizerResponse = await invokeLLM({
           messages: [
@@ -654,7 +698,7 @@ Gesamteinschätzung: ${challengerResult.critique}
 Abgelehnte Titel: ${JSON.stringify(challengerResult.rejected)}
 Alternativen: ${JSON.stringify(challengerResult.alternatives)}
 
-Anlegerprofil: ${profileSummary}
+Anlegerprofil: ${profileSummary}${adminFeedbackContext}
 
 Erstelle:
 1. Dein Gesamturteil (2-3 Sätze): Ist der Vorschlag gut? Was sind die wichtigsten Stärken/Schwächen?

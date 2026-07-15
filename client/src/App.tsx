@@ -74,6 +74,7 @@ const AdminScreenshots = lazy(() => import("./pages/AdminScreenshots"));
 const AdminAlertConfig = lazy(() => import("./pages/AdminAlertConfig"));
 const AdminGapFilling = lazy(() => import("./pages/AdminGapFilling"));
 const AdminProposalAnalysis = lazy(() => import("./pages/AdminProposalAnalysis"));
+const AdminFeedbackDashboard = lazy(() => import("./pages/AdminFeedbackDashboard"));
 
 function Router() {
   return (
@@ -180,6 +181,7 @@ function Router() {
         <Route path="/admin/alert-config"><RequireAdmin><AdminAlertConfig /></RequireAdmin></Route>
         <Route path="/admin/gap-filling"><RequireAdmin><AdminGapFilling /></RequireAdmin></Route>
         <Route path="/admin/proposal-analysis"><RequireAdmin><AdminProposalAnalysis /></RequireAdmin></Route>
+        <Route path="/admin/feedback-dashboard"><RequireAdmin><AdminFeedbackDashboard /></RequireAdmin></Route>
 
         {/* ═══ Legacy Redirects ═══ */}
         <Route path="/home"><Redirect to="/dashboard" /></Route>

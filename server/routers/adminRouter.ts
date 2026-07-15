@@ -1,4 +1,5 @@
 import { adminProcedure, router } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { importHistoricalPrices, importHistoricalPricesForTicker } from "../jobs/importHistoricalPrices";
 import { checkPriceCoverage, getRelevantTickersForPortfolio, getAllPortfolioTickers } from "../priceCoverage";
@@ -1285,5 +1286,70 @@ export const adminRouter = router({
 
         return { success: true, portfolioId, userEmailSent, ownerNotificationSent, noEmailOnFile };
       }),
+
+    // ─── Feedback-Dashboard: Aggregierte adminFeedback-Signale ───────────────
+    getFeedbackStats: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const db = await getDb();
+      if (!db) throw new Error('DB not available');
+      const { portfolioProposalLog } = await import('../../drizzle/schema');
+      const { isNotNull, desc } = await import('drizzle-orm');
+
+      const rows = await db.select({
+        id: portfolioProposalLog.id,
+        adminFeedback: portfolioProposalLog.adminFeedback,
+        createdAt: portfolioProposalLog.createdAt,
+        riskProfile: portfolioProposalLog.riskProfile,
+      }).from(portfolioProposalLog)
+        .where(isNotNull(portfolioProposalLog.adminFeedback))
+        .orderBy(desc(portfolioProposalLog.createdAt))
+        .limit(50);
+
+      const tickerActions: Record<string, { reduce: number; increase: number; replace: number; remove: number; add: number; total: number; lastSeen: Date }> = {};
+
+      for (const row of rows) {
+        const fb = row.adminFeedback as any;
+        if (!fb) continue;
+        const entries: Array<{ ticker: string; action: string }> = [
+          ...(fb.reduced ?? []).map((t: string) => ({ ticker: t, action: 'reduce' })),
+          ...(fb.increased ?? []).map((t: string) => ({ ticker: t, action: 'increase' })),
+          ...(fb.replaced ?? []).map((t: string) => ({ ticker: t, action: 'replace' })),
+          ...(fb.removed ?? []).map((t: string) => ({ ticker: t, action: 'remove' })),
+          ...(fb.added ?? []).map((t: string) => ({ ticker: t, action: 'add' })),
+        ];
+        for (const e of entries) {
+          if (!tickerActions[e.ticker]) tickerActions[e.ticker] = { reduce: 0, increase: 0, replace: 0, remove: 0, add: 0, total: 0, lastSeen: row.createdAt };
+          (tickerActions[e.ticker] as any)[e.action]++;
+          tickerActions[e.ticker].total++;
+          if (row.createdAt > tickerActions[e.ticker].lastSeen) tickerActions[e.ticker].lastSeen = row.createdAt;
+        }
+      }
+
+      const patterns = Object.entries(tickerActions)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([ticker, v]) => ({
+          ticker,
+          reduce: v.reduce,
+          increase: v.increase,
+          replace: v.replace,
+          remove: v.remove,
+          add: v.add,
+          total: v.total,
+          lastSeen: v.lastSeen,
+          dominantAction: (['reduce', 'increase', 'replace', 'remove', 'add'] as Array<'reduce' | 'increase' | 'replace' | 'remove' | 'add'>)
+            .sort((a, b) => v[b] - v[a])[0],
+        }));
+
+      return {
+        totalFeedbackEntries: rows.length,
+        patterns,
+        recentFeedback: rows.slice(0, 10).map(r => ({
+          id: r.id,
+          createdAt: r.createdAt,
+          riskProfile: r.riskProfile,
+          summary: r.adminFeedback as any,
+        })),
+      };
+    }),
 });
 

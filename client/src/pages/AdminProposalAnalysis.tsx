@@ -701,11 +701,56 @@ export default function AdminProposalAnalysis() {
                       {/* ── KI-Empfehlungen (finalAdjustments) ── */}
                       {Array.isArray(row.finalAdjustments) && row.finalAdjustments.length > 0 && (
                         <div>
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <ArrowLeftRight className="w-4 h-4 text-teal-400" />
                             <span className="text-xs font-medium text-teal-400">KI-Empfehlungen (Synthesizer)</span>
                             {approveId === row.id && (
-                              <span className="text-xs text-slate-500">— Klick auf «Anwenden» übernimmt Empfehlung direkt</span>
+                              <>
+                                <span className="text-xs text-slate-500">— Klick auf «Anwenden» übernimmt Empfehlung direkt</span>
+                                <button
+                                  className="ml-auto text-xs px-2.5 py-1 rounded bg-teal-600/20 border border-teal-500/40 text-teal-400 hover:bg-teal-600/30 transition-colors font-medium"
+                                  onClick={() => {
+                                    const adjustments = (row.finalAdjustments as any[]).filter(a => a.action !== 'keep');
+                                    setApprovePositions(prev => {
+                                      // Start from current positions (or raw if empty)
+                                      let updated = prev.length > 0 ? [...prev] : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
+                                        ticker: p.ticker ?? "",
+                                        companyName: p.companyName ?? p.ticker ?? "",
+                                        sector: p.sector,
+                                        currency: p.currency ?? "CHF",
+                                        currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
+                                        exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
+                                        weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                                        originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                                      }));
+                                      // Apply each adjustment
+                                      for (const adj of adjustments) {
+                                        updated = updated.map(p => {
+                                          if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
+                                          if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
+                                          if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
+                                          if (adj.action === 'replace' && adj.replaceTicker) {
+                                            const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
+                                            if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
+                                          }
+                                          return p;
+                                        });
+                                      }
+                                      // Normalize to 100%
+                                      const total = updated.reduce((s, p) => s + p.weightPct, 0);
+                                      if (total > 0 && Math.abs(total - 100) > 0.5) {
+                                        updated = updated.map(p => ({ ...p, weightPct: Math.round(p.weightPct / total * 100 * 10) / 10 }));
+                                      }
+                                      return updated;
+                                    });
+                                    const { toast } = require('sonner');
+                                    toast.success(`${adjustments.length} Empfehlungen angewendet`);
+                                  }}
+                                  title="Alle KI-Empfehlungen auf einmal anwenden"
+                                >
+                                  ✓ Alle anwenden ({(row.finalAdjustments as any[]).filter((a: any) => a.action !== 'keep').length})
+                                </button>
+                              </>
                             )}
                           </div>
                           <div className="space-y-1.5">

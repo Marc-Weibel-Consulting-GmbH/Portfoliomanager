@@ -159,3 +159,8 @@
 - [x] Frontend: «Empfehlung anwenden»-Button in AdminProposalAnalysis — Klick auf Empfehlung passt Gewicht automatisch an (reduce −30%, increase +30%, replace → Ticker tauschen)
 - [x] Backend + DB: Training-Feedback-Loop — adminFeedback JSON-Feld in portfolioProposalLog (ALTER TABLE + Schema) + Diff-Berechnung in approveProposalAndCreate
 - [ ] Backend: Synthesizer-Agent liest historische adminFeedback-Signale beim nächsten Vorschlag ein (Phase 2 — nach Trainingsphase)
+
+## Synthesizer-Feedback + Dashboard + Alle-Anwenden (Jul 2026)
+- [ ] Frontend: «Alle Empfehlungen anwenden»-Button im Approve-Panel (alle finalAdjustments auf einmal anwenden)
+- [ ] Backend: Synthesizer-Agent liest letzte adminFeedback-Signale ein und passt Empfehlungen an
+- [ ] Frontend: Feedback-Dashboard in Admin-Ansicht (aggregierte adminFeedback-Signale — welche KI-Empfehlungen werden regelmässig überschrieben)
