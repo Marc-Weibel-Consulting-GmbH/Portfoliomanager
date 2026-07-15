@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useLocation } from "wouter";
 
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
@@ -522,6 +523,7 @@ function ApprovePanel({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AdminProposalAnalysis() {
+  const [, navigate] = useLocation();
   const [confidence, setConfidence] = useState<string>("all");
   const [meetsFilter, setMeetsFilter] = useState<string>("all");
   const [offset, setOffset] = useState(0);
@@ -529,6 +531,31 @@ export default function AdminProposalAnalysis() {
   const [approveId, setApproveId] = useState<number | null>(null);
   // Lifted positions state so recommendation buttons can mutate approve-panel positions
   const [approvePositions, setApprovePositions] = useState<EditablePosition[]>([]);
+  // Admin comments per ticker (for the review workflow)
+  const [adminComments, setAdminComments] = useState<Record<string, string>>({});
+  // URL param: proposalId — auto-expand and open review panel
+  const urlProposalId = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get('proposalId');
+    return v ? parseInt(v, 10) : null;
+  }, []);
+  // returnTo param — where to go after saving admin review
+  const returnTo = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('returnTo');
+  }, []);
+  // saveAdminReview mutation
+  const saveAdminReviewMutation = trpc.admin.saveAdminReview.useMutation({
+    onSuccess: (data) => {
+      toast.success('Angepasster Vorschlag gespeichert');
+      if (returnTo) {
+        navigate(`${returnTo}?reviewedProposalId=${data.proposalId}`);
+      }
+    },
+    onError: (e) => toast.error('Fehler beim Speichern', { description: e.message }),
+  });
   const LIMIT = 20;
 
   const { data, isLoading, refetch } = trpc.admin.listProposalLogs.useQuery({
@@ -548,6 +575,25 @@ export default function AdminProposalAnalysis() {
 
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
+
+  // Auto-expand and open review panel when proposalId is in URL
+  const autoExpandDone = useRef(false);
+  useEffect(() => {
+    if (!urlProposalId || autoExpandDone.current || rows.length === 0) return;
+    const row = rows.find(r => r.id === urlProposalId);
+    if (row) {
+      setExpandedId(urlProposalId);
+      setApproveId(urlProposalId);
+      autoExpandDone.current = true;
+      // Scroll to the row after a short delay
+      setTimeout(() => {
+        document.getElementById(`proposal-row-${urlProposalId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    } else if (offset === 0) {
+      // Proposal not on first page — search by fetching it directly
+      autoExpandDone.current = true;
+    }
+  }, [rows, urlProposalId, offset]);
 
   return (
     <DashboardLayout>
@@ -614,7 +660,7 @@ export default function AdminProposalAnalysis() {
                   if (!open) setApproveId(null);
                 }}
               >
-                <Card className="bg-slate-800/50 border-slate-700">
+                <Card id={`proposal-row-${row.id}`} className="bg-slate-800/50 border-slate-700">
                   <CollapsibleTrigger asChild>
                     <CardHeader className="cursor-pointer hover:bg-slate-700/30 transition-colors rounded-t-lg py-3 px-4">
                       <div className="flex items-center justify-between gap-4">
@@ -743,7 +789,6 @@ export default function AdminProposalAnalysis() {
                                       }
                                       return updated;
                                     });
-                                    const { toast } = require('sonner');
                                     toast.success(`${adjustments.length} Empfehlungen angewendet`);
                                   }}
                                   title="Alle KI-Empfehlungen auf einmal anwenden"
@@ -854,15 +899,62 @@ export default function AdminProposalAnalysis() {
                         </Button>
 
                         {approveId !== row.id && (
-                          <Button
-                            size="sm"
-                            className="ml-auto bg-violet-600 hover:bg-violet-700 text-white text-xs"
-                            onClick={() => setApproveId(row.id)}
-                          >
-                            <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
-                            Portfolio erstellen
-                          </Button>
+                          <div className="ml-auto flex gap-2">
+                            {/* «Angepassten Vorschlag speichern» — nur wenn returnTo gesetzt (Wizard-Flow) */}
+                            {returnTo && approvePositions.length > 0 && (
+                              <Button
+                                size="sm"
+                                className="bg-teal-600 hover:bg-teal-700 text-white text-xs"
+                                onClick={() => saveAdminReviewMutation.mutate({
+                                  proposalId: row.id,
+                                  reviewedPositions: approvePositions,
+                                  adminComments,
+                                })}
+                                disabled={saveAdminReviewMutation.isPending}
+                              >
+                                <Save className="w-3.5 h-3.5 mr-1.5" />
+                                {saveAdminReviewMutation.isPending ? 'Speichert…' : 'Angepassten Vorschlag speichern & zurück'}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              className="bg-violet-600 hover:bg-violet-700 text-white text-xs"
+                              onClick={() => setApproveId(row.id)}
+                            >
+                              <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
+                              {returnTo ? 'Vorschlag bearbeiten' : 'Portfolio erstellen'}
+                            </Button>
+                          </div>
                         )}
+                        {/* When approve panel is open and returnTo is set: show save-and-return button */}
+                        {approveId === row.id && returnTo && (() => {
+                          // Use edited positions if any, otherwise fall back to the displayed positions
+                          const effectivePositions = approvePositions.length > 0
+                            ? approvePositions
+                            : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
+                                ticker: p.ticker ?? "",
+                                companyName: p.companyName ?? p.ticker ?? "",
+                                sector: p.sector,
+                                currency: p.currency ?? "CHF",
+                                weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                                originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                              }));
+                          return (
+                            <Button
+                              size="sm"
+                              className="ml-auto bg-teal-600 hover:bg-teal-700 text-white text-xs"
+                              onClick={() => saveAdminReviewMutation.mutate({
+                                proposalId: row.id,
+                                reviewedPositions: effectivePositions,
+                                adminComments,
+                              })}
+                              disabled={saveAdminReviewMutation.isPending || effectivePositions.length === 0}
+                            >
+                              <Save className="w-3.5 h-3.5 mr-1.5" />
+                              {saveAdminReviewMutation.isPending ? 'Speichert…' : 'Angepassten Vorschlag speichern & zurück zum Wizard'}
+                            </Button>
+                          );
+                        })()}
                       </div>
                     </CardContent>
                   </CollapsibleContent>

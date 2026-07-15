@@ -1351,5 +1351,59 @@ export const adminRouter = router({
         })),
       };
     }),
+
+  // Admin-Review Workflow: save reviewed positions + comments
+  saveAdminReview: adminProcedure
+    .input(z.object({
+      proposalId: z.number(),
+      reviewedPositions: z.array(z.object({
+        ticker: z.string(),
+        companyName: z.string().optional(),
+        sector: z.string().optional(),
+        currency: z.string().optional(),
+        weightPct: z.number(),
+        originalWeightPct: z.number().optional(),
+      })),
+      adminComments: z.record(z.string(), z.string()).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { portfolioProposalLog } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+
+      const totalWeight = input.reviewedPositions.reduce((s, p) => s + p.weightPct, 0);
+      const normalizedPositions = totalWeight > 0
+        ? input.reviewedPositions.map(p => ({ ...p, weightPct: Math.round(p.weightPct / totalWeight * 100 * 10) / 10 }))
+        : input.reviewedPositions;
+
+      await db.update(portfolioProposalLog)
+        .set({
+          adminReviewedPositions: normalizedPositions as any,
+          adminComments: (input.adminComments ?? {}) as any,
+          reviewStatus: 'reviewed',
+          reviewedAt: new Date(),
+        })
+        .where(eq(portfolioProposalLog.id, input.proposalId));
+
+      return { success: true, proposalId: input.proposalId };
+    }),
+
+  // Get a single proposal by ID (for deep-link from wizard)
+  getProposalById: adminProcedure
+    .input(z.object({ proposalId: z.number() }))
+    .query(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { portfolioProposalLog } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+      const rows = await db.select().from(portfolioProposalLog)
+        .where(eq(portfolioProposalLog.id, input.proposalId))
+        .limit(1);
+      if (rows.length === 0) throw new TRPCError({ code: 'NOT_FOUND', message: 'Proposal nicht gefunden' });
+      return rows[0];
+    }),
 });
 

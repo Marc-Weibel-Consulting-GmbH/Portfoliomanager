@@ -161,6 +161,16 @@
 - [ ] Backend: Synthesizer-Agent liest historische adminFeedback-Signale beim nächsten Vorschlag ein (Phase 2 — nach Trainingsphase)
 
 ## Synthesizer-Feedback + Dashboard + Alle-Anwenden (Jul 2026)
-- [ ] Frontend: «Alle Empfehlungen anwenden»-Button im Approve-Panel (alle finalAdjustments auf einmal anwenden)
-- [ ] Backend: Synthesizer-Agent liest letzte adminFeedback-Signale ein und passt Empfehlungen an
-- [ ] Frontend: Feedback-Dashboard in Admin-Ansicht (aggregierte adminFeedback-Signale — welche KI-Empfehlungen werden regelmässig überschrieben)
+- [x] Frontend: «Alle Empfehlungen anwenden»-Button im Approve-Panel (alle finalAdjustments auf einmal anwenden)
+- [x] Backend: Synthesizer-Agent liest letzte adminFeedback-Signale ein und passt Empfehlungen an (letzten 8 Einträge, Muster-Injektion in Prompt)
+- [x] Frontend: Feedback-Dashboard in Admin-Ansicht (/admin/feedback-dashboard — Ticker-Muster, dominante Aktionen, Synthesizer-Bereitschaftsindikator)
+
+## Admin-Review-Workflow Überarbeitung (Jul 2026)
+- [x] Fix: Crash auf /admin/proposal-analysis beheben
+- [x] Backend: saveAdminReview-Endpunkt — angepasste Positionen + Kommentare speichern, Status auf 'reviewed' setzen
+- [x] Backend: getProposalById-Endpunkt — gibt gespeicherten Admin-Review zurück für Wizard-Rückkehr
+- [x] Frontend: Wizard — nur Admin-Review-Block für Admins (kein Positions-Editor, kein «KI-Angepasst übernehmen»)
+- [x] Frontend: Admin-Seite — Deep-Link ?proposalId=X öffnet Eintrag direkt aufgeklappt
+- [x] Frontend: Admin-Seite — «Angepassten Vorschlag speichern»-Button + Zurück-zum-Wizard-Link mit returnTo-Param
+- [x] Frontend: Wizard — nach Admin-Review-Rückkehr den gespeicherten Vorschlag laden (?reviewedProposalId=X) und normalen Flow fortführen
+- [x] TS-Fehler behoben: korrekte Feldnamen (sharpe, expectedReturnPct, volatilityPct, fxWeightPct, meetsKennzahlenFilter)

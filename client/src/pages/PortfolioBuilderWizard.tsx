@@ -393,11 +393,49 @@ export default function PortfolioBuilderWizard() {
   const handleSendToAdminReview = () => {
     const logId = (autoProposal as any)?.proposalLogId;
     if (logId) {
-      navigate(`/admin/proposal-analysis?proposalId=${logId}`);
+      navigate(`/admin/proposal-analysis?proposalId=${logId}&returnTo=/portfolio-builder`);
     } else {
       navigate('/admin/proposal-analysis');
     }
   };
+
+  // Handle return from admin review: load reviewed proposal and pre-fill wizard
+  const getReviewedProposal = trpc.admin.getProposalById.useQuery(
+    { proposalId: (() => {
+      if (typeof window === 'undefined') return 0;
+      const p = new URLSearchParams(window.location.search).get('reviewedProposalId');
+      return p ? parseInt(p, 10) : 0;
+    })() },
+    { enabled: typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('reviewedProposalId') }
+  );
+  useEffect(() => {
+    if (!getReviewedProposal.data) return;
+    const proposal = getReviewedProposal.data;
+    const reviewedPositions = (proposal.adminReviewedPositions as any[]) ?? (proposal.positions as any[]) ?? [];
+    if (reviewedPositions.length === 0) return;
+    const capital = parseFloat(initialCapital) || 100000;
+    // Build a synthetic autoProposal from the reviewed positions
+    setAutoProposal({
+      positions: proposal.positions,
+      adjustedPositions: reviewedPositions,
+      finalAdjustments: proposal.finalAdjustments,
+      synthesizerVerdict: proposal.synthesizerVerdict,
+      challengerCritique: proposal.challengerCritique,
+      overallConfidence: proposal.overallConfidence,
+      proposalLogId: proposal.id,
+      expectedReturn: proposal.expectedReturnPct,
+      volatility: proposal.volatilityPct,
+      sharpe: proposal.sharpe,
+      fxWeightPct: proposal.fxWeightPct,
+      meetsKennzahlenFilter: proposal.meetsKennzahlenFilter,
+    });
+    setPath('auto');
+    setAutoStep(5);
+    setInitialCapital(capital.toString());
+    toast.success('Admin-geprüfter Vorschlag geladen — Sie können ihn jetzt übernehmen');
+    // Clean up URL param
+    window.history.replaceState({}, '', '/portfolio-builder');
+  }, [getReviewedProposal.data]);
 
   const toggleExcluded = (sector: string) => {
     setAutoExcluded((prev) => prev.includes(sector) ? prev.filter((s) => s !== sector) : [...prev, sector]);

@@ -1335,6 +1335,12 @@ export const portfolioProposalLog = mysqlTable("portfolioProposalLog", {
   accepted: mysqlEnum("accepted", ["ja", "nein", "unbekannt"]).default("unbekannt"),
   // Training-Feedback: Differenz zwischen Original- und Admin-Version
   adminFeedback: json("adminFeedback"), // { changes: [{ticker, action, originalWeight, adminWeight, reason}], summary: string }
+  // Admin-Review Workflow
+  adminReviewedPositions: json("adminReviewedPositions"), // Positions after admin review
+  adminComments: json("adminComments"), // { [ticker]: string } per-ticker comments
+  reviewStatus: mysqlEnum("reviewStatus", ["pending", "reviewed", "approved"]).default("pending"),
+  reviewedAt: timestamp("reviewedAt"),
+  returnToWizardToken: varchar("returnToWizardToken", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type PortfolioProposalLog = typeof portfolioProposalLog.$inferSelect;
