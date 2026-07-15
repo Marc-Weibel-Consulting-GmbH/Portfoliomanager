@@ -203,4 +203,4 @@
 ## Deep-Dive Gewichts-Fix (Jul 2026)
 - [x] Fix: Deep-Dive verwendete shares×avgPrice statt portfolioData.weight → SON.LS zeigte 58.9% statt ~8%
 - [x] Fix: portfolioData.weight wird jetzt direkt verwendet wenn vorhanden (Zielgewichte aus Portfolio-Erstellung)
-- [ ] Info: Div. Rendite Header (2.5%) vs Deep-Dive (3.3%) — unterschiedliche Datenquellen (DB vs EODHD). Kein Bug, aber UI-Hinweis wäre sinnvoll.
+- [x] Info: Div. Rendite Header (2.5%) vs Deep-Dive (3.3%) — unterschiedliche Datenquellen (DB vs EODHD). Erklärungstext unter der KPI-Karte ergänzt (EODHD vs lokale DB).

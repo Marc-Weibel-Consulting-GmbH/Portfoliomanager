@@ -141,7 +141,7 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
               { label: 'Ø KGV (P/E)', value: fmtNum(data.portfolioMetrics?.avgPE, 1), icon: <BarChart3 className="w-4 h-4 text-[#00CFC1]" />, hint: 'Gewichtetes Kurs-Gewinn-Verhältnis' },
               { label: 'Ø PEG', value: fmtNum(data.portfolioMetrics?.avgPEG, 2), icon: <Activity className="w-4 h-4 text-blue-400" />, hint: 'PEG < 1 = günstig bewertet' },
               { label: 'Ø Beta', value: fmtNum(data.portfolioMetrics?.avgBeta, 2), icon: <TrendingDown className="w-4 h-4 text-amber-400" />, hint: 'Marktrisiko: 1 = Markt, >1 = aggressiv' },
-              { label: 'Ø Dividende', value: data.portfolioMetrics?.avgDividendYield !== null && data.portfolioMetrics?.avgDividendYield !== undefined ? `${fmtNum(data.portfolioMetrics.avgDividendYield, 1)}%` : '–', icon: <DollarSign className="w-4 h-4 text-emerald-400" />, hint: 'Gewichtete Dividendenrendite' },
+              { label: 'Ø Dividende', value: data.portfolioMetrics?.avgDividendYield !== null && data.portfolioMetrics?.avgDividendYield !== undefined ? `${fmtNum(data.portfolioMetrics.avgDividendYield, 1)}%` : '–', icon: <DollarSign className="w-4 h-4 text-emerald-400" />, hint: 'Gewichtete Dividendenrendite (EODHD) — kann vom Portfolio-Header abweichen (lokale DB)' },
             ].map((kpi) => (
               <div key={kpi.label} className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1.5">{kpi.icon}<span className="text-[10px] text-gray-500 uppercase tracking-wider">{kpi.label}</span></div>
