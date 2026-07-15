@@ -46,8 +46,8 @@ export interface DiversificationRules {
 }
 
 export const DEFAULT_DIVERSIFICATION_RULES: DiversificationRules = {
-  minPositionPercent: 1,
-  maxPositionPercent: 25,   // Gelockert von 10% → 25%: Optimizer kann konzentrieren
+  minPositionPercent: 3,    // Erhöht von 1% → 3%: Kleinstpositionen (< 3%) vermeiden
+  maxPositionPercent: 15,   // Reduziert von 25% → 15%: Klumpenrisiko begrenzen
   minPositionAmountCHF: 3000,
   minTitles: 10,            // Gelockert von 15 → 10
   maxTitles: 30,            // Erhöht von 20 → 30

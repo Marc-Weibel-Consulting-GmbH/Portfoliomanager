@@ -120,12 +120,14 @@ export const autoPortfolioRouter = router({
         if (s.sector && excludedSectors.includes(s.sector)) return false;
 
         // Handelbarkeit: Marktkapitalisierung-Filter (Empfehlungen ausgenommen)
+        // WICHTIG: NULL-Werte werden als "unbekannt / zu klein" behandelt und ebenfalls ausgeschlossen.
+        // Nur Watchlist-Empfehlungen sind von diesem Filter ausgenommen.
         if (!watchlistRecTickers.has(s.ticker.toUpperCase())) {
           const mcapRaw = s.marketCap ? String(s.marketCap).replace(/[^0-9.]/g, '') : '';
           const mcapM = mcapRaw ? parseFloat(mcapRaw) / 1_000_000 : null; // marketCap is stored in absolute units
-          // Only filter if we have data and it's clearly below threshold
-          if (mcapM !== null && mcapM < MIN_MARKET_CAP_M) {
-            console.log(`[buildProposal] Liquidity filter excluded ${s.ticker}: marketCap ${mcapM.toFixed(0)}M < ${MIN_MARKET_CAP_M}M`);
+          // Exclude if marketCap is NULL/unknown OR clearly below threshold
+          if (mcapM === null || mcapM < MIN_MARKET_CAP_M) {
+            console.log(`[buildProposal] Liquidity filter excluded ${s.ticker}: marketCap ${mcapM !== null ? mcapM.toFixed(0) + 'M' : 'NULL'} < ${MIN_MARKET_CAP_M}M`);
             return false;
           }
         }

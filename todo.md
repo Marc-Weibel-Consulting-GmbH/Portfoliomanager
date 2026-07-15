@@ -133,3 +133,7 @@
 - [x] Handelbarkeit (Marktkapitalisierung/Liquidität) als Kriterium im Algorithmus
 - [x] Fremdwährungsanteil strikt durchsetzen (harte Grenze, kein Überschreiten)
 - [x] Vertrauen-Logik verbessern: klare Kriterien für hoch/mittel/niedrig
+
+## Positionsgrössenstreuung + Liquiditätsfilter Fix (Jul 2026)
+- [x] Positionsgrössen-Cap: maxPositionPercent von 25% → 15%, minPositionPercent von 1% → 3%
+- [x] Liquiditätsfilter: NULL-marketCap Werte werden jetzt als "unbekannt/zu klein" ausgeschlossen (nicht mehr übersprungen)
