@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X } from "lucide-react";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -246,6 +246,17 @@ export default function OptimierenTab({
   const [recommendResult, setRecommendResult] = useState<{ count: number; netCashChange: number; transactionIds: number[]; buysScaledDown?: boolean; scaleFactor?: number } | null>(null);
   const [cloneFirst, setCloneFirst] = useState(false);
   const [numAdditions, setNumAdditions] = useState(5);
+  // Upgrade-Vorschläge: Per-Item-Auswahl
+  // deselectedReplacements: Set of weakTicker strings that are unchecked
+  const [deselectedReplacements, setDeselectedReplacements] = useState<Set<string>>(new Set());
+  // deselectedAdditions: Set of candidate tickers that are unchecked
+  const [deselectedAdditions, setDeselectedAdditions] = useState<Set<string>>(new Set());
+  // overrideReplacementTicker: map weakTicker → chosen replacement ticker (overrides suggestions[0])
+  const [overrideReplacementTicker, setOverrideReplacementTicker] = useState<Record<string, string>>({});
+  // openReplacementPicker: weakTicker of the row whose picker is open
+  const [openReplacementPicker, setOpenReplacementPicker] = useState<string | null>(null);
+  // openAdditionPicker: whether the "add another candidate" picker is open
+  const [openAdditionPicker, setOpenAdditionPicker] = useState(false);
   const utils = trpc.useUtils();
   const applyRecMut = trpc.analytics.applyRecommendations.useMutation({
     onSuccess: (data) => {
@@ -404,6 +415,10 @@ export default function OptimierenTab({
     },
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 0 }
   );
+
+  // Alle Aktien aus der DB (für Ersatz-Picker)
+  const { data: allStocksData } = trpc.stocks.list.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const allStocks = useMemo(() => (allStocksData ?? []) as any[], [allStocksData]);
 
   // Upgrade-Vorschläge aus Watchlist + Empfehlungen (zielbasiertes Ranking je nach method)
   const { data: upgradeData, isFetching: isUpgradeFetching, refetch: refetchUpgrades } = trpc.analytics.upgradeProposals.useQuery(
@@ -872,50 +887,154 @@ export default function OptimierenTab({
                     <h4 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" />
                       Schwache Positionen — Ersatz-Vorschläge
+                      <span className="ml-auto text-[10px] font-normal text-gray-500 normal-case">
+                        {upgradeData.replacementSuggestions.filter(r => !deselectedReplacements.has(r.weakTicker) && r.suggestions.length > 0).length} von {upgradeData.replacementSuggestions.filter(r => r.suggestions.length > 0).length} ausgewählt
+                      </span>
                     </h4>
                     <div className="space-y-3">
-                      {(showAllWeak ? upgradeData.replacementSuggestions : upgradeData.replacementSuggestions.slice(0, 5)).map((rep) => (
-                        <div key={rep.weakTicker} className={`bg-white/[0.02] border rounded-lg p-3 ${
-                          (rep as any).hasSufficientCash === false ? 'border-amber-500/30' : 'border-white/5'
-                        }`}>
-                          {/* Schwache Position */}
-                          <div className="flex items-center gap-2 mb-2">
-                            <ArrowDownRight className="w-4 h-4 text-red-400 flex-shrink-0" />
-                            <span className="font-mono text-sm font-semibold text-red-300">{rep.weakTicker}</span>
-                            <span className="text-xs text-gray-500 truncate">{rep.weakCompanyName}</span>
-                            <ScoreBadge score={rep.weakScore} />
-                            <span className="text-xs text-gray-600">{(rep.weakWeight * 100).toFixed(1)}%</span>
-                            {(rep as any).cashRequired > 0 && (
-                              <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                                (rep as any).hasSufficientCash === false
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : 'bg-emerald-500/10 text-emerald-500'
-                              }`}>
-                                {(rep as any).hasSufficientCash === false ? '⚠ Kein Cash' : '✓ Cash ok'}
-                                {' '}CHF {Math.round((rep as any).cashRequired).toLocaleString('de-CH')}
-                              </span>
+                      {(showAllWeak ? upgradeData.replacementSuggestions : upgradeData.replacementSuggestions.slice(0, 5)).map((rep) => {
+                        const isChecked = !deselectedReplacements.has(rep.weakTicker);
+                        const chosenTicker = overrideReplacementTicker[rep.weakTicker] ?? rep.suggestions[0]?.ticker;
+                        const chosenSuggestion = rep.suggestions.find(s => s.ticker === chosenTicker) ?? rep.suggestions[0];
+                        const pickerOpen = openReplacementPicker === rep.weakTicker;
+                        return (
+                          <div key={rep.weakTicker} className={`bg-white/[0.02] border rounded-lg p-3 transition-opacity ${
+                            (rep as any).hasSufficientCash === false ? 'border-amber-500/30' : 'border-white/5'
+                          } ${!isChecked ? 'opacity-40' : ''}`}>
+                            {/* Schwache Position + Checkbox */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <button
+                                onClick={() => setDeselectedReplacements(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(rep.weakTicker)) next.delete(rep.weakTicker); else next.add(rep.weakTicker);
+                                  return next;
+                                })}
+                                className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+                                title={isChecked ? 'Abwählen' : 'Auswählen'}
+                              >
+                                {isChecked ? <CheckSquare className="w-4 h-4 text-amber-400" /> : <Square className="w-4 h-4" />}
+                              </button>
+                              <ArrowDownRight className="w-4 h-4 text-red-400 flex-shrink-0" />
+                              <span className="font-mono text-sm font-semibold text-red-300">{rep.weakTicker}</span>
+                              <span className="text-xs text-gray-500 truncate">{rep.weakCompanyName}</span>
+                              <ScoreBadge score={rep.weakScore} />
+                              <span className="text-xs text-gray-600">{(rep.weakWeight * 100).toFixed(1)}%</span>
+                              {(rep as any).cashRequired > 0 && (
+                                <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                  (rep as any).hasSufficientCash === false
+                                    ? 'bg-amber-500/20 text-amber-400'
+                                    : 'bg-emerald-500/10 text-emerald-500'
+                                }`}>
+                                  {(rep as any).hasSufficientCash === false ? '⚠ Kein Cash' : '✓ Cash ok'}
+                                  {' '}CHF {Math.round((rep as any).cashRequired).toLocaleString('de-CH')}
+                                </span>
+                              )}
+                            </div>
+                            {/* Ersatz-Kandidaten */}
+                            {rep.suggestions.length === 0 ? (
+                              <p className="text-xs text-gray-600 pl-6">Kein besserer Kandidat im gleichen Sektor gefunden.</p>
+                            ) : (
+                              <div className="pl-6">
+                                {/* Aktiver Ersatz-Kandidat */}
+                                <div className="flex items-center gap-2 text-xs mb-1.5">
+                                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                                  <span className="font-mono font-semibold text-emerald-300 w-16">{chosenSuggestion?.ticker ?? '—'}</span>
+                                  <span className="text-gray-400 truncate flex-1">{chosenSuggestion?.companyName ?? ''}</span>
+                                  {chosenSuggestion && <ScoreBadge score={chosenSuggestion.signalScore} />}
+                                  {chosenSuggestion && <SignalBadge type={chosenSuggestion.signalType} />}
+                                  {chosenSuggestion && <span className="text-emerald-400 font-semibold w-12 text-right">+{chosenSuggestion.scoreDelta}</span>}
+                                  {/* Andere Kandidaten wählen */}
+                                  {rep.suggestions.length > 1 && (
+                                    <div className="relative ml-1">
+                                      <button
+                                        onClick={() => setOpenReplacementPicker(pickerOpen ? null : rep.weakTicker)}
+                                        className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                                        title="Anderen Ersatz wählen"
+                                      >
+                                        ⇄ {rep.suggestions.length}
+                                      </button>
+                                      {pickerOpen && (
+                                        <div className="absolute z-40 right-0 top-full mt-1 bg-[#1a2035] border border-white/20 rounded-lg shadow-xl min-w-[220px]">
+                                          {rep.suggestions.map((s) => (
+                                            <button
+                                              key={s.ticker}
+                                              onClick={() => {
+                                                setOverrideReplacementTicker(prev => ({ ...prev, [rep.weakTicker]: s.ticker }));
+                                                setOpenReplacementPicker(null);
+                                              }}
+                                              className={`w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors flex items-center gap-2 ${
+                                                s.ticker === chosenTicker ? 'bg-emerald-500/10 text-emerald-300' : 'text-gray-300'
+                                              }`}
+                                            >
+                                              <span className="font-mono font-semibold w-14 shrink-0">{s.ticker}</span>
+                                              <span className="truncate flex-1">{s.companyName}</span>
+                                              <ScoreBadge score={s.signalScore} />
+                                            </button>
+                                          ))}
+                                          <div className="border-t border-white/10 px-2 py-1.5">
+                                            <p className="text-[10px] text-gray-600">Anderen Titel aus DB suchen:</p>
+                                            <div className="relative mt-1">
+                                              <div className="flex items-center gap-1.5 bg-white/5 rounded px-2 py-1">
+                                                <Search className="w-3 h-3 text-gray-500 shrink-0" />
+                                                <input
+                                                  autoFocus
+                                                  placeholder="Ticker oder Name…"
+                                                  className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-gray-600 w-28"
+                                                  onChange={(e) => {
+                                                    const q = e.target.value.toLowerCase();
+                                                    if (!q) return;
+                                                    // handled inline via state
+                                                    (e.target as any)._q = q;
+                                                    e.target.dispatchEvent(new Event('input'));
+                                                  }}
+                                                  onInput={(e) => {
+                                                    const q = (e.target as HTMLInputElement).value.toLowerCase();
+                                                    const list = document.getElementById(`picker-list-${rep.weakTicker}`);
+                                                    if (!list) return;
+                                                    const items = list.querySelectorAll('[data-ticker]');
+                                                    items.forEach((el: any) => {
+                                                      const t = (el.dataset.ticker ?? '').toLowerCase();
+                                                      const n = (el.dataset.name ?? '').toLowerCase();
+                                                      el.style.display = (!q || t.includes(q) || n.includes(q)) ? '' : 'none';
+                                                    });
+                                                  }}
+                                                />
+                                              </div>
+                                              <div id={`picker-list-${rep.weakTicker}`} className="max-h-32 overflow-y-auto mt-1">
+                                                {allStocks.slice(0, 50).map((s: any) => (
+                                                  <button
+                                                    key={s.ticker}
+                                                    data-ticker={s.ticker}
+                                                    data-name={s.companyName ?? s.name ?? ''}
+                                                    onClick={() => {
+                                                      setOverrideReplacementTicker(prev => ({ ...prev, [rep.weakTicker]: s.ticker }));
+                                                      setOpenReplacementPicker(null);
+                                                    }}
+                                                    className="w-full text-left px-2 py-1 text-xs hover:bg-white/5 transition-colors flex items-center gap-2 text-gray-400"
+                                                  >
+                                                    <span className="font-mono w-14 shrink-0 text-teal-400">{s.ticker}</span>
+                                                    <span className="truncate">{s.companyName ?? s.name}</span>
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Weitere Alternativen (collapsed, nur als Info) */}
+                                {rep.suggestions.length > 1 && (
+                                  <p className="text-[10px] text-gray-600">
+                                    {rep.suggestions.filter(s => s.ticker !== chosenTicker).map(s => s.ticker).join(', ')} als Alternativen verfügbar
+                                  </p>
+                                )}
+                              </div>
                             )}
                           </div>
-                          {/* Ersatz-Kandidaten */}
-                          {rep.suggestions.length === 0 ? (
-                            <p className="text-xs text-gray-600 pl-6">Kein besserer Kandidat im gleichen Sektor gefunden.</p>
-                          ) : (
-                            <div className="space-y-1.5 pl-6">
-                              {rep.suggestions.map((s) => (
-                                <div key={s.ticker} className="flex items-center gap-2 text-xs">
-                                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                                  <span className="font-mono font-semibold text-emerald-300 w-16">{s.ticker}</span>
-                                  <span className="text-gray-400 truncate flex-1">{s.companyName}</span>
-                                  <ScoreBadge score={s.signalScore} />
-                                  <SignalBadge type={s.signalType} />
-                                  <span className="text-emerald-400 font-semibold w-12 text-right">+{s.scoreDelta}</span>
-                                  {s.dividendYield && <span className="text-gray-500 w-12 text-right">{s.dividendYield}%</span>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     {upgradeData.replacementSuggestions.length > 5 && (
                       <button
@@ -943,22 +1062,101 @@ export default function OptimierenTab({
                     <h4 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <Plus className="w-3.5 h-3.5" />
                       Neue Kandidaten — Ergänzungs-Vorschläge (Score ≥ 65)
+                      <span className="ml-auto text-[10px] font-normal text-gray-500 normal-case">
+                        {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} ausgewählt
+                      </span>
                     </h4>
                     <div className="space-y-1.5">
-                      {(showAllAdditions ? upgradeData.additionSuggestions : upgradeData.additionSuggestions.slice(0, 8)).map((c: any) => (
-                        <div key={c.ticker} className="flex items-center gap-2 text-xs bg-white/[0.02] rounded px-3 py-2">
-                          <Plus className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
-                          <span className="font-mono font-semibold text-indigo-300 w-16">{c.ticker}</span>
-                          <span className="text-gray-400 truncate flex-1">{c.companyName}</span>
-                          {c.sector && <span className="text-gray-600 text-[10px] hidden sm:block">{c.sector}</span>}
-                          <ScoreBadge score={c.signalScore} />
-                          <SignalBadge type={c.signalType} />
-                          <span className={`text-[10px] px-1 py-0.5 rounded ${c.listType === 'empfehlung' ? 'bg-[#00CFC1]/10 text-[#00CFC1]' : 'bg-white/5 text-gray-500'}`}>
-                            {c.listType === 'empfehlung' ? 'Empfehlung' : 'Watchlist'}
-                          </span>
-                          {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
+                      {(showAllAdditions ? upgradeData.additionSuggestions : upgradeData.additionSuggestions.slice(0, 8)).map((c: any) => {
+                        const isAddChecked = !deselectedAdditions.has(c.ticker);
+                        return (
+                          <div key={c.ticker} className={`flex items-center gap-2 text-xs bg-white/[0.02] rounded px-3 py-2 transition-opacity ${!isAddChecked ? 'opacity-40' : ''}`}>
+                            <button
+                              onClick={() => setDeselectedAdditions(prev => {
+                                const next = new Set(prev);
+                                if (next.has(c.ticker)) next.delete(c.ticker); else next.add(c.ticker);
+                                return next;
+                              })}
+                              className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+                              title={isAddChecked ? 'Abwählen' : 'Auswählen'}
+                            >
+                              {isAddChecked ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
+                            </button>
+                            <span className="font-mono font-semibold text-indigo-300 w-16">{c.ticker}</span>
+                            <span className="text-gray-400 truncate flex-1">{c.companyName}</span>
+                            {c.sector && <span className="text-gray-600 text-[10px] hidden sm:block">{c.sector}</span>}
+                            <ScoreBadge score={c.signalScore} />
+                            <SignalBadge type={c.signalType} />
+                            <span className={`text-[10px] px-1 py-0.5 rounded ${c.listType === 'empfehlung' ? 'bg-[#00CFC1]/10 text-[#00CFC1]' : 'bg-white/5 text-gray-500'}`}>
+                              {c.listType === 'empfehlung' ? 'Empfehlung' : 'Watchlist'}
+                            </span>
+                            {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Anderen Titel aus DB hinzufügen */}
+                    <div className="mt-2 relative">
+                      <button
+                        onClick={() => setOpenAdditionPicker(!openAdditionPicker)}
+                        className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" /> Anderen Titel manuell hinzufügen
+                      </button>
+                      {openAdditionPicker && (
+                        <div className="absolute z-40 left-0 top-full mt-1 bg-[#1a2035] border border-white/20 rounded-lg shadow-xl w-72">
+                          <div className="p-2 border-b border-white/10">
+                            <div className="flex items-center gap-2">
+                              <Search className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                              <input
+                                autoFocus
+                                placeholder="Ticker oder Name suchen…"
+                                className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-gray-600"
+                                onInput={(e) => {
+                                  const q = (e.target as HTMLInputElement).value.toLowerCase();
+                                  const list = document.getElementById('addition-picker-list');
+                                  if (!list) return;
+                                  const items = list.querySelectorAll('[data-ticker]');
+                                  items.forEach((el: any) => {
+                                    const t = (el.dataset.ticker ?? '').toLowerCase();
+                                    const n = (el.dataset.name ?? '').toLowerCase();
+                                    el.style.display = (!q || t.includes(q) || n.includes(q)) ? '' : 'none';
+                                  });
+                                }}
+                              />
+                              <button onClick={() => setOpenAdditionPicker(false)} className="text-gray-500 hover:text-white">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <div id="addition-picker-list" className="max-h-48 overflow-y-auto">
+                            {allStocks.slice(0, 100).map((s: any) => (
+                              <button
+                                key={s.ticker}
+                                data-ticker={s.ticker}
+                                data-name={s.companyName ?? s.name ?? ''}
+                                onClick={() => {
+                                  // Add to additionSuggestions as a custom entry by removing from deselected if present
+                                  // and storing as a custom addition
+                                  setDeselectedAdditions(prev => {
+                                    const next = new Set(prev);
+                                    next.delete(s.ticker);
+                                    return next;
+                                  });
+                                  // Store as custom addition override
+                                  setOverrideReplacementTicker(prev => ({ ...prev, [`__add__${s.ticker}`]: s.ticker }));
+                                  setOpenAdditionPicker(false);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors flex items-center gap-2 text-gray-300"
+                              >
+                                <span className="font-mono w-16 shrink-0 text-teal-400">{s.ticker}</span>
+                                <span className="truncate flex-1">{s.companyName ?? s.name}</span>
+                                <span className="text-gray-600 shrink-0">{s.currency ?? s.exchange}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
                     {upgradeData.additionSuggestions.length > 8 && (
                       <button
@@ -977,17 +1175,17 @@ export default function OptimierenTab({
                   <div className="px-4 py-4 border-t border-white/5">
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-500">
-                        {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
+                        {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker)).length > 0 && (
                           <span className="text-amber-400 font-medium">
-                            {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length} Ersatz-Transaktionen
+                            {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker)).length} Ersatz-Transaktionen
                           </span>
                         )}
-                        {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && upgradeData.additionSuggestions.length > 0 && (
+                        {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker)).length > 0 && upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length > 0 && (
                           <span className="text-gray-600"> + </span>
                         )}
-                        {upgradeData.additionSuggestions.length > 0 && (
+                        {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length > 0 && (
                           <span className="text-indigo-400 font-medium">
-                            Top {Math.min(5, upgradeData.additionSuggestions.length)} neue Kandidaten{upgradeData.additionSuggestions.length > 5 ? ` (von ${upgradeData.additionSuggestions.length})` : ''}
+                            {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} neue Kandidaten
                           </span>
                         )}
                       </div>
@@ -1125,12 +1323,12 @@ export default function OptimierenTab({
                 <p className="text-xs text-gray-400 mb-4">
                   Folgende Transaktionen werden automatisch im Portfolio gebucht.
                 </p>
-                {/* Sells: Schwache Positionen */}
-                {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
+                {/* Sells: Schwache Positionen (nur ausgewählte) */}
+                {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker)).length > 0 && (
                   <div className="mb-3">
                     <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1.5">Verkäufe — Schwache Positionen</p>
                     <div className="space-y-1">
-                      {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).map((rep) => {
+                      {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker)).map((rep) => {
                         const priceCHF = holdings.find((h: any) => h.ticker === rep.weakTicker)?.currentPriceCHF;
                         const shares = priceCHF && priceCHF > 0 ? (rep.cashRequired / priceCHF).toFixed(2) : null;
                         return (
@@ -1148,25 +1346,27 @@ export default function OptimierenTab({
                 )}
                 {/* Buys: Ersatz-Kandidaten + Neue Kandidaten — mit Skalierung wenn Cash-Constraint */}
                 {(() => {
-                  const sellTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
-                  const buyReplTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
-                  const buyAddTotal = upgradeData.additionSuggestions.slice(0, numAdditions).reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
+                  const activeReplSuggestions = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker));
+                  const activeAdditions = upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker));
+                  const sellTotal = activeReplSuggestions.reduce((s, r) => s + r.cashRequired, 0);
+                  const buyReplTotal = activeReplSuggestions.reduce((s, r) => s + r.cashRequired, 0);
+                  const buyAddTotal = activeAdditions.reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
                   const totalBuys = buyReplTotal + buyAddTotal;
                   const availableBudget = (cashBalance ?? 0) + sellTotal;
                   const willScale = totalBuys > availableBudget + 0.01;
                   const scaleFactor = willScale ? availableBudget / totalBuys : 1;
                   return (
                     <>
-                      {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).length > 0 && (
+                      {activeReplSuggestions.length > 0 && (
                         <div className="mb-3">
                           <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">Käufe — Ersatz-Kandidaten</p>
                           <div className="space-y-1">
-                            {upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).map((rep) => {
-                              const buyTicker = rep.suggestions[0].ticker;
+                            {activeReplSuggestions.map((rep) => {
+                              const chosenTick = overrideReplacementTicker[rep.weakTicker] ?? rep.suggestions[0].ticker;
                               const scaledAmt = rep.cashRequired * scaleFactor;
                               return (
-                                <div key={buyTicker} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
-                                  <span className="font-mono font-semibold text-emerald-300">{buyTicker}</span>
+                                <div key={chosenTick} className="flex items-center justify-between text-xs bg-white/[0.03] rounded px-3 py-2">
+                                  <span className="font-mono font-semibold text-emerald-300">{chosenTick}</span>
                                   <span className="text-emerald-400 font-semibold">
                                     ↑ Kauf {fmtChf(scaledAmt)}
                                     {willScale && <span className="text-gray-500 ml-1 line-through text-[10px]">{fmtChf(rep.cashRequired)}</span>}
@@ -1177,11 +1377,11 @@ export default function OptimierenTab({
                           </div>
                         </div>
                       )}
-                      {upgradeData.additionSuggestions.length > 0 && (
+                      {activeAdditions.length > 0 && (
                         <div className="mb-4">
                           <p className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Käufe — Neue Kandidaten</p>
                           <div className="space-y-1">
-                            {upgradeData.additionSuggestions.slice(0, numAdditions).map((c: any) => {
+                            {activeAdditions.map((c: any) => {
                               const amtCHF = c.estimatedWeight * (totalValueCHF ?? 0);
                               const scaledAmt = amtCHF * scaleFactor;
                               return (
@@ -1194,39 +1394,14 @@ export default function OptimierenTab({
                                 </div>
                               );
                             })}
-                            {upgradeData.additionSuggestions.length > 5 && (
-                              <p className="text-[10px] text-gray-600 text-center">… und {upgradeData.additionSuggestions.length - 5} weitere</p>
-                            )}
                           </div>
                         </div>
                       )}
                     </>
                   );
                 })()}
-                {/* Snapshot-Checkbox + Kandidaten-Slider */}
+                {/* Snapshot-Checkbox */}
                 <div className="mb-4 space-y-3">
-                  {/* Slider: Anzahl neue Kandidaten */}
-                  {upgradeData.additionSuggestions.length > 0 && (
-                    <div className="px-3 py-2.5 bg-white/[0.03] rounded">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-gray-400">Neue Kandidaten buchen</span>
-                        <span className="text-xs font-semibold text-indigo-400">Top {numAdditions}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={3}
-                        max={Math.min(10, upgradeData.additionSuggestions.length)}
-                        value={numAdditions}
-                        onChange={(e) => setNumAdditions(Number(e.target.value))}
-                        className="w-full h-1.5 accent-indigo-500 cursor-pointer"
-                      />
-                      <div className="flex justify-between text-[10px] text-gray-600 mt-1">
-                        <span>1</span>
-                        <span>{Math.min(10, upgradeData.additionSuggestions.length)}</span>
-                      </div>
-                    </div>
-                  )}
-                  {/* Snapshot-Checkbox */}
                   <label className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -1242,9 +1417,11 @@ export default function OptimierenTab({
                 </div>
                 {/* Cash-Effekt Zusammenfassung */}
                 {(() => {
-                  const sellTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
-                  const buyReplTotal = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0).reduce((s, r) => s + r.cashRequired, 0);
-                  const buyAddTotal = upgradeData.additionSuggestions.slice(0, numAdditions).reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
+                  const activeReplSuggestions2 = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker));
+                  const activeAdditions2 = upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker));
+                  const sellTotal = activeReplSuggestions2.reduce((s, r) => s + r.cashRequired, 0);
+                  const buyReplTotal = activeReplSuggestions2.reduce((s, r) => s + r.cashRequired, 0);
+                  const buyAddTotal = activeAdditions2.reduce((s: number, c: any) => s + c.estimatedWeight * (totalValueCHF ?? 0), 0);
                   const totalBuys = buyReplTotal + buyAddTotal;
                   const availableBudget = (cashBalance ?? 0) + sellTotal;
                   const willScale = totalBuys > availableBudget + 0.01;
@@ -1285,9 +1462,9 @@ export default function OptimierenTab({
                   >Abbrechen</button>
                   <button
                     onClick={() => {
-                      const sells = upgradeData.replacementSuggestions
-                        .filter((r) => r.suggestions.length > 0)
-                        .map((rep) => ({
+                      const activeRepl = upgradeData.replacementSuggestions.filter((r) => r.suggestions.length > 0 && !deselectedReplacements.has(r.weakTicker));
+                      const activeAdd = upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker));
+                      const sells = activeRepl.map((rep) => ({
                           ticker: rep.weakTicker,
                           companyName: rep.weakCompanyName,
                           totalCHF: rep.cashRequired,
@@ -1298,19 +1475,21 @@ export default function OptimierenTab({
                           })(),
                         }));
                       const buys = [
-                        ...upgradeData.replacementSuggestions
-                          .filter((r) => r.suggestions.length > 0)
-                          .map((rep) => ({
-                            ticker: rep.suggestions[0].ticker,
-                            companyName: rep.suggestions[0].companyName,
-                            totalCHF: rep.cashRequired,
-                            priceCHF: (rep.suggestions[0] as any).currentPriceCHF ?? undefined,
-                            shares: (() => {
-                              const p = (rep.suggestions[0] as any).currentPriceCHF;
-                              return p && p > 0 ? rep.cashRequired / p : undefined;
-                            })(),
-                          })),
-                        ...upgradeData.additionSuggestions.slice(0, numAdditions).map((c: any) => ({
+                        ...activeRepl.map((rep) => {
+                            const chosenTick = overrideReplacementTicker[rep.weakTicker] ?? rep.suggestions[0].ticker;
+                            const chosenSug = rep.suggestions.find(s => s.ticker === chosenTick) ?? rep.suggestions[0];
+                            return {
+                              ticker: chosenTick,
+                              companyName: chosenSug.companyName,
+                              totalCHF: rep.cashRequired,
+                              priceCHF: (chosenSug as any).currentPriceCHF ?? undefined,
+                              shares: (() => {
+                                const p = (chosenSug as any).currentPriceCHF;
+                                return p && p > 0 ? rep.cashRequired / p : undefined;
+                              })(),
+                            };
+                          }),
+                        ...activeAdd.map((c: any) => ({
                           ticker: c.ticker,
                           companyName: c.companyName,
                           totalCHF: c.estimatedWeight * (totalValueCHF ?? 0),

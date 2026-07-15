@@ -500,7 +500,7 @@ Gib eine strukturierte Analyse zurück.`;
               return true;
             })
             .sort((a, b) => getCandidateScore(b as CandidateRow) - getCandidateScore(a as CandidateRow))
-            .slice(0, 1) // Genau 1 bester Ersatz pro schwacher Position
+            .slice(0, 3) // Top 3 Ersatz-Kandidaten pro schwacher Position (für Auswahl im Frontend)
             .map((c) => ({
               ticker: c.ticker,
               companyName: c.companyName,
