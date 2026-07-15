@@ -197,6 +197,13 @@
       "when": 1784100284888,
       "tag": "0027_regular_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "5",
+      "when": 1784101042845,
+      "tag": "0028_lyrical_carlie_cooper",
+      "breakpoints": true
     }
   ]
 }

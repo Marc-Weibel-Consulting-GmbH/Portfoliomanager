@@ -1336,3 +1336,34 @@ export const portfolioProposalLog = mysqlTable("portfolioProposalLog", {
 });
 export type PortfolioProposalLog = typeof portfolioProposalLog.$inferSelect;
 export type InsertPortfolioProposalLog = typeof portfolioProposalLog.$inferInsert;
+
+// ─── Makro-Indikatoren (FRED, SNB, World Bank) ───────────────────────────────
+// Gespeicherte Zeitreihen für Marktregime-Analyse und Markt-Charts.
+// Wird automatisch per Admin-Button oder Cron aktualisiert.
+export const macroIndicators = mysqlTable("macroIndicators", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Eindeutiger Schlüssel, z.B. "FRED_T10Y2Y", "FRED_CPIAUCSL", "SNB_USDCHF" */
+  seriesKey: varchar("seriesKey", { length: 64 }).notNull().unique(),
+  /** Anzeigename, z.B. "10Y-2Y Spread (USA)" */
+  label: varchar("label", { length: 128 }).notNull(),
+  /** Kategorie: "yield_curve" | "inflation" | "rates" | "employment" | "fx" | "credit" */
+  category: varchar("category", { length: 32 }).notNull(),
+  /** Datenquelle: "FRED" | "SNB" | "WORLDBANK" | "ECB" */
+  source: varchar("source", { length: 16 }).notNull(),
+  /** Letzter bekannter Wert */
+  latestValue: decimal("latestValue", { precision: 12, scale: 4 }),
+  /** Datum des letzten Wertes */
+  latestDate: varchar("latestDate", { length: 16 }),
+  /** Vorheriger Wert (für Delta-Berechnung) */
+  previousValue: decimal("previousValue", { precision: 12, scale: 4 }),
+  /** Vollständige Zeitreihe als JSON-Array [{date, value}] — letzten 2 Jahre */
+  timeseries: json("timeseries"),
+  /** Interpretations-Hinweis für Marktregime */
+  interpretation: text("interpretation"),
+  /** Zuletzt abgerufen */
+  lastFetchedAt: timestamp("lastFetchedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type MacroIndicator = typeof macroIndicators.$inferSelect;
+export type InsertMacroIndicator = typeof macroIndicators.$inferInsert;

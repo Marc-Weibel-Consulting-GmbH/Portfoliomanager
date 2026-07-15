@@ -13,8 +13,10 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Upload, FileText, Brain, Sparkles, Trash2, RefreshCw, Clock,
-  CheckCircle, AlertCircle, Loader2, Send, Bot, Eye, Plus, Key, Download
+  CheckCircle, AlertCircle, Loader2, Send, Bot, Eye, Plus, Key, Download,
+  Globe, TrendingUp, TrendingDown, Minus, Database
 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 // ============================================
 // Research Documents Tab
@@ -423,6 +425,212 @@ function ResearchContextPanel() {
           </CardContent>
         )}
       </Card>
+    </div>
+  );
+}
+
+// ============================================
+// Makro-Quellen Tab
+// ============================================
+function MacroSourcesTab() {
+  const { data: indicators, isLoading, refetch } = trpc.macroSources.list.useQuery();
+  const fetchFredMutation = trpc.macroSources.fetchFred.useMutation();
+  const fetchWbMutation = trpc.macroSources.fetchWorldBank.useMutation();
+  const [fetchingFred, setFetchingFred] = useState(false);
+  const [fetchingWb, setFetchingWb] = useState(false);
+  const [selectedSeries, setSelectedSeries] = useState<any | null>(null);
+
+  const handleFetchFred = async () => {
+    setFetchingFred(true);
+    try {
+      const result = await fetchFredMutation.mutateAsync();
+      toast.success(`FRED: ${result.successCount}/${result.totalCount} Serien erfolgreich abgerufen`);
+      refetch();
+    } catch (err: any) {
+      toast.error("FRED-Fetch fehlgeschlagen: " + err.message);
+    } finally {
+      setFetchingFred(false);
+    }
+  };
+
+  const handleFetchWb = async () => {
+    setFetchingWb(true);
+    try {
+      const result = await fetchWbMutation.mutateAsync();
+      toast.success(`World Bank: ${result.successCount}/${result.results.length} Serien abgerufen`);
+      refetch();
+    } catch (err: any) {
+      toast.error("World Bank-Fetch fehlgeschlagen: " + err.message);
+    } finally {
+      setFetchingWb(false);
+    }
+  };
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    yield_curve: "Zinskurve",
+    inflation: "Inflation",
+    rates: "Zinsen",
+    employment: "Arbeitsmarkt",
+    credit: "Kreditmarkt",
+    fx: "Währungen",
+    gdp: "BIP-Wachstum",
+  };
+
+  const grouped = (indicators ?? []).reduce((acc: Record<string, any[]>, ind) => {
+    const cat = ind.category ?? "other";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(ind);
+    return acc;
+  }, {});
+
+  const getDeltaIcon = (latest: number | null, previous: number | null) => {
+    if (latest === null || previous === null) return <Minus className="h-3 w-3 text-gray-500" />;
+    if (latest > previous) return <TrendingUp className="h-3 w-3 text-emerald-400" />;
+    if (latest < previous) return <TrendingDown className="h-3 w-3 text-red-400" />;
+    return <Minus className="h-3 w-3 text-gray-500" />;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header mit Fetch-Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Makro-Indikatoren</h2>
+          <p className="text-sm text-muted-foreground">
+            Automatisch abgerufene Daten von FRED (St. Louis Fed) und World Bank.
+            Fliessen in Marktregime-Analyse und KI-Empfehlungen ein.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleFetchFred}
+            disabled={fetchingFred}
+            className="gap-2"
+          >
+            {fetchingFred ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            FRED abrufen (12 Serien)
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleFetchWb}
+            disabled={fetchingWb}
+            className="gap-2"
+          >
+            {fetchingWb ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+            World Bank (BIP)
+          </Button>
+        </div>
+      </div>
+
+      {/* Quellen-Info */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {[
+          { name: "FRED / St. Louis Fed", desc: "Zinsen, Inflation, Arbeitsmarkt, Credit Spreads, FX", url: "https://fred.stlouisfed.org", count: indicators?.filter(i => i.source === "FRED").length ?? 0 },
+          { name: "World Bank", desc: "BIP-Wachstum CH, US, EU, DE (jährlich)", url: "https://data.worldbank.org", count: indicators?.filter(i => i.source === "WORLDBANK").length ?? 0 },
+          { name: "Manueller Upload", desc: "J.P. Morgan Guide, Damodaran, ARK Invest, Beth Kindig (PDF)", url: null, count: null },
+        ].map((src) => (
+          <div key={src.name} className="border border-white/10 rounded-lg p-3 bg-[#0f1420]">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium text-sm">{src.name}</span>
+              {src.count !== null && (
+                <Badge variant="outline" className="text-xs">{src.count} Serien</Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">{src.desc}</p>
+            {src.url && (
+              <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#00CFC1] hover:underline mt-1 inline-block">
+                {src.url} ↗
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Indikatoren nach Kategorie */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Lade Indikatoren...</span>
+        </div>
+      ) : Object.keys(grouped).length === 0 ? (
+        <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
+          <Database className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+          <p className="text-muted-foreground">Noch keine Daten vorhanden.</p>
+          <p className="text-sm text-muted-foreground mt-1">Klicken Sie auf "FRED abrufen" um die ersten Daten zu laden.</p>
+        </div>
+      ) : (
+        Object.entries(grouped).map(([cat, items]) => (
+          <div key={cat}>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              {CATEGORY_LABELS[cat] ?? cat}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {items.map((ind: any) => {
+                const delta = ind.latestValue !== null && ind.previousValue !== null
+                  ? ind.latestValue - ind.previousValue : null;
+                const isNegative = ind.latestValue !== null && ind.latestValue < 0;
+                return (
+                  <div
+                    key={ind.seriesKey}
+                    className="border border-white/10 rounded-lg p-3 bg-[#0f1420] cursor-pointer hover:border-[#00CFC1]/40 transition-colors"
+                    onClick={() => setSelectedSeries(selectedSeries?.seriesKey === ind.seriesKey ? null : ind)}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <span className="text-xs font-medium leading-tight">{ind.label}</span>
+                      <span className={`text-sm font-mono font-bold shrink-0 ${
+                        isNegative ? "text-red-400" : "text-emerald-400"
+                      }`}>
+                        {ind.latestValue !== null ? ind.latestValue.toFixed(2) : "—"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{ind.latestDate ?? "—"}</span>
+                      <div className="flex items-center gap-1">
+                        {getDeltaIcon(ind.latestValue, ind.previousValue)}
+                        {delta !== null && (
+                          <span className={`text-xs font-mono ${
+                            delta > 0 ? "text-emerald-400" : delta < 0 ? "text-red-400" : "text-gray-500"
+                          }`}>
+                            {delta > 0 ? "+" : ""}{delta.toFixed(3)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Mini-Chart wenn ausgewählt */}
+                    {selectedSeries?.seriesKey === ind.seriesKey && Array.isArray(ind.timeseries) && ind.timeseries.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <div style={{ height: 120 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={ind.timeseries.slice(-180)} margin={{ top: 4, right: 4, bottom: 4, left: -20 }}>
+                              <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(d) => d.slice(0, 7)} interval={Math.floor(ind.timeseries.length / 5)} />
+                              <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} />
+                              <Tooltip
+                                contentStyle={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.1)', fontSize: 11 }}
+                                formatter={(v: any) => [Number(v).toFixed(3), ind.label]}
+                              />
+                              <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" strokeDasharray="3 3" />
+                              <Line
+                                type="monotone"
+                                dataKey="value"
+                                stroke={isNegative ? "#f87171" : "#00CFC1"}
+                                dot={false}
+                                strokeWidth={1.5}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                        {ind.interpretation && (
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{ind.interpretation}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
@@ -978,6 +1186,9 @@ export default function AdminResearch() {
             <TabsTrigger value="apikeys" className="flex items-center gap-2">
               <Key className="h-4 w-4" />API-Keys
             </TabsTrigger>
+            <TabsTrigger value="macro" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />Makro-Quellen
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="documents" className="mt-4">
             <ResearchDocumentsTab />
@@ -987,6 +1198,9 @@ export default function AdminResearch() {
           </TabsContent>
           <TabsContent value="apikeys" className="mt-4">
             <ApiKeysTab />
+          </TabsContent>
+          <TabsContent value="macro" className="mt-4">
+            <MacroSourcesTab />
           </TabsContent>
         </Tabs>
       </div>

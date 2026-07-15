@@ -48,6 +48,7 @@ import { reportRouter } from "./routers/reportRouter";
 import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
 import { researchRouter } from "./routers/researchRouter";
+import { macroSourcesRouter } from "./routers/macroSourcesRouter";
 import { marketReportRouter } from "./routers/marketReportRouter";
 import { kiBoomRouter } from "./routers/kiBoomRouter";
 import { userSettingsRouter } from "./routers/userSettingsRouter";
@@ -1026,6 +1027,7 @@ export const appRouter = router({
   
     onboarding: onboardingRouter,
   researchAdmin: researchRouter,
+  macroSources: macroSourcesRouter,
   // Logo service for stock logos
   logos: router({
     getLogoUrl: publicProcedure
