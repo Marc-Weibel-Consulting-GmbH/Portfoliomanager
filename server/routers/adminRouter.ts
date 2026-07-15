@@ -1014,6 +1014,36 @@ export const adminRouter = router({
     }),
 
     /**
+     * Manueller Trigger für den Signal-Cache-Cron (refreshSignalCache).
+     * Berechnet qualityScore/momentumScore/combinedScore für alle Aktien neu
+     * und speichert sie korrekt skaliert (0-100) in stock_signal_cache.
+     */
+    triggerSignalCacheRefresh: adminProcedure.mutation(async () => {
+      try {
+        const { refreshSignalCache } = await import('../cron/signalCacheCron');
+        await refreshSignalCache();
+        return {
+          success: true,
+          message: 'Signal-Cache-Refresh gestartet. Die Scores werden im Hintergrund aktualisiert.',
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          message: `Fehler: ${err?.message ?? 'Unbekannter Fehler'}`,
+        };
+      }
+    }),
+
+    /**
+     * Clear the in-memory quality metrics cache (forces fresh EODHD fetch on next request)
+     */
+    clearQualityMetricsCache: adminProcedure.mutation(async () => {
+      const { clearQualityMetricsCache } = await import('../lib/qualityMetricsService');
+      clearQualityMetricsCache();
+      return { success: true, message: 'Quality-Metrics-Cache geleert. Nächste Anfrage holt frische Daten von EODHD.' };
+    }),
+
+    /**
      * Manually trigger the EODHD Gap-Filling job
      */
     triggerGapFilling: adminProcedure.mutation(async () => {

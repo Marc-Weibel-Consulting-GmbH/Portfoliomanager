@@ -10,6 +10,32 @@ import { toast } from "sonner";
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [refreshStatus, setRefreshStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [cacheStatus, setCacheStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [qualityCacheStatus, setQualityCacheStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const clearQualityCache = trpc.admin.clearQualityMetricsCache.useMutation({
+    onSuccess: (data) => {
+      setQualityCacheStatus({ success: data.success, message: data.message });
+      toast.success('Quality-Cache geleert', { description: data.message });
+    },
+    onError: (err) => {
+      setQualityCacheStatus({ success: false, message: err.message });
+      toast.error('Fehler', { description: err.message });
+    },
+  });
+  const triggerCacheRefresh = trpc.admin.triggerSignalCacheRefresh.useMutation({
+    onSuccess: (data) => {
+      setCacheStatus({ success: data.success, message: data.message });
+      if (data.success) {
+        toast.success('Signal-Cache aktualisiert', { description: data.message });
+      } else {
+        toast.error('Fehler beim Cache-Refresh', { description: data.message });
+      }
+    },
+    onError: (err) => {
+      setCacheStatus({ success: false, message: err.message });
+      toast.error('Fehler', { description: err.message });
+    },
+  });
   const triggerRefresh = trpc.admin.triggerSignalScoreRefresh.useMutation({
     onSuccess: (data) => {
       setRefreshStatus({ success: data.success, message: data.message });
@@ -125,6 +151,32 @@ export default function AdminDashboard() {
                 <span className="max-w-xs truncate">{refreshStatus.message}</span>
               </div>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQualityCacheStatus(null);
+                clearQualityCache.mutate();
+              }}
+              disabled={clearQualityCache.isPending}
+              className="gap-2 border-teal-500/50 text-teal-400 hover:text-teal-300"
+            >
+              <RefreshCw className={`h-4 w-4 ${clearQualityCache.isPending ? 'animate-spin' : ''}`} />
+              {clearQualityCache.isPending ? 'Lösche...' : 'Quality-Cache leeren'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCacheStatus(null);
+                triggerCacheRefresh.mutate();
+              }}
+              disabled={triggerCacheRefresh.isPending}
+              className="gap-2 border-violet-500/50 text-violet-400 hover:text-violet-300"
+            >
+              <RefreshCw className={`h-4 w-4 ${triggerCacheRefresh.isPending ? 'animate-spin' : ''}`} />
+              {triggerCacheRefresh.isPending ? 'Cache läuft...' : 'Signal-Cache neu berechnen'}
+            </Button>
             <Button
               variant="outline"
               size="sm"

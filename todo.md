@@ -215,3 +215,10 @@
 - [x] Fix: Performance seit Kauf = 0% (portfoliosRouter nutzt jetzt Transaktions-avgBuyPrice als Fallback wenn portfolioData leer)
 - [x] Fix: Score-Diskrepanz Positionen vs. Aktiendetails (Spalte umbenannt zu "Bewertung" mit erklärendem Tooltip)
 - [x] DB: Alte fehlerhafte qualityScore/momentumScore Werte (0/1) aus stock_signal_cache und stock_score_snapshot gelöscht
+
+## Admin-Dashboard Erweiterungen + Quality-Fixes (Jul 2026)
+- [x] Admin: Neuer Button "Signal-Cache neu berechnen" (triggerSignalCacheRefresh) — triggert refreshSignalCache() direkt
+- [x] Admin: Neuer Button "Quality-Cache leeren" (clearQualityMetricsCache) — leert 12h In-Memory-Cache für EODHD-Fundamentaldaten
+- [x] Fix: Forward PEG = 0 wenn EODHD ForwardPE = 0 (Guard forwardPE > 0.1 hinzugefügt)
+- [x] Fix: EPS-Stabilität = 0/100 (negative EPS-Werte wurden ausgeschlossen; jetzt werden alle Werte != 0 einbezogen, CV mit |prev| berechnet)
+- [x] Performance seit Kauf: Runtime-Fallback auf Transaktions-avgBuyPrice bereits aktiv (kein JSON-Backfill nötig)

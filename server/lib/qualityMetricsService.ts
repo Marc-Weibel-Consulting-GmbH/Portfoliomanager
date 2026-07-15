@@ -216,13 +216,15 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
   const epsValues: number[] = annualKeys
     .slice(-11) // 11 Jahre für 10 Wachstumsraten
     .map(k => parseFloatOrNull(annualEPS[k]?.epsActual))
-    .filter((v): v is number => v !== null && v > 0);
+    .filter((v): v is number => v !== null && v !== 0); // include negatives, exclude zero-division
 
   if (epsValues.length >= 5) {
     const growthRates: number[] = [];
     for (let i = 1; i < epsValues.length; i++) {
-      if (epsValues[i - 1] > 0) {
-        growthRates.push((epsValues[i] - epsValues[i - 1]) / epsValues[i - 1]);
+      const prev = epsValues[i - 1];
+      if (Math.abs(prev) > 0.001) {
+        // Use absolute value of prev to handle negative EPS correctly
+        growthRates.push((epsValues[i] - prev) / Math.abs(prev));
       }
     }
     if (growthRates.length >= 4) {
@@ -364,9 +366,9 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
   // Konzeptionell korrekt: Forward PE / zukunftsgerichtetes Wachstum (5Y CAGR)
   // Nicht: Forward PE / historisches TTM-Wachstum (Vergangenheit ≠ Zukunft)
   let forwardPeg: number | null = null;
-  if (forwardPE !== null && epsGrowth5y !== null && epsGrowth5y > 0) {
+  if (forwardPE !== null && forwardPE > 0.1 && epsGrowth5y !== null && epsGrowth5y > 0) {
     forwardPeg = forwardPE / epsGrowth5y;
-  } else if (forwardPE !== null && epsGrowthTTM !== null && epsGrowthTTM > 0) {
+  } else if (forwardPE !== null && forwardPE > 0.1 && epsGrowthTTM !== null && epsGrowthTTM > 0) {
     // Fallback: TTM als Wachstumsschätzung, nur wenn kein 5Y CAGR verfügbar
     forwardPeg = forwardPE / epsGrowthTTM;
   }
