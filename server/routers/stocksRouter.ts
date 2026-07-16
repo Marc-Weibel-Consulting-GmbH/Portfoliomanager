@@ -1399,7 +1399,6 @@ export const stocksRouter = router({
         
         try {
           // Note: historicalPrices table only has: date, close, adjustedClose, currency, source
-          // We don't have open, high, low, volume - so we'll simulate them from close price
           const prices = await db
             .select({
               date: historicalPrices.date,
@@ -1415,6 +1414,38 @@ export const stocksRouter = router({
             )
             .orderBy(historicalPrices.date);
           
+          // If no data in DB, try to fetch on-demand from EODHD for non-listed tickers
+          if (prices.length === 0) {
+            try {
+              const { importHistoricalPricesForTicker } = await import("../jobs/importHistoricalPrices");
+              // Determine a reasonable from-date for on-demand fetch (max 2 years)
+              const onDemandFrom = new Date();
+              onDemandFrom.setFullYear(onDemandFrom.getFullYear() - 2);
+              const onDemandFromStr = onDemandFrom.toISOString().split('T')[0];
+              const todayStr = new Date().toISOString().split('T')[0];
+              console.log(`[getHistoricalPrices] No DB data for ${input.ticker}, fetching on-demand from EODHD...`);
+              const result = await importHistoricalPricesForTicker(input.ticker, onDemandFromStr, todayStr);
+              if (result.pricesImported > 0) {
+                // Re-query DB with the newly imported data
+                const freshPrices = await db
+                  .select({ date: historicalPrices.date, close: historicalPrices.close, adjustedClose: historicalPrices.adjustedClose })
+                  .from(historicalPrices)
+                  .where(and(eq(historicalPrices.ticker, input.ticker), gte(historicalPrices.date, startDateStr)))
+                  .orderBy(historicalPrices.date);
+                return freshPrices.map(p => ({
+                  date: p.date,
+                  open: null as number | null,
+                  high: null as number | null,
+                  low: null as number | null,
+                  close: p.close ? parseFloat(p.close) : null,
+                  volume: null as number | null,
+                }));
+              }
+            } catch (onDemandError) {
+              console.warn(`[getHistoricalPrices] On-demand fetch failed for ${input.ticker}:`, onDemandError);
+            }
+          }
+
           // DAT-1 (Audit 2026-07): KEINE fabrizierten Werte mehr — die DB führt nur
           // Schlusskurse; Open/High/Low/Volumen wurden vorher bei jedem Request per
           // Math.random() erfunden und als echte Daten ausgeliefert. Ehrlich: null.

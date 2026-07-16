@@ -194,9 +194,9 @@ export default function StockDetail() {
   });
 
   // Fetch historical prices for chart
-  const { data: historicalPrices = [] } = trpc.stocks.getHistoricalPrices.useQuery(
+  const { data: historicalPrices = [], isLoading: isLoadingPrices } = trpc.stocks.getHistoricalPrices.useQuery(
     { ticker, period: selectedPeriod },
-    { enabled: !!ticker, retry: false }
+    { enabled: !!ticker, retry: false, staleTime: 5 * 60 * 1000 }
   );
 
   // Fetch news for this stock (using the inline router which takes just a string)
@@ -607,8 +607,18 @@ export default function StockDetail() {
                 {/* Chart - Price Only (without Volume) */}
                 {chartData.length === 0 ? (
                   <div className="h-[400px] flex flex-col items-center justify-center text-center gap-2">
-                    <p className="text-gray-400 text-sm">Für diesen Titel liegen keine Kursdaten vor.</p>
-                    <p className="text-gray-500 text-xs">Die Kurshistorie wird automatisch nachgeladen, sobald sie verfügbar ist.</p>
+                    {isLoadingPrices ? (
+                      <>
+                        <div className="w-6 h-6 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                        <p className="text-gray-400 text-sm">Kursdaten werden geladen…</p>
+                        <p className="text-gray-500 text-xs">Erstmaliger Abruf für diesen Titel — bitte einen Moment warten.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-gray-400 text-sm">Für diesen Titel liegen keine Kursdaten vor.</p>
+                        <p className="text-gray-500 text-xs">Die Kurshistorie konnte nicht geladen werden.</p>
+                      </>
+                    )}
                   </div>
                 ) : (
                 <ResponsiveContainer width="100%" height={400}>
