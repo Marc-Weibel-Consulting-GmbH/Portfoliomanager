@@ -603,13 +603,11 @@ export default function AdminProposalAnalysis() {
   // saveAdminReview mutation
   const saveAdminReviewMutation = trpc.admin.saveAdminReview.useMutation({
     onSuccess: (data) => {
-      toast.success('Angepasster Vorschlag gespeichert');
-      if (returnTo) {
-        // Use window.location.href for full navigation with query params (Wouter doesn't handle query params in navigate)
-        window.location.href = `${returnTo}?reviewedProposalId=${data.proposalId}`;
-      } else {
-        refetch();
-      }
+      toast.success('Angepasster Vorschlag gespeichert — weiterleitung zum Portfolio Wizard…');
+      // Always redirect to Portfolio Wizard with the reviewed proposal preloaded.
+      // If a returnTo param is present (e.g. from the Wizard flow), use it; otherwise default to /portfolio-builder.
+      const destination = returnTo ?? '/portfolio-builder';
+      window.location.href = `${destination}?reviewedProposalId=${data.proposalId}`;
     },
     onError: (e) => toast.error('Fehler beim Speichern', { description: e.message }),
   });
@@ -1082,7 +1080,7 @@ export default function AdminProposalAnalysis() {
                                 ? 'Speichert…'
                                 : returnTo
                                   ? 'Vorschlag speichern & zurück zum Wizard'
-                                  : 'Angepassten Vorschlag speichern'
+                                  : 'Vorschlag speichern & zum Portfolio Wizard'
                               }
                             </Button>
                           );

@@ -418,6 +418,13 @@ export default function PortfolioBuilderWizard() {
     if (reviewedPositions.length === 0) return;
     const capital = parseFloat(initialCapital) || 100000;
     // Build a synthetic autoProposal from the reviewed positions
+    const methodLabelMap: Record<string, string> = {
+      max_sharpe: 'Max. Sharpe',
+      min_variance: 'Min. Varianz',
+      max_dividend: 'Max. Dividende',
+      equal_weight: 'Gleichgewichtet',
+      hrp: 'HRP',
+    };
     setAutoProposal({
       positions: proposal.positions,
       adjustedPositions: reviewedPositions,
@@ -431,6 +438,14 @@ export default function PortfolioBuilderWizard() {
       sharpe: proposal.sharpe,
       fxWeightPct: proposal.fxWeightPct,
       meetsKennzahlenFilter: proposal.meetsKennzahlenFilter,
+      // Synthetic fields required by the Wizard UI
+      methodLabel: methodLabelMap[proposal.method ?? ''] ?? 'KI-Optimiert (Admin-geprüft)',
+      stats: {
+        scoredCount: reviewedPositions.length,
+        buySignals: reviewedPositions.length,
+        watchlistRecommendations: 0,
+      },
+      weighting: { source: 'optimizer', method: proposal.method ?? 'max_sharpe' },
     });
     setPath('auto');
     setAutoStep(5);
