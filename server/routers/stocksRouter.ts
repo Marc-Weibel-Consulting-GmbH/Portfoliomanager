@@ -683,6 +683,25 @@ export const stocksRouter = router({
         // Recalculate weights: redistribute other stocks
         await recalculateWeights(stockData.ticker, false);
         
+        // Auto-backfill historical prices for the new ticker (fire-and-forget)
+        // Loads up to 2 years of historical data so charts are immediately populated
+        {
+          const ticker = stockData.ticker;
+          const toDate = new Date().toISOString().split('T')[0];
+          const fromDate = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          import('../jobs/importHistoricalPrices')
+            .then(({ importHistoricalPricesForTicker }) =>
+              importHistoricalPricesForTicker(ticker, fromDate, toDate)
+            )
+            .then((result) => {
+              console.log(`[AddStock] Historical price backfill complete for ${ticker}: ${result.pricesImported} prices imported`);
+            })
+            .catch((err: any) => {
+              console.warn(`[AddStock] Historical price backfill failed for ${ticker}:`, err?.message);
+            });
+          console.log(`[AddStock] Historical price backfill started for ${ticker} (${fromDate} to ${toDate})`);
+        }
+        
         return { success: true };
       }),
     update: protectedProcedure
