@@ -54,11 +54,11 @@ export default function AdminDashboard() {
   });
   const triggerMetricsSnapshot = trpc.admin.triggerPortfolioMetricsSnapshot.useMutation({
     onSuccess: (data: any) => {
-      const msg = data?.saved !== undefined
+      const msg = data?.message ?? (data?.saved !== undefined
         ? `${data.saved} Snapshots gespeichert (${data.skipped} übersprungen)`
-        : 'Fertig';
+        : 'Gestartet — läuft im Hintergrund');
       setMetricsSnapshotStatus(msg);
-      toast.success('Portfolio-Metriken Backfill abgeschlossen', { description: msg });
+      toast.success('Portfolio-Metriken Backfill gestartet', { description: msg });
     },
     onError: (err: any) => {
       setMetricsSnapshotStatus('Fehler: ' + err.message);
@@ -230,10 +230,10 @@ export default function AdminDashboard() {
               className="gap-2 border-blue-500/50 text-blue-400 hover:text-blue-300"
             >
               <RefreshCw className={`h-4 w-4 ${triggerMetricsSnapshot.isPending ? 'animate-spin' : ''}`} />
-              {triggerMetricsSnapshot.isPending ? 'Backfill läuft...' : 'Portfolio-Metriken Backfill (1 Jahr)'}
+              {triggerMetricsSnapshot.isPending ? 'Starte...' : 'Portfolio-Metriken Backfill (1 Jahr)'}
             </Button>
             {metricsSnapshotStatus && (
-              <span className="text-xs text-blue-400">{metricsSnapshotStatus}</span>
+              <span className="text-xs text-blue-400 max-w-xs">{metricsSnapshotStatus}</span>
             )}
             <Button
               variant="outline"

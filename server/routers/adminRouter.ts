@@ -1477,13 +1477,22 @@ export const adminRouter = router({
     .mutation(async ({ input }) => {
       const { handlePortfolioMetricsSnapshot } = await import('../scheduled/portfolioMetricsSnapshotScheduled');
       const mockReq = { query: { backfill: input.backfill ? 'true' : 'false' }, body: { backfill: input.backfill } } as any;
-      let result: any = null;
+      // Fire-and-forget: return immediately so the browser doesn't time out.
+      // Backfill for 37 portfolios × 365 days can take 2-3 minutes.
       const mockRes = {
-        json: (data: any) => { result = data; return mockRes; },
-        status: (_code: number) => ({ json: (data: any) => { result = data; return mockRes; } }),
+        json: (_data: any) => mockRes,
+        status: (_code: number) => ({ json: (_data: any) => mockRes }),
       } as any;
-      await handlePortfolioMetricsSnapshot(mockReq, mockRes);
-      return result ?? { ok: true };
+      handlePortfolioMetricsSnapshot(mockReq, mockRes).catch((err: any) => {
+        console.error('[triggerPortfolioMetricsSnapshot] Background error:', err?.message);
+      });
+      return {
+        ok: true,
+        started: true,
+        message: input.backfill
+          ? 'Backfill gestartet — läuft im Hintergrund (~1-3 Min). Server-Logs zeigen den Fortschritt.'
+          : 'Snapshot gestartet — läuft im Hintergrund.',
+      };
     }),
 
   // Get a single proposal by ID (for deep-link from wizard)
