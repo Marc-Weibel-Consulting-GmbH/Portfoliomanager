@@ -302,8 +302,23 @@ export const adminRouter = router({
           throw new Error('Unauthorized: Admin access required');
         }
         
-        const result = await importHistoricalPrices(input.fromDate, input.toDate, input.forceRefresh);
-        return result;
+        // Fire-and-forget: return immediately to avoid 524 Cloudflare timeout
+        // The import runs in the background (can take 5-15 min for full backfill)
+        importHistoricalPrices(input.fromDate, input.toDate, input.forceRefresh)
+          .then((result) => {
+            console.log(`[importHistoricalPrices] Background import complete: ${result.tickersProcessed} tickers, ${result.pricesImported} prices`);
+          })
+          .catch((err: any) => {
+            console.error('[importHistoricalPrices] Background import error:', err?.message);
+          });
+        
+        return {
+          success: true,
+          started: true,
+          message: 'Kursdaten-Import gestartet — läuft im Hintergrund. Server-Logs zeigen den Fortschritt.',
+          tickersProcessed: 0,
+          pricesImported: 0,
+        };
       }),
 
     /**
