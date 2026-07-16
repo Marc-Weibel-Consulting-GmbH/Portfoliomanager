@@ -1376,3 +1376,35 @@ export const macroIndicators = mysqlTable("macroIndicators", {
 });
 export type MacroIndicator = typeof macroIndicators.$inferSelect;
 export type InsertMacroIndicator = typeof macroIndicators.$inferInsert;
+
+// ─── Portfolio Metrics Snapshot ───────────────────────────────────────────────
+// Täglicher Snapshot der durchschnittlichen Portfolio-Kennzahlen.
+// Ermöglicht historische Charts für Sharpe, PEG, Dividende, Beta in der Übersicht.
+export const portfolioMetricsSnapshot = mysqlTable("portfolioMetricsSnapshot", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Referenz auf savedPortfolios.id */
+  portfolioId: int("portfolioId").notNull(),
+  /** Datum des Snapshots (YYYY-MM-DD) */
+  snapshotDate: date("snapshotDate").notNull(),
+  /** Durchschnittliche Sharpe Ratio des Portfolios */
+  avgSharpe: decimal("avgSharpe", { precision: 8, scale: 4 }),
+  /** Durchschnittliches PEG Ratio (gewichtet nach Portfolio-Anteil) */
+  avgPEG: decimal("avgPEG", { precision: 8, scale: 4 }),
+  /** Durchschnittliche Dividendenrendite in % */
+  avgDividendYield: decimal("avgDividendYield", { precision: 8, scale: 4 }),
+  /** Durchschnittliches Beta */
+  avgBeta: decimal("avgBeta", { precision: 8, scale: 4 }),
+  /** Durchschnittliches KGV (P/E) */
+  avgPE: decimal("avgPE", { precision: 8, scale: 4 }),
+  /** Anzahl Positionen zum Zeitpunkt des Snapshots */
+  positionCount: int("positionCount"),
+  /** Gesamtwert des Portfolios in CHF zum Zeitpunkt des Snapshots */
+  totalValueCHF: decimal("totalValueCHF", { precision: 16, scale: 2 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => [
+  unique().on(t.portfolioId, t.snapshotDate),
+  index("idx_pms_portfolio_date").on(t.portfolioId, t.snapshotDate),
+]);
+export type PortfolioMetricsSnapshot = typeof portfolioMetricsSnapshot.$inferSelect;
+export type InsertPortfolioMetricsSnapshot = typeof portfolioMetricsSnapshot.$inferInsert;
+

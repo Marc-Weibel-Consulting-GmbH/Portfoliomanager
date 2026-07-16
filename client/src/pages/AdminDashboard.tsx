@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [cacheStatus, setCacheStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [qualityCacheStatus, setQualityCacheStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [sectorStatus, setSectorStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [metricsSnapshotStatus, setMetricsSnapshotStatus] = useState<string | null>(null);
   const clearQualityCache = trpc.admin.clearQualityMetricsCache.useMutation({
     onSuccess: (data) => {
       setQualityCacheStatus({ success: data.success, message: data.message });
@@ -49,6 +50,19 @@ export default function AdminDashboard() {
     onError: (err) => {
       setSectorStatus({ success: false, message: err.message });
       toast.error('Fehler', { description: err.message });
+    },
+  });
+  const triggerMetricsSnapshot = trpc.admin.triggerPortfolioMetricsSnapshot.useMutation({
+    onSuccess: (data: any) => {
+      const msg = data?.saved !== undefined
+        ? `${data.saved} Snapshots gespeichert (${data.skipped} übersprungen)`
+        : 'Fertig';
+      setMetricsSnapshotStatus(msg);
+      toast.success('Portfolio-Metriken Backfill abgeschlossen', { description: msg });
+    },
+    onError: (err: any) => {
+      setMetricsSnapshotStatus('Fehler: ' + err.message);
+      toast.error('Fehler beim Backfill', { description: err.message });
     },
   });
   const triggerRefresh = trpc.admin.triggerSignalScoreRefresh.useMutation({
@@ -205,6 +219,22 @@ export default function AdminDashboard() {
               <RefreshCw className={`h-4 w-4 ${refreshSectors.isPending ? 'animate-spin' : ''}`} />
               {refreshSectors.isPending ? 'Aktualisiert...' : 'Sektoren aktualisieren'}
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setMetricsSnapshotStatus(null);
+                triggerMetricsSnapshot.mutate({ backfill: true });
+              }}
+              disabled={triggerMetricsSnapshot.isPending}
+              className="gap-2 border-blue-500/50 text-blue-400 hover:text-blue-300"
+            >
+              <RefreshCw className={`h-4 w-4 ${triggerMetricsSnapshot.isPending ? 'animate-spin' : ''}`} />
+              {triggerMetricsSnapshot.isPending ? 'Backfill läuft...' : 'Portfolio-Metriken Backfill (1 Jahr)'}
+            </Button>
+            {metricsSnapshotStatus && (
+              <span className="text-xs text-blue-400">{metricsSnapshotStatus}</span>
+            )}
             <Button
               variant="outline"
               size="sm"

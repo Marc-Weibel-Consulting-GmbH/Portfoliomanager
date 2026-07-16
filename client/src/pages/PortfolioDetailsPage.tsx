@@ -73,6 +73,7 @@ import RiskTab from "@/components/portfolio/RiskTab";
 import OptimierenTab from "@/components/portfolio/OptimierenTab";
 import PortfolioDeepDive from "@/components/portfolio/PortfolioDeepDive";
 import PositionsKonstellation from "@/components/portfolio/PositionsKonstellation";
+import { PortfolioQualityHistory } from "@/components/portfolio/PortfolioQualityHistory";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
 import { SECTOR_COLOR, formatCHF, formatCurrency, formatDate } from "@/lib/format";
 import { StockLogo } from "@/components/StockLogo";
@@ -1795,7 +1796,10 @@ export default function PortfolioDetailsPage() {
               </div>
             )}
 
-            {/* SNAPSHOTS SECTION — Kopien dieses Portfolios */}
+            {/* QUALITY HISTORY CHARTS */}
+          <PortfolioQualityHistory portfolioId={portfolioId} />
+
+          {/* SNAPSHOTS SECTION — Kopien dieses Portfolios */}
           {allPortfolios && (allPortfolios as any[]).filter((p: any) => p.snapshotOfPortfolioId === portfolioId).length > 0 && (
             <div className="mt-4 bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-amber-500/20 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">

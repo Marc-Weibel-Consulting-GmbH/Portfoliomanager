@@ -1,4 +1,5 @@
 import { protectedProcedure, router } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { ENV } from "../_core/env";
 // D-01: unified holdings replay (buy/entry/sell, chronological, DESC-safe) —
@@ -3170,5 +3171,102 @@ WICHTIG: Signal-Score-Regeln:
           throw new Error(`Fehler beim Aktualisieren: ${(e as Error).message}`);
         }
       }
+    }),
+
+  /**
+   * Portfolio Quality History: returns metric snapshots + optimization events
+   * for the two quality history charts.
+   */
+  getPortfolioMetricsHistory: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number(),
+      period: z.enum(['1M', '3M', '6M', '1Y', 'MAX']).default('1Y'),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { getDb } = await import('../db');
+      const { portfolioMetricsSnapshot, portfolioTransactions, savedPortfolios } = await import('../../drizzle/schema');
+      const { eq, and, gte } = await import('drizzle-orm');
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+
+      // Verify ownership
+      const portfolio = await db.select({ id: savedPortfolios.id, userId: savedPortfolios.userId })
+        .from(savedPortfolios)
+        .where(eq(savedPortfolios.id, input.portfolioId))
+        .limit(1);
+      if (portfolio.length === 0) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden' });
+      if (portfolio[0].userId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: 'Kein Zugriff' });
+
+      // Calculate cutoff date based on period
+      const now = new Date();
+      let cutoff: Date | null = null;
+      if (input.period === '1M') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 1); }
+      else if (input.period === '3M') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3); }
+      else if (input.period === '6M') { cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 6); }
+      else if (input.period === '1Y') { cutoff = new Date(now); cutoff.setFullYear(cutoff.getFullYear() - 1); }
+      // MAX: no cutoff
+
+      // Fetch snapshots
+      const cutoffDate = cutoff ?? new Date('2000-01-01');
+      const snapshots = await db.select()
+        .from(portfolioMetricsSnapshot)
+        .where(
+          and(
+            eq(portfolioMetricsSnapshot.portfolioId, input.portfolioId),
+            gte(portfolioMetricsSnapshot.snapshotDate, cutoffDate)
+          )
+        )
+        .orderBy(portfolioMetricsSnapshot.snapshotDate);
+
+      // Fetch optimization events (transactions where source = 'optimization')
+      const optTxs = await db.select({
+        transactionDate: portfolioTransactions.transactionDate,
+        ticker: portfolioTransactions.ticker,
+        transactionType: portfolioTransactions.transactionType,
+      })
+        .from(portfolioTransactions)
+        .where(
+          and(
+            eq(portfolioTransactions.portfolioId, input.portfolioId),
+            eq(portfolioTransactions.source, 'optimization')
+          )
+        )
+        .orderBy(portfolioTransactions.transactionDate);
+
+      // Group optimization events by date
+      const optEventMap = new Map<string, string[]>();
+      for (const tx of optTxs) {
+        const dateStr = tx.transactionDate instanceof Date
+          ? tx.transactionDate.toISOString().slice(0, 10)
+          : String(tx.transactionDate).slice(0, 10);
+        if (cutoff && new Date(dateStr) < cutoff) continue;
+        if (!optEventMap.has(dateStr)) optEventMap.set(dateStr, []);
+        optEventMap.get(dateStr)!.push(`${tx.transactionType} ${tx.ticker}`);
+      }
+      const optimizationEvents = Array.from(optEventMap.entries()).map(([date, actions]) => ({
+        date,
+        label: `Optimierung (${actions.length} Trades)`,
+      }));
+
+      // Format snapshots
+      const formattedSnapshots = snapshots.map(s => ({
+        date: s.snapshotDate instanceof Date
+          ? s.snapshotDate.toISOString().slice(0, 10)
+          : String(s.snapshotDate).slice(0, 10),
+        avgSharpe: s.avgSharpe ? parseFloat(s.avgSharpe) : null,
+        avgPEG: s.avgPEG ? parseFloat(s.avgPEG) : null,
+        avgDividendYield: s.avgDividendYield ? parseFloat(s.avgDividendYield) : null,
+        avgBeta: s.avgBeta ? parseFloat(s.avgBeta) : null,
+        avgPE: s.avgPE ? parseFloat(s.avgPE) : null,
+        positionCount: s.positionCount,
+        totalValueCHF: s.totalValueCHF ? parseFloat(s.totalValueCHF) : null,
+      }));
+
+      return {
+        snapshots: formattedSnapshots,
+        optimizationEvents,
+        period: input.period,
+        portfolioId: input.portfolioId,
+      };
     }),
 });

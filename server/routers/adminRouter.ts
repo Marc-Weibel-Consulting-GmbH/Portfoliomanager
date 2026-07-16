@@ -1469,6 +1469,23 @@ export const adminRouter = router({
     return { success: true, updated, message: `${updated} von ${allStocks.length} Aktien mit EODHD-Sektoren aktualisiert.` };
   }),
 
+  /**
+   * Trigger portfolio metrics snapshot (backfill or daily)
+   */
+  triggerPortfolioMetricsSnapshot: adminProcedure
+    .input(z.object({ backfill: z.boolean().default(false) }))
+    .mutation(async ({ input }) => {
+      const { handlePortfolioMetricsSnapshot } = await import('../scheduled/portfolioMetricsSnapshotScheduled');
+      const mockReq = { query: { backfill: input.backfill ? 'true' : 'false' }, body: { backfill: input.backfill } } as any;
+      let result: any = null;
+      const mockRes = {
+        json: (data: any) => { result = data; return mockRes; },
+        status: (_code: number) => ({ json: (data: any) => { result = data; return mockRes; } }),
+      } as any;
+      await handlePortfolioMetricsSnapshot(mockReq, mockRes);
+      return result ?? { ok: true };
+    }),
+
   // Get a single proposal by ID (for deep-link from wizard)
   getProposalById: adminProcedure
     .input(z.object({ proposalId: z.number() }))

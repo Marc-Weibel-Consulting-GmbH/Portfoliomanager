@@ -230,3 +230,10 @@
 - [x] Perf: 24h In-Memory-Cache für EODHD-Fundamentaldaten in qualityMetricsService (Ladezeit ~7s → <1s)
 - [x] Perf: Sektor-Klassifikation vereinheitlichen — EODHD-Sektoren beim Aktien-Refresh in DB schreiben
 - [x] Perf: 6h-Cache für Deep-Dive-KI-Zusammenfassung (LLM-Kosten sparen, Antwortzeit verbessern)
+
+## Portfolio Quality History Charts (Jul 2026)
+- [ ] DB: portfolioMetricsSnapshot Tabelle (portfolioId, date, avgSharpe, avgPEG, avgDividendYield, avgBeta, avgPE)
+- [ ] DB: täglicher Snapshot-Cron der Metriken für alle aktiven Portfolios
+- [ ] Backend: tRPC-Endpunkt getPortfolioMetricsHistory mit Optimierungs-Events
+- [ ] Frontend: Zeitreihen-Chart (Sharpe/PEG/Dividende/Beta) mit Optimierungs-Markierungen in Portfolio-Übersicht
+- [ ] Frontend: Quadranten-Scatter-Chart (PEG vs. Sharpe, Blasengrösse = Dividende) mit Portfolio-Trajektorie

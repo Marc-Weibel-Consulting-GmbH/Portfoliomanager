@@ -218,6 +218,13 @@
       "when": 1784115382871,
       "tag": "0030_faithful_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1784184041945,
+      "tag": "0031_mature_silver_samurai",
+      "breakpoints": true
     }
   ]
 }
