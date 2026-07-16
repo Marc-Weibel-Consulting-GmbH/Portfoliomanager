@@ -344,6 +344,9 @@ export const autoPortfolioRouter = router({
       let weights: Record<string, number> = {};
       let weightingSource: "optimizer" | "score_fallback" = "optimizer";
       let weightingNote: string | null = null;
+      // Herkunft der Optimierer-Gewichte: "exact" = PyPortfolioOpt
+      // (analytics_service), "random_search"/"analytic" = TS-Engine.
+      let weightingEngine: "exact" | "random_search" | "analytic" | null = null;
       // Erwartete Kennzahlen des optimierten Vorschlags (vorher weggeworfen —
       // der Kunde sah einen Vorschlag ohne «was darf ich erwarten?»).
       let proposalMetrics: { expectedReturnPct: number; volatilityPct: number; sharpe: number } | null = null;
@@ -354,8 +357,16 @@ export const autoPortfolioRouter = router({
           method,
           minPositionWeight: params.minPositionWeight,
           maxPositionWeight: params.maxPositionWeight,
+          // PyPortfolioOpt: harte Sektor-Caps im exakten Optimierer (sofern
+          // ANALYTICS_SERVICE_URL konfiguriert) — der Zufallssuche-Fallback
+          // kennt weiterhin nur die Auswahl-Caps aus Schritt 6.
+          sectorByTicker: Object.fromEntries(
+            selected.map((c) => [c.stock.ticker, c.stock.sector || "Andere"])
+          ),
+          maxSectorWeightPct: rules.maxSectorPercent,
         });
         weights = { ...opt.weights };
+        weightingEngine = opt.optimizerEngine ?? "random_search";
         proposalMetrics = {
           expectedReturnPct: Math.round(opt.optimalPortfolio.expectedReturn * 1000) / 10,
           volatilityPct: Math.round(opt.optimalPortfolio.volatility * 1000) / 10,
@@ -857,6 +868,7 @@ Antworte im JSON-Format.`,
           : "Score-gewichtet (Fallback)",
         weighting: {
           source: weightingSource,
+          engine: weightingEngine,
           note: weightingNote,
           minPositionPct: Math.round(params.minPositionWeight * 1000) / 10,
           maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10,

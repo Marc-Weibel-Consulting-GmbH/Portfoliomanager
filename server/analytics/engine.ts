@@ -139,6 +139,13 @@ export interface OptimizeInput {
     /** Mindest-Sharpe-Ratio (z.B. 1.0) */
     minSharpe?: number;
   };
+  /**
+   * Sektor je Ticker — nur vom exakten Optimierer (PyPortfolioOpt) als harter
+   * Sektor-Cap erzwungen; der Zufallssuche-Fallback ignoriert beides.
+   */
+  sectorByTicker?: Record<string, string>;
+  /** Max. Sektorgewicht in Prozent (z. B. 30). */
+  maxSectorWeightPct?: number;
 }
 
 export interface TechnicalAnalysisInput {
@@ -1221,6 +1228,8 @@ export async function optimizePortfolio(input: OptimizeInput) {
       droppedPositions: droppedHrp,
       // OPT-7: Titel, die mangels Kurshistorie NICHT optimiert wurden.
       excludedShortHistory,
+      // HRP ist ein deterministisches Cluster-Verfahren ohne Zufallssuche.
+      optimizerEngine: "analytic" as const,
       minPositionChf: MIN_POSITION_CHF_HRP,
       hrpMeta: {
         clusterOrder: hrpResult.sortedTickers,
@@ -1249,11 +1258,44 @@ export async function optimizePortfolio(input: OptimizeInput) {
     }
   }
 
-  // Optimal weights (F2: Positions-Bounds aus den Diversifikationsregeln)
-  const optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields, {
-    minWeight: minPositionWeight,
-    maxWeight: maxPositionWeight,
-  }, input.userConstraints);
+  // Optimal weights: zuerst der EXAKTE Optimierer (PyPortfolioOpt im
+  // analytics_service — konvexer Solver, optional harte Sektor-Caps), sofern
+  // konfiguriert und die Methode exakt lösbar ist. μ und Kovarianz gehen
+  // UNVERÄNDERT von hier mit (BL-Posterior + Ledoit-Wolf aus CHF-Renditen) —
+  // Python löst nur das Optimierungsproblem. Fällt der Dienst aus oder ist
+  // ANALYTICS_SERVICE_URL nicht gesetzt, greift die bisherige deterministische
+  // Zufallssuche; das Ergebnis kennzeichnet die Herkunft (optimizerEngine).
+  // Soft-Constraints (userConstraints, Penalty-Terme) und max_dividend sind
+  // nicht als konvexes Problem abgebildet → immer Zufallssuche.
+  let optimizerEngine: "exact" | "random_search" | "analytic" =
+    method === "equal_weight" ? "analytic" : "random_search";
+  let optimalWeights: number[] | null = null;
+  if ((method === "max_sharpe" || method === "min_variance") && !input.userConstraints) {
+    const { solveExactWeights } = await import("./exactOptimizer");
+    const { minW, maxW } = effectiveBounds(n, minPositionWeight, maxPositionWeight);
+    const exact = await solveExactWeights({
+      tickers: available,
+      mu,
+      cov,
+      riskFreeRate,
+      minWeight: minW,
+      maxWeight: maxW,
+      method,
+      sectorByTicker: input.sectorByTicker,
+      maxSectorWeightPct: input.maxSectorWeightPct,
+    });
+    if (exact) {
+      optimalWeights = available.map((t) => exact.weights[t] ?? 0);
+      optimizerEngine = "exact";
+    }
+  }
+  if (!optimalWeights) {
+    // F2: Positions-Bounds aus den Diversifikationsregeln
+    optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields, {
+      minWeight: minPositionWeight,
+      maxWeight: maxPositionWeight,
+    }, input.userConstraints);
+  }
 
   // R-34c: Mindest-Positionsgrösse CHF 3'000 — Zielpositionen, deren Wert
   // (Zielgewicht × Portfoliowert) unter der Mindestgrösse liegt, werden auf 0
@@ -1381,6 +1423,9 @@ export async function optimizePortfolio(input: OptimizeInput) {
     // OPT-7 (additiv): Titel, die mangels Kurshistorie (< 60 Handelstage)
     // NICHT in die Optimierung eingeflossen sind.
     excludedShortHistory,
+    // Herkunft der Gewichte: "exact" = PyPortfolioOpt (analytics_service),
+    // "random_search" = TS-Fallback, "analytic" = equal_weight.
+    optimizerEngine,
     minPositionChf: MIN_POSITION_CHF,
     // Constraint-Zielerreichung (nur wenn userConstraints gesetzt)
     constraintAchievement,

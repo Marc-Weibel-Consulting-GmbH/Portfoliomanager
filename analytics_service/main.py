@@ -8,6 +8,7 @@ Endpoints:
   POST /analytics/risk-metrics             - VaR, Sharpe, Sortino, Max Drawdown
   POST /analytics/dcf                      - DCF valuation per stock
   POST /analytics/optimize                 - Portfolio optimization (Efficient Frontier)
+  POST /analytics/optimize-exact           - Exact MVO via PyPortfolioOpt (mu/cov from caller)
   GET  /tradingview/ta/{symbol}            - TradingView TA snapshot for a symbol
   GET  /tradingview/ta/{symbol}/multi-tf   - Multi-timeframe confluence
   GET  /health                             - Health check
@@ -87,6 +88,20 @@ class OptimizeRequest(BaseModel):
     lookback_days: int = 252
     risk_free_rate: float = DEFAULT_RISK_FREE_RATE
     method: str = "max_sharpe"   # max_sharpe | min_variance | equal_weight
+
+
+class ExactOptimizeRequest(BaseModel):
+    """Exakte MVO: μ (BL-Posterior) und Ledoit-Wolf-Kovarianz kommen vom TS-Server
+    (CHF-konvertiert, datums-aligniert) — hier wird nur exakt gelöst (PyPortfolioOpt)."""
+    tickers: List[str]
+    mu: List[float]                # annualisierte Erwartungsrenditen (Dezimal), Reihenfolge = tickers
+    cov: List[List[float]]         # annualisierte Kovarianzmatrix n×n
+    riskFreeRate: float = DEFAULT_RISK_FREE_RATE
+    minWeight: float = 0.01
+    maxWeight: float = 0.10
+    method: str = "max_sharpe"     # max_sharpe | min_variance
+    sectorByTicker: Optional[Dict[str, str]] = None
+    maxSectorWeightPct: Optional[float] = None  # z. B. 30 → jeder Sektor ≤ 30 %
 
 
 class TrainSeries(BaseModel):
@@ -584,6 +599,34 @@ def optimize_portfolio(req: OptimizeRequest):
         ],
         "tickers": available,
     }
+
+
+@app.post("/analytics/optimize-exact")
+def optimize_exact(req: ExactOptimizeRequest):
+    """
+    Exakte Mean-Variance-Optimierung via PyPortfolioOpt (konvexer Solver statt
+    Zufallssuche). Erwartet μ und Kovarianz vom Aufrufer (TS-Engine: BL-Posterior
+    + Ledoit-Wolf aus CHF-Renditen) und erzwingt optional harte Sektor-Caps.
+    Holt keine eigenen Kursdaten — deterministisch und ohne yfinance-Abhängigkeit.
+    """
+    try:
+        from exact_optimizer import solve_exact
+        return solve_exact(
+            tickers=req.tickers,
+            mu=req.mu,
+            cov=req.cov,
+            risk_free_rate=req.riskFreeRate,
+            min_weight=req.minWeight,
+            max_weight=req.maxWeight,
+            method=req.method,
+            sector_by_ticker=req.sectorByTicker,
+            max_sector_weight_pct=req.maxSectorWeightPct,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.warning(f"optimize-exact failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Exakte Optimierung fehlgeschlagen: {e}")
 
 
 # ─────────────────────────────────────────────
