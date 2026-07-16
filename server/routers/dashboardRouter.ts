@@ -3289,4 +3289,47 @@ WICHTIG: Signal-Score-Regeln:
         deltaSnapshot,
       };
     }),
+
+  /**
+   * Trigger a metrics snapshot for a specific portfolio (owned by the current user).
+   * Runs in the background (fire-and-forget) — returns immediately.
+   */
+  triggerPortfolioSnapshot: protectedProcedure
+    .input(z.object({ portfolioId: z.number(), backfill: z.boolean().default(false) }))
+    .mutation(async ({ ctx, input }) => {
+      const { getDb } = await import('../db');
+      const { savedPortfolios } = await import('../../drizzle/schema');
+      const { eq } = await import('drizzle-orm');
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+
+      // Verify ownership
+      const portfolio = await db.select({ id: savedPortfolios.id, userId: savedPortfolios.userId })
+        .from(savedPortfolios)
+        .where(eq(savedPortfolios.id, input.portfolioId))
+        .limit(1);
+      if (portfolio.length === 0) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden' });
+      if (portfolio[0].userId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: 'Kein Zugriff' });
+
+      // Fire-and-forget snapshot for this specific portfolio
+      const { handlePortfolioMetricsSnapshot } = await import('../scheduled/portfolioMetricsSnapshotScheduled');
+      const mockReq = {
+        query: { backfill: input.backfill ? 'true' : 'false', portfolioId: String(input.portfolioId) },
+        body: { backfill: input.backfill, portfolioId: input.portfolioId },
+      } as any;
+      const mockRes = {
+        json: (_data: any) => mockRes,
+        status: (_code: number) => ({ json: (_data: any) => mockRes }),
+      } as any;
+      handlePortfolioMetricsSnapshot(mockReq, mockRes).catch((err: any) => {
+        console.error('[triggerPortfolioSnapshot] Background error:', err?.message);
+      });
+      return {
+        ok: true,
+        started: true,
+        message: input.backfill
+          ? 'Backfill gestartet — läuft im Hintergrund (~1-2 Min).'
+          : 'Snapshot gestartet.',
+      };
+    }),
 });

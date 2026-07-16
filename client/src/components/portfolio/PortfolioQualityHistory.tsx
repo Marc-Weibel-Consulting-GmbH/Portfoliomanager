@@ -82,9 +82,10 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
 
   if (!data || data.snapshots.length === 0) {
     return (
-      <div className="mt-8 p-6 rounded-lg bg-white/5 border border-white/10 text-center text-sm text-white/50">
-        <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-        Noch keine Qualitäts-Historie verfügbar — wird täglich gespeichert.
+      <div className="mt-8 p-6 rounded-lg bg-white/5 border border-white/10 text-center text-sm text-white/50 space-y-3">
+        <BarChart3 className="w-8 h-8 mx-auto opacity-50" />
+        <p>Noch keine Qualitäts-Historie verfügbar.</p>
+        <p className="text-xs text-white/30">Klicke auf „Qualitäts-Historie berechnen“ (unten rechts) um die Daten für dieses Portfolio zu berechnen. Der Backfill dauert ca. 1–2 Minuten.</p>
       </div>
     );
   }

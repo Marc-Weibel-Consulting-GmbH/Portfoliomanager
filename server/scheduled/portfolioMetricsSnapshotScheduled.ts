@@ -25,6 +25,8 @@ import type { Request, Response } from "express";
 export async function handlePortfolioMetricsSnapshot(req: Request, res: Response) {
   const isBackfill = req.query.backfill === "true" || req.body?.backfill === true;
   const daysBack = isBackfill ? 365 : 1;
+  // Optional: filter to a specific portfolio (for per-portfolio snapshot trigger)
+  const specificPortfolioId = req.query.portfolioId ? parseInt(String(req.query.portfolioId)) : (req.body?.portfolioId ?? null);
 
   try {
     const { getDb } = await import("../db");
@@ -48,11 +50,13 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
     const db = await getDb();
     if (!db) return res.status(500).json({ error: "Database not available" });
 
-    // 1. Get all non-snapshot portfolios
-    const portfolios = await db
+    // 1. Get all non-snapshot portfolios (or a specific one if portfolioId is provided)
+    const portfoliosQuery = db
       .select({ id: savedPortfolios.id, portfolioData: savedPortfolios.portfolioData })
-      .from(savedPortfolios)
-      .where(eq(savedPortfolios.isSnapshot, 0));
+      .from(savedPortfolios);
+    const portfolios = specificPortfolioId
+      ? await portfoliosQuery.where(and(eq(savedPortfolios.isSnapshot, 0), eq(savedPortfolios.id, specificPortfolioId)))
+      : await portfoliosQuery.where(eq(savedPortfolios.isSnapshot, 0));
 
     if (portfolios.length === 0) {
       return res.json({ ok: true, message: "No portfolios found", saved: 0 });

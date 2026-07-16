@@ -792,6 +792,45 @@ function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId
   );
 }
 
+// ─── Portfolio Quality History with Snapshot Trigger ───
+function PortfolioQualityHistoryWithTrigger({ portfolioId }: { portfolioId: number }) {
+  const utils = trpc.useUtils();
+  const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
+  const triggerSnapshot = trpc.dashboard.triggerPortfolioSnapshot.useMutation({
+    onSuccess: (data) => {
+      setSnapshotStatus(data.message);
+      // Invalidate after a delay to allow background job to complete
+      setTimeout(() => {
+        utils.dashboard.getPortfolioMetricsHistory.invalidate({ portfolioId });
+        setSnapshotStatus(null);
+      }, 90_000); // 90s — backfill takes ~1-2 min
+    },
+    onError: (err) => {
+      toast.error('Snapshot fehlgeschlagen', { description: getUserErrorMessage(err) });
+    },
+  });
+  return (
+    <div>
+      <PortfolioQualityHistory portfolioId={portfolioId} />
+      {/* Show trigger button only when no snapshot data is available */}
+      <div className="mt-2 flex items-center justify-end gap-2">
+        {snapshotStatus && (
+          <span className="text-xs text-[#00CFC1] animate-pulse">{snapshotStatus}</span>
+        )}
+        <button
+          onClick={() => triggerSnapshot.mutate({ portfolioId, backfill: true })}
+          disabled={triggerSnapshot.isPending || !!snapshotStatus}
+          className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
+          title="Qualitäts-Historie für dieses Portfolio berechnen (Backfill ~1-2 Min)"
+        >
+          <svg className={`h-3 w-3 ${triggerSnapshot.isPending ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          Qualitäts-Historie berechnen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Letzte Aktivität ───
 function LetzteAktivitaet({ transactions }: { transactions: any[] }) {
   const [aktivExpanded, setAktivExpanded] = useState(false);
@@ -1825,7 +1864,7 @@ export default function PortfolioDetailsPage() {
             )}
 
             {/* QUALITY HISTORY CHARTS */}
-          <PortfolioQualityHistory portfolioId={portfolioId} />
+          <PortfolioQualityHistoryWithTrigger portfolioId={portfolioId} />
 
           {/* SNAPSHOTS SECTION — Kopien dieses Portfolios */}
           {allPortfolios && (allPortfolios as any[]).filter((p: any) => p.snapshotOfPortfolioId === portfolioId).length > 0 && (
