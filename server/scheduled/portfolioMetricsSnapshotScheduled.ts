@@ -42,7 +42,8 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
       calcVolatility,
       DEFAULT_RISK_FREE_RATE,
     } = await import("../analytics/riskStats");
-    const { calculatePortfolioQualityScore, calculateHHI } = await import("../lib/portfolioQualityScore");
+    const { calculatePortfolioQualityScore, calculateHHI, getScoreThresholds } = await import("../lib/portfolioQualityScore");
+    const scoreConfig = await getScoreThresholds();
 
     const db = await getDb();
     if (!db) return res.status(500).json({ error: "Database not available" });
@@ -326,7 +327,7 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
               sectorHHI,
               foreignCurrencyPct: fxForeignWeight,
               positionCount: currentPositions.length,
-            });
+            }, scoreConfig);
 
             qualityScore = qResult.totalScore;
             qualityComponents = JSON.stringify(qResult.components);

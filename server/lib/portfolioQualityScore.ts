@@ -12,6 +12,9 @@
  *   5. Diversifikation (10%): Sektor-HHI, Fremdwährungsanteil, Positionsanzahl
  *
  * Missing data → renormalize remaining components + report dataCoveragePct.
+ *
+ * Thresholds are admin-configurable via appSettings (key: 'score_thresholds').
+ * Use getScoreThresholds() to load from DB, or pass config directly.
  */
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -55,7 +58,138 @@ export interface QualityScoreResult {
   dataCoveragePct: number; // 0–100
 }
 
-// ─── Scoring Thresholds (documented constants) ───────────────────────────────
+// ─── Configurable Thresholds ────────────────────────────────────────────────
+
+export interface ScoreThresholdsConfig {
+  // Component weights (must sum to 1.0)
+  componentWeights: {
+    riskAdjustedReturn: number;
+    valuation: number;
+    risk: number;
+    income: number;
+    diversification: number;
+  };
+  // Sub-component weights within each component
+  subWeights: {
+    sharpe: number;
+    sortino: number;
+    maxDrawdown: number;
+    peg: number;
+    pe: number;
+    pegDistribution: number;
+    volatility: number;
+    beta: number;
+    hhi: number;
+    sectorHHI: number;
+    foreignCurrency: number;
+    positionCount: number;
+  };
+  // Threshold arrays: [inputValue, score][]
+  thresholds: {
+    sharpe: [number, number][];
+    sortino: [number, number][];
+    maxDrawdown: [number, number][];
+    peg: [number, number][];
+    pe: [number, number][];
+    volatility: [number, number][];
+    beta: [number, number][];
+    hhi: [number, number][];
+    dividendYield: [number, number][];
+    sectorHHI: [number, number][];
+    foreignCurrency: [number, number][];
+    positionCount: [number, number][];
+  };
+}
+
+// ─── Default Thresholds ─────────────────────────────────────────────────────
+
+export const DEFAULT_SCORE_CONFIG: ScoreThresholdsConfig = {
+  componentWeights: {
+    riskAdjustedReturn: 0.30,
+    valuation: 0.25,
+    risk: 0.20,
+    income: 0.15,
+    diversification: 0.10,
+  },
+  subWeights: {
+    sharpe: 0.45,
+    sortino: 0.30,
+    maxDrawdown: 0.25,
+    peg: 0.40,
+    pe: 0.30,
+    pegDistribution: 0.30,
+    volatility: 0.40,
+    beta: 0.30,
+    hhi: 0.30,
+    sectorHHI: 0.40,
+    foreignCurrency: 0.30,
+    positionCount: 0.30,
+  },
+  thresholds: {
+    sharpe: [[-0.5, 0], [0, 15], [0.5, 40], [1.0, 70], [1.5, 100]],
+    sortino: [[-0.5, 0], [0, 15], [0.5, 35], [1.0, 60], [2.0, 100]],
+    maxDrawdown: [[-0.40, 0], [-0.20, 30], [-0.10, 60], [-0.05, 80], [0, 100]],
+    peg: [[0, 50], [0.5, 90], [1.0, 80], [1.5, 70], [2.5, 50], [3.0, 30], [5.0, 10]],
+    pe: [[5, 85], [10, 80], [15, 70], [20, 55], [25, 40], [30, 30], [40, 20]],
+    volatility: [[0.05, 100], [0.08, 85], [0.12, 70], [0.18, 50], [0.25, 30], [0.35, 10]],
+    beta: [[0.3, 95], [0.5, 90], [0.8, 75], [1.0, 60], [1.2, 45], [1.5, 30], [2.0, 10]],
+    hhi: [[0.03, 95], [0.05, 85], [0.10, 70], [0.15, 55], [0.20, 40], [0.30, 20], [0.50, 5]],
+    dividendYield: [[0, 20], [0.01, 40], [0.02, 60], [0.03, 75], [0.04, 85], [0.05, 95], [0.08, 100]],
+    sectorHHI: [[0.05, 95], [0.10, 80], [0.20, 60], [0.35, 40], [0.50, 20], [0.80, 5]],
+    foreignCurrency: [[0, 50], [0.15, 65], [0.30, 80], [0.50, 85], [0.70, 70], [0.90, 55], [1.0, 45]],
+    positionCount: [[3, 20], [5, 40], [8, 60], [12, 75], [20, 90], [30, 95], [50, 80], [80, 65]],
+  },
+};
+
+// ─── DB-backed Config Loader (with in-memory cache) ─────────────────────────
+
+let _cachedConfig: ScoreThresholdsConfig | null = null;
+let _cacheTimestamp = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/** Load score thresholds from appSettings DB. Falls back to defaults. */
+export async function getScoreThresholds(): Promise<ScoreThresholdsConfig> {
+  const now = Date.now();
+  if (_cachedConfig && (now - _cacheTimestamp) < CACHE_TTL_MS) {
+    return _cachedConfig;
+  }
+
+  try {
+    const { getDb } = await import("../db");
+    const { appSettings } = await import("../../drizzle/schema");
+    const db = await getDb();
+    if (!db) return DEFAULT_SCORE_CONFIG;
+
+    const rows = await db.select().from(appSettings);
+    const row = rows.find((r: any) => r.key === "score_thresholds");
+    if (!row?.value) {
+      _cachedConfig = DEFAULT_SCORE_CONFIG;
+      _cacheTimestamp = now;
+      return DEFAULT_SCORE_CONFIG;
+    }
+
+    // Merge with defaults to ensure all fields exist
+    const stored = row.value as Partial<ScoreThresholdsConfig>;
+    _cachedConfig = {
+      componentWeights: { ...DEFAULT_SCORE_CONFIG.componentWeights, ...stored.componentWeights },
+      subWeights: { ...DEFAULT_SCORE_CONFIG.subWeights, ...stored.subWeights },
+      thresholds: { ...DEFAULT_SCORE_CONFIG.thresholds, ...stored.thresholds },
+    };
+    _cacheTimestamp = now;
+    return _cachedConfig;
+  } catch (e) {
+    console.warn("[scoreThresholds] Laden fehlgeschlagen:", (e as Error).message);
+    return DEFAULT_SCORE_CONFIG;
+  }
+}
+
+/** Invalidate the in-memory cache (call after admin update). */
+export function invalidateScoreConfigCache(): void {
+  _cachedConfig = null;
+  _cacheTimestamp = 0;
+}
+
+// ─── Scoring Logic ──────────────────────────────────────────────────────────
 
 /**
  * Linear interpolation between thresholds.
@@ -77,221 +211,159 @@ function interpolate(value: number, thresholds: [number, number][]): number {
   return thresholds[thresholds.length - 1][1];
 }
 
-// Sharpe: ≤0 → 0, 0.5 → 40, 1.0 → 70, ≥1.5 → 100
-const SHARPE_THRESHOLDS: [number, number][] = [
-  [-0.5, 0], [0, 15], [0.5, 40], [1.0, 70], [1.5, 100],
-];
-
-// Sortino: ≤0 → 0, 0.5 → 35, 1.0 → 60, ≥2.0 → 100
-const SORTINO_THRESHOLDS: [number, number][] = [
-  [-0.5, 0], [0, 15], [0.5, 35], [1.0, 60], [2.0, 100],
-];
-
-// Max Drawdown: 0% → 100, -5% → 80, -10% → 60, -20% → 30, ≤-40% → 0
-const MDD_THRESHOLDS: [number, number][] = [
-  [-0.40, 0], [-0.20, 30], [-0.10, 60], [-0.05, 80], [0, 100],
-];
-
-// PEG: <0.5 → 50 (too good to be true), 0.5–1.0 → 90, 1.0–1.5 → 70, 1.5–2.5 → 50, >3 → 20
-const PEG_THRESHOLDS: [number, number][] = [
-  [0, 50], [0.5, 90], [1.0, 80], [1.5, 70], [2.5, 50], [3.0, 30], [5.0, 10],
-];
-
-// PE: <10 → 85, 10–15 → 80, 15–20 → 65, 20–30 → 45, >40 → 20
-const PE_THRESHOLDS: [number, number][] = [
-  [5, 85], [10, 80], [15, 70], [20, 55], [25, 40], [30, 30], [40, 20],
-];
-
-// Volatility: <8% → 100, 8–12% → 80, 12–18% → 60, 18–25% → 40, >30% → 15
-const VOL_THRESHOLDS: [number, number][] = [
-  [0.05, 100], [0.08, 85], [0.12, 70], [0.18, 50], [0.25, 30], [0.35, 10],
-];
-
-// Beta: 0.5–0.8 → 90, 0.8–1.0 → 75, 1.0–1.2 → 60, >1.5 → 30
-const BETA_THRESHOLDS: [number, number][] = [
-  [0.3, 95], [0.5, 90], [0.8, 75], [1.0, 60], [1.2, 45], [1.5, 30], [2.0, 10],
-];
-
-// HHI (concentration): <0.05 → 90, 0.05–0.10 → 75, 0.10–0.20 → 55, >0.30 → 20
-const HHI_THRESHOLDS: [number, number][] = [
-  [0.03, 95], [0.05, 85], [0.10, 70], [0.15, 55], [0.20, 40], [0.30, 20], [0.50, 5],
-];
-
-// Dividend Yield: 0% → 20, 1% → 40, 2% → 60, 3% → 75, 4% → 85, ≥5% → 95
-const DIV_THRESHOLDS: [number, number][] = [
-  [0, 20], [0.01, 40], [0.02, 60], [0.03, 75], [0.04, 85], [0.05, 95], [0.08, 100],
-];
-
-// Sector HHI: <0.10 → 95, 0.10–0.20 → 75, 0.20–0.35 → 50, >0.50 → 15
-const SECTOR_HHI_THRESHOLDS: [number, number][] = [
-  [0.05, 95], [0.10, 80], [0.20, 60], [0.35, 40], [0.50, 20], [0.80, 5],
-];
-
-// Foreign Currency %: 0% → 50, 20% → 65, 40% → 80, 60% → 75, 80% → 60, 100% → 45
-// (moderate diversification is best)
-const FX_THRESHOLDS: [number, number][] = [
-  [0, 50], [0.15, 65], [0.30, 80], [0.50, 85], [0.70, 70], [0.90, 55], [1.0, 45],
-];
-
-// Position count: <5 → 30, 8 → 55, 12 → 75, 20 → 90, 30 → 95, >50 → 80 (over-diversified)
-const POS_COUNT_THRESHOLDS: [number, number][] = [
-  [3, 20], [5, 40], [8, 60], [12, 75], [20, 90], [30, 95], [50, 80], [80, 65],
-];
-
 // ─── Component Scoring Functions ─────────────────────────────────────────────
 
-function scoreRiskAdjustedReturn(input: QualityScoreInput): ComponentResult {
+function scoreRiskAdjustedReturn(input: QualityScoreInput, config: ScoreThresholdsConfig): ComponentResult {
   const inputs: Record<string, number | string | null> = {};
   const scores: number[] = [];
   const weights: number[] = [];
 
   if (input.sharpe != null && isFinite(input.sharpe)) {
-    const s = interpolate(input.sharpe, SHARPE_THRESHOLDS);
+    const s = interpolate(input.sharpe, config.thresholds.sharpe);
     scores.push(s);
-    weights.push(0.45); // Sharpe is dominant
+    weights.push(config.subWeights.sharpe);
     inputs.sharpe = input.sharpe;
   }
   if (input.sortino != null && isFinite(input.sortino)) {
-    const s = interpolate(input.sortino, SORTINO_THRESHOLDS);
+    const s = interpolate(input.sortino, config.thresholds.sortino);
     scores.push(s);
-    weights.push(0.30);
+    weights.push(config.subWeights.sortino);
     inputs.sortino = input.sortino;
   }
   if (input.maxDrawdown != null && isFinite(input.maxDrawdown)) {
-    const s = interpolate(input.maxDrawdown, MDD_THRESHOLDS);
+    const s = interpolate(input.maxDrawdown, config.thresholds.maxDrawdown);
     scores.push(s);
-    weights.push(0.25);
+    weights.push(config.subWeights.maxDrawdown);
     inputs.maxDrawdown = input.maxDrawdown;
   }
 
   if (scores.length === 0) {
-    return { name: "Risikoadjustierte Rendite", weight: 0.30, score: 0, available: false, inputs };
+    return { name: "Risikoadjustierte Rendite", weight: config.componentWeights.riskAdjustedReturn, score: 0, available: false, inputs };
   }
 
   const totalW = weights.reduce((a, b) => a + b, 0);
   const score = scores.reduce((sum, s, i) => sum + s * weights[i], 0) / totalW;
 
-  return { name: "Risikoadjustierte Rendite", weight: 0.30, score: Math.round(score), available: true, inputs };
+  return { name: "Risikoadjustierte Rendite", weight: config.componentWeights.riskAdjustedReturn, score: Math.round(score), available: true, inputs };
 }
 
-function scoreValuation(input: QualityScoreInput): ComponentResult {
+function scoreValuation(input: QualityScoreInput, config: ScoreThresholdsConfig): ComponentResult {
   const inputs: Record<string, number | string | null> = {};
   const scores: number[] = [];
   const weights: number[] = [];
 
   if (input.avgPEG != null && isFinite(input.avgPEG) && input.avgPEG > 0) {
-    const s = interpolate(input.avgPEG, PEG_THRESHOLDS);
+    const s = interpolate(input.avgPEG, config.thresholds.peg);
     scores.push(s);
-    weights.push(0.40);
+    weights.push(config.subWeights.peg);
     inputs.avgPEG = input.avgPEG;
   }
   if (input.avgPE != null && isFinite(input.avgPE) && input.avgPE > 0) {
-    const s = interpolate(input.avgPE, PE_THRESHOLDS);
+    const s = interpolate(input.avgPE, config.thresholds.pe);
     scores.push(s);
-    weights.push(0.30);
+    weights.push(config.subWeights.pe);
     inputs.avgPE = input.avgPE;
   }
   if (input.pegDistribution && input.pegDistribution.total > 0) {
-    // Bonus for many cheap titles, penalty for many expensive ones
     const cheapPct = input.pegDistribution.below15 / input.pegDistribution.total;
     const expensivePct = input.pegDistribution.above3 / input.pegDistribution.total;
     const distScore = Math.min(100, Math.max(0, cheapPct * 100 - expensivePct * 60 + 50));
     scores.push(distScore);
-    weights.push(0.30);
+    weights.push(config.subWeights.pegDistribution);
     inputs.pegBelow15 = input.pegDistribution.below15;
     inputs.pegAbove3 = input.pegDistribution.above3;
     inputs.pegTotal = input.pegDistribution.total;
   }
 
   if (scores.length === 0) {
-    return { name: "Bewertung", weight: 0.25, score: 0, available: false, inputs };
+    return { name: "Bewertung", weight: config.componentWeights.valuation, score: 0, available: false, inputs };
   }
 
   const totalW = weights.reduce((a, b) => a + b, 0);
   const score = scores.reduce((sum, s, i) => sum + s * weights[i], 0) / totalW;
 
-  return { name: "Bewertung", weight: 0.25, score: Math.round(score), available: true, inputs };
+  return { name: "Bewertung", weight: config.componentWeights.valuation, score: Math.round(score), available: true, inputs };
 }
 
-function scoreRisk(input: QualityScoreInput): ComponentResult {
+function scoreRisk(input: QualityScoreInput, config: ScoreThresholdsConfig): ComponentResult {
   const inputs: Record<string, number | string | null> = {};
   const scores: number[] = [];
   const weights: number[] = [];
 
   if (input.volatility != null && isFinite(input.volatility)) {
-    const s = interpolate(input.volatility, VOL_THRESHOLDS);
+    const s = interpolate(input.volatility, config.thresholds.volatility);
     scores.push(s);
-    weights.push(0.40);
+    weights.push(config.subWeights.volatility);
     inputs.volatility = input.volatility;
   }
   if (input.avgBeta != null && isFinite(input.avgBeta)) {
-    const s = interpolate(input.avgBeta, BETA_THRESHOLDS);
+    const s = interpolate(input.avgBeta, config.thresholds.beta);
     scores.push(s);
-    weights.push(0.30);
+    weights.push(config.subWeights.beta);
     inputs.avgBeta = input.avgBeta;
   }
   if (input.hhi != null && isFinite(input.hhi)) {
-    const s = interpolate(input.hhi, HHI_THRESHOLDS);
+    const s = interpolate(input.hhi, config.thresholds.hhi);
     scores.push(s);
-    weights.push(0.30);
+    weights.push(config.subWeights.hhi);
     inputs.hhi = input.hhi;
   }
 
   if (scores.length === 0) {
-    return { name: "Risiko", weight: 0.20, score: 0, available: false, inputs };
+    return { name: "Risiko", weight: config.componentWeights.risk, score: 0, available: false, inputs };
   }
 
   const totalW = weights.reduce((a, b) => a + b, 0);
   const score = scores.reduce((sum, s, i) => sum + s * weights[i], 0) / totalW;
 
-  return { name: "Risiko", weight: 0.20, score: Math.round(score), available: true, inputs };
+  return { name: "Risiko", weight: config.componentWeights.risk, score: Math.round(score), available: true, inputs };
 }
 
-function scoreIncome(input: QualityScoreInput): ComponentResult {
+function scoreIncome(input: QualityScoreInput, config: ScoreThresholdsConfig): ComponentResult {
   const inputs: Record<string, number | string | null> = {};
 
   if (input.avgDividendYield == null || !isFinite(input.avgDividendYield)) {
-    return { name: "Ertrag", weight: 0.15, score: 0, available: false, inputs };
+    return { name: "Ertrag", weight: config.componentWeights.income, score: 0, available: false, inputs };
   }
 
-  const score = interpolate(input.avgDividendYield, DIV_THRESHOLDS);
+  const score = interpolate(input.avgDividendYield, config.thresholds.dividendYield);
   inputs.avgDividendYield = input.avgDividendYield;
 
-  return { name: "Ertrag", weight: 0.15, score: Math.round(score), available: true, inputs };
+  return { name: "Ertrag", weight: config.componentWeights.income, score: Math.round(score), available: true, inputs };
 }
 
-function scoreDiversification(input: QualityScoreInput): ComponentResult {
+function scoreDiversification(input: QualityScoreInput, config: ScoreThresholdsConfig): ComponentResult {
   const inputs: Record<string, number | string | null> = {};
   const scores: number[] = [];
   const weights: number[] = [];
 
   if (input.sectorHHI != null && isFinite(input.sectorHHI)) {
-    const s = interpolate(input.sectorHHI, SECTOR_HHI_THRESHOLDS);
+    const s = interpolate(input.sectorHHI, config.thresholds.sectorHHI);
     scores.push(s);
-    weights.push(0.40);
+    weights.push(config.subWeights.sectorHHI);
     inputs.sectorHHI = input.sectorHHI;
   }
   if (input.foreignCurrencyPct != null && isFinite(input.foreignCurrencyPct)) {
-    const s = interpolate(input.foreignCurrencyPct, FX_THRESHOLDS);
+    const s = interpolate(input.foreignCurrencyPct, config.thresholds.foreignCurrency);
     scores.push(s);
-    weights.push(0.30);
+    weights.push(config.subWeights.foreignCurrency);
     inputs.foreignCurrencyPct = input.foreignCurrencyPct;
   }
   if (input.positionCount != null && isFinite(input.positionCount)) {
-    const s = interpolate(input.positionCount, POS_COUNT_THRESHOLDS);
+    const s = interpolate(input.positionCount, config.thresholds.positionCount);
     scores.push(s);
-    weights.push(0.30);
+    weights.push(config.subWeights.positionCount);
     inputs.positionCount = input.positionCount;
   }
 
   if (scores.length === 0) {
-    return { name: "Diversifikation", weight: 0.10, score: 0, available: false, inputs };
+    return { name: "Diversifikation", weight: config.componentWeights.diversification, score: 0, available: false, inputs };
   }
 
   const totalW = weights.reduce((a, b) => a + b, 0);
   const score = scores.reduce((sum, s, i) => sum + s * weights[i], 0) / totalW;
 
-  return { name: "Diversifikation", weight: 0.10, score: Math.round(score), available: true, inputs };
+  return { name: "Diversifikation", weight: config.componentWeights.diversification, score: Math.round(score), available: true, inputs };
 }
 
 // ─── Main Function ───────────────────────────────────────────────────────────
@@ -301,14 +373,20 @@ function scoreDiversification(input: QualityScoreInput): ComponentResult {
  *
  * Missing components are renormalized (their weight is redistributed).
  * dataCoveragePct indicates how much of the total weight was available.
+ *
+ * @param input - Portfolio metrics
+ * @param config - Optional threshold config (defaults to DEFAULT_SCORE_CONFIG)
  */
-export function calculatePortfolioQualityScore(input: QualityScoreInput): QualityScoreResult {
+export function calculatePortfolioQualityScore(
+  input: QualityScoreInput,
+  config: ScoreThresholdsConfig = DEFAULT_SCORE_CONFIG
+): QualityScoreResult {
   const components = [
-    scoreRiskAdjustedReturn(input),
-    scoreValuation(input),
-    scoreRisk(input),
-    scoreIncome(input),
-    scoreDiversification(input),
+    scoreRiskAdjustedReturn(input, config),
+    scoreValuation(input, config),
+    scoreRisk(input, config),
+    scoreIncome(input, config),
+    scoreDiversification(input, config),
   ];
 
   // Renormalize: only available components contribute

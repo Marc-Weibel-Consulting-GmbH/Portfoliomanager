@@ -950,6 +950,59 @@ export const adminRouter = router({
         return { success: true };
       }),
 
+    // ─── Score-Schwellen Konfiguration ─────────────────────────────────────
+
+    getScoreConfig: adminProcedure.query(async () => {
+      const { getScoreThresholds, DEFAULT_SCORE_CONFIG } = await import("../lib/portfolioQualityScore");
+      const config = await getScoreThresholds();
+      return { config, defaults: DEFAULT_SCORE_CONFIG };
+    }),
+
+    updateScoreConfig: adminProcedure
+      .input(z.object({
+        config: z.any(), // ScoreThresholdsConfig shape
+      }))
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { appSettings } = await import("../../drizzle/schema");
+        const { invalidateScoreConfigCache } = await import("../lib/portfolioQualityScore");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // Validate basic structure
+        const cfg = input.config;
+        if (!cfg?.componentWeights || !cfg?.subWeights || !cfg?.thresholds) {
+          throw new Error("Invalid config structure: must have componentWeights, subWeights, thresholds");
+        }
+
+        // Validate component weights sum to ~1.0
+        const wSum = Object.values(cfg.componentWeights as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
+        if (Math.abs(wSum - 1.0) > 0.01) {
+          throw new Error(`Component weights must sum to 1.0 (got ${wSum.toFixed(3)})`);
+        }
+
+        await db.insert(appSettings)
+          .values({ key: "score_thresholds", value: cfg, description: "Portfolio Quality Score Schwellenwerte" })
+          .onDuplicateKeyUpdate({ set: { value: cfg, description: "Portfolio Quality Score Schwellenwerte" } });
+
+        // Invalidate in-memory cache
+        invalidateScoreConfigCache();
+
+        return { success: true };
+      }),
+
+    /** Preview: calculate score with custom config without saving */
+    previewScoreConfig: adminProcedure
+      .input(z.object({
+        config: z.any(),
+        sampleInput: z.any(),
+      }))
+      .mutation(async ({ input }) => {
+        const { calculatePortfolioQualityScore } = await import("../lib/portfolioQualityScore");
+        const result = calculatePortfolioQualityScore(input.sampleInput, input.config);
+        return result;
+      }),
+
     // ─── KI-Alpha: regime-abhängige Signal-Konfiguration (Track A, P1+P2) ───
 
     /** Konfiguration je Regime: admin-gesetzte Qualität/Trading-Gewichte + gelernte Engine-Gewichte. */

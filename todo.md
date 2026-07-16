@@ -274,3 +274,12 @@
 - [x] E2: Regelbasierte «Aktuelle Einschätzung» (deterministisch, kein LLM)
 - [x] E2: Farbsystem (Cyan=Performance, Violett=Risiko, Orange=Bewertung, Grün=Ertrag, Amber=Events)
 - [x] E2: connectNulls entfernt, null = Lücke
+
+## Admin-konfigurierbare Score-Schwellen (Jul 2026)
+- [x] DB: appSettings key='score_thresholds' (JSON) + Defaults in portfolioQualityScore.ts
+- [x] Backend: getScoreConfig/updateScoreConfig/previewScoreConfig in adminRouter
+- [x] Backend: portfolioQualityScore.ts akzeptiert optionale Config (5-Min-Cache aus DB)
+- [x] Frontend: AdminScoreConfig.tsx mit Inputs pro Komponente (Gewichte + Schwellenwerte)
+- [x] Frontend: Live-Preview Button (berechnet Score mit Beispiel-Portfolio)
+- [x] Frontend: Reset-auf-Defaults Button
+- [x] Navigation: Link in Admin-Sidebar (Gauge-Icon)
