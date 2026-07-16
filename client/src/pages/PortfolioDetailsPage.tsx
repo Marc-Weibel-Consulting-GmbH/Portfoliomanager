@@ -73,7 +73,7 @@ import RiskTab from "@/components/portfolio/RiskTab";
 import OptimierenTab from "@/components/portfolio/OptimierenTab";
 import PortfolioDeepDive from "@/components/portfolio/PortfolioDeepDive";
 import PositionsKonstellation from "@/components/portfolio/PositionsKonstellation";
-import { PortfolioQualityHistory } from "@/components/portfolio/PortfolioQualityHistory";
+import PortfolioQualityHistory from "@/components/portfolio/PortfolioQualityHistory";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
 import { SECTOR_COLOR, formatCHF, formatCurrency, formatDate } from "@/lib/format";
 import { StockLogo } from "@/components/StockLogo";

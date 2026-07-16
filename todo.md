@@ -248,3 +248,29 @@
 - [x] Fix: Forward PEG / EPS-Stabilität (TTM-EPS-Berechnung schliesst EODHD-Nullwerte aus)
 - [x] Fix: PE Ratio auf 1 Kommastelle gerundet (StockDetail.tsx)
 - [x] Fix: Finanzkennzahlen aus EODHD live berechnen wenn DB-Felder leer (Revenue Growth, Operating Margin, ROIC)
+
+## Portfolio-Qualität Redesign E0–E2 (Jul 2026, Konzept PR #118)
+
+### E0 — Datenfundament reparieren
+- [x] E0/D1: Fix COALESCE-Bug (Drizzle-Spaltenobjekte statt Werte → SQL COALESCE)
+- [x] E0/D2: CHF-Umrechnung bei Gewichten (fxHelper.convertToCHF + GBp-Normalisierung)
+- [x] E0/D3: Sharpe-Fenster rollierend 252 Tage + risikofreier Zins 2% (aus riskStats.ts)
+- [x] E0/D4: Portfolio-Sharpe aus Wertreihe (performanceService) statt Ø Einzeltitel-Sharpes
+- [x] E0/D5: Beta nur als heutiger gewichteter Durchschnitt, keine Fake-Historie; Filter b>0 entfernen
+- [x] E0/D6: Fundamental-Backfill stoppen (PEG/PE/Dividende nur für live-Snapshots, nicht rückwirkend)
+- [x] E0/Migration: Neue Spalten (source, volatility, sortino, maxDrawdown) + verunreinigte Snapshots löschen
+- [x] E0/Backfill: Kursbasierte Kennzahlen 1 Jahr zurück (Sharpe/Sortino/Vol/Drawdown, source='backfill')
+- [x] E0/Akzeptanz: Sharpe im Snapshot == Sharpe im Tearsheet (±0.05), Differenz < 0.001 ✓
+
+### E1 — Portfolio Quality Score
+- [x] E1: portfolioQualityScore.ts — pure Funktion, 5 Komponenten (30/25/20/15/10), 11 tests pass
+- [x] E1: Fehlende Kennzahl → Renormalisierung + dataCoveragePct
+- [x] E1: Snapshot-Job speichert qualityScore/qualityComponents/dataCoveragePct
+
+### E2 — UI-Redesign
+- [x] E2: KPI-Karten-Zeile (Quality Score, Sharpe, Max Drawdown, Beta, Ø Forward-PEG, Dividendenrendite)
+- [x] E2: 3 Small-Multiple-Panels (Risiko&Performance, Bewertung, Ertrag) — keine Doppelachse
+- [x] E2: Vorher/Nachher-Karten pro Optimierungs-Event
+- [x] E2: Regelbasierte «Aktuelle Einschätzung» (deterministisch, kein LLM)
+- [x] E2: Farbsystem (Cyan=Performance, Violett=Risiko, Orange=Bewertung, Grün=Ertrag, Amber=Events)
+- [x] E2: connectNulls entfernt, null = Lücke

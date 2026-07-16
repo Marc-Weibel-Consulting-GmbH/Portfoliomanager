@@ -3260,13 +3260,33 @@ WICHTIG: Signal-Score-Regeln:
         avgPE: s.avgPE ? parseFloat(s.avgPE) : null,
         positionCount: s.positionCount,
         totalValueCHF: s.totalValueCHF ? parseFloat(s.totalValueCHF) : null,
+        // E0/E1 new fields
+        volatility: s.volatility ? parseFloat(s.volatility) : null,
+        sortino: s.sortino ? parseFloat(s.sortino) : null,
+        maxDrawdown: s.maxDrawdown ? parseFloat(s.maxDrawdown) : null,
+        source: s.source,
+        qualityScore: s.qualityScore,
+        qualityComponents: s.qualityComponents ? JSON.parse(s.qualityComponents) : null,
+        dataCoveragePct: s.dataCoveragePct,
       }));
+
+      // Latest snapshot for KPI cards (most recent with qualityScore)
+      const latestWithScore = formattedSnapshots.filter(s => s.qualityScore != null).slice(-1)[0] || null;
+      // 30 days ago snapshot for delta calculation
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().slice(0, 10);
+      const deltaSnapshot = formattedSnapshots.find(s => s.date <= thirtyDaysAgoStr) ||
+        formattedSnapshots[0] || null;
 
       return {
         snapshots: formattedSnapshots,
         optimizationEvents,
         period: input.period,
         portfolioId: input.portfolioId,
+        // E2: KPI data
+        latestSnapshot: latestWithScore,
+        deltaSnapshot,
       };
     }),
 });

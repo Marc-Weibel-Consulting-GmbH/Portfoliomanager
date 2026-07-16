@@ -1400,6 +1400,20 @@ export const portfolioMetricsSnapshot = mysqlTable("portfolioMetricsSnapshot", {
   positionCount: int("positionCount"),
   /** Gesamtwert des Portfolios in CHF zum Zeitpunkt des Snapshots */
   totalValueCHF: decimal("totalValueCHF", { precision: 16, scale: 2 }),
+  /** Annualisierte Volatilität (aus Portfolio-Wertreihe, rollierend 252 Tage) */
+  volatility: decimal("volatility", { precision: 8, scale: 4 }),
+  /** Sortino Ratio (rf = 2 %, aus Portfolio-Wertreihe) */
+  sortino: decimal("sortino", { precision: 8, scale: 4 }),
+  /** Max Drawdown (aus Portfolio-Wertreihe, rollierend) */
+  maxDrawdown: decimal("maxDrawdown", { precision: 8, scale: 4 }),
+  /** Quelle: 'live' (täglicher Cron) oder 'backfill' (Rekonstruktion aus Kursen) */
+  source: varchar("source", { length: 16 }).default("live"),
+  /** Quality Score 0–100 (E1, NULL bis berechnet) */
+  qualityScore: int("qualityScore"),
+  /** JSON: Punktzahl + Inputs je Score-Komponente */
+  qualityComponents: text("qualityComponents"),
+  /** Datenabdeckung in % (wie viele Kennzahlen verfügbar waren) */
+  dataCoveragePct: int("dataCoveragePct"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (t) => [
   unique().on(t.portfolioId, t.snapshotDate),

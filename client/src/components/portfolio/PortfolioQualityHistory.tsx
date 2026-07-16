@@ -1,13 +1,21 @@
 /**
- * Portfolio Quality History Charts
+ * Portfolio Quality History — E2 Redesign
  *
- * Chart 1: Time-series LineChart showing Ø Sharpe, Ø PEG, Ø Dividende, Ø Beta
- *          with vertical ReferenceLine markers at optimization event dates.
+ * Architecture (from KONZEPT_PORTFOLIO_QUALITAET.md §4):
+ *   - Top row: 6 KPI cards with deltas
+ *   - Middle row: 3 Small-Multiple panels (no dual Y-axis)
+ *   - Optimization events: Vorher/Nachher cards
+ *   - Bottom: Regelbasierte Interpretation
  *
- * Chart 2: Quadrant ScatterChart (X=PEG, Y=Sharpe) showing portfolio trajectory
- *          over time with color gradient (old=dark → new=bright) and bubble size=dividendYield.
+ * Color system (§4.6):
+ *   - Performance/Sharpe: Cyan #00CFC1
+ *   - Risiko/Volatilität: Violett #A78BFA
+ *   - Bewertung/PEG/PE: Orange #F59E0B
+ *   - Ertrag/Dividende: Grün #10B981
+ *   - Warnung: Rot #EF4444
+ *   - Optimierungs-Event: Amber #F59E0B
  */
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   LineChart,
@@ -15,120 +23,112 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ReferenceLine,
+  Tooltip,
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
-  ZAxis,
-  Legend,
+  ReferenceLine,
 } from "recharts";
-import { TrendingUp, Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  TrendingUp,
+  TrendingDown,
+  Shield,
+  BarChart3,
+  Coins,
+  Info,
+  Zap,
+} from "lucide-react";
 
-type Period = "1M" | "3M" | "6M" | "1Y" | "MAX";
+// Color constants (§4.6)
+const COLORS = {
+  sharpe: "#00CFC1",
+  volatility: "#A78BFA",
+  peg: "#F59E0B",
+  pe: "#FB923C",
+  dividend: "#10B981",
+  warning: "#EF4444",
+  event: "#F59E0B",
+};
+
+const PERIODS = ["1M", "3M", "6M", "1Y", "MAX"] as const;
 
 interface Props {
   portfolioId: number;
 }
 
-const PERIOD_LABELS: Record<Period, string> = {
-  "1M": "1 Monat",
-  "3M": "3 Monate",
-  "6M": "6 Monate",
-  "1Y": "1 Jahr",
-  MAX: "Max",
-};
+export default function PortfolioQualityHistory({ portfolioId }: Props) {
+  const [period, setPeriod] = useState<(typeof PERIODS)[number]>("1Y");
 
-// Color gradient for scatter points: older = more transparent/dark, newer = bright
-function getPointColor(index: number, total: number): string {
-  const ratio = total <= 1 ? 1 : index / (total - 1);
-  // Interpolate from dark teal (old) to bright teal (new)
-  const r = Math.round(0 + ratio * 0);
-  const g = Math.round(100 + ratio * 107);
-  const b = Math.round(100 + ratio * 93);
-  const a = 0.3 + ratio * 0.7;
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-export function PortfolioQualityHistory({ portfolioId }: Props) {
-  const [period, setPeriod] = useState<Period>("1Y");
-
-  const { data, isLoading, error } = trpc.dashboard.getPortfolioMetricsHistory.useQuery(
+  const { data, isLoading } = trpc.dashboard.getPortfolioMetricsHistory.useQuery(
     { portfolioId, period },
-    { staleTime: 5 * 60 * 1000 }
+    { staleTime: 60_000 }
   );
 
-  const snapshots = data?.snapshots ?? [];
-  const optimizationEvents = data?.optimizationEvents ?? [];
+  if (isLoading) {
+    return (
+      <div className="mt-8 animate-pulse">
+        <div className="h-6 w-48 bg-white/10 rounded mb-4" />
+        <div className="grid grid-cols-6 gap-3 mb-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-24 bg-white/5 rounded-lg" />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-48 bg-white/5 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  // Format date for X-axis tick
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    if (period === "1M") return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit" });
-    if (period === "3M") return d.toLocaleDateString("de-CH", { day: "2-digit", month: "short" });
-    return d.toLocaleDateString("de-CH", { month: "short", year: "2-digit" });
+  if (!data || data.snapshots.length === 0) {
+    return (
+      <div className="mt-8 p-6 rounded-lg bg-white/5 border border-white/10 text-center text-sm text-white/50">
+        <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        Noch keine Qualitäts-Historie verfügbar — wird täglich gespeichert.
+      </div>
+    );
+  }
+
+  const latest = data.latestSnapshot;
+  const delta = data.deltaSnapshot;
+  const events = data.optimizationEvents;
+
+  // Get latest values (prefer latestSnapshot, fallback to last in array)
+  const lastSnap = data.snapshots[data.snapshots.length - 1];
+  const sharpe = latest?.avgSharpe ?? lastSnap?.avgSharpe ?? null;
+  const volatility = latest?.volatility ?? lastSnap?.volatility ?? null;
+  const maxDrawdown = latest?.maxDrawdown ?? lastSnap?.maxDrawdown ?? null;
+  const avgBeta = latest?.avgBeta ?? lastSnap?.avgBeta ?? null;
+  const avgPEG = latest?.avgPEG ?? lastSnap?.avgPEG ?? null;
+  const avgDivYield = latest?.avgDividendYield ?? lastSnap?.avgDividendYield ?? null;
+  const qualityScore = latest?.qualityScore ?? null;
+
+  // Compute deltas (vs 30 days ago)
+  const calcDelta = (current: number | null, prev: number | null) => {
+    if (current == null || prev == null) return null;
+    const d = current - prev;
+    return Math.abs(d) < 0.001 ? null : d;
   };
-
-  // Prepare scatter data with color index
-  const scatterData = useMemo(() => {
-    return snapshots
-      .filter((s) => s.avgPEG !== null && s.avgSharpe !== null)
-      .map((s, i, arr) => ({
-        x: s.avgPEG as number,
-        y: s.avgSharpe as number,
-        z: Math.max(0.5, (s.avgDividendYield ?? 0) * 10), // bubble size
-        date: s.date,
-        color: getPointColor(i, arr.length),
-        isLatest: i === arr.length - 1,
-        avgDividendYield: s.avgDividendYield,
-        avgBeta: s.avgBeta,
-      }));
-  }, [snapshots]);
-
-  // Optimization event dates as a Set for quick lookup
-  const optEventDates = useMemo(() => new Set(optimizationEvents.map((e) => e.date)), [optimizationEvents]);
-
-  const hasData = snapshots.length > 0;
-
-  // Determine Y-axis domains for dual-axis chart
-  const sharpeValues = snapshots.map((s) => s.avgSharpe).filter((v): v is number => v !== null);
-  const betaValues = snapshots.map((s) => s.avgBeta).filter((v): v is number => v !== null);
-  const pegValues = snapshots.map((s) => s.avgPEG).filter((v): v is number => v !== null);
-
-  const sharpeMin = sharpeValues.length ? Math.min(...sharpeValues) : -1;
-  const sharpeMax = sharpeValues.length ? Math.max(...sharpeValues) : 3;
-  const pegMax = pegValues.length ? Math.max(...pegValues) : 5;
+  const sharpeDelta = calcDelta(sharpe, delta?.avgSharpe ?? null);
+  const qualityDelta = calcDelta(qualityScore, delta?.qualityScore ?? null);
 
   return (
-    <div className="mt-6 space-y-6">
-      {/* Header */}
+    <div className="mt-8 space-y-6">
+      {/* Section Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-[#00CFC1]" />
-          <h3 className="text-sm font-semibold text-white">Portfolio-Qualitäts-History</h3>
-          <Tooltip>
-            <TooltipTrigger>
-              <Info className="h-3.5 w-3.5 text-gray-500 cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-xs">
-              Zeigt die historische Entwicklung der gewichteten Durchschnittswerte für Sharpe-Ratio,
-              PEG-Ratio, Dividendenrendite und Beta. Vertikale Linien markieren Optimierungs-Events.
-              Das Quadrant-Chart zeigt die Trajektorie des Portfolios im Risiko-Rendite-Raum.
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        {/* Period selector */}
-        <div className="flex gap-1">
-          {(["1M", "3M", "6M", "1Y", "MAX"] as Period[]).map((p) => (
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <Shield className="w-5 h-5 text-cyan-400" />
+          Portfolio-Qualität
+        </h3>
+        <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+          {PERIODS.map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-2.5 py-1 text-xs rounded transition-colors ${
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${
                 period === p
-                  ? "bg-[#00CFC1]/20 text-[#00CFC1] font-medium"
-                  : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                  ? "bg-cyan-500/20 text-cyan-400 font-medium"
+                  : "text-white/50 hover:text-white/80"
               }`}
             >
               {p}
@@ -137,254 +137,414 @@ export function PortfolioQualityHistory({ portfolioId }: Props) {
         </div>
       </div>
 
-      {isLoading && (
-        <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
-          <div className="animate-pulse">Lade Metriken-History...</div>
-        </div>
+      {/* KPI Cards (§4.1) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <KPICard
+          label="Quality Score"
+          value={qualityScore != null ? `${qualityScore}` : "—"}
+          unit="/100"
+          delta={qualityDelta}
+          icon={<Shield className="w-4 h-4" />}
+          color="text-cyan-400"
+          tooltip="Gewichteter Score aus 5 Komponenten (Rendite 30%, Bewertung 25%, Risiko 20%, Ertrag 15%, Diversifikation 10%)"
+        />
+        <KPICard
+          label="Sharpe"
+          value={sharpe != null ? sharpe.toFixed(2) : "—"}
+          delta={sharpeDelta}
+          icon={<TrendingUp className="w-4 h-4" />}
+          color="text-cyan-400"
+          tooltip="> 1 = gut, > 1.5 = exzellent. Portfolio-Sharpe aus Wertreihe (rf = 2%)"
+        />
+        <KPICard
+          label="Max Drawdown"
+          value={maxDrawdown != null ? `${(maxDrawdown * 100).toFixed(1)}%` : "—"}
+          icon={<TrendingDown className="w-4 h-4" />}
+          color="text-violet-400"
+          tooltip="Grösster Wertverlust vom Höchststand. < -10% = moderat, < -20% = hoch"
+        />
+        <KPICard
+          label="Beta"
+          value={avgBeta != null ? avgBeta.toFixed(2) : "—"}
+          suffix="aktuell"
+          icon={<Shield className="w-4 h-4" />}
+          color="text-violet-400"
+          tooltip="Gewichteter Ø der Einzeltitel-Betas. < 1 = defensiver als Markt"
+        />
+        <KPICard
+          label="Ø PEG"
+          value={avgPEG != null ? avgPEG.toFixed(2) : "—"}
+          icon={<BarChart3 className="w-4 h-4" />}
+          color="text-amber-400"
+          tooltip="< 1.5 = günstig, 1.5–2.5 = fair, > 3 = teuer"
+        />
+        <KPICard
+          label="Div. Rendite"
+          value={avgDivYield != null ? `${avgDivYield.toFixed(2)}%` : "—"}
+          suffix="brutto"
+          icon={<Coins className="w-4 h-4" />}
+          color="text-emerald-400"
+          tooltip="Gewichtete Brutto-Dividendenrendite des Portfolios"
+        />
+      </div>
+
+      {/* Small Multiple Panels (§4.2) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <SmallMultiplePanel
+          title="Risiko & Performance"
+          data={data.snapshots}
+          lines={[
+            { key: "avgSharpe", label: "Sharpe", color: COLORS.sharpe, dominant: true },
+            { key: "volatility", label: "Volatilität", color: COLORS.volatility, dominant: false },
+          ]}
+          events={events}
+        />
+        <SmallMultiplePanel
+          title="Bewertung"
+          data={data.snapshots}
+          lines={[
+            { key: "avgPEG", label: "Ø PEG", color: COLORS.peg, dominant: true },
+            { key: "avgPE", label: "Ø PE", color: COLORS.pe, dominant: false },
+          ]}
+          events={events}
+          emptyHint="Bewertungs-Historie wächst ab 07/2026"
+        />
+        <SmallMultiplePanel
+          title="Ertrag"
+          data={data.snapshots}
+          lines={[
+            { key: "avgDividendYield", label: "Div. Rendite %", color: COLORS.dividend, dominant: true },
+          ]}
+          events={events}
+        />
+      </div>
+
+      {/* Optimization Events (§4.3) */}
+      {events.length > 0 && (
+        <OptimizationEvents events={events} snapshots={data.snapshots} />
       )}
 
-      {error && (
-        <div className="text-xs text-red-400 bg-red-400/10 rounded p-3">
-          Fehler beim Laden der Metriken-History: {error.message}
-        </div>
-      )}
-
-      {!isLoading && !error && !hasData && (
-        <div className="flex flex-col items-center justify-center h-32 text-gray-400 text-sm gap-2">
-          <p>Noch keine Metriken-Snapshots vorhanden.</p>
-          <p className="text-xs text-gray-500">
-            Starten Sie den Backfill über das Admin-Dashboard → "Portfolio-Metriken Backfill (1 Jahr)".
-          </p>
-        </div>
-      )}
-
-      {!isLoading && !error && hasData && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* ─── Chart 1: Time-series ─── */}
-          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
-            <h4 className="text-xs font-medium text-gray-300 mb-3">
-              Metriken-Verlauf
-              {optimizationEvents.length > 0 && (
-                <span className="ml-2 text-[#00CFC1]/70">
-                  · {optimizationEvents.length} Optimierungs-Event{optimizationEvents.length > 1 ? "s" : ""}
-                </span>
-              )}
-            </h4>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={snapshots} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatDate}
-                  tick={{ fontSize: 9, fill: "#6b7280" }}
-                  interval="preserveStartEnd"
-                />
-                {/* Left Y-axis: Sharpe & Beta */}
-                <YAxis
-                  yAxisId="left"
-                  domain={[Math.floor(sharpeMin - 0.5), Math.ceil(sharpeMax + 0.5)]}
-                  tick={{ fontSize: 9, fill: "#6b7280" }}
-                  width={32}
-                />
-                {/* Right Y-axis: PEG */}
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  domain={[0, Math.ceil(pegMax + 0.5)]}
-                  tick={{ fontSize: 9, fill: "#6b7280" }}
-                  width={28}
-                />
-                <RechartsTooltip
-                  contentStyle={{
-                    backgroundColor: "#1a1f2e",
-                    border: "1px solid rgba(0,207,193,0.3)",
-                    borderRadius: "6px",
-                    fontSize: "11px",
-                    color: "#fff",
-                  }}
-                  formatter={(value: any, name: string) => {
-                    if (value === null || value === undefined) return ["–", name];
-                    return [Number(value).toFixed(2), name];
-                  }}
-                  labelFormatter={(label) => {
-                    const isOpt = optEventDates.has(label);
-                    return `${label}${isOpt ? " ⚡ Optimierung" : ""}`;
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: "10px", color: "#9ca3af" }} />
-
-                {/* Optimization event vertical lines */}
-                {optimizationEvents.map((ev) => (
-                  <ReferenceLine
-                    key={ev.date}
-                    x={ev.date}
-                    yAxisId="left"
-                    stroke="#f59e0b"
-                    strokeDasharray="4 2"
-                    strokeWidth={1.5}
-                    label={{ value: "⚡", position: "top", fill: "#f59e0b", fontSize: 10 }}
-                  />
-                ))}
-
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="avgSharpe"
-                  name="Ø Sharpe"
-                  stroke="#00CFC1"
-                  strokeWidth={2}
-                  dot={false}
-                  connectNulls
-                />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="avgBeta"
-                  name="Ø Beta"
-                  stroke="#ef4444"
-                  strokeWidth={1.5}
-                  dot={false}
-                  connectNulls
-                  strokeDasharray="4 2"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="avgPEG"
-                  name="Ø PEG"
-                  stroke="#f59e0b"
-                  strokeWidth={1.5}
-                  dot={false}
-                  connectNulls
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="avgDividendYield"
-                  name="Ø Div. %"
-                  stroke="#22c55e"
-                  strokeWidth={1.5}
-                  dot={false}
-                  connectNulls
-                />
-              </LineChart>
-            </ResponsiveContainer>
-            <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-[#00CFC1] inline-block" /> Sharpe (links)
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-red-500 inline-block" /> Beta (links)
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-amber-400 inline-block" /> PEG (rechts)
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-green-500 inline-block" /> Div. % (rechts)
-              </span>
-              {optimizationEvents.length > 0 && (
-                <span className="flex items-center gap-1">
-                  <span className="text-amber-400">⚡</span> Optimierung
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* ─── Chart 2: Quadrant Scatter (Trajectory) ─── */}
-          <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
-            <h4 className="text-xs font-medium text-gray-300 mb-1">
-              Trajektorie: PEG vs. Sharpe
-            </h4>
-            <p className="text-xs text-gray-500 mb-3">
-              Blasengrösse = Ø Dividendenrendite · Farbe: dunkel=alt → hell=aktuell
-            </p>
-            {scatterData.length < 2 ? (
-              <div className="flex items-center justify-center h-[260px] text-gray-500 text-xs">
-                Zu wenig Datenpunkte für Trajektorie
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis
-                    type="number"
-                    dataKey="x"
-                    name="PEG"
-                    domain={[0, Math.ceil(pegMax + 0.5)]}
-                    tick={{ fontSize: 9, fill: "#6b7280" }}
-                    label={{ value: "Ø PEG-Ratio", position: "insideBottom", offset: -10, fill: "#6b7280", fontSize: 9 }}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="y"
-                    name="Sharpe"
-                    domain={[Math.floor(sharpeMin - 0.3), Math.ceil(sharpeMax + 0.3)]}
-                    tick={{ fontSize: 9, fill: "#6b7280" }}
-                    width={32}
-                    label={{ value: "Ø Sharpe", angle: -90, position: "insideLeft", fill: "#6b7280", fontSize: 9 }}
-                  />
-                  <ZAxis type="number" dataKey="z" range={[20, 200]} />
-                  {/* Quadrant dividers */}
-                  <ReferenceLine x={2} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 2" />
-                  <ReferenceLine y={1} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 2" />
-                  <RechartsTooltip
-                    cursor={{ strokeDasharray: "3 3" }}
-                    content={({ active, payload }: any) => {
-                      if (active && payload?.length) {
-                        const d = payload[0].payload;
-                        return (
-                          <div className="bg-[#1a1f2e] border border-[#00CFC1]/40 rounded p-2 text-xs text-white min-w-[160px]">
-                            <p className="font-semibold text-[#00CFC1] mb-1">{d.date}</p>
-                            <p>Ø Sharpe: <span className="text-[#00CFC1]">{d.y?.toFixed(2)}</span></p>
-                            <p>Ø PEG: <span className="text-amber-400">{d.x?.toFixed(2)}</span></p>
-                            {d.avgDividendYield != null && (
-                              <p>Ø Div.: <span className="text-green-400">{d.avgDividendYield?.toFixed(2)}%</span></p>
-                            )}
-                            {d.avgBeta != null && (
-                              <p>Ø Beta: <span className="text-red-400">{d.avgBeta?.toFixed(2)}</span></p>
-                            )}
-                            {d.isLatest && (
-                              <p className="mt-1 text-[#00CFC1] font-semibold">← Aktuell</p>
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Scatter
-                    name="Trajektorie"
-                    data={scatterData}
-                    shape={(props: any) => {
-                      const { cx, cy, payload } = props;
-                      const r = Math.max(3, Math.sqrt(payload.z) * 1.5);
-                      if (payload.isLatest) {
-                        return (
-                          <g>
-                            <circle cx={cx} cy={cy} r={r + 3} fill="none" stroke="#00CFC1" strokeWidth={2} />
-                            <circle cx={cx} cy={cy} r={r} fill="#00CFC1" opacity={0.9} />
-                            <text x={cx} y={cy - r - 5} textAnchor="middle" fill="#00CFC1" fontSize={8} fontWeight="bold">
-                              Aktuell
-                            </text>
-                          </g>
-                        );
-                      }
-                      return <circle cx={cx} cy={cy} r={r} fill={payload.color} stroke="none" />;
-                    }}
-                  />
-                </ScatterChart>
-              </ResponsiveContainer>
-            )}
-            {/* Quadrant labels */}
-            <div className="grid grid-cols-2 gap-1 mt-2 text-xs">
-              <div className="text-left text-green-400/70">↖ Günstig &amp; Effizient</div>
-              <div className="text-right text-amber-400/70">Teuer &amp; Effizient ↗</div>
-              <div className="text-left text-gray-500">↙ Günstig &amp; Ineffizient</div>
-              <div className="text-right text-red-400/70">Teuer &amp; Ineffizient ↘</div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Interpretation (§4.5) */}
+      <Interpretation
+        qualityScore={qualityScore}
+        components={latest?.qualityComponents ?? null}
+        sharpe={sharpe}
+        avgPEG={avgPEG}
+        avgDivYield={avgDivYield}
+        maxDrawdown={maxDrawdown}
+      />
     </div>
   );
+}
+
+
+// --- Sub-Components ---
+
+function KPICard({
+  label,
+  value,
+  unit,
+  delta,
+  suffix,
+  icon,
+  color,
+  tooltip,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  delta?: number | null;
+  suffix?: string;
+  icon: React.ReactNode;
+  color: string;
+  tooltip: string;
+}) {
+  return (
+    <div className="relative group bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/[0.08] transition-colors">
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className={color}>{icon}</span>
+        <span className="text-[11px] text-white/50 uppercase tracking-wide">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-bold text-white">{value}</span>
+        {unit && <span className="text-xs text-white/40">{unit}</span>}
+      </div>
+      {delta != null && (
+        <div className={`text-xs mt-0.5 ${delta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+          {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(2)}
+        </div>
+      )}
+      {delta == null && <div className="text-xs mt-0.5 text-white/30">—</div>}
+      {suffix && <div className="text-[10px] text-white/30 mt-0.5">{suffix}</div>}
+      {/* Tooltip */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-white/20 rounded-lg text-xs text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-52 text-center whitespace-normal">
+        {tooltip}
+      </div>
+    </div>
+  );
+}
+
+interface LineConfig {
+  key: string;
+  label: string;
+  color: string;
+  dominant: boolean;
+}
+
+function SmallMultiplePanel({
+  title,
+  data,
+  lines,
+  events,
+  emptyHint,
+}: {
+  title: string;
+  data: any[];
+  lines: LineConfig[];
+  events: { date: string; label: string }[];
+  emptyHint?: string;
+}) {
+  const hasData = data.some((d) => lines.some((l) => d[l.key] != null));
+
+  if (!hasData && emptyHint) {
+    return (
+      <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+        <h4 className="text-sm font-medium text-white/70 mb-3">{title}</h4>
+        <div className="h-36 flex items-center justify-center text-xs text-white/40">
+          {emptyHint}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-medium text-white/70">{title}</h4>
+        <div className="flex gap-3">
+          {lines.map((l) => (
+            <span key={l.key} className="flex items-center gap-1 text-[10px]">
+              <span
+                className="w-2.5 h-0.5 rounded-full inline-block"
+                style={{ backgroundColor: l.color, opacity: l.dominant ? 1 : 0.5 }}
+              />
+              <span className="text-white/50">{l.label}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={140}>
+        <LineChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+            tickFormatter={(v: string) => {
+              const d = new Date(v);
+              return `${d.getDate()}.${d.getMonth() + 1}`;
+            }}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+            width={35}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "rgba(15,23,42,0.95)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "8px",
+              fontSize: "11px",
+            }}
+            labelFormatter={(v: string) => new Date(v).toLocaleDateString("de-CH")}
+          />
+          {events.map((ev) => (
+            <ReferenceLine
+              key={ev.date}
+              x={ev.date}
+              stroke={COLORS.event}
+              strokeDasharray="4 2"
+              strokeWidth={1}
+              opacity={0.6}
+            />
+          ))}
+          {lines.map((l) => (
+            <Line
+              key={l.key}
+              type="monotone"
+              dataKey={l.key}
+              stroke={l.color}
+              strokeWidth={l.dominant ? 2.5 : 1.5}
+              strokeOpacity={l.dominant ? 1 : 0.5}
+              dot={false}
+              connectNulls={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function OptimizationEvents({
+  events,
+  snapshots,
+}: {
+  events: { date: string; label: string }[];
+  snapshots: any[];
+}) {
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-medium text-white/70 flex items-center gap-2">
+        <Zap className="w-4 h-4 text-amber-400" />
+        Optimierungs-Events
+      </h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {events.slice(-3).map((ev) => {
+          const evDate = ev.date;
+          const before = snapshots.filter((s) => s.date < evDate).slice(-1)[0];
+          const afterDate = addDays(evDate, 7);
+          const after = snapshots.filter((s) => s.date > evDate && s.date <= afterDate).slice(-1)[0];
+
+          return (
+            <div key={ev.date} className="bg-white/5 border border-amber-500/20 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-xs text-white/60">
+                  {new Date(ev.date).toLocaleDateString("de-CH")} · {ev.label}
+                </span>
+              </div>
+              {before && after ? (
+                <div className="space-y-1.5 text-xs">
+                  <MetricDelta label="Sharpe" before={before.avgSharpe} after={after.avgSharpe} />
+                  <MetricDelta label="Ø PEG" before={before.avgPEG} after={after.avgPEG} invert />
+                  <MetricDelta label="Div. %" before={before.avgDividendYield} after={after.avgDividendYield} />
+                  <MetricDelta label="Beta" before={before.avgBeta} after={after.avgBeta} invert />
+                </div>
+              ) : (
+                <div className="text-xs text-white/40">
+                  {!before ? "Keine Vorher-Daten verfügbar" : "Nachher-Daten noch nicht verfügbar"}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MetricDelta({
+  label,
+  before,
+  after,
+  invert = false,
+}: {
+  label: string;
+  before: number | null;
+  after: number | null;
+  invert?: boolean;
+}) {
+  if (before == null || after == null) return null;
+  const diff = after - before;
+  const isGood = invert ? diff < 0 : diff > 0;
+
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-white/50">{label}</span>
+      <span className="flex items-center gap-2">
+        <span className="text-white/40">{before.toFixed(2)}</span>
+        <span className="text-white/30">→</span>
+        <span className="text-white/80">{after.toFixed(2)}</span>
+        <span className={isGood ? "text-emerald-400" : "text-red-400"}>
+          {isGood ? "▲" : "▼"}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function Interpretation({
+  qualityScore,
+  components,
+  sharpe,
+  avgPEG,
+  avgDivYield,
+  maxDrawdown,
+}: {
+  qualityScore: number | null;
+  components: any[] | null;
+  sharpe: number | null;
+  avgPEG: number | null;
+  avgDivYield: number | null;
+  maxDrawdown: number | null;
+}) {
+  if (qualityScore == null || !components) return null;
+
+  // Build interpretation text (§4.5 — regelbasiert, deterministisch)
+  const parts: string[] = [];
+
+  if (qualityScore >= 75) {
+    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — eine starke Gesamtbewertung.`);
+  } else if (qualityScore >= 50) {
+    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — solide, mit Verbesserungspotenzial.`);
+  } else {
+    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — hier besteht deutliches Optimierungspotenzial.`);
+  }
+
+  const sorted = [...components].filter((c: any) => c.available).sort((a: any, b: any) => b.score - a.score);
+  if (sorted.length >= 2) {
+    parts.push(
+      `Stärkste Komponente: ${sorted[0].name} (${sorted[0].score}/100). Schwächste: ${sorted[sorted.length - 1].name} (${sorted[sorted.length - 1].score}/100).`
+    );
+  }
+
+  if (sharpe != null && sharpe < 0) {
+    parts.push("Achtung: Die Sharpe-Ratio ist negativ — das Portfolio hat risikoadjustiert an Wert verloren.");
+  }
+  if (avgPEG != null && avgPEG > 3) {
+    parts.push(`Der Ø-PEG von ${avgPEG.toFixed(1)} deutet auf eine hohe Bewertung hin.`);
+  }
+  if (maxDrawdown != null && maxDrawdown < -0.20) {
+    parts.push(`Der Max Drawdown von ${(maxDrawdown * 100).toFixed(1)}% ist erheblich — Risikomanagement prüfen.`);
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+      <div className="flex items-start gap-2">
+        <Info className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+        <div>
+          <h4 className="text-sm font-medium text-white/70 mb-1">Aktuelle Einschätzung</h4>
+          <p className="text-xs text-white/60 leading-relaxed">
+            {parts.join(" ")}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {components
+              .filter((c: any) => c.available)
+              .map((c: any) => (
+                <span
+                  key={c.name}
+                  className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                    c.score >= 70
+                      ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                      : c.score >= 40
+                      ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
+                      : "border-red-500/30 text-red-400 bg-red-500/10"
+                  }`}
+                >
+                  {c.name}: {c.score}
+                </span>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helper
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }

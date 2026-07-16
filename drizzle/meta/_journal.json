@@ -225,6 +225,13 @@
       "when": 1784184041945,
       "tag": "0031_mature_silver_samurai",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1784191286120,
+      "tag": "0032_ambitious_hercules",
+      "breakpoints": true
     }
   ]
 }
