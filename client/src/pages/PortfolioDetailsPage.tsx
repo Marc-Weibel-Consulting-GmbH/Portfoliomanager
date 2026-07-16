@@ -792,6 +792,62 @@ function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId
   );
 }
 
+// ─── Letzte Aktivität ───
+function LetzteAktivitaet({ transactions }: { transactions: any[] }) {
+  const [aktivExpanded, setAktivExpanded] = useState(false);
+  const sortedTx = [...transactions].sort((a: any, b: any) =>
+    new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+  );
+  const visibleTx = aktivExpanded ? sortedTx : sortedTx.slice(0, 4);
+  const hasMore = sortedTx.length > 4;
+  return (
+    <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-white">Letzte Aktivität</h3>
+        {hasMore && (
+          <button
+            onClick={() => setAktivExpanded(!aktivExpanded)}
+            className="text-xs text-[#00CFC1] hover:text-[#00CFC1]/80 flex items-center gap-1 transition-colors"
+          >
+            {aktivExpanded ? 'Weniger' : `Alle ${sortedTx.length}`}
+            <svg className={`h-3 w-3 transition-transform ${aktivExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </button>
+        )}
+      </div>
+      <div className="space-y-2">
+        {visibleTx.map((tx: any) => {
+          const txDate = new Date(tx.transactionDate);
+          const isToday = txDate.toDateString() === new Date().toDateString();
+          const isYesterday = txDate.toDateString() === new Date(Date.now() - 86400000).toDateString();
+          const dateLabel = isToday ? 'Heute' : isYesterday ? 'Gestern' : txDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
+          const isBuy = tx.transactionType === 'buy';
+          const isDividend = tx.transactionType === 'dividend';
+          const isOptimization = tx.source === 'optimization';
+          return (
+            <div key={tx.id} className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-gray-400 w-12 shrink-0">{dateLabel}</span>
+                <span className={`truncate ${isDividend ? 'text-[#00CFC1]' : isBuy ? 'text-blue-400' : 'text-negative'}`}>
+                  {isDividend ? 'Dividende' : isBuy ? 'Kauf' : 'Verkauf'} {tx.ticker}
+                </span>
+                {isOptimization && (
+                  <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-violet-500/20 text-violet-400 font-medium">KI</span>
+                )}
+              </div>
+              <span className={`font-mono shrink-0 ml-2 ${isDividend || isBuy ? 'text-[#00CFC1]' : 'text-negative'}`}>
+                {isDividend || isBuy ? '+' : '-'}{tx.shares ? `${Math.abs(parseFloat(tx.shares)).toFixed(0)} Stk.` : `CHF ${Math.abs(parseFloat(tx.totalAmount || '0')).toFixed(0)}`}
+              </span>
+            </div>
+          );
+        })}
+        {transactions.length === 0 && (
+          <p className="text-xs text-gray-400">Keine Transaktionen vorhanden</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const portfolioTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   dividends: { label: "Dividenden", icon: <DollarSign className="h-4 w-4" />, color: "bg-blue-500" },
   growth: { label: "Wachstum", icon: <TrendingUp className="h-4 w-4" />, color: "bg-green-500" },
@@ -1724,35 +1780,7 @@ export default function PortfolioDetailsPage() {
                 </div>
 
                 {/* Letzte Aktivität */}
-                <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-white mb-3">Letzte Aktivität</h3>
-                  <div className="space-y-2">
-                    {transactions.slice(0, 4).map((tx: any) => {
-                      const txDate = new Date(tx.transactionDate);
-                      const isToday = txDate.toDateString() === new Date().toDateString();
-                      const isYesterday = txDate.toDateString() === new Date(Date.now() - 86400000).toDateString();
-                      const dateLabel = isToday ? 'Heute' : isYesterday ? 'Gestern' : txDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
-                      const isBuy = tx.transactionType === 'buy';
-                      const isDividend = tx.transactionType === 'dividend';
-                      return (
-                        <div key={tx.id} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-400 w-12">{dateLabel}</span>
-                            <span className={`${isDividend ? 'text-[#00CFC1]' : isBuy ? 'text-blue-400' : 'text-negative'}`}>
-                              {isDividend ? 'Dividende' : isBuy ? 'Kauf' : 'Verkauf'} {tx.ticker}
-                            </span>
-                          </div>
-                          <span className={`font-mono ${isDividend || isBuy ? 'text-[#00CFC1]' : 'text-negative'}`}>
-                            {isDividend || isBuy ? '+' : '-'}{tx.shares ? `${Math.abs(parseFloat(tx.shares)).toFixed(0)} Stk.` : `CHF ${Math.abs(parseFloat(tx.totalAmount || '0')).toFixed(0)}`}
-                          </span>
-                        </div>
-                      );
-                    })}
-                    {transactions.length === 0 && (
-                      <p className="text-xs text-gray-400">Keine Transaktionen vorhanden</p>
-                    )}
-                  </div>
-                </div>
+                <LetzteAktivitaet transactions={transactions} />
               </div>
             </div>
 
