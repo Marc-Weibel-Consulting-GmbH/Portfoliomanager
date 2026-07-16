@@ -176,13 +176,14 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
   if (qAllKeys.length >= 8) {
     const last4 = qAllKeys.slice(-4);
     const prev4 = qAllKeys.slice(-8, -4);
+    // Exclude zero values — EODHD returns 0 for quarters without reported data
     const ttmEps = last4.reduce((sum, k) => {
       const v = parseFloatOrNull(qHistoryForTTM[k]?.epsActual);
-      return v !== null ? sum + v : sum;
+      return (v !== null && v !== 0) ? sum + v : sum;
     }, 0);
     const prevTtmEps = prev4.reduce((sum, k) => {
       const v = parseFloatOrNull(qHistoryForTTM[k]?.epsActual);
-      return v !== null ? sum + v : sum;
+      return (v !== null && v !== 0) ? sum + v : sum;
     }, 0);
     if (Math.abs(prevTtmEps) > 0.001) {
       epsGrowthTTM = ((ttmEps - prevTtmEps) / Math.abs(prevTtmEps)) * 100;

@@ -2229,8 +2229,8 @@ export default function PortfolioDetailsPage() {
                                   const isFx = h.currency && h.currency !== 'CHF';
                                   const avgBuyLocal = parseFloat(h.avgBuyPriceLocal || '0');
                                   const avgBuyCHF = parseFloat(h.avgBuyPrice || '0');
-                                  // Only show if we have meaningful data
-                                  if (avgBuyCHF <= 0) return null;
+                                  // Only show if we have a real purchase price (not the 0%-fallback)
+                                  if (!h.hasBuyPrice || avgBuyCHF <= 0) return null;
                                   return (
                                     <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">
                                       <div className="flex items-center gap-1.5 mb-2">

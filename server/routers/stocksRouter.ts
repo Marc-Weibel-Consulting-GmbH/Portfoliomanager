@@ -395,6 +395,53 @@ export const stocksRouter = router({
               if (!dbStock.sharpeRatio && computed.sharpe) dbStock.sharpeRatio = computed.sharpe;
             }
           }
+          // Fetch financial highlights from EODHD if DB fields are empty
+          if (!dbStock.financialHighlight1 || !dbStock.financialHighlight2 || !dbStock.financialHighlight3) {
+            try {
+              const { getQualityMetrics } = await import('../lib/qualityMetricsService');
+              const qm = await getQualityMetrics(input);
+              // Revenue Growth (YoY)
+              if (!dbStock.financialHighlight1 && qm.revenueGrowthTTM !== null) {
+                const sign = qm.revenueGrowthTTM >= 0 ? '+' : '';
+                dbStock.financialHighlight1 = `${sign}${qm.revenueGrowthTTM.toFixed(1)}% YoY`;
+              }
+              // Net Income Margin
+              if (!dbStock.financialHighlight2 && qm.operatingMargin !== null) {
+                dbStock.financialHighlight2 = `${qm.operatingMargin.toFixed(1)}% Marge`;
+              }
+              // ROIC as proxy for FCF quality
+              if (!dbStock.financialHighlight3 && qm.roic !== null) {
+                dbStock.financialHighlight3 = `ROIC ${qm.roic.toFixed(1)}%`;
+              }
+            } catch (e) {
+              console.warn('[byTicker] Financial highlights from EODHD failed:', (e as Error).message);
+            }
+          }
+
+          // Recalculate quality score dynamically if DB value is 0 or missing
+          // (score=0 means it was never computed or the cron hasn't run yet)
+          if (!dbStock.score || dbStock.score === 0) {
+            try {
+              const { calculateStockScore } = await import("../scoring");
+              const parseNum = (v: any) => {
+                const n = parseFloat(v);
+                return isNaN(n) ? undefined : n;
+              };
+              const computed = calculateStockScore(input, {
+                dividendYield: parseNum(dbStock.dividendYield),
+                peRatio: parseNum(dbStock.peRatio),
+                pegRatio: parseNum(dbStock.pegRatio),
+                beta: parseNum(dbStock.beta),
+                volatility: parseNum(dbStock.volatility),
+                sharpeRatio: parseNum(dbStock.sharpeRatio),
+              }, undefined, dbStock.category);
+              if (computed.totalScore > 0) {
+                dbStock.score = computed.totalScore;
+              }
+            } catch (e) {
+              console.warn('[byTicker] Score recalculation failed:', (e as Error).message);
+            }
+          }
           return dbStock;
         }
 

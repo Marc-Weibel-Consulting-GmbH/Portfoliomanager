@@ -487,6 +487,8 @@ export const portfoliosRouter = router({
             }
             // Keep backward-compat field name (used by client)
             const avgBuyPrice = avgBuyPriceCHF;
+            // hasBuyPrice: true only when we have a real purchase price (not the fallback)
+            const hasBuyPrice = storedAvgBuyPriceCHF > 0 || storedAvgBuyPrice > 0 || (avgBuyPriceLocalMap.get(ticker) ?? 0) > 0;
             
             // Calculate totalValue
             const totalValue = shares * priceCHF;
@@ -581,6 +583,8 @@ export const portfoliosRouter = router({
                 sharpeRatio: parseNum(dbStock?.sharpeRatio),
                 ytdPerformance: parseNum(dbStock?.ytdPerformance ?? stock.ytdPerformance),
               }, undefined, dbStock?.category).totalScore,
+              // hasBuyPrice: true only when a real purchase price exists (not the 0%-fallback)
+              hasBuyPrice,
             };
           })
         );

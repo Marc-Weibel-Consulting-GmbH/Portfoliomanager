@@ -240,3 +240,11 @@
 
 ## Backfill-Timeout Fix (Jul 2026)
 - [x] Fix: triggerPortfolioMetricsSnapshot Mutation timeout im Browser (fire-and-forget, sofortige Rückgabe)
+
+## Bug Fixes (Jul 16, 2026)
+- [x] Fix: Performance seit Kauf = +0.00% (hasBuyPrice-Flag verhindert Anzeige ohne echten Kaufpreis)
+- [x] Fix: Qualitäts-Score 0/100 (byTicker berechnet Score dynamisch wenn DB-Wert = 0)
+- [x] Fix: Kategorie-Klassifizierung in scoring.ts (Dividendenaktien, Wachstumsaktien, ETF, Value, Balanced, Andere)
+- [x] Fix: Forward PEG / EPS-Stabilität (TTM-EPS-Berechnung schliesst EODHD-Nullwerte aus)
+- [x] Fix: PE Ratio auf 1 Kommastelle gerundet (StockDetail.tsx)
+- [x] Fix: Finanzkennzahlen aus EODHD live berechnen wenn DB-Felder leer (Revenue Growth, Operating Margin, ROIC)

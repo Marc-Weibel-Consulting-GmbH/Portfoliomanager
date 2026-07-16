@@ -96,13 +96,20 @@ export function determineStockType(metrics: StockMetrics, category?: string): St
   if (category) {
     const categoryLower = category.toLowerCase();
     console.log('[Score] Category:', category, '-> lowercase:', categoryLower);
-    if (categoryLower.includes('dividend') || categoryLower.includes('dividendentitel')) {
+    // Dividend categories (German + English)
+    if (categoryLower.includes('dividend') || categoryLower.includes('dividenden')) {
       console.log('[Score] Classified as DIVIDEND based on category');
       return 'dividend';
     }
+    // Growth categories (German + English)
     if (categoryLower.includes('growth') || categoryLower.includes('wachstum')) {
       console.log('[Score] Classified as GROWTH based on category');
       return 'growth';
+    }
+    // Value, Balanced, ETF, Andere → treat as dividend (stability-focused scoring)
+    if (categoryLower === 'value' || categoryLower === 'balanced' || categoryLower === 'etf' || categoryLower === 'andere') {
+      console.log('[Score] Classified as DIVIDEND (stability) based on category:', category);
+      return 'dividend';
     }
   }
   

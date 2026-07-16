@@ -755,7 +755,7 @@ export default function StockDetail() {
                 <div className="grid grid-cols-2 gap-3">
                   <MetricCard 
                     label="P/E Ratio" 
-                    value={stock.peRatio || "-"} 
+                    value={stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "-"} 
                     rating={getRating("peRatio", stock.peRatio)}
                   />
                   <div className="bg-[#1a1f2e] rounded-lg p-3 border border-white/10">
