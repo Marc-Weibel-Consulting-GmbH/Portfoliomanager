@@ -363,13 +363,22 @@ export async function importHistoricalPricesForTicker(
   const to = toDate || defaultToDate;
 
   try {
-    const prices = await fetchHistoricalPrices(ticker, from, to);
-    if (prices.length === 0) {
-      console.warn(`[importHistoricalPrices] No prices found for ${ticker}`);
+    // Map DB ticker to EODHD format (e.g. MRVL → MRVL.US, NESN.SW stays NESN.SW)
+    const eodhdTicker = toEodhdTicker(ticker);
+    if (!eodhdTicker) {
+      console.warn(`[importHistoricalPrices] Ticker ${ticker} not available on EODHD, skipping`);
       return { success: false, pricesImported: 0 };
     }
 
+    const prices = await fetchHistoricalPrices(eodhdTicker, from, to);
+    if (prices.length === 0) {
+      console.warn(`[importHistoricalPrices] No prices found for ${ticker} (EODHD: ${eodhdTicker})`);
+      return { success: false, pricesImported: 0 };
+    }
+
+    // Store prices using the original DB ticker (not the EODHD ticker)
     const imported = await storeHistoricalPrices(ticker, prices);
+    console.log(`[importHistoricalPrices] Stored ${imported} prices for ${ticker}`);
     return { success: true, pricesImported: imported };
   } catch (error) {
     console.error(`[importHistoricalPrices] Error importing ${ticker}:`, error);
