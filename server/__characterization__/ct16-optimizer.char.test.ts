@@ -68,6 +68,9 @@ function buildRows() {
 
 beforeEach(() => {
   h.rowsByTicker = buildRows();
+  // PyPortfolioOpt-Bridge (exactOptimizer) darf hier NIE aktiv sein — die Pins
+  // charakterisieren den TS-Zufallssuche-Pfad (optimizerEngine "random_search").
+  delete process.env.ANALYTICS_SERVICE_URL;
 });
 
 describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
@@ -80,6 +83,8 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     // Gleichgewichts-Prior geschrumpft → die Renditeschätzer liegen enger beieinander,
     // die Gewichte sind weniger extrem (Ledoit-Wolf-Kovarianz-Shrinkage weiterhin aktiv).
     expect(res.weights).toEqual({ T1: 0.3275, T2: 0.2725, T3: 0.3999 });
+    // Ohne ANALYTICS_SERVICE_URL kommt das Gewicht aus der TS-Zufallssuche.
+    expect(res.optimizerEngine).toBe("random_search");
     const sum = Object.values(res.weights).reduce((s, w) => s + w, 0);
     expect(sum).toBeCloseTo(1, 3);
     for (const w of Object.values(res.weights)) {
