@@ -1560,10 +1560,19 @@ export const portfoliosRouter = router({
             startDate.setFullYear(startDate.getFullYear() - 5);
             break;
           case 'All':
-            // For live portfolios, start from year beginning to show hypothetical performance
-            // For test portfolios, use earliest transaction date or 5 years ago
+            // For live portfolios: start from the earliest of liveStartDate or first transaction date
+            // This ensures the full portfolio history is shown (e.g. Nov 2025 for Regula)
             if (isLivePortfolio) {
-              startDate = new Date(`${today.getFullYear()}-01-01`);
+              const liveStartDateCandidate = portfolio.liveStartDate ? new Date(portfolio.liveStartDate) : null;
+              const candidates: Date[] = [];
+              if (liveStartDateCandidate) candidates.push(liveStartDateCandidate);
+              if (earliestTransactionDate) candidates.push(earliestTransactionDate);
+              if (candidates.length > 0) {
+                startDate = candidates.reduce((a, b) => a < b ? a : b);
+              } else {
+                // Fallback: current year start
+                startDate = new Date(`${today.getFullYear()}-01-01`);
+              }
             } else if (earliestTransactionDate) {
               startDate = earliestTransactionDate;
             } else {
@@ -2064,8 +2073,9 @@ export const portfoliosRouter = router({
           }
         }
         
-        // For other periods (1M, 3M, etc.), never start before the first transaction
-        if (isLivePortfolio && !allowHypotheticalPerformance && earliestTransactionDate && startDate < earliestTransactionDate) {
+        // For other periods (1M, 3M, etc.), never start before the first transaction.
+        // Exception: 'All' (Max) period should start from liveStartDate/creation date, not first transaction.
+        if (isLivePortfolio && !allowHypotheticalPerformance && earliestTransactionDate && startDate < earliestTransactionDate && period !== 'All') {
           startDate = earliestTransactionDate;
         }
         

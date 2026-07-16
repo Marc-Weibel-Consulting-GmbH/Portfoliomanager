@@ -183,8 +183,12 @@ async function hasHistoricalPrices(ticker: string, fromDate: string, toDate: str
   const db = await getDb();
   if (!db) return false;
 
-  const result = await db
-    .select({ count: sql<number>`count(*)` })
+  // Check if the most recent data point is within 5 calendar days of toDate.
+  // This ensures we re-fetch if recent days are missing (e.g. after server downtime).
+  // A count-based check is insufficient because it passes even when the latest days are absent.
+  const { desc: descOrder } = await import("drizzle-orm");
+  const latestRow = await db
+    .select({ date: historicalPrices.date })
     .from(historicalPrices)
     .where(
       and(
@@ -192,13 +196,22 @@ async function hasHistoricalPrices(ticker: string, fromDate: string, toDate: str
         sql`${historicalPrices.date} >= ${fromDate}`,
         sql`${historicalPrices.date} <= ${toDate}`
       )
-    );
+    )
+    .orderBy(descOrder(historicalPrices.date))
+    .limit(1);
 
-  const count = result[0]?.count ?? 0;
-  // Consider it "has data" if we have at least 50% of expected trading days (roughly 130 days for 6 months)
-  const expectedDays = Math.floor((new Date(toDate).getTime() - new Date(fromDate).getTime()) / (1000 * 60 * 60 * 24));
-  const expectedTradingDays = Math.floor(expectedDays * 0.7); // Assume 70% are trading days
-  return count >= expectedTradingDays * 0.5;
+  if (!latestRow.length) return false;
+
+  const rawDate = latestRow[0].date as unknown;
+  const latestDate = rawDate instanceof Date
+    ? rawDate.toISOString().split('T')[0]
+    : String(rawDate).split('T')[0];
+
+  // Allow up to 5 calendar days gap (covers weekends + public holidays)
+  const latestMs = new Date(latestDate).getTime();
+  const toMs = new Date(toDate).getTime();
+  const gapDays = (toMs - latestMs) / (1000 * 60 * 60 * 24);
+  return gapDays <= 5;
 }
 
 /**

@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -14,6 +14,24 @@ export default function AdminDashboard() {
   const [qualityCacheStatus, setQualityCacheStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [sectorStatus, setSectorStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [metricsSnapshotStatus, setMetricsSnapshotStatus] = useState<string | null>(null);
+  const [historicalPricesStatus, setHistoricalPricesStatus] = useState<string | null>(null);
+  const importHistoricalPrices = trpc.admin.importHistoricalPrices.useMutation({
+    onSuccess: (data: any) => {
+      const msg = data?.success
+        ? `${data.tickersProcessed ?? 0} Ticker, ${data.pricesImported ?? 0} Kurse importiert`
+        : 'Fehler beim Import';
+      setHistoricalPricesStatus(msg);
+      if (data?.success) {
+        toast.success('Kursdaten aktualisiert', { description: msg });
+      } else {
+        toast.error('Fehler beim Kursdaten-Import', { description: (data?.errors ?? []).join(', ') });
+      }
+    },
+    onError: (err: any) => {
+      setHistoricalPricesStatus('Fehler: ' + err.message);
+      toast.error('Fehler', { description: err.message });
+    },
+  });
   const clearQualityCache = trpc.admin.clearQualityMetricsCache.useMutation({
     onSuccess: (data) => {
       setQualityCacheStatus({ success: data.success, message: data.message });
@@ -234,6 +252,24 @@ export default function AdminDashboard() {
             </Button>
             {metricsSnapshotStatus && (
               <span className="text-xs text-blue-400 max-w-xs">{metricsSnapshotStatus}</span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setHistoricalPricesStatus(null);
+                // Backfill from 2025-11-01 to today with forceRefresh
+                const today = new Date().toISOString().split('T')[0];
+                importHistoricalPrices.mutate({ fromDate: '2025-11-01', toDate: today, forceRefresh: true });
+              }}
+              disabled={importHistoricalPrices.isPending}
+              className="gap-2 border-emerald-500/50 text-emerald-400 hover:text-emerald-300"
+            >
+              <TrendingUp className={`h-4 w-4 ${importHistoricalPrices.isPending ? 'animate-spin' : ''}`} />
+              {importHistoricalPrices.isPending ? 'Importiert...' : 'Kursdaten aktualisieren'}
+            </Button>
+            {historicalPricesStatus && (
+              <span className="text-xs text-emerald-400 max-w-xs">{historicalPricesStatus}</span>
             )}
             <Button
               variant="outline"
