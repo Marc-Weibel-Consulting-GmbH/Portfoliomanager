@@ -6,8 +6,8 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
-import { userInvestmentProfile, investorProfileAssessment, savedPortfolios } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { userInvestmentProfile, investorProfileAssessment, savedPortfolios, stocks as stocksTable } from "../../drizzle/schema";
+import { eq, inArray } from "drizzle-orm";
 import {
   evaluateProfile,
   deriveActiveProfile,
@@ -62,10 +62,32 @@ async function detectProfileMismatch(
 
     const stocks: any[] = portfolioData?.stocks ?? [];
 
+    // Enrich stocks with live data from the stocks table (dividendYield, beta)
+    let enrichedStockData: Map<string, { dividendYield: string | null; beta: string | null }> = new Map();
     if (stocks.length > 0) {
-      // Beta-Analyse
+      try {
+        const tickers = stocks
+          .map((s: any) => s.ticker)
+          .filter((t: any) => typeof t === 'string' && t.length > 0 && t !== 'CASH');
+        if (tickers.length > 0) {
+          const dbStocks = await db
+            .select({ ticker: stocksTable.ticker, dividendYield: stocksTable.dividendYield, beta: stocksTable.beta })
+            .from(stocksTable)
+            .where(inArray(stocksTable.ticker, tickers));
+          dbStocks.forEach(s => enrichedStockData.set(s.ticker, { dividendYield: s.dividendYield, beta: s.beta }));
+        }
+      } catch (e) {
+        console.warn('[detectProfileMismatch] Could not enrich stocks from DB:', (e as Error).message);
+      }
+    }
+
+    if (stocks.length > 0) {
+      // Beta-Analyse — prefer live DB value over stored portfolioData value
       const betas = stocks
-        .map((s: any) => parseFloat(s.beta ?? s.metrics?.beta ?? "0"))
+        .map((s: any) => {
+          const dbBeta = enrichedStockData.get(s.ticker)?.beta;
+          return parseFloat(dbBeta ?? s.beta ?? s.metrics?.beta ?? "0");
+        })
         .filter((b: number) => b > 0 && b < 5);
       const avgBeta = betas.length > 0 ? betas.reduce((a: number, b: number) => a + b, 0) / betas.length : null;
 
@@ -82,11 +104,15 @@ async function detectProfileMismatch(
         }
       }
 
-      // Dividendenrendite für Dividenden-Ziel
+      // Dividendenrendite für Dividenden-Ziel — use live DB value, fall back to stored value
       if (newGoal === "dividends") {
         const divYields = stocks
-          .map((s: any) => parseFloat(s.dividendYield ?? s.metrics?.dividendYield ?? "0"))
-          .filter((d: number) => d >= 0);
+          .filter((s: any) => s.ticker !== 'CASH')
+          .map((s: any) => {
+            const dbDiv = enrichedStockData.get(s.ticker)?.dividendYield;
+            return parseFloat(dbDiv ?? s.dividendYield ?? s.metrics?.dividendYield ?? "0");
+          })
+          .filter((d: number) => isFinite(d) && d >= 0);
         const avgDiv = divYields.length > 0 ? divYields.reduce((a: number, b: number) => a + b, 0) / divYields.length : 0;
         if (avgDiv < 2.0) {
           reasons.push(`Durchschnittliche Dividendenrendite ${avgDiv.toFixed(1)}% zu niedrig für Dividenden-Ziel (min. 2%)`);
