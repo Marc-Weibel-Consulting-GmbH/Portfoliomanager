@@ -35,6 +35,12 @@ export const users = mysqlTable("users", {
   hasCompletedRegistration: tinyint("hasCompletedRegistration").notNull().default(0),
   hasCompletedOnboarding: tinyint("hasCompletedOnboarding").notNull().default(0),
   subscriptionTier: mysqlEnum("subscriptionTier", ["free", "premium"]).default("free").notNull(),
+  // K-A1 (Monetarisierung): 3-Stufen-Abo. `plan` ist die massgebliche Berechtigung
+  // (subscriptionTier bleibt für Altcode bestehen). Grandfathering: hasPaid=1 → plus.
+  plan: mysqlEnum("plan", ["free", "plus", "pro"]).default("free").notNull(),
+  planStatus: mysqlEnum("planStatus", ["active", "past_due", "canceled"]).default("active").notNull(),
+  planRenewsAt: timestamp("planRenewsAt"),
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
   investmentGoal: mysqlEnum("investmentGoal", ["dividends", "growth", "balanced"]),
   riskTolerance: mysqlEnum("riskTolerance", ["low", "medium", "high"]),
   investmentHorizon: mysqlEnum("investmentHorizon", ["short", "medium", "long"]),

@@ -117,6 +117,32 @@ export const chatRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Conversation not found" });
       }
 
+      // K-A1: Copilot-Monatskontingent je Plan (No-op im Soft-Launch).
+      // Zählt die User-Nachrichten dieses Monats über alle Konversationen des
+      // Nutzers (join über chatConversations.userId).
+      {
+        const { isWithinMonthlyQuota } = await import("../lib/entitlements");
+        const { sql, gte } = await import("drizzle-orm");
+        const monthStart = new Date();
+        monthStart.setUTCDate(1);
+        monthStart.setUTCHours(0, 0, 0, 0);
+        const [{ used } = { used: 0 }] = await db
+          .select({ used: sql<number>`COUNT(*)` })
+          .from(chatMessages)
+          .innerJoin(chatConversations, eq(chatMessages.conversationId, chatConversations.id))
+          .where(and(
+            eq(chatConversations.userId, ctx.user.id),
+            eq(chatMessages.role, "user"),
+            gte(chatMessages.createdAt, monthStart),
+          ));
+        if (!(await isWithinMonthlyQuota(ctx.user, "copilotQuestionsPerMonth", Number(used)))) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Ihr monatliches Copilot-Kontingent ist aufgebraucht. Mit Plus/Pro erhalten Sie mehr Fragen — jetzt upgraden unter Einstellungen › Abo.",
+          });
+        }
+      }
+
       // Save user message
       await db.insert(chatMessages).values({
         conversationId: input.conversationId,

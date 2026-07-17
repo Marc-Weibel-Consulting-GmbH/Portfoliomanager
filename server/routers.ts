@@ -658,6 +658,98 @@ export const appRouter = router({
       }),
   }),
 
+  // K-A1 (Monetarisierung): 3-Stufen-Abo via Stripe-Subscriptions.
+  // Ablösung des Einmalzahlungs-Flows (payment.createCheckout). Preis-IDs kommen
+  // aus Env (STRIPE_PRICE_*), damit ohne Code-Deploy in Stripe konfigurierbar.
+  billing: router({
+    /** Aktuellen Plan des Nutzers ausweisen (für Client-Badge & Upgrade-Prompts). */
+    getPlan: protectedProcedure.query(async ({ ctx }) => {
+      const { getEntitlements, isPaywallEnforced } = await import("./lib/entitlements");
+      const { plan, limits } = await getEntitlements(ctx.user);
+      return {
+        plan,
+        enforced: isPaywallEnforced(),
+        limits: {
+          portfolios: limits.portfolios === Infinity ? null : limits.portfolios,
+          priceAlerts: limits.priceAlerts === Infinity ? null : limits.priceAlerts,
+          copilotQuestionsPerMonth: limits.copilotQuestionsPerMonth === Infinity ? null : limits.copilotQuestionsPerMonth,
+          features: [...limits.features],
+        },
+      };
+    }),
+
+    /** Abo-Checkout starten. Liefert die Stripe-Checkout-URL. */
+    createSubscriptionCheckout: protectedProcedure
+      .input(z.object({
+        plan: z.enum(["plus", "pro"]),
+        interval: z.enum(["month", "year"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const priceEnvKey = `STRIPE_PRICE_${input.plan.toUpperCase()}_${input.interval === "month" ? "MONTHLY" : "YEARLY"}`;
+        const priceId = process.env[priceEnvKey];
+        if (!priceId) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: `Abo noch nicht konfiguriert (${priceEnvKey} fehlt). Bitte die Stripe-Preis-IDs hinterlegen.`,
+          });
+        }
+        try {
+          const Stripe = (await import("stripe")).default;
+          const { getStripeSecretKey } = await import("./_core/env");
+          const stripeKey = await getStripeSecretKey();
+          if (!stripeKey) throw new Error("Stripe ist nicht konfiguriert (STRIPE_SECRET_KEY fehlt).");
+          const stripe = new Stripe(stripeKey, { apiVersion: "2025-09-30.clover" });
+          const appUrl = process.env.VITE_APP_URL || "http://localhost:3000";
+          const session = await stripe.checkout.sessions.create({
+            mode: "subscription",
+            line_items: [{ price: priceId, quantity: 1 }],
+            // card ist immer aktiv; TWINT/PostFinance werden über das Stripe-Dashboard
+            // freigeschaltet und dann automatisch angeboten (keine Code-Änderung nötig).
+            customer_email: ctx.user.email || undefined,
+            client_reference_id: String(ctx.user.id),
+            success_url: `${appUrl}/payment/success?plan=${input.plan}`,
+            cancel_url: `${appUrl}/payment/cancel`,
+            metadata: { userId: String(ctx.user.id), plan: input.plan, interval: input.interval },
+            subscription_data: { metadata: { userId: String(ctx.user.id), plan: input.plan } },
+            allow_promotion_codes: true,
+          });
+          return { success: true, checkoutUrl: session.url };
+        } catch (error: any) {
+          console.error("[billing.createSubscriptionCheckout]", error?.message);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Checkout fehlgeschlagen: ${error?.message ?? "unbekannt"}` });
+        }
+      }),
+
+    /** Stripe Customer Portal öffnen (Kündigung, Zahlungsmittel, Rechnungen). */
+    createPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
+      const { getDb } = await import("./db");
+      const { users } = await import("../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB nicht verfügbar" });
+      const [row] = await db.select({ cust: users.stripeCustomerId }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      if (!row?.cust) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Kein aktives Abo vorhanden." });
+      }
+      try {
+        const Stripe = (await import("stripe")).default;
+        const { getStripeSecretKey } = await import("./_core/env");
+        const stripeKey = await getStripeSecretKey();
+        if (!stripeKey) throw new Error("Stripe ist nicht konfiguriert.");
+        const stripe = new Stripe(stripeKey, { apiVersion: "2025-09-30.clover" });
+        const appUrl = process.env.VITE_APP_URL || "http://localhost:3000";
+        const portal = await stripe.billingPortal.sessions.create({
+          customer: row.cust,
+          return_url: `${appUrl}/einstellungen`,
+        });
+        return { url: portal.url };
+      } catch (error: any) {
+        console.error("[billing.createPortalSession]", error?.message);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Portal fehlgeschlagen: ${error?.message ?? "unbekannt"}` });
+      }
+    }),
+  }),
+
   contact: router({
     send: publicProcedure
       .input(z.object({
