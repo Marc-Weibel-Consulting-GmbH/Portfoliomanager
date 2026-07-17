@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, ExternalLink, X, Info, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
+import { formatMarketCap } from "@/lib/format";
 import DashboardLayout from "@/components/DashboardLayout";
 import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
 import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
@@ -794,9 +795,9 @@ export default function StockDetail() {
                     value={stock.sharpeRatio ? parseFloat(stock.sharpeRatio).toFixed(2) : "-"} 
                     rating={getRating("sharpeRatio", stock.sharpeRatio)}
                   />
-                  <MetricCard 
-                    label="Marktkapitalisierung" 
-                    value={stock.marketCap ? `${currency} ${parseFloat(stock.marketCap).toFixed(1)}B` : "-"} 
+                  <MetricCard
+                    label="Marktkapitalisierung"
+                    value={formatMarketCap(stock.marketCap, currency)}
                   />
                   <MetricCard 
                     label="52W Hoch" 

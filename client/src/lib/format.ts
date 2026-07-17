@@ -51,6 +51,26 @@ export const formatNumber = (
     maximumFractionDigits: decimals,
   }).format(safe(value));
 
+/**
+ * Marktkapitalisierung/Grossbeträge kompakt: «CHF 213.9 Mrd.», «CHF 4.2 Bio.».
+ * Erwartet den ABSOLUTBETRAG (z. B. 213_905_817_600), nicht bereits skaliert.
+ * Vorher hängte StockDetail schlicht «B» an die volle Zahl → «CHF 213905817600.0B».
+ */
+export const formatMarketCap = (
+  value: number | string | undefined | null,
+  currency = "CHF",
+): string => {
+  const n = typeof value === "string" ? parseFloat(value) : value;
+  if (n == null || !Number.isFinite(n) || n <= 0) return "–";
+  const abs = Math.abs(n);
+  const fmt = (v: number, unit: string) =>
+    `${currency} ${new Intl.NumberFormat("de-CH", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v)} ${unit}`;
+  if (abs >= 1e12) return fmt(n / 1e12, "Bio.");
+  if (abs >= 1e9) return fmt(n / 1e9, "Mrd.");
+  if (abs >= 1e6) return fmt(n / 1e6, "Mio.");
+  return `${currency} ${new Intl.NumberFormat("de-CH", { maximumFractionDigits: 0 }).format(n)}`;
+};
+
 export const formatDate = (
   date: Date | string = new Date(),
   { withTime = false }: { withTime?: boolean } = {},
