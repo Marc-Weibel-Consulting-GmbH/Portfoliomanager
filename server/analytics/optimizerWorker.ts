@@ -394,6 +394,18 @@ function generateWeightGrid(): WeightConfig[] {
   return combinations;
 }
 
+// Gemeinsames Lock für Admin-Button (optimizerRouter) UND Wochen-Cron
+// (learningCron) — verhindert parallele Läufe aus beiden Auslösern.
+let optimizerLock = false;
+export function tryAcquireOptimizerLock(): boolean {
+  if (optimizerLock) return false;
+  optimizerLock = true;
+  return true;
+}
+export function releaseOptimizerLock(): void {
+  optimizerLock = false;
+}
+
 /**
  * Run the full optimization process (designed to be non-blocking)
  * Uses setImmediate/setTimeout to yield to event loop regularly

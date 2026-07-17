@@ -13,6 +13,8 @@ import {
   saveOptimizerResult,
   getActiveWeights,
   getOptimizerHistory,
+  tryAcquireOptimizerLock,
+  releaseOptimizerLock,
   DEFAULT_WEIGHTS,
   STRATEGY_PRESETS,
   type OptimizerResult,
@@ -75,7 +77,9 @@ export const optimizerRouter = router({
    * Returns immediately, check status with getStatus
    */
   startOptimizer: adminProcedure.mutation(async () => {
-    if (optimizerRunning) {
+    // Gemeinsames Lock mit dem Wochen-Cron (learningCron) — beide Auslöser
+    // dürfen nie parallel laufen.
+    if (optimizerRunning || !tryAcquireOptimizerLock()) {
       throw new TRPCError({
         code: "CONFLICT",
         message: "Optimizer läuft bereits. Bitte warten Sie, bis der aktuelle Durchlauf abgeschlossen ist.",
@@ -106,6 +110,7 @@ export const optimizerRouter = router({
         console.error("[Optimizer] Error:", err);
       } finally {
         optimizerRunning = false;
+        releaseOptimizerLock();
       }
     })();
 

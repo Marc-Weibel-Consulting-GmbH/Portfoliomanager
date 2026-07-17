@@ -15,7 +15,7 @@ import { getDiversificationRules as _getDiversificationRules } from "../lib/dive
 import { getDb } from "../db";
 import { stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
 import { and, eq, inArray } from "drizzle-orm";
-import { getMarktHubSignals, getDynamicRiskFreeRate } from "../lib/marktHubSignals";
+import { getMarktHubSignals } from "../lib/marktHubSignals";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -46,10 +46,14 @@ export const analyticsRouter = router({
     )
     .query(async ({ input }) => {
       try {
+        // K1 (Learning-Koordination): eine risikofreie Wahrheit — Default 0.02
+        // heisst «Nutzer hat nichts gesetzt» → zentraler FRED-DGS10-Satz.
+        const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+        const rf = input.riskFreeRate === 0.02 ? await getRiskFreeRate() : input.riskFreeRate;
         return await calcRiskMetrics({
           holdings: input.holdings,
           benchmark: input.benchmark,
-          riskFreeRate: input.riskFreeRate,
+          riskFreeRate: rf,
           confidenceLevel: input.confidenceLevel,
           lookbackDays: input.lookbackDays,
         });
@@ -121,20 +125,14 @@ export const analyticsRouter = router({
         const { getDiversificationRules } = await import("../lib/diversificationRules");
         const rules = await getDiversificationRules();
 
-        // Dynamischer risikofreier Zinssatz aus FRED DGS10 (Markt-Hub)
-        // Nur verwenden wenn der Nutzer NICHT explizit einen Wert gesetzt hat (d.h. noch default 0.02)
+        // K1 (Learning-Koordination): eine risikofreie Wahrheit — zentraler
+        // FRED-DGS10-Satz aus lib/riskFreeRate (leichtgewichtig, ohne die
+        // EODHD-Faktor-Fetches des vollen Markt-Hub-Aggregats). Default 0.02
+        // heisst «Nutzer hat nichts gesetzt» → dynamischer Satz.
         let effectiveRiskFreeRate = input.riskFreeRate;
         if (input.riskFreeRate === 0.02) {
-          try {
-            const mhSignals = await getMarktHubSignals();
-            const dynamicRate = getDynamicRiskFreeRate(mhSignals.macro);
-            if (dynamicRate !== 0.02) {
-              effectiveRiskFreeRate = dynamicRate;
-              console.log(`[analytics.optimize] Dynamischer riskFreeRate: ${(dynamicRate * 100).toFixed(2)}% (FRED DGS10)`);
-            }
-          } catch (mhErr) {
-            console.warn('[analytics.optimize] Markt-Hub riskFreeRate nicht verfügbar, Fallback 2%');
-          }
+          const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+          effectiveRiskFreeRate = await getRiskFreeRate();
         }
 
         // P3: Wenn ein Anlageprofil existiert, steuern Risikoprofil + Drawdown-Toleranz
@@ -211,10 +209,13 @@ export const analyticsRouter = router({
     )
     .query(async ({ input }) => {
       try {
+        // K1: eine risikofreie Wahrheit (siehe riskMetrics oben).
+        const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+        const rfHist = input.riskFreeRate === 0.02 ? await getRiskFreeRate() : input.riskFreeRate;
         return await calcRiskScoreHistory({
           holdings: input.holdings,
           benchmark: input.benchmark,
-          riskFreeRate: input.riskFreeRate,
+          riskFreeRate: rfHist,
           confidenceLevel: input.confidenceLevel,
           weeks: input.weeks,
           windowDays: input.windowDays,
