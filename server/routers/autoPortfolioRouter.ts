@@ -25,6 +25,10 @@ export const autoPortfolioRouter = router({
   buildProposal: protectedProcedure
     .input(z.object({ investmentAmount: z.number().positive().optional() }).optional())
     .mutation(async ({ ctx, input }) => {
+      // K-A1: KI-Auto-Portfolio ist ein Plus/Pro-Feature (No-op im Soft-Launch).
+      const { requireFeature } = await import("../lib/entitlements");
+      await requireFeature(ctx.user, "auto_portfolio");
+
       const { getDb } = await import("../db");
       const db = await getDb();
       if (!db) throw new Error("Datenbank nicht verfügbar");

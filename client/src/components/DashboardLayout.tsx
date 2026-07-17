@@ -193,6 +193,8 @@ function DashboardLayoutContent({
 
   // Fetch portfolios for sidebar submenu
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
+  // K-A1: echter Plan aus dem Entitlements-Layer (Free/Plus/Pro).
+  const { data: planInfo } = trpc.billing.getPlan.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
   // State for tools group
   const [toolsOpen, setToolsOpen] = useState(
@@ -467,9 +469,9 @@ function DashboardLayoutContent({
                       {user?.username || user?.name || user?.email || "-"}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      {/* U-15: echter Abo-Status statt hartkodiertem «Premium» */}
+                      {/* K-A1: echter Plan aus dem Entitlements-Layer */}
                       <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
-                        {user?.subscriptionTier === 'premium' || user?.hasPaid === 1 ? 'Premium' : 'Free'}
+                        {(planInfo?.plan ?? 'free').toUpperCase()}
                       </span>
                     </div>
                   </div>

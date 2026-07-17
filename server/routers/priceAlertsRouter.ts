@@ -84,6 +84,16 @@ export const priceAlertsRouter = router({
         });
       }
 
+      // K-A1: Plan-Limit für Preisalarme durchsetzen (No-op im Soft-Launch).
+      {
+        const { checkLimit } = await import("../lib/entitlements");
+        const existing = await db
+          .select({ id: priceAlerts.id })
+          .from(priceAlerts)
+          .where(eq(priceAlerts.userId, ctx.user.id));
+        await checkLimit(ctx.user, "priceAlerts", existing.length);
+      }
+
       await db.insert(priceAlerts).values({
         userId: ctx.user.id,
         ticker: normalizedTicker,

@@ -722,7 +722,18 @@ export const portfoliosRouter = router({
           console.log(`[portfolios.create ${debugId}] DB Ping...`);
           await db.execute(sql`SELECT 1`);
           console.log(`[portfolios.create ${debugId}] DB Ping OK`);
-          
+
+          // K-A1: Plan-Limit für LIVE-Portfolios durchsetzen (Demo unbegrenzt).
+          // No-op solange ENFORCE_PAYWALL nicht scharf ist (Soft-Launch).
+          if (input.portfolioType === "live") {
+            const { checkLimit } = await import("../lib/entitlements");
+            const liveRows = await db
+              .select({ id: savedPortfolios.id })
+              .from(savedPortfolios)
+              .where(sql`${savedPortfolios.userId} = ${ctx.user.id} AND ${savedPortfolios.isSnapshot} = 0 AND (${savedPortfolios.portfolioType} = 'live' OR ${savedPortfolios.portfolioType} IS NULL)`);
+            await checkLimit(ctx.user, "portfolios", liveRows.length);
+          }
+
           // 2) Insert portfolio
           const userId = ctx.user.id;
           console.log(`[portfolios.create ${debugId}] Using userId for insert:`, userId, 'type:', typeof userId);
