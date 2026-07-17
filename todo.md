@@ -295,13 +295,13 @@
 
 ## Algo-Backtesting Self-Learning System + Markt-Hub-Badge
 - [x] DB-Schema: algoBacktestRuns (monatliche Runs mit Markt-Hub-Kontext, Algo-Version, LLM-Analyse)
-- [ ] DB-Schema: algoBacktestPortfolios (6 Profil-Portfolios pro Run mit Positionen + 30-Tage-Performance)
-- [ ] DB-Schema: algoTuningLog (Feinajustierungen mit Begründung + Overfitting-Schutz)
-- [ ] Backtesting-Engine: createBacktestRun() - 6 Profil-Portfolios erstellen (konservativ/ausgewogen/aggressiv × dividenden/wachstum)
-- [ ] Backtesting-Engine: evaluateBacktestRun() - 30-Tage-Performance messen, LLM-Analyse, Tuning-Empfehlung
+- [x] DB-Schema: algoBacktestPortfolios (6 Profil-Portfolios pro Run mit Positionen + 30-Tage-Performance)
+- [x] DB-Schema: algoTuningLog (Feinajustierungen mit Begründung + Overfitting-Schutz)
+- [x] Backtesting-Engine: createBacktestRun() - 6 Profil-Portfolios erstellen (konservativ/ausgewogen/aggressiv × dividenden/wachstum)
+- [x] Backtesting-Engine: evaluateBacktestRun() - 30-Tage-Performance messen, LLM-Analyse, Tuning-Empfehlung
 - [x] Heartbeat-Cron: monatlicher Job (1. des Monats) für Portfolio-Erstellung + vormonatliche Evaluation
-- [ ] Express-Handler: /api/scheduled/algo-backtest
-- [ ] Admin-UI: Backtesting-Kachel mit Run-Übersicht, Portfolio-Details, LLM-Analyse, Tuning-Log
-- [ ] Admin-UI: Manuelle "Run Now" Funktion für sofortigen Test
+- [x] Express-Handler: /api/scheduled/algo-backtest
+- [x] Admin-UI: Backtesting-Kachel mit Run-Übersicht, Portfolio-Details, LLM-Analyse, Tuning-Log
+- [x] Admin-UI: Manuelle "Run Now" Funktion für sofortigen Test
 - [x] Markt-Hub-Badge im Portfolio-Builder: aktive Sektor-Tilts + MSCI-Faktor anzeigen
 - [x] Markt-Hub-Badge: buildProposal Response um marktHubContext erweitern

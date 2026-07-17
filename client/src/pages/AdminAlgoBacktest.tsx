@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -46,46 +46,45 @@ function overfittingBadge(risk: string | null | undefined) {
 }
 
 function RunRow({ run, onSelect, selected }: { run: any; onSelect: (id: number) => void; selected: boolean }) {
-  const marktHub = run.marktHubSnapshot ? (() => { try { return JSON.parse(run.marktHubSnapshot); } catch { return null; } })() : null;
   const llm = run.llmAnalysis ? (() => { try { return JSON.parse(run.llmAnalysis); } catch { return null; } })() : null;
-
   return (
-    <Collapsible open={selected} onOpenChange={() => onSelect(run.id)}>
-      <CollapsibleTrigger asChild>
-        <TableRow className={`cursor-pointer hover:bg-muted/50 ${selected ? "bg-muted/30" : ""}`}>
-          <TableCell className="font-medium">
-            <div className="flex items-center gap-2">
-              {selected ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-              {run.runMonth}
-            </div>
-          </TableCell>
-          <TableCell>{statusBadge(run.status)}</TableCell>
-          <TableCell>{perfBadge(run.avgPerf30dPct)}</TableCell>
-          <TableCell>{perfBadge(run.benchmarkPerf30dPct)}</TableCell>
-          <TableCell>
-            {run.avgPerf30dPct != null && run.benchmarkPerf30dPct != null
-              ? perfBadge(String(parseFloat(run.avgPerf30dPct) - parseFloat(run.benchmarkPerf30dPct)))
-              : <span className="text-muted-foreground text-sm">—</span>}
-          </TableCell>
-          <TableCell>
-            <span className="text-xs text-muted-foreground">{run.marktRegime ?? "—"}</span>
-          </TableCell>
-          <TableCell>
-            <span className="text-xs font-mono text-muted-foreground">{run.leadingFactor ?? "—"}</span>
-          </TableCell>
-          <TableCell>
-            <span className="text-xs text-muted-foreground">{run.portfolioCount ?? 0}/6</span>
-          </TableCell>
-        </TableRow>
-      </CollapsibleTrigger>
-      <CollapsibleContent asChild>
+    <>
+      <TableRow
+        className={`cursor-pointer hover:bg-muted/50 ${selected ? "bg-muted/30" : ""}`}
+        onClick={() => onSelect(run.id)}
+      >
+        <TableCell className="font-medium">
+          <div className="flex items-center gap-2">
+            {selected ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            {run.runMonth}
+          </div>
+        </TableCell>
+        <TableCell>{statusBadge(run.status)}</TableCell>
+        <TableCell>{perfBadge(run.avgPerf30dPct)}</TableCell>
+        <TableCell>{perfBadge(run.benchmarkPerf30dPct)}</TableCell>
+        <TableCell>
+          {run.avgPerf30dPct != null && run.benchmarkPerf30dPct != null
+            ? perfBadge(String(parseFloat(run.avgPerf30dPct) - parseFloat(run.benchmarkPerf30dPct)))
+            : <span className="text-muted-foreground text-sm">—</span>}
+        </TableCell>
+        <TableCell>
+          <span className="text-xs text-muted-foreground">{run.marktRegime ?? "—"}</span>
+        </TableCell>
+        <TableCell>
+          <span className="text-xs font-mono text-muted-foreground">{run.leadingFactor ?? "—"}</span>
+        </TableCell>
+        <TableCell>
+          <span className="text-xs text-muted-foreground">{run.portfolioCount ?? 0}/6</span>
+        </TableCell>
+      </TableRow>
+      {selected && (
         <TableRow>
           <TableCell colSpan={8} className="p-0">
             <RunDetail runId={run.id} llmAnalysis={llm} />
           </TableCell>
         </TableRow>
-      </CollapsibleContent>
-    </Collapsible>
+      )}
+    </>
   );
 }
 
