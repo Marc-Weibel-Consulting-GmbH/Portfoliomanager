@@ -122,3 +122,7 @@ exports/
 upload/
 data/
 .manus/db/
+
+# Design screenshots (too large for git)
+design/audit-2026-07-b-screenshots/
+design/review-mockups/
