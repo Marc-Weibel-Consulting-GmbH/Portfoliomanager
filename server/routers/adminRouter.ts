@@ -1637,6 +1637,77 @@ export const adminRouter = router({
     };
   }),
 
+  /**
+   * K9-Nachtrag: Migration 0034 remote anwenden. Der manus-Deploy führt
+   * `pnpm db:push` nicht aus, und DATABASE_URL existiert nur zur Laufzeit im
+   * Deploy — darum wendet dieser Admin-Endpoint die (rein additiven) Spalten
+   * von `drizzle/0034_youthful_namorita.sql` idempotent an und trägt den
+   * Drizzle-Journal-Eintrag nach, damit ein späteres echtes `drizzle-kit
+   * migrate` 0034 nicht erneut anwendet (Hash/Zeitstempel aus dem Repo).
+   */
+  applyMigration0034: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { sql } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+
+    // Spaltendefinitionen exakt wie in 0034_youthful_namorita.sql
+    const COLUMNS: Array<{ name: string; ddl: string }> = [
+      { name: "realizedReturn30dPct", ddl: "ADD `realizedReturn30dPct` decimal(8,2)" },
+      { name: "benchmarkReturn30dPct", ddl: "ADD `benchmarkReturn30dPct` decimal(8,2)" },
+      { name: "realizedAlpha30dPct", ddl: "ADD `realizedAlpha30dPct` decimal(8,2)" },
+      { name: "outcomeCoveragePct", ddl: "ADD `outcomeCoveragePct` decimal(6,2)" },
+      { name: "outcomeEvaluatedAt", ddl: "ADD `outcomeEvaluatedAt` timestamp" },
+    ];
+
+    const added: string[] = [];
+    const present: string[] = [];
+    for (const col of COLUMNS) {
+      const res = await db.execute(sql`
+        SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'portfolioProposalLog'
+          AND COLUMN_NAME = ${col.name}
+      `);
+      const cnt = Number((res as any)[0]?.[0]?.cnt ?? 0);
+      if (cnt > 0) {
+        present.push(col.name);
+      } else {
+        await db.execute(sql.raw(`ALTER TABLE \`portfolioProposalLog\` ${col.ddl}`));
+        added.push(col.name);
+      }
+    }
+
+    // Journal nachtragen (Werte entsprechen drizzle/meta/_journal.json Eintrag 34
+    // und sha256 der Migrationsdatei — siehe drizzle-orm readMigrationFiles).
+    const HASH = "5b0a81f9ca4bd6184cd04c44318a332e78bf9cb67af9e329f42c0d3dbe7e0b0c";
+    const FOLDER_MILLIS = 1784280450431;
+    let journal = "unverändert";
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`__drizzle_migrations\` (
+        id serial primary key,
+        hash text not null,
+        created_at bigint
+      )
+    `);
+    const jRes = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM \`__drizzle_migrations\` WHERE created_at = ${FOLDER_MILLIS}
+    `);
+    if (Number((jRes as any)[0]?.[0]?.cnt ?? 0) === 0) {
+      await db.execute(sql`
+        INSERT INTO \`__drizzle_migrations\` (\`hash\`, \`created_at\`) VALUES (${HASH}, ${FOLDER_MILLIS})
+      `);
+      journal = "Eintrag 0034 nachgetragen";
+    }
+
+    return {
+      success: true,
+      added,
+      alreadyPresent: present,
+      journal,
+    };
+  }),
+
   // Get a single proposal by ID (for deep-link from wizard)
   getProposalById: adminProcedure
     .input(z.object({ proposalId: z.number() }))
