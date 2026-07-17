@@ -12,7 +12,7 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 import { toast } from "sonner";
 
 export default function NotificationSettings() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [whatsappAlerts, setWhatsappAlerts] = useState(false);
   const [mobile, setMobile] = useState("");
@@ -42,10 +42,18 @@ export default function NotificationSettings() {
     });
   };
 
-  if (!isAuthenticated) {
-    setLocation("/");
-    return null;
+  // A2 (Audit N-A1): Erst nach abgeschlossenem Auth-Laden umleiten — vorher
+  // schlug der Redirect im transienten Ladezustand zu (isAuthenticated
+  // kurzzeitig false), sodass eingeloggte Nutzer auf «/» landeten. Und den
+  // Seiteneffekt in einen Effect verlegt (nicht im Render-Body).
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) setLocation("/");
+  }, [authLoading, isAuthenticated, setLocation]);
+
+  if (authLoading) {
+    return <div className="container max-w-4xl py-8 text-sm text-muted-foreground">Lädt …</div>;
   }
+  if (!isAuthenticated) return null;
 
   return (
     <div className="container max-w-4xl py-8">

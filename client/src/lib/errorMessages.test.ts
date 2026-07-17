@@ -26,9 +26,14 @@ describe("getUserErrorMessage (U-14)", () => {
     expect(getUserErrorMessage(trpcError("UNAUTHORIZED", "UNAUTHORIZED"))).toBe(
       "Bitte melden Sie sich an."
     );
+    // Roher englischer Code (kein Leerzeichen) → generischer Text.
     expect(getUserErrorMessage(trpcError("forbidden", "FORBIDDEN"))).toBe(
       "Sie haben keine Berechtigung für diese Aktion."
     );
+    // Bewusste deutsche Paywall-/Upgrade-Meldung → durchgereicht (A3).
+    expect(
+      getUserErrorMessage(trpcError("Ihr Plan erlaubt maximal 1 Live-Portfolios. Jetzt upgraden unter Einstellungen › Abo.", "FORBIDDEN"))
+    ).toBe("Ihr Plan erlaubt maximal 1 Live-Portfolios. Jetzt upgraden unter Einstellungen › Abo.");
     expect(getUserErrorMessage(trpcError("rate limited", "TOO_MANY_REQUESTS"))).toBe(
       "Zu viele Versuche. Bitte warten Sie einen Moment."
     );

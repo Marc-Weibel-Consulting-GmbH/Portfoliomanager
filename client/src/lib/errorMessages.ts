@@ -32,6 +32,15 @@ export function getUserErrorMessage(error: unknown): string {
     if (code === "BAD_REQUEST" && error.message) {
       return error.message;
     }
+    // FORBIDDEN: Der Server formuliert hier bewusste, kundengerechte deutsche
+    // Meldungen — vor allem die Plan-/Paywall-Hinweise («… Teil von Plus/Pro.
+    // Jetzt upgraden …», «Ihr Plan erlaubt maximal N …»). Diese durchreichen
+    // statt sie durch einen generischen Text zu ersetzen, macht die Gates zu
+    // sofort verständlichen Upgrade-Prompts. Nur echte englische Roh-Codes
+    // (kein Leerzeichen, komplett GROSS) fallen auf den festen Text zurück.
+    if (code === "FORBIDDEN" && error.message && /\s/.test(error.message) && error.message !== error.message.toUpperCase()) {
+      return error.message;
+    }
     if (code && CODE_MESSAGES[code]) {
       return CODE_MESSAGES[code];
     }
