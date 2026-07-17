@@ -1784,6 +1784,14 @@ export default function PortfolioDetailsPage() {
                       </ResponsiveContainer>
                     )}
                   </div>
+                  {/* Ehrlicher Hinweis statt kommentarlos flacher Linie: Positionen
+                      ohne Kursdaten fehlen in der Bewertung der Kurve. */}
+                  {(perfMetrics?.unpricedTickers?.length ?? 0) > 0 && (
+                    <p className="mt-2 text-xs text-amber-400/90">
+                      ⚠ Für {perfMetrics!.unpricedTickers.join(', ')} fehlen Kursdaten im gewählten Zeitraum —
+                      die Portfolio-Kurve ist unvollständig und erscheint zu flach.
+                    </p>
+                  )}
                 </div>
               </div>
 

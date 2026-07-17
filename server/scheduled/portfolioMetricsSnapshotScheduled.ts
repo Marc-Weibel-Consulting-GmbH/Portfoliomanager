@@ -27,6 +27,11 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
   const daysBack = isBackfill ? 365 : 1;
   // Optional: filter to a specific portfolio (for per-portfolio snapshot trigger)
   const specificPortfolioId = req.query.portfolioId ? parseInt(String(req.query.portfolioId)) : (req.body?.portfolioId ?? null);
+  // Optional: recompute — bestehende Snapshots des Portfolios VOR dem Backfill
+  // löschen. Nötig, wenn frühere Läufe aus lückenhaften Kursdaten unbrauchbare
+  // Kennzahlen gespeichert haben (die Dedupe-Logik würde sie sonst nie ersetzen).
+  // Nur zusammen mit backfill=true wirksam.
+  const isRecompute = isBackfill && (req.query.recompute === "true" || req.body?.recompute === true);
 
   try {
     const { getDb } = await import("../db");
@@ -99,6 +104,12 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
       const portfolioId = portfolio.id;
 
       try {
+        if (isRecompute) {
+          await db
+            .delete(portfolioMetricsSnapshot)
+            .where(eq(portfolioMetricsSnapshot.portfolioId, portfolioId));
+        }
+
         // Get existing snapshots for this portfolio to avoid duplicates
         const existingSnapshots = await db
           .select({ snapshotDate: portfolioMetricsSnapshot.snapshotDate })
@@ -207,17 +218,33 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
           const ROLLING_WINDOW = 252;
           const windowReturns = returnsUpToDate.slice(-ROLLING_WINDOW).map((r) => r.ret);
 
-          // Need minimum 20 data points for meaningful statistics
-          if (windowReturns.length < 20) {
+          // Verlässlichkeits-Guard für kursbasierte Kennzahlen:
+          //  (a) Mindestens 60 Renditen (wie MIN_HISTORY_RETURNS der Engine) —
+          //      annualisierte Sharpe/Vol aus 20–40 Tagen ist Rauschen.
+          //  (b) Steht die Wertreihe an > 50 % der Tage exakt still, fehlen fast
+          //      sicher Kursdaten der Positionen (buildDailyValuations lässt
+          //      unbepreiste Titel weg) — Sharpe wäre dann ≈ −rf/σ (z. B. −4),
+          //      ein Datenartefakt, keine Portfolioeigenschaft.
+          // Unzuverlässig → Kennzahlen ehrlich als null (heutige Fundamentaldaten
+          // werden trotzdem gespeichert); reine Backfill-Tage ohne verlässliche
+          // Kennzahlen werden übersprungen.
+          const MIN_RETURNS_FOR_METRICS = 60;
+          const zeroShare = windowReturns.length > 0
+            ? windowReturns.filter((r) => Math.abs(r) < 1e-9).length / windowReturns.length
+            : 1;
+          const metricsReliable =
+            windowReturns.length >= MIN_RETURNS_FOR_METRICS && zeroShare <= 0.5;
+
+          if (!metricsReliable && dateStr !== todayStr) {
             totalSkipped++;
             continue;
           }
 
           // Compute kursbasierte Kennzahlen from the portfolio value series
-          const sharpe = calcSharpe(windowReturns, DEFAULT_RISK_FREE_RATE);
-          const sortino = calcSortino(windowReturns, DEFAULT_RISK_FREE_RATE);
-          const volatility = calcVolatility(windowReturns);
-          const maxDrawdown = calcMaxDrawdown(windowReturns);
+          const sharpe = metricsReliable ? calcSharpe(windowReturns, DEFAULT_RISK_FREE_RATE) : NaN;
+          const sortino = metricsReliable ? calcSortino(windowReturns, DEFAULT_RISK_FREE_RATE) : NaN;
+          const volatility = metricsReliable ? calcVolatility(windowReturns) : NaN;
+          const maxDrawdown = metricsReliable ? calcMaxDrawdown(windowReturns) : NaN;
 
           // Position count from valuations at this date
           // (approximate: use the valuation closest to dateStr)
@@ -318,13 +345,15 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
             }
 
             const qResult = calculatePortfolioQualityScore({
-              sharpe,
-              sortino,
-              maxDrawdown,
+              // NaN (unzuverlässige Wertreihe) → null, damit die Komponente als
+              // «nicht verfügbar» renormalisiert wird statt den Score zu vergiften.
+              sharpe: Number.isFinite(sharpe) ? sharpe : null,
+              sortino: Number.isFinite(sortino) ? sortino : null,
+              maxDrawdown: Number.isFinite(maxDrawdown) ? maxDrawdown : null,
               avgPEG,
               avgPE,
               pegDistribution: pegTotal > 0 ? { below15: pegBelow15, above3: pegAbove3, total: pegTotal } : null,
-              volatility,
+              volatility: Number.isFinite(volatility) ? volatility : null,
               avgBeta,
               hhi,
               avgDividendYield: avgDividendYield ? avgDividendYield / 100 : null, // stored as %, convert to decimal

@@ -58,6 +58,13 @@ export interface PortfolioPerformanceResult {
    * HISTORICAL prices (R-04) — the value-history counterpart to dailySeries.
    */
   dailyValuations: DailyValuation[];
+  /**
+   * Ticker mit Beständen, für die im Zeitraum KEINE historicalPrices-Zeile
+   * existiert. Diese Positionen fehlen in der Bewertung (buildDailyValuations
+   * lässt sie weg) — die Kurve ist dann unvollständig/zu flach. Aufrufer
+   * sollen das dem Nutzer sagen statt eine stille 0-%-Linie zu zeigen.
+   */
+  unpricedTickers?: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,6 +140,10 @@ export async function calculatePortfolioPerformance(
     rawPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.adjustedClose ?? p.close));
   }
 
+  // Ehrlichkeit: Ticker ganz ohne Kursdaten im Zeitraum fehlen in der Bewertung
+  // (buildDailyValuations lässt sie weg) — an die Aufrufer melden.
+  const unpricedTickers = tickerArray.filter((t) => !(rawPriceMap.get(t)?.size)).sort();
+
   // 5. Get all trading dates in the period
   const allDates = new Set<string>();
   for (const tickerPrices of rawPriceMap.values()) {
@@ -143,7 +154,7 @@ export async function calculatePortfolioPerformance(
   const sortedDates = Array.from(allDates).sort();
 
   if (sortedDates.length === 0) {
-    return emptyResult(input.startDate, input.endDate);
+    return { ...emptyResult(input.startDate, input.endDate), unpricedTickers };
   }
 
   // 6. Convert all prices to CHF
@@ -242,6 +253,7 @@ export async function calculatePortfolioPerformance(
     absoluteGainCHF,
     dailySeries: ttwror.dailySeries,
     dailyValuations: valuations,
+    unpricedTickers,
   };
 }
 
