@@ -232,6 +232,13 @@
       "when": 1784191286120,
       "tag": "0032_ambitious_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1784273092304,
+      "tag": "0033_chief_romulus",
+      "breakpoints": true
     }
   ]
 }

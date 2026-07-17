@@ -76,6 +76,7 @@ const AdminGapFilling = lazy(() => import("./pages/AdminGapFilling"));
 const AdminProposalAnalysis = lazy(() => import("./pages/AdminProposalAnalysis"));
 const AdminFeedbackDashboard = lazy(() => import("./pages/AdminFeedbackDashboard"));
 const AdminScoreConfig = lazy(() => import("./pages/AdminScoreConfig"));
+const AdminAlgoBacktest = lazy(() => import("./pages/AdminAlgoBacktest"));
 
 function Router() {
   return (
@@ -184,6 +185,7 @@ function Router() {
         <Route path="/admin/proposal-analysis"><RequireAdmin><AdminProposalAnalysis /></RequireAdmin></Route>
         <Route path="/admin/feedback-dashboard"><RequireAdmin><AdminFeedbackDashboard /></RequireAdmin></Route>
         <Route path="/admin/score-config"><RequireAdmin><AdminScoreConfig /></RequireAdmin></Route>
+        <Route path="/admin/algo-backtest"><RequireAdmin><AdminAlgoBacktest /></RequireAdmin></Route>
 
         {/* ═══ Legacy Redirects ═══ */}
         <Route path="/home"><Redirect to="/dashboard" /></Route>

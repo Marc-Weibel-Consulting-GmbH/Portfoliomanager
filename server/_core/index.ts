@@ -43,6 +43,7 @@ import { handleSignalAlerts } from "../scheduled/signalAlertsScheduled";
 import { handleOptimizationAlert } from "../scheduled/optimizationAlertScheduled";
 import { handleSignalScoreRefresh } from "../scheduled/signalScoreRefreshScheduled";
 import { handlePortfolioMetricsSnapshot } from "../scheduled/portfolioMetricsSnapshotScheduled";
+import { handleAlgoBacktest } from "../scheduled/algoBacktestScheduled";
 import { handleMarketReportWebhook } from "../routers/marketReportRouter";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -163,6 +164,7 @@ async function startServer() {
   app.post("/api/scheduled/optimizationAlert", handleOptimizationAlert);
   app.post("/api/scheduled/signalScoreRefresh", handleSignalScoreRefresh);
   app.post("/api/scheduled/portfolioMetricsSnapshot", handlePortfolioMetricsSnapshot);
+  app.post("/api/scheduled/algoBacktest", handleAlgoBacktest);
 
   // Market Report Webhook (empfängt tägliche Berichte von Manus-Tasks)
   app.post("/api/market-report", handleMarketReportWebhook);

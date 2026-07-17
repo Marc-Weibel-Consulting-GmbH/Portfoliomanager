@@ -549,4 +549,50 @@ export const backtestRouter = router({
         activeWeights: weights,
       };
     }),
+
+  // ── Algo Self-Learning Backtest ──────────────────────────────────────────
+
+  /** Alle Backtest-Runs (für Admin-Kachel) */
+  algoRuns: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(24).optional().default(12) }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const { getBacktestRuns } = await import('../lib/algoBacktestEngine');
+      return getBacktestRuns(input.limit);
+    }),
+
+  /** Portfolios eines Runs */
+  algoPortfolios: protectedProcedure
+    .input(z.object({ runId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const { getBacktestPortfolios } = await import('../lib/algoBacktestEngine');
+      return getBacktestPortfolios(input.runId);
+    }),
+
+  /** Tuning-Log */
+  algoTuningLog: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(50).optional().default(20) }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const { getTuningLog } = await import('../lib/algoBacktestEngine');
+      return getTuningLog(input.limit);
+    }),
+
+  /** Manueller Run Now (für Admin-Tests) */
+  algoRunNow: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const { createBacktestRun } = await import('../lib/algoBacktestEngine');
+      return createBacktestRun();
+    }),
+
+  /** Manuell einen Run evaluieren (für Admin-Tests) */
+  algoEvaluateRun: protectedProcedure
+    .input(z.object({ runId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const { evaluateBacktestRun } = await import('../lib/algoBacktestEngine');
+      return evaluateBacktestRun(input.runId);
+    }),
 });

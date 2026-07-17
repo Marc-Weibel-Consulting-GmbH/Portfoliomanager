@@ -1422,3 +1422,135 @@ export const portfolioMetricsSnapshot = mysqlTable("portfolioMetricsSnapshot", {
 export type PortfolioMetricsSnapshot = typeof portfolioMetricsSnapshot.$inferSelect;
 export type InsertPortfolioMetricsSnapshot = typeof portfolioMetricsSnapshot.$inferInsert;
 
+
+// ============================================================
+// ALGO-BACKTESTING SELF-LEARNING SYSTEM
+// ============================================================
+
+/**
+ * algoBacktestRuns: Ein monatlicher Backtesting-Run.
+ * Jeder Run erstellt 6 Standard-Portfolios (3 Risikoprofile × 2 Ziele).
+ * Nach 30 Tagen wird die Performance gemessen und eine LLM-Analyse erstellt.
+ */
+export const algoBacktestRuns = mysqlTable("algo_backtest_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Monat des Runs (YYYY-MM-01) */
+  runMonth: date("runMonth").notNull(),
+  /** Status: 'creating' | 'active' | 'evaluating' | 'completed' | 'error' */
+  status: varchar("status", { length: 32 }).notNull().default("creating"),
+  /** Algorithmus-Version (Semver oder Git-Hash) für Vergleichbarkeit */
+  algoVersion: varchar("algoVersion", { length: 64 }),
+  /** Aktive Markt-Hub-Signale zum Zeitpunkt der Erstellung (JSON) */
+  marktHubSnapshot: text("marktHubSnapshot"),
+  /** Aktive Sektor-Tilts zum Zeitpunkt der Erstellung (JSON) */
+  sectorTiltsSnapshot: text("sectorTiltsSnapshot"),
+  /** MSCI führender Faktor zum Zeitpunkt der Erstellung */
+  leadingFactor: varchar("leadingFactor", { length: 64 }),
+  /** Marktregime zum Zeitpunkt der Erstellung */
+  marktRegime: varchar("marktRegime", { length: 64 }),
+  /** LLM-Analyse nach 30 Tagen (JSON: { summary, strengths, weaknesses, tuningRecommendations }) */
+  llmAnalysis: text("llmAnalysis"),
+  /** Durchschnittliche Performance aller 6 Portfolios nach 30 Tagen (%) */
+  avgPerf30dPct: decimal("avgPerf30dPct", { precision: 8, scale: 4 }),
+  /** Benchmark-Performance im gleichen Zeitraum (SPY/SMI, %) */
+  benchmarkPerf30dPct: decimal("benchmarkPerf30dPct", { precision: 8, scale: 4 }),
+  /** Anzahl erstellter Portfolios */
+  portfolioCount: int("portfolioCount").default(0),
+  /** Datum der Evaluation (30 Tage nach runMonth) */
+  evaluatedAt: timestamp("evaluatedAt"),
+  /** Fehler-Details falls status='error' */
+  errorDetails: text("errorDetails"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => [
+  unique().on(t.runMonth),
+  index("idx_abt_runs_status").on(t.status),
+]);
+export type AlgoBacktestRun = typeof algoBacktestRuns.$inferSelect;
+export type InsertAlgoBacktestRun = typeof algoBacktestRuns.$inferInsert;
+
+/**
+ * algoBacktestPortfolios: Ein einzelnes Test-Portfolio innerhalb eines Runs.
+ * 6 pro Run: konservativ/ausgewogen/aggressiv × dividenden/wachstum
+ */
+export const algoBacktestPortfolios = mysqlTable("algo_backtest_portfolios", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Referenz auf algoBacktestRuns.id */
+  runId: int("runId").notNull(),
+  /** Risikoprofil: 'konservativ' | 'ausgewogen' | 'aggressiv' */
+  riskProfile: varchar("riskProfile", { length: 32 }).notNull(),
+  /** Anlageziel: 'dividends' | 'growth' | 'balanced' */
+  goal: varchar("goal", { length: 32 }).notNull(),
+  /** Positionen zum Erstellungszeitpunkt (JSON-Array) */
+  positionsSnapshot: text("positionsSnapshot").notNull(),
+  /** Erwartete Kennzahlen zum Erstellungszeitpunkt (JSON: expectedReturn, volatility, sharpe) */
+  proposalMetrics: text("proposalMetrics"),
+  /** Aktive Sektor-Tilts die dieses Portfolio beeinflusst haben (JSON) */
+  appliedSectorTilts: text("appliedSectorTilts"),
+  /** MSCI-Faktor-Tilts die dieses Portfolio beeinflusst haben (JSON) */
+  appliedFactorTilts: text("appliedFactorTilts"),
+  /** Challenger-Kritik (JSON) */
+  challengerCritique: text("challengerCritique"),
+  /** Synthesizer-Empfehlung (JSON) */
+  synthesizerRecommendation: text("synthesizerRecommendation"),
+  /** Tatsächliche Performance nach 30 Tagen (%) — NULL bis evaluiert */
+  actualPerf30dPct: decimal("actualPerf30dPct", { precision: 8, scale: 4 }),
+  /** Tatsächliche Sharpe Ratio nach 30 Tagen — NULL bis evaluiert */
+  actualSharpe30d: decimal("actualSharpe30d", { precision: 8, scale: 4 }),
+  /** Tatsächliche Volatilität nach 30 Tagen — NULL bis evaluiert */
+  actualVolatility30d: decimal("actualVolatility30d", { precision: 8, scale: 4 }),
+  /** Max Drawdown nach 30 Tagen — NULL bis evaluiert */
+  actualMaxDrawdown30d: decimal("actualMaxDrawdown30d", { precision: 8, scale: 4 }),
+  /** Benchmark-Performance im gleichen Zeitraum (%) */
+  benchmarkPerf30dPct: decimal("benchmarkPerf30dPct", { precision: 8, scale: 4 }),
+  /** Alpha gegenüber Benchmark (actualPerf - benchmarkPerf) */
+  alpha30dPct: decimal("alpha30dPct", { precision: 8, scale: 4 }),
+  /** LLM-Analyse für dieses spezifische Portfolio (Text) */
+  portfolioAnalysis: text("portfolioAnalysis"),
+  /** Fehler bei der Erstellung (falls Portfolio nicht erstellt werden konnte) */
+  creationError: text("creationError"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => [
+  index("idx_abp_run_profile").on(t.runId, t.riskProfile, t.goal),
+]);
+export type AlgoBacktestPortfolio = typeof algoBacktestPortfolios.$inferSelect;
+export type InsertAlgoBacktestPortfolio = typeof algoBacktestPortfolios.$inferInsert;
+
+/**
+ * algoTuningLog: Protokoll der Algorithmus-Feinajustierungen.
+ * Jede Änderung am Algorithmus wird hier dokumentiert mit Begründung,
+ * erwarteter Wirkung und Overfitting-Schutz-Bewertung.
+ */
+export const algoTuningLog = mysqlTable("algo_tuning_log", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Referenz auf algoBacktestRuns.id der die Änderung ausgelöst hat */
+  triggeredByRunId: int("triggeredByRunId"),
+  /** Algorithmus-Version VOR der Änderung */
+  fromVersion: varchar("fromVersion", { length: 64 }),
+  /** Algorithmus-Version NACH der Änderung */
+  toVersion: varchar("toVersion", { length: 64 }),
+  /** Welcher Parameter wurde geändert (z.B. 'sectorTilt.Technologie', 'momentumAdj.threshold') */
+  parameterChanged: varchar("parameterChanged", { length: 128 }).notNull(),
+  /** Alter Wert (als String) */
+  oldValue: varchar("oldValue", { length: 256 }),
+  /** Neuer Wert (als String) */
+  newValue: varchar("newValue", { length: 256 }),
+  /** Begründung der Änderung (LLM-generiert oder manuell) */
+  rationale: text("rationale").notNull(),
+  /** Overfitting-Risiko: 'low' | 'medium' | 'high' */
+  overfittingRisk: varchar("overfittingRisk", { length: 16 }).default("low"),
+  /** Erwartete Wirkung der Änderung */
+  expectedImpact: text("expectedImpact"),
+  /** Tatsächliche Wirkung nach nächstem Run (NULL bis bekannt) */
+  actualImpact: text("actualImpact"),
+  /** Wurde die Änderung rückgängig gemacht? */
+  reverted: int("reverted").default(0),
+  /** Wer hat die Änderung gemacht: 'llm_auto' | 'admin_manual' */
+  source: varchar("source", { length: 32 }).default("llm_auto"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => [
+  index("idx_atl_run").on(t.triggeredByRunId),
+]);
+export type AlgoTuningLog = typeof algoTuningLog.$inferSelect;
+export type InsertAlgoTuningLog = typeof algoTuningLog.$inferInsert;

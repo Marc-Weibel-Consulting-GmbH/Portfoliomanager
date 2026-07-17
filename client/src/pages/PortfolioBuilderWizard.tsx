@@ -757,6 +757,46 @@ export default function PortfolioBuilderWizard() {
                         )}
                       </div>
                     )}
+                    {/* Markt-Hub-Badge: aktive Sektor-Tilts und MSCI-Faktor */}
+                    {(autoProposal as any).marktHubBadge?.hasData && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs bg-[#0a1628] border border-[#00CFC1]/20 rounded-lg px-3 py-2">
+                        <span className="text-[#00CFC1] font-semibold flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                          Markt-Hub
+                        </span>
+                        <span className="text-gray-300">
+                          Regime: <span className={`font-medium ${
+                            (autoProposal as any).marktHubBadge.regime === 'Risk-On' ? 'text-emerald-400' :
+                            (autoProposal as any).marktHubBadge.regime === 'Risk-Off' ? 'text-red-400' :
+                            'text-amber-400'
+                          }`}>{(autoProposal as any).marktHubBadge.regime}</span>
+                        </span>
+                        {(autoProposal as any).marktHubBadge.leadingFactor && (
+                          <span className="text-gray-300">
+                            MSCI: <span className="text-purple-400 font-medium">{(autoProposal as any).marktHubBadge.leadingFactor} führend</span>
+                          </span>
+                        )}
+                        {(autoProposal as any).marktHubBadge.activeSectorTilts?.length > 0 && (
+                          <span className="text-gray-300 flex items-center gap-1">
+                            Tilts:
+                            {(autoProposal as any).marktHubBadge.activeSectorTilts.map((t: any) => (
+                              <span key={t.sector} className={`px-1.5 py-0.5 rounded text-xs font-mono ${
+                                t.tilt > 0 ? 'bg-emerald-900/60 text-emerald-300' : 'bg-red-900/60 text-red-300'
+                              }`}>
+                                {t.sector} {t.tilt > 0 ? '+' : ''}{t.tilt}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                        {(autoProposal as any).marktHubBadge.macroSignals?.yieldCurveInverted && (
+                          <span className="text-amber-400">⚡ Invertierte Zinskurve</span>
+                        )}
+                        {(autoProposal as any).marktHubBadge.macroSignals?.inflationHigh && (
+                          <span className="text-orange-400">🔥 Inflation &gt;4%</span>
+                        )}
+                        <span className="text-gray-500 ml-auto">riskFree: {(autoProposal as any).marktHubBadge.dynamicRiskFreeRate?.toFixed(2)}%</span>
+                      </div>
+                    )}
                     {/* Ehrliche Hinweise (ESG nicht verfügbar, Qualitätsstufe, Cap-Überschreitungen) */}
                     {Array.isArray((autoProposal as any).notes) && (autoProposal as any).notes.length > 0 && (
                       <div className="space-y-1">

@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp } from "lucide-react";
+import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -168,6 +168,13 @@ export default function AdminDashboard() {
       description: "Multi-Agent Portfolio-Vorschläge: Vertrauen, Kennzahlen-Filter, Challenger-Kritik — intern für Training",
       path: "/admin/proposal-analysis",
       color: "text-violet-500",
+    },
+    {
+      icon: FlaskConical,
+      title: "Algo Self-Learning Backtest",
+      description: "Monatliche Test-Portfolios (6 Profile), 30-Tage-Performance, LLM-Analyse & Tuning-Log mit Overfitting-Schutz",
+      path: "/admin/algo-backtest",
+      color: "text-emerald-400",
     },
   ];
 

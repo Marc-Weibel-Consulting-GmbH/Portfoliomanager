@@ -1004,6 +1004,24 @@ Antworte im JSON-Format.`,
           if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
           return adjusted;
         })(),
+        // Markt-Hub-Badge: aktive Tilts und MSCI-Faktor für UI-Anzeige
+        marktHubBadge: {
+          hasData: marktHubSignals.hasData,
+          regime: marktHubSignals.regime.regime,
+          leadingFactor: marktHubSignals.factors.leadingFactor,
+          activeSectorTilts: (() => {
+            const tilts = getSectorTilts(marktHubSignals);
+            return Object.entries(tilts)
+              .filter(([, v]) => v !== 0)
+              .map(([sector, tilt]) => ({ sector, tilt }));
+          })(),
+          dynamicRiskFreeRate: Math.round(dynamicRiskFreeRate * 10000) / 100,
+          macroSignals: {
+            yieldCurveInverted: (marktHubSignals.macro.yieldCurve ?? 0) < 0,
+            inflationHigh: (marktHubSignals.macro.cpiYoY ?? 0) > 4,
+            hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 5,
+          },
+        },
       };
     }),
 
