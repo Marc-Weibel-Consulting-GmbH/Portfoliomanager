@@ -626,6 +626,12 @@ export default function Dashboard() {
   const firstName = user?.name?.split(" ")[0] || "Investor";
 
   const hasPortfolios = (portfolios ?? []).length > 0;
+  // A2 (Audit M-A1): Das Aggregat umfasst nur LIVE-Portfolios. Wer bloss ein
+  // Demo hat, sah sonst kommentarlos leere Widgets («Keine Positionen»),
+  // obwohl das Demo Positionen enthält — ehrlich kennzeichnen statt verwirren.
+  const hasLivePortfolio = (portfolios ?? []).some((p: any) => p.isLive === 1 || p.isLive === true);
+  const onlyDemo = hasPortfolios && !hasLivePortfolio;
+  const showDemoAggregateHint = onlyDemo && scope === "aggregate";
 
   // Profil-Mismatch-Check: Portfolios die nicht mehr zum Anlegerprofil passen
   const { data: mismatchData } = trpc.investmentProfile.checkMismatch.useQuery(
@@ -644,7 +650,7 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold text-white">Willkommen zurück, {firstName}</h1>
             <p className="text-sm text-gray-400 mt-1">
               {scope === "aggregate"
-                ? "Aggregiert über alle Live-Portfolios"
+                ? (onlyDemo ? "Noch kein Live-Portfolio" : "Aggregiert über alle Live-Portfolios")
                 : `Portfolio «${scopeName ?? "…"}»`}
               {" · "}Daten von heute, {nowLabel}
             </p>
@@ -697,6 +703,26 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* A2 (M-A1): Ehrlicher Hinweis, wenn nur ein Demo existiert — die
+            Aggregat-Widgets bleiben sonst kommentarlos leer. */}
+        {showDemoAggregateHint && (
+          <div className="rounded-xl border border-[#00CFC1]/30 bg-[#00CFC1]/10 p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-[#00CFC1] mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-[#00CFC1] mb-1">
+                  Sie haben bisher nur ein Demo-Portfolio
+                </h3>
+                <p className="text-xs text-gray-300">
+                  Die Dashboard-Übersicht aggregiert nur Live-Portfolios — Ihr Demo erscheint
+                  daher hier nicht mit Kennzahlen. Öffnen Sie Ihr Demo über die Karten unten,
+                  oder aktivieren Sie es für echtes Live-Tracking.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Profil-Mismatch-Banner: erscheint wenn Portfolios nicht mehr zum Anlegerprofil passen */}
         {mismatches.length > 0 && (
