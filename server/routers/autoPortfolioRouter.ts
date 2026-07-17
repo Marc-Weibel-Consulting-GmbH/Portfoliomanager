@@ -1017,9 +1017,9 @@ Antworte im JSON-Format.`,
           })(),
           dynamicRiskFreeRate: Math.round(dynamicRiskFreeRate * 10000) / 100,
           macroSignals: {
-            yieldCurveInverted: (marktHubSignals.macro.yieldCurve ?? 0) < 0,
-            inflationHigh: (marktHubSignals.macro.cpiYoY ?? 0) > 4,
-            hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 5,
+            yieldCurveInverted: (marktHubSignals.macro.yieldCurveSpread ?? 0) < 0,
+            inflationHigh: (marktHubSignals.macro.coreCpi ?? 0) > 4,
+            hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 350,
           },
         },
       };
