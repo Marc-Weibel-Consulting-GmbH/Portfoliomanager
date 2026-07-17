@@ -285,6 +285,70 @@ export default function AdminAlgoBacktest() {
           </Card>
         </div>
 
+        {/* Lernschleifen-Koordination: Status aller drei Systeme */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Lernschleifen-Koordination
+            </CardTitle>
+            <CardDescription className="text-xs">Alle drei Systeme lernen sequenziell — Algo-Backtest läuft am 3. des Monats, nach ML Trainer (wöchentlich) und Signal-Evaluation (täglich).</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              {/* ML Trainer */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+                  ML Trainer
+                  <span className="text-xs text-muted-foreground font-normal">(wöchentlich)</span>
+                </div>
+                <div className="text-xs text-muted-foreground pl-4">
+                  Trainiert Gradient-Boosting-Modell auf 10 Jahre Kursdaten.
+                  Output: <code className="bg-muted px-1 rounded">signalWeights</code> (technische Indikator-Gewichte)
+                </div>
+                <div className="text-xs pl-4 text-blue-400">↓ fliesst in Signal-Evaluation</div>
+              </div>
+              {/* Signal-Evaluation */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+                  Signal-Evaluation
+                  <span className="text-xs text-muted-foreground font-normal">(täglich)</span>
+                </div>
+                <div className="text-xs text-muted-foreground pl-4">
+                  Misst Signal-Trefferquote pro Regime. Output: <code className="bg-muted px-1 rounded">regimeSignalConfig</code> (Engine-Priors) → <code className="bg-muted px-1 rounded">stocks.signalScore</code>
+                </div>
+                <div className="text-xs pl-4 text-emerald-400">↓ fliesst in Algo-Backtest</div>
+              </div>
+              {/* Algo Backtest */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>
+                  Algo Self-Learning Backtest
+                  <span className="text-xs text-muted-foreground font-normal">(3. des Monats)</span>
+                </div>
+                <div className="text-xs text-muted-foreground pl-4">
+                  Testet 6 Portfolios mit Markt-Hub-Tilts. Output: Sektor-Tilt-Alpha → <code className="bg-muted px-1 rounded">signalWeights</code> (Feedback-Loop Stufe 2)
+                </div>
+                <div className="text-xs pl-4 text-purple-400">↑ schreibt zurück in ML Trainer</div>
+              </div>
+            </div>
+            {/* Letzte Feedback-Loop-Anpassung */}
+            {tuningLog && tuningLog.filter((t: any) => t.parameterChanged === "signalWeights.ytd+momentum").length > 0 && (
+              <div className="mt-3 pt-3 border-t border-primary/10 text-xs">
+                <span className="text-muted-foreground">Letzte Gewichtsanpassung via Feedback-Loop: </span>
+                <span className="text-purple-400 font-mono">
+                  {(() => {
+                    const last = tuningLog.filter((t: any) => t.parameterChanged === "signalWeights.ytd+momentum")[0];
+                    return `${last.oldValue} → ${last.newValue} (${new Date(last.createdAt).toLocaleDateString("de-CH")})`;
+                  })()}
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="runs">
           <TabsList>
             <TabsTrigger value="runs" className="flex items-center gap-1.5">

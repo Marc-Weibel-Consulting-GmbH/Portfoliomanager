@@ -393,6 +393,12 @@ export async function evaluateBacktestRun(runId: number): Promise<{ success: boo
     evaluatedAt: new Date(),
   }).where(eq(algoBacktestRuns.id, runId));
 
+  // Feedback-Loop Stufe 2: Sektor-Tilt-Alpha in signalWeights zurückschreiben
+  // (läuft asynchron, blockiert nicht den Response)
+  applyFeedbackLoopToSignalWeights(runId).catch((e: any) =>
+    console.error("[algoFeedback] Fehler:", e?.message)
+  );
+
   console.log(`[algoBacktest] Run ${runId} evaluiert: avgPerf=${avgPerf?.toFixed(2)}%, benchmark=${benchmarkPerf?.toFixed(2)}%, tuningActions=${tuningActions}`);
   return { success: true, message: `Run ${runId} erfolgreich evaluiert. avgPerf=${avgPerf?.toFixed(2)}%, ${tuningActions} Tuning-Aktionen.` };
 }
@@ -643,6 +649,186 @@ async function applyTuningRecommendations(runId: number, llmAnalysis: any, run: 
 
   console.log(`[algoBacktest] Tuning-Empfehlung dokumentiert: ${rec.parameterToChange} → ${rec.proposedValue} (Risiko: ${rec.overfittingRisk})`);
   return 1;
+}
+
+// ============================================================
+// 4b. FEEDBACK-LOOP (Stufe 2): Sektor-Tilt-Alpha → signalWeights
+// ============================================================
+/**
+ * Schreibt konsistente Sektor-Tilt-Alpha-Erkenntnisse als Gewichts-Anpassung
+ * in die signalWeights-Tabelle zurück.
+ *
+ * Logik:
+ * - Analysiert die letzten 2+ abgeschlossenen Runs
+ * - Wenn ein Sektor-Tilt in BEIDEN Runs positives Alpha (>1.5%) geliefert hat:
+ *   → ytd-Gewicht leicht erhöhen (+0.01), momentum-Gewicht leicht erhöhen (+0.01)
+ * - Wenn ein Sektor-Tilt in BEIDEN Runs negatives Alpha (<-1.5%) geliefert hat:
+ *   → ytd-Gewicht leicht senken (-0.01)
+ * - Overfitting-Schutz: Max. 1 Gewichtsanpassung alle 2 Monate
+ * - Alle Änderungen werden im algoTuningLog dokumentiert
+ */
+export async function applyFeedbackLoopToSignalWeights(currentRunId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  const { algoBacktestRuns, algoBacktestPortfolios, algoTuningLog, signalWeights } = await import("../../drizzle/schema");
+  const { eq, desc, gte, and } = await import("drizzle-orm");
+
+  try {
+    // Overfitting-Schutz: Keine Änderung wenn in den letzten 2 Monaten bereits eine Gewichtsanpassung
+    const twoMonthsAgo = new Date();
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+    const recentWeightChanges = await db.select({ id: algoTuningLog.id })
+      .from(algoTuningLog)
+      .where(and(
+        gte(algoTuningLog.createdAt, twoMonthsAgo),
+        eq(algoTuningLog.parameterChanged as any, "signalWeights.ytd+momentum")
+      ));
+    if (recentWeightChanges.length > 0) {
+      console.log("[algoFeedback] Gewichtsanpassung übersprungen: bereits eine Anpassung in den letzten 2 Monaten");
+      return;
+    }
+
+    // Letzte 2 abgeschlossene Runs laden
+    const completedRuns = await db.select()
+      .from(algoBacktestRuns)
+      .where(eq(algoBacktestRuns.status, "completed"))
+      .orderBy(desc(algoBacktestRuns.runMonth))
+      .limit(2);
+
+    if (completedRuns.length < 2) {
+      console.log("[algoFeedback] Weniger als 2 abgeschlossene Runs — kein Feedback-Loop möglich");
+      return;
+    }
+
+    // Sektor-Tilts und Alpha aus beiden Runs analysieren
+    const tiltAlphaByRun: Array<Record<string, number>> = [];
+    for (const run of completedRuns) {
+      const portfolios = await db.select()
+        .from(algoBacktestPortfolios)
+        .where(eq(algoBacktestPortfolios.runId, run.id));
+
+      const sectorTilts: Record<string, number> = run.sectorTiltsSnapshot
+        ? JSON.parse(run.sectorTiltsSnapshot as string)
+        : {};
+
+      // Durchschnittliches Alpha aller Portfolios dieses Runs
+      const validAlphas = portfolios
+        .filter((p: any) => p.alpha30dPct !== null)
+        .map((p: any) => parseFloat(p.alpha30dPct));
+      const avgAlpha = validAlphas.length > 0
+        ? validAlphas.reduce((s: number, v: number) => s + v, 0) / validAlphas.length
+        : 0;
+
+      // Für jeden aktiven Sektor-Tilt: Alpha zuordnen
+      const tiltAlpha: Record<string, number> = {};
+      for (const [sector, tilt] of Object.entries(sectorTilts)) {
+        if (tilt !== 0) {
+          // Wenn Tilt positiv und Alpha positiv → Tilt hat geholfen
+          // Wenn Tilt negativ und Alpha positiv → Tilt hat geholfen (wir haben richtig gemieden)
+          tiltAlpha[sector] = tilt > 0 ? avgAlpha : -avgAlpha;
+        }
+      }
+      tiltAlphaByRun.push(tiltAlpha);
+    }
+
+    // Sektoren finden die in BEIDEN Runs konsistent positives/negatives Alpha hatten
+    const run1Tilts = tiltAlphaByRun[0];
+    const run2Tilts = tiltAlphaByRun[1];
+    const ALPHA_THRESHOLD = 1.5; // Mindest-Alpha in % für Anpassung
+
+    let consistentlyPositive = 0;
+    let consistentlyNegative = 0;
+    const positiveEvidence: string[] = [];
+    const negativeEvidence: string[] = [];
+
+    for (const sector of Object.keys(run1Tilts)) {
+      if (run2Tilts[sector] === undefined) continue;
+      const alpha1 = run1Tilts[sector];
+      const alpha2 = run2Tilts[sector];
+      if (alpha1 > ALPHA_THRESHOLD && alpha2 > ALPHA_THRESHOLD) {
+        consistentlyPositive++;
+        positiveEvidence.push(`${sector}: +${alpha1.toFixed(1)}% / +${alpha2.toFixed(1)}%`);
+      } else if (alpha1 < -ALPHA_THRESHOLD && alpha2 < -ALPHA_THRESHOLD) {
+        consistentlyNegative++;
+        negativeEvidence.push(`${sector}: ${alpha1.toFixed(1)}% / ${alpha2.toFixed(1)}%`);
+      }
+    }
+
+    if (consistentlyPositive === 0 && consistentlyNegative === 0) {
+      console.log("[algoFeedback] Keine konsistenten Sektor-Tilt-Signale über 2 Runs — keine Gewichtsanpassung");
+      return;
+    }
+
+    // Aktive signalWeights laden
+    const { getActiveWeights } = await import("../analytics/optimizerWorker");
+    const currentWeights = await getActiveWeights();
+
+    // Gewichtsanpassung berechnen
+    const newWeights = { ...currentWeights };
+    let ytdDelta = 0;
+    let momentumDelta = 0;
+
+    if (consistentlyPositive > 0) {
+      // Sektor-Tilts haben geholfen → ytd und momentum leicht erhöhen
+      ytdDelta = +0.01;
+      momentumDelta = +0.01;
+      // Ausgleich: pe und peg leicht senken
+      newWeights.pe = Math.max(0.05, currentWeights.pe - 0.01);
+      newWeights.peg = Math.max(0.03, currentWeights.peg - 0.01);
+    } else if (consistentlyNegative > 0) {
+      // Sektor-Tilts haben geschadet → ytd leicht senken
+      ytdDelta = -0.01;
+      newWeights.pe = Math.min(0.20, currentWeights.pe + 0.01);
+    }
+
+    newWeights.ytd = Math.max(0.03, Math.min(0.15, currentWeights.ytd + ytdDelta));
+    newWeights.momentum = Math.max(0.05, Math.min(0.20, currentWeights.momentum + momentumDelta));
+
+    // Neue signalWeights in DB schreiben (als neue Zeile, alte deaktivieren)
+    await db.update(signalWeights).set({ isActive: 0 });
+    const newVersion = `algo-feedback-${new Date().toISOString().slice(0, 7)}`;
+    await db.insert(signalWeights).values({
+      name: newVersion,
+      weights: JSON.stringify(newWeights),
+      isActive: 1,
+      optimizerLog: JSON.stringify({
+        source: "algo_feedback_loop",
+        runId: currentRunId,
+        positiveEvidence,
+        negativeEvidence,
+        ytdDelta,
+        momentumDelta,
+        timestamp: new Date().toISOString(),
+      }),
+      lastRunAt: new Date(),
+    });
+
+    // Tuning-Log dokumentieren
+    const rationale = [
+      `Feedback-Loop Stufe 2: Sektor-Tilt-Alpha aus ${completedRuns.length} Runs analysiert.`,
+      positiveEvidence.length > 0 ? `Konsistent positiv: ${positiveEvidence.join(", ")}` : "",
+      negativeEvidence.length > 0 ? `Konsistent negativ: ${negativeEvidence.join(", ")}` : "",
+      `ytd: ${currentWeights.ytd.toFixed(3)} → ${newWeights.ytd.toFixed(3)}, momentum: ${currentWeights.momentum.toFixed(3)} → ${newWeights.momentum.toFixed(3)}`,
+    ].filter(Boolean).join(" | ");
+
+    await db.insert(algoTuningLog).values({
+      triggeredByRunId: currentRunId,
+      fromVersion: "default",
+      toVersion: newVersion,
+      parameterChanged: "signalWeights.ytd+momentum",
+      oldValue: `ytd=${currentWeights.ytd.toFixed(3)},momentum=${currentWeights.momentum.toFixed(3)}`,
+      newValue: `ytd=${newWeights.ytd.toFixed(3)},momentum=${newWeights.momentum.toFixed(3)}`,
+      rationale,
+      overfittingRisk: "low",
+      expectedImpact: `Sektor-Tilt-Alpha-Erkenntnisse in Signal-Scoring integriert (${consistentlyPositive} positive, ${consistentlyNegative} negative Sektoren)`,
+      source: "llm_auto",
+    });
+
+    console.log(`[algoFeedback] Gewichtsanpassung durchgeführt: ytd ${currentWeights.ytd.toFixed(3)}→${newWeights.ytd.toFixed(3)}, momentum ${currentWeights.momentum.toFixed(3)}→${newWeights.momentum.toFixed(3)}`);
+  } catch (e: any) {
+    console.error("[algoFeedback] Fehler im Feedback-Loop:", e?.message);
+  }
 }
 
 // ============================================================
