@@ -196,8 +196,11 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           data={data.snapshots}
           lines={[
             { key: "avgSharpe", label: "Sharpe", color: COLORS.sharpe, dominant: true },
-            { key: "volatility", label: "Volatilität", color: COLORS.volatility, dominant: false },
+            // Volatilität NICHT als Linie: sie ist ein Anteil (0.12 = 12 %) und
+            // klebt auf der Sharpe-Skala als flache Null-Linie — stattdessen als
+            // aktueller Wert in der Panel-Kopfzeile.
           ]}
+          headerNote={volatility != null ? `Volatilität ${(volatility * 100).toFixed(1)} % p.a.` : undefined}
           events={events}
         />
         <SmallMultiplePanel
@@ -298,12 +301,15 @@ function SmallMultiplePanel({
   lines,
   events,
   emptyHint,
+  headerNote,
 }: {
   title: string;
   data: any[];
   lines: LineConfig[];
   events: { date: string; label: string }[];
   emptyHint?: string;
+  /** Aktueller Zusatzwert in der Kopfzeile (z. B. «Volatilität 14.2 % p.a.»). */
+  headerNote?: string;
 }) {
   const hasData = data.some((d) => lines.some((l) => d[l.key] != null));
 
@@ -322,7 +328,10 @@ function SmallMultiplePanel({
     <div className="bg-white/5 border border-white/10 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-medium text-white/70">{title}</h4>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          {headerNote && (
+            <span className="text-[10px] text-white/40">{headerNote}</span>
+          )}
           {lines.map((l) => (
             <span key={l.key} className="flex items-center gap-1 text-[10px]">
               <span

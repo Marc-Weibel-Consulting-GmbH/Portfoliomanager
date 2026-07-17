@@ -3180,6 +3180,10 @@ export const portfoliosRouter = router({
             periodDays: result.ttwror.periodDays,
             dailySeries: result.dailySeries,
             converged: result.irr.converged,
+            // Positionen ohne Kursdaten im Zeitraum — die Kurve ist dann
+            // unvollständig (Client zeigt einen ehrlichen Hinweis statt
+            // einer kommentarlos flachen Linie).
+            unpricedTickers: result.unpricedTickers ?? [],
           };
         } catch (err) {
           console.error(`[portfolios.getPerformanceMetrics] Error for portfolio ${portfolioId}:`, err);
@@ -3193,6 +3197,7 @@ export const portfoliosRouter = router({
             periodDays: 0,
             dailySeries: [],
             converged: false,
+            unpricedTickers: [] as string[],
           };
         }
       }),

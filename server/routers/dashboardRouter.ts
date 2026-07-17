@@ -3313,9 +3313,17 @@ WICHTIG: Signal-Score-Regeln:
 
       // Fire-and-forget snapshot for this specific portfolio
       const { handlePortfolioMetricsSnapshot } = await import('../scheduled/portfolioMetricsSnapshotScheduled');
+      // recompute: bestehende Snapshots dieses Portfolios werden ersetzt —
+      // «berechnen» heisst neu berechnen. Ohne das würde die Dedupe-Logik
+      // unbrauchbare Alt-Zeilen (z. B. aus Zeiten lückenhafter Kursdaten)
+      // für immer stehen lassen.
       const mockReq = {
-        query: { backfill: input.backfill ? 'true' : 'false', portfolioId: String(input.portfolioId) },
-        body: { backfill: input.backfill, portfolioId: input.portfolioId },
+        query: {
+          backfill: input.backfill ? 'true' : 'false',
+          portfolioId: String(input.portfolioId),
+          recompute: input.backfill ? 'true' : 'false',
+        },
+        body: { backfill: input.backfill, portfolioId: input.portfolioId, recompute: input.backfill },
       } as any;
       const mockRes = {
         json: (_data: any) => mockRes,
