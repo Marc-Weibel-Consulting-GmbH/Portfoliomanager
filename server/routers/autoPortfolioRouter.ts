@@ -1,6 +1,16 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { invokeLLM } from "../_core/llm";
+import {
+  getMarktHubSignals,
+  getSectorTilts,
+  getSectorTiltForStock,
+  getFactorTilt,
+  getDynamicRiskFreeRate,
+  buildMarktHubContext,
+  describeSectorTilts,
+  type MarktHubSignals,
+} from "../lib/marktHubSignals";
 
 export const autoPortfolioRouter = router({
   /**
@@ -58,6 +68,25 @@ export const autoPortfolioRouter = router({
         },
         rules,
       );
+
+      // 2b) Markt-Hub-Signale laden (Makro + Regime + MSCI-Faktoren + Marktbericht)
+      // Fehlertolerant: bei DB-Fehler werden Neutral-Werte zurückgegeben.
+      let marktHubSignals: MarktHubSignals;
+      try {
+        marktHubSignals = await getMarktHubSignals();
+        console.log(`[buildProposal] Markt-Hub geladen: Regime=${marktHubSignals.regime.regime}, hasData=${marktHubSignals.hasData}, leadingFactor=${marktHubSignals.factors.leadingFactor ?? 'n/a'}`);
+      } catch (mhErr: any) {
+        console.warn('[buildProposal] Markt-Hub-Signale nicht verfügbar (non-fatal):', mhErr?.message);
+        marktHubSignals = {
+          macro: { yieldCurveSpread: null, coreCpi: null, fedFundsRate: null, dgs10: null, hySpread: null, chfUsd: null },
+          regime: { regime: 'Neutral', overallScore: 0, equityAllocation: 60, regimeMultiplier: 1.0 },
+          factors: { valueYtd: null, momentumYtd: null, qualityYtd: null, minVolYtd: null, leadingFactor: null },
+          latestReportSummary: null, latestReportDate: null, hasData: false, fetchedAt: new Date().toISOString(),
+        };
+      }
+      const sectorTilts = getSectorTilts(marktHubSignals);
+      const dynamicRiskFreeRate = getDynamicRiskFreeRate(marktHubSignals.macro);
+      console.log(`[buildProposal] Sektor-Tilts: ${describeSectorTilts(sectorTilts)}, riskFreeRate=${(dynamicRiskFreeRate * 100).toFixed(2)}%`);
 
       // 3) Kandidaten-Universum aus der DB (nach Marktkapitalisierung begrenzt,
       //    ausgeschlossene Sektoren + fehlende Preise raus)
@@ -230,7 +259,17 @@ export const autoPortfolioRouter = router({
             else fxAdj = -2; // mild penalty for aggressive
           }
 
-          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + profileAdj + fxAdj));
+          // === MARKT-HUB INTEGRATION: Sektor-Tilts + MSCI-Faktor-Tilts ===
+          // Sektor-Tilt: basierend auf Makro-Signalen (Zinskurve, Inflation, HY-Spread, Regime)
+          const sectorAdj = getSectorTiltForStock(s.sector, sectorTilts);
+          // Faktor-Tilt: basierend auf MSCI-Faktor-ETF-Performance (Value/Momentum/Quality/MinVol)
+          const divYieldNum = parseFloat(wl?.dividendYield ?? s.dividendYield ?? '0');
+          const factorAdj = getFactorTilt(
+            { dividendYield: divYieldNum, ytdPerf, signalScore: rawScore, riskProfile, goal },
+            marktHubSignals.factors,
+          );
+
+          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + profileAdj + fxAdj + sectorAdj + factorAdj));
           // OPT-2: EINE Note aus dem Score — die frühere separate «Qualitäts»-Note
           // war nur Score−5 (kosmetisch) und gaukelte eine zweite Dimension vor.
           const scoreGrade = grade(combinedScore);
@@ -357,6 +396,8 @@ export const autoPortfolioRouter = router({
           method,
           minPositionWeight: params.minPositionWeight,
           maxPositionWeight: params.maxPositionWeight,
+          // Dynamischer risikofreier Zinssatz aus FRED DGS10 (statt hardcoded 2%)
+          riskFreeRate: dynamicRiskFreeRate,
           // PyPortfolioOpt: harte Sektor-Caps im exakten Optimierer (sofern
           // ANALYTICS_SERVICE_URL konfiguriert) — der Zufallssuche-Fallback
           // kennt weiterhin nur die Auswahl-Caps aus Schritt 6.
@@ -567,6 +608,13 @@ export const autoPortfolioRouter = router({
             : []),
         ].join("\n");
 
+        // Markt-Hub-Kontext für LLM-Prompts
+        const marktHubContext = buildMarktHubContext(marktHubSignals);
+        const sectorTiltsDescription = describeSectorTilts(sectorTilts);
+        const marktHubContextBlock = marktHubContext
+          ? `\n\n**Aktuelle Markt-Hub-Signale (fliessen in Sektor-Gewichtung ein):**\n${marktHubContext}\n\nAktive Sektor-Tilts: ${sectorTiltsDescription}\nMSCI Führender Faktor: ${marktHubSignals.factors.leadingFactor ?? 'unbekannt'}\n`
+          : '';
+
         // ---- AGENT 2: CHALLENGER ----
         console.log('[buildProposal] Agent 2 (Challenger) starting...');
         const challengerResponse = await invokeLLM({
@@ -588,12 +636,12 @@ Vorgeschlagene Positionen:
 ${JSON.stringify(positionSummary, null, 2)}
 
 Verfügbare Alternativen (nicht ausgewählt; NUR diese Ticker dürfen als Alternativen vorgeschlagen werden):
-${JSON.stringify(candidatePool, null, 2)}
+${JSON.stringify(candidatePool, null, 2)}${marktHubContextBlock}
 
 Identifiziere:
-1. Welche 1-3 Titel würdest du NICHT nehmen? (mit konkreter Begründung)
+1. Welche 1-3 Titel würdest du NICHT nehmen? (mit konkreter Begründung, berücksichtige auch die Markt-Hub-Signale)
 2. Welche 1-3 Alternativen aus dem Kandidatenpool wären besser geeignet?
-3. Gibt es Klumpenrisiken (Sektor/Währung/Korrelation)?
+3. Gibt es Klumpenrisiken (Sektor/Währung/Korrelation)? Berücksichtige dabei die aktiven Sektor-Tilts.
 
 Antworte im JSON-Format.`,
             },
@@ -719,10 +767,10 @@ Gesamteinschätzung: ${challengerResult.critique}
 Abgelehnte Titel: ${JSON.stringify(challengerResult.rejected)}
 Alternativen: ${JSON.stringify(challengerResult.alternatives)}
 
-Anlegerprofil: ${profileSummary}${adminFeedbackContext}
+Anlegerprofil: ${profileSummary}${adminFeedbackContext}${marktHubContextBlock}
 
 Erstelle:
-1. Dein Gesamturteil (2-3 Sätze): Ist der Vorschlag gut? Was sind die wichtigsten Stärken/Schwächen?
+1. Dein Gesamturteil (2-3 Sätze): Ist der Vorschlag gut? Was sind die wichtigsten Stärken/Schwächen? Berücksichtige dabei das aktuelle Marktregime und die Makro-Signale.
 2. Konkrete Anpassungen: Für jeden Titel: behalten/reduzieren/erhöhen/ersetzen?
 3. Gesamtvertrauen in den Vorschlag — nutze DIESE OBJEKTIVEN KRITERIEN (nicht subjektiv schätzen):
    - "hoch": FX-Limit eingehalten UND kein Sektor > 30% UND alle Titel BUY-Signal UND Sharpe > 0.5 UND Challenger hat ≤ 1 berechtigten Einwand

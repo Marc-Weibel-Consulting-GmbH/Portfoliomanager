@@ -15,6 +15,7 @@ import { getDiversificationRules as _getDiversificationRules } from "../lib/dive
 import { getDb } from "../db";
 import { stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
 import { and, eq, inArray } from "drizzle-orm";
+import { getMarktHubSignals, getDynamicRiskFreeRate } from "../lib/marktHubSignals";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -120,6 +121,22 @@ export const analyticsRouter = router({
         const { getDiversificationRules } = await import("../lib/diversificationRules");
         const rules = await getDiversificationRules();
 
+        // Dynamischer risikofreier Zinssatz aus FRED DGS10 (Markt-Hub)
+        // Nur verwenden wenn der Nutzer NICHT explizit einen Wert gesetzt hat (d.h. noch default 0.02)
+        let effectiveRiskFreeRate = input.riskFreeRate;
+        if (input.riskFreeRate === 0.02) {
+          try {
+            const mhSignals = await getMarktHubSignals();
+            const dynamicRate = getDynamicRiskFreeRate(mhSignals.macro);
+            if (dynamicRate !== 0.02) {
+              effectiveRiskFreeRate = dynamicRate;
+              console.log(`[analytics.optimize] Dynamischer riskFreeRate: ${(dynamicRate * 100).toFixed(2)}% (FRED DGS10)`);
+            }
+          } catch (mhErr) {
+            console.warn('[analytics.optimize] Markt-Hub riskFreeRate nicht verfügbar, Fallback 2%');
+          }
+        }
+
         // P3: Wenn ein Anlageprofil existiert, steuern Risikoprofil + Drawdown-Toleranz
         // Methode und Positions-Cap-Schärfe. Ohne Profil greifen Admin-Regeln + input.method.
         let method = input.method;
@@ -152,7 +169,7 @@ export const analyticsRouter = router({
         return await optimizePortfolio({
           tickers: input.tickers,
           lookbackDays: input.lookbackDays,
-          riskFreeRate: input.riskFreeRate,
+          riskFreeRate: effectiveRiskFreeRate, // Dynamisch aus FRED DGS10 (Markt-Hub)
           method,
           portfolioValue: input.portfolioValue,
           minPositionChf: rules.minPositionAmountCHF,

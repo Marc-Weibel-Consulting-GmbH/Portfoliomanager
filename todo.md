@@ -283,3 +283,12 @@
 - [x] Frontend: Live-Preview Button (berechnet Score mit Beispiel-Portfolio)
 - [x] Frontend: Reset-auf-Defaults Button
 - [x] Navigation: Link in Admin-Sidebar (Gauge-Icon)
+
+## Markt-Hub → Portfolio-Integration (Option B + C, Jul 2026)
+- [x] marktHubSignals.ts: Zentrales Signal-Aggregations-Modul (Makro + Regime + MSCI-Faktoren + Marktbericht)
+- [x] autoPortfolioRouter: Sektor-Tilts aus Makro-Signalen (invertierte Zinskurve, Inflation, HY-Spread)
+- [x] autoPortfolioRouter: MSCI-Faktor-Tilts (Value/Momentum/Quality/MinVol) als Score-Adjustments
+- [x] autoPortfolioRouter: Marktbericht-Kontext in LLM-Challenger-Prompt injizieren
+- [x] autoPortfolioRouter: Market-Regime-Multiplikator (Risk-On/Off) in Gewichtung einbeziehen
+- [x] analyticsRouter: riskFreeRate dynamisch aus FRED DGS10 statt hardcoded 2%
+- [ ] analyticsRouter: Sektor-Tilts und Regime-Kontext in LLM-Upgrade-Empfehlungen
