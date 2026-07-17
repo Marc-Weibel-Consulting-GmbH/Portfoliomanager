@@ -3,6 +3,7 @@ import {
   formatCHF,
   formatCurrency,
   formatDate,
+  formatMarketCap,
   formatNumber,
   formatPercent,
 } from "./format";
@@ -73,5 +74,19 @@ describe("formatDate", () => {
   it("formatiert dd.mm.yyyy (de-CH)", () => {
     expect(formatDate(new Date(2026, 6, 3))).toBe("03.07.2026");
     expect(formatDate("2026-01-15")).toBe("15.01.2026");
+  });
+});
+
+describe("formatMarketCap", () => {
+  it("skaliert Mrd./Mio./Bio. korrekt (kein rohes «B»-Suffix)", () => {
+    expect(formatMarketCap(213905817600, "CHF")).toBe("CHF 213.9 Mrd.");
+    expect(formatMarketCap(4_200_000_000_000, "CHF")).toBe("CHF 4.2 Bio.");
+    expect(formatMarketCap(750_000_000, "CHF")).toBe("CHF 750.0 Mio.");
+    expect(formatMarketCap("213905817600", "USD")).toBe("USD 213.9 Mrd.");
+  });
+  it("ungültige/leere Werte → «–»", () => {
+    expect(formatMarketCap(null)).toBe("–");
+    expect(formatMarketCap(0)).toBe("–");
+    expect(formatMarketCap("keine zahl")).toBe("–");
   });
 });

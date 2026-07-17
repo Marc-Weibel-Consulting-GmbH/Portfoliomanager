@@ -1,12 +1,13 @@
 import TrustpilotWidget from "./TrustpilotWidget";
-import { TrustpilotDemoMini } from "./TrustpilotDemo";
 
 export default function TrustpilotMini() {
   const businessUnitId = import.meta.env.VITE_TRUSTPILOT_BUSINESS_UNIT_ID;
 
-  // Use demo mode if no Business Unit ID configured
+  // Ehrlichkeit (Audit H-A1): ohne echtes Trustpilot-Profil KEINE erfundenen
+  // Bewertungen («4.8 ★ · 127 Bewertungen») anzeigen — das war fabrizierte
+  // Social Proof (UWG-Risiko). Ohne Business-Unit-ID nichts rendern.
   if (!businessUnitId) {
-    return <TrustpilotDemoMini />;
+    return null;
   }
 
   return (
