@@ -296,12 +296,7 @@ export const adminRouter = router({
           forceRefresh: z.boolean().optional(),
         })
       )
-      .mutation(async ({ ctx, input }) => {
-        // Only admin can import historical prices
-        if (ctx.user?.role !== 'admin') {
-          throw new Error('Unauthorized: Admin access required');
-        }
-        
+      .mutation(async ({ input }) => {
         // Fire-and-forget: return immediately to avoid 524 Cloudflare timeout
         // The import runs in the background (can take 5-15 min for full backfill)
         importHistoricalPrices(input.fromDate, input.toDate, input.forceRefresh)
@@ -311,13 +306,14 @@ export const adminRouter = router({
           .catch((err: any) => {
             console.error('[importHistoricalPrices] Background import error:', err?.message);
           });
-        
+
+        // D5 (Schnellaktionen-Audit): keine 0er-Zählwerte mehr zurückgeben —
+        // der Client zeigte daraus «0 Ticker, 0 Kurse importiert», obwohl der
+        // Import erst startet. Ergebnis steht in den Server-Logs.
         return {
           success: true,
           started: true,
-          message: 'Kursdaten-Import gestartet — läuft im Hintergrund. Server-Logs zeigen den Fortschritt.',
-          tickersProcessed: 0,
-          pricesImported: 0,
+          message: 'Kursdaten-Import gestartet — läuft im Hintergrund (5–15 Min). Server-Logs zeigen das Ergebnis.',
         };
       }),
 
@@ -1059,18 +1055,22 @@ export const adminRouter = router({
     triggerSignalScoreRefresh: adminProcedure.mutation(async () => {
       try {
         const { runSignalScoreRefresh } = await import("../scheduled/signalScoreRefreshScheduled");
-        const result = await runSignalScoreRefresh();
-        if (!result.ok) {
-          return {
-            success: false,
-            message: `Fehler: ${result.error ?? "Unbekannter Fehler"}`,
-            details: null,
-          };
-        }
+        // D4 (Schnellaktionen-Audit): Fire-and-forget — der Job zieht intern
+        // einen 2-Jahres-Preis-Backfill über alle Ticker und lief vorher
+        // synchron in den Timeout.
+        runSignalScoreRefresh()
+          .then((result) => {
+            if (result.ok) {
+              console.log(`[triggerSignalScoreRefresh] Fertig: ${result.updated ?? 0} Scores, ${result.ytdRecalc?.updated ?? 0} YTD, ${result.backfill?.pricesImported ?? 0} Preise.`);
+            } else {
+              console.error(`[triggerSignalScoreRefresh] Fehler: ${result.error ?? "unbekannt"}`);
+            }
+          })
+          .catch((e: any) => console.error("[triggerSignalScoreRefresh] Hintergrund-Fehler:", e?.message));
         return {
           success: true,
-          message: `Refresh abgeschlossen: ${result.updated ?? 0} Scores aktualisiert, ${result.ytdRecalc?.updated ?? 0} YTD-Werte neu berechnet, ${result.backfill?.pricesImported ?? 0} Preise importiert.`,
-          details: result,
+          message: "Score-Refresh gestartet — läuft im Hintergrund (inkl. YTD-Neuberechnung und Preis-Backfill; Server-Logs zeigen das Ergebnis).",
+          details: null,
         };
       } catch (err: any) {
         return {
@@ -1089,10 +1089,15 @@ export const adminRouter = router({
     triggerSignalCacheRefresh: adminProcedure.mutation(async () => {
       try {
         const { refreshSignalCache } = await import('../cron/signalCacheCron');
-        await refreshSignalCache();
+        // D3 (Schnellaktionen-Audit): Fire-and-forget — vorher blockierte der
+        // Call bis alle Aktien durch waren (Timeout-Risiko), obwohl die
+        // Meldung «im Hintergrund» versprach.
+        refreshSignalCache().catch((e: any) =>
+          console.error('[triggerSignalCacheRefresh] Hintergrund-Fehler:', e?.message)
+        );
         return {
           success: true,
-          message: 'Signal-Cache-Refresh gestartet. Die Scores werden im Hintergrund aktualisiert.',
+          message: 'Signal-Cache-Refresh gestartet — läuft im Hintergrund (der 2-h-Cron hält die Scores danach aktuell).',
         };
       } catch (err: any) {
         return {
@@ -1516,35 +1521,55 @@ export const adminRouter = router({
     const { stocks: stocksTable } = await import('../../drizzle/schema');
     const { fetchEODHDFundamentals } = await import('../_core/eodhdApi');
     const db = await getDb();
-    if (!db) return { success: false, updated: 0, message: 'DB not available' };
+    if (!db) return { success: false, message: 'DB not available' };
     const allStocks = await db.select({ id: stocksTable.id, ticker: stocksTable.ticker }).from(stocksTable).limit(500);
-    let updated = 0;
-    const batchSize = 5;
-    for (let i = 0; i < allStocks.length; i += batchSize) {
-      const batch = allStocks.slice(i, i + batchSize);
-      await Promise.allSettled(batch.map(async (s) => {
-        try {
-          const f = await fetchEODHDFundamentals(s.ticker);
-          if (f.sector) {
-            const { eq } = await import('drizzle-orm');
-            await db.update(stocksTable).set({ sector: f.sector }).where(eq(stocksTable.id, s.id));
-            updated++;
+
+    // D2 (Schnellaktionen-Audit): Fire-and-forget — die Schleife läuft
+    // ~500 Titel × EODHD-Latenz und lief vorher synchron in den Timeout.
+    // Fehler werden geloggt statt still geschluckt.
+    (async () => {
+      let updated = 0;
+      const batchSize = 5;
+      for (let i = 0; i < allStocks.length; i += batchSize) {
+        const batch = allStocks.slice(i, i + batchSize);
+        await Promise.allSettled(batch.map(async (s) => {
+          try {
+            const f = await fetchEODHDFundamentals(s.ticker);
+            if (f.sector) {
+              const { eq } = await import('drizzle-orm');
+              await db.update(stocksTable).set({ sector: f.sector }).where(eq(stocksTable.id, s.id));
+              updated++;
+            }
+          } catch (e: any) {
+            console.warn(`[refreshSectors] ${s.ticker}: ${e?.message ?? e}`);
           }
-        } catch {}
-      }));
-      if (i + batchSize < allStocks.length) await new Promise(r => setTimeout(r, 200));
-    }
-    return { success: true, updated, message: `${updated} von ${allStocks.length} Aktien mit EODHD-Sektoren aktualisiert.` };
+        }));
+        if (i + batchSize < allStocks.length) await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`[refreshSectors] Fertig: ${updated} von ${allStocks.length} Aktien mit EODHD-Sektoren aktualisiert.`);
+    })().catch((e: any) => console.error('[refreshSectors] Hintergrund-Fehler:', e?.message));
+
+    return {
+      success: true,
+      message: `Sektoren-Aktualisierung für ${allStocks.length} Aktien gestartet — läuft im Hintergrund (Server-Logs zeigen das Ergebnis).`,
+    };
   }),
 
   /**
    * Trigger portfolio metrics snapshot (backfill or daily)
    */
   triggerPortfolioMetricsSnapshot: adminProcedure
-    .input(z.object({ backfill: z.boolean().default(false) }))
+    .input(z.object({ backfill: z.boolean().default(false), recompute: z.boolean().optional() }))
     .mutation(async ({ input }) => {
       const { handlePortfolioMetricsSnapshot } = await import('../scheduled/portfolioMetricsSnapshotScheduled');
-      const mockReq = { query: { backfill: input.backfill ? 'true' : 'false' }, body: { backfill: input.backfill } } as any;
+      // D1 (Schnellaktionen-Audit): Backfill heisst NEU berechnen — ohne
+      // recompute prallte ein erneuter Lauf an der Dedupe-Logik ab und
+      // unbrauchbare Alt-Snapshots blieben für immer stehen.
+      const recompute = input.recompute ?? input.backfill;
+      const mockReq = {
+        query: { backfill: input.backfill ? 'true' : 'false', recompute: recompute ? 'true' : 'false' },
+        body: { backfill: input.backfill, recompute },
+      } as any;
       // Fire-and-forget: return immediately so the browser doesn't time out.
       // Backfill for 37 portfolios × 365 days can take 2-3 minutes.
       const mockRes = {
@@ -1562,6 +1587,55 @@ export const adminRouter = router({
           : 'Snapshot gestartet — läuft im Hintergrund.',
       };
     }),
+
+  /**
+   * K9 (Learning-Koordination): Erfolgsbilanz der Auto-Portfolio-Vorschläge —
+   * realisierter 30-Tage-Return (CHF) vs. SMI, gemessen vom wöchentlichen
+   * learningCron (So 05:00 UTC). Reine Transparenz, keine Auto-Anpassung.
+   */
+  getProposalOutcomes: adminProcedure.query(async () => {
+    const { getDb } = await import("../db");
+    const { portfolioProposalLog } = await import("../../drizzle/schema");
+    const { isNotNull, desc } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+    const rows = await db
+      .select({
+        id: portfolioProposalLog.id,
+        createdAt: portfolioProposalLog.createdAt,
+        method: portfolioProposalLog.method,
+        qualityTier: portfolioProposalLog.qualityTier,
+        accepted: portfolioProposalLog.accepted,
+        expectedReturnPct: portfolioProposalLog.expectedReturnPct,
+        realizedReturn30dPct: portfolioProposalLog.realizedReturn30dPct,
+        benchmarkReturn30dPct: portfolioProposalLog.benchmarkReturn30dPct,
+        realizedAlpha30dPct: portfolioProposalLog.realizedAlpha30dPct,
+        outcomeCoveragePct: portfolioProposalLog.outcomeCoveragePct,
+      })
+      .from(portfolioProposalLog)
+      .where(isNotNull(portfolioProposalLog.realizedAlpha30dPct))
+      .orderBy(desc(portfolioProposalLog.createdAt))
+      .limit(100);
+    const alphas = rows
+      .map((r) => parseFloat(String(r.realizedAlpha30dPct)))
+      .filter((v) => Number.isFinite(v));
+    return {
+      evaluatedCount: alphas.length,
+      avgAlphaPct: alphas.length ? Math.round((alphas.reduce((s, v) => s + v, 0) / alphas.length) * 100) / 100 : null,
+      hitRatePct: alphas.length ? Math.round((alphas.filter((v) => v > 0).length / alphas.length) * 1000) / 10 : null,
+      recent: rows.slice(0, 20),
+    };
+  }),
+
+  /** K9: Erfolgsmessung sofort anstossen (statt auf So 05:00 zu warten). */
+  triggerProposalOutcomeEvaluation: adminProcedure.mutation(async () => {
+    const { evaluateProposalOutcomes } = await import("../analytics/proposalOutcome");
+    const res = await evaluateProposalOutcomes();
+    return {
+      success: true,
+      message: `${res.evaluated} Vorschläge bewertet, ${res.skipped} übersprungen${res.reason ? ` (${res.reason})` : ""}.`,
+    };
+  }),
 
   // Get a single proposal by ID (for deep-link from wizard)
   getProposalById: adminProcedure

@@ -1333,6 +1333,15 @@ export const portfolioProposalLog = mysqlTable("portfolioProposalLog", {
   kennzahlenFilterReason: text("kennzahlenFilterReason"),
   // Wurde der Vorschlag übernommen?
   accepted: mysqlEnum("accepted", ["ja", "nein", "unbekannt"]).default("unbekannt"),
+  // K9 (Learning-Koordination): nachträgliche Erfolgsmessung — realisierter
+  // 30-Tage-Return der vorgeschlagenen Gewichte (CHF) vs. SMI-Benchmark.
+  // NULL = noch nicht ausgewertet (Fenster nicht voll oder Kursdaten fehlen).
+  realizedReturn30dPct: decimal("realizedReturn30dPct", { precision: 8, scale: 2 }),
+  benchmarkReturn30dPct: decimal("benchmarkReturn30dPct", { precision: 8, scale: 2 }),
+  realizedAlpha30dPct: decimal("realizedAlpha30dPct", { precision: 8, scale: 2 }),
+  /** Anteil des Vorschlags-Gewichts, für das Kursdaten vorlagen (0–100). */
+  outcomeCoveragePct: decimal("outcomeCoveragePct", { precision: 6, scale: 2 }),
+  outcomeEvaluatedAt: timestamp("outcomeEvaluatedAt"),
   // Training-Feedback: Differenz zwischen Original- und Admin-Version
   adminFeedback: json("adminFeedback"), // { changes: [{ticker, action, originalWeight, adminWeight, reason}], summary: string }
   // Admin-Review Workflow

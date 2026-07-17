@@ -72,5 +72,18 @@ export function initLearningCron() {
     }
   });
 
-  console.log("[learningCron] Lernschleifen registriert (Priors wöchentlich So 03:15, Optimizer monatlich am 1. 04:10 UTC)");
+  // 3) Vorschlags-Erfolgsmessung (K9) — wöchentlich So 05:00 UTC.
+  // Reine Messung (realisierter 30-Tage-Return vs. SMI je Vorschlag),
+  // keine automatische Parameter-Anpassung.
+  cron.schedule("0 5 * * 0", async () => {
+    try {
+      const { evaluateProposalOutcomes } = await import("../analytics/proposalOutcome");
+      const res = await evaluateProposalOutcomes();
+      console.log(`[learningCron] Vorschlags-Erfolgsmessung: ${res.evaluated} bewertet, ${res.skipped} übersprungen${res.reason ? ` (${res.reason})` : ""}`);
+    } catch (e: any) {
+      console.error("[learningCron] Vorschlags-Erfolgsmessung fehlgeschlagen (non-fatal):", e?.message);
+    }
+  });
+
+  console.log("[learningCron] Lernschleifen registriert (Priors So 03:15, Optimizer monatlich 1. 04:10, Vorschlags-Messung So 05:00 UTC)");
 }

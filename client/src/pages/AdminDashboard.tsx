@@ -17,14 +17,12 @@ export default function AdminDashboard() {
   const [historicalPricesStatus, setHistoricalPricesStatus] = useState<string | null>(null);
   const importHistoricalPrices = trpc.admin.importHistoricalPrices.useMutation({
     onSuccess: (data: any) => {
-      const msg = data?.success
-        ? `${data.tickersProcessed ?? 0} Ticker, ${data.pricesImported ?? 0} Kurse importiert`
-        : 'Fehler beim Import';
+      const msg = data?.message ?? (data?.success ? 'Import gestartet — läuft im Hintergrund' : 'Fehler beim Import');
       setHistoricalPricesStatus(msg);
       if (data?.success) {
-        toast.success('Kursdaten aktualisiert', { description: msg });
+        toast.success('Kursdaten-Import gestartet', { description: msg });
       } else {
-        toast.error('Fehler beim Kursdaten-Import', { description: (data?.errors ?? []).join(', ') });
+        toast.error('Fehler beim Kursdaten-Import', { description: msg });
       }
     },
     onError: (err: any) => {
@@ -265,9 +263,10 @@ export default function AdminDashboard() {
               size="sm"
               onClick={() => {
                 setHistoricalPricesStatus(null);
-                // Backfill from 2025-11-01 to today with forceRefresh
+                // D6: rollierendes 1-Jahres-Fenster statt hartkodiertem Startdatum
                 const today = new Date().toISOString().split('T')[0];
-                importHistoricalPrices.mutate({ fromDate: '2025-11-01', toDate: today, forceRefresh: true });
+                const oneYearAgo = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString().split('T')[0];
+                importHistoricalPrices.mutate({ fromDate: oneYearAgo, toDate: today, forceRefresh: true });
               }}
               disabled={importHistoricalPrices.isPending}
               className="gap-2 border-emerald-500/50 text-emerald-400 hover:text-emerald-300"
