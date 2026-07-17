@@ -291,4 +291,4 @@
 - [x] autoPortfolioRouter: Marktbericht-Kontext in LLM-Challenger-Prompt injizieren
 - [x] autoPortfolioRouter: Market-Regime-Multiplikator (Risk-On/Off) in Gewichtung einbeziehen
 - [x] analyticsRouter: riskFreeRate dynamisch aus FRED DGS10 statt hardcoded 2%
-- [ ] analyticsRouter: Sektor-Tilts und Regime-Kontext in LLM-Upgrade-Empfehlungen
+- [x] analyticsRouter: Sektor-Tilts und Regime-Kontext in LLM-Upgrade-Empfehlungen

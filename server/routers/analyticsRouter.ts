@@ -384,6 +384,21 @@ Gib eine strukturierte Analyse zurück.`;
       try {
         const rules = await _getDiversificationRules();
 
+        // Markt-Hub-Signale für Sektor-Tilts und Regime-Kontext
+        let mhSectorTilts: Record<string, number> = {};
+        let mhRegime = 'Neutral';
+        let mhLeadingFactor: string | null = null;
+        try {
+          const mhSignals = await getMarktHubSignals();
+          const { getSectorTilts: _getSectorTilts } = await import('../lib/marktHubSignals');
+          mhSectorTilts = _getSectorTilts(mhSignals);
+          mhRegime = mhSignals.regime.regime;
+          mhLeadingFactor = mhSignals.factors.leadingFactor;
+          console.log(`[upgradeProposals] Markt-Hub: Regime=${mhRegime}, leadingFactor=${mhLeadingFactor ?? 'n/a'}`);
+        } catch (mhErr) {
+          console.warn('[upgradeProposals] Markt-Hub nicht verfügbar (non-fatal)');
+        }
+
         // P-ALIGN: Prüfen, ob das Portfolio frisch durch den KI-Builder erstellt wurde.
         // Für KI-erstellte Portfolios (< 7 Tage alt) werden schwache Positionen NICHT
         // als Ersatz-Vorschläge angezeigt, da der Builder sie bewusst ausgewählt hat.
@@ -416,23 +431,30 @@ Gib eine strukturierte Analyse zurück.`;
         // hrp           → Sharpe Ratio (höher = besser)
         // equal_weight  → Signal-Score (Standard)
         const method = input.method ?? "max_sharpe";
-        type CandidateRow = { signalScore: number | null; dividendYield: string | null; beta: string | null; sharpeRatio: string | null; ytdPerformance: string | null; [key: string]: unknown };
+        type CandidateRow = { signalScore: number | null; dividendYield: string | null; beta: string | null; sharpeRatio: string | null; ytdPerformance: string | null; sector?: string | null; [key: string]: unknown };
+        // Sektor-Tilt aus Markt-Hub auf den Kandidaten-Score anwenden
+        const getSectorTiltAdj = (c: CandidateRow): number => {
+          const sector = (c.sector as string | null) ?? '';
+          return mhSectorTilts[sector] ?? 0;
+        };
         const getCandidateScore = (c: CandidateRow): number => {
+          const sectorAdj = getSectorTiltAdj(c); // Markt-Hub Sektor-Tilt
           if (method === "max_dividend") {
-            return parseFloat(c.dividendYield ?? "0") || 0;
+            return (parseFloat(c.dividendYield ?? "0") || 0) + sectorAdj * 0.1;
           }
           if (method === "min_variance") {
             // Niedrigeres Beta ist besser → negatives Beta als Score
             const beta = parseFloat(c.beta ?? "1") || 1;
-            return -beta;
+            return -beta + sectorAdj * 0.05;
           }
           if (method === "max_sharpe" || method === "hrp") {
             const sharpe = parseFloat(c.sharpeRatio ?? "0") || 0;
             // Fallback auf signalScore wenn kein Sharpe vorhanden
-            return sharpe !== 0 ? sharpe : (c.signalScore ?? 0) / 100;
+            const baseScore = sharpe !== 0 ? sharpe : (c.signalScore ?? 0) / 100;
+            return baseScore + sectorAdj * 0.05;
           }
-          // equal_weight / default: Signal-Score
-          return c.signalScore ?? 0;
+          // equal_weight / default: Signal-Score + Sektor-Tilt
+          return (c.signalScore ?? 0) + sectorAdj;
         };
         const getRankLabel = (): string => {
           if (method === "max_dividend") return "Dividendenrendite";
@@ -601,6 +623,12 @@ Gib eine strukturierte Analyse zurück.`;
           freshAiNotice: isFreshAiPortfolio
             ? 'Dieses Portfolio wurde kürzlich durch den KI-Builder erstellt. Ersatz-Vorschläge werden erst nach 7 Tagen aktiviert, da die Positionen bewusst ausgewählt wurden.'
             : null,
+          // Markt-Hub-Kontext für das Frontend
+          marktRegime: mhRegime,
+          marktLeadingFactor: mhLeadingFactor,
+          activeSectorTilts: Object.entries(mhSectorTilts)
+            .filter(([, v]) => v !== 0)
+            .map(([sector, tilt]) => ({ sector, tilt })),
         };
       } catch (err: any) {
         throw new TRPCError({
