@@ -239,6 +239,13 @@
       "when": 1784273092304,
       "tag": "0033_chief_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "5",
+      "when": 1784280450431,
+      "tag": "0034_youthful_namorita",
+      "breakpoints": true
     }
   ]
 }

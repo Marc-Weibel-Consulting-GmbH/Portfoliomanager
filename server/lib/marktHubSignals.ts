@@ -119,12 +119,25 @@ const SECTOR_TO_TILT: Record<string, string> = {
 
 // ── Hauptfunktion ──────────────────────────────────────────────────────────────
 
+// K10 (Learning-Koordination): 5-Minuten-Cache — die Doku versprach ihn,
+// implementiert war er nicht. Ohne Cache löste jeder buildProposal-/optimize-
+// Aufruf u. a. vier EODHD-Faktor-ETF-Fetches aus. Neutral-Fallbacks (hasData
+// false) werden nicht gecacht, damit sich eine erholte DB sofort auswirkt.
+let mhCache: { data: MarktHubSignals; at: number } | null = null;
+const MH_CACHE_TTL_MS = 5 * 60 * 1000;
+
 /**
- * Lädt alle Markt-Hub-Signale aus der DB.
+ * Lädt alle Markt-Hub-Signale aus der DB (5-Min-Cache).
  * Fehlertolerant: bei DB-Fehler oder fehlenden Daten werden Neutral-Werte zurückgegeben.
- * Ergebnis sollte gecacht werden (z.B. 5 Minuten), da buildProposal mehrfach aufgerufen werden kann.
  */
 export async function getMarktHubSignals(): Promise<MarktHubSignals> {
+  if (mhCache && Date.now() - mhCache.at < MH_CACHE_TTL_MS) return mhCache.data;
+  const data = await loadMarktHubSignals();
+  if (data.hasData) mhCache = { data, at: Date.now() };
+  return data;
+}
+
+async function loadMarktHubSignals(): Promise<MarktHubSignals> {
   const neutral: MarktHubSignals = {
     macro: {
       yieldCurveSpread: null,

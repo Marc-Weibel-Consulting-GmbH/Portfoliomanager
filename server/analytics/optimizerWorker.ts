@@ -174,25 +174,6 @@ async function fetchPricesEODHD(ticker: string): Promise<{
 // Indikator optimiert, als sie später bewerten. Jetzt: derselbe Wilder-RSI.
 
 /**
- * Calculate MACD signal (simplified)
- */
-function calcMACD(prices: number[]): number {
-  if (prices.length < 26) return 0;
-  const ema12 = calcEMA(prices, 12);
-  const ema26 = calcEMA(prices, 26);
-  return ema12 - ema26;
-}
-
-function calcEMA(prices: number[], period: number): number {
-  const k = 2 / (period + 1);
-  let ema = prices[0];
-  for (let i = 1; i < prices.length; i++) {
-    ema = prices[i] * k + ema * (1 - k);
-  }
-  return ema;
-}
-
-/**
  * Generate weighted signal score
  */
 function generateWeightedScore(
@@ -201,7 +182,6 @@ function generateWeightedScore(
     peRatio: number | null;
     pegRatio: number | null;
     rsi14: number | null;
-    macdSignal: number;
     dividendYield: number;
     positionIn52W: number | null;
     ytdPerformance: number;
@@ -243,16 +223,10 @@ function generateWeightedScore(
     totalWeight += weights.rsi;
   }
 
-  {
-    let macdScore = 0;
-    if (indicators.macdSignal > 2) macdScore = 1;
-    else if (indicators.macdSignal > 0.5) macdScore = 0.5;
-    else if (indicators.macdSignal > -0.5) macdScore = 0;
-    else if (indicators.macdSignal > -2) macdScore = -0.5;
-    else macdScore = -1;
-    score += weights.macd * macdScore;
-    totalWeight += weights.macd;
-  }
+  // K4 (Learning-Koordination): KEIN MACD-Term mehr — der Produktions-Score
+  // (baseSignal.generateSignal, Konsument von getActiveWeights) kennt keinen
+  // MACD-Faktor. Ihn hier mitzubewerten hiess: der Backtest tunte eine andere
+  // Strategie als die, die produktiv läuft (Tuning-Produktions-Mismatch).
 
   {
     let divScore = 0;
@@ -317,7 +291,6 @@ function backtestStock(
     if (!currentPrice || !futurePrice || currentPrice === 0) continue;
 
     const rsi14 = calcWilderRSI(historicalPrices, 14);
-    const macdSignal = calcMACD(historicalPrices);
 
     const last252 = historicalPrices.slice(-252);
     const high52 = Math.max(...last252);
@@ -331,7 +304,6 @@ function backtestStock(
       peRatio: fundamentals.peRatio,
       pegRatio: fundamentals.pegRatio,
       rsi14,
-      macdSignal,
       dividendYield: fundamentals.dividendYield,
       positionIn52W,
       ytdPerformance,
@@ -355,19 +327,19 @@ function backtestStock(
 /**
  * Generate weight grid (200 random combinations)
  *
- * SIG-4 (Audit 2026-07): Nur die 7 Gewichte variieren, die die Backtest-
- * Zielfunktion (generateWeightedScore) tatsächlich bewertet. Die übrigen 5
- * (rf/sentiment/bubble/quality/momentum) gehen dort NIE ein — sie zufällig
- * mitzuvariieren war reines Rauschen in der Suche und gaukelte im Admin-UI
- * «getunte» Werte vor. Sie bleiben fix auf den Defaults; ihre Wirkung im
- * Produktions-Score läuft über eigene Pfade (RF-Adjustment, blendCombinedScore).
+ * SIG-4 (Audit 2026-07) + K4 (Learning-Koordination): Nur die 6 Gewichte
+ * variieren, die auch der PRODUKTIONS-Score (baseSignal.generateSignal)
+ * konsumiert: pe/peg/rsi/dividend/week52/ytd. macd flog raus — die Produktion
+ * hat keinen MACD-Term, der Backtest tunte damit eine andere Strategie als
+ * die, die live läuft. Die übrigen (macd/rf/sentiment/bubble/quality/momentum)
+ * bleiben fix auf den Defaults; ihre Wirkung im Produktions-Score läuft über
+ * eigene Pfade (RF-Adjustment, blendCombinedScore).
  */
 function generateWeightGrid(): WeightConfig[] {
   const combinations: WeightConfig[] = [];
   const peOptions = [0.06, 0.10, 0.16];
   const pegOptions = [0.04, 0.07, 0.12];
   const rsiOptions = [0.08, 0.14, 0.20];
-  const macdOptions = [0.04, 0.07, 0.12];
   const dividendOptions = [0.04, 0.07, 0.12];
   const week52Options = [0.04, 0.07, 0.12];
   const ytdOptions = [0.04, 0.07, 0.12];
@@ -378,11 +350,12 @@ function generateWeightGrid(): WeightConfig[] {
       pe: peOptions[Math.floor(Math.random() * peOptions.length)],
       peg: pegOptions[Math.floor(Math.random() * pegOptions.length)],
       rsi: rsiOptions[Math.floor(Math.random() * rsiOptions.length)],
-      macd: macdOptions[Math.floor(Math.random() * macdOptions.length)],
       dividend: dividendOptions[Math.floor(Math.random() * dividendOptions.length)],
       week52: week52Options[Math.floor(Math.random() * week52Options.length)],
       ytd: ytdOptions[Math.floor(Math.random() * ytdOptions.length)],
       // Nicht Teil der Backtest-Zielfunktion — fix auf Default (kein Pseudo-Tuning).
+      // macd gehört seit K4 dazu: baseSignal (Produktion) hat keinen MACD-Term.
+      macd: DEFAULT_WEIGHTS.macd,
       rf: DEFAULT_WEIGHTS.rf,
       sentiment: DEFAULT_WEIGHTS.sentiment,
       bubble: DEFAULT_WEIGHTS.bubble,
@@ -517,7 +490,7 @@ export async function runOptimizerNonBlocking(
   // Pass 2: Grid search with optimized parameters
   const weightGrid = generateWeightGrid();
   logMsg(`Pass 2: Grid Search über ${weightGrid.length} Gewichtungskombinationen (LF=${bestLookforward}d, TH=${bestThreshold})...`);
-  logMsg(`Getunt werden die 7 Backtest-Faktoren (pe/peg/rsi/macd/dividend/week52/ytd); rf/sentiment/bubble/quality/momentum bleiben auf Default (nicht Teil der Zielfunktion).`);
+  logMsg(`Getunt werden die 6 Produktions-Faktoren (pe/peg/rsi/dividend/week52/ytd); macd/rf/sentiment/bubble/quality/momentum bleiben auf Default (nicht Teil der Produktions-Zielfunktion).`);
 
   const results: Array<{ weights: WeightConfig; hitRate: number; correct: number; total: number }> = [];
 
@@ -553,8 +526,10 @@ export async function runOptimizerNonBlocking(
     // Generate 20 variations around each top result
     for (let v = 0; v < 20; v++) {
       const variant: WeightConfig = { ...topResult.weights };
-      // Randomly adjust 2-3 weights by ±0.03
-      const keys = Object.keys(variant) as (keyof WeightConfig)[];
+      // Randomly adjust 2-3 weights by ±0.03 — nur die 6 getunten Faktoren;
+      // vorher perturbierte der Feinabstimmungs-Pass auch die fixen Gewichte
+      // (macd/rf/…) und unterlief damit die «fix auf Default»-Garantie.
+      const keys: (keyof WeightConfig)[] = ["pe", "peg", "rsi", "dividend", "week52", "ytd"];
       const numAdjust = 2 + Math.floor(Math.random() * 2);
       for (let a = 0; a < numAdjust; a++) {
         const key = keys[Math.floor(Math.random() * keys.length)];
