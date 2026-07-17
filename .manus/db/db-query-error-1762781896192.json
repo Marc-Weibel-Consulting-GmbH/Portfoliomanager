@@ -1,8 +1,0 @@
-{
-  "query": "SELECT \n  transaction_type,\n  COUNT(*) as count,\n  SUM(CAST(total_amount_chf AS DECIMAL(15,2))) as total_chf,\n  SUM(CAST(fees AS DECIMAL(15,2))) as total_fees\nFROM transactions \nWHERE portfolio_id = 90001\nGROUP BY transaction_type\nORDER BY transaction_type;",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute SELECT \n  transaction_type,\n  COUNT(*) as count,\n  SUM(CAST(total_amount_chf AS DECIMAL(15,2))) as total_chf,\n  SUM(CAST(fees AS DECIMAL(15,2))) as total_fees\nFROM transactions \nWHERE portfolio_id = 90001\nGROUP BY transaction_type\nORDER BY transaction_type;",
-  "returncode": 1,
-  "logs": [
-    "ERROR 1054 (42S22) at line 1: Unknown column 'transaction_type' in 'group statement'"
-  ]
-}

@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS newsletter (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  email VARCHAR(320) NOT NULL UNIQUE,\n  subscribedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  isActive TINYINT NOT NULL DEFAULT 1\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute CREATE TABLE IF NOT EXISTS newsletter (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  email VARCHAR(320) NOT NULL UNIQUE,\n  subscribedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  isActive TINYINT NOT NULL DEFAULT 1\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 169
-}

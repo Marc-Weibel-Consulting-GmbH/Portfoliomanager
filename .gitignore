@@ -116,3 +116,9 @@ __pycache__/
 __pycache__/
 *.pyc
 test/data/
+
+# Nie einchecken: Produktivdaten-Exporte, Uploads, Agenten-DB-Dumps (Kimi-Audit S-4)
+exports/
+upload/
+data/
+.manus/db/

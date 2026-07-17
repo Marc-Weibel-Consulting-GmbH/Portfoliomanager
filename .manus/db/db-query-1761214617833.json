@@ -1,9 +1,0 @@
-{
-  "query": "UPDATE stocks SET portfolioWeight = '1.5625' WHERE ticker != 'NESN.SW';\nUPDATE stocks SET portfolioWeight = '5.0000' WHERE ticker = 'NESN.SW';",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute UPDATE stocks SET portfolioWeight = '1.5625' WHERE ticker != 'NESN.SW';\nUPDATE stocks SET portfolioWeight = '5.0000' WHERE ticker = 'NESN.SW';",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 56
-}

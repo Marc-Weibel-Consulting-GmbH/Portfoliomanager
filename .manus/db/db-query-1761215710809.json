@@ -1,9 +1,0 @@
-{
-  "query": "UPDATE stocks SET pegRatio = 1.62 WHERE ticker = 'NVDA';\nUPDATE stocks SET pegRatio = 1.19 WHERE ticker = 'META';\nUPDATE stocks SET pegRatio = 2.42 WHERE ticker = 'MSFT';\nUPDATE stocks SET pegRatio = 1.94 WHERE ticker = 'GOOGL';\nUPDATE stocks SET pegRatio = 2.15 WHERE ticker = 'AMZN';\nUPDATE stocks SET pegRatio = 8.23 WHERE ticker = 'TSLA';\nUPDATE stocks SET pegRatio = 2.35 WHERE ticker = 'V';\nUPDATE stocks SET pegRatio = 6.18 WHERE ticker = 'AMD';\nUPDATE stocks SET pegRatio = 3.07 WHERE ticker = 'JNJ';\nUPDATE stocks SET pegRatio = 1.94 WHERE ticker = 'TSM';\nUPDATE stocks SET pegRatio = 14.73 WHERE ticker = 'PLTR';\nUPDATE stocks SET pegRatio = 1.08 WHERE ticker = 'SOFI';",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute UPDATE stocks SET pegRatio = 1.62 WHERE ticker = 'NVDA';\nUPDATE stocks SET pegRatio = 1.19 WHERE ticker = 'META';\nUPDATE stocks SET pegRatio = 2.42 WHERE ticker = 'MSFT';\nUPDATE stocks SET pegRatio = 1.94 WHERE ticker = 'GOOGL';\nUPDATE stocks SET pegRatio = 2.15 WHERE ticker = 'AMZN';\nUPDATE stocks SET pegRatio = 8.23 WHERE ticker = 'TSLA';\nUPDATE stocks SET pegRatio = 2.35 WHERE ticker = 'V';\nUPDATE stocks SET pegRatio = 6.18 WHERE ticker = 'AMD';\nUPDATE stocks SET pegRatio = 3.07 WHERE ticker = 'JNJ';\nUPDATE stocks SET pegRatio = 1.94 WHERE ticker = 'TSM';\nUPDATE stocks SET pegRatio = 14.73 WHERE ticker = 'PLTR';\nUPDATE stocks SET pegRatio = 1.08 WHERE ticker = 'SOFI';",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 161
-}

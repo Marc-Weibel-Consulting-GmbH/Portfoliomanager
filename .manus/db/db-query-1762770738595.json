@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS exchangeRates (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  date DATE NOT NULL,\n  currencyPair VARCHAR(16) NOT NULL,\n  rate DECIMAL(10, 6) NOT NULL,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  INDEX ix_exchangeRates_date_pair (date, currencyPair)\n)",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute CREATE TABLE IF NOT EXISTS exchangeRates (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  date DATE NOT NULL,\n  currencyPair VARCHAR(16) NOT NULL,\n  rate DECIMAL(10, 6) NOT NULL,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  INDEX ix_exchangeRates_date_pair (date, currencyPair)\n)",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 181
-}

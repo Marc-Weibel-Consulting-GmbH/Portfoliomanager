@@ -1,9 +1,0 @@
-{
-  "query": "INSERT INTO categories (name, description) \nSELECT DISTINCT category, CONCAT('Auto-migrated from existing stocks') \nFROM stocks \nWHERE category IS NOT NULL AND category != '' \nON DUPLICATE KEY UPDATE name = name",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute INSERT INTO categories (name, description) \nSELECT DISTINCT category, CONCAT('Auto-migrated from existing stocks') \nFROM stocks \nWHERE category IS NOT NULL AND category != '' \nON DUPLICATE KEY UPDATE name = name",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 68
-}
