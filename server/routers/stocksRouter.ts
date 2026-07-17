@@ -286,7 +286,8 @@ export const stocksRouter = router({
           return [];
         }
       }),
-    fetchStockData: publicProcedure
+    // A-11 (Kimi-Audit): kostenpflichtige EODHD-Calls nur für eingeloggte Nutzer
+    fetchStockData: protectedProcedure
       .input(z.string())
       .mutation(async ({ input: ticker }) => {
         try {

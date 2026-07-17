@@ -18,7 +18,6 @@ import { annualPerformanceRouter } from "./routers/annualPerformanceRouter";
 import { portfolioTransactionsRouter } from "./routers/portfolioTransactionsRouter";
 import { realizedGainsHistoryRouter } from "./routers/realizedGainsHistoryRouter";
 import { secretsRouter } from "./routers/secretsRouter";
-import { testSecretsRouter } from "./routers/testSecretsRouter";
 import { logsRouter } from "./routers/logsRouter";
 import { notificationSettingsRouter } from "./routers/notificationSettingsRouter";
 import { priceAlertsRouter } from "./routers/priceAlertsRouter";
@@ -257,7 +256,12 @@ export const appRouter = router({
   alertConfig: alertConfigRouter,
 
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(opts => {
+      if (!opts.ctx.user) return opts.ctx.user;
+      // Nie den bcrypt-Hash an den Client geben (Live-Befund 17.07.2026)
+      const { password: _password, ...safeUser } = opts.ctx.user;
+      return safeUser;
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -613,7 +617,7 @@ export const appRouter = router({
                 price_data: {
                   currency: "chf",
                   product_data: {
-                    name: "Portfolio BIG Vollzugriff",
+                    name: "Portfoliomanager Premium",
                     description: "Einmaliger Zugriff auf alle Aktien und Analysen",
                   },
                   unit_amount: 1000, // CHF 10.00 in cents
@@ -1021,7 +1025,6 @@ export const appRouter = router({
   dashboardPerformance: dashboardPerformanceRouter,
   realizedGainsHistory: realizedGainsHistoryRouter,
   secrets: secretsRouter,
-  testSecrets: testSecretsRouter,
   logs: logsRouter,
   notificationSettings: notificationSettingsRouter,
   

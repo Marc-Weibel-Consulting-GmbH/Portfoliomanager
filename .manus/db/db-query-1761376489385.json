@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS `transactions` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `action` enum('add','delete','update_weight','update_data') NOT NULL,\n  `ticker` varchar(50) NOT NULL,\n  `companyName` varchar(255),\n  `details` text,\n  `oldValue` text,\n  `newValue` text,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `transactions_id` PRIMARY KEY(`id`)\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute CREATE TABLE IF NOT EXISTS `transactions` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `action` enum('add','delete','update_weight','update_data') NOT NULL,\n  `ticker` varchar(50) NOT NULL,\n  `companyName` varchar(255),\n  `details` text,\n  `oldValue` text,\n  `newValue` text,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `transactions_id` PRIMARY KEY(`id`)\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 725
-}

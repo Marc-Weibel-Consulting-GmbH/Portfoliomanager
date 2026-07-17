@@ -1,9 +1,0 @@
-{
-  "query": "DELETE FROM portfolioTransactions WHERE portfolioId IN (1290002, 1290003, 1290004, 1290005, 1290006);\nDELETE FROM savedPortfolios WHERE id IN (1290002, 1290003, 1290004, 1290005, 1290006);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2w4G5FWonHi6U6L.root --database aQvizP6Ne8LKEmBGrk5vq4 --execute DELETE FROM portfolioTransactions WHERE portfolioId IN (1290002, 1290003, 1290004, 1290005, 1290006);\nDELETE FROM savedPortfolios WHERE id IN (1290002, 1290003, 1290004, 1290005, 1290006);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 184
-}
