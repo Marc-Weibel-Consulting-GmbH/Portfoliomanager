@@ -6,7 +6,6 @@ import {
   getSectorTilts,
   getSectorTiltForStock,
   getFactorTilt,
-  getDynamicRiskFreeRate,
   buildMarktHubContext,
   describeSectorTilts,
   type MarktHubSignals,
@@ -85,7 +84,11 @@ export const autoPortfolioRouter = router({
         };
       }
       const sectorTilts = getSectorTilts(marktHubSignals);
-      const dynamicRiskFreeRate = getDynamicRiskFreeRate(marktHubSignals.macro);
+      // K1 (Learning-Koordination): eine risikofreie Wahrheit — zentraler
+      // FRED-DGS10-Satz (lib/riskFreeRate), identisch mit Qualitäts-Snapshot
+      // und analytics.optimize (vorher rechnete jeder Pfad anders).
+      const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+      const dynamicRiskFreeRate = await getRiskFreeRate();
       console.log(`[buildProposal] Sektor-Tilts: ${describeSectorTilts(sectorTilts)}, riskFreeRate=${(dynamicRiskFreeRate * 100).toFixed(2)}%`);
 
       // 3) Kandidaten-Universum aus der DB (nach Marktkapitalisierung begrenzt,
@@ -198,11 +201,38 @@ export const autoPortfolioRouter = router({
       const watchlistScoreMap = new Map(watchlistScores.map((w: any) => [w.ticker.toUpperCase(), w]));
       console.log(`[buildProposal] scores loaded in ${Date.now()-t4}ms for ${watchlistScoreMap.size}/${universe.length} tickers`);
 
+      // K3 (Learning-Koordination): Ranking-Basis ist der GELERNTE Score aus dem
+      // Signal-Cache (stockSignalCache.combinedScore = optimierte Gewichte +
+      // ML-Nudge + Regime-Blend, alle 2 h aktualisiert) — vorher rankte der
+      // Vorschlag über den statischen stocks.signalScore und ignorierte damit
+      // sämtliche Lernschleifen. Fallback auf den Basis-Score nur bei fehlendem
+      // oder veraltetem Cache-Eintrag (> 48 h).
+      const { stockSignalCache } = await import("../../drizzle/schema");
+      const cacheRows = await db
+        .select({
+          ticker: stockSignalCache.ticker,
+          combinedScore: stockSignalCache.combinedScore,
+          updatedAt: stockSignalCache.updatedAt,
+        })
+        .from(stockSignalCache)
+        .where(inArray(stockSignalCache.ticker, universeTickers));
+      const CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+      const cacheScoreMap = new Map<string, number>();
+      for (const r of cacheRows) {
+        const score = r.combinedScore != null ? parseFloat(String(r.combinedScore)) : NaN;
+        const fresh = r.updatedAt instanceof Date ? Date.now() - r.updatedAt.getTime() < CACHE_MAX_AGE_MS : true;
+        if (Number.isFinite(score) && fresh) cacheScoreMap.set(r.ticker.toUpperCase(), score);
+      }
+      let cacheFallbackCount = 0;
+      console.log(`[buildProposal] signal cache scores: ${cacheScoreMap.size}/${universeTickers.length} frisch`);
+
       // Map universe stocks to scored candidates using watchlistStocks data
       const scored = universe
         .map((s: any) => {
           const wl = watchlistScoreMap.get(s.ticker.toUpperCase());
-          const rawScore = wl?.signalScore ?? s.signalScore ?? 50;
+          const cachedCombined = cacheScoreMap.get(s.ticker.toUpperCase());
+          if (cachedCombined === undefined) cacheFallbackCount++;
+          const rawScore = cachedCombined ?? wl?.signalScore ?? s.signalScore ?? 50;
           const signalType = wl?.signalType ?? s.signalType ?? "hold";
           // Normalize signal to uppercase for consistency
           const signal = signalType === "buy" ? "BUY" : signalType === "sell" ? "SELL" : "HOLD";
@@ -228,26 +258,19 @@ export const autoPortfolioRouter = router({
           else if (ytdPerf! < -15) momentumAdj = -10;
           else if (ytdPerf! < -10) momentumAdj = -5;
 
-          // Goal-based adjustment: growth goal boosts momentum stocks, penalizes unknowns
+          // Goal-based adjustment. K2 (Learning-Koordination): YTD-Momentum geht
+          // NUR über momentumAdj in den Score ein — die früheren zusätzlichen
+          // YTD-Terme hier (growth-Bonus, Dividenden-Kursrückgang-Malus) und im
+          // Profil-Adjustment zählten dieselbe Information drei- bis vierfach
+          // und übersteuerten alles Richtung «was zuletzt lief».
           let goalAdj = 0;
-          const ytdValue = ytdPerf ?? 0;
-          if (goal === "growth") {
-            if (ytdValue > 5) goalAdj = 5;
-            if (!ytdHasData) goalAdj = -5; // growth needs known momentum
-          }
           if (goal === "dividends") {
-            if (ytdValue < -5) goalAdj = -3; // dividend stocks with falling prices are risky
             // Boost dividend yield for dividends goal
             const divYield = parseFloat(wl?.dividendYield ?? s.dividendYield ?? "0");
             if (divYield >= 4) goalAdj += 5;
             else if (divYield >= 2) goalAdj += 2;
             else if (divYield < 1) goalAdj -= 5; // penalize low-yield stocks in dividend portfolio
           }
-
-          // Profile-based adjustment: konservativ prefers known, stable stocks
-          let profileAdj = 0;
-          if (riskProfile === "konservativ" && !ytdHasData) profileAdj = -3;
-          if (riskProfile === "aggressiv" && ytdHasData && ytdValue > 10) profileAdj = 3;
 
           // FX penalty: non-reference-currency stocks get penalised based on risk profile
           const stockCurrency = (s.currency || 'CHF') === 'GBp' ? 'GBP' : (s.currency || 'CHF');
@@ -262,14 +285,17 @@ export const autoPortfolioRouter = router({
           // === MARKT-HUB INTEGRATION: Sektor-Tilts + MSCI-Faktor-Tilts ===
           // Sektor-Tilt: basierend auf Makro-Signalen (Zinskurve, Inflation, HY-Spread, Regime)
           const sectorAdj = getSectorTiltForStock(s.sector, sectorTilts);
-          // Faktor-Tilt: basierend auf MSCI-Faktor-ETF-Performance (Value/Momentum/Quality/MinVol)
+          // Faktor-Tilt: basierend auf MSCI-Faktor-ETF-Performance (Value/Momentum/Quality/MinVol).
+          // K2: ytdPerf wird bewusst NICHT übergeben — führt der Momentum-Faktor,
+          // würde der Tilt dieselbe YTD-Information wie momentumAdj erneut zählen;
+          // Value-/Quality-/MinVol-Tilts nutzen andere Inputs und bleiben aktiv.
           const divYieldNum = parseFloat(wl?.dividendYield ?? s.dividendYield ?? '0');
           const factorAdj = getFactorTilt(
-            { dividendYield: divYieldNum, ytdPerf, signalScore: rawScore, riskProfile, goal },
+            { dividendYield: divYieldNum, ytdPerf: null, signalScore: rawScore, riskProfile, goal },
             marktHubSignals.factors,
           );
 
-          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + profileAdj + fxAdj + sectorAdj + factorAdj));
+          const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + fxAdj + sectorAdj + factorAdj));
           // OPT-2: EINE Note aus dem Score — die frühere separate «Qualitäts»-Note
           // war nur Score−5 (kosmetisch) und gaukelte eine zweite Dimension vor.
           const scoreGrade = grade(combinedScore);
@@ -286,9 +312,16 @@ export const autoPortfolioRouter = router({
         })
         .filter((x) => x.combinedScore > 0); // exclude unscored
 
-      console.log(`[buildProposal] scored=${scored.length}/${universe.length}`);
+      console.log(`[buildProposal] scored=${scored.length}/${universe.length} (Basis-Score-Fallback: ${cacheFallbackCount})`);
       if (scored.length < 2) {
         throw new Error("Zu wenige bewertete Titel gefunden. Bitte aktualisieren Sie die Watchlist-Scores.");
+      }
+      // Ehrlichkeit: wenn der gelernte Cache-Score für einen wesentlichen Teil
+      // des Universums fehlt, lief das Ranking teilweise auf dem Basis-Score.
+      if (universe.length > 0 && cacheFallbackCount / universe.length > 0.3) {
+        notes.push(
+          `Signal-Cache unvollständig — für ${cacheFallbackCount} von ${universe.length} Titeln wurde der Basis-Score verwendet.`
+        );
       }
 
       console.log(`[buildProposal] Step 5: ranking ${scored.length} scored items`);

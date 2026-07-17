@@ -17,7 +17,8 @@
  * Prinzipien (aus KONZEPT_PORTFOLIO_QUALITAET.md):
  *   1. Keine erfundenen Daten.
  *   2. Eine Wahrheit pro Kennzahl (gleiche Berechnung wie überall).
- *   3. Sharpe/Sortino mit rf = 2 % (DEFAULT_RISK_FREE_RATE).
+ *   3. Sharpe/Sortino mit dem zentralen risikofreien Satz (lib/riskFreeRate,
+ *      FRED DGS10, Fallback 2 %) — dieselbe Wahrheit wie der Auto-Portfolio-Pfad.
  *   4. Portfolio-Sharpe aus Wertreihe, NICHT Ø Einzeltitel-Sharpes.
  */
 import type { Request, Response } from "express";
@@ -47,10 +48,13 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
       calcSortino,
       calcMaxDrawdown,
       calcVolatility,
-      DEFAULT_RISK_FREE_RATE,
     } = await import("../analytics/riskStats");
     const { calculatePortfolioQualityScore, calculateHHI, getScoreThresholds } = await import("../lib/portfolioQualityScore");
     const scoreConfig = await getScoreThresholds();
+    // K1 (Learning-Koordination): eine risikofreie Wahrheit — derselbe
+    // FRED-DGS10-Satz wie im Auto-Portfolio-Vorschlag (Fallback 2 %).
+    const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+    const riskFreeRate = await getRiskFreeRate();
 
     const db = await getDb();
     if (!db) return res.status(500).json({ error: "Database not available" });
@@ -241,8 +245,8 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
           }
 
           // Compute kursbasierte Kennzahlen from the portfolio value series
-          const sharpe = metricsReliable ? calcSharpe(windowReturns, DEFAULT_RISK_FREE_RATE) : NaN;
-          const sortino = metricsReliable ? calcSortino(windowReturns, DEFAULT_RISK_FREE_RATE) : NaN;
+          const sharpe = metricsReliable ? calcSharpe(windowReturns, riskFreeRate) : NaN;
+          const sortino = metricsReliable ? calcSortino(windowReturns, riskFreeRate) : NaN;
           const volatility = metricsReliable ? calcVolatility(windowReturns) : NaN;
           const maxDrawdown = metricsReliable ? calcMaxDrawdown(windowReturns) : NaN;
 

@@ -33,6 +33,7 @@ import { initKiBoomHistoryCron } from "../cron/kiBoomHistoryCron";
 import { initKiBoomDynamicCron } from "../cron/kiBoomDynamicCron";
 import { initRecommendationCron } from "../cron/recommendationCron";
 import { initGapFillingCron } from "../cron/gapFillingCron";
+import { initLearningCron } from "../cron/learningCron";
 import { checkDatabaseHealth } from "./dbHealthcheck";
 import { handleWalkForwardWeekly, handleLPPLMonitoring, handleEvaluateRecommendations } from "../scheduled/copilotScheduled";
 import { handlePriceAlertsCheck } from "../scheduled/priceAlertsScheduled";
@@ -238,6 +239,9 @@ async function startServer() {
     // Start KI-Boom dynamic metrics cron (daily Perplexity fetch of OpenAI, CapEx, VC, ROI data)
     initKiBoomDynamicCron();
     initGapFillingCron();
+    // Learning-Koordination: wöchentliche Lernschleifen (Regime-Priors + Signal-
+    // Weight-Optimizer) — vorher nur per Admin-Klick, Defaults blieben sonst ewig.
+    initLearningCron();
   });
 }
 
