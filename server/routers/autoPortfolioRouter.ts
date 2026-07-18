@@ -705,10 +705,10 @@ export const autoPortfolioRouter = router({
         console.log(`[buildProposal] Enriching prices for ${missingPriceTickers.length} external candidates: ${missingPriceTickers.join(', ')}`);
         try {
           // 1) Aus DB laden (falls Ticker bereits bekannt)
-          const { stocksTable } = await import('../../drizzle/schema');
-          const dbPrices = await db.select({ ticker: stocksTable.ticker, currentPrice: stocksTable.currentPrice, exchangeRateToChf: stocksTable.exchangeRateToChf })
-            .from(stocksTable)
-            .then(rows => new Map(rows.map(r => [r.ticker.toUpperCase(), r])));
+          const { stocks: stocksTbl } = await import('../../drizzle/schema');
+          const dbPriceRows = await db.select({ ticker: stocksTbl.ticker, currentPrice: stocksTbl.currentPrice, exchangeRateToChf: stocksTbl.exchangeRateToChf })
+            .from(stocksTbl);
+          const dbPrices = new Map(dbPriceRows.map((r: any) => [String(r.ticker).toUpperCase(), r]));
           for (const p of positions) {
             if (!p.currentPrice || p.currentPrice === 0) {
               const dbRow = dbPrices.get(p.ticker.toUpperCase());
@@ -719,12 +719,13 @@ export const autoPortfolioRouter = router({
             }
           }
           // 2) Noch fehlende Preise via EODHD-Quote-API laden
+          const { ENV: envCfg } = await import('../_core/env');
           const stillMissing = positions.filter(p => !p.currentPrice || p.currentPrice === 0);
-          if (stillMissing.length > 0 && ENV.eodhdApiKey) {
+          if (stillMissing.length > 0 && envCfg.eodhdApiKey) {
             for (const p of stillMissing) {
               try {
                 const eoTicker = p.ticker.includes('.') ? p.ticker : `${p.ticker}.US`;
-                const url = `https://eodhd.com/api/real-time/${eoTicker}?api_token=${ENV.eodhdApiKey}&fmt=json`;
+                const url = `https://eodhd.com/api/real-time/${eoTicker}?api_token=${envCfg.eodhdApiKey}&fmt=json`;
                 const resp = await fetch(url);
                 if (resp.ok) {
                   const data: any = await resp.json();
