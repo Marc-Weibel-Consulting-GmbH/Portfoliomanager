@@ -33,7 +33,7 @@ export function getUserErrorMessage(error: unknown): string {
       return error.message;
     }
     // FORBIDDEN: Der Server formuliert hier bewusste, kundengerechte deutsche
-    // Meldungen — vor allem die Plan-/Paywall-Hinweise («… Teil von Plus/Pro.
+    // Meldungen — vor allem die Plan-/Paywall-Hinweise («… Teil von Basic/Pro.
     // Jetzt upgraden …», «Ihr Plan erlaubt maximal N …»). Diese durchreichen
     // statt sie durch einen generischen Text zu ersetzen, macht die Gates zu
     // sofort verständlichen Upgrade-Prompts. Nur echte englische Roh-Codes

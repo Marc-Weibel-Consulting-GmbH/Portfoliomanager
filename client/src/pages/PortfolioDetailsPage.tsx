@@ -91,6 +91,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getUserErrorMessage } from "@/lib/errorMessages";
 import { ViewDensityToggle } from "@/components/ViewDensityToggle";
 import { useViewDensity } from "@/contexts/ViewDensityContext";
+import { FeatureGate } from "@/components/FeatureGate";
 import {
   Dialog,
   DialogContent,
@@ -2715,8 +2716,15 @@ export default function PortfolioDetailsPage() {
           </TabsContent>
 
           {/* OPTIMIERUNG & EMPFEHLUNGEN — F3: konsolidiert (Optimieren KI + Empfehlungen KI) */}
+          {/* Premium-Feature «optimizer» (Basic/Pro) — im Soft-Launch ohne Wirkung. */}
           <TabsContent value="optimierung" className="mt-6">
-            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} />
+            <FeatureGate
+              feature="optimizer"
+              title="Portfolio-Optimierung & KI-Empfehlungen"
+              description="Lassen Sie Ihr Portfolio optimieren und erhalten Sie konkrete KI-Umschichtungsvorschläge. Teil von Basic und Pro."
+            >
+              <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} />
+            </FeatureGate>
           </TabsContent>
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}

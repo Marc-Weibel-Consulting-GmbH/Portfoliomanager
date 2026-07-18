@@ -114,11 +114,11 @@ export default function Pricing() {
             </CardContent>
           </Card>
 
-          {/* Plus (hervorgehoben) */}
+          {/* Basic (hervorgehoben) */}
           <Card className="border-primary bg-slate-900/70 backdrop-blur relative shadow-lg shadow-primary/10">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary text-slate-900 text-xs font-semibold">Beliebt</div>
             <CardHeader className="text-center pb-6 pt-8">
-              <CardTitle className="text-2xl mb-2 text-white">Plus</CardTitle>
+              <CardTitle className="text-2xl mb-2 text-white">Basic</CardTitle>
               <div className="mb-1">
                 <span className="text-5xl font-bold text-white">CHF {PRICES.plus[interval]}</span>
                 <span className="text-slate-400 ml-2">/ {interval === "month" ? "Monat" : "Jahr"}</span>
@@ -138,7 +138,7 @@ export default function Pricing() {
               </ul>
               <Button className="w-full bg-primary hover:bg-primary/90 text-slate-900"
                 disabled={checkout.isPending} onClick={() => startCheckout("plus")}>
-                {checkout.isPending ? "Wird geöffnet…" : "Plus wählen"}
+                {checkout.isPending ? "Wird geöffnet…" : "Basic wählen"}
               </Button>
             </CardContent>
           </Card>
@@ -155,7 +155,7 @@ export default function Pricing() {
             </CardHeader>
             <CardContent className="space-y-5">
               <ul className="space-y-3">
-                <FeatureItem included premium text="Alles aus Plus" />
+                <FeatureItem included premium text="Alles aus Basic" />
                 <FeatureItem included premium text="Unbegrenzte Live-Portfolios" />
                 <FeatureItem included premium text="Exakter Optimierer + Sektor-Caps" />
                 <FeatureItem included premium text="Multi-Agent-Challenge-Report" />
@@ -187,8 +187,8 @@ export default function Pricing() {
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold text-white mb-8 text-center">Häufig gestellte Fragen</h2>
           <div className="space-y-6">
-            <FAQItem question="Was unterscheidet Plus von Pro?"
-              answer="Plus deckt alles ab, was Sie für Ihr reales Depot brauchen: Echtzeit-Tracking, KI-Auto-Portfolio, Steuer-Reporting. Pro ist für aktive Anleger mit mehreren Depots — mit exaktem Optimierer, Sektor-Caps, Multi-Agent-Challenge-Report und unbegrenztem Copilot." />
+            <FAQItem question="Was unterscheidet Basic von Pro?"
+              answer="Basic deckt alles ab, was Sie für Ihr reales Depot brauchen: Echtzeit-Tracking, KI-Auto-Portfolio, Steuer-Reporting. Pro ist für aktive Anleger mit mehreren Depots — mit exaktem Optimierer, Sektor-Caps, Multi-Agent-Challenge-Report und unbegrenztem Copilot." />
             <FAQItem question="Kann ich jederzeit kündigen?"
               answer="Ja. Sie verwalten Ihr Abo (Kündigung, Zahlungsmittel, Rechnungen) selbst über das Kundenportal unter Einstellungen › Abo. Bei jährlicher Zahlung läuft der Zugriff bis zum Periodenende." />
             <FAQItem question="Welche Zahlungsmethoden werden akzeptiert?"
