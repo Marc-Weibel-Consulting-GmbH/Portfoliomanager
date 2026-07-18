@@ -385,3 +385,11 @@
 - [x] InsightFactor: description-Feld hinzugefügt (optionale Erklärung pro Faktor)
 - [x] Signale-Tab: InsightTooltip auf Score (M+Q+LPPL) — Hover zeigt Berechnungslogik
 - [x] Signale-Tab: InsightTooltip auf Kriterien-Badges — Hover erklärt Kriterium
+
+## HTTP 524 Timeout Fix — Async-Job-Muster (Jul 2026)
+- [x] Backend: startProposal-Prozedur — gibt sofort jobId zurück, KI-Analyse läuft im Hintergrund (in-memory ProposalJob Registry)
+- [x] Backend: getProposalStatus-Prozedur — Polling-Endpoint mit Status, Progress-Array und Ergebnis
+- [x] Backend: Job-Cleanup-Intervall (alle 30 Min, Jobs älter als 2h werden gelöscht)
+- [x] Frontend: PortfolioBuilderWizard — startProposal + getProposalStatus Polling (alle 3s) statt blockierendem buildProposal
+- [x] Frontend: Progress-Anzeige mit Schritt-für-Schritt-Fortschritt (Berechtigungen → Profil → Diversifikation → Markt-Hub → Scoring → Positionen → Fundamentaldaten → Challenger → Synthesizer)
+- [x] End-to-End Test: Job startet sofort, läuft ~5 Min im Hintergrund, Ergebnis erscheint ohne 524-Fehler

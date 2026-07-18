@@ -1,4 +1,5 @@
 import { router, protectedProcedure } from "../_core/trpc";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { invokeLLM, invokeKimi } from "../_core/llm";
 import {
@@ -10,6 +11,30 @@ import {
   describeSectorTilts,
   type MarktHubSignals,
 } from "../lib/marktHubSignals";
+
+// ── In-memory proposal job registry ──────────────────────────────────────────
+// Stores running/completed proposal jobs per user. TTL: 30 minutes.
+type ProposalJobStatus = 'running' | 'done' | 'error';
+interface ProposalJob {
+  status: ProposalJobStatus;
+  progress: string[];
+  result: any | null;
+  error: string | null;
+  userId: number;
+  startedAt: number;
+}
+const proposalJobs = new Map<string, ProposalJob>();
+const PROPOSAL_JOB_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+// Cleanup expired jobs every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, job] of proposalJobs.entries()) {
+    if (now - job.startedAt > PROPOSAL_JOB_TTL_MS) {
+      proposalJobs.delete(id);
+    }
+  }
+}, 10 * 60 * 1000);
 
 export const autoPortfolioRouter = router({
   /**
@@ -1233,6 +1258,461 @@ Antworte im JSON-Format.`,
             hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 350,
           },
         },
+      };
+    }),
+
+  /**
+   * F4b: Nicht-blockierender Portfolio-Vorschlag (Async-Job-Muster).
+   * Gibt sofort eine jobId zurück. Polling via getProposalStatus.
+   * Löst den HTTP 524 Timeout bei langen Kimi-K3-Anfragen.
+   */
+  startProposal: protectedProcedure
+    .input(z.object({ investmentAmount: z.number().positive().optional() }).optional())
+    .mutation(async ({ ctx, input }) => {
+      const jobId = randomUUID();
+      const job: ProposalJob = {
+        status: 'running',
+        progress: ['Job gestartet...'],
+        result: null,
+        error: null,
+        userId: ctx.user.id,
+        startedAt: Date.now(),
+      };
+      proposalJobs.set(jobId, job);
+
+      // Launch the full buildProposal logic in background (non-blocking)
+      (async () => {
+        try {
+          job.progress.push('Berechtigungen prüfen...');
+          const { requireFeature } = await import('../lib/entitlements');
+          await requireFeature(ctx.user, 'auto_portfolio');
+
+          const { getDb } = await import('../db');
+          const db = await getDb();
+          if (!db) throw new Error('Datenbank nicht verfügbar');
+
+          const { eq, and, gte, asc } = await import('drizzle-orm');
+          const { userInvestmentProfile, stocks: stocksTable, historicalPrices } = await import('../../drizzle/schema');
+
+          job.progress.push('Anlageprofil laden...');
+          const [profile] = await db.select().from(userInvestmentProfile).where(eq(userInvestmentProfile.userId, ctx.user.id)).limit(1);
+          if (!profile) throw new Error('Kein Anlageprofil hinterlegt. Bitte legen Sie zuerst unter Einstellungen › Anlageprofil Ihr Risikoprofil und Ihre Anlageziele fest.');
+
+          const excludedSectors: string[] = (profile.excludedSectors as string[] | null) ?? [];
+          const goal = profile.investmentGoal;
+          const riskProfile = profile.riskProfile;
+          const esgOnly = profile.esgOnly === 1;
+          const liquidityNeedPct = profile.liquidityNeedPct ?? 0;
+          const targetReturnPct = profile.targetReturnPct != null ? parseFloat(String(profile.targetReturnPct)) : null;
+          const referenceCurrency: string = (profile.referenceCurrency as string | null) ?? 'CHF';
+          const maxFxExposurePct: number = profile.maxFxExposurePct != null
+            ? parseFloat(String(profile.maxFxExposurePct))
+            : riskProfile === 'aggressiv' ? 80 : riskProfile === 'konservativ' ? 40 : 60;
+
+          job.progress.push('Diversifikationsregeln laden...');
+          const { getDiversificationRules } = await import('../lib/diversificationRules');
+          const rules = await getDiversificationRules();
+          const { optimizerParamsForProfile } = await import('../lib/profileOptimizerParams');
+          const params = optimizerParamsForProfile({ riskProfile, maxDrawdownTolerancePct: profile.maxDrawdownTolerancePct, investmentHorizonYears: profile.investmentHorizonYears }, rules);
+
+          job.progress.push('Markt-Hub-Signale laden...');
+          let marktHubSignals: MarktHubSignals;
+          try {
+            marktHubSignals = await getMarktHubSignals();
+          } catch (mhErr: any) {
+            marktHubSignals = { macro: { yieldCurveSpread: null, coreCpi: null, fedFundsRate: null, dgs10: null, hySpread: null, chfUsd: null }, regime: { regime: 'Neutral', overallScore: 0, equityAllocation: 60, regimeMultiplier: 1.0 }, factors: { valueYtd: null, momentumYtd: null, qualityYtd: null, minVolYtd: null, leadingFactor: null }, latestReportSummary: null, latestReportDate: null, hasData: false, fetchedAt: new Date().toISOString() };
+          }
+          const sectorTilts = getSectorTilts(marktHubSignals);
+          const { getRiskFreeRate } = await import('../lib/riskFreeRate');
+          const dynamicRiskFreeRate = await getRiskFreeRate();
+
+          job.progress.push('Kandidaten-Universum aufbauen...');
+          const { eq: eqOp } = await import('drizzle-orm');
+          const watchlistRecs = await db.select({ ticker: stocksTable.ticker }).from(stocksTable).where(eqOp(stocksTable.listType, 'empfehlung'));
+          const watchlistRecTickers = new Set(watchlistRecs.map((r: any) => r.ticker.toUpperCase()));
+          const notes: string[] = [];
+          if (esgOnly) notes.push('Ihr ESG-Wunsch ist hinterlegt, kann aber noch nicht angewendet werden — für die Titel liegen keine ESG-Daten vor. Der Vorschlag ist NICHT ESG-gefiltert.');
+
+          const allStocks = await db.select().from(stocksTable);
+          const SECTOR_UNDERPERFORM_THRESHOLD = -20;
+          const ytdBySector: Record<string, number[]> = {};
+          for (const s of allStocks as any[]) {
+            const ytd = s.ytdPerformance != null ? parseFloat(String(s.ytdPerformance)) : NaN;
+            if (!Number.isFinite(ytd)) continue;
+            const key = s.sector || 'Andere';
+            (ytdBySector[key] ||= []).push(ytd);
+          }
+          const median = (arr: number[]) => { const a = [...arr].sort((x, y) => x - y); const mid = Math.floor(a.length / 2); return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2; };
+          const sectorBenchmarkYtd: Record<string, number> = {};
+          for (const [sec, vals] of Object.entries(ytdBySector)) sectorBenchmarkYtd[sec] = vals.length >= 3 ? median(vals) : 0;
+          const MIN_MARKET_CAP_M = 500;
+          const TICKER_BLACKLIST = new Set(['GPW', 'GPW.WA', 'DB1', 'DB1.DE', 'LSE', 'LSE.L', 'ICE', 'CME', 'CBOE', 'NDAQ']);
+          const baseTickerSeen = new Map<string, number>();
+          const deduplicatedStocks: typeof allStocks = [];
+          for (const s of allStocks as any[]) {
+            const tickerStr = String(s.ticker ?? '');
+            const base = tickerStr.split('.')[0].toUpperCase();
+            const hasSuffix = tickerStr.includes('.');
+            if (!baseTickerSeen.has(base)) { baseTickerSeen.set(base, deduplicatedStocks.length); deduplicatedStocks.push(s); }
+            else if (!hasSuffix) { const existingIdx = baseTickerSeen.get(base)!; deduplicatedStocks[existingIdx] = s; }
+          }
+          const universe = deduplicatedStocks.filter((s: any) => {
+            const tickerUpper = String(s.ticker ?? '').toUpperCase();
+            const baseUpper = tickerUpper.split('.')[0];
+            if (TICKER_BLACKLIST.has(tickerUpper) || TICKER_BLACKLIST.has(baseUpper)) return false;
+            const price = parseFloat(s.currentPrice ?? '0');
+            if (!(price > 0)) return false;
+            if (s.sector && excludedSectors.includes(s.sector)) return false;
+            if (!watchlistRecTickers.has(s.ticker.toUpperCase())) {
+              const mcapRaw = s.marketCap ? String(s.marketCap).replace(/[^0-9.]/g, '') : '';
+              const mcapM = mcapRaw ? parseFloat(mcapRaw) / 1_000_000 : null;
+              if (mcapM === null || mcapM < MIN_MARKET_CAP_M) return false;
+            }
+            const ytdPerf = parseFloat(s.ytdPerformance ?? '0') || 0;
+            const sectorKey = s.sector || 'Andere';
+            const sectorBenchmark = sectorBenchmarkYtd[sectorKey] ?? 0;
+            if (ytdPerf - sectorBenchmark < SECTOR_UNDERPERFORM_THRESHOLD && !watchlistRecTickers.has(s.ticker.toUpperCase())) return false;
+            return true;
+          });
+
+          job.progress.push(`Scoring und Ranking (${universe.length} Titel)...`);
+          const universeTickers = universe.map((s: any) => s.ticker.toUpperCase());
+          const { inArray } = await import('drizzle-orm');
+          const watchlistScores = await db.select({ ticker: stocksTable.ticker, signalScore: stocksTable.signalScore, signalType: stocksTable.signalType, sector: stocksTable.sector, dividendYield: stocksTable.dividendYield, rsi14: stocksTable.rsi14 }).from(stocksTable).where(inArray(stocksTable.ticker, universeTickers));
+          const watchlistScoreMap = new Map(watchlistScores.map((w: any) => [w.ticker.toUpperCase(), w]));
+          const { stockSignalCache } = await import('../../drizzle/schema');
+          const cacheRows = await db.select({ ticker: stockSignalCache.ticker, combinedScore: stockSignalCache.combinedScore, updatedAt: stockSignalCache.updatedAt }).from(stockSignalCache).where(inArray(stockSignalCache.ticker, universeTickers));
+          const CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+          const cacheScoreMap = new Map<string, number>();
+          for (const r of cacheRows) {
+            const score = r.combinedScore != null ? parseFloat(String(r.combinedScore)) : NaN;
+            const fresh = r.updatedAt instanceof Date ? Date.now() - r.updatedAt.getTime() < CACHE_MAX_AGE_MS : true;
+            if (Number.isFinite(score) && fresh) cacheScoreMap.set(r.ticker.toUpperCase(), score);
+          }
+          let cacheFallbackCount = 0;
+          const scored = universe.map((s: any) => {
+            const wl = watchlistScoreMap.get(s.ticker.toUpperCase());
+            const cachedCombined = cacheScoreMap.get(s.ticker.toUpperCase());
+            if (cachedCombined === undefined) cacheFallbackCount++;
+            const rawScore = cachedCombined ?? wl?.signalScore ?? s.signalScore ?? 50;
+            const signalType = wl?.signalType ?? s.signalType ?? 'hold';
+            const signal = signalType === 'buy' ? 'BUY' : signalType === 'sell' ? 'SELL' : 'HOLD';
+            const grade = (score: number) => score >= 80 ? 'A' : score >= 65 ? 'B' : score >= 50 ? 'C' : score >= 35 ? 'D' : 'F';
+            const ytdRaw = s.ytdPerformance;
+            const ytdPerf = ytdRaw !== null && ytdRaw !== undefined ? parseFloat(String(ytdRaw)) || 0 : null;
+            const ytdHasData = ytdPerf !== null;
+            let momentumAdj = 0;
+            if (!ytdHasData) momentumAdj = -5;
+            else if (ytdPerf! > 20) momentumAdj = 8;
+            else if (ytdPerf! > 10) momentumAdj = 5;
+            else if (ytdPerf! > 5) momentumAdj = 2;
+            else if (ytdPerf! < -20) momentumAdj = -15;
+            else if (ytdPerf! < -15) momentumAdj = -10;
+            else if (ytdPerf! < -10) momentumAdj = -5;
+            let goalAdj = 0;
+            if (goal === 'dividends') {
+              const divYield = parseFloat(wl?.dividendYield ?? s.dividendYield ?? '0');
+              if (divYield >= 4) goalAdj += 5; else if (divYield >= 2) goalAdj += 2; else if (divYield < 1) goalAdj -= 5;
+            }
+            const stockCurrency = (s.currency || 'CHF') === 'GBp' ? 'GBP' : (s.currency || 'CHF');
+            const isForeignCurrency = stockCurrency !== referenceCurrency;
+            let fxAdj = 0;
+            if (isForeignCurrency) { if (riskProfile === 'konservativ') fxAdj = -8; else if (riskProfile === 'ausgewogen') fxAdj = -4; else fxAdj = -2; }
+            const sectorAdj = getSectorTiltForStock(s.sector, sectorTilts);
+            const divYieldNum = parseFloat(wl?.dividendYield ?? s.dividendYield ?? '0');
+            const factorAdj = getFactorTilt({ dividendYield: divYieldNum, ytdPerf: null, signalScore: rawScore, riskProfile, goal }, marktHubSignals.factors);
+            const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + fxAdj + sectorAdj + factorAdj));
+            const scoreGrade = grade(combinedScore);
+            return { stock: s, combinedScore, rawScore, ytdPerf, signal, scoreGrade, dividendYield: parseFloat(wl?.dividendYield ?? s.dividendYield ?? '0'), regime: 'normal' as const };
+          }).filter((x) => x.combinedScore > 0);
+          if (scored.length < 2) throw new Error('Zu wenige bewertete Titel gefunden. Bitte aktualisieren Sie die Watchlist-Scores.');
+          if (universe.length > 0 && cacheFallbackCount / universe.length > 0.3) notes.push(`Signal-Cache unvollständig — für ${cacheFallbackCount} von ${universe.length} Titeln wurde der Basis-Score verwendet.`);
+
+          // Universe expansion (non-fatal)
+          let universalCandidates: any[] = [];
+          try {
+            const { analyzeGaps, findExternalCandidates, storeExternalCandidates } = await import('../lib/universeExpansion');
+            const existingTickers = new Set(scored.map((x: any) => x.stock.ticker.toUpperCase()));
+            const gaps = analyzeGaps(scored.map((x: any) => ({ ticker: x.stock.ticker, sector: x.stock.sector, dividendYield: x.dividendYield, sharpeRatio: null, ytdPerformance: x.stock.ytdPerformance?.toString() ?? null, peRatio: x.stock.peRatio })), rules.maxTitles, excludedSectors, goal ?? 'balanced');
+            if (gaps.totalGaps > 0) {
+              const externalCandidates = await findExternalCandidates(gaps, existingTickers, referenceCurrency);
+              if (externalCandidates.length > 0) {
+                storeExternalCandidates(externalCandidates).catch((e: any) => console.warn('[startProposal] storeExternalCandidates non-fatal:', e));
+                for (const ec of externalCandidates) universalCandidates.push({ stock: { ticker: ec.ticker, companyName: ec.companyName, sector: ec.sector, currency: ec.currency, currentPrice: 0, ytdPerformance: null, peRatio: null, dividendYield: ec.dividendYield ?? 0, marketCap: null, signalType: 'HOLD', listType: 'watchlist' }, combinedScore: 60, signal: 'HOLD', scoreGrade: 'B', dividendYield: ec.dividendYield ?? 0, regime: 'normal', isUniverseExpansion: true, gapReason: ec.gapReason, closesGap: ec.closesGap });
+                const gapDesc = [...gaps.sectorGaps.map((g: any) => g.sector), ...gaps.factorGaps.map((g: any) => g.description)].join(', ');
+                notes.push(`Universum-Erweiterung: ${externalCandidates.length} neue Titel ergänzt (max. 20% des Vorschlags) um Lücken zu schließen: ${gapDesc}.`);
+              }
+            }
+          } catch (expansionErr: any) { console.warn('[startProposal] Universe expansion non-fatal:', expansionErr?.message); }
+          const allCandidates = [...scored, ...universalCandidates];
+
+          // Ranking + selection
+          const rankKey = (x: any) => { let score = x.combinedScore; if (goal === 'dividends') score += Math.min(x.dividendYield * 100, 5) * 2; if (watchlistRecTickers.has(x.stock.ticker.toUpperCase())) score += 10; return score; };
+          const isBuyable = (x: any) => x.signal !== 'SELL' && x.scoreGrade !== 'F';
+          let qualityTier: 'kaufkandidaten' | 'erweitert' | 'basis' = 'kaufkandidaten';
+          const stableSort = (arr: any[]) => arr.sort((a, b) => { const diff = rankKey(b) - rankKey(a); if (diff !== 0) return diff; return (a.stock.ticker as string).localeCompare(b.stock.ticker as string); });
+          let ranked = stableSort(allCandidates.filter((x) => isBuyable(x) && x.combinedScore >= 55));
+          if (ranked.length < rules.minTitles) { qualityTier = 'erweitert'; ranked = stableSort(allCandidates.filter((x) => x.signal !== 'SELL' && x.scoreGrade !== 'F' && x.combinedScore >= 45)); }
+          if (ranked.length < rules.minTitles) { qualityTier = 'basis'; ranked = stableSort(allCandidates.filter((x) => x.signal !== 'SELL')); }
+          if (qualityTier !== 'kaufkandidaten') notes.push(qualityTier === 'erweitert' ? 'Zu wenige klare Kaufkandidaten (Score ≥ 55) — die Auswahl enthält auch neutrale Titel mit Score ≥ 45.' : 'Sehr wenige geeignete Kandidaten — die Auswahl umfasst alle Titel ohne Verkaufssignal, unabhängig vom Score.');
+          const target = Math.min(rules.maxTitles, ranked.length);
+          const maxPerSector = Math.max(1, Math.floor((rules.maxSectorPercent / 100) * target));
+          const selected: any[] = [];
+          const sectorCount: Record<string, number> = {};
+          let currentFxWeightPct = 0;
+          for (const c of ranked) {
+            if (selected.length >= rules.maxTitles) break;
+            const estimatedWeight = 100 / Math.max(1, target);
+            const stockCur = (c.stock.currency || 'CHF') === 'GBp' ? 'GBP' : (c.stock.currency || 'CHF');
+            const isFx = stockCur !== referenceCurrency;
+            if (isFx && currentFxWeightPct + estimatedWeight > maxFxExposurePct && selected.length >= rules.minTitles) continue;
+            const sec = c.stock.sector || 'Andere';
+            if ((sectorCount[sec] || 0) >= maxPerSector) continue;
+            selected.push(c);
+            sectorCount[sec] = (sectorCount[sec] || 0) + 1;
+            if (isFx) currentFxWeightPct += estimatedWeight;
+          }
+          if (selected.length < 2) throw new Error('Zu wenige geeignete Kandidaten nach Anwendung der Diversifikationsregeln.');
+
+          job.progress.push('Portfolio-Optimierung läuft...');
+          const method = goal === 'dividends' ? 'max_dividend' : params.method;
+          const selectedTickers = selected.map((c) => c.stock.ticker);
+          let weights: Record<string, number> = {};
+          let weightingSource: 'optimizer' | 'score_fallback' = 'optimizer';
+          let weightingNote: string | null = null;
+          let weightingEngine: 'exact' | 'random_search' | 'analytic' | null = null;
+          let proposalMetrics: { expectedReturnPct: number; volatilityPct: number; sharpe: number } | null = null;
+          try {
+            const { optimizePortfolio } = await import('../analytics/engine');
+            const opt = await optimizePortfolio({ tickers: selectedTickers, method, minPositionWeight: params.minPositionWeight, maxPositionWeight: params.maxPositionWeight, riskFreeRate: dynamicRiskFreeRate, sectorByTicker: Object.fromEntries(selected.map((c) => [c.stock.ticker, c.stock.sector || 'Andere'])), maxSectorWeightPct: rules.maxSectorPercent });
+            weights = { ...opt.weights };
+            weightingEngine = opt.optimizerEngine ?? 'random_search';
+            const rawReturn = opt.optimalPortfolio.expectedReturn;
+            const rawVol = opt.optimalPortfolio.volatility;
+            const rawSharpe = opt.optimalPortfolio.sharpe;
+            if (Number.isFinite(rawReturn) && Number.isFinite(rawVol) && Number.isFinite(rawSharpe)) {
+              proposalMetrics = { expectedReturnPct: Math.round(rawReturn * 1000) / 10, volatilityPct: Math.round(rawVol * 1000) / 10, sharpe: rawSharpe };
+            } else { proposalMetrics = null; weightingNote = (weightingNote ? weightingNote + ' ' : '') + 'Kennzahlen konnten nicht berechnet werden (unvollständige Kurshistorie für einige Titel).'; }
+            const excluded = opt.excludedShortHistory ?? [];
+            if (excluded.length > 0) weightingNote = `Ohne ${excluded.map((e: any) => e.ticker).join(', ')} — zu wenig Kurshistorie für die Optimierung.`;
+          } catch (e: any) {
+            weightingSource = 'score_fallback';
+            weightingNote = `Optimierung nicht möglich (${e?.message ?? 'unbekannter Fehler'}) — Gewichtung score-proportional.`;
+            const maxCap = Math.max(params.maxPositionWeight, 1.2 / selected.length);
+            const scoringWithBonus = selected.map((c) => ({ ticker: c.stock.ticker, adjustedScore: c.combinedScore + (watchlistRecTickers.has(c.stock.ticker.toUpperCase()) ? 10 : 0) }));
+            const total = scoringWithBonus.reduce((s, c) => s + c.adjustedScore, 0) || 1;
+            scoringWithBonus.forEach((c) => { weights[c.ticker] = c.adjustedScore / total; });
+            let changed = true;
+            while (changed) {
+              changed = false;
+              const sum = Object.values(weights).reduce((s, v) => s + v, 0) || 1;
+              const normalized: Record<string, number> = {};
+              let cappedSum = 0; let uncappedSum = 0;
+              for (const [t, v] of Object.entries(weights)) { const norm = v / sum; if (norm > maxCap) { normalized[t] = maxCap; cappedSum += maxCap; changed = true; } else { normalized[t] = norm; uncappedSum += norm; } }
+              if (changed && uncappedSum > 0) { const scale = (1 - cappedSum) / uncappedSum; for (const t of Object.keys(normalized)) { if (normalized[t] < maxCap) normalized[t] *= scale; } }
+              Object.assign(weights, normalized);
+            }
+          }
+
+          job.progress.push('Positionen aufbauen...');
+          const kept = selected.map((c) => ({ c, w: weights[c.stock.ticker] ?? 0 })).filter((x) => x.w > 0);
+          const wSum = kept.reduce((s, x) => s + x.w, 0) || 1;
+          const positions = kept.map(({ c, w }) => { const s = c.stock; return { ticker: s.ticker, companyName: s.companyName, sector: s.sector || 'Andere', currency: s.currency || 'CHF', currentPrice: parseFloat(s.currentPrice ?? '0'), exchangeRateToChf: s.exchangeRateToChf ? parseFloat(s.exchangeRateToChf) : 1, weightPct: parseFloat(((w / wSum) * 100).toFixed(2)), combinedScore: c.combinedScore, signal: c.signal, reason: `${c.signal} · Score-Note ${c.scoreGrade}` + (c.ytdPerf !== 0 && c.ytdPerf !== null ? ` · YTD ${c.ytdPerf > 0 ? '+' : ''}${c.ytdPerf.toFixed(1)}%` : '') + (watchlistRecTickers.has(s.ticker.toUpperCase()) ? ' · Watchlist-Empfehlung' : '') + (c.regime === 'bubble' ? ' · LPPL-Warnung' : '') }; }).sort((a, b) => b.weightPct - a.weightPct);
+
+          // Post-optimization sector/FX checks
+          const sectorWeightMap: Record<string, number> = {};
+          let fxWeightPct = 0;
+          for (const p of positions) { sectorWeightMap[p.sector] = (sectorWeightMap[p.sector] || 0) + p.weightPct; const cur = p.currency === 'GBp' ? 'GBP' : p.currency; if (cur !== referenceCurrency) fxWeightPct += p.weightPct; }
+          fxWeightPct = Math.round(fxWeightPct * 10) / 10;
+          const sectorWeights = Object.entries(sectorWeightMap).map(([name, weightPct]) => ({ name, weightPct: Math.round(weightPct * 10) / 10 })).sort((a, b) => b.weightPct - a.weightPct);
+          for (const sw of sectorWeights) { if (sw.weightPct > rules.maxSectorPercent + 0.5) notes.push(`Sektor ${sw.name} liegt nach der Optimierung bei ${sw.weightPct.toFixed(1)}% und damit über dem Sektor-Limit von ${rules.maxSectorPercent}%.`); }
+          if (fxWeightPct > maxFxExposurePct + 0.5) {
+            const fxPositions = positions.filter(p => (p.currency === 'GBp' ? 'GBP' : p.currency) !== referenceCurrency);
+            const chfPositions = positions.filter(p => (p.currency === 'GBp' ? 'GBP' : p.currency) === referenceCurrency);
+            const targetFxTotal = maxFxExposurePct; const currentFxTotal = fxWeightPct; const scaleFactor = targetFxTotal / currentFxTotal;
+            fxPositions.forEach(p => { p.weightPct = parseFloat((p.weightPct * scaleFactor).toFixed(2)); });
+            const freedWeight = fxWeightPct - targetFxTotal; const chfTotal = chfPositions.reduce((s, p) => s + p.weightPct, 0) || 1;
+            chfPositions.forEach(p => { p.weightPct = parseFloat((p.weightPct + freedWeight * (p.weightPct / chfTotal)).toFixed(2)); });
+            fxWeightPct = Math.round(fxPositions.reduce((s, p) => s + p.weightPct, 0) * 10) / 10;
+            notes.push(`Fremdwährungsanteil wurde auf ${fxWeightPct.toFixed(1)}% reduziert (Limit: ${maxFxExposurePct}%) — FX-Positionen wurden proportional gekürzt.`);
+          }
+          if (liquidityNeedPct > 0 && liquidityNeedPct < 100) { const equityPct = 1 - liquidityNeedPct / 100; positions.forEach((p) => { p.weightPct = parseFloat((p.weightPct * equityPct).toFixed(2)); }); }
+
+          // Price enrichment for external candidates
+          const missingPriceTickers = positions.filter(p => !p.currentPrice || p.currentPrice === 0).map(p => p.ticker);
+          if (missingPriceTickers.length > 0) {
+            try {
+              const { stocks: stocksTbl } = await import('../../drizzle/schema');
+              const dbPriceRows = await db.select({ ticker: stocksTbl.ticker, currentPrice: stocksTbl.currentPrice, exchangeRateToChf: stocksTbl.exchangeRateToChf }).from(stocksTbl);
+              const dbPrices = new Map(dbPriceRows.map((r: any) => [String(r.ticker).toUpperCase(), r]));
+              for (const p of positions) { if (!p.currentPrice || p.currentPrice === 0) { const dbRow = dbPrices.get(p.ticker.toUpperCase()); if (dbRow?.currentPrice) { p.currentPrice = parseFloat(String(dbRow.currentPrice)); if (dbRow.exchangeRateToChf) p.exchangeRateToChf = parseFloat(String(dbRow.exchangeRateToChf)); } } }
+            } catch (e) { console.warn('[startProposal] Price enrichment failed (non-fatal):', e); }
+          }
+
+          // Multi-agent challenge layer
+          let challengeReport: any = null;
+          let proposalLogId: number | null = null;
+          try {
+            const positionSummary = positions.map(p => ({ ticker: p.ticker, name: p.companyName, sector: p.sector, currency: p.currency, weight: p.weightPct, score: p.combinedScore, signal: p.signal, ytd: (p as any).ytdPerf ?? null, reason: p.reason }));
+            const candidatePool = scored.filter(x => !positions.find(p => p.ticker === x.stock.ticker)).filter(x => isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore).slice(0, 15).map(x => ({ ticker: x.stock.ticker, name: x.stock.companyName, sector: x.stock.sector, score: x.combinedScore, signal: x.signal }));
+            const profileSummary = `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%` + (esgOnly ? ', ESG-Wunsch: ja (Filter noch NICHT verfügbar)' : '');
+
+            job.progress.push('KI-Analyse: Fundamentaldaten laden...');
+            const { getFundamentalsFactsBatch } = await import('../lib/financialDatasets');
+            const usFundamentals = await getFundamentalsFactsBatch(positions.map((p) => p.ticker), 3, 5000);
+
+            const factsSummary = [
+              `Sektor-Gewichte: ${sectorWeights.map((s) => `${s.name} ${s.weightPct.toFixed(1)}%`).join(', ')} (Limit je Sektor: ${rules.maxSectorPercent}%)`,
+              `Fremdwährungsanteil: ${fxWeightPct.toFixed(1)}% (Limit: ${maxFxExposurePct}%)`,
+              proposalMetrics ? `Erwartete Kennzahlen: Rendite ${proposalMetrics.expectedReturnPct.toFixed(1)}% p.a., Volatilität ${proposalMetrics.volatilityPct.toFixed(1)}%, Sharpe ${proposalMetrics.sharpe.toFixed(2)}` : 'Gewichtung: Score-Fallback',
+              `Auswahl-Qualitätsstufe: ${qualityTier}`,
+              ...(usFundamentals.length > 0 ? [`Fundamentaldaten (Financial Datasets, nur US-Titel):\n${usFundamentals.map((f) => `  - ${f.summary}`).join('\n')}`] : []),
+            ].join('\n');
+
+            const marktHubContext = buildMarktHubContext(marktHubSignals);
+            const sectorTiltsDescription = describeSectorTilts(sectorTilts);
+            const marktHubContextBlock = marktHubContext ? `\n\n**Aktuelle Markt-Hub-Signale:**\n${marktHubContext}\n\nAktive Sektor-Tilts: ${sectorTiltsDescription}\nMSCI Führender Faktor: ${marktHubSignals.factors.leadingFactor ?? 'unbekannt'}\n` : '';
+
+            job.progress.push('KI-Analyse: Challenger prüft Vorschlag...');
+            const challengerResponse = await invokeKimi({
+              messages: [
+                { role: 'system', content: 'Du bist ein kritischer Portfolio-Analyst ("Challenger"). Deine Aufgabe ist es, einen algorithmisch erstellten Portfolio-Vorschlag zu hinterfragen und Schwachstellen zu identifizieren. Antworte immer auf Deutsch. Sei präzise und konstruktiv kritisch. Fokussiere auf: Klumpenrisiken, fehlende Diversifikation, fragwürdige Einzeltitel, Widersprüche zum Anlegerprofil.' },
+                { role: 'user', content: `Analysiere diesen Portfolio-Vorschlag kritisch:\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen:\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen vorgeschlagen werden):\n${JSON.stringify(candidatePool, null, 2)}${marktHubContextBlock}\n\nIdentifiziere:\n1. Welche 1-3 Titel würdest du NICHT nehmen?\n2. Welche 1-3 Alternativen aus dem Kandidatenpool wären besser?\n3. Gibt es Klumpenrisiken?\n\nAntworte im JSON-Format.` },
+              ],
+              max_tokens: 4096,
+              response_format: { type: 'json_schema', json_schema: { name: 'challenger_analysis', strict: true, schema: { type: 'object', properties: { critique: { type: 'string' }, rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } }, alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } } }, required: ['critique', 'rejected', 'alternatives'], additionalProperties: false } } },
+            });
+            const challengerContent = challengerResponse.choices[0]?.message?.content as string | undefined;
+            const challengerResult = challengerContent ? JSON.parse(challengerContent) : { critique: '', rejected: [], alternatives: [] };
+            const positionTickers = new Set(positions.map((p) => p.ticker.toUpperCase()));
+            const poolTickers = new Set(candidatePool.map((c) => c.ticker.toUpperCase()));
+            challengerResult.rejected = (challengerResult.rejected ?? []).filter((r: any) => r?.ticker && positionTickers.has(String(r.ticker).toUpperCase()));
+            challengerResult.alternatives = (challengerResult.alternatives ?? []).filter((a: any) => a?.ticker && poolTickers.has(String(a.ticker).toUpperCase()));
+
+            // Admin feedback context for synthesizer
+            let adminFeedbackContext = '';
+            try {
+              const { portfolioProposalLog } = await import('../../drizzle/schema');
+              const { isNotNull, desc } = await import('drizzle-orm');
+              const recentFeedback = await db!.select({ adminFeedback: portfolioProposalLog.adminFeedback }).from(portfolioProposalLog).where(isNotNull(portfolioProposalLog.adminFeedback)).orderBy(desc(portfolioProposalLog.createdAt)).limit(8);
+              if (recentFeedback.length >= 2) {
+                const tickerActions: Record<string, { reduce: number; increase: number; replace: number; total: number }> = {};
+                for (const row of recentFeedback) { const fb = row.adminFeedback as any; if (!fb) continue; const changes: Array<{ ticker: string; action: string }> = [...(fb.reduced ?? []).map((t: string) => ({ ticker: t, action: 'reduce' })), ...(fb.increased ?? []).map((t: string) => ({ ticker: t, action: 'increase' })), ...(fb.replaced ?? []).map((t: string) => ({ ticker: t, action: 'replace' }))]; for (const c of changes) { if (!tickerActions[c.ticker]) tickerActions[c.ticker] = { reduce: 0, increase: 0, replace: 0, total: 0 }; tickerActions[c.ticker][c.action as 'reduce' | 'increase' | 'replace']++; tickerActions[c.ticker].total++; } }
+                const patterns = Object.entries(tickerActions).filter(([, v]) => v.total >= 2).map(([ticker, v]) => { const dominant = [...(['reduce', 'increase', 'replace'] as const)].sort((a, b) => v[b] - v[a])[0]; return `${ticker}: Admin hat ${v.total}x ${dominant === 'reduce' ? 'reduziert' : dominant === 'increase' ? 'erhöht' : 'ersetzt'}`; });
+                if (patterns.length > 0) adminFeedbackContext = `\n\nHistorisches Admin-Feedback (letzte ${recentFeedback.length} genehmigte Vorschläge):\n${patterns.join('\n')}\nBerücksichtige diese Muster bei deinen Empfehlungen.`;
+              }
+            } catch (fbErr) { console.warn('[startProposal] Could not load admin feedback:', fbErr); }
+
+            job.progress.push('KI-Analyse: Synthesizer erstellt Empfehlung...');
+            const agentStart = Date.now();
+            const synthesizerResponse = await invokeKimi({
+              messages: [
+                { role: 'system', content: 'Du bist ein erfahrener Portfolio-Manager ("Synthesizer"). Du erhältst einen algorithmischen Portfolio-Vorschlag und eine kritische Analyse eines Challengers. Moderiere die Erkenntnisse und erstelle eine finale Empfehlung. Antworte immer auf Deutsch.' },
+                { role: 'user', content: `Algorithmischer Vorschlag:\n${JSON.stringify(positionSummary, null, 2)}\n\nBerechnete Fakten:\n${factsSummary}\n\nChallenger-Kritik:\nGesamteinschätzung: ${challengerResult.critique}\nAbgelehnte Titel: ${JSON.stringify(challengerResult.rejected)}\nAlternativen: ${JSON.stringify(challengerResult.alternatives)}\n\nAnlegerprofil: ${profileSummary}${adminFeedbackContext}${marktHubContextBlock}\n\nErstelle:\n1. Dein Gesamturteil (2-3 Sätze)\n2. Konkrete Anpassungen: behalten/reduzieren/erhöhen/ersetzen?\n3. Gesamtvertrauen: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (alle anderen)\n\nAntworte im JSON-Format.` },
+              ],
+              max_tokens: 4096,
+              response_format: { type: 'json_schema', json_schema: { name: 'synthesizer_verdict', strict: true, schema: { type: 'object', properties: { verdict: { type: 'string' }, adjustments: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false } }, overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] } }, required: ['verdict', 'adjustments', 'overallConfidence'], additionalProperties: false } } },
+            });
+            const synthContent = synthesizerResponse.choices[0]?.message?.content as string | undefined;
+            const synthResult = synthContent ? JSON.parse(synthContent) : { verdict: '', adjustments: [], overallConfidence: 'mittel' };
+            synthResult.adjustments = (synthResult.adjustments ?? []).filter((adj: any) => { const t = adj?.ticker ? String(adj.ticker).toUpperCase() : ''; return t && (positionTickers.has(t) || poolTickers.has(t)); });
+            const agentDuration = Date.now() - agentStart;
+
+            challengeReport = { challengerCritique: challengerResult.critique, challengerRejected: challengerResult.rejected, challengerAlternatives: challengerResult.alternatives, synthesizerVerdict: synthResult.verdict, finalAdjustments: synthResult.adjustments, overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig', agentDuration };
+
+            // Kennzahlen-Filter
+            let meetsKennzahlenFilter: 'ja' | 'nein' | 'n/a' = 'n/a';
+            let kennzahlenFilterReason = '';
+            if (proposalMetrics) {
+              const proposalSharpe = proposalMetrics.sharpe;
+              const proposalDivYield = positions.reduce((sum, p) => { const wl = watchlistScoreMap.get(p.ticker.toUpperCase()); const div = parseFloat((wl as any)?.dividendYield ?? '0') || 0; return sum + div * (p.weightPct / 100); }, 0);
+              const sharpeOk = proposalSharpe > 0.3;
+              const divOk = goal === 'dividends' ? proposalDivYield >= 2 : true;
+              meetsKennzahlenFilter = (sharpeOk && divOk) ? 'ja' : 'nein';
+              if (!sharpeOk) kennzahlenFilterReason += `Sharpe ${proposalSharpe.toFixed(2)} < 0.3. `;
+              if (!divOk) kennzahlenFilterReason += `Dividendenrendite ${proposalDivYield.toFixed(1)}% < 2%. `;
+              if (meetsKennzahlenFilter === 'ja') kennzahlenFilterReason = `Sharpe ${proposalSharpe.toFixed(2)}, Div-Rendite ${proposalDivYield.toFixed(1)}% — Kennzahlen erfüllt.`;
+              if (meetsKennzahlenFilter === 'nein') notes.push(`⚠️ Kennzahlen-Filter: ${kennzahlenFilterReason.trim()}`);
+            }
+
+            // DB logging
+            try {
+              const { portfolioProposalLog } = await import('../../drizzle/schema');
+              const insertResult = await db.insert(portfolioProposalLog).values({ userId: ctx.user.id, riskProfile, investmentGoal: goal, referenceCurrency, maxFxExposurePct, investmentAmount: input?.investmentAmount ?? null, positionCount: positions.length, method, qualityTier, sharpe: proposalMetrics?.sharpe != null ? String(proposalMetrics.sharpe) as any : null, expectedReturnPct: proposalMetrics?.expectedReturnPct != null ? String(proposalMetrics.expectedReturnPct) as any : null, volatilityPct: proposalMetrics?.volatilityPct != null ? String(proposalMetrics.volatilityPct) as any : null, fxWeightPct: String(fxWeightPct) as any, positions: positions as any, challengerCritique: challengerResult.critique, challengerRejectedCount: challengerResult.rejected.length, synthesizerVerdict: synthResult.verdict, overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig', finalAdjustments: synthResult.adjustments as any, agentDurationMs: agentDuration, meetsKennzahlenFilter, kennzahlenFilterReason });
+              proposalLogId = (insertResult as any)?.insertId ?? null;
+              try { const { notifyOwner } = await import('../_core/notification'); const adminUrl = `/admin/proposal-analysis?proposalId=${proposalLogId}&returnTo=/portfolio-builder`; await notifyOwner({ title: `⚠️ Neuer KI-Vorschlag #${proposalLogId} wartet auf Review`, content: `Nutzer ${ctx.user.name ?? ctx.user.openId} hat einen neuen Portfolio-Vorschlag generiert.\n\nKonfidenz: ${synthResult.overallConfidence} | Positionen: ${positions.length}\n\nZum Review: ${adminUrl}` }); } catch (notifyErr: any) { console.warn(`[startProposal] Admin notification failed:`, notifyErr?.message); }
+            } catch (logErr: any) { console.warn(`[startProposal] DB logging failed:`, logErr?.message); }
+          } catch (agentErr: any) {
+            console.warn(`[startProposal] Multi-agent layer failed (non-fatal): ${agentErr?.message}`);
+          }
+
+          // Build final result (same shape as buildProposal)
+          const finalAdjustments = challengeReport?.finalAdjustments ?? [];
+          const adjustedPositions = (() => {
+            if (!finalAdjustments.length) return null;
+            const adj = finalAdjustments;
+            let adjusted = positions.map(p => ({ ...p }));
+            for (const a of adj) { const pos = adjusted.find(p => p.ticker.toUpperCase() === a.ticker.toUpperCase()); if (!pos) continue; if (a.action === 'reduce') pos.weightPct = Math.max(pos.weightPct * 0.65, 3); if (a.action === 'increase') pos.weightPct = Math.min(pos.weightPct * 1.35, 15); }
+            const replaceAdj = adj.filter((a: any) => a.action === 'replace');
+            if (replaceAdj.length > 0) {
+              const usedTickers = new Set(adjusted.map(p => p.ticker.toUpperCase()));
+              const candidates = scored.filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore);
+              for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung` }; }
+            }
+            const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
+            if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
+            return adjusted;
+          })();
+
+          const sectorTiltsForBadge = getSectorTilts(marktHubSignals);
+          const result = {
+            positions,
+            method,
+            methodLabel: weightingSource === 'optimizer' ? (method === 'min_variance' ? 'Min. Varianz' : method === 'max_dividend' ? 'Max. Dividende' : 'Max. Sharpe') : 'Score-gewichtet (Fallback)',
+            weighting: { source: weightingSource, engine: weightingEngine, note: weightingNote, minPositionPct: Math.round(params.minPositionWeight * 1000) / 10, maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10 },
+            metrics: proposalMetrics,
+            allocation: { sectors: sectorWeights, fxWeightPct, sectorCapPct: rules.maxSectorPercent, fxCapPct: maxFxExposurePct },
+            notes,
+            profile: { riskProfile, investmentGoal: goal, excludedSectors, esgOnly, liquidityNeedPct, targetReturnPct, referenceCurrency, maxFxExposurePct },
+            stats: { universeCount: universe.length, scoredCount: scored.length, buySignals: scored.filter((x) => x.combinedScore >= 55 && x.signal !== 'SELL').length, sellExcluded: scored.filter((x) => x.signal === 'SELL').length, selectedCount: positions.length, watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length, maxPositionPct: Math.max(...positions.map((p) => p.weightPct)), sectorBenchmarkFiltered: allStocks.length - universe.length, qualityTier },
+            proposalLogId: proposalLogId ?? null,
+            finalAdjustments,
+            synthesizerVerdict: challengeReport?.synthesizerVerdict ?? null,
+            overallConfidence: challengeReport?.overallConfidence ?? null,
+            adjustedPositions,
+            marktHubBadge: { hasData: marktHubSignals.hasData, regime: marktHubSignals.regime.regime, leadingFactor: marktHubSignals.factors.leadingFactor, activeSectorTilts: Object.entries(sectorTiltsForBadge).filter(([, v]) => v !== 0).map(([sector, tilt]) => ({ sector, tilt })), dynamicRiskFreeRate: Math.round(dynamicRiskFreeRate * 10000) / 100, macroSignals: { yieldCurveInverted: (marktHubSignals.macro.yieldCurveSpread ?? 0) < 0, inflationHigh: (marktHubSignals.macro.coreCpi ?? 0) > 4, hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 350 } },
+          };
+
+          job.status = 'done';
+          job.result = result;
+          job.progress.push('✅ Vorschlag fertig!');
+          console.log(`[startProposal] Job ${jobId} completed for user ${ctx.user.id}`);
+        } catch (err: any) {
+          job.status = 'error';
+          job.error = err.message || 'Unbekannter Fehler';
+          job.progress.push(`❌ Fehler: ${err.message}`);
+          console.error(`[startProposal] Job ${jobId} failed:`, err);
+        }
+      })();
+
+      return { jobId };
+    }),
+
+  /**
+   * Polling-Endpoint für startProposal.
+   * Gibt Status, Fortschritt und (wenn fertig) das Ergebnis zurück.
+   */
+  getProposalStatus: protectedProcedure
+    .input(z.object({ jobId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const job = proposalJobs.get(input.jobId);
+      if (!job) return { status: 'not_found' as const, progress: [], result: null, error: 'Job nicht gefunden oder abgelaufen.' };
+      if (job.userId !== ctx.user.id) return { status: 'error' as const, progress: [], result: null, error: 'Kein Zugriff auf diesen Job.' };
+      return {
+        status: job.status,
+        progress: job.progress,
+        result: job.result,
+        error: job.error,
       };
     }),
 

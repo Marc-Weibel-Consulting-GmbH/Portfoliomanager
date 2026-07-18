@@ -139,6 +139,11 @@ export default function PortfolioBuilderWizard() {
   const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
   const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
 
+  // ── Async proposal job polling state ──
+  const [proposalJobId, setProposalJobId] = useState<string | null>(null);
+  const [proposalProgress, setProposalProgress] = useState<string[]>([]);
+  const [isProposalRunning, setIsProposalRunning] = useState(false);
+
   // ── Queries & mutations ──
   const utils = trpc.useUtils();
   const { data: savedProfile } = trpc.investmentProfile.get.useQuery();
@@ -148,10 +153,57 @@ export default function PortfolioBuilderWizard() {
   const { user } = useAuth();
   const isAdmin = (user as any)?.role === 'admin';
 
-  const buildProposal = trpc.autoPortfolio.buildProposal.useMutation({
-    onSuccess: (data) => setAutoProposal(data),
-    onError: (e) => toast.error("Vorschlag konnte nicht erstellt werden", { description: e.message }),
+  // Async job: start proposal (returns immediately with jobId)
+  const startProposal = trpc.autoPortfolio.startProposal.useMutation({
+    onSuccess: (data) => {
+      setProposalJobId(data.jobId);
+      setIsProposalRunning(true);
+      setProposalProgress(['Job gestartet...']);
+    },
+    onError: (e) => {
+      setIsProposalRunning(false);
+      toast.error('Vorschlag konnte nicht gestartet werden', { description: e.message });
+    },
   });
+
+  // Polling query: only active when we have a jobId and job is running
+  const proposalStatus = trpc.autoPortfolio.getProposalStatus.useQuery(
+    { jobId: proposalJobId ?? '' },
+    {
+      enabled: !!proposalJobId && isProposalRunning,
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        if (!data) return 3000;
+        if (data.status === 'running') return 3000;
+        return false; // stop polling when done/error
+      },
+      refetchIntervalInBackground: true,
+    }
+  );
+
+  // React to polling results
+  useEffect(() => {
+    if (!proposalStatus.data) return;
+    const { status, progress, result, error } = proposalStatus.data;
+    if (progress && progress.length > proposalProgress.length) {
+      setProposalProgress(progress);
+    }
+    if (status === 'done' && result) {
+      setIsProposalRunning(false);
+      setProposalJobId(null);
+      setAutoProposal(result);
+    } else if (status === 'error') {
+      setIsProposalRunning(false);
+      setProposalJobId(null);
+      toast.error('Vorschlag konnte nicht erstellt werden', { description: error ?? 'Unbekannter Fehler' });
+    }
+  }, [proposalStatus.data]);
+
+  // Compatibility shim: buildProposal.isPending is used in the JSX below
+  const buildProposal = {
+    isPending: isProposalRunning || startProposal.isPending,
+    reset: () => { setIsProposalRunning(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
+  };
 
   // Reset all wizard state whenever the user navigates (back) to /portfolio-builder.
   // Using location as dependency ensures the reset fires on every visit, not just on first mount.
@@ -365,13 +417,14 @@ export default function PortfolioBuilderWizard() {
     }
   };
 
-  // Save profile + trigger proposal
+  // Save profile + trigger proposal (async job pattern — avoids HTTP 524 timeout)
   const handleBuildProposal = async () => {
     const capital = parseFloat(initialCapital);
     if (!(capital > 0)) { toast.error("Bitte geben Sie einen Anlagebetrag ein"); return; }
     if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
-    // Reset any previous mutation state so the button is re-enabled on retry
+    // Reset any previous job state
     buildProposal.reset();
+    setAutoProposal(null);
     try {
       await setProfileMutation.mutateAsync({
         riskProfile: autoRisk as any,
@@ -387,7 +440,8 @@ export default function PortfolioBuilderWizard() {
       // Non-fatal — continue even if profile save fails
       console.warn("[handleBuildProposal] Profile save failed (non-fatal):", e);
     }
-    buildProposal.mutate({ investmentAmount: capital });
+    // Start async job (returns immediately with jobId, polling handles the rest)
+    startProposal.mutate({ investmentAmount: capital });
   };
 
   // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
@@ -1110,14 +1164,30 @@ export default function PortfolioBuilderWizard() {
                       </div>
                     </div>
                   </div>
+                ) : buildProposal.isPending ? (
+                  <div className="space-y-3 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-5 w-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      <span className="text-sm text-[#00CFC1] font-medium">KI-Analyse läuft…</span>
+                    </div>
+                    <div className="space-y-1.5 pl-8">
+                      {proposalProgress.slice(-4).map((step, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs text-gray-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#00CFC1]/60 flex-shrink-0" />
+                          {step}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 pl-8">Die KI-Analyse dauert 60–120 Sekunden. Bitte warten Sie…</p>
+                  </div>
                 ) : (
                   <Button
                     className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold w-full py-6 text-base"
-                    disabled={buildProposal.isPending || setProfileMutation.isPending || !(parseFloat(initialCapital) > 0)}
+                    disabled={setProfileMutation.isPending || !(parseFloat(initialCapital) > 0)}
                     onClick={handleBuildProposal}
                   >
                     <Sparkles className="h-5 w-5 mr-2" />
-                    {buildProposal.isPending || setProfileMutation.isPending ? "Vorschlag wird erstellt…" : "KI-Vorschlag erstellen"}
+                    {setProfileMutation.isPending ? "Profil wird gespeichert…" : "KI-Vorschlag erstellen"}
                   </Button>
                 )}
               </div>
