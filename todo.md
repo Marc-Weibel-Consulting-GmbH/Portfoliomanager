@@ -372,9 +372,9 @@
 - [x] Fix: applyRecommendation 'increase' — wenn Ticker nicht in positions, Titel hinzufügen statt nur Gewicht erhöhen
 
 ## KI-Erklärungsfenster (Insight-Panels) (2026-07-18)
-- [ ] Gemeinsame InsightPanel-Komponente (visuell attraktiv, animiert, KI-Icon, Glassmorphism)
-- [ ] KI-Builder Schritt 4: Erklärungspanel pro Titel (Warum dieser Titel? Score-Begründung)
-- [ ] KI-Builder Schritt 4: Gesamt-Portfolio-Qualitätserklärung (Warum diese Zusammensetzung?)
-- [ ] Portfolio-Details Deep Dive: Qualitäts-Erklärungspanel (Stärken/Schwächen-Analyse)
-- [ ] Synthesizer Empfehlungen: Erklärungs-Tooltip pro Empfehlung (Warum Tausch/Aufstocken/Reduzieren?)
-- [ ] Portfolio-Qualitätsscore: Erklärungspanel mit Detailbegründung pro Faktor
+- [x] Gemeinsame InsightPanel-Komponente (visuell attraktiv, animiert, KI-Icon, Glassmorphism)
+- [x] KI-Builder Schritt 4: Erklärungspanel pro Titel (Warum dieser Titel? Score-Begründung)
+- [x] KI-Builder Schritt 4: Gesamt-Portfolio-Qualitätserklärung (Warum diese Zusammensetzung?)
+- [x] Portfolio-Details Deep Dive: Qualitäts-Erklärungspanel (Stärken/Schwächen-Analyse)
+- [x] Synthesizer Empfehlungen: Erklärungs-Tooltip pro Empfehlung (Warum Tausch/Aufstocken/Reduzieren?)
+- [x] Portfolio-Qualitätsscore: Erklärungspanel mit Detailbegründung pro Faktor

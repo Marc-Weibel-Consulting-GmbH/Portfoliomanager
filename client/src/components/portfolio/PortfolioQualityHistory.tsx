@@ -17,6 +17,7 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { InsightPanel, InsightExpandable } from "@/components/InsightPanel";
 import {
   LineChart,
   Line,
@@ -237,6 +238,39 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
         avgDivYield={avgDivYield}
         maxDrawdown={maxDrawdown}
       />
+
+      {/* InsightPanel: Detailbegründung pro Quality-Score-Faktor */}
+      {latest?.qualityComponents && Array.isArray(latest.qualityComponents) && latest.qualityComponents.length > 0 && (
+        <div className="mt-4">
+          <InsightExpandable
+            title="Quality Score — Detailbegründung pro Faktor"
+            summary={(() => {
+              const comps = latest.qualityComponents as any[];
+              const sorted = [...comps].filter(c => c.available).sort((a, b) => b.score - a.score);
+              const best = sorted[0];
+              const worst = sorted[sorted.length - 1];
+              const qs = qualityScore ?? 0;
+              const intro = qs >= 75
+                ? `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — eine starke Gesamtbewertung.`
+                : qs >= 50
+                ? `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — solide, mit Verbesserungspotenzial.`
+                : `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — hier besteht Optimierungspotenzial.`;
+              const detail = best && worst && best.name !== worst.name
+                ? ` Stärkster Faktor: ${best.name} (${best.score}/100, Gewicht ${Math.round(best.weight * 100)}%). Schwächster Faktor: ${worst.name} (${worst.score}/100, Gewicht ${Math.round(worst.weight * 100)}%).`
+                : '';
+              return intro + detail;
+            })()}
+            factors={(latest.qualityComponents as any[]).filter(c => c.available).map((c: any) => ({
+              label: `${c.name} (${Math.round(c.weight * 100)}%)`,
+              value: `${c.score}/100`,
+              sentiment: c.score >= 70 ? 'positive' as const : c.score >= 40 ? 'neutral' as const : 'negative' as const,
+            }))}
+            variant={qualityScore != null && qualityScore >= 70 ? 'success' : qualityScore != null && qualityScore < 40 ? 'warning' : 'default'}
+            triggerLabel="Detailbegründung Quality Score anzeigen"
+            riskNote="Der Quality Score basiert auf historischen Kennzahlen. Vergangenheitswerte sind kein Indikator für zukünftige Ergebnisse."
+          />
+        </div>
+      )}
     </div>
   );
 }
