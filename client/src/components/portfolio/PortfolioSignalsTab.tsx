@@ -13,7 +13,6 @@ import { InsightTooltip } from "@/components/InsightPanel";
 import { Link } from "wouter";
 
 type SignalType = "all" | "buy" | "sell" | "hold";
-type SignalStrength = "all" | "strong" | "moderate" | "weak";
 
 /**
  * Generates a specific, context-aware explanation for a signal criterion badge.
@@ -250,20 +249,7 @@ function getSignalIcon(type: string) {
     default: return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
   }
 }
-function getSignalBadge(type: string) {
-  switch (type) {
-    case "buy": return <Badge className="bg-green-500 hover:bg-green-600">KAUFEN</Badge>;
-    case "sell": return <Badge className="bg-red-500 hover:bg-red-600">VERKAUFEN</Badge>;
-    default: return <Badge variant="secondary">HALTEN</Badge>;
-  }
-}
-function getStrengthBadge(strength: string) {
-  switch (strength) {
-    case "strong": return <Badge variant="default">Stark</Badge>;
-    case "moderate": return <Badge variant="secondary">Mittel</Badge>;
-    default: return <Badge variant="outline">Schwach</Badge>;
-  }
-}
+// getSignalBadge und getStrengthBadge entfernt — ersetzt durch kombinierten Badge in der Card
 
 export function PortfolioSignalsTab({
   portfolioId,
@@ -273,7 +259,7 @@ export function PortfolioSignalsTab({
   portfolioValueCHF?: number | null;
 }) {
   const [signalTypeFilter, setSignalTypeFilter] = useState<SignalType>("all");
-  const [strengthFilter, setStrengthFilter] = useState<SignalStrength>("all");
+  const [minScore, setMinScore] = useState<number>(0);
 
   const { data: signals, isLoading } = trpc.signals.generate.useQuery(
     { portfolioId },
@@ -282,8 +268,8 @@ export function PortfolioSignalsTab({
 
   const filteredSignals = (signals ?? []).filter((signal: any) => {
     const typeMatch = signalTypeFilter === "all" || signal.type === signalTypeFilter;
-    const strengthMatch = strengthFilter === "all" || signal.strength === strengthFilter;
-    return typeMatch && strengthMatch;
+    const scoreMatch = signal.combinedScore === undefined || signal.combinedScore >= minScore;
+    return typeMatch && scoreMatch;
   });
 
   return (
@@ -302,14 +288,14 @@ export function PortfolioSignalsTab({
           </Select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Signalstärke</label>
-          <Select value={strengthFilter} onValueChange={(v) => setStrengthFilter(v as SignalStrength)}>
+          <label className="text-xs text-muted-foreground mb-1 block">Min. Score</label>
+          <Select value={String(minScore)} onValueChange={(v) => setMinScore(Number(v))}>
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle</SelectItem>
-              <SelectItem value="strong">Stark</SelectItem>
-              <SelectItem value="moderate">Mittel</SelectItem>
-              <SelectItem value="weak">Schwach</SelectItem>
+              <SelectItem value="0">Alle Scores</SelectItem>
+              <SelectItem value="45">≥ 45 (moderat)</SelectItem>
+              <SelectItem value="65">≥ 65 (stark)</SelectItem>
+              <SelectItem value="75">≥ 75 (sehr stark)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -334,17 +320,27 @@ export function PortfolioSignalsTab({
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-lg">{signal.ticker}</span>
-                          {getSignalBadge(signal.type)}
-                          {getStrengthBadge(signal.strength)}
-                          {/* overallGrade nur anzeigen wenn combinedScore vorhanden und erklärt */}
-                          {signal.overallGrade && signal.combinedScore !== undefined && (
-                            <span
-                              className="text-xs font-mono text-muted-foreground border border-border rounded px-1.5 py-0.5"
-                              title={`Score-Grade: A (≥75), B (≥60), C (≥45), D (≥30), F (<30). Basiert auf Momentum + Qualität + LPPL-Risiko.`}
-                            >
-                              {signal.overallGrade}
-                            </span>
-                          )}
+                          {/* Variante A: Ein kombinierter Badge [▲ KAUFEN · 79/100] */}
+                          {(() => {
+                            const score = signal.combinedScore;
+                            const type = signal.type;
+                            const icon = type === 'buy' ? '▲' : type === 'sell' ? '▼' : '●';
+                            const label = type === 'buy' ? 'KAUFEN' : type === 'sell' ? 'VERKAUFEN' : 'HALTEN';
+                            const colorClass = type === 'buy'
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : type === 'sell'
+                              ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                              : 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30';
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold tracking-wide ${colorClass}`}>
+                                <span>{icon}</span>
+                                <span>{label}</span>
+                                {score !== undefined && (
+                                  <span className="opacity-70">· {score}/100</span>
+                                )}
+                              </span>
+                            );
+                          })()}
                           <Link href={`/aktien/${signal.ticker}`}>
                             <button
                               title={`Detailseite von ${signal.ticker} öffnen`}
@@ -358,30 +354,16 @@ export function PortfolioSignalsTab({
                       </div>
                     </div>
                     <div className="text-right">
-                      {signal.combinedScore !== undefined && (
-                        <InsightTooltip
-                          title="Wie wird der Score berechnet?"
-                          summary={`Der kombinierte Score von ${signal.combinedScore}/100 setzt sich aus drei Modellen zusammen: Momentum (technische Analyse), Qualität (Fundamentaldaten) und LPPL-Risikomodell (Blasenerkennung).`}
-                          factors={[
-                            { label: 'Momentum', value: signal.rfScore ? `${signal.rfScore}/100` : '—', sentiment: signal.rfSignal === 'buy' || signal.rfSignal === 'strong_buy' ? 'positive' : signal.rfSignal === 'sell' || signal.rfSignal === 'strong_sell' ? 'negative' : 'neutral', description: 'Technische Analyse: RSI, Kursmomentum, Algorithmus-Signal' },
-                            { label: 'Bewertung', value: signal.peRatio ? `KGV ${signal.peRatio.toFixed(1)}` : '—', sentiment: signal.peRatio && signal.peRatio < 20 ? 'positive' : signal.peRatio && signal.peRatio > 35 ? 'negative' : 'neutral', description: 'Fundamentale Bewertung: KGV, PEG-Ratio, Dividendenrendite' },
-                            { label: 'Sentiment', value: signal.sentimentLabel ?? '—', sentiment: signal.sentimentLabel === 'bullish' ? 'positive' : signal.sentimentLabel === 'bearish' ? 'negative' : 'neutral', description: 'Marktstimmung aus Nachrichten und Analystenmeinungen' },
-                            { label: 'Score-Note', value: signal.overallGrade ?? '—', sentiment: signal.overallGrade === 'A' ? 'positive' : signal.overallGrade === 'F' || signal.overallGrade === 'D' ? 'negative' : 'neutral', description: 'A (≥75), B (≥60), C (≥45), D (≥30), F (<30)' },
-                          ]}
-                          variant={signal.combinedScore >= 65 ? 'success' : signal.combinedScore >= 45 ? 'default' : 'warning'}
-                        >
-                          <div className="mb-1 cursor-help">
-                            <p className="text-xs text-muted-foreground">Score (M+Q+LPPL) ℹ️</p>
-                            <p className={`text-lg font-bold font-mono ${
-                              signal.combinedScore >= 70 ? "text-emerald-500" :
-                              signal.combinedScore >= 55 ? "text-[#00CFC1]" :
-                              signal.combinedScore >= 45 ? "text-yellow-500" : "text-red-500"
-                            }`}>{signal.combinedScore}<span className="text-sm text-muted-foreground">/100</span></p>
-                          </div>
-                        </InsightTooltip>
-                      )}
                       <p className="text-xs text-muted-foreground">Aktueller Kurs</p>
                       <p className="text-base font-bold">{signal.currentPrice?.toFixed(2)}</p>
+                      {signal.targetPrice && signal.currentPrice && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Ziel: <span className={signal.targetPrice > signal.currentPrice ? 'text-emerald-400' : 'text-red-400'}>
+                            {signal.targetPrice.toFixed(2)}
+                            {' '}({((signal.targetPrice - signal.currentPrice) / signal.currentPrice * 100) >= 0 ? '+' : ''}{((signal.targetPrice - signal.currentPrice) / signal.currentPrice * 100).toFixed(1)}%)
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
