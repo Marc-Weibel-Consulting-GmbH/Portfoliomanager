@@ -278,12 +278,13 @@ const normalizeResponseFormat = ({
 
 // ─── Kimi K2 Integration ───────────────────────────────────────────────────
 
-const KIMI_API_URL = "https://api.moonshot.cn/v1/chat/completions";
-const KIMI_MODEL = "kimi-k2-0711-preview";
+const KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions";
+const KIMI_MODEL = "kimi-k3"; // Kimi K3: flagship model with 1M context, long-horizon coding & reasoning
 
 /**
- * Invoke Kimi K2 directly via Moonshot AI API.
+ * Invoke Kimi K3 (flagship) via Moonshot AI API (api.moonshot.ai).
  * Falls back to invokeLLM (Gemini) if KIMI_API_KEY is not set or request fails.
+ * Available models: kimi-k3, kimi-k2.6, kimi-k2.7-code, kimi-k2.7-code-highspeed
  */
 export async function invokeKimi(params: InvokeParams): Promise<InvokeResult> {
   const kimiKey = ENV.kimiApiKey;
