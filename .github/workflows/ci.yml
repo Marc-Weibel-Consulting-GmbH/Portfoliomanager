@@ -28,3 +28,48 @@ jobs:
 
       - name: Tests
         run: pnpm test
+
+  # PR #130: Lint-Job (Ratcheting) — Legacy-Befunde blockieren vorerst NICHT
+  # (eslint.config.js meldet no-explicit-any/no-unused-vars als "warn").
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+  # PR #130: Python-Analytics-Service — Syntax-Compile + Import-Smoke.
+  analytics-python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: analytics_service/requirements.txt
+
+      - name: Install analytics dependencies
+        run: pip install -r analytics_service/requirements.txt
+
+      - name: Compile check
+        run: python -m compileall analytics_service -q
+
+      - name: Import smoke test
+        working-directory: analytics_service
+        run: python -c "import main"
