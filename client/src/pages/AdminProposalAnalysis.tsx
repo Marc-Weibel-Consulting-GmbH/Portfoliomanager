@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "sonner";
+import { InsightExpandable } from "@/components/InsightPanel";
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
@@ -1021,8 +1022,27 @@ export default function AdminProposalAnalysis() {
                                       </div>
                                       {/* Detail panel — only shown when this card is selected, inline below */}
                                       {isSelected && (
-                                        <div className="mt-1 rounded-md px-3 py-2 bg-slate-800/60 border border-slate-700/40 space-y-1.5">
-                                          <p className="text-xs text-slate-300 leading-relaxed">{adj.reason}</p>
+                                        <div className="mt-1 rounded-md px-3 py-2 bg-slate-800/60 border border-slate-700/40 space-y-2">
+                                          {/* InsightExpandable: Erklärung warum diese Empfehlung */}
+                                          {(() => {
+                                            const actionLabel = adj.action === 'replace' ? 'Tausch' : adj.action === 'reduce' ? 'Reduzierung' : adj.action === 'increase' ? 'Aufstockung' : 'Empfehlung';
+                                            const factors: import('@/components/InsightPanel').InsightFactor[] = [
+                                              { label: 'Aktion', value: actionLabel, sentiment: adj.action === 'replace' ? 'negative' as const : adj.action === 'reduce' ? 'negative' as const : 'positive' as const },
+                                              { label: 'Ticker', value: adj.ticker ?? '—', sentiment: 'neutral' as const },
+                                              ...(adj.replaceTicker ? [{ label: 'Ersatz', value: adj.replaceTicker, sentiment: 'positive' as const }] : []),
+                                            ];
+                                            const variant = adj.action === 'replace' ? 'warning' as const : adj.action === 'reduce' ? 'warning' as const : 'success' as const;
+                                            return (
+                                              <InsightExpandable
+                                                title={`KI-Begründung: ${actionLabel} ${adj.ticker}`}
+                                                summary={adj.reason || 'Keine Begründung verfügbar.'}
+                                                factors={factors}
+                                                variant={variant}
+                                                triggerLabel="Synthesizer-Begründung"
+                                                defaultOpen
+                                              />
+                                            );
+                                          })()}
                                           <textarea
                                             rows={1}
                                             placeholder="Interne Notiz zu dieser Empfehlung (optional)…"

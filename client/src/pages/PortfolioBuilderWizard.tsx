@@ -18,6 +18,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { InsightExpandable, InsightPanel } from "@/components/InsightPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -842,29 +843,103 @@ export default function PortfolioBuilderWizard() {
                         ))}
                       </div>
                     )}
+                    {/* KI-Portfolio-Qualitätserklärung */}
+                    {(() => {
+                      const metrics = (autoProposal as any).metrics;
+                      const confidence = (autoProposal as any).overallConfidence;
+                      const qualityTier = (autoProposal as any).stats?.qualityTier;
+                      if (!metrics && !confidence) return null;
+                      const sharpe = metrics?.sharpe ?? null;
+                      const ret = metrics?.expectedReturnPct ?? null;
+                      const vol = metrics?.volatilityPct ?? null;
+                      const fxPct = (autoProposal as any).allocation?.fxWeightPct ?? null;
+                      const portfolioSummary =
+                        `Dieses Portfolio umfasst ${autoProposal.positions.length} Titel` +
+                        (ret != null ? ` mit einer erwarteten Rendite von ~${ret.toFixed(1)}% p.a.` : '') +
+                        (sharpe != null ? ` und einer Sharpe-Ratio von ${sharpe.toFixed(2)}` : '') +
+                        (vol != null ? ` (Volatilität ~${vol.toFixed(1)}%)` : '') +
+                        '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.'
+                      const portfolioFactors = [
+                        ...(sharpe != null ? [{ label: 'Sharpe', value: sharpe.toFixed(2), sentiment: sharpe >= 0.5 ? 'positive' as const : sharpe >= 0.3 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(ret != null ? [{ label: 'Erw. Rendite', value: `${ret.toFixed(1)}% p.a.`, sentiment: ret >= 8 ? 'positive' as const : ret >= 5 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(vol != null ? [{ label: 'Volatilität', value: `${vol.toFixed(1)}%`, sentiment: vol <= 15 ? 'positive' as const : vol <= 25 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(fxPct != null ? [{ label: 'Fremdwährung', value: `${fxPct.toFixed(0)}%`, sentiment: fxPct <= 30 ? 'positive' as const : fxPct <= 50 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(confidence ? [{ label: 'KI-Konfidenz', value: confidence, sentiment: confidence === 'hoch' ? 'positive' as const : confidence === 'mittel' ? 'neutral' as const : 'negative' as const }] : []),
+                      ];
+                      const panelVariant = confidence === 'hoch' ? 'success' as const : confidence === 'niedrig' ? 'warning' as const : 'default' as const;
+                      return (
+                        <InsightPanel
+                          title="KI-Portfolio-Analyse"
+                          summary={portfolioSummary}
+                          factors={portfolioFactors}
+                          variant={panelVariant}
+                          collapsible
+                          defaultOpen={false}
+                          riskNote="Historische Schätzungen — keine Garantie für zukünftige Ergebnisse. Alle Angaben basieren auf Vergangenheitsdaten."
+                        />
+                      );
+                    })()}
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
-                      {autoProposal.positions.map((p: any) => (
-                        <div key={p.ticker} className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
-                              <span className="text-sm text-white truncate">{p.companyName}</span>
-                              {p.isUniverseExpansion && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30" title={p.closesGap ? `Schließt Lücke: ${p.closesGap}` : 'Aus dem Aktienuniversum ergänzt'}>
-                                  ✨ Universum
-                                </span>
-                              )}
+                      {autoProposal.positions.map((p: any) => {
+                        // Derive InsightFactor chips from available fields
+                        const score = p.combinedScore ?? 0;
+                        const signal = p.signal ?? 'HOLD';
+                        const scoreFactors = [
+                          {
+                            label: 'Signal',
+                            value: signal,
+                            sentiment: signal === 'BUY' ? 'positive' as const : signal === 'SELL' ? 'negative' as const : 'neutral' as const,
+                          },
+                          {
+                            label: 'Score',
+                            value: score >= 70 ? `${score} (A)` : score >= 55 ? `${score} (B)` : score >= 40 ? `${score} (C)` : `${score} (D)`,
+                            sentiment: score >= 70 ? 'positive' as const : score >= 55 ? 'neutral' as const : 'negative' as const,
+                          },
+                          {
+                            label: 'Gewicht',
+                            value: `${p.weightPct.toFixed(1)}%`,
+                            sentiment: 'neutral' as const,
+                          },
+                          ...(p.isUniverseExpansion ? [{
+                            label: 'Quelle',
+                            value: 'Universum-Erweiterung',
+                            sentiment: 'neutral' as const,
+                          }] : []),
+                        ];
+                        const insightVariant = signal === 'BUY' ? 'success' as const : signal === 'SELL' ? 'warning' as const : 'default' as const;
+                        return (
+                          <div key={p.ticker} className="px-4 py-3 bg-[#0f1420]">
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
+                                  <span className="text-sm text-white truncate">{p.companyName}</span>
+                                  {p.isUniverseExpansion && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30" title={p.closesGap ? `Schließt Lücke: ${p.closesGap}` : 'Aus dem Aktienuniversum ergänzt'}>
+                                      ✨ Universum
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  {p.sector}
+                                  {p.isUniverseExpansion && p.closesGap && (
+                                    <span className="text-violet-400"> · Lücke: {p.closesGap}</span>
+                                  )}
+                                </p>
+                              </div>
+                              <span className="text-sm font-mono font-semibold text-white ml-3 shrink-0">{p.weightPct.toFixed(1)}%</span>
                             </div>
-                            <p className="text-xs text-gray-500 truncate">
-                              {p.sector} · {p.reason}
-                              {p.isUniverseExpansion && p.closesGap && (
-                                <span className="text-violet-400"> · Lücke: {p.closesGap}</span>
-                              )}
-                            </p>
+                            <InsightExpandable
+                              title={`Warum ${p.ticker}?`}
+                              summary={p.reason || `${p.companyName} wurde aufgrund des Gesamtscores und des Handelssignals ausgewählt.`}
+                              factors={scoreFactors}
+                              variant={insightVariant}
+                              triggerLabel="KI-Begründung anzeigen"
+                              className="mt-2"
+                            />
                           </div>
-                          <span className="text-sm font-mono font-semibold text-white ml-3 shrink-0">{p.weightPct.toFixed(1)}%</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {/* Cash-Reserve Position anzeigen wenn Cash-Quote > 0 */}
                       {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
                         <div className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">

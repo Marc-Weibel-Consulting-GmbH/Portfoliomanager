@@ -12,6 +12,7 @@ import { trpc } from '@/lib/trpc';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { InsightPanel } from '@/components/InsightPanel';
 import {
   Brain,
   RefreshCw,
@@ -262,6 +263,66 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
               </table>
             </div>
           </div>
+
+          {/* KI-Qualitätserklärung (InsightPanel) */}
+          {(() => {
+            const m = data.portfolioMetrics;
+            if (!m) return null;
+            const avgPE = m.avgPE ?? null;
+            const avgPEG = m.avgPEG ?? null;
+            const avgBeta = m.avgBeta ?? null;
+            const avgDiv = m.avgDividendYield ?? null;
+            const avgEG = m.avgEarningsGrowth ?? null;
+            const posCount = m.positionCount ?? 0;
+            const sectors = (data.sectorBreakdown ?? []) as any[];
+            const topSector = sectors[0];
+            const sectorCount = sectors.length;
+
+            // Build summary text
+            const parts: string[] = [];
+            if (posCount > 0) parts.push(`Das Portfolio umfasst ${posCount} Positionen in ${sectorCount} Sektoren.`);
+            if (avgPE != null) {
+              if (avgPE < 15) parts.push(`Das Ø KGV von ${avgPE.toFixed(1)} ist günstig bewertet.`);
+              else if (avgPE < 25) parts.push(`Das Ø KGV von ${avgPE.toFixed(1)} liegt im normalen Bereich.`);
+              else parts.push(`Das Ø KGV von ${avgPE.toFixed(1)} deutet auf eine hohe Bewertung hin.`);
+            }
+            if (avgBeta != null) {
+              if (avgBeta < 0.8) parts.push(`Das Ø Beta von ${avgBeta.toFixed(2)} zeigt ein defensives Risikoprofil.`);
+              else if (avgBeta <= 1.2) parts.push(`Das Ø Beta von ${avgBeta.toFixed(2)} entspricht dem Marktrisiko.`);
+              else parts.push(`Das Ø Beta von ${avgBeta.toFixed(2)} zeigt ein erhöhtes Marktrisiko.`);
+            }
+            if (avgDiv != null && avgDiv > 0) parts.push(`Die gewichtete Dividendenrendite beträgt ${avgDiv.toFixed(1)}%.`);
+            if (topSector) parts.push(`Größter Sektor: ${topSector.sector} (${topSector.weight.toFixed(1)}%).`);
+
+            const summary = parts.join(' ') || 'Fundamentaldaten-Analyse des Portfolios.';
+
+            // Build factors
+            const factors = [
+              ...(avgPE != null ? [{ label: 'Ø KGV', value: avgPE.toFixed(1), sentiment: avgPE < 15 ? 'positive' as const : avgPE < 25 ? 'neutral' as const : 'negative' as const }] : []),
+              ...(avgPEG != null ? [{ label: 'Ø PEG', value: avgPEG.toFixed(2), sentiment: avgPEG < 1 ? 'positive' as const : avgPEG < 2 ? 'neutral' as const : 'negative' as const }] : []),
+              ...(avgBeta != null ? [{ label: 'Ø Beta', value: avgBeta.toFixed(2), sentiment: avgBeta < 0.8 ? 'positive' as const : avgBeta <= 1.2 ? 'neutral' as const : 'negative' as const }] : []),
+              ...(avgDiv != null && avgDiv > 0 ? [{ label: 'Div.-Rendite', value: `${avgDiv.toFixed(1)}%`, sentiment: avgDiv >= 3 ? 'positive' as const : avgDiv >= 1 ? 'neutral' as const : 'negative' as const }] : []),
+              ...(avgEG != null ? [{ label: 'Gew.-Wachstum', value: `${avgEG.toFixed(1)}%`, sentiment: avgEG >= 10 ? 'positive' as const : avgEG >= 0 ? 'neutral' as const : 'negative' as const }] : []),
+              ...(sectorCount > 0 ? [{ label: 'Sektoren', value: `${sectorCount}`, sentiment: sectorCount >= 5 ? 'positive' as const : sectorCount >= 3 ? 'neutral' as const : 'negative' as const }] : []),
+            ];
+
+            // Determine variant based on overall quality
+            const positiveCount = factors.filter(f => f.sentiment === 'positive').length;
+            const negativeCount = factors.filter(f => f.sentiment === 'negative').length;
+            const variant = negativeCount >= 2 ? 'warning' as const : positiveCount >= 3 ? 'success' as const : 'default' as const;
+
+            return (
+              <InsightPanel
+                title="Fundamentaldaten-Erklärung"
+                summary={summary}
+                factors={factors}
+                variant={variant}
+                collapsible
+                defaultOpen
+                riskNote="Fundamentaldaten von EODHD — können von anderen Quellen abweichen. Keine Anlageberatung."
+              />
+            );
+          })()}
 
           {/* AI Summary */}
           {data.aiSummary && (
