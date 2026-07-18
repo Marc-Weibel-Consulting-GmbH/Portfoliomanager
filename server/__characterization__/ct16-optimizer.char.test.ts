@@ -192,3 +192,32 @@ describe("CT-16 buildEfficientFrontier via optimizePortfolio (R-34 gefixt)", () 
     expect(res.optimalPortfolio.sharpe).toBeGreaterThanOrEqual(Math.max(...frontier.map((p) => p.sharpe)) - 1e-9);
   });
 });
+
+describe("min_cvar: Tail-Risiko-Minimierung (CVaR 95 %)", () => {
+  it("liefert eine CVaR-Kennzahl und senkt den optimierten CVaR unter den Gleichgewichts-CVaR", async () => {
+    const cvarRes = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "min_cvar" });
+    const equalRes = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "equal_weight" });
+
+    // Methode wirkt lokal (TS-Zufallssuche), CVaR wird ausgewiesen.
+    expect(cvarRes.method).toBe("min_cvar");
+    expect(cvarRes.optimizerEngine).toBe("random_search");
+    expect(typeof cvarRes.optimalPortfolio.cvar95).toBe("number");
+    expect(typeof cvarRes.currentPortfolio.cvar95).toBe("number");
+
+    // Gewichte summieren auf 1 und liegen in den effektiven Bounds.
+    const sum = Object.values(cvarRes.weights).reduce((s, w) => s + w, 0);
+    expect(sum).toBeCloseTo(1, 3);
+
+    // Kernaussage: die CVaR-optimierten Gewichte haben ein Tail-Risiko
+    // ≤ dem der Gleichgewichtung (das ist das Optimierungsziel).
+    expect(cvarRes.optimalPortfolio.cvar95).toBeLessThanOrEqual(
+      equalRes.optimalPortfolio.cvar95 + 1e-9
+    );
+  });
+
+  it("OPT-5: min_cvar ist deterministisch (gleiche Inputs → gleiche Gewichte)", async () => {
+    const a = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "min_cvar" });
+    const b = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "min_cvar" });
+    expect(b.weights).toEqual(a.weights);
+  });
+});
