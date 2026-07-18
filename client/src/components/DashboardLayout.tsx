@@ -32,6 +32,7 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 // N-15: TrustpilotMini moved to Landing page footer
 import { FloatingChatButton } from "./FloatingChatButton";
+import { planLabel } from "@/lib/planLabel";
 
 // New flat sidebar structure from design handoff (6 top-level items)
 type NavItem = { icon: any; label: string; path: string };
@@ -193,7 +194,7 @@ function DashboardLayoutContent({
 
   // Fetch portfolios for sidebar submenu
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
-  // K-A1: echter Plan aus dem Entitlements-Layer (Free/Plus/Pro).
+  // K-A1: echter Plan aus dem Entitlements-Layer (Free/Basic/Pro).
   const { data: planInfo } = trpc.billing.getPlan.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
   // State for tools group
@@ -471,7 +472,7 @@ function DashboardLayoutContent({
                     <div className="flex items-center gap-1.5 mt-1">
                       {/* K-A1: echter Plan aus dem Entitlements-Layer */}
                       <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
-                        {(planInfo?.plan ?? 'free').toUpperCase()}
+                        {planLabel(planInfo?.plan).toUpperCase()}
                       </span>
                     </div>
                   </div>

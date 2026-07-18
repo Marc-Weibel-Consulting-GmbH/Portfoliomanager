@@ -58,6 +58,18 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
 };
 
+// Anzeigenamen der Stufen. Der DB-Enum-Wert bleibt "plus" (keine Migration),
+// nach aussen heisst die mittlere Stufe jedoch «Basic».
+export const PLAN_LABELS: Record<Plan, string> = {
+  free: "Free",
+  plus: "Basic",
+  pro: "Pro",
+};
+
+export function planLabel(plan: Plan): string {
+  return PLAN_LABELS[plan] ?? "Free";
+}
+
 export function isPaywallEnforced(): boolean {
   return (process.env.ENFORCE_PAYWALL ?? "").toLowerCase() === "true";
 }
@@ -107,7 +119,7 @@ export async function getEntitlements(user: UserCtxLike): Promise<{ plan: Plan; 
   return { plan, limits: PLAN_LIMITS[plan] };
 }
 
-const UPGRADE_HINT = "Diese Funktion ist Teil von Plus/Pro. Jetzt upgraden unter Einstellungen › Abo.";
+const UPGRADE_HINT = "Diese Funktion ist Teil von Basic/Pro. Jetzt upgraden unter Einstellungen › Abo.";
 
 /**
  * Wirft FORBIDDEN, wenn der Plan die Funktion nicht enthält — es sei denn, die
