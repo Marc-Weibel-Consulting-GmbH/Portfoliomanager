@@ -98,6 +98,16 @@ export async function getUser(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function markWelcomeEmailSent(openId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.update(users).set({ welcomeEmailSent: 1 }).where(eq(users.openId, openId));
+  } catch (error) {
+    console.warn('[Database] Failed to mark welcome email sent:', error);
+  }
+}
+
 export async function updateUserPreferences(userId: number, preferences: {
   investmentGoal?: "dividends" | "growth" | "balanced";
   riskTolerance?: "low" | "medium" | "high";

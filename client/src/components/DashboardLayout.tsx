@@ -30,7 +30,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
-import TrustpilotMini from "./trustpilot/TrustpilotMini";
+// N-15: TrustpilotMini moved to Landing page footer
 import { FloatingChatButton } from "./FloatingChatButton";
 
 // New flat sidebar structure from design handoff (6 top-level items)
@@ -516,12 +516,7 @@ function DashboardLayoutContent({
         )}
         <main className="flex-1 p-4">{children}</main>
 
-        {/* Trustpilot Footer */}
-        <footer className="border-t border-slate-700 bg-slate-900 p-4">
-          <div className="max-w-7xl mx-auto">
-            <TrustpilotMini />
-          </div>
-        </footer>
+        {/* N-15: Trustpilot removed from internal dashboard footer */}
       </SidebarInset>
 
       {/* Floating Chat Button */}

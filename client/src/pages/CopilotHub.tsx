@@ -217,9 +217,29 @@ function ChatTab() {
                     <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
                   </div>
                 ) : chatMessages?.length === 0 ? (
-                  <p className="text-center text-slate-500 text-sm py-8">
-                    Stellen Sie eine Frage zu Ihrem Portfolio …
-                  </p>
+                  <div className="py-6 space-y-4">
+                    <p className="text-center text-slate-500 text-sm">
+                      Stellen Sie eine Frage zu Ihrem Portfolio
+                    </p>
+                    {/* N-20: Beispielfragen als Chips */}
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {[
+                        "Wie ist mein Portfolio diversifiziert?",
+                        "Welche Positionen sollte ich reduzieren?",
+                        "Was ist mein grösstes Klumpenrisiko?",
+                        "Wie entwickelt sich mein Portfolio im Vergleich zum SPI?",
+                        "Welche Aktien haben das beste Signal?",
+                      ].map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => setMessage(q)}
+                          className="text-xs px-3 py-1.5 rounded-full border border-[#00CFC1]/30 text-[#00CFC1]/80 hover:bg-[#00CFC1]/10 hover:text-[#00CFC1] transition-colors"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
                   chatMessages?.map((msg: any) => (
                     <div

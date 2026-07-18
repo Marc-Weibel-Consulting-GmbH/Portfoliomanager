@@ -328,3 +328,33 @@
 - [x] M-09: MSCI Faktoren-Chart Fehlerbehandlung
 - [x] M-12: /tools Route 404 beheben
 - [x] M-16: Hilfe-Tab FAQ und Kontakt hinzufügen
+
+## N-Punkte Sprint (2026-07-18)
+
+### Gruppe A — Landing Page & Dashboard
+- [x] N-01: Landing Page Hero-Widget "Demo"-Hinweis hinzufügen (CHF 235'000 / +8.5% YTD)
+- [x] N-02: "Mehr erfahren →" Links auf Landing Page zu echten Anchor-Zielen verlinken
+- [x] N-04: Footer auf Landing Page: AGB, Datenschutz, Impressum Links hinzufügen
+- [x] N-13: Dashboard "Willkommen zurück, Beta" → Vorname des Nutzers verwenden
+- [x] N-14: Top-Gewinner/Verlierer "+0.0%" — Hinweis "Intraday-Daten folgen" wenn keine Daten
+- [x] N-15: Trustpilot Widget in Footer verschieben (nicht auf internem Dashboard)
+
+### Gruppe B — KI-Builder UX
+- [x] N-07: Onboarding-Hinweis im KI-Builder: "Ihr Anlageprofil wurde übernommen"
+- [x] N-08: Schritt 4 Sektoren: "Alle auswählen / Alle abwählen" Button
+- [x] N-09: Placeholder "Min. CHF 100'000" → "Beispiel: CHF 100'000" klarstellen
+- [x] N-10: Badge "Automatisch eingearbeitet" → "Eingearbeitet — im nächsten Schritt anpassbar"
+- [x] N-11: Button-Hierarchie im KI-Vorschlag: "KI-Angepasst übernehmen" als primärer CTA
+- [x] N-12: Gesamtwert vs. Startkapital Differenz erklären (Rundungsdifferenz-Hinweis)
+
+### Gruppe C — Copilot & Einstellungen
+- [x] N-19: Copilot Tabs (Chat, Verlauf) zusammenführen — Verlauf als Teil des Chats
+- [x] N-20: Copilot Beispielfragen hinzufügen (Onboarding-Hinweis was der Copilot kann)
+- [x] N-21: Einstellungen Profil: Profilbild-Upload oder Avatar-Initialen
+- [x] N-22: Einstellungen Profil: Text anpassen für E-Mail/Passwort-Nutzer
+
+## Beta-Onboarding (2026-07-18)
+- [x] Welcome-E-Mail nach Registrierung (Resend): Begrüssung + 3 Key-Features + CTA
+- [x] In-App-Banner für neue Nutzer ohne Portfolio: "Starten Sie mit dem KI-Builder" (WelcomeBanner)
+- [x] Copilot Beispielfragen als Chips in der Eingabe (N-20 kombiniert)
+- [x] Tour-Trigger: WelcomeBanner als erster Einstiegspunkt (localStorage-persistent)

@@ -556,6 +556,16 @@ export default function PortfolioBuilderWizard() {
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-1">{meta.title}</h2>
             <p className="text-gray-400 mb-8">{meta.subtitle}</p>
 
+            {/* N-07: Profile hint when savedProfile was loaded */}
+            {autoStep === 1 && savedProfile && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#00CFC1]/10 border border-[#00CFC1]/20 mb-4">
+                <CheckCircle className="h-4 w-4 text-[#00CFC1] shrink-0" />
+                <p className="text-xs text-[#00CFC1]/90">
+                  Ihr Anlageprofil wurde übernommen. Sie können die Einstellungen hier anpassen.
+                </p>
+              </div>
+            )}
+
             {/* Step 1: Anlageziel */}
             {autoStep === 1 && (
               <div className="space-y-3">
@@ -631,6 +641,22 @@ export default function PortfolioBuilderWizard() {
             {/* Step 4: Ausgeschlossene Sektoren */}
             {autoStep === 4 && (
               <div>
+                {/* N-08: Alle auswählen / Alle abwählen */}
+                <div className="flex items-center justify-end gap-2 mb-3">
+                  <button
+                    onClick={() => setAutoExcluded(EXCLUDED_SECTORS.map(s => s.value))}
+                    className="text-xs text-gray-400 hover:text-white underline underline-offset-2 transition-colors"
+                  >
+                    Alle ausschliessen
+                  </button>
+                  <span className="text-gray-600">·</span>
+                  <button
+                    onClick={() => setAutoExcluded([])}
+                    className="text-xs text-gray-400 hover:text-white underline underline-offset-2 transition-colors"
+                  >
+                    Alle abwählen
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {EXCLUDED_SECTORS.map((s) => {
                     const active = autoExcluded.includes(s.value);
@@ -694,7 +720,7 @@ export default function PortfolioBuilderWizard() {
                       <Label className="text-gray-300">Anlagebetrag (CHF) *</Label>
                       <Input
                         type="number"
-                        placeholder="Min. CHF 100'000"
+                        placeholder="z.B. CHF 100'000"
                         value={initialCapital}
                         onChange={(e) => setInitialCapital(e.target.value)}
                         className={`bg-[#0f1420] border-white/10 text-white mt-1 ${
@@ -851,7 +877,7 @@ export default function PortfolioBuilderWizard() {
                           <span className="text-xs font-semibold text-[#00CFC1]">KI-Empfehlungen (Synthesizer)</span>
                           {(autoProposal as any).adjustedPositions && (
                             <span className="ml-auto text-xs text-emerald-400 flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3" /> Automatisch eingearbeitet
+                              <CheckCircle className="h-3 w-3" /> Eingearbeitet — im nächsten Schritt anpassbar
                             </span>
                           )}
                         </div>
@@ -1406,6 +1432,12 @@ export default function PortfolioBuilderWizard() {
                       </tfoot>
                     </table>
                   </div>
+                  {/* N-12: Erklärung Rundungsdifferenz */}
+                  {initialCapital && Math.abs(totalValue - parseFloat(initialCapital)) > 1 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      ⓘ Differenz zum Startkapital ({currency} {parseFloat(initialCapital).toLocaleString("de-CH")}) durch Rundung auf ganze Aktienstückzahlen.
+                    </p>
+                  )}
                 </div>
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-4">

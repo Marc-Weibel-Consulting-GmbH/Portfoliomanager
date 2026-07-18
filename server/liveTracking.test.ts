@@ -23,6 +23,7 @@ describe('Live Portfolio Tracking', () => {
       emailVerified: 1,
       hasSeenOnboarding: 1,
       hasDemoPortfolio: 0,
+      welcomeEmailSent: 0,
       hasCompletedRegistration: 1,
       hasCompletedOnboarding: 1,
       subscriptionTier: 'premium',

@@ -24,6 +24,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Portfolio Transaction Creation', () 
       emailVerified: 1,
       hasSeenOnboarding: 0,
       hasDemoPortfolio: 0,
+      welcomeEmailSent: 0,
       hasCompletedRegistration: 1,
       hasCompletedOnboarding: 0,
       subscriptionTier: 'free',

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Activity, Bell, Lock, Flag, CreditCard } from "lucide-react";
+import { TrendingUp, Activity, Bell, Lock, Flag, CreditCard, ChevronRight, BarChart2, Zap, Shield } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Landing() {
@@ -15,7 +15,7 @@ export default function Landing() {
       </div>
 
       {/* Navigation */}
-      <nav className="relative border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+      <nav className="relative border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -27,6 +27,7 @@ export default function Landing() {
               <Link href="/pricing" className="text-slate-300 hover:text-teal-400 transition-colors cursor-pointer">
                 Preise
               </Link>
+              <a href="#how-it-works" className="text-slate-300 hover:text-teal-400 transition-colors">Wie es funktioniert</a>
               <a href="#about" className="text-slate-300 hover:text-teal-400 transition-colors">Über uns</a>
             </div>
             <div className="flex items-center gap-4">
@@ -59,19 +60,34 @@ export default function Landing() {
               Live-Tracking, Fundamentalanalyse und<br />
               automatische Alerts für Schweizer Investoren
             </p>
-            <Link href="/register">
-              <Button 
-                size="lg" 
-                className="bg-teal-500 hover:bg-teal-600 text-slate-900 font-bold text-lg px-8 py-6 rounded-full shadow-xl shadow-teal-500/40 hover:shadow-teal-500/60 transition-all"
-              >
-                Kostenlos starten
-              </Button>
-            </Link>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/register">
+                <Button
+                  size="lg"
+                  className="bg-teal-500 hover:bg-teal-600 text-slate-900 font-bold text-lg px-8 py-6 rounded-full shadow-xl shadow-teal-500/40 hover:shadow-teal-500/60 transition-all"
+                >
+                  Kostenlos starten
+                </Button>
+              </Link>
+              <a href="#how-it-works">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-slate-600 text-slate-300 hover:text-white hover:border-teal-400 bg-transparent text-lg px-8 py-6 rounded-full"
+                >
+                  Wie es funktioniert
+                </Button>
+              </a>
+            </div>
           </div>
 
-          {/* Right Column - Dashboard Preview Mockup */}
+          {/* Right Column - Dashboard Preview Mockup — N-01: Demo-Hinweis */}
           <div className="relative z-10">
             <div className="absolute inset-0 bg-teal-500/20 blur-3xl rounded-full -z-10"></div>
+            {/* N-01: Demo badge */}
+            <div className="absolute -top-3 -right-3 z-20 bg-amber-500 text-amber-950 text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+              Demo-Vorschau
+            </div>
             <Card className="relative bg-slate-800/80 border-slate-700 p-6 backdrop-blur-sm shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-white font-semibold flex items-center gap-2">
@@ -84,9 +100,9 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Portfolio Value */}
+              {/* Portfolio Value — N-01: Demo label */}
               <div className="mb-6">
-                <p className="text-sm text-slate-400 mb-1">Current Balance</p>
+                <p className="text-sm text-slate-400 mb-1">Current Balance <span className="text-amber-400 text-xs">(Demo)</span></p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-white">CHF 235'000.50</span>
                   <span className="text-teal-400 font-semibold">+4.5%</span>
@@ -171,8 +187,63 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Feature Cards */}
+      {/* How it works — N-03 */}
+      <section id="how-it-works" className="relative container mx-auto px-6 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-white mb-4">Wie es funktioniert</h2>
+          <p className="text-slate-400 text-lg max-w-2xl mx-auto">In drei Schritten zu Ihrem optimierten Portfolio</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-8 relative">
+          {/* Connector line */}
+          <div className="hidden md:block absolute top-10 left-1/3 right-1/3 h-0.5 bg-teal-500/30"></div>
+          {[
+            {
+              step: "01",
+              icon: Shield,
+              title: "Anlageprofil erstellen",
+              desc: "Definieren Sie Ihre Ziele, Risikobereitschaft und Anlagehorizont in wenigen Minuten.",
+            },
+            {
+              step: "02",
+              icon: Zap,
+              title: "KI-Portfolio generieren",
+              desc: "Unser Algorithmus erstellt einen massgeschneiderten Portfoliovorschlag basierend auf aktuellen Marktdaten.",
+            },
+            {
+              step: "03",
+              icon: BarChart2,
+              title: "Verfolgen & optimieren",
+              desc: "Behalten Sie Ihre Performance im Blick und erhalten Sie KI-gestützte Optimierungsempfehlungen.",
+            },
+          ].map((item) => (
+            <div key={item.step} className="flex flex-col items-center text-center gap-4">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-2xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
+                  <item.icon className="h-9 w-9 text-teal-400" />
+                </div>
+                <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-teal-500 text-slate-900 text-xs font-bold flex items-center justify-center">
+                  {item.step}
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-white">{item.title}</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="text-center mt-10">
+          <Link href="/register">
+            <Button className="bg-teal-500 hover:bg-teal-600 text-slate-900 font-bold px-8 py-4 rounded-full shadow-xl shadow-teal-500/40">
+              Jetzt kostenlos starten <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* Feature Cards — N-02: "Mehr erfahren" links to real anchors */}
       <section id="features" className="relative container mx-auto px-6 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-white mb-4">Alle Funktionen auf einen Blick</h2>
+        </div>
         <div className="grid md:grid-cols-3 gap-8">
           {/* Portfolio-Builder */}
           <Card className="bg-slate-800/50 border-teal-500/30 p-8 hover:border-teal-500/60 transition-all group backdrop-blur-sm shadow-xl hover:shadow-teal-500/20">
@@ -185,10 +256,9 @@ export default function Landing() {
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
               Erstellen und optimieren Sie Ihr Portfolio basierend auf modernsten KI-Modellen und Risikoprofilen.
             </p>
-            <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
-              Mehr erfahren
-              <span>→</span>
-            </a>
+            <Link href="/register" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
+              Jetzt starten <ChevronRight className="h-4 w-4" />
+            </Link>
           </Card>
 
           {/* Live-Tracking */}
@@ -202,10 +272,9 @@ export default function Landing() {
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
               Verfolgen Sie die Performance Ihres gesamten Portfolios in Echtzeit und erhalten Sie sofortige Updates.
             </p>
-            <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
-              Mehr erfahren
-              <span>→</span>
-            </a>
+            <Link href="/register" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
+              Mehr erfahren <ChevronRight className="h-4 w-4" />
+            </Link>
           </Card>
 
           {/* Preisalarme */}
@@ -219,18 +288,16 @@ export default function Landing() {
             <p className="text-lg text-slate-300 mb-6 leading-relaxed">
               Setzen Sie individuelle Alarme für Preisänderungen, News und technische Indikatoren.
             </p>
-            <a href="#" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
-              Mehr erfahren
-              <span>→</span>
-            </a>
+            <Link href="/register" className="text-teal-400 hover:text-teal-300 font-semibold inline-flex items-center gap-2">
+              Mehr erfahren <ChevronRight className="h-4 w-4" />
+            </Link>
           </Card>
         </div>
       </section>
 
       {/* Trust Section */}
-      <section className="relative container mx-auto px-6 py-16">
+      <section id="about" className="relative container mx-auto px-6 py-16">
         <div className="flex flex-col md:flex-row items-center justify-between gap-12">
-          {/* Left - Value statement (L-07: keine erfundenen Investoren-Avatare / «500+»-Claim) */}
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
               <TrendingUp className="h-7 w-7 text-teal-400" />
@@ -241,7 +308,6 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Right - Trust Badges */}
           <div className="flex flex-wrap items-center gap-8">
             <div className="flex items-center gap-3 text-slate-300">
               <Lock className="h-7 w-7 text-teal-400" />
@@ -258,6 +324,25 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* Footer — N-04: AGB, Datenschutz, Impressum */}
+      <footer className="relative border-t border-slate-700/50 bg-slate-900/80 backdrop-blur-sm mt-8">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-teal-400" />
+              <span className="text-slate-400 text-sm font-medium">© 2026 portfolio.mw — Alle Rechte vorbehalten</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-6 text-sm text-slate-400">
+              <Link href="/agb" className="hover:text-teal-400 transition-colors">AGB</Link>
+              <Link href="/datenschutz" className="hover:text-teal-400 transition-colors">Datenschutz</Link>
+              <Link href="/impressum" className="hover:text-teal-400 transition-colors">Impressum</Link>
+              <Link href="/pricing" className="hover:text-teal-400 transition-colors">Preise</Link>
+              <a href="mailto:support@portfolio.mw" className="hover:text-teal-400 transition-colors">Kontakt</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

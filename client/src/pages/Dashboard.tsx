@@ -15,6 +15,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { formatCHF, formatPercent } from "@/lib/format";
 import DashboardLayout from "@/components/DashboardLayout";
+import WelcomeBanner from "@/components/WelcomeBanner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -146,13 +147,19 @@ function KpiRow({ scope }: { scope: Scope }) {
             {formatCHF(totalValue, { decimals: 0 })}
           </div>
           <div className="text-xs font-mono mt-2">
-            <span className={dayChange >= 0 ? "text-positive" : "text-negative"}>
-              {formatCHF(dayChange, { decimals: 0, signDisplay: "always" })}
-            </span>
-            <span className="text-gray-400"> heute · </span>
-            <span className={dayChangePercent >= 0 ? "text-positive" : "text-negative"}>
-              {formatPercent(dayChangePercent)}
-            </span>
+            {dayChange === 0 && dayChangePercent === 0 ? (
+              <span className="text-gray-500 italic">Intraday-Daten folgen</span>
+            ) : (
+              <>
+                <span className={dayChange >= 0 ? "text-positive" : "text-negative"}>
+                  {formatCHF(dayChange, { decimals: 0, signDisplay: "always" })}
+                </span>
+                <span className="text-gray-400"> heute · </span>
+                <span className={dayChangePercent >= 0 ? "text-positive" : "text-negative"}>
+                  {formatPercent(dayChangePercent)}
+                </span>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -703,6 +710,11 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Beta-Onboarding: Willkommen-Banner für neue Nutzer ohne Portfolio */}
+        {!portfoliosLoading && (
+          <WelcomeBanner userName={user?.name} hasPortfolios={hasPortfolios} />
+        )}
 
         {/* A2 (M-A1): Ehrlicher Hinweis, wenn nur ein Demo existiert — die
             Aggregat-Widgets bleiben sonst kommentarlos leer. */}

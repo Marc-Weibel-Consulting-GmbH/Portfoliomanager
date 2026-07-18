@@ -313,6 +313,24 @@ class SDKServer {
           lastSignedIn: signedInAt,
         });
         user = await db.getUser(userInfo.openId);
+        // Send welcome email to new users
+        if (user && user.email && !user.welcomeEmailSent) {
+          try {
+            const { sendEmail, generateWelcomeEmail } = await import('./email');
+            const html = generateWelcomeEmail(user.name || '', user.email);
+            const sent = await sendEmail({
+              to: user.email,
+              subject: 'Willkommen bei Portfolio Intelligence — Ihr Account ist bereit',
+              html,
+            });
+            if (sent) {
+              await db.markWelcomeEmailSent(user.openId!);
+              console.log('[Onboarding] Welcome email sent to', user.email);
+            }
+          } catch (emailErr) {
+            console.warn('[Onboarding] Welcome email failed (non-fatal):', emailErr);
+          }
+        }
       } catch (error) {
         console.error("[Auth] Failed to sync user from OAuth:", error);
         throw ForbiddenError("Failed to sync user info");

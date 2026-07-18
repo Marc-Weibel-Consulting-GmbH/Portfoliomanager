@@ -44,6 +44,7 @@ export const users = mysqlTable("users", {
   investmentGoal: mysqlEnum("investmentGoal", ["dividends", "growth", "balanced"]),
   riskTolerance: mysqlEnum("riskTolerance", ["low", "medium", "high"]),
   investmentHorizon: mysqlEnum("investmentHorizon", ["short", "medium", "long"]),
+  welcomeEmailSent: tinyint("welcomeEmailSent").notNull().default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

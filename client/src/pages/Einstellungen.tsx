@@ -528,10 +528,22 @@ export default function Einstellungen() {
                 <CardDescription>Ihre persönlichen Informationen</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* N-21: Avatar-Anzeige mit Initialen */}
+                <div className="flex items-center gap-4 pb-2 border-b">
+                  <div className="w-14 h-14 rounded-full bg-[#00CFC1]/20 border border-[#00CFC1]/30 flex items-center justify-center text-[#00CFC1] text-xl font-bold select-none">
+                    {user?.name ? user.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase() : "?"}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-base">{user?.name || "—"}</div>
+                    <div className="text-sm text-muted-foreground">{user?.email || "—"}</div>
+                  </div>
+                </div>
                 <div className="grid gap-2"><Label htmlFor="name">Name</Label><Input id="name" defaultValue={user?.name || ""} disabled /></div>
                 <div className="grid gap-2"><Label htmlFor="email">E-Mail</Label><Input id="email" type="email" defaultValue={user?.email || ""} disabled /></div>
-                <div className="grid gap-2"><Label htmlFor="username">Benutzername</Label><Input id="username" defaultValue={(user as any)?.username || ""} disabled /></div>
-                <p className="text-sm text-muted-foreground">Profildaten werden über OAuth verwaltet und können hier nicht geändert werden.</p>
+                <div className="flex items-start gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                  <span className="text-blue-400 text-xs mt-0.5">ⓘ</span>
+                  <p className="text-xs text-muted-foreground">Profildaten werden über Ihren Manus-Account verwaltet. Änderungen nehmen Sie bitte direkt im <a href="https://manus.im" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Manus-Portal</a> vor.</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -552,9 +564,45 @@ export default function Einstellungen() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Sicherheit</CardTitle>
-                <CardDescription>2FA, aktive Sessions und Login-Historie</CardDescription>
+                <CardDescription>2FA, aktive Sessions und Login-Schutz</CardDescription>
               </CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">Sicherheitseinstellungen werden über OAuth verwaltet.</p></CardContent>
+              <CardContent className="space-y-4">
+                {/* N-22: Sicherheits-Hinweis mit Link */}
+                <div className="flex items-start gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+                  <Shield className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-emerald-400">Ihr Account ist geschützt</p>
+                    <p className="text-xs text-muted-foreground">
+                      Sicherheitseinstellungen wie Passwort, Zwei-Faktor-Authentifizierung und aktive Sessions werden über Ihren Manus-Account verwaltet.
+                    </p>
+                    <a
+                      href="https://manus.im"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline mt-1"
+                    >
+                      Sicherheitseinstellungen im Manus-Portal →
+                    </a>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <div>
+                      <div className="text-sm font-medium">Letzte Anmeldung</div>
+                      <div className="text-xs text-muted-foreground">{user ? new Date((user as any).lastSignedIn || Date.now()).toLocaleString("de-CH") : "—"}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <div className="text-sm font-medium">Anmeldestatus</div>
+                      <div className="text-xs text-muted-foreground">Aktiv in dieser Sitzung</div>
+                    </div>
+                    <span className="flex items-center gap-1 text-xs text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Aktiv
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           </TabsContent>
 
