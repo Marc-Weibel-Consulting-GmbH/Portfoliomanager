@@ -276,6 +276,83 @@ const normalizeResponseFormat = ({
   };
 };
 
+// ─── Kimi K2 Integration ───────────────────────────────────────────────────
+
+const KIMI_API_URL = "https://api.moonshot.cn/v1/chat/completions";
+const KIMI_MODEL = "kimi-k2-0711-preview";
+
+/**
+ * Invoke Kimi K2 directly via Moonshot AI API.
+ * Falls back to invokeLLM (Gemini) if KIMI_API_KEY is not set or request fails.
+ */
+export async function invokeKimi(params: InvokeParams): Promise<InvokeResult> {
+  const kimiKey = ENV.kimiApiKey;
+  if (!kimiKey) {
+    console.warn("[Kimi] KIMI_API_KEY not set, falling back to default LLM");
+    return invokeLLM(params);
+  }
+
+  const {
+    messages,
+    tools,
+    toolChoice,
+    tool_choice,
+    outputSchema,
+    output_schema,
+    responseFormat,
+    response_format,
+  } = params;
+
+  const payload: Record<string, unknown> = {
+    model: KIMI_MODEL,
+    messages: messages.map(normalizeMessage),
+    max_tokens: params.maxTokens || params.max_tokens || 16384,
+  };
+
+  if (tools && tools.length > 0) {
+    payload.tools = tools;
+  }
+
+  const normalizedToolChoice = normalizeToolChoice(toolChoice || tool_choice, tools);
+  if (normalizedToolChoice) {
+    payload.tool_choice = normalizedToolChoice;
+  }
+
+  const normalizedResponseFormat = normalizeResponseFormat({
+    responseFormat,
+    response_format,
+    outputSchema,
+    output_schema,
+  });
+  if (normalizedResponseFormat) {
+    payload.response_format = normalizedResponseFormat;
+  }
+
+  try {
+    const response = await fetch(KIMI_API_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${kimiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`[Kimi] Request failed (${response.status}): ${errorText}. Falling back to default LLM.`);
+      return invokeLLM(params);
+    }
+
+    const result = (await response.json()) as InvokeResult;
+    console.log(`[Kimi] Request successful (model: ${KIMI_MODEL})`);
+    return result;
+  } catch (err: any) {
+    console.warn(`[Kimi] Network error: ${err.message}. Falling back to default LLM.`);
+    return invokeLLM(params);
+  }
+}
+
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   assertApiKey();
 

@@ -3,7 +3,7 @@
  * Finds better alternative stocks using LLM and financial APIs
  */
 
-import { invokeLLM } from "./llm";
+import { invokeLLM, invokeKimi } from "./llm";
 import { fetchStockMetrics } from "./stockDataApi";
 import { fetchEODHDFundamentals } from "./eodhdApi";
 import { validateTicker } from "./tickerValidator";
@@ -149,7 +149,7 @@ export async function findCompetitors(
   console.log(`[CompetitorAnalyzer] Industry: ${industry}`);
   
   // Step 2: Use LLM to find similar companies
-  const llmResponse = await invokeLLM({
+  const llmResponse = await invokeKimi({
     messages: [
       {
         role: "system",

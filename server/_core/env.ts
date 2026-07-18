@@ -33,6 +33,7 @@ export const ENV = {
   get twilioWhatsappNumber() { return process.env.TWILIO_WHATSAPP_NUMBER ?? ""; },
   get emailFrom() { return process.env.EMAIL_FROM ?? ""; },
   get ownerName() { return process.env.OWNER_NAME ?? ""; },
+  get kimiApiKey() { return process.env.KIMI_API_KEY ?? ""; },
 };
 
 /**

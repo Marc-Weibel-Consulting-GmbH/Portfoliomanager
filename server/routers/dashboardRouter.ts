@@ -2128,7 +2128,7 @@ export const dashboardRouter = router({
       ].join('\n');
 
       try {
-        const llmResponse = await invokeLLM({
+        const llmResponse = await invokeKimi({
           messages: [
             {
               role: 'system',
@@ -2739,7 +2739,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         userPrompt = `Portfolio-Analyse:\n\nPositionen:\n${holdingsSummary}\n\nKontext: ${input.context || 'Allgemeine Analyse'}\n\nGib 3-5 konkrete Handlungsempfehlungen.`;
       }
 
-      const response = await invokeLLM({
+      const response = await invokeKimi({
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -2924,7 +2924,7 @@ Positionen:\n${portfolioContext}\n\nRegeln: Max ${(maxWeight*100).toFixed(0)}% p
       }
 
       try {
-        const response = await invokeLLM({
+        const response = await invokeKimi({
           messages: [
             {
               role: 'system',

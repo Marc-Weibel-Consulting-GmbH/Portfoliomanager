@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
-import { invokeLLM } from '../_core/llm';
+import { invokeLLM, invokeKimi } from '../_core/llm';
 import { getResearchContextForLLM } from '../helpers/researchContext';
 import { getSavedPortfolioById, getPortfolioTransactions, createPortfolioTransaction, getDb } from '../db';
 import { tryConvertToCHF } from '../fxHelper';
@@ -1075,7 +1075,7 @@ export const copilotRouter = router({
           // Inject research context into AI recommendations
           const researchCtx = await getResearchContextForLLM();
           const systemContent = 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte präzise auf Deutsch.' + researchCtx.contextString;
-          const response = await invokeLLM({
+          const response = await invokeKimi({
             messages: [
               { role: 'system', content: systemContent },
               { role: 'user', content: prompt },
@@ -1130,7 +1130,7 @@ Schreibe die Zusammenfassung auf Deutsch. Strukturiere sie in: 1) Gesamteinschä
   // Inject research context
   const researchCtx2 = await getResearchContextForLLM();
   const sysContent2 = 'Du bist ein Schweizer Portfolio-Analyst der prägnante, faktenbasierte Zusammenfassungen schreibt. Antworte immer auf Deutsch.' + researchCtx2.contextString;
-  const result = await invokeLLM({
+  const result = await invokeKimi({
     messages: [
       { role: 'system', content: sysContent2 },
       { role: 'user', content: prompt },

@@ -13,7 +13,7 @@ import {
   deriveActiveProfile,
   type ProfileAnswers,
 } from "../lib/investorProfileScoring";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 
 // ── Profil-Mismatch-Erkennung ─────────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ async function detectProfileMismatch(
       // KI-Anpassungsvorschlag generieren
       let aiSuggestion: string | null = null;
       try {
-        const llmResponse = await invokeLLM({
+        const llmResponse = await invokeKimi({
           messages: [
             {
               role: "system",

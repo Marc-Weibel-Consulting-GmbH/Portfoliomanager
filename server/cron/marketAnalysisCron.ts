@@ -143,7 +143,7 @@ Antworte als JSON:
 
   let analysisData: any;
   try {
-    const response = await invokeLLM({
+    const response = await invokeKimi({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user',   content: userPrompt },

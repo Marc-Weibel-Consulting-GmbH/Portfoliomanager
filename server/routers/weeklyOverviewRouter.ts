@@ -116,7 +116,7 @@ Antworte im JSON-Format:
 Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
 
       try {
-        const llmResponse = await invokeLLM({
+        const llmResponse = await invokeKimi({
           messages: [
             { role: "system", content: "Du bist ein Finanzanalyst, der relevante Börsennews filtert und zusammenfasst." },
             { role: "user", content: prompt }

@@ -15,7 +15,7 @@
  */
 
 import { getDb } from "../db";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import { getMarktHubSignals, getSectorTilts, getDynamicRiskFreeRate, buildMarktHubContext, type MarktHubSignals } from "./marktHubSignals";
 
 // Aktuelle Algorithmus-Version (Semver)
@@ -556,7 +556,7 @@ Durchschnitt aller Portfolios: ${avgPerf !== null ? avgPerf.toFixed(2) + "%" : "
 Antworte im JSON-Format.`;
 
   try {
-    const response = await invokeLLM({
+    const response = await invokeKimi({
       messages: [
         { role: "system", content: "Du bist ein quantitativer Portfolio-Analyst. Antworte präzise und datenbasiert auf Deutsch. Vermeide Overfitting-Empfehlungen." },
         { role: "user", content: prompt },

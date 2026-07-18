@@ -10,7 +10,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory, runPortfolioBacktest } from "../analytics/engine";
 import { getQualityMetrics } from "../lib/qualityMetricsService";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
 import { getDb } from "../db";
 import { stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
@@ -342,7 +342,7 @@ RISIKO:
 
 Gib eine strukturierte Analyse zurück.`;
 
-        const response = await invokeLLM({
+        const response = await invokeKimi({
           messages: [
             {
               role: "system",

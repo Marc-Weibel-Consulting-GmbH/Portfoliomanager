@@ -1,6 +1,6 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import {
   getMarktHubSignals,
   getSectorTilts,
@@ -782,7 +782,7 @@ export const autoPortfolioRouter = router({
 
         // ---- AGENT 2: CHALLENGER ----
         console.log('[buildProposal] Agent 2 (Challenger) starting...');
-        const challengerResponse = await invokeLLM({
+        const challengerResponse = await invokeKimi({
           messages: [
             {
               role: 'system',
@@ -913,7 +913,7 @@ Antworte im JSON-Format.`,
         }
 
         console.log('[buildProposal] Agent 3 (Synthesizer) starting...');
-        const synthesizerResponse = await invokeLLM({
+        const synthesizerResponse = await invokeKimi({
           messages: [
             {
               role: 'system',

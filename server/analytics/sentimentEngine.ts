@@ -5,7 +5,7 @@
  * a sentiment score for stocks. Integrates into the signals system.
  */
 
-import { invokeLLM } from '../_core/llm';
+import { invokeLLM, invokeKimi } from '../_core/llm';
 import YahooFinance from 'yahoo-finance2';
 
 const yf = new (YahooFinance as any)();
@@ -57,7 +57,7 @@ export async function analyzeSentiment(ticker: string, companyName?: string): Pr
   const headlineText = headlines.map((h, i) => `${i + 1}. ${h}`).join('\n');
   
   try {
-    const response = await invokeLLM({
+    const response = await invokeKimi({
       messages: [
         {
           role: 'system',

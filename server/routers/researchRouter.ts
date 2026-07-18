@@ -4,7 +4,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { adminProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { researchDocuments, multiAgentSessions } from "../../drizzle/schema";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import { storagePut, storageGet } from "../storage";
 import { getSecret } from "../_core/secretsManager";
 
@@ -201,7 +201,7 @@ async function callPerplexity(prompt: string, systemPrompt: string): Promise<{ r
 
 async function callManusLLM(prompt: string, systemPrompt: string): Promise<{ response: string; tokens: number; durationMs: number }> {
   const start = Date.now();
-  const result = await invokeLLM({
+  const result = await invokeKimi({
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: prompt },
