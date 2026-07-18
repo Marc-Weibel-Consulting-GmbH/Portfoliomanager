@@ -5,6 +5,7 @@ import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RequireAdmin from "./components/RequireAdmin";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { ViewDensityProvider } from "./contexts/ViewDensityContext";
 
 // Loading fallback — minimal spinner to avoid layout shift
 function PageLoader() {
@@ -235,10 +236,12 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <ViewDensityProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ViewDensityProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
