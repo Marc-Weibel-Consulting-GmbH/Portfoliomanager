@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X, LineChart as LineChartIcon } from "lucide-react";
 import { PriceChart } from "@/components/charts";
+import { InsightExpandable } from "@/components/InsightPanel";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -954,6 +955,22 @@ export default function OptimierenTab({
                                 </span>
                               )}
                             </div>
+                            {/* KI-Erklärung warum dieser Titel ersetzt werden soll */}
+                            <InsightExpandable
+                              title={`Warum ${rep.weakTicker} ersetzen?`}
+                              summary={`${rep.weakTicker} hat einen Score von ${rep.weakScore}/100 und liegt damit unter der Qualitätsschwelle von ${upgradeData.upgradeScoreThreshold}. ${chosenSuggestion ? `${chosenSuggestion.ticker} wäre ein stärkerer Ersatz mit Score ${chosenSuggestion.signalScore}/100 (+${chosenSuggestion.scoreDelta} Punkte).` : ''}`}
+                              factors={[
+                                { label: 'Aktueller Score', value: `${rep.weakScore}/100`, sentiment: rep.weakScore >= 55 ? 'positive' : rep.weakScore >= 40 ? 'neutral' : 'negative', description: 'Kombinierter Score aus Momentum, Qualität und LPPL-Risikomodell' },
+                                { label: 'Score-Schwelle', value: `${upgradeData.upgradeScoreThreshold}/100`, sentiment: 'neutral', description: 'Mindest-Score für eine Halteempfehlung im Portfolio' },
+                                ...(chosenSuggestion ? [{ label: `Ersatz ${chosenSuggestion.ticker}`, value: `${chosenSuggestion.signalScore}/100`, sentiment: 'positive' as const, description: `Signal: ${chosenSuggestion.signalType?.toUpperCase() ?? '—'} · Score-Gewinn: +${chosenSuggestion.scoreDelta} Punkte` }] : []),
+                                { label: 'Gewicht im Portfolio', value: `${(rep.weakWeight * 100).toFixed(1)}%`, sentiment: 'neutral', description: 'Aktueller Anteil dieser Position am Gesamtportfolio' },
+                                ...((rep as any).cashRequired > 0 ? [{ label: 'Benötigtes Cash', value: `CHF ${Math.round((rep as any).cashRequired).toLocaleString('de-CH')}`, sentiment: (rep as any).hasSufficientCash === false ? 'negative' as const : 'positive' as const, description: (rep as any).hasSufficientCash === false ? 'Nicht genügend Cash verfügbar für diesen Tausch' : 'Genügend Cash für den Tausch vorhanden' }] : []),
+                              ]}
+                              riskNote={(rep as any).hasSufficientCash === false ? 'Kein ausreichendes Cash für diesen Tausch. Verkäufe oder Einlagen nötig.' : undefined}
+                              variant="warning"
+                              triggerLabel="KI-Begründung"
+                              className="mb-2"
+                            />
                             {/* Ersatz-Kandidaten */}
                             {rep.suggestions.length === 0 ? (
                               <p className="text-xs text-gray-600 pl-6">Kein besserer Kandidat im gleichen Sektor gefunden.</p>
@@ -1094,27 +1111,44 @@ export default function OptimierenTab({
                       {(showAllAdditions ? upgradeData.additionSuggestions : upgradeData.additionSuggestions.slice(0, 8)).map((c: any) => {
                         const isAddChecked = !deselectedAdditions.has(c.ticker);
                         return (
-                          <div key={c.ticker} className={`flex items-center gap-2 text-xs bg-white/[0.02] rounded px-3 py-2 transition-opacity ${!isAddChecked ? 'opacity-40' : ''}`}>
-                            <button
-                              onClick={() => setDeselectedAdditions(prev => {
-                                const next = new Set(prev);
-                                if (next.has(c.ticker)) next.delete(c.ticker); else next.add(c.ticker);
-                                return next;
-                              })}
-                              className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
-                              title={isAddChecked ? 'Abwählen' : 'Auswählen'}
-                            >
-                              {isAddChecked ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
-                            </button>
-                            <span className="font-mono font-semibold text-indigo-300 w-16">{c.ticker}</span>
-                            <span className="text-gray-400 truncate flex-1">{c.companyName}</span>
-                            {c.sector && <span className="text-gray-600 text-[10px] hidden sm:block">{c.sector}</span>}
-                            <ScoreBadge score={c.signalScore} />
-                            <SignalBadge type={c.signalType} />
-                            <span className={`text-[10px] px-1 py-0.5 rounded ${c.listType === 'empfehlung' ? 'bg-[#00CFC1]/10 text-[#00CFC1]' : 'bg-white/5 text-gray-500'}`}>
-                              {c.listType === 'empfehlung' ? 'Empfehlung' : 'Watchlist'}
-                            </span>
-                            {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
+                          <div key={c.ticker} className={`bg-white/[0.02] rounded px-3 py-2 transition-opacity ${!isAddChecked ? 'opacity-40' : ''}`}>
+                            <div className="flex items-center gap-2 text-xs">
+                              <button
+                                onClick={() => setDeselectedAdditions(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(c.ticker)) next.delete(c.ticker); else next.add(c.ticker);
+                                  return next;
+                                })}
+                                className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+                                title={isAddChecked ? 'Abwählen' : 'Auswählen'}
+                              >
+                                {isAddChecked ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
+                              </button>
+                              <span className="font-mono font-semibold text-indigo-300 w-16">{c.ticker}</span>
+                              <span className="text-gray-400 truncate flex-1">{c.companyName}</span>
+                              {c.sector && <span className="text-gray-600 text-[10px] hidden sm:block">{c.sector}</span>}
+                              <ScoreBadge score={c.signalScore} />
+                              <SignalBadge type={c.signalType} />
+                              <span className={`text-[10px] px-1 py-0.5 rounded ${c.listType === 'empfehlung' ? 'bg-[#00CFC1]/10 text-[#00CFC1]' : 'bg-white/5 text-gray-500'}`}>
+                                {c.listType === 'empfehlung' ? 'Empfehlung' : 'Watchlist'}
+                              </span>
+                              {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
+                            </div>
+                            {/* KI-Begründung für Ergänzungs-Vorschlag */}
+                            <InsightExpandable
+                              title={`Warum ${c.ticker} hinzufügen?`}
+                              summary={`${c.ticker} (${c.companyName}) hat einen Score von ${c.signalScore}/100 und ein ${c.signalType?.toUpperCase() ?? 'HOLD'}-Signal. ${c.listType === 'empfehlung' ? 'Dieser Titel ist eine aktive KI-Empfehlung.' : 'Dieser Titel steht auf Ihrer Watchlist.'} ${c.dividendYield ? `Dividendenrendite: ${c.dividendYield}%.` : ''}`}
+                              factors={[
+                                { label: 'Score', value: `${c.signalScore}/100`, sentiment: c.signalScore >= 65 ? 'positive' : c.signalScore >= 50 ? 'neutral' : 'negative', description: 'Kombinierter Score aus Momentum, Qualität und LPPL-Risikomodell' },
+                                { label: 'Signal', value: c.signalType?.toUpperCase() ?? '—', sentiment: c.signalType === 'buy' ? 'positive' : c.signalType === 'sell' ? 'negative' : 'neutral', description: 'Aktuelles Handelssignal basierend auf technischer und fundamentaler Analyse' },
+                                { label: 'Sektor', value: c.sector ?? '—', sentiment: 'neutral', description: 'Sektorzugehörigkeit des Titels' },
+                                { label: 'Quelle', value: c.listType === 'empfehlung' ? 'KI-Empfehlung' : 'Watchlist', sentiment: c.listType === 'empfehlung' ? 'positive' : 'neutral', description: c.listType === 'empfehlung' ? 'Aktiv von der KI als Kaufkandidat eingestuft' : 'Von Ihnen manuell auf die Watchlist gesetzt' },
+                                ...(c.dividendYield ? [{ label: 'Dividendenrendite', value: `${c.dividendYield}%`, sentiment: parseFloat(c.dividendYield) >= 3 ? 'positive' as const : 'neutral' as const, description: 'Jährliche Dividendenrendite basierend auf aktuellem Kurs' }] : []),
+                              ]}
+                              variant="info"
+                              triggerLabel="KI-Begründung"
+                              className="mt-1.5"
+                            />
                           </div>
                         );
                       })}

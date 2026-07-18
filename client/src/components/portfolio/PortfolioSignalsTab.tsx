@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, AlertTriangle, Info } from "lucide-react";
+import { InsightTooltip } from "@/components/InsightPanel";
 import { Link } from "wouter";
 
 type SignalType = "all" | "buy" | "sell" | "hold";
@@ -145,14 +146,26 @@ export function PortfolioSignalsTab({
                     </div>
                     <div className="text-right">
                       {signal.combinedScore !== undefined && (
-                        <div className="mb-1">
-                          <p className="text-xs text-muted-foreground">Score (M+Q+LPPL)</p>
-                          <p className={`text-lg font-bold font-mono ${
-                            signal.combinedScore >= 70 ? "text-emerald-500" :
-                            signal.combinedScore >= 55 ? "text-[#00CFC1]" :
-                            signal.combinedScore >= 45 ? "text-yellow-500" : "text-red-500"
-                          }`}>{signal.combinedScore}<span className="text-sm text-muted-foreground">/100</span></p>
-                        </div>
+                        <InsightTooltip
+                          title="Wie wird der Score berechnet?"
+                          summary={`Der kombinierte Score von ${signal.combinedScore}/100 setzt sich aus drei Modellen zusammen: Momentum (technische Analyse), Qualität (Fundamentaldaten) und LPPL-Risikomodell (Blasenerkennung).`}
+                          factors={[
+                            { label: 'Momentum', value: signal.rfScore ? `${signal.rfScore}/100` : '—', sentiment: signal.rfSignal === 'buy' || signal.rfSignal === 'strong_buy' ? 'positive' : signal.rfSignal === 'sell' || signal.rfSignal === 'strong_sell' ? 'negative' : 'neutral', description: 'Technische Analyse: RSI, Kursmomentum, Algorithmus-Signal' },
+                            { label: 'Bewertung', value: signal.peRatio ? `KGV ${signal.peRatio.toFixed(1)}` : '—', sentiment: signal.peRatio && signal.peRatio < 20 ? 'positive' : signal.peRatio && signal.peRatio > 35 ? 'negative' : 'neutral', description: 'Fundamentale Bewertung: KGV, PEG-Ratio, Dividendenrendite' },
+                            { label: 'Sentiment', value: signal.sentimentLabel ?? '—', sentiment: signal.sentimentLabel === 'bullish' ? 'positive' : signal.sentimentLabel === 'bearish' ? 'negative' : 'neutral', description: 'Marktstimmung aus Nachrichten und Analystenmeinungen' },
+                            { label: 'Score-Note', value: signal.overallGrade ?? '—', sentiment: signal.overallGrade === 'A' ? 'positive' : signal.overallGrade === 'F' || signal.overallGrade === 'D' ? 'negative' : 'neutral', description: 'A (≥75), B (≥60), C (≥45), D (≥30), F (<30)' },
+                          ]}
+                          variant={signal.combinedScore >= 65 ? 'success' : signal.combinedScore >= 45 ? 'default' : 'warning'}
+                        >
+                          <div className="mb-1 cursor-help">
+                            <p className="text-xs text-muted-foreground">Score (M+Q+LPPL) ℹ️</p>
+                            <p className={`text-lg font-bold font-mono ${
+                              signal.combinedScore >= 70 ? "text-emerald-500" :
+                              signal.combinedScore >= 55 ? "text-[#00CFC1]" :
+                              signal.combinedScore >= 45 ? "text-yellow-500" : "text-red-500"
+                            }`}>{signal.combinedScore}<span className="text-sm text-muted-foreground">/100</span></p>
+                          </div>
+                        </InsightTooltip>
                       )}
                       <p className="text-xs text-muted-foreground">Aktueller Kurs</p>
                       <p className="text-base font-bold">{signal.currentPrice?.toFixed(2)}</p>
@@ -207,7 +220,14 @@ export function PortfolioSignalsTab({
                     {signal.criteria && signal.criteria.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {signal.criteria.map((criterion: string, i: number) => (
-                          <Badge key={i} variant="outline" className="text-xs text-muted-foreground">{criterion}</Badge>
+                          <InsightTooltip
+                            key={i}
+                            title={criterion}
+                            summary={`Dieses Kriterium wurde bei der Signalgenerierung für ${signal.ticker} als relevant identifiziert und trägt zum Gesamtsignal bei.`}
+                            variant="info"
+                          >
+                            <Badge variant="outline" className="text-xs text-muted-foreground cursor-help">{criterion}</Badge>
+                          </InsightTooltip>
                         ))}
                       </div>
                     )}

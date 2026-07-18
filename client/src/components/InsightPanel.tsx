@@ -5,6 +5,7 @@ export interface InsightFactor {
   label: string;
   value: string;
   sentiment: "positive" | "neutral" | "negative";
+  description?: string; // Optional tooltip/explanation for the factor
 }
 
 export interface InsightPanelProps {

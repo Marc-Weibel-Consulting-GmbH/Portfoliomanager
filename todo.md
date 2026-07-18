@@ -378,3 +378,10 @@
 - [x] Portfolio-Details Deep Dive: Qualitäts-Erklärungspanel (Stärken/Schwächen-Analyse)
 - [x] Synthesizer Empfehlungen: Erklärungs-Tooltip pro Empfehlung (Warum Tausch/Aufstocken/Reduzieren?)
 - [x] Portfolio-Qualitätsscore: Erklärungspanel mit Detailbegründung pro Faktor
+
+## InsightPanel Erweiterungen (2026-07-18)
+- [x] Optimierungsempfehlungen: InsightExpandable pro Ersatz-Vorschlag (Warum ersetzen? Score-Gap, Cash-Bedarf)
+- [x] Optimierungsempfehlungen: InsightExpandable pro Ergänzungs-Vorschlag (Warum hinzufügen? Score, Signal, Quelle)
+- [x] InsightFactor: description-Feld hinzugefügt (optionale Erklärung pro Faktor)
+- [x] Signale-Tab: InsightTooltip auf Score (M+Q+LPPL) — Hover zeigt Berechnungslogik
+- [x] Signale-Tab: InsightTooltip auf Kriterien-Badges — Hover erklärt Kriterium
