@@ -390,8 +390,10 @@ export default function PortfolioBuilderWizard() {
     setIsAiOptimized(useAdjusted && !!(autoProposal as any).adjustedPositions?.length);
     const seeded: StockSelection[] = positionsToUse.map((p: any) => {
       const value = (p.weightPct / 100) * capital;
-      const fxRate = parseFloat(p.exchangeRateToChf || '1') || 1;
-      const priceCHF = p.currentPrice * fxRate;
+      const fxRate = parseFloat(String(p.exchangeRateToChf || '1')) || 1;
+      // currentPrice can be a string (raw DB value) or a number — always coerce to float
+      const rawPrice = parseFloat(String(p.currentPrice ?? '0')) || 0;
+      const priceCHF = rawPrice * fxRate;
       const qty = priceCHF > 0 ? value / priceCHF : 0;
       return { ticker: p.ticker, companyName: p.companyName, quantity: parseFloat(qty.toFixed(4)), purchasePrice: priceCHF, assetType: "stock" as const };
     });
