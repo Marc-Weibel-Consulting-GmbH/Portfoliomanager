@@ -34,6 +34,8 @@ import {
 } from "recharts";
 import { PositionsTreemap } from "@/components/dashboard/PositionsTreemap";
 import { MarktPuls, AnstehendeTermine, AktiveAlarme } from "@/components/dashboard/MarketSections";
+import { ViewDensityToggle } from "@/components/ViewDensityToggle";
+import { useViewDensity } from "@/contexts/ViewDensityContext";
 
 type Scope = "aggregate" | number;
 type RangeKey = "1T" | "1M" | "YTD" | "1J" | "Max";
@@ -52,6 +54,7 @@ const CHART_TOOLTIP_STYLE = {
 // KPI-Reihe: Gesamtwert · YTD · Sharpe · Bubble (Mockup, obere Reihe)
 // ----------------------------------------------------------------
 function KpiRow({ scope }: { scope: Scope }) {
+  const { detailed } = useViewDensity();
   const { data: metrics, isLoading, isError, refetch } =
     trpc.dashboard.getAggregatedMetrics.useQuery({ scope });
   // Use TTWROR from chart timeseries as the authoritative YTD value (consistent with chart line)
@@ -130,7 +133,7 @@ function KpiRow({ scope }: { scope: Scope }) {
   const labelClass = "text-xs text-gray-400 uppercase tracking-wider";
 
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+    <div className={`grid grid-cols-2 gap-3 ${detailed ? "xl:grid-cols-4" : "xl:grid-cols-2"}`}>
       {/* Gesamtwert */}
       <Card className={tileClass}>
         <CardContent className="p-4">
@@ -193,7 +196,9 @@ function KpiRow({ scope }: { scope: Scope }) {
         </CardContent>
       </Card>
 
-      {/* Sharpe (mit Hover-Tooltip, Vorgabe Teil 1 Punkt 4) */}
+      {/* Sharpe + Bubble sind fortgeschrittene Kennzahlen — nur in «detailliert». */}
+      {detailed && (
+      <>
       <Tooltip>
         <TooltipTrigger asChild>
           <Card className={`${tileClass} cursor-help`} aria-label="Sharpe Ratio — Erklärung per Mauszeiger">
@@ -252,6 +257,8 @@ function KpiRow({ scope }: { scope: Scope }) {
           )}
         </TooltipContent>
       </Tooltip>
+      </>
+      )}
     </div>
   );
 }
@@ -600,6 +607,7 @@ function PortfolioOverviewGrid({ portfolios, onOpen, onCompare, onDelete }: { po
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { detailed } = useViewDensity();
   const [, navigate] = useLocation();
   const [scope, setScope] = useState<Scope>("aggregate");
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
@@ -663,9 +671,12 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* Scope-Auswahl: «Aggregiert»-Button + Dropdown statt einzelner
-              Portfolio-Buttons (Vorgabe Teil 1, Punkt 3 — Platz) */}
-          {hasPortfolios && (
+          {/* Rechts: Ansicht-Umschalter (immer sichtbar) + Scope-Auswahl */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <ViewDensityToggle />
+            {/* Scope-Auswahl: «Aggregiert»-Button + Dropdown statt einzelner
+                Portfolio-Buttons (Vorgabe Teil 1, Punkt 3 — Platz) */}
+            {hasPortfolios && (
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -708,7 +719,8 @@ export default function Dashboard() {
                 </SelectContent>
               </Select>
             </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Beta-Onboarding: Willkommen-Banner für neue Nutzer ohne Portfolio */}
@@ -854,12 +866,15 @@ export default function Dashboard() {
             {/* Positionen */}
             <PositionsCard scope={scope} />
 
-            {/* Markt-Widgets aus der früheren Portfolios-Seite */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <MarktPuls />
-              <AnstehendeTermine maxItems={5} withinDays={7} />
-              <AktiveAlarme />
-            </div>
+            {/* Markt-Widgets aus der früheren Portfolios-Seite — nur in «detailliert»,
+                um die einfache Ansicht auf das Wesentliche zu reduzieren. */}
+            {detailed && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <MarktPuls />
+                <AnstehendeTermine maxItems={5} withinDays={7} />
+                <AktiveAlarme />
+              </div>
+            )}
           </>
         )}
       </div>

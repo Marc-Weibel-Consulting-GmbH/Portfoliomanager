@@ -89,6 +89,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getUserErrorMessage } from "@/lib/errorMessages";
+import { ViewDensityToggle } from "@/components/ViewDensityToggle";
+import { useViewDensity } from "@/contexts/ViewDensityContext";
 import {
   Dialog,
   DialogContent,
@@ -908,7 +910,10 @@ export default function PortfolioDetailsPage() {
   const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const rawTab = searchParams.get('tab') || 'uebersicht';
   const urlTab = legacyTabMap[rawTab] || rawTab;
+  const { detailed } = useViewDensity();
   const [activeTab, setActiveTab] = useState(urlTab);
+  // Fortgeschrittene Tabs (nur «detailliert»): KI-Analysen + reine Kennzahlen.
+  const ADVANCED_TABS = ['deepdive', 'signale', 'risiko', 'optimierung'];
   const [posView, setPosView] = useState<'tabelle' | 'heatmap' | 'konstellation'>('tabelle');
   // Expandable row state for Positionen table
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
@@ -930,6 +935,15 @@ export default function PortfolioDetailsPage() {
     const newSearch = tab === 'uebersicht' ? '' : `?tab=${tab}`;
     navigate(`/portfolios/${portfolioId}${newSearch}`, { replace: true });
   };
+
+  // Wechselt der Nutzer auf «einfach», während ein fortgeschrittener Tab aktiv
+  // ist (oder ruft er einen solchen Tab per URL auf), auf die Übersicht zurück.
+  useEffect(() => {
+    if (!detailed && ADVANCED_TABS.includes(activeTab)) {
+      handleTabChange('uebersicht');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailed, activeTab]);
 
   // State for transactions filter
   const [txFilter, setTxFilter] = useState<string>('alle');
@@ -1460,6 +1474,7 @@ export default function PortfolioDetailsPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-shrink-0">
+              <ViewDensityToggle className="mr-1" />
               {isDemo && (
                 <Button
                   size="sm"
@@ -1529,8 +1544,8 @@ export default function PortfolioDetailsPage() {
           </div>
         )}
         
-        {/* KPI Row — matches design PDF: WERT | YTD | GESAMT | SHARPE — flat style, no teal top border */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-0 border border-white/10 rounded-lg overflow-hidden">
+        {/* KPI Row — WERT | YTD | SEIT KAUF | (SHARPE nur detailliert) | DIV. RENDITE */}
+        <div className={`grid grid-cols-2 gap-0 border border-white/10 rounded-lg overflow-hidden ${detailed ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
           {/* WERT */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">WERT</p>
@@ -1620,7 +1635,8 @@ export default function PortfolioDetailsPage() {
             })()}
           </div>
 
-          {/* SHARPE */}
+          {/* SHARPE — fortgeschrittene Kennzahl, nur in «detailliert» */}
+          {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
@@ -1630,6 +1646,7 @@ export default function PortfolioDetailsPage() {
               Bench {riskMetrics?.sharpeBenchmark !== undefined ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
             </p>
           </div>
+          )}
 
           {/* DIV. RENDITE */}
           <div className="bg-[#0f1420] p-5">
@@ -1656,7 +1673,7 @@ export default function PortfolioDetailsPage() {
               { value: 'performance', label: 'Performance' },
               { value: 'risiko', label: 'Risiko' },
               { value: 'optimierung', label: 'Optimierung & Empfehlungen', aiBadge: true },
-            ].map(tab => (
+            ].filter(tab => detailed || !ADVANCED_TABS.includes(tab.value)).map(tab => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
