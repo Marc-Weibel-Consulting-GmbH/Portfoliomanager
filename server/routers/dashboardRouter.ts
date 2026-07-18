@@ -2105,7 +2105,7 @@ export const dashboardRouter = router({
       holdingData.sort((a, b) => b.weight - a.weight);
 
       // Generate insights using LLM for personalized recommendations
-      const { invokeLLM } = await import("../_core/llm");
+      const { invokeKimi } = await import("../_core/llm");
 
       // Prepare portfolio context for LLM
       const cashWeight = totalValue > 0 ? (totalCash / totalValue) * 100 : 0;
@@ -2677,7 +2677,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     .mutation(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import('../db');
       const { batchGetStocks } = await import('../db-optimized');
-      const { invokeLLM } = await import('../_core/llm');
+      const { invokeKimi } = await import('../_core/llm');
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       const targetPortfolios = input.portfolioId
@@ -2773,7 +2773,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       const { runCopilotAnalysis, calculateRebalancingSuggestions, calculateRankings } = await import('../analytics/portfolioCopilot');
       const { getDb } = await import('../db');
       const { appSettings } = await import('../../drizzle/schema');
-      const { invokeLLM } = await import('../_core/llm');
+      const { invokeKimi } = await import('../_core/llm');
 
       // Load diversification rules from admin settings
       let maxWeight = 0.10, minWeight = 0.01, minTitles = 15;

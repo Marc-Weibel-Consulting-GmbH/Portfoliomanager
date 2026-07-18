@@ -72,7 +72,7 @@ async function fetchSectorData(): Promise<{ key: string; label: string; change: 
 export async function runMarketAnalysis(period: 'day' | 'week' = 'day'): Promise<void> {
   console.log(`[marketAnalysisCron] Starte KI-Marktanalyse (period=${period})...`);
 
-  const { invokeLLM } = await import('../_core/llm');
+  const { invokeKimi } = await import('../_core/llm');
   const { getDb } = await import('../db');
   const { marketAnalysis } = await import('../../drizzle/schema');
 

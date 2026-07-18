@@ -78,7 +78,7 @@ export const weeklyOverviewRouter = router({
       const stocksData = await Promise.all(stockAnalysisPromises);
 
       // Use LLM to filter and summarize relevant news
-      const { invokeLLM } = await import("../_core/llm");
+      const { invokeKimi } = await import("../_core/llm");
       
       const prompt = `Du bist ein Finanzanalyst. Analysiere die folgenden Aktien und ihre News der letzten Woche.
 

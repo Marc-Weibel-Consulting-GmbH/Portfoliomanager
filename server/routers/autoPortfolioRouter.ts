@@ -699,6 +699,50 @@ export const autoPortfolioRouter = router({
         positions.forEach((p) => { p.weightPct = parseFloat((p.weightPct * equityPct).toFixed(2)); });
       }
 
+      // === PREIS-ANREICHERUNG: Externe Kandidaten haben currentPrice=0 — aus DB oder EODHD laden ===
+      const missingPriceTickers = positions.filter(p => !p.currentPrice || p.currentPrice === 0).map(p => p.ticker);
+      if (missingPriceTickers.length > 0) {
+        console.log(`[buildProposal] Enriching prices for ${missingPriceTickers.length} external candidates: ${missingPriceTickers.join(', ')}`);
+        try {
+          // 1) Aus DB laden (falls Ticker bereits bekannt)
+          const { stocksTable } = await import('../../drizzle/schema');
+          const dbPrices = await db.select({ ticker: stocksTable.ticker, currentPrice: stocksTable.currentPrice, exchangeRateToChf: stocksTable.exchangeRateToChf })
+            .from(stocksTable)
+            .then(rows => new Map(rows.map(r => [r.ticker.toUpperCase(), r])));
+          for (const p of positions) {
+            if (!p.currentPrice || p.currentPrice === 0) {
+              const dbRow = dbPrices.get(p.ticker.toUpperCase());
+              if (dbRow?.currentPrice) {
+                p.currentPrice = parseFloat(String(dbRow.currentPrice));
+                if (dbRow.exchangeRateToChf) p.exchangeRateToChf = parseFloat(String(dbRow.exchangeRateToChf));
+              }
+            }
+          }
+          // 2) Noch fehlende Preise via EODHD-Quote-API laden
+          const stillMissing = positions.filter(p => !p.currentPrice || p.currentPrice === 0);
+          if (stillMissing.length > 0 && ENV.eodhdApiKey) {
+            for (const p of stillMissing) {
+              try {
+                const eoTicker = p.ticker.includes('.') ? p.ticker : `${p.ticker}.US`;
+                const url = `https://eodhd.com/api/real-time/${eoTicker}?api_token=${ENV.eodhdApiKey}&fmt=json`;
+                const resp = await fetch(url);
+                if (resp.ok) {
+                  const data: any = await resp.json();
+                  if (data?.close && parseFloat(data.close) > 0) {
+                    p.currentPrice = parseFloat(data.close);
+                    console.log(`[buildProposal] EODHD price for ${p.ticker}: ${p.currentPrice}`);
+                  }
+                }
+              } catch (e) {
+                console.warn(`[buildProposal] Could not fetch price for ${p.ticker}:`, e);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[buildProposal] Price enrichment failed (non-fatal):', e);
+        }
+      }
+
       console.log(`[buildProposal] Done: ${positions.length} positions built, returning result`);
 
       // ===================================================================
