@@ -1478,6 +1478,133 @@ export async function optimizePortfolio(input: OptimizeInput) {
 }
 
 // ─────────────────────────────────────────────
+// Public API: Portfolio-Backtest
+// ─────────────────────────────────────────────
+
+export interface BacktestInput {
+  tickers: string[];
+  weights: number[]; // Reihenfolge = tickers; wird normalisiert
+  lookbackDays?: number;
+  rebalance?: "monthly" | "none";
+}
+
+/**
+ * Historischer Portfolio-Backtest auf Basis der EODHD-Historie (CHF, datums-
+ * aligniert — identische Datenbasis wie Optimizer/Risk). Simuliert die
+ * Ziel-Allokation über den Zeitraum mit monatlichem Rebalancing oder als
+ * Buy-and-Hold und liefert Kennzahlen (Gesamtrendite, CAGR, Volatilität,
+ * Sharpe, Max Drawdown) plus eine monatlich verdichtete Equity-Kurve.
+ *
+ * Kein eigener Kursabruf über Drittquellen — konsistent mit dem Rest der App.
+ */
+export async function runPortfolioBacktest(input: BacktestInput) {
+  const { tickers, weights, lookbackDays = 756, rebalance = "monthly" } = input;
+  if (tickers.length < 1) throw new Error("Mindestens 1 Titel erforderlich.");
+  if (weights.length !== tickers.length) {
+    throw new Error("weights und tickers müssen gleich lang sein.");
+  }
+
+  const currencyByTicker: { [ticker: string]: string } = {};
+  for (const t of tickers) currencyByTicker[t] = await getStockCurrency(t);
+  const datedMap = await fetchReturnsWithDates(tickers, lookbackDays, currencyByTicker);
+
+  // Nur Titel mit ausreichender Historie; Gewichte darauf renormieren.
+  const MIN_RETURNS = 30;
+  const available: string[] = [];
+  const excluded: string[] = [];
+  for (const t of tickers) {
+    if ((datedMap[t]?.returns.length ?? 0) >= MIN_RETURNS) available.push(t);
+    else excluded.push(t);
+  }
+  if (available.length < 1) {
+    throw new Error("Zu wenig Kurshistorie für einen Backtest (keine Titel mit ≥ 30 Handelstagen).");
+  }
+
+  const { returnsByTicker: returnsMap, dates: alignedDates } = alignReturnsByDate(datedMap, available);
+  const T = alignedDates.length;
+  if (T < MIN_RETURNS) {
+    throw new Error(`Zu wenig gemeinsame Handelstage für einen Backtest (${T} < ${MIN_RETURNS}).`);
+  }
+
+  const rawW = available.map((t) => Math.max(0, weights[tickers.indexOf(t)] ?? 0));
+  const wSum = rawW.reduce((s, w) => s + w, 0);
+  if (wSum <= 0) throw new Error("Summe der Gewichte muss grösser als 0 sein.");
+  const w = rawW.map((x) => x / wSum);
+
+  // Equity-Kurve simulieren (Start = 1.0). Jeder Sleeve driftet mit der
+  // Einzeltitel-Rendite; bei "monthly" zu Monatsbeginn auf Zielgewichte zurück.
+  let sleeves = w.slice();
+  const equity: number[] = [];
+  const equityDates: string[] = [];
+  for (let k = 0; k < T; k++) {
+    for (let i = 0; i < available.length; i++) {
+      sleeves[i] *= 1 + (returnsMap[available[i]][k] ?? 0);
+    }
+    const total = sleeves.reduce((s, v) => s + v, 0);
+    equity.push(total);
+    equityDates.push(alignedDates[k]);
+    if (
+      rebalance === "monthly" &&
+      k > 0 &&
+      alignedDates[k].slice(0, 7) !== alignedDates[k - 1].slice(0, 7)
+    ) {
+      sleeves = w.map((wi) => total * wi);
+    }
+  }
+
+  // Tägliche Portfoliorenditen aus der Equity-Kurve → Vol/Sharpe/Drawdown.
+  const portReturns: number[] = [];
+  for (let k = 1; k < equity.length; k++) {
+    portReturns.push(equity[k] / equity[k - 1] - 1);
+  }
+  const finalValue = equity[equity.length - 1];
+  const totalReturn = finalValue - 1;
+  const years = T / TRADING_DAYS_YEAR;
+  const cagr = years > 0 && finalValue > 0 ? Math.pow(finalValue, 1 / years) - 1 : 0;
+  const annVol = std(portReturns) * SQRT_TRADING_DAYS;
+  const annRet = mean(portReturns) * TRADING_DAYS_YEAR;
+  const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+  const rf = await getRiskFreeRate();
+  const sharpe = annVol > 0 ? (annRet - rf) / annVol : 0;
+
+  // Maximaler Drawdown auf der Equity-Kurve.
+  let peak = equity[0];
+  let maxDrawdown = 0;
+  for (const v of equity) {
+    if (v > peak) peak = v;
+    const dd = peak > 0 ? (v - peak) / peak : 0;
+    if (dd < maxDrawdown) maxDrawdown = dd;
+  }
+
+  // Equity-Kurve auf Monatswerte verdichten (Antwortgrösse begrenzen).
+  const curve: Array<{ date: string; value: number }> = [];
+  for (let k = 0; k < equity.length; k++) {
+    const isMonthEnd = k === equity.length - 1 || equityDates[k].slice(0, 7) !== equityDates[k + 1].slice(0, 7);
+    if (k === 0 || isMonthEnd) {
+      curve.push({ date: equityDates[k], value: Math.round(equity[k] * 10000) / 10000 });
+    }
+  }
+
+  return {
+    rebalance,
+    tickers: available,
+    excludedTickers: excluded,
+    weights: Object.fromEntries(available.map((t, i) => [t, Math.round(w[i] * 10000) / 10000])),
+    stats: {
+      totalReturnPct: Math.round(totalReturn * 10000) / 100,
+      cagrPct: Math.round(cagr * 10000) / 100,
+      annualVolPct: Math.round(annVol * 10000) / 100,
+      sharpe: Math.round(sharpe * 1000) / 1000,
+      maxDrawdownPct: Math.round(maxDrawdown * 10000) / 100,
+    },
+    equityCurve: curve,
+    tradingDays: T,
+    fromDate: alignedDates[0],
+    toDate: alignedDates[T - 1],
+  };
+}
+
+// ─────────────────────────────────────────────
 // Public API: Technical Analysis
 // ─────────────────────────────────────────────
 

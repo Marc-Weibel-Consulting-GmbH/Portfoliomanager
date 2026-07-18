@@ -5,7 +5,8 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X, LineChart as LineChartIcon } from "lucide-react";
+import { PriceChart } from "@/components/charts";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -417,6 +418,27 @@ export default function OptimierenTab({
     },
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 0 }
   );
+
+  // ─── Backtest der optimierten Ziel-Allokation ───────────────────────────────
+  const [showBacktest, setShowBacktest] = useState(false);
+  const [btRebalance, setBtRebalance] = useState<"monthly" | "none">("monthly");
+  const optimizedWeights = useMemo(() => {
+    const w = (result as any)?.weights as Record<string, number> | undefined;
+    if (!w) return null;
+    const entries = Object.entries(w).filter(([, val]) => (val ?? 0) > 0);
+    if (entries.length < 1) return null;
+    return { tickers: entries.map(([t]) => t), weights: entries.map(([, v]) => v) };
+  }, [result]);
+  const { data: backtest, isFetching: isBacktesting, error: backtestError } =
+    trpc.analytics.backtestPortfolio.useQuery(
+      {
+        tickers: optimizedWeights?.tickers ?? [],
+        weights: optimizedWeights?.weights ?? [],
+        lookbackDays: 756,
+        rebalance: btRebalance,
+      },
+      { enabled: showBacktest && !!optimizedWeights, staleTime: 5 * 60 * 1000, retry: false },
+    );
 
   // Alle Aktien aus der DB (für Ersatz-Picker)
   const { data: allStocksData } = trpc.stocks.list.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
@@ -1296,6 +1318,90 @@ export default function OptimierenTab({
               </div>
             );
           })()}
+
+          {/* Backtest der optimierten Ziel-Allokation (EODHD-Historie, CHF) */}
+          <div className="border border-white/10 rounded-lg bg-[#0f1420] overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <LineChartIcon className="w-4 h-4 text-[#00CFC1]" />
+                <span className="text-sm font-semibold text-white">Backtest der Ziel-Allokation</span>
+                <span className="text-[11px] text-gray-500">— historische Entwicklung (3 J.), in CHF</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {showBacktest && (
+                  <div className="inline-flex rounded-md border border-white/10 bg-[#1a2332] p-0.5" role="group" aria-label="Rebalancing wählen">
+                    {([["monthly", "Monatl. Rebalancing"], ["none", "Buy & Hold"]] as const).map(([val, lbl]) => (
+                      <button
+                        key={val}
+                        onClick={() => setBtRebalance(val)}
+                        className={`px-2.5 py-1 text-xs rounded ${btRebalance === val ? "bg-[#00CFC1] text-black font-semibold" : "text-gray-400 hover:text-gray-200"}`}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!showBacktest ? (
+                  <button
+                    onClick={() => setShowBacktest(true)}
+                    disabled={!optimizedWeights}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#00CFC1] text-black hover:bg-[#00b3a6] disabled:opacity-40"
+                  >
+                    <Play className="w-3.5 h-3.5" /> Backtest anzeigen
+                  </button>
+                ) : (
+                  <button onClick={() => setShowBacktest(false)} className="text-xs text-gray-400 hover:text-gray-200">Ausblenden</button>
+                )}
+              </div>
+            </div>
+
+            {showBacktest && (
+              <div className="p-4">
+                {isBacktesting ? (
+                  <div className="h-64 flex items-center justify-center text-sm text-gray-400">
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Backtest wird berechnet …
+                  </div>
+                ) : backtestError ? (
+                  <div className="flex items-start gap-2 text-sm text-amber-300">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{backtestError.message}</span>
+                  </div>
+                ) : backtest && backtest.equityCurve.length >= 2 ? (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-0 border border-white/10 rounded-lg overflow-hidden mb-4">
+                      {[
+                        { label: "Gesamtrendite", value: `${backtest.stats.totalReturnPct >= 0 ? "+" : ""}${backtest.stats.totalReturnPct.toFixed(1)}%`, tone: backtest.stats.totalReturnPct >= 0 ? "text-[#00CFC1]" : "text-negative" },
+                        { label: "CAGR (p.a.)", value: `${backtest.stats.cagrPct >= 0 ? "+" : ""}${backtest.stats.cagrPct.toFixed(1)}%`, tone: "text-white" },
+                        { label: "Volatilität", value: `${backtest.stats.annualVolPct.toFixed(1)}%`, tone: "text-white" },
+                        { label: "Sharpe", value: backtest.stats.sharpe.toFixed(2), tone: backtest.stats.sharpe >= 1 ? "text-[#00CFC1]" : "text-amber-400" },
+                        { label: "Max Drawdown", value: `${backtest.stats.maxDrawdownPct.toFixed(1)}%`, tone: "text-negative" },
+                      ].map((k, i) => (
+                        <div key={k.label} className={`bg-[#111827] p-3 ${i < 4 ? "border-r border-white/10" : ""}`}>
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{k.label}</p>
+                          <p className={`text-base font-bold font-mono ${k.tone}`}>{k.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <PriceChart
+                      seriesType="area"
+                      height={260}
+                      values={backtest.equityCurve.map((p) => ({ time: p.date, value: +(p.value * 100).toFixed(2) }))}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-2">
+                      Indexiert auf 100 zum Start ({backtest.fromDate}). Simulation der Ziel-Gewichte auf
+                      historischen EODHD-Kursen{backtest.excludedTickers.length > 0
+                        ? ` — ohne ${backtest.excludedTickers.join(", ")} (keine Historie)`
+                        : ""}. Vergangene Wertentwicklung ist keine Garantie für die Zukunft.
+                    </p>
+                  </>
+                ) : (
+                  <div className="h-32 flex items-center justify-center text-sm text-gray-400">
+                    Kein Backtest-Ergebnis verfügbar (zu wenig Kurshistorie).
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* R-34c: Mindest-Positionsgrösse CHF 3'000 — vom Server auf 0 gesetzte Positionen */}
           {droppedPositions.length > 0 && (

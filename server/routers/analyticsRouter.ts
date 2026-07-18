@@ -8,7 +8,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory } from "../analytics/engine";
+import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory, runPortfolioBacktest } from "../analytics/engine";
 import { getQualityMetrics } from "../lib/qualityMetricsService";
 import { invokeLLM } from "../_core/llm";
 import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
@@ -181,6 +181,36 @@ export const analyticsRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: err.message ?? "Portfolio optimization failed",
         });
+      }
+    }),
+
+  /**
+   * Historischer Portfolio-Backtest einer Ziel-Allokation (EODHD-Historie, CHF,
+   * monatliches Rebalancing oder Buy-and-Hold). Liefert Kennzahlen + Equity-Kurve.
+   */
+  backtestPortfolio: protectedProcedure
+    .input(
+      z.object({
+        tickers: z.array(z.string()).min(1),
+        weights: z.array(z.number()).min(1),
+        lookbackDays: z.number().int().min(60).max(3780).default(756),
+        rebalance: z.enum(["monthly", "none"]).default("monthly"),
+      })
+    )
+    .query(async ({ input }) => {
+      if (input.tickers.length !== input.weights.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "tickers und weights müssen gleich lang sein." });
+      }
+      try {
+        return await runPortfolioBacktest({
+          tickers: input.tickers,
+          weights: input.weights,
+          lookbackDays: input.lookbackDays,
+          rebalance: input.rebalance,
+        });
+      } catch (err: any) {
+        // Fachliche Fehler (zu wenig Historie etc.) als BAD_REQUEST durchreichen.
+        throw new TRPCError({ code: "BAD_REQUEST", message: err.message ?? "Backtest fehlgeschlagen." });
       }
     }),
 
