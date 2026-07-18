@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "client/src/main.tsx",
+    "server/_core/index.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "drizzle.config.ts",
+    "playwright.config.ts"
+  ],
+  "project": ["client/src/**/*.{ts,tsx}", "server/**/*.ts", "shared/**/*.ts"],
+  "ignore": [
+    "scripts/**",
+    "drizzle/**",
+    "vendor/**",
+    "mcp-servers/**",
+    "design/**",
+    "e2e/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "server/__characterization__/**"
+  ],
+  "ignoreDependencies": ["wikifolio", "pdf-parse", "add", "pnpm"],
+  "ignoreBinaries": ["tsx"]
+}
