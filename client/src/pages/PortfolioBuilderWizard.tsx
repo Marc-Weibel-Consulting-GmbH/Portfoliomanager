@@ -381,7 +381,8 @@ export default function PortfolioBuilderWizard() {
   // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
   const handleAcceptProposal = (useAdjusted = true) => {
     if (!autoProposal?.positions?.length) return;
-    const capital = parseFloat(initialCapital) || 0;
+    // Use entered capital, or fall back to 100'000 CHF if not set
+    const capital = parseFloat(initialCapital) || 100000;
     // Use adjustedPositions (KI-Empfehlungen automatically applied) if available and requested
     const positionsToUse = (useAdjusted && (autoProposal as any).adjustedPositions?.length)
       ? (autoProposal as any).adjustedPositions
@@ -707,39 +708,42 @@ export default function PortfolioBuilderWizard() {
                   ))}
                 </div>
 
-                {/* Name + Capital */}
-                {!autoProposal && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-gray-300">Portfolio-Name</Label>
-                      <Input
-                        placeholder="z.B. Mein KI-Portfolio"
-                        value={portfolioName}
-                        onChange={(e) => setPortfolioName(e.target.value)}
-                        className="bg-[#0f1420] border-white/10 text-white mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-gray-300">Anlagebetrag (CHF) *</Label>
-                      <Input
-                        type="number"
-                        placeholder="z.B. CHF 100'000"
-                        value={initialCapital}
-                        onChange={(e) => setInitialCapital(e.target.value)}
-                        className={`bg-[#0f1420] border-white/10 text-white mt-1 ${
-                          initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000
-                            ? "border-yellow-500/60"
-                            : ""
-                        }`}
-                      />
-                      {initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000 && (
-                        <p className="text-xs text-yellow-400 mt-1">
-                          Empfehlung: Mindestens CHF 100'000 für ein diversifiziertes Aktienportfolio.
-                        </p>
-                      )}
-                    </div>
+                {/* Name + Capital — always visible so user can adjust before accepting */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-300">Portfolio-Name</Label>
+                    <Input
+                      placeholder="z.B. Mein KI-Portfolio"
+                      value={portfolioName}
+                      onChange={(e) => setPortfolioName(e.target.value)}
+                      className="bg-[#0f1420] border-white/10 text-white mt-1"
+                    />
                   </div>
-                )}
+                  <div>
+                    <Label className="text-gray-300">Anlagebetrag (CHF) *</Label>
+                    <Input
+                      type="number"
+                      placeholder="z.B. CHF 100'000"
+                      value={initialCapital}
+                      onChange={(e) => setInitialCapital(e.target.value)}
+                      className={`bg-[#0f1420] border-white/10 text-white mt-1 ${
+                        initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000
+                          ? "border-yellow-500/60"
+                          : ""
+                      }`}
+                    />
+                    {!initialCapital && autoProposal && (
+                      <p className="text-xs text-amber-400 mt-1">
+                        ⚠ Kein Betrag eingegeben — Standardwert CHF 100'000 wird verwendet.
+                      </p>
+                    )}
+                    {initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000 && (
+                      <p className="text-xs text-yellow-400 mt-1">
+                        Empfehlung: Mindestens CHF 100'000 für ein diversifiziertes Aktienportfolio.
+                      </p>
+                    )}
+                  </div>
+                </div>
 
                 {/* Proposal result */}
                 {autoProposal ? (

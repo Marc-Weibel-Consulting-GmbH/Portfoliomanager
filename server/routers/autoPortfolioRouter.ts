@@ -462,22 +462,30 @@ export const autoPortfolioRouter = router({
       // Die verwendete Qualitäts-Stufe wird ausgewiesen (stats.qualityTier) —
       // vorher wurde die Schwelle STILL gesenkt, ohne dass der Kunde es erfuhr.
       let qualityTier: "kaufkandidaten" | "erweitert" | "basis" = "kaufkandidaten";
-      let ranked = allCandidates
-        .filter((x) => isBuyable(x) && x.combinedScore >= 55)
-        .sort((a, b) => rankKey(b) - rankKey(a));
+      // Stable sort: primary = rankKey desc, secondary = ticker asc (tie-breaker for determinism)
+      const stableSort = (arr: any[]) =>
+        arr.sort((a, b) => {
+          const diff = rankKey(b) - rankKey(a);
+          if (diff !== 0) return diff;
+          return (a.stock.ticker as string).localeCompare(b.stock.ticker as string);
+        });
+
+      let ranked = stableSort(
+        allCandidates.filter((x) => isBuyable(x) && x.combinedScore >= 55)
+      );
       if (ranked.length < rules.minTitles) {
         // Zu wenige Kaufsignale — HOLD-Titel mit Score >= 45 einbeziehen, aber SELL bleibt draussen
         qualityTier = "erweitert";
-        ranked = allCandidates
-          .filter((x) => x.signal !== "SELL" && x.scoreGrade !== "F" && x.combinedScore >= 45)
-          .sort((a, b) => rankKey(b) - rankKey(a));
+        ranked = stableSort(
+          allCandidates.filter((x) => x.signal !== "SELL" && x.scoreGrade !== "F" && x.combinedScore >= 45)
+        );
       }
       if (ranked.length < rules.minTitles) {
         // Letzter Fallback: alle Nicht-SELL, nach Score sortiert
         qualityTier = "basis";
-        ranked = allCandidates
-          .filter((x) => x.signal !== "SELL")
-          .sort((a, b) => rankKey(b) - rankKey(a));
+        ranked = stableSort(
+          allCandidates.filter((x) => x.signal !== "SELL")
+        );
       }
       if (qualityTier !== "kaufkandidaten") {
         notes.push(
