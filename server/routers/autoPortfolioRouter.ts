@@ -547,6 +547,17 @@ export const autoPortfolioRouter = router({
       }
 
       console.log(`[buildProposal] Step 7: weighting ${selected.length} selected positions`);
+      // AUTO-BACKFILL: Kurshistorie für alle ausgewählten Titel sicherstellen
+      // (verhindert NaN-Kennzahlen und "unvollständige Kurshistorie"-Warnung)
+      try {
+        const { autoBackfillNewSymbols } = await import('../autoBackfill');
+        const backfillResult = await autoBackfillNewSymbols(selected.map((c) => c.stock.ticker));
+        if (backfillResult.newSymbolsDetected > 0) {
+          console.log(`[buildProposal] Auto-backfill: ${backfillResult.newSymbolsDetected} Titel nachgeladen`);
+        }
+      } catch (backfillErr: any) {
+        console.warn(`[buildProposal] Auto-backfill non-fatal: ${backfillErr?.message}`);
+      }
       // 7) Gewichtung (OPT-2, Audit 2026-07): ECHTE Optimierung über die
       // Analytics-Engine mit der Methode aus dem Risikoprofil und den
       // Profil-Caps aus optimizerParamsForProfile — vorher war die Gewichtung
@@ -1473,6 +1484,21 @@ Antworte im JSON-Format.`,
             if (isFx) currentFxWeightPct += estimatedWeight;
           }
           if (selected.length < 2) throw new Error('Zu wenige geeignete Kandidaten nach Anwendung der Diversifikationsregeln.');
+
+          // AUTO-BACKFILL: Kurshistorie für alle ausgewählten Titel sicherstellen
+          // (verhindert NaN-Kennzahlen und "unvollständige Kurshistorie"-Warnung)
+          job.progress.push('Kurshistorie prüfen und nachladen...');
+          const selectedTickersForBackfill = selected.map((c) => c.stock.ticker);
+          try {
+            const { autoBackfillNewSymbols } = await import('../autoBackfill');
+            const backfillResult = await autoBackfillNewSymbols(selectedTickersForBackfill);
+            if (backfillResult.newSymbolsDetected > 0) {
+              job.progress.push(`Kurshistorie: ${backfillResult.newSymbolsDetected} Titel nachgeladen.`);
+              console.log(`[startProposal] Auto-backfill: ${backfillResult.newSymbolsDetected} Titel nachgeladen für Job ${jobId}`);
+            }
+          } catch (backfillErr: any) {
+            console.warn(`[startProposal] Auto-backfill non-fatal: ${backfillErr?.message}`);
+          }
 
           job.progress.push('Portfolio-Optimierung läuft...');
           const method = goal === 'dividends' ? 'max_dividend' : params.method;

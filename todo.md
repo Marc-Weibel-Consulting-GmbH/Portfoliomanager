@@ -393,3 +393,8 @@
 - [x] Frontend: PortfolioBuilderWizard — startProposal + getProposalStatus Polling (alle 3s) statt blockierendem buildProposal
 - [x] Frontend: Progress-Anzeige mit Schritt-für-Schritt-Fortschritt (Berechtigungen → Profil → Diversifikation → Markt-Hub → Scoring → Positionen → Fundamentaldaten → Challenger → Synthesizer)
 - [x] End-to-End Test: Job startet sofort, läuft ~5 Min im Hintergrund, Ergebnis erscheint ohne 524-Fehler
+
+## Auto-Backfill bei KI-Portfolio-Vorschlag (Jul 2026)
+- [x] Backend: autoBackfillNewSymbols vor optimizePortfolio in startProposal eingebaut (Progress-Schritt "Kurshistorie prüfen und nachladen...")
+- [x] Backend: autoBackfillNewSymbols vor optimizePortfolio in buildProposal (Legacy) eingebaut
+- [x] Fehlermeldung "unvollständige Kurshistorie" wird durch automatisches Nachladen verhindert
