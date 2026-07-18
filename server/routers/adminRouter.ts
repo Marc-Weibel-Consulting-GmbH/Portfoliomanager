@@ -1723,5 +1723,67 @@ export const adminRouter = router({
       if (rows.length === 0) throw new TRPCError({ code: 'NOT_FOUND', message: 'Proposal nicht gefunden' });
       return rows[0];
     }),
+
+  // === UNIVERSE EXPANSION CANDIDATES ===
+  getUniverseCandidates: adminProcedure.query(async () => {
+    const { getDb } = await import("../db");
+    const { stocks } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) return [];
+    const rows = await db
+      .select()
+      .from(stocks)
+      .where(eq(stocks.source, "ai_recommended"))
+      .orderBy(stocks.createdAt);
+    return rows.filter((r: any) => String(r.notes ?? "").startsWith("universe_expansion"));
+  }),
+
+  approveUniverseCandidate: adminProcedure
+    .input(z.object({ stockId: z.number() }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { stocks } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+      await db
+        .update(stocks)
+        .set({ source: "manual", notes: null, listType: "watchlist" })
+        .where(eq(stocks.id, input.stockId));
+      return { success: true };
+    }),
+
+  rejectUniverseCandidate: adminProcedure
+    .input(z.object({ stockId: z.number() }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { stocks } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+      await db.delete(stocks).where(eq(stocks.id, input.stockId));
+      return { success: true };
+    }),
+
+  approveAllUniverseCandidates: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { stocks } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
+    const rows = await db
+      .select({ id: stocks.id, notes: stocks.notes })
+      .from(stocks)
+      .where(eq(stocks.source, "ai_recommended"));
+    const candidates = rows.filter((r: any) => String(r.notes ?? "").startsWith("universe_expansion"));
+    for (const c of candidates) {
+      await db
+        .update(stocks)
+        .set({ source: "manual", notes: null, listType: "watchlist" })
+        .where(eq(stocks.id, c.id));
+    }
+    return { success: true, approved: candidates.length };
+  }),
 });
 

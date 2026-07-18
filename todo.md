@@ -358,3 +358,12 @@
 - [x] In-App-Banner für neue Nutzer ohne Portfolio: "Starten Sie mit dem KI-Builder" (WelcomeBanner)
 - [x] Copilot Beispielfragen als Chips in der Eingabe (N-20 kombiniert)
 - [x] Tour-Trigger: WelcomeBanner als erster Einstiegspunkt (localStorage-persistent)
+
+## Aktienuniversum-Erweiterung im KI-Builder (2026-07-18)
+- [x] DB-Schema: Externe Kandidaten in stocks-Tabelle mit source='ai_recommended' + notes='universe_expansion|...'
+- [x] Server: Lücken-Analyse pro Sektor/Dividende/Sharpe/Momentum in universeExpansion.ts
+- [x] Server: EODHD-Screening für externe Kandidaten wenn Lücken erkannt (max. 20% der Positionen)
+- [x] Server: Externe Kandidaten mit Score-Berechnung und Quellenmarkierung versehen
+- [x] Frontend: Externe Kandidaten im KI-Builder mit "✨ Universum"-Badge kennzeichnen
+- [x] Admin: Kandidaten-Review-Seite /admin/watchlist-candidates für Watchlist-Übernahme
+- [x] Admin: Bulk-Approve/Reject-Workflow für Kandidaten

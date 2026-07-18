@@ -81,6 +81,7 @@ const adminMenuItems = [
   { icon: Bell, label: "Alert-Kriterien", path: "/admin/alert-config" },
   { icon: Search, label: "Universum Gap-Filling", path: "/admin/gap-filling" },
   { icon: Gauge, label: "Score-Konfiguration", path: "/admin/score-config" },
+  { icon: Globe, label: "Universum-Kandidaten", path: "/admin/watchlist-candidates" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

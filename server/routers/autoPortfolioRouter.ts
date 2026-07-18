@@ -367,7 +367,77 @@ export const autoPortfolioRouter = router({
         );
       }
 
-      console.log(`[buildProposal] Step 5: ranking ${scored.length} scored items`);
+      // === UNIVERSE EXPANSION: Lücken-Analyse + EODHD-Screening (max. 20% externe Titel) ===
+      let universalCandidates: any[] = [];
+      try {
+        const { analyzeGaps, findExternalCandidates, storeExternalCandidates } = await import("../lib/universeExpansion");
+        const existingTickers = new Set(scored.map((x: any) => x.stock.ticker.toUpperCase()));
+        const gaps = analyzeGaps(
+          scored.map((x: any) => ({
+            ticker: x.stock.ticker,
+            sector: x.stock.sector,
+            dividendYield: x.dividendYield,
+            sharpeRatio: null,
+            ytdPerformance: x.stock.ytdPerformance?.toString() ?? null,
+            peRatio: x.stock.peRatio,
+          })),
+          rules.maxTitles,
+          excludedSectors,
+          goal ?? "balanced"
+        );
+        if (gaps.totalGaps > 0) {
+          console.log(`[buildProposal] Universe expansion: ${gaps.sectorGaps.length} Sektor-Lücken, ${gaps.factorGaps.length} Faktor-Lücken, max ${gaps.maxExternalCount} externe Titel`);
+          const externalCandidates = await findExternalCandidates(gaps, existingTickers, referenceCurrency);
+          if (externalCandidates.length > 0) {
+            // Externe Kandidaten in DB speichern (Staging für Admin-Review) — non-fatal
+            storeExternalCandidates(externalCandidates).catch((e: any) =>
+              console.warn("[buildProposal] storeExternalCandidates non-fatal:", e)
+            );
+            // Externe Kandidaten als scored-kompatible Objekte in den Pool aufnehmen
+            for (const ec of externalCandidates) {
+              universalCandidates.push({
+                stock: {
+                  ticker: ec.ticker,
+                  companyName: ec.companyName,
+                  sector: ec.sector,
+                  currency: ec.currency,
+                  currentPrice: 0,
+                  ytdPerformance: null,
+                  peRatio: null,
+                  dividendYield: ec.dividendYield ?? 0,
+                  marketCap: null,
+                  signalType: "HOLD",
+                  listType: "watchlist",
+                },
+                combinedScore: 60,
+                signal: "HOLD",
+                scoreGrade: "B",
+                dividendYield: ec.dividendYield ?? 0,
+                regime: "normal",
+                isUniverseExpansion: true,
+                gapReason: ec.gapReason,
+                closesGap: ec.closesGap,
+              });
+            }
+            const gapDesc = [
+              ...gaps.sectorGaps.map((g) => g.sector),
+              ...gaps.factorGaps.map((g) => g.description),
+            ].join(", ");
+            notes.push(
+              `Universum-Erweiterung: ${externalCandidates.length} neue Titel ergänzt (max. 20% des Vorschlags) um Lücken zu schließen: ${gapDesc}. Diese Titel sind als \u201eUniversum-Erweiterung\u201c gekennzeichnet und können vom Admin in die Watchlist übernommen werden.`
+            );
+            console.log(`[buildProposal] Universe expansion: ${externalCandidates.length} external candidates added`);
+          }
+        } else {
+          console.log(`[buildProposal] Universe expansion: Keine Lücken gefunden`);
+        }
+      } catch (expansionErr: any) {
+        console.warn("[buildProposal] Universe expansion non-fatal error:", expansionErr?.message);
+      }
+      // Externe Kandidaten in den scored-Pool aufnehmen (nach den Watchlist-Titeln)
+      const allCandidates = [...scored, ...universalCandidates];
+
+      console.log(`[buildProposal] Step 5: ranking ${allCandidates.length} scored items (${universalCandidates.length} universe expansions)`);
       // 5) Ranking (Ziel «dividends» bevorzugt Dividendenrendite) + Kaufsignal-Filter
       // Watchlist-Empfehlungen erhalten +10 Punkte Bonus im Ranking
       // IMPROVEMENT: YTD momentum factor in ranking (growth/balanced goals)
@@ -392,20 +462,20 @@ export const autoPortfolioRouter = router({
       // Die verwendete Qualitäts-Stufe wird ausgewiesen (stats.qualityTier) —
       // vorher wurde die Schwelle STILL gesenkt, ohne dass der Kunde es erfuhr.
       let qualityTier: "kaufkandidaten" | "erweitert" | "basis" = "kaufkandidaten";
-      let ranked = scored
+      let ranked = allCandidates
         .filter((x) => isBuyable(x) && x.combinedScore >= 55)
         .sort((a, b) => rankKey(b) - rankKey(a));
       if (ranked.length < rules.minTitles) {
         // Zu wenige Kaufsignale — HOLD-Titel mit Score >= 45 einbeziehen, aber SELL bleibt draussen
         qualityTier = "erweitert";
-        ranked = scored
+        ranked = allCandidates
           .filter((x) => x.signal !== "SELL" && x.scoreGrade !== "F" && x.combinedScore >= 45)
           .sort((a, b) => rankKey(b) - rankKey(a));
       }
       if (ranked.length < rules.minTitles) {
         // Letzter Fallback: alle Nicht-SELL, nach Score sortiert
         qualityTier = "basis";
-        ranked = scored
+        ranked = allCandidates
           .filter((x) => x.signal !== "SELL")
           .sort((a, b) => rankKey(b) - rankKey(a));
       }

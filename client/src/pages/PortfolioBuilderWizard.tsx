@@ -845,12 +845,22 @@ export default function PortfolioBuilderWizard() {
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
                       {autoProposal.positions.map((p: any) => (
                         <div key={p.ticker} className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
                               <span className="text-sm text-white truncate">{p.companyName}</span>
+                              {p.isUniverseExpansion && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30" title={p.closesGap ? `Schließt Lücke: ${p.closesGap}` : 'Aus dem Aktienuniversum ergänzt'}>
+                                  ✨ Universum
+                                </span>
+                              )}
                             </div>
-                            <p className="text-xs text-gray-500 truncate">{p.sector} · {p.reason}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {p.sector} · {p.reason}
+                              {p.isUniverseExpansion && p.closesGap && (
+                                <span className="text-violet-400"> · Lücke: {p.closesGap}</span>
+                              )}
+                            </p>
                           </div>
                           <span className="text-sm font-mono font-semibold text-white ml-3 shrink-0">{p.weightPct.toFixed(1)}%</span>
                         </div>
