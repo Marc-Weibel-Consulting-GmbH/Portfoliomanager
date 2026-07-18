@@ -151,34 +151,56 @@ function ApplyRecommendationButton({
   const handleApply = () => {
     if (!onApply) return;
     onApply((prev) => {
-      let updated = prev.map(p => {
-        if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
-        if (adj.action === 'reduce') {
-          const newWeight = Math.max(1, p.weightPct * 0.7);
-          return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
-        }
-        if (adj.action === 'increase') {
-          const newWeight = p.weightPct * 1.3;
-          return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
-        }
-        if (adj.action === 'replace' && adj.replaceTicker) {
-          const replacement = allStocks.find(
-            (s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase()
-          );
-          if (replacement) {
-            return {
-              ...p,
-              ticker: replacement.ticker,
-              companyName: replacement.companyName ?? replacement.name ?? replacement.ticker,
-              sector: replacement.sector ?? replacement.industry ?? p.sector,
-              currency: replacement.currency ?? 'CHF',
-              currentPrice: parseFloat(replacement.currentPrice ?? replacement.price ?? '0') || 0,
-              exchangeRateToChf: parseFloat(replacement.exchangeRateToChf ?? '1') || 1,
-            };
+      const tickerUpper = adj.ticker?.toUpperCase() ?? '';
+      const existsInPositions = prev.some(p => p.ticker.toUpperCase() === tickerUpper);
+
+      let updated: EditablePosition[];
+
+      if (adj.action === 'increase' && !existsInPositions) {
+        // Ticker not in current positions — add it as a new position with default weight
+        const stock = allStocks.find((s: any) => s.ticker?.toUpperCase() === tickerUpper);
+        const newPos: EditablePosition = {
+          ticker: stock?.ticker ?? adj.ticker,
+          companyName: stock?.companyName ?? stock?.name ?? adj.ticker,
+          sector: stock?.sector ?? stock?.industry ?? '',
+          currency: stock?.currency ?? 'CHF',
+          currentPrice: parseFloat(stock?.currentPrice ?? stock?.price ?? '0') || 0,
+          exchangeRateToChf: parseFloat(stock?.exchangeRateToChf ?? '1') || 1,
+          weightPct: 4.5,
+          originalWeightPct: 0,
+        };
+        updated = [...prev, newPos];
+      } else {
+        updated = prev.map(p => {
+          if (p.ticker.toUpperCase() !== tickerUpper) return p;
+          if (adj.action === 'reduce') {
+            const newWeight = Math.max(1, p.weightPct * 0.7);
+            return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
           }
-        }
-        return p;
-      });
+          if (adj.action === 'increase') {
+            const newWeight = p.weightPct * 1.3;
+            return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
+          }
+          if (adj.action === 'replace' && adj.replaceTicker) {
+            const replacement = allStocks.find(
+              (s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase()
+            );
+            if (replacement) {
+              return {
+                ...p,
+                ticker: replacement.ticker,
+                companyName: replacement.companyName ?? replacement.name ?? replacement.ticker,
+                sector: replacement.sector ?? replacement.industry ?? p.sector,
+                currency: replacement.currency ?? 'CHF',
+                currentPrice: parseFloat(replacement.currentPrice ?? replacement.price ?? '0') || 0,
+                exchangeRateToChf: parseFloat(replacement.exchangeRateToChf ?? '1') || 1,
+              };
+            }
+          }
+          return p;
+        });
+      }
+
       // Normalize to 100%
       const total = updated.reduce((s, p) => s + p.weightPct, 0);
       if (total > 0 && Math.abs(total - 100) > 0.5) {
@@ -832,18 +854,38 @@ export default function AdminProposalAnalysis() {
                         const adjustments: any[] = Array.isArray(row.finalAdjustments) ? row.finalAdjustments : [];
                         const actionableAdjs = adjustments.filter(a => a.action !== 'keep');
 
-                        // Helper: apply one adj to a positions array
-                        const applyAdjToPositions = (positions: EditablePosition[], adj: any): EditablePosition[] =>
-                          positions.map(p => {
-                            if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
-                            if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
-                            if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
-                            if (adj.action === 'replace' && adj.replaceTicker) {
-                              const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
-                              if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
-                            }
-                            return p;
-                          });
+        // Helper: apply one adj to a positions array
+        const applyAdjToPositions = (positions: EditablePosition[], adj: any): EditablePosition[] => {
+          const tickerUpper = adj.ticker?.toUpperCase() ?? '';
+          const existsInPositions = positions.some(p => p.ticker.toUpperCase() === tickerUpper);
+
+          // 'increase' on a ticker NOT in positions — add it as a new position
+          if (adj.action === 'increase' && !existsInPositions) {
+            const stock = allStocks.find((s: any) => s.ticker?.toUpperCase() === tickerUpper);
+            const newPos: EditablePosition = {
+              ticker: stock?.ticker ?? adj.ticker,
+              companyName: stock?.companyName ?? stock?.name ?? adj.ticker,
+              sector: stock?.sector ?? stock?.industry ?? '',
+              currency: stock?.currency ?? 'CHF',
+              currentPrice: parseFloat(stock?.currentPrice ?? stock?.price ?? '0') || 0,
+              exchangeRateToChf: parseFloat(stock?.exchangeRateToChf ?? '1') || 1,
+              weightPct: 4.5,
+              originalWeightPct: 0,
+            };
+            return [...positions, newPos];
+          }
+
+          return positions.map(p => {
+            if (p.ticker.toUpperCase() !== tickerUpper) return p;
+            if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
+            if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
+            if (adj.action === 'replace' && adj.replaceTicker) {
+              const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
+              if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
+            }
+            return p;
+          });
+        };
 
                         const normalizeWeights = (positions: EditablePosition[]): EditablePosition[] => {
                           const total = positions.reduce((s, p) => s + p.weightPct, 0);

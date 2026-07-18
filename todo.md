@@ -367,3 +367,6 @@
 - [x] Frontend: Externe Kandidaten im KI-Builder mit "✨ Universum"-Badge kennzeichnen
 - [x] Admin: Kandidaten-Review-Seite /admin/watchlist-candidates für Watchlist-Übernahme
 - [x] Admin: Bulk-Approve/Reject-Workflow für Kandidaten
+
+## Bug: Aufstocken-Empfehlung fügt Titel nicht zur Positionsliste hinzu (2026-07-18)
+- [x] Fix: applyRecommendation 'increase' — wenn Ticker nicht in positions, Titel hinzufügen statt nur Gewicht erhöhen
