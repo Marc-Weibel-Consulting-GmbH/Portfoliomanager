@@ -159,7 +159,7 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
 }
 
 // ─── Optimieren-Tab ────────────────────────────────────────────────────────────
-type OptimizeMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
+type OptimizeMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp" | "min_cvar";
 
 const METHOD_LABEL: Record<OptimizeMethod, string> = {
   max_sharpe: "Max. Sharpe",
@@ -167,6 +167,7 @@ const METHOD_LABEL: Record<OptimizeMethod, string> = {
   equal_weight: "Gleichgewichtet",
   max_dividend: "Max. Dividende",
   hrp: "HRP (Risk Parity)",
+  min_cvar: "Min. Tail-Risiko (CVaR)",
 };
 
 const METHOD_DESCRIPTION: Record<OptimizeMethod, string> = {
@@ -175,6 +176,7 @@ const METHOD_DESCRIPTION: Record<OptimizeMethod, string> = {
   equal_weight: "Gleichmässige Verteilung auf alle Positionen",
   max_dividend: "Maximiert die Dividendenrendite",
   hrp: "Hierarchical Risk Parity: Verteilt Risiko gleichmässig über Korrelations-Cluster (kein Rendite-Schätzer benötigt)",
+  min_cvar: "Minimiert das Tail-Risiko (CVaR 95 %): dämpft die grössten Verlusttage — für sicherheitsorientierte Anleger",
 };
 
 // ─── Score-Badge ───────────────────────────────────────────────────────────────
@@ -1263,19 +1265,37 @@ export default function OptimierenTab({
           )}
 
           {/* KPIs des optimalen Portfolios */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
-            {[
+          {(() => {
+            const optCvar = (result.optimalPortfolio as any).cvar95 as number | undefined;
+            const currCvar = (result.currentPortfolio as any).cvar95 as number | undefined;
+            const kpis: { label: string; value: string; tone: string; sub?: string }[] = [
               { label: "Erw. Rendite (p.a.)", value: `${(result.optimalPortfolio.expectedReturn * 100).toFixed(1)}%`, tone: "text-[#00CFC1]" },
               { label: "Volatilität (p.a.)", value: `${(result.optimalPortfolio.volatility * 100).toFixed(1)}%`, tone: "text-white" },
               { label: "Sharpe Ratio", value: result.optimalPortfolio.sharpe.toFixed(2), tone: result.optimalPortfolio.sharpe >= 1 ? "text-[#00CFC1]" : "text-amber-400" },
-              { label: "Methode", value: METHOD_LABEL[method], tone: "text-white" },
-            ].map((k, i) => (
-              <div key={k.label} className={`bg-[#0f1420] p-4 ${i < 3 ? "border-r border-white/10" : ""}`}>
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{k.label}</p>
-                <p className={`text-xl font-bold font-mono ${k.tone}`}>{k.value}</p>
+            ];
+            if (typeof optCvar === "number") {
+              // CVaR 95 %: mittlerer Verlust an den schlechtesten 5 % der Handelstage.
+              // Niedriger = weniger Tail-Risiko; bei «Min. Tail-Risiko» hervorgehoben.
+              kpis.push({
+                label: "CVaR 95 % (Tag)",
+                value: `−${Math.abs(optCvar).toFixed(2)}%`,
+                tone: method === "min_cvar" ? "text-[#00CFC1]" : "text-white",
+                sub: typeof currCvar === "number" ? `aktuell −${Math.abs(currCvar).toFixed(2)}%` : undefined,
+              });
+            }
+            kpis.push({ label: "Methode", value: METHOD_LABEL[method], tone: "text-white" });
+            return (
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-0 border border-white/10 rounded-lg overflow-hidden">
+                {kpis.map((k, i) => (
+                  <div key={k.label} className={`bg-[#0f1420] p-4 ${i < kpis.length - 1 ? "border-r border-white/10" : ""}`}>
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{k.label}</p>
+                    <p className={`text-xl font-bold font-mono ${k.tone}`}>{k.value}</p>
+                    {k.sub && <p className="text-[10px] text-gray-600 mt-0.5">{k.sub}</p>}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
 
           {/* R-34c: Mindest-Positionsgrösse CHF 3'000 — vom Server auf 0 gesetzte Positionen */}
           {droppedPositions.length > 0 && (

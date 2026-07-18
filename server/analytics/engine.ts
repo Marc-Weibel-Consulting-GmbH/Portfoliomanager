@@ -111,7 +111,7 @@ export interface OptimizeInput {
   tickers: string[];
   lookbackDays?: number;
   riskFreeRate?: number;
-  method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
+  method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp" | "min_cvar";
   /**
    * R-34c: aktueller Portfoliowert in CHF. Wenn gesetzt, werden Zielpositionen
    * unter der Mindest-Positionsgrösse auf 0 gesetzt und umverteilt.
@@ -355,6 +355,32 @@ interface UserConstraints {
   minSharpe?: number;
 }
 
+// Tägliche Portfolio-Renditereihe aus Gewichten und den (datums-alignierten)
+// Asset-Renditereihen. `assetReturns[i]` = Tagesrenditen von Titel i.
+function weightedDailySeries(weights: number[], assetReturns: number[][]): number[] {
+  if (assetReturns.length === 0) return [];
+  const T = Math.min(...assetReturns.map((a) => a.length));
+  const out = new Array<number>(T);
+  for (let t = 0; t < T; t++) {
+    let r = 0;
+    for (let i = 0; i < assetReturns.length; i++) r += weights[i] * assetReturns[i][t];
+    out[t] = r;
+  }
+  return out;
+}
+
+// Historischer CVaR (Expected Shortfall) einer Tagesrenditereihe zum Niveau
+// `alpha` (Default 5 %). Rückgabe = POSITIVE Zahl = mittlerer Verlust im
+// schlechtesten alpha-Tail (Tageswert). Höher = mehr Tail-Risiko.
+function historicalCVaR(dailyReturns: number[], alpha = 0.05): number {
+  if (dailyReturns.length === 0) return 0;
+  const sorted = [...dailyReturns].sort((a, b) => a - b); // aufsteigend: schlechteste zuerst
+  const k = Math.max(1, Math.floor(sorted.length * alpha));
+  let s = 0;
+  for (let i = 0; i < k; i++) s += sorted[i];
+  return -(s / k);
+}
+
 function optimizeWeights(
   mu: number[],
   cov: number[][],
@@ -362,7 +388,8 @@ function optimizeWeights(
   riskFreeRate: number,
   dividendYields?: number[],
   constraints?: { minWeight: number; maxWeight: number },
-  userConstraints?: UserConstraints
+  userConstraints?: UserConstraints,
+  cvarReturns?: number[][]
 ): number[] {
   const n = mu.length;
   const x0 = new Array(n).fill(1 / n);
@@ -385,6 +412,7 @@ function optimizeWeights(
   const isDividend = method === "max_dividend";
   const isMinVar = method === "min_variance";
   const isMaxSharpe = method === "max_sharpe";
+  const isMinCvar = method === "min_cvar" && !!cvarReturns;
 
   function score(w: number[]): number {
     const { ret, vol } = portfolioStats(w, mu, cov);
@@ -397,6 +425,10 @@ function optimizeWeights(
       base = vol > 0 ? (ret - riskFreeRate) / vol : -Infinity;
     } else if (isMinVar) {
       base = -vol;
+    } else if (isMinCvar && cvarReturns) {
+      // Tail-Risk-Minimierung: minimiere den historischen CVaR (95 %) der
+      // gewichteten Tages-Portfoliorenditen → maximiere (−CVaR).
+      base = -historicalCVaR(weightedDailySeries(w, cvarReturns), 0.05);
     } else {
       base = 0;
     }
@@ -1270,6 +1302,11 @@ export async function optimizePortfolio(input: OptimizeInput) {
   let optimizerEngine: "exact" | "random_search" | "analytic" =
     method === "equal_weight" ? "analytic" : "random_search";
   let optimalWeights: number[] | null = null;
+
+  // Datums-alignierte Asset-Renditematrix (EODHD, CHF) — Basis für die
+  // CVaR-Zielfunktion und für die CVaR-Kennzahl (aktuell vs. optimiert).
+  const assetReturnsMatrix: number[][] = available.map((t) => returnsMap[t]);
+  const cvarReturns = method === "min_cvar" ? assetReturnsMatrix : undefined;
   if ((method === "max_sharpe" || method === "min_variance") && !input.userConstraints) {
     const { solveExactWeights } = await import("./exactOptimizer");
     const { minW, maxW } = effectiveBounds(n, minPositionWeight, maxPositionWeight);
@@ -1294,7 +1331,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
     optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields, {
       minWeight: minPositionWeight,
       maxWeight: maxPositionWeight,
-    }, input.userConstraints);
+    }, input.userConstraints, cvarReturns);
   }
 
   // R-34c: Mindest-Positionsgrösse CHF 3'000 — Zielpositionen, deren Wert
@@ -1342,6 +1379,11 @@ export async function optimizePortfolio(input: OptimizeInput) {
     ? actualWeights.map(w => w / actualWeightSum) // normalise to sum=1
     : new Array(n).fill(1 / n); // fallback: equal weight
   const { ret: currRet, vol: currVol, sharpe: currSharpe } = portfolioStats(currentWeightsArr, mu, cov, riskFreeRate);
+
+  // CVaR (95 %, historisch) der gewichteten Tagesrenditen als Tail-Risiko-Kennzahl
+  // (positiver Wert = mittlerer Verlust an den schlechtesten 5 % der Handelstage).
+  const optCvar95 = historicalCVaR(weightedDailySeries(finalWeights, assetReturnsMatrix), 0.05);
+  const currCvar95 = historicalCVaR(weightedDailySeries(currentWeightsArr, assetReturnsMatrix), 0.05);
 
   // Efficient frontier
   // OPT-3: Frontier mit DENSELBEN Bounds wie das Optimum (vorher Default 1-10 %).
@@ -1407,11 +1449,14 @@ export async function optimizePortfolio(input: OptimizeInput) {
       sharpe: Math.round(optSharpe * 1000) / 1000,
       annualReturn: Math.round(optRet * 10000) / 100,
       sharpeRatio: Math.round(optSharpe * 1000) / 1000,
+      // CVaR 95 % (Tages-Tail-Verlust) in Prozent — additiv.
+      cvar95: Math.round(optCvar95 * 10000) / 100,
     },
     currentPortfolio: {
       expectedReturn: Math.round(currRet * 10000) / 10000,
       volatility: Math.round(currVol * 10000) / 10000,
       sharpe: Math.round(currSharpe * 1000) / 1000,
+      cvar95: Math.round(currCvar95 * 10000) / 100,
     },
     weights: weightsMap,
     assets: assetStats,

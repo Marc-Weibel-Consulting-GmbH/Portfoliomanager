@@ -594,7 +594,7 @@ function OptimierungEmpfehlungenTab({
 
   // Strategie aus dem Risikoprofil ableiten (nur DB-basierte Methoden — kein Yahoo):
   // konservativ → Risikominimierung (Min. Varianz), sonst Max. Sharpe.
-  type OptMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
+  type OptMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp" | "min_cvar";
   const profileMethod: OptMethod =
     profile?.riskProfile === "konservativ" ? "min_variance" : "max_sharpe";
   const [selectedMethod, setSelectedMethod] = useState<OptMethod | null>(null);
@@ -603,6 +603,7 @@ function OptimierungEmpfehlungenTab({
   const METHOD_OPTS: { value: OptMethod; label: string }[] = [
     { value: "max_sharpe", label: "Max. Sharpe" },
     { value: "min_variance", label: "Min. Varianz" },
+    { value: "min_cvar", label: "Min. Tail-Risiko (CVaR)" },
     { value: "hrp", label: "HRP (Risk Parity)" },
     { value: "equal_weight", label: "Gleichgewichtet" },
     { value: "max_dividend", label: "Max. Dividende" },

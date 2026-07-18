@@ -106,7 +106,7 @@ export const analyticsRouter = router({
         tickers: z.array(z.string()).min(2),
         lookbackDays: z.number().default(252),
         riskFreeRate: z.number().default(0.02),
-        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp"]).default("max_sharpe"),
+        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp", "min_cvar"]).default("max_sharpe"),
         // R-34c (additiv): Portfoliowert in CHF für die Mindest-Positionsgrösse CHF 3'000
         portfolioValue: z.number().positive().optional(),
         // Current portfolio weights {ticker: weight 0..1} to plot actual portfolio on frontier
@@ -154,8 +154,8 @@ export const analyticsRouter = router({
                 { riskProfile: profile.riskProfile, maxDrawdownTolerancePct: profile.maxDrawdownTolerancePct, investmentHorizonYears: profile.investmentHorizonYears },
                 rules,
               );
-              // equal_weight / max_dividend / hrp bleiben respektiert; sonst profilbasierte Methode.
-              method = (input.method === "equal_weight" || input.method === "max_dividend" || input.method === "hrp") ? input.method : params.method;
+              // equal_weight / max_dividend / hrp / min_cvar bleiben respektiert; sonst profilbasierte Methode.
+              method = (input.method === "equal_weight" || input.method === "max_dividend" || input.method === "hrp" || input.method === "min_cvar") ? input.method : params.method;
               minPositionWeight = params.minPositionWeight;
               maxPositionWeight = params.maxPositionWeight;
             }
@@ -378,7 +378,7 @@ Gib eine strukturierte Analyse zurück.`;
         ),
         portfolioValue: z.number().optional().default(0),
         cashBalance: z.number().optional().default(0),
-        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp"]).optional().default("max_sharpe"),
+        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp", "min_cvar"]).optional().default("max_sharpe"),
       })
     )
     .query(async ({ input, ctx }) => {
