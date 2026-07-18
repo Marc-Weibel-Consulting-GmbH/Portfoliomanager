@@ -9,6 +9,10 @@ Endpoints:
   POST /analytics/dcf                      - DCF valuation per stock
   POST /analytics/optimize                 - Portfolio optimization (Efficient Frontier)
   POST /analytics/optimize-exact           - Exact MVO via PyPortfolioOpt (mu/cov from caller)
+  POST /analytics/optimize-advanced        - HRP / CVaR / Max-Sharpe via skfolio
+  POST /analytics/backtest                 - Historical portfolio backtest via bt
+  GET  /edgar/{ticker}/facts               - XBRL fundamentals from SEC EDGAR
+  GET  /edgar/{ticker}/filings             - Recent SEC filings (10-K/10-Q/8-K)
   GET  /tradingview/ta/{symbol}            - TradingView TA snapshot for a symbol
   GET  /tradingview/ta/{symbol}/multi-tf   - Multi-timeframe confluence
   GET  /health                             - Health check
@@ -725,6 +729,154 @@ def tradingview_multi_tf(
     except Exception as exc:
         logger.exception("tradingview_multi_tf failed for %s/%s", exchange, symbol)
         raise HTTPException(status_code=502, detail=f"TradingView error: {exc}")
+
+
+# ─────────────────────────────────────────────
+# Advanced Optimization (skfolio) & Backtesting (bt)
+# ─────────────────────────────────────────────
+
+
+class AdvancedOptimizeRequest(BaseModel):
+    tickers: List[str]
+    lookback_days: int = 252
+    method: str = "hrp"  # hrp | min_cvar | max_sharpe
+    min_weight: float = 0.0
+    max_weight: float = 1.0
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE
+
+
+@app.post("/analytics/optimize-advanced")
+def optimize_advanced(req: AdvancedOptimizeRequest):
+    """
+    Erweiterte Portfolio-Optimierung via skfolio:
+    Hierarchical Risk Parity ("hrp", ohne mu-Schätzung), CVaR-Minimierung
+    ("min_cvar") oder Max-Sharpe ("max_sharpe") unter Gewichts-Bounds.
+    Kursdaten via yfinance (wie /analytics/optimize).
+    """
+    if len(req.tickers) < 2:
+        raise HTTPException(status_code=422, detail="Mindestens 2 Titel erforderlich.")
+
+    returns_df = fetch_returns(req.tickers, req.lookback_days)
+    available = [t for t in req.tickers if t in returns_df.columns]
+    if len(available) < 2:
+        raise HTTPException(status_code=422, detail="Zu wenig Kursdaten für die Optimierung.")
+
+    try:
+        from advanced_optimization import optimize_portfolio as skf_optimize
+    except ImportError:
+        raise HTTPException(status_code=501, detail="skfolio ist nicht installiert.")
+
+    try:
+        return skf_optimize(
+            tickers=available,
+            returns=returns_df[available],
+            method=req.method,
+            min_weight=req.min_weight,
+            max_weight=req.max_weight,
+            risk_free_rate=req.risk_free_rate,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.exception("optimize-advanced failed")
+        raise HTTPException(status_code=500, detail=f"Optimierung fehlgeschlagen: {e}")
+
+
+class BacktestRequest(BaseModel):
+    tickers: List[str]
+    weights: List[float]  # Reihenfolge = tickers
+    lookback_days: int = 504
+    rebalance: str = "monthly"  # monthly | none
+    initial_capital: float = 100_000.0
+
+
+@app.post("/analytics/backtest")
+def backtest_portfolio(req: BacktestRequest):
+    """
+    Historischer Portfolio-Backtest via bt: simuliert die Gewichts-Allokation
+    über den Zeitraum inkl. monatlichem Rebalancing (oder Buy-and-Hold mit
+    rebalance="none") und liefert CAGR, Volatilität, Sharpe, Max Drawdown
+    sowie eine monatlich verdichtete Equity-Kurve.
+    """
+    if len(req.tickers) != len(req.weights):
+        raise HTTPException(status_code=422, detail="tickers und weights müssen gleich lang sein.")
+    if not req.tickers:
+        raise HTTPException(status_code=422, detail="Mindestens 1 Titel erforderlich.")
+
+    returns_df = fetch_returns(req.tickers, req.lookback_days)
+    available = [t for t in req.tickers if t in returns_df.columns]
+    if not available:
+        raise HTTPException(status_code=422, detail="Keine Kursdaten für die angegebenen Titel.")
+
+    # Normalisierte Preise aus den Renditen rekonstruieren (Start = 100).
+    prices = (1 + returns_df[available]).cumprod() * 100.0
+    avail_weights = [req.weights[req.tickers.index(t)] for t in available]
+
+    try:
+        from advanced_optimization import run_backtest
+    except ImportError:
+        raise HTTPException(status_code=501, detail="bt ist nicht installiert.")
+
+    try:
+        return run_backtest(
+            tickers=available,
+            prices=prices,
+            weights=avail_weights,
+            rebalance=req.rebalance,
+            initial_capital=req.initial_capital,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.exception("backtest failed")
+        raise HTTPException(status_code=500, detail=f"Backtest fehlgeschlagen: {e}")
+
+
+# ─────────────────────────────────────────────
+# SEC EDGAR Fundamentaldaten (edgartools)
+# ─────────────────────────────────────────────
+
+
+@app.get("/edgar/{ticker}/facts")
+def edgar_facts(ticker: str):
+    """
+    XBRL-Fundamentaldaten eines US-Unternehmens direkt von der SEC:
+    Umsatz, Nettogewinn, Bilanzsumme, Eigenkapital, EPS und operativer
+    Cashflow der letzten bis zu 5 Geschäftsjahre (kostenlos, ohne API-Key).
+    Erfordert die Env-Variable EDGAR_IDENTITY (SEC Fair-Access-Policy).
+    """
+    try:
+        from edgar_integration import get_company_facts
+    except ImportError:
+        raise HTTPException(status_code=501, detail="edgartools ist nicht installiert.")
+
+    try:
+        return get_company_facts(ticker)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.exception("edgar_facts failed for %s", ticker)
+        raise HTTPException(status_code=502, detail=f"SEC EDGAR Fehler: {e}")
+
+
+@app.get("/edgar/{ticker}/filings")
+def edgar_filings(
+    ticker: str,
+    limit: int = Query(10, ge=1, le=40),
+):
+    """Jüngste SEC-Filings eines Unternehmens (10-K, 10-Q, 8-K) mit Links."""
+    try:
+        from edgar_integration import get_recent_filings
+    except ImportError:
+        raise HTTPException(status_code=501, detail="edgartools ist nicht installiert.")
+
+    try:
+        return get_recent_filings(ticker, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.exception("edgar_filings failed for %s", ticker)
+        raise HTTPException(status_code=502, detail=f"SEC EDGAR Fehler: {e}")
 
 
 if __name__ == "__main__":
