@@ -20,8 +20,12 @@ export default function AdminWatchlistCandidates() {
   const { data: candidates = [], isLoading, refetch } = trpc.admin.getUniverseCandidates.useQuery();
 
   const approveMutation = trpc.admin.approveUniverseCandidate.useMutation({
-    onSuccess: () => {
-      toast.success("Titel in Watchlist übernommen");
+    onSuccess: (data) => {
+      if (data.priceLoaded) {
+        toast.success("Titel in Watchlist übernommen — Preis erfolgreich geladen ✓");
+      } else {
+        toast.success("Titel in Watchlist übernommen (Preis wird beim nächsten Refresh aktualisiert)");
+      }
       utils.admin.getUniverseCandidates.invalidate();
     },
     onError: (err) => toast.error(`Fehler: ${err.message}`),
@@ -37,7 +41,7 @@ export default function AdminWatchlistCandidates() {
 
   const approveAllMutation = trpc.admin.approveAllUniverseCandidates.useMutation({
     onSuccess: (data) => {
-      toast.success(`${data.approved} Titel in Watchlist übernommen`);
+      toast.success(`${data.approved} Titel übernommen, ${data.pricesFetched} Preise geladen ✓`);
       utils.admin.getUniverseCandidates.invalidate();
     },
     onError: (err) => toast.error(`Fehler: ${err.message}`),
@@ -138,12 +142,13 @@ export default function AdminWatchlistCandidates() {
       ) : (
         <div className="border border-white/10 rounded-xl overflow-hidden">
           {/* Table Header */}
-          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 px-4 py-2.5 bg-white/5 text-xs text-gray-400 font-medium uppercase tracking-wide">
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 px-4 py-2.5 bg-white/5 text-xs text-gray-400 font-medium uppercase tracking-wide">
             <span>Titel</span>
             <span>Sektor</span>
             <span>Lücke geschlossen</span>
             <span>Grund</span>
             <span>Marktkapital.</span>
+            <span>Kurs</span>
             <span>Aktionen</span>
           </div>
 
@@ -151,10 +156,11 @@ export default function AdminWatchlistCandidates() {
           {candidates.map((c: any) => {
             const { gap, reason } = parseNotes(c.notes);
             const mcap = c.marketCap ? (Number(c.marketCap) / 1e9).toFixed(1) + " Mrd." : "—";
+            const price = c.currentPrice && c.currentPrice !== '0' ? `${parseFloat(c.currentPrice).toFixed(2)} ${c.currency ?? ''}` : null;
             return (
               <div
                 key={c.id}
-                className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 px-4 py-3 border-t border-white/5 items-center hover:bg-white/[0.02] transition-colors"
+                className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 px-4 py-3 border-t border-white/5 items-center hover:bg-white/[0.02] transition-colors"
               >
                 {/* Ticker + Name */}
                 <div>
@@ -181,6 +187,15 @@ export default function AdminWatchlistCandidates() {
 
                 {/* Market Cap */}
                 <span className="text-xs text-gray-400">{mcap}</span>
+
+                {/* Price */}
+                <span className="text-xs font-mono">
+                  {price ? (
+                    <span className="text-emerald-400">{price}</span>
+                  ) : (
+                    <span className="text-gray-600">Kein Kurs</span>
+                  )}
+                </span>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">

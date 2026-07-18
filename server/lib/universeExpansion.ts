@@ -425,6 +425,38 @@ export async function storeExternalCandidates(
         continue;
       }
 
+      // Preis via EODHD laden
+      let livePrice = "0";
+      let liveExchangeRate: string | null = null;
+      try {
+        const { ENV } = await import('../_core/env');
+        if (ENV.eodhdApiKey) {
+          const eoTicker = c.ticker.includes('.') ? c.ticker : `${c.ticker}.US`;
+          const resp = await fetch(`https://eodhd.com/api/real-time/${eoTicker}?api_token=${ENV.eodhdApiKey}&fmt=json`);
+          if (resp.ok) {
+            const data: any = await resp.json();
+            const price = parseFloat(data?.close ?? data?.adjusted_close ?? '0');
+            if (price > 0) {
+              livePrice = String(price);
+              // FX-Rate aus DB (andere Aktie mit gleicher Währung)
+              const currency = (c.currency ?? 'USD').toUpperCase();
+              if (currency === 'CHF') {
+                liveExchangeRate = '1';
+              } else {
+                const fxRow = await db.select({ exchangeRateToChf: stocks.exchangeRateToChf })
+                  .from(stocks)
+                  .where(eq(stocks.currency, currency))
+                  .limit(1);
+                if (fxRow[0]?.exchangeRateToChf) liveExchangeRate = String(fxRow[0].exchangeRateToChf);
+              }
+              console.log(`[UniverseExpansion] Live price for ${c.ticker}: ${livePrice} (fxRate: ${liveExchangeRate})`);
+            }
+          }
+        }
+      } catch (priceErr) {
+        console.warn(`[UniverseExpansion] Could not fetch price for ${c.ticker}:`, priceErr);
+      }
+
       await db.insert(stocks).values({
         ticker: c.ticker,
         companyName: c.companyName,
@@ -438,7 +470,8 @@ export async function storeExternalCandidates(
         source: "ai_recommended",
         notes: `universe_expansion|${c.closesGap}|${c.gapReason}`,
         isActive: 1,
-        currentPrice: "0",      // Wird beim nächsten Metrics-Refresh befüllt
+        currentPrice: livePrice,
+        exchangeRateToChf: liveExchangeRate,
       });
       stored++;
     } catch (err) {

@@ -1747,11 +1747,46 @@ export const adminRouter = router({
       const { eq } = await import("drizzle-orm");
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
-      await db
-        .update(stocks)
-        .set({ source: "manual", notes: null, listType: "watchlist" })
-        .where(eq(stocks.id, input.stockId));
-      return { success: true };
+
+      // Ticker laden um Preis zu beziehen
+      const [row] = await db.select({ ticker: stocks.ticker, currency: stocks.currency, currentPrice: stocks.currentPrice }).from(stocks).where(eq(stocks.id, input.stockId)).limit(1);
+
+      // Preis via EODHD laden falls noch nicht vorhanden
+      let priceUpdate: Record<string, unknown> = { source: "manual", notes: null, listType: "watchlist" };
+      if (row && (!row.currentPrice || row.currentPrice === '0')) {
+        try {
+          const { ENV } = await import('../_core/env');
+          if (ENV.eodhdApiKey) {
+            const eoTicker = row.ticker.includes('.') ? row.ticker : `${row.ticker}.US`;
+            const resp = await fetch(`https://eodhd.com/api/real-time/${eoTicker}?api_token=${ENV.eodhdApiKey}&fmt=json`);
+            if (resp.ok) {
+              const data: any = await resp.json();
+              const price = parseFloat(data?.close ?? data?.adjusted_close ?? '0');
+              if (price > 0) {
+                priceUpdate.currentPrice = String(price);
+                // FX-Rate: für CHF-Aktien 1, für andere aus EODHD oder Standard
+                const currency = (row.currency ?? 'USD').toUpperCase();
+                if (currency !== 'CHF') {
+                  // Lade CHF-Kurs aus DB (andere Aktie mit gleicher Währung)
+                  const fxRow = await db.select({ exchangeRateToChf: stocks.exchangeRateToChf })
+                    .from(stocks)
+                    .where(eq(stocks.currency, currency))
+                    .limit(1);
+                  if (fxRow[0]?.exchangeRateToChf) priceUpdate.exchangeRateToChf = fxRow[0].exchangeRateToChf;
+                } else {
+                  priceUpdate.exchangeRateToChf = '1';
+                }
+                console.log(`[approveUniverseCandidate] Fetched price for ${row.ticker}: ${price} ${currency}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(`[approveUniverseCandidate] Price fetch failed for ${row?.ticker}:`, e);
+        }
+      }
+
+      await db.update(stocks).set(priceUpdate).where(eq(stocks.id, input.stockId));
+      return { success: true, priceLoaded: !!priceUpdate.currentPrice };
     }),
 
   rejectUniverseCandidate: adminProcedure
@@ -1770,20 +1805,44 @@ export const adminRouter = router({
     const { getDb } = await import("../db");
     const { stocks } = await import("../../drizzle/schema");
     const { eq } = await import("drizzle-orm");
+    const { ENV } = await import('../_core/env');
     const db = await getDb();
     if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
     const rows = await db
-      .select({ id: stocks.id, notes: stocks.notes })
+      .select({ id: stocks.id, notes: stocks.notes, ticker: stocks.ticker, currency: stocks.currency, currentPrice: stocks.currentPrice })
       .from(stocks)
       .where(eq(stocks.source, "ai_recommended"));
     const candidates = rows.filter((r: any) => String(r.notes ?? "").startsWith("universe_expansion"));
+    let pricesFetched = 0;
     for (const c of candidates) {
-      await db
-        .update(stocks)
-        .set({ source: "manual", notes: null, listType: "watchlist" })
-        .where(eq(stocks.id, c.id));
+      let updateSet: Record<string, unknown> = { source: "manual", notes: null, listType: "watchlist" };
+      // Preis laden falls fehlend
+      if ((!c.currentPrice || c.currentPrice === '0') && ENV.eodhdApiKey) {
+        try {
+          const eoTicker = c.ticker.includes('.') ? c.ticker : `${c.ticker}.US`;
+          const resp = await fetch(`https://eodhd.com/api/real-time/${eoTicker}?api_token=${ENV.eodhdApiKey}&fmt=json`);
+          if (resp.ok) {
+            const data: any = await resp.json();
+            const price = parseFloat(data?.close ?? data?.adjusted_close ?? '0');
+            if (price > 0) {
+              updateSet.currentPrice = String(price);
+              const currency = (c.currency ?? 'USD').toUpperCase();
+              if (currency !== 'CHF') {
+                const fxRow = await db.select({ exchangeRateToChf: stocks.exchangeRateToChf }).from(stocks).where(eq(stocks.currency, currency)).limit(1);
+                if (fxRow[0]?.exchangeRateToChf) updateSet.exchangeRateToChf = fxRow[0].exchangeRateToChf;
+              } else {
+                updateSet.exchangeRateToChf = '1';
+              }
+              pricesFetched++;
+            }
+          }
+        } catch (e) {
+          console.warn(`[approveAll] Price fetch failed for ${c.ticker}:`, e);
+        }
+      }
+      await db.update(stocks).set(updateSet).where(eq(stocks.id, c.id));
     }
-    return { success: true, approved: candidates.length };
+    return { success: true, approved: candidates.length, pricesFetched };
   }),
 });
 
