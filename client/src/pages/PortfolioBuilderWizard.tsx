@@ -36,6 +36,8 @@ type StockSelection = {
   quantity: number;
   purchasePrice: number;
   assetType: "stock" | "bond" | "etf";
+  /** Weight as % of total capital (inkl. Cash-Reserve). Stored directly from proposal weightPct. */
+  weightPct?: number;
 };
 
 // ─── Static data ─────────────────────────────────────────────────────────────
@@ -297,18 +299,28 @@ export default function PortfolioBuilderWizard() {
     if (selectedStocks.length === 0) { toast.error("Bitte fügen Sie mindestens eine Position hinzu"); return; }
     try {
       const alloc = calculateAllocation();
-      const portfolioData = {
+      // Extract cash reserve percentage from KI proposal profile (liquidityNeedPct)
+      // This ensures the server stores the correct cashBalance when positions only cover e.g. 50% of capital
+      const liquidityNeedPct = (autoProposal as any)?.profile?.liquidityNeedPct ?? 0;
+      const portfolioData: Record<string, any> = {
         stocks: selectedStocks.map((s) => {
           const a = alloc.find((x) => x.ticker === s.ticker);
+          // Prefer weightPct from proposal (= % of total capital incl. cash reserve).
+          // Fall back to calculateAllocation weight (= % of equity only) for manually-built portfolios.
+          const weight = s.weightPct != null ? s.weightPct : (a?.weight || 0);
           return {
             ticker: s.ticker, companyName: s.companyName,
-            weight: a?.weight || 0, shares: s.quantity.toFixed(6),
+            weight, shares: s.quantity.toFixed(6),
             currentPrice: s.purchasePrice.toFixed(2), avgBuyPrice: s.purchasePrice.toFixed(2),
             totalValue: (s.quantity * s.purchasePrice).toFixed(2),
             currency: currency || "CHF", assetType: s.assetType,
           };
         }),
       };
+      // If KI proposal has a cash reserve, store it so server calculates cashBalance correctly
+      if (liquidityNeedPct > 0) {
+        portfolioData.cashPercentage = liquidityNeedPct;
+      }
       const result = await createPortfolioMutation.mutateAsync({
         name: portfolioName, description: portfolioDescription || undefined,
         portfolioData: JSON.stringify(portfolioData),
@@ -394,9 +406,11 @@ export default function PortfolioBuilderWizard() {
       const fxRate = parseFloat(String(p.exchangeRateToChf || '1')) || 1;
       // currentPrice can be a string (raw DB value) or a number — always coerce to float
       const rawPrice = parseFloat(String(p.currentPrice ?? '0')) || 0;
-      const priceCHF = rawPrice * fxRate;
+      // exchangeRateToChf = "1 CHF = X foreign currency" → to convert foreign→CHF: divide by fxRate
+      // For CHF stocks fxRate=1 so rawPrice/1=rawPrice ✓
+      const priceCHF = fxRate > 0 ? rawPrice / fxRate : rawPrice;
       const qty = priceCHF > 0 ? value / priceCHF : 0;
-      return { ticker: p.ticker, companyName: p.companyName, quantity: parseFloat(qty.toFixed(4)), purchasePrice: priceCHF, assetType: "stock" as const };
+      return { ticker: p.ticker, companyName: p.companyName, quantity: parseFloat(qty.toFixed(4)), purchasePrice: priceCHF, assetType: "stock" as const, weightPct: p.weightPct };
     });
     setSelectedStocks(seeded);
     const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };

@@ -96,18 +96,12 @@ export const portfoliosRouter = router({
             const priceCHF = priceCHFOrNull;
 
             // Calculate shares:
-            // - For demo portfolios: ALWAYS use weight-based calculation to ensure
-            //   totalValueCHF = investmentAmount (stored shares may be wrong due to FX issues at creation)
-            // - For live portfolios: use stored shares from real transactions
-            let shares: number;
-            const isDemo = portfolio.portfolioType === 'demo' || !portfolio.portfolioType;
-            if (isDemo && investmentAmount > 0 && weight > 0) {
+            // - Use stored shares if available (set correctly by handleAcceptProposal after FX fix)
+            // - Fall back to weight-based calculation only when shares are missing/zero
+            //   (legacy portfolios created before the FX fix, or manually-built portfolios)
+            let shares: number = parseFloat(stock.shares || '0');
+            if (!(shares > 0) && investmentAmount > 0 && weight > 0) {
               shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
-            } else {
-              shares = parseFloat(stock.shares || '0');
-              if (shares === 0 && investmentAmount > 0 && weight > 0) {
-                shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
-              }
             }
 
             totalValueCHF += shares * priceCHF;
@@ -115,6 +109,7 @@ export const portfoliosRouter = router({
 
           // Add cash balance if exists
           const cashBalance = parseFloat(portfolio.cashBalance || '0');
+          const stocksValueBeforeCash = totalValueCHF;
           totalValueCHF += cashBalance;
 
           // Calculate performance
