@@ -137,6 +137,7 @@ export default function PortfolioBuilderWizard() {
   const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
 
   // ── Queries & mutations ──
+  const utils = trpc.useUtils();
   const { data: savedProfile } = trpc.investmentProfile.get.useQuery();
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
   const createPortfolioMutation = trpc.portfolios.create.useMutation();
@@ -315,6 +316,16 @@ export default function PortfolioBuilderWizard() {
         isAiOptimized,
       });
       toast.success("Portfolio erstellt 🎉");
+      // M-02: Invalidate dashboard caches so data loads immediately after navigation
+      await Promise.all([
+        utils.dashboard.getPortfolioCompact.invalidate(),
+        utils.portfolios.list.invalidate(),
+        utils.dashboard.getSectorAllocation.invalidate(),
+        utils.dashboard.getRegionAllocation.invalidate(),
+        utils.dashboard.getAggregatedHoldings.invalidate(),
+        utils.dashboard.getAggregatedMetrics.invalidate(),
+        utils.dashboard.getPerformanceTimeseries.invalidate(),
+      ]);
       if (result?.portfolio?.id) navigate(`/portfolios/${result.portfolio.id}`);
       else navigate("/portfolios");
     } catch (error: any) {
@@ -1287,15 +1298,15 @@ export default function PortfolioBuilderWizard() {
                     <table className="w-full">
                       <thead className="bg-muted">
                         <tr>
-                          {["Ticker", "Anzahl", "Preis", "Wert", "Gewichtung"].map((h) => (
-                            <th key={h} className={`p-3 text-sm font-medium ${h === "Ticker" ? "text-left" : "text-right"}`}>{h}</th>
+                          {["Titel", "Anzahl", "Preis", "Wert", "Gewichtung"].map((h) => (
+                            <th key={h} className={`p-3 text-sm font-medium ${h === "Titel" ? "text-left" : "text-right"}`}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {allocation.map((item) => (
                           <tr key={item.ticker} className="border-t">
-                            <td className="p-3"><div className="font-medium">{item.ticker}</div><div className="text-xs text-muted-foreground">{item.companyName}</div></td>
+                            <td className="p-3"><div className="font-medium font-mono text-xs text-[#00CFC1]">{item.ticker}</div><div className="text-xs text-muted-foreground">{item.companyName}</div></td>
                             <td className="text-right p-3">{item.quantity}</td>
                             <td className="text-right p-3">{currency} {item.purchasePrice.toFixed(2)}</td>
                             <td className="text-right p-3">{currency} {item.value.toFixed(2)}</td>
@@ -1370,15 +1381,15 @@ export default function PortfolioBuilderWizard() {
                     <table className="w-full text-sm">
                       <thead className="bg-muted">
                         <tr>
-                          {["Ticker", "Anzahl", "Preis", "Wert", "Gewichtung"].map((h) => (
-                            <th key={h} className={`p-2 font-medium ${h === "Ticker" ? "text-left" : "text-right"}`}>{h}</th>
+                          {["Titel", "Anzahl", "Preis", "Wert", "Gewichtung"].map((h) => (
+                            <th key={h} className={`p-2 font-medium ${h === "Titel" ? "text-left" : "text-right"}`}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {allocation.map((item) => (
                           <tr key={item.ticker} className="border-t">
-                            <td className="p-2 font-medium">{item.ticker}</td>
+                            <td className="p-2"><div className="font-mono text-xs text-[#00CFC1]">{item.ticker}</div><div className="text-xs text-muted-foreground">{item.companyName}</div></td>
                             <td className="text-right p-2">{item.quantity}</td>
                             <td className="text-right p-2">{currency} {item.purchasePrice.toFixed(2)}</td>
                             <td className="text-right p-2">{currency} {item.value.toFixed(2)}</td>

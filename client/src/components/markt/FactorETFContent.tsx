@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Info, RefreshCw, AlertTriangle } from "lucide-react";
 
 const PERIOD_OPTIONS = [
   { value: "ytd", label: "YTD" },
@@ -51,9 +51,9 @@ export function FactorETFContent() {
   const [period, setPeriod] = useState<Period>("ytd");
   const [hoveredFactor, setHoveredFactor] = useState<string | null>(null);
 
-  const { data, isLoading } = trpc.marketRegime.getFactorETFs.useQuery(
+  const { data, isLoading, isError, refetch, isFetching } = trpc.marketRegime.getFactorETFs.useQuery(
     { period },
-    { staleTime: 10 * 60 * 1000, retry: 1 }
+    { staleTime: 10 * 60 * 1000, retry: 2, retryDelay: 3000 }
   );
 
   const factors = data?.factors ?? [];
@@ -91,6 +91,27 @@ export function FactorETFContent() {
           ))}
         </div>
       </div>
+
+      {/* Error State */}
+      {isError && (
+        <div className="bg-red-950/30 border border-red-500/30 rounded-xl p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-300">Daten konnten nicht geladen werden</p>
+              <p className="text-xs text-red-400/70 mt-0.5">EODHD-API temporär nicht erreichbar. Bitte versuchen Sie es erneut.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            {isFetching ? 'Lädt...' : 'Erneut versuchen'}
+          </button>
+        </div>
+      )}
 
       {/* Factor Score Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

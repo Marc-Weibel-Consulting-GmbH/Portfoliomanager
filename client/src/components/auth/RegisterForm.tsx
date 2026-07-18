@@ -55,7 +55,7 @@ export default function RegisterForm() {
       }
 
       // Success - show toast and redirect
-      toast.success("Erfolgreich registriert! Willkommen bei Portfolio BIG.");
+      toast.success(`Erfolgreich registriert! Willkommen bei ${import.meta.env.VITE_APP_TITLE || "portfolio.mw"}.`);
 
       // Invalidate auth query to force refetch with new cookie
       await utils.auth.me.invalidate();

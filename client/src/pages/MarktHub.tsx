@@ -352,6 +352,7 @@ function IndicesYtdChart() {
 
 function HeatmapContent() {
   const [dataSource, setDataSource] = useState<"SPX500" | "ETFHEATMAP" | "AllUSEtf">("SPX500");
+  const [widgetKey, setWidgetKey] = useState(0); // force remount on retry
   const sources = [
     { value: "SPX500" as const, label: "S&P 500" },
     { value: "ETFHEATMAP" as const, label: "ETF Heatmap" },
@@ -359,22 +360,36 @@ function HeatmapContent() {
   ];
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        {sources.map((s) => (
-          <button
-            key={s.value}
-            onClick={() => setDataSource(s.value)}
-            className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-              dataSource === s.value ? "bg-[#00CFC1]/20 text-[#00CFC1] font-medium" : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          {sources.map((s) => (
+            <button
+              key={s.value}
+              onClick={() => setDataSource(s.value)}
+              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                dataSource === s.value ? "bg-[#00CFC1]/20 text-[#00CFC1] font-medium" : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setWidgetKey(k => k + 1)}
+          className="text-xs text-gray-500 hover:text-gray-300 transition-colors px-3 py-1.5 border border-white/10 rounded-lg"
+        >
+          ↺ Neu laden
+        </button>
       </div>
       <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
         <CardContent className="p-0">
-          <TradingViewWidget widgetType="stock-heatmap" config={{ ...HEATMAP_CONFIG, dataSource }} height={600} />
+          <div className="relative">
+            <TradingViewWidget key={widgetKey} widgetType="stock-heatmap" config={{ ...HEATMAP_CONFIG, dataSource }} height={600} />
+            {/* Hint for users with ad-blockers */}
+            <p className="text-[10px] text-gray-700 text-right px-3 pb-2">
+              Datenquelle: TradingView · Falls die Heatmap leer bleibt, bitte Werbeblocker deaktivieren oder ↺ Neu laden klicken.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -486,7 +501,7 @@ export default function MarktHub() {
             <HeatmapContent />
           </TabsContent>
           <TabsContent value="news" className="mt-6">
-            <NewsroomContent />
+            <NewsroomContent embedded={true} />
           </TabsContent>
           <TabsContent value="faktoren" className="mt-6">
             <FactorETFContent />

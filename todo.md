@@ -305,3 +305,26 @@
 - [x] Admin-UI: Manuelle "Run Now" Funktion für sofortigen Test
 - [x] Markt-Hub-Badge im Portfolio-Builder: aktive Sektor-Tilts + MSCI-Faktor anzeigen
 - [x] Markt-Hub-Badge: buildProposal Response um marktHubContext erweitern
+
+## Audit-Fixes Beta-Launch (2026-07-18)
+
+### Phase 1 — Kritische Fehler
+- [x] K-01: Duplikate im KI-Builder (AAPL.US + AAPL) deduplizieren
+- [x] K-02: NaN-Kennzahlen im KI-Vorschlag beheben (Fallback bei fehlenden Kursdaten)
+- [x] K-03: GPW.WA und nicht-investierbare Titel aus Kandidatenliste filtern
+- [x] K-04: Markt-Hub-Badge Sektor-Duplikate (DE+EN) bereinigen
+- [x] K-05: Falsches Datum im Marktbericht korrigieren
+- [x] K-06: Heatmap Fehlerbehandlung (kein schwarzes Rechteck)
+- [x] K-07: Newsroom Rendering-Bug beheben
+- [x] K-08: Rechner-Seite aus Navigation entfernen (nicht funktionsfähig)
+- [x] K-09: Benachrichtigungen-Tab ausblenden (leer)
+
+### Phase 2 — UX-Verbesserungen
+- [x] M-01: Registrierungs-Toast "Portfolio BIG" → korrekter App-Name
+- [x] M-02: Dashboard Allokation/Treemap direkt nach Portfolio-Erstellung laden
+- [x] M-03: Ticker+Firmenname Formatierungsfehler beheben
+- [x] M-04: Fortschrittsbalken auf 100% nach KI-Analyse
+- [x] M-08: YTD-Wert konsistent über alle Tabs
+- [x] M-09: MSCI Faktoren-Chart Fehlerbehandlung
+- [x] M-12: /tools Route 404 beheben
+- [x] M-16: Hilfe-Tab FAQ und Kontakt hinzufügen

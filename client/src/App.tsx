@@ -152,6 +152,7 @@ function Router() {
           <Redirect to="/portfolio-builder" />
         </Route>
         <Route path="/rechner" component={Rechner} />
+        <Route path="/tools"><Redirect to="/rechner" /></Route>
         <Route path="/portfolio-comparison" component={PortfolioComparison} />
         <Route path="/price-alerts" component={PriceAlerts} />
 

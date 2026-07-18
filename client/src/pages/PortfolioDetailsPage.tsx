@@ -186,7 +186,7 @@ function PerformanceTab({
       <div className="grid grid-cols-3 gap-0 border border-white/10 rounded-lg overflow-hidden">
         <div className="bg-[#0f1420] p-4 border-r border-white/10">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1" title="YTD = seit Jahresbeginn">YTD</p>
-          <p className={`text-2xl font-bold font-mono ${(ytd ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>{ytd !== null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(2)}%` : '–'}</p>
+          <p className={`text-2xl font-bold font-mono ${(ytd ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>{ytd !== null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(1)}%` : '–'}</p>
           <p className="text-xs text-gray-400 mt-0.5">Seit Jahresanfang</p>
         </div>
         <div className="bg-[#0f1420] p-4 border-r border-white/10">

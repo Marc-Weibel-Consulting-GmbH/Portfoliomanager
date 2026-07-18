@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info, Target } from "lucide-react";
+import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info, Target, ChevronDown, ChevronUp, Mail, MessageSquare } from "lucide-react";
 import GuidedTourModal from "@/components/GuidedTourModal";
 import AnlageprofilTab from "@/components/settings/AnlageprofilTab";
 import { trpc } from "@/lib/trpc";
@@ -279,6 +279,207 @@ function GebührenTab() {
   );
 }
 
+function BenachrichtigungenTab() {
+  const { data: settings, isLoading } = trpc.notificationSettings.getSettings.useQuery();
+  const updateMutation = trpc.notificationSettings.updateSettings.useMutation({
+    onSuccess: () => toast.success("Benachrichtigungseinstellungen gespeichert"),
+    onError: (e) => toast.error("Fehler beim Speichern", { description: getUserErrorMessage(e) }),
+  });
+
+  const [whatsappAlerts, setWhatsappAlerts] = useState(false);
+  const [mobile, setMobile] = useState("");
+
+  useEffect(() => {
+    if (settings) {
+      setWhatsappAlerts(settings.whatsappAlerts ?? false);
+      setMobile(settings.mobile ?? "");
+    }
+  }, [settings]);
+
+  if (isLoading) return <div className="text-gray-400 text-sm py-4">Lade Einstellungen…</div>;
+
+  const handleSave = () => {
+    updateMutation.mutate({ whatsappAlerts, mobile: mobile || undefined });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Bell className="h-4 w-4 text-[#00CFC1]" /> Benachrichtigungen
+          </CardTitle>
+          <CardDescription>Verwalten Sie, wie und wann Sie Benachrichtigungen erhalten</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* WhatsApp Alerts */}
+          <div className="flex items-start justify-between gap-4 py-3 border-b border-white/10">
+            <div>
+              <p className="text-sm font-medium text-white">WhatsApp-Benachrichtigungen</p>
+              <p className="text-xs text-gray-500 mt-0.5">Erhalten Sie Kursalarme und Portfolio-Updates via WhatsApp</p>
+            </div>
+            <button
+              onClick={() => setWhatsappAlerts(v => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                whatsappAlerts ? "bg-[#00CFC1]" : "bg-white/20"
+              }`}
+              role="switch"
+              aria-checked={whatsappAlerts}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform ${
+                  whatsappAlerts ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Mobile number (shown when WhatsApp is enabled) */}
+          {whatsappAlerts && (
+            <div className="space-y-2">
+              <Label className="text-gray-400 text-xs">Mobilnummer (mit Ländervorwahl, z.B. +41791234567)</Label>
+              <Input
+                value={mobile}
+                onChange={e => setMobile(e.target.value)}
+                placeholder="+41 79 123 45 67"
+                className="bg-white/5 border-white/20 max-w-xs"
+              />
+            </div>
+          )}
+
+          {/* Info box */}
+          <div className="bg-white/5 rounded-lg p-4 text-xs text-gray-400 space-y-1">
+            <p className="font-medium text-gray-300">Hinweis</p>
+            <p>Kursalarme können Sie direkt in der Aktiendetailansicht einrichten. WhatsApp-Benachrichtigungen werden über den offiziellen portfolio.mw-Bot versendet.</p>
+          </div>
+
+          <Button
+            onClick={handleSave}
+            disabled={updateMutation.isPending}
+            className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black font-semibold"
+          >
+            {updateMutation.isPending ? "Speichern…" : "Einstellungen speichern"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── FAQ Section ─────────────────────────────────────────────────────────────
+const FAQ_ITEMS = [
+  {
+    q: "Wie importiere ich mein Portfolio von Swissquote?",
+    a: "Navigieren Sie zu 'Portfolio erstellen' → 'PDF importieren'. Laden Sie Ihr Swissquote-Kontoauszug-PDF hoch. Das System erkennt automatisch Ihre Positionen."
+  },
+  {
+    q: "Was ist der Unterschied zwischen Live- und Demo-Portfolio?",
+    a: "Ein Live-Portfolio verfolgt echte Transaktionen mit IRR/MWR-Berechnung. Ein Demo-Portfolio dient zur Analyse und Simulation ohne Transaktionshistorie."
+  },
+  {
+    q: "Wie funktioniert der KI-Portfolio-Builder?",
+    a: "Der KI-Builder analysiert Ihr Risikoprofil, Anlagehorizont und Ziele. Basierend auf aktuellen Marktdaten und Scoring-Algorithmen erstellt er einen diversifizierten Portfoliovorschlag."
+  },
+  {
+    q: "Wie werden Kursalarme versendet?",
+    a: "Kursalarme werden per E-Mail oder WhatsApp versendet. Richten Sie Alarme in der Aktiendetailansicht ein. WhatsApp-Benachrichtigungen erfordern eine verifizierte Mobilnummer."
+  },
+  {
+    q: "Welche Datenquellen werden verwendet?",
+    a: "portfolio.mw nutzt Echtzeitkurse von Finnhub und EODHD, Fundamentaldaten von EODHD sowie Makrodaten von FRED und World Bank. Alle Daten werden täglich aktualisiert."
+  },
+  {
+    q: "Wie berechnet sich die Performance (IRR/MWR)?",
+    a: "Die IRR (Internal Rate of Return) berechnet die zeitgewichtete Rendite unter Berücksichtigung aller Ein- und Auszahlungen. Die MWR (Money-Weighted Return) gewichtet nach investiertem Kapital."
+  },
+];
+
+function FaqSection() {
+  const [openIdx, setOpenIdx] = React.useState<number | null>(null);
+  return (
+    <div className="space-y-2">
+      {FAQ_ITEMS.map((item, i) => (
+        <div key={i} className="border border-white/10 rounded-lg overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-4 py-3 text-left text-sm text-white hover:bg-white/5 transition-colors"
+            onClick={() => setOpenIdx(openIdx === i ? null : i)}
+          >
+            <span className="font-medium">{item.q}</span>
+            {openIdx === i ? <ChevronUp className="h-4 w-4 shrink-0 text-[#00CFC1]" /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
+          </button>
+          {openIdx === i && (
+            <div className="px-4 pb-3 text-sm text-gray-400 border-t border-white/5 pt-2">{item.a}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Contact Form ─────────────────────────────────────────────────────────────
+function ContactForm() {
+  const [subject, setSubject] = React.useState("");
+  const [message, setMessage] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const notifyOwner = trpc.system.notifyOwner.useMutation();
+
+  const handleSend = async () => {
+    if (!subject.trim() || !message.trim()) {
+      toast.error("Bitte Betreff und Nachricht ausfüllen");
+      return;
+    }
+    setSending(true);
+    try {
+      await notifyOwner.mutateAsync({
+        title: `[Feedback] ${subject}`,
+        content: message,
+      });
+      toast.success("Nachricht gesendet! Wir melden uns bald bei Ihnen.");
+      setSubject("");
+      setMessage("");
+    } catch {
+      toast.error("Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es später erneut.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-1.5">
+        <Label htmlFor="contact-subject" className="text-sm text-gray-300">Betreff</Label>
+        <Input
+          id="contact-subject"
+          value={subject}
+          onChange={e => setSubject(e.target.value)}
+          placeholder="z.B. Fehler melden, Funktion anfragen..."
+          className="bg-white/5 border-white/20"
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="contact-message" className="text-sm text-gray-300">Nachricht</Label>
+        <textarea
+          id="contact-message"
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="Beschreiben Sie Ihr Anliegen..."
+          rows={4}
+          className="w-full rounded-md border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#00CFC1] resize-none"
+        />
+      </div>
+      <Button
+        onClick={handleSend}
+        disabled={sending}
+        className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black font-semibold"
+      >
+        <Mail className="h-4 w-4 mr-2" />
+        {sending ? "Wird gesendet…" : "Nachricht senden"}
+      </Button>
+      <p className="text-xs text-gray-500">Alternativ erreichen Sie uns unter <a href="mailto:support@portfolio.mw" className="text-[#00CFC1] hover:underline">support@portfolio.mw</a></p>
+    </div>
+  );
+}
+
 export default function Einstellungen() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -344,13 +545,7 @@ export default function Einstellungen() {
           </TabsContent>
 
           <TabsContent value="benachrichtigungen" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5" /> Benachrichtigungen</CardTitle>
-                <CardDescription>Verwalten Sie Ihre Benachrichtigungseinstellungen</CardDescription>
-              </CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">Benachrichtigungseinstellungen werden in Kürze verfügbar sein.</p></CardContent>
-            </Card>
+            <BenachrichtigungenTab />
           </TabsContent>
 
           <TabsContent value="sicherheit" className="mt-6">
@@ -379,13 +574,26 @@ export default function Einstellungen() {
                 <CardTitle className="flex items-center gap-2"><HelpCircle className="h-5 w-5" /> Hilfe</CardTitle>
                 <CardDescription>App-Tour, FAQ und Kontakt</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                {/* App-Tour */}
                 <div>
                   <p className="text-sm text-white font-medium mb-1">App-Tour</p>
                   <p className="text-sm text-muted-foreground mb-3">Starten Sie die geführte Tour erneut, um die wichtigsten Funktionen kennenzulernen.</p>
                   <Button onClick={() => setTourOpen(true)} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                     <PlayCircle className="h-4 w-4 mr-2" /> App-Tour starten
                   </Button>
+                </div>
+
+                {/* FAQ */}
+                <div>
+                  <p className="text-sm text-white font-semibold mb-3">Häufig gestellte Fragen (FAQ)</p>
+                  <FaqSection />
+                </div>
+
+                {/* Kontakt */}
+                <div>
+                  <p className="text-sm text-white font-semibold mb-3">Kontakt & Feedback</p>
+                  <ContactForm />
                 </div>
               </CardContent>
             </Card>

@@ -150,7 +150,46 @@ export const autoPortfolioRouter = router({
       // für ein institutionell verwaltetes Portfolio. Empfehlungen sind ausgenommen.
       const MIN_MARKET_CAP_M = 500; // CHF-Millionen-Äquivalent
 
-      const universe = allStocks.filter((s: any) => {
+      // K-03 (Audit-Fix): Blacklist für nicht-investierbare Instrumente
+      // (Börsenbetreiber, Index-Zertifikate, etc.)
+      const TICKER_BLACKLIST = new Set([
+        'GPW', 'GPW.WA',   // Warschauer Börsenbetreiber
+        'DB1', 'DB1.DE',   // Deutsche Börse
+        'LSE', 'LSE.L',    // London Stock Exchange
+        'ICE',             // Intercontinental Exchange
+        'CME',             // CME Group
+        'CBOE',            // Cboe Global Markets
+        'NDAQ',            // Nasdaq Inc.
+      ]);
+
+      // K-01 (Audit-Fix): Deduplizierung — wenn TICKER.EXCHANGE und TICKER beide
+      // vorhanden, nur den Basisticker behalten (AAPL.US + AAPL → nur AAPL).
+      // Bevorzuge den Eintrag ohne Börsen-Suffix (direkter Basisticker).
+      const baseTickerSeen = new Map<string, number>(); // base → index in deduped
+      const deduplicatedStocks: typeof allStocks = [];
+      for (const s of allStocks as any[]) {
+        const tickerStr = String(s.ticker ?? '');
+        const base = tickerStr.split('.')[0].toUpperCase();
+        const hasSuffix = tickerStr.includes('.');
+        if (!baseTickerSeen.has(base)) {
+          baseTickerSeen.set(base, deduplicatedStocks.length);
+          deduplicatedStocks.push(s);
+        } else if (!hasSuffix) {
+          // Basisticker ohne Suffix bevorzugen — überschreibe den Suffix-Eintrag
+          const existingIdx = baseTickerSeen.get(base)!;
+          deduplicatedStocks[existingIdx] = s;
+        }
+        // Sonst: Eintrag mit Suffix ignorieren wenn Basisticker schon da
+      }
+
+      const universe = deduplicatedStocks.filter((s: any) => {
+        // K-03: Blacklist-Filter
+        const tickerUpper = String(s.ticker ?? '').toUpperCase();
+        const baseUpper = tickerUpper.split('.')[0];
+        if (TICKER_BLACKLIST.has(tickerUpper) || TICKER_BLACKLIST.has(baseUpper)) {
+          console.log(`[buildProposal] Blacklist excluded ${s.ticker}: Börsenbetreiber/nicht-investierbar`);
+          return false;
+        }
         const price = parseFloat(s.currentPrice ?? "0");
         if (!(price > 0)) return false;
         if (s.sector && excludedSectors.includes(s.sector)) return false;
@@ -445,11 +484,22 @@ export const autoPortfolioRouter = router({
         });
         weights = { ...opt.weights };
         weightingEngine = opt.optimizerEngine ?? "random_search";
-        proposalMetrics = {
-          expectedReturnPct: Math.round(opt.optimalPortfolio.expectedReturn * 1000) / 10,
-          volatilityPct: Math.round(opt.optimalPortfolio.volatility * 1000) / 10,
-          sharpe: opt.optimalPortfolio.sharpe,
-        };
+        // K-02 (Audit-Fix): NaN-Sanitierung — wenn der Optimierer NaN zurückgibt
+        // (fehlende Kurshistorie), proposalMetrics auf null setzen statt NaN anzuzeigen.
+        const rawReturn = opt.optimalPortfolio.expectedReturn;
+        const rawVol = opt.optimalPortfolio.volatility;
+        const rawSharpe = opt.optimalPortfolio.sharpe;
+        if (Number.isFinite(rawReturn) && Number.isFinite(rawVol) && Number.isFinite(rawSharpe)) {
+          proposalMetrics = {
+            expectedReturnPct: Math.round(rawReturn * 1000) / 10,
+            volatilityPct: Math.round(rawVol * 1000) / 10,
+            sharpe: rawSharpe,
+          };
+        } else {
+          console.warn(`[buildProposal] Optimierer lieferte NaN-Kennzahlen (return=${rawReturn}, vol=${rawVol}, sharpe=${rawSharpe}) — proposalMetrics auf null gesetzt`);
+          proposalMetrics = null;
+          weightingNote = (weightingNote ? weightingNote + ' ' : '') + 'Kennzahlen konnten nicht berechnet werden (unvollständige Kurshistorie für einige Titel).';
+        }
         const excluded = opt.excludedShortHistory ?? [];
         if (excluded.length > 0) {
           weightingNote =

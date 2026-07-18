@@ -340,16 +340,26 @@ async function fetchFactorYtdReturns(): Promise<FactorSignals> {
  *
  * Returns: Map von Sektor-Name → Score-Adjustment (-15..+15)
  */
-export function getSectorTilts(signals: MarktHubSignals): Record<string, number> {
-  const tilts: Record<string, number> = {};
+// K-04 (Audit-Fix): Kanonische deutsche Sektornamen pro Tilt-Kategorie.
+// getSectorTilts gibt NUR diese Namen zurück — keine englischen Duplikate.
+const CANONICAL_SECTOR_NAME: Record<string, string> = {
+  defensive: 'Gesundheit / Versorger',
+  growth: 'Technologie',
+  cyclical: 'Zyklische Konsumgüter',
+  financials: 'Finanzen',
+  energy: 'Energie',
+  materials: 'Rohstoffe',
+  realestate: 'Immobilien',
+  industrials: 'Industrie',
+};
 
-  // Hilfsfunktion: Tilt auf alle Sektoren einer Kategorie anwenden
+export function getSectorTilts(signals: MarktHubSignals): Record<string, number> {
+  // Intern nach Tilt-Kategorie aggregieren
+  const tiltsByKey: Record<string, number> = {};
+
+  // Hilfsfunktion: Tilt auf Kategorie anwenden (intern)
   const applyTilt = (tiltKey: string, adjustment: number) => {
-    for (const [sector, key] of Object.entries(SECTOR_TO_TILT)) {
-      if (key === tiltKey) {
-        tilts[sector] = (tilts[sector] ?? 0) + adjustment;
-      }
-    }
+    tiltsByKey[tiltKey] = (tiltsByKey[tiltKey] ?? 0) + adjustment;
   };
 
   const { macro, regime } = signals;
@@ -431,21 +441,28 @@ export function getSectorTilts(signals: MarktHubSignals): Record<string, number>
     applyTilt("defensive", -3);
   }
 
-  // Tilts auf -15..+15 begrenzen
-  for (const key of Object.keys(tilts)) {
-    tilts[key] = Math.max(-15, Math.min(15, tilts[key]));
+    // Tilt-Keys auf kanonische deutsche Namen mappen (K-04: keine Duplikate)
+  const result: Record<string, number> = {};
+  for (const [key, val] of Object.entries(tiltsByKey)) {
+    const canonicalName = CANONICAL_SECTOR_NAME[key] ?? key;
+    const clamped = Math.max(-15, Math.min(15, val));
+    if (clamped !== 0) result[canonicalName] = clamped;
   }
-
-  return tilts;
+  return result;
 }
-
 /**
  * Gibt den Score-Adjustment für einen einzelnen Sektor zurück.
  * Normalisiert den Sektornamen gegen SECTOR_TO_TILT.
  */
 export function getSectorTiltForStock(sector: string | null | undefined, tilts: Record<string, number>): number {
   if (!sector) return 0;
-  return tilts[sector] ?? 0;
+  // Zuerst direkter Treffer (kanonischer Name)
+  if (tilts[sector] !== undefined) return tilts[sector];
+  // Dann über SECTOR_TO_TILT-Key nachschlagen
+  const tiltKey = SECTOR_TO_TILT[sector];
+  if (!tiltKey) return 0;
+  const canonicalName = CANONICAL_SECTOR_NAME[tiltKey];
+  return canonicalName ? (tilts[canonicalName] ?? 0) : 0;
 }
 
 // ── MSCI-Faktor-Tilts ──────────────────────────────────────────────────────────
