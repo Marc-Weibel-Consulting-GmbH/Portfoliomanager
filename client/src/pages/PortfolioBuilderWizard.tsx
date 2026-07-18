@@ -554,8 +554,8 @@ export default function PortfolioBuilderWizard() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 overflow-y-auto">
-          <div className="w-full max-w-2xl">
+        <div className="flex-1 flex flex-col items-center justify-start px-4 py-8 overflow-y-auto">
+          <div className={`w-full ${autoStep === 5 && autoProposal ? 'max-w-4xl' : 'max-w-2xl'}`}>
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-1">{meta.title}</h2>
             <p className="text-gray-400 mb-8">{meta.subtitle}</p>
 
@@ -883,62 +883,79 @@ export default function PortfolioBuilderWizard() {
                     })()}
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
                       {autoProposal.positions.map((p: any) => {
-                        // Derive InsightFactor chips from available fields
                         const score = p.combinedScore ?? 0;
                         const signal = p.signal ?? 'HOLD';
-                        const scoreFactors = [
+                        const scoreGrade = score >= 75 ? 'A' : score >= 60 ? 'B' : score >= 45 ? 'C' : score >= 30 ? 'D' : 'F';
+                        const ytdNum = p.ytdPerformance ? parseFloat(p.ytdPerformance) : null;
+                        const divYield = p.dividendYield ? parseFloat(p.dividendYield) : null;
+
+                        // Build a readable 2-sentence explanation
+                        const signalLabel = signal === 'BUY' || signal === 'STRONG_BUY' ? 'Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'Verkaufssignal' : 'Halte-Signal';
+                        const scoreText = `Score ${score}/100 (Note ${scoreGrade})`;
+                        const ytdText = ytdNum !== null ? `, YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : '';
+                        const divText = divYield && divYield > 0.5 ? `, Dividende ${divYield.toFixed(1)}%` : '';
+                        const sourceText = p.isUniverseExpansion ? ' Titel aus dem erweiterten Aktienuniversum.' : '';
+                        const watchlistText = (p.reason ?? '').includes('Watchlist') ? ' Watchlist-Empfehlung.' : '';
+                        const lpplText = (p.reason ?? '').includes('LPPL') ? ' ⚠ LPPL-Warnung aktiv.' : '';
+
+                        const explanationLine1 = `${signalLabel} · ${scoreText}${ytdText}${divText}.`;
+                        const explanationLine2 = `${p.sector}-Titel mit ${p.weightPct.toFixed(1)}% Portfoliogewicht.${sourceText}${watchlistText}${lpplText}`;
+
+                        // 3 key facts
+                        const keyFacts = [
                           {
-                            label: 'Signal',
-                            value: signal,
-                            sentiment: signal === 'BUY' ? 'positive' as const : signal === 'SELL' ? 'negative' as const : 'neutral' as const,
+                            label: signal === 'BUY' || signal === 'STRONG_BUY' ? '↑ Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? '↓ Verkaufssignal' : '→ Halten',
+                            color: signal === 'BUY' || signal === 'STRONG_BUY' ? 'text-emerald-400 bg-emerald-500/10' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10',
                           },
                           {
-                            label: 'Score',
-                            value: score >= 70 ? `${score} (A)` : score >= 55 ? `${score} (B)` : score >= 40 ? `${score} (C)` : `${score} (D)`,
-                            sentiment: score >= 70 ? 'positive' as const : score >= 55 ? 'neutral' as const : 'negative' as const,
+                            label: `Note ${scoreGrade} · ${score}/100`,
+                            color: score >= 70 ? 'text-emerald-300 bg-emerald-500/10' : score >= 50 ? 'text-teal-300 bg-teal-500/10' : 'text-amber-300 bg-amber-500/10',
                           },
                           {
-                            label: 'Gewicht',
-                            value: `${p.weightPct.toFixed(1)}%`,
-                            sentiment: 'neutral' as const,
+                            label: p.isUniverseExpansion ? '✨ Universum' : ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : divYield && divYield > 0.5 ? `Div. ${divYield.toFixed(1)}%` : p.sector,
+                            color: p.isUniverseExpansion ? 'text-violet-300 bg-violet-500/10' : ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
                           },
-                          ...(p.isUniverseExpansion ? [{
-                            label: 'Quelle',
-                            value: 'Universum-Erweiterung',
-                            sentiment: 'neutral' as const,
-                          }] : []),
                         ];
-                        const insightVariant = signal === 'BUY' ? 'success' as const : signal === 'SELL' ? 'warning' as const : 'default' as const;
+
                         return (
                           <div key={p.ticker} className="px-4 py-3 bg-[#0f1420]">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start gap-4">
+                              {/* Left: ticker + company + sector */}
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
-                                  <span className="text-sm text-white truncate">{p.companyName}</span>
+                                  <span className="text-sm text-white">{p.companyName}</span>
                                   {p.isUniverseExpansion && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30" title={p.closesGap ? `Schließt Lücke: ${p.closesGap}` : 'Aus dem Aktienuniversum ergänzt'}>
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30">
                                       ✨ Universum
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-500">
-                                  {p.sector}
-                                  {p.isUniverseExpansion && p.closesGap && (
-                                    <span className="text-violet-400"> · Lücke: {p.closesGap}</span>
-                                  )}
-                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">{p.sector}</p>
                               </div>
-                              <span className="text-sm font-mono font-semibold text-white ml-3 shrink-0">{p.weightPct.toFixed(1)}%</span>
+
+                              {/* Right: inline KI explanation */}
+                              <div className="hidden md:flex flex-col items-end gap-1.5 shrink-0 max-w-[280px]">
+                                <p className="text-xs text-slate-300 text-right leading-relaxed">{explanationLine1}</p>
+                                <p className="text-xs text-slate-500 text-right leading-relaxed">{explanationLine2}</p>
+                                <div className="flex flex-wrap gap-1 justify-end">
+                                  {keyFacts.map((f, i) => (
+                                    <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Weight always visible */}
+                              <span className="text-sm font-mono font-semibold text-white shrink-0">{p.weightPct.toFixed(1)}%</span>
                             </div>
-                            <InsightExpandable
-                              title={`Warum ${p.ticker}?`}
-                              summary={p.reason || `${p.companyName} wurde aufgrund des Gesamtscores und des Handelssignals ausgewählt.`}
-                              factors={scoreFactors}
-                              variant={insightVariant}
-                              triggerLabel="KI-Begründung anzeigen"
-                              className="mt-2"
-                            />
+
+                            {/* Mobile: show key facts inline below */}
+                            <div className="flex md:hidden flex-wrap gap-1 mt-2">
+                              {keyFacts.map((f, i) => (
+                                <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
+                              ))}
+                              <span className="text-xs text-slate-400 ml-1">{explanationLine1}</span>
+                            </div>
                           </div>
                         );
                       })}
