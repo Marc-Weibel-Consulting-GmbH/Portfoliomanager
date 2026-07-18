@@ -370,7 +370,7 @@ export function PortfolioSignalsTab({
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-3 text-sm">
                     <div><p className="text-muted-foreground">P/E Ratio</p><p className="font-semibold">{signal.peRatio?.toFixed(1) || "N/A"}</p></div>
                     <div><p className="text-muted-foreground">PEG Ratio</p><p className="font-semibold">{signal.pegRatio?.toFixed(2) || "N/A"}</p></div>
-                    <div><p className="text-muted-foreground">Div. Rendite</p><p className="font-semibold">{signal.dividendYield?.toFixed(2)}%</p></div>
+                    <div><p className="text-muted-foreground">Div. Rendite</p><p className="font-semibold">{signal.dividendYield?.toFixed(1)}%</p></div>
                     <div>
                       <p className="text-muted-foreground">YTD Performance</p>
                       <p className={`font-semibold ${signal.ytdPerformance >= 0 ? "text-green-500" : "text-red-500"}`}>

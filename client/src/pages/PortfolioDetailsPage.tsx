@@ -2284,7 +2284,7 @@ export default function PortfolioDetailsPage() {
                                       </div>
                                       <div>
                                         <p className="text-xs text-gray-400">Div. Rendite</p>
-                                        <p className="text-sm font-semibold text-white">{sig?.dividendYield?.toFixed(2) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(2) : '—')}%</p>
+                                         <p className="text-sm font-semibold text-white">{sig?.dividendYield?.toFixed(1) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(1) : '—')}%</p>
                                       </div>
                                       <div>
                                         <p className="text-xs text-gray-400">RSI (14)</p>

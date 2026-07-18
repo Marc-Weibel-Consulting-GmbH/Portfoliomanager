@@ -83,7 +83,7 @@ function generateReason(current: CompetitorStock, alternative: CompetitorStock):
   
   if (alternative.dividendYield !== null && current.dividendYield !== null) {
     if (alternative.dividendYield > current.dividendYield) {
-      reasons.push(`Höhere Dividende (${alternative.dividendYield.toFixed(2)}% vs ${current.dividendYield.toFixed(2)}%)`);
+      reasons.push(`Höhere Dividende (${alternative.dividendYield.toFixed(1)}% vs ${current.dividendYield.toFixed(1)}%)`);
     }
   }
   

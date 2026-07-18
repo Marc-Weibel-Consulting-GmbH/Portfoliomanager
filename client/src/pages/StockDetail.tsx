@@ -775,7 +775,7 @@ export default function StockDetail() {
                   </div>
                   <MetricCard 
                     label="Dividendenrendite" 
-                    value={stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(2) : "-"} 
+                    value={stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : "-"} 
                     suffix="%" 
                     rating={getRating("dividendYield", stock.dividendYield)}
                   />
