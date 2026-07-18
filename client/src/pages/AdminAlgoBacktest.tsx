@@ -334,17 +334,18 @@ export default function AdminAlgoBacktest() {
               </div>
             </div>
             {/* Letzte Feedback-Loop-Anpassung */}
-            {tuningLog && tuningLog.filter((t: any) => t.parameterChanged === "signalWeights.ytd+momentum").length > 0 && (
-              <div className="mt-3 pt-3 border-t border-primary/10 text-xs">
-                <span className="text-muted-foreground">Letzte Gewichtsanpassung via Feedback-Loop: </span>
-                <span className="text-purple-400 font-mono">
-                  {(() => {
-                    const last = tuningLog.filter((t: any) => t.parameterChanged === "signalWeights.ytd+momentum")[0];
-                    return `${last.oldValue} → ${last.newValue} (${new Date(last.createdAt).toLocaleDateString("de-CH")})`;
-                  })()}
-                </span>
-              </div>
-            )}
+            {(() => {
+              const last = tuningLog?.find((t: any) => t.parameterChanged === "signalWeights.ytd+momentum");
+              if (!last) return null;
+              return (
+                <div className="mt-3 pt-3 border-t border-primary/10 text-xs">
+                  <span className="text-muted-foreground">Letzte Gewichtsanpassung via Feedback-Loop: </span>
+                  <span className="text-purple-400 font-mono">
+                    {last.oldValue} → {last.newValue} ({new Date(last.createdAt).toLocaleDateString("de-CH")})
+                  </span>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
