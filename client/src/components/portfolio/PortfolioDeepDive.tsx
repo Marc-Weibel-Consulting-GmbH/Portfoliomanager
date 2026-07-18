@@ -26,6 +26,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
 } from 'lucide-react';
+import { KpiTooltip } from '@/components/ui/KpiTooltip';
 
 const SECTOR_COLORS: Record<string, string> = {
   'Technology': '#00CFC1',
@@ -139,13 +140,17 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
           {/* KPI Row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Ø KGV (P/E)', value: fmtNum(data.portfolioMetrics?.avgPE, 1), icon: <BarChart3 className="w-4 h-4 text-[#00CFC1]" />, hint: 'Gewichtetes Kurs-Gewinn-Verhältnis' },
-              { label: 'Ø PEG', value: fmtNum(data.portfolioMetrics?.avgPEG, 2), icon: <Activity className="w-4 h-4 text-blue-400" />, hint: 'PEG < 1 = günstig bewertet' },
-              { label: 'Ø Beta', value: fmtNum(data.portfolioMetrics?.avgBeta, 2), icon: <TrendingDown className="w-4 h-4 text-amber-400" />, hint: 'Marktrisiko: 1 = Markt, >1 = aggressiv' },
-              { label: 'Ø Dividende', value: data.portfolioMetrics?.avgDividendYield !== null && data.portfolioMetrics?.avgDividendYield !== undefined ? `${fmtNum(data.portfolioMetrics.avgDividendYield, 1)}%` : '–', icon: <DollarSign className="w-4 h-4 text-emerald-400" />, hint: 'Gewichtete Dividendenrendite (EODHD) — kann vom Portfolio-Header abweichen (lokale DB)' },
+              { label: 'Ø KGV (P/E)', value: fmtNum(data.portfolioMetrics?.avgPE, 1), icon: <BarChart3 className="w-4 h-4 text-[#00CFC1]" />, hint: 'Gewichtetes Kurs-Gewinn-Verhältnis', kpi: 'pe' as const },
+              { label: 'Ø PEG', value: fmtNum(data.portfolioMetrics?.avgPEG, 2), icon: <Activity className="w-4 h-4 text-blue-400" />, hint: 'PEG < 1 = günstig bewertet', kpi: 'peg' as const },
+              { label: 'Ø Beta', value: fmtNum(data.portfolioMetrics?.avgBeta, 2), icon: <TrendingDown className="w-4 h-4 text-amber-400" />, hint: 'Marktrisiko: 1 = Markt, >1 = aggressiv', kpi: 'beta' as const },
+              { label: 'Ø Dividende', value: data.portfolioMetrics?.avgDividendYield !== null && data.portfolioMetrics?.avgDividendYield !== undefined ? `${fmtNum(data.portfolioMetrics.avgDividendYield, 1)}%` : '–', icon: <DollarSign className="w-4 h-4 text-emerald-400" />, hint: 'Gewichtete Dividendenrendite', kpi: 'dividend' as const },
             ].map((kpi) => (
               <div key={kpi.label} className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-1.5">{kpi.icon}<span className="text-[10px] text-gray-500 uppercase tracking-wider">{kpi.label}</span></div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  {kpi.icon}
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">{kpi.label}</span>
+                  <KpiTooltip kpi={kpi.kpi} iconOnly side="top" />
+                </div>
                 <div className="text-xl font-bold text-white">{kpi.value}</div>
                 <div className="text-[10px] text-gray-600 mt-0.5">{kpi.hint}</div>
               </div>
@@ -227,16 +232,16 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
                       Gewicht <SortIcon col="weight" sortKey={sortKey} sortDir={sortDir} />
                     </th>
                     <th className={thClass('peRatio')} onClick={() => handleSort('peRatio')}>
-                      KGV <SortIcon col="peRatio" sortKey={sortKey} sortDir={sortDir} />
+                      <span className="inline-flex items-center gap-0.5">KGV <SortIcon col="peRatio" sortKey={sortKey} sortDir={sortDir} /><KpiTooltip kpi="pe" iconOnly side="top" /></span>
                     </th>
                     <th className={thClass('pegRatio')} onClick={() => handleSort('pegRatio')}>
-                      PEG <SortIcon col="pegRatio" sortKey={sortKey} sortDir={sortDir} />
+                      <span className="inline-flex items-center gap-0.5">PEG <SortIcon col="pegRatio" sortKey={sortKey} sortDir={sortDir} /><KpiTooltip kpi="peg" iconOnly side="top" /></span>
                     </th>
                     <th className={thClass('beta')} onClick={() => handleSort('beta')}>
-                      Beta <SortIcon col="beta" sortKey={sortKey} sortDir={sortDir} />
+                      <span className="inline-flex items-center gap-0.5">Beta <SortIcon col="beta" sortKey={sortKey} sortDir={sortDir} /><KpiTooltip kpi="beta" iconOnly side="top" /></span>
                     </th>
                     <th className={`text-right text-gray-500 pb-2 cursor-pointer select-none hover:text-gray-300 transition-colors whitespace-nowrap`} onClick={() => handleSort('dividendYield')}>
-                      Div. <SortIcon col="dividendYield" sortKey={sortKey} sortDir={sortDir} />
+                      <span className="inline-flex items-center gap-0.5">Div. <SortIcon col="dividendYield" sortKey={sortKey} sortDir={sortDir} /><KpiTooltip kpi="dividend" iconOnly side="top" /></span>
                     </th>
                   </tr>
                 </thead>

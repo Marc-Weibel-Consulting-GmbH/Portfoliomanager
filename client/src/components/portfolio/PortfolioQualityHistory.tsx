@@ -18,6 +18,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { InsightPanel, InsightExpandable } from "@/components/InsightPanel";
+import { KpiTooltip as RichKpiTooltip, type KpiKey } from "@/components/ui/KpiTooltip";
 import {
   LineChart,
   Line,
@@ -157,6 +158,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<TrendingUp className="w-4 h-4" />}
           color="text-cyan-400"
           tooltip="> 1 = gut, > 1.5 = exzellent. Portfolio-Sharpe aus Wertreihe (rf = 2%)"
+          kpiKey="sharpe"
         />
         <KPICard
           label="Max Drawdown"
@@ -164,6 +166,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<TrendingDown className="w-4 h-4" />}
           color="text-violet-400"
           tooltip="Grösster Wertverlust vom Höchststand. < -10% = moderat, < -20% = hoch"
+          kpiKey="maxDrawdown"
         />
         <KPICard
           label="Beta"
@@ -172,6 +175,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<Shield className="w-4 h-4" />}
           color="text-violet-400"
           tooltip="Gewichteter Ø der Einzeltitel-Betas. < 1 = defensiver als Markt"
+          kpiKey="beta"
         />
         <KPICard
           label="Ø PEG"
@@ -179,6 +183,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<BarChart3 className="w-4 h-4" />}
           color="text-amber-400"
           tooltip="< 1.5 = günstig, 1.5–2.5 = fair, > 3 = teuer"
+          kpiKey="peg"
         />
         <KPICard
           label="Div. Rendite"
@@ -187,6 +192,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<Coins className="w-4 h-4" />}
           color="text-emerald-400"
           tooltip="Gewichtete Brutto-Dividendenrendite des Portfolios"
+          kpiKey="dividend"
         />
       </div>
 
@@ -287,6 +293,7 @@ function KPICard({
   icon,
   color,
   tooltip,
+  kpiKey,
 }: {
   label: string;
   value: string;
@@ -296,12 +303,21 @@ function KPICard({
   icon: React.ReactNode;
   color: string;
   tooltip: string;
+  kpiKey?: KpiKey;
 }) {
   return (
     <div className="relative group bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/[0.08] transition-colors">
       <div className="flex items-center gap-1.5 mb-1">
         <span className={color}>{icon}</span>
         <span className="text-[11px] text-white/50 uppercase tracking-wide">{label}</span>
+        {kpiKey
+          ? <RichKpiTooltip kpi={kpiKey} iconOnly side="top" />
+          : (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-white/20 rounded-lg text-xs text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-52 text-center whitespace-normal">
+              {tooltip}
+            </div>
+          )
+        }
       </div>
       <div className="flex items-baseline gap-1">
         <span className="text-xl font-bold text-white">{value}</span>
@@ -314,10 +330,6 @@ function KPICard({
       )}
       {delta == null && <div className="text-xs mt-0.5 text-white/30">—</div>}
       {suffix && <div className="text-[10px] text-white/30 mt-0.5">{suffix}</div>}
-      {/* Tooltip */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-white/20 rounded-lg text-xs text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-52 text-center whitespace-normal">
-        {tooltip}
-      </div>
     </div>
   );
 }

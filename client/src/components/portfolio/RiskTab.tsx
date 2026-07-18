@@ -2,30 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Info } from "lucide-react";
-
-// Tooltip component for KPI explanations
-function KpiTooltip({ text }: { text: string }) {
-  const [show, setShow] = useState(false);
-  return (
-    <span className="relative inline-block ml-1">
-      <button
-        onMouseEnter={() => setShow(true)}
-        onMouseLeave={() => setShow(false)}
-        onClick={() => setShow(!show)}
-        className="text-gray-600 hover:text-gray-400 transition-colors"
-        aria-label="Info"
-      >
-        <Info className="w-3 h-3" />
-      </button>
-      {show && (
-        <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-[#1a1f2e] border border-white/20 rounded-lg px-3 py-2 text-[11px] text-gray-300 leading-relaxed shadow-xl pointer-events-none">
-          {text}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1a1f2e]" />
-        </span>
-      )}
-    </span>
-  );
-}
+import { KpiTooltip as RichKpiTooltip, type KpiKey } from "@/components/ui/KpiTooltip";
 
 // Bubble-Indikator Detail Modal
 function BubbleDetailModal({ open, onClose, bubble }: { open: boolean; onClose: () => void; bubble: any }) {
@@ -179,6 +156,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     sub?: string;
     tone?: "good" | "bad" | "neutral";
     tooltip: string;
+    kpiKey?: KpiKey;
     benchmark?: string;
     benchmarkTone?: "good" | "bad" | "neutral";
   }[] = [
@@ -187,7 +165,8 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
       value: riskData ? `${riskData.volatility.toFixed(1)}%` : "—",
       sub: riskData ? `Bench ${riskData.volBenchmark.toFixed(1)}%` : undefined,
       tone: riskData ? (riskData.volatility < riskData.volBenchmark ? "good" : "neutral") : "neutral",
-      tooltip: "Annualisierte Standardabweichung der täglichen Renditen. Misst die Schwankungsbreite des Portfolios. Niedrigere Volatilität = geringeres Risiko.",
+      tooltip: "Annualisierte Standardabweichung der täglichen Renditen.",
+      kpiKey: "volatility",
       benchmark: riskData ? `Benchmark: ${riskData.volBenchmark.toFixed(1)}%` : undefined,
     },
     {
@@ -195,28 +174,32 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
       value: riskData ? `${riskData.maxDrawdown.toFixed(1)}%` : "—",
       sub: riskData ? `Bench ${riskData.drawdownBenchmark.toFixed(1)}%` : undefined,
       tone: riskData ? (Math.abs(riskData.maxDrawdown) < Math.abs(riskData.drawdownBenchmark) ? "good" : "bad") : "neutral",
-      tooltip: "Maximaler Wertverlust vom Höchststand bis zum Tiefststand. Zeigt das schlimmste Szenario für einen Anleger der zum ungünstigsten Zeitpunkt investiert hat.",
+      tooltip: "Maximaler Wertverlust vom Höchststand bis zum Tiefststand.",
+      kpiKey: "maxDrawdown",
     },
     {
       label: "Beta",
       value: riskData ? riskData.beta.toFixed(2) : "—",
       sub: "vs. SPI",
       tone: "neutral",
-      tooltip: "Sensitivität des Portfolios gegenüber dem Markt (SPI). Beta > 1 = stärkere Bewegungen als der Markt. Beta < 1 = defensiver als der Markt.",
+      tooltip: "Sensitivität des Portfolios gegenüber dem Markt.",
+      kpiKey: "beta",
     },
     {
       label: "VaR (95%, 1T)",
       value: riskData ? `${riskData.var95.toFixed(1)}%` : "—",
       sub: "Tagesverlust-Schwelle",
       tone: riskData ? "bad" : "neutral",
-      tooltip: "Value at Risk: Mit 95% Wahrscheinlichkeit wird der Tagesverlust diesen Wert nicht überschreiten. Beispiel: VaR -2% bedeutet, an 95 von 100 Tagen verliert das Portfolio weniger als 2%.",
+      tooltip: "Value at Risk: maximaler Tagesverlust mit 95% Wahrscheinlichkeit.",
+      kpiKey: "var",
     },
     {
       label: "Sharpe Ratio",
       value: riskData ? riskData.sharpeRatio.toFixed(2) : "—",
       sub: riskData ? `Bench ${riskData.sharpeBenchmark.toFixed(2)}` : undefined,
       tone: riskData && riskData.sharpeRatio >= 1 ? "good" : "neutral",
-      tooltip: "Rendite pro Risikoeinheit (Überrendite / Volatilität). Sharpe > 1 = gut. Sharpe > 2 = sehr gut. Vergleich mit Benchmark zeigt ob das Risiko belohnt wird.",
+      tooltip: "Rendite pro Risikoeinheit.",
+      kpiKey: "sharpe",
     },
     {
       label: "Konzentration Top 3",
@@ -267,7 +250,17 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
                   <div key={m.label} className="bg-[#0f1420] p-4">
                     <div className="flex items-center mb-1.5">
                       <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{m.label}</p>
-                      <KpiTooltip text={m.tooltip} />
+                      {m.kpiKey
+                        ? <RichKpiTooltip kpi={m.kpiKey} iconOnly side="top" />
+                        : (
+                          <span className="relative inline-block ml-1 group">
+                            <Info className="w-3 h-3 text-gray-600 hover:text-gray-400 cursor-help" />
+                            <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-[#1a1f2e] border border-white/20 rounded-lg px-3 py-2 text-[11px] text-gray-300 leading-relaxed shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                              {m.tooltip}
+                            </span>
+                          </span>
+                        )
+                      }
                     </div>
                     <p className={`text-xl font-bold font-mono ${toneClass(m.tone)}`}>{m.value}</p>
                     {m.sub && <p className="text-xs text-gray-500 mt-0.5">{m.sub}</p>}
