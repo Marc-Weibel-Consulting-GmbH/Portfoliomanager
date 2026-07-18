@@ -1311,8 +1311,26 @@ export default function PortfolioBuilderWizard() {
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="capital">Startkapital (optional)</Label>
-                      <Input id="capital" type="number" placeholder="10000" value={initialCapital} onChange={(e) => setInitialCapital(e.target.value)} />
+                      <Label htmlFor="capital">
+                        Startkapital (CHF)
+                        {path === "auto" && initialCapital && parseFloat(initialCapital) > 0 && (
+                          <span className="ml-2 text-xs text-muted-foreground font-normal">(aus Schritt 1 übernommen)</span>
+                        )}
+                      </Label>
+                      {path === "auto" && initialCapital && parseFloat(initialCapital) > 0 ? (
+                        // Read-only display when coming from KI-flow
+                        <div className="flex items-center h-10 px-3 rounded-md border border-white/10 bg-white/5 text-sm font-medium">
+                          {currency} {parseFloat(initialCapital).toLocaleString("de-CH")}
+                        </div>
+                      ) : (
+                        <Input
+                          id="capital"
+                          type="number"
+                          placeholder="z.B. 100000"
+                          value={initialCapital || ""}
+                          onChange={(e) => setInitialCapital(e.target.value)}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
