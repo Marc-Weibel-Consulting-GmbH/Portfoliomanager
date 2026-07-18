@@ -1431,7 +1431,8 @@ Antworte im JSON-Format.`,
             if (isForeignCurrency) { if (riskProfile === 'konservativ') fxAdj = -8; else if (riskProfile === 'ausgewogen') fxAdj = -4; else fxAdj = -2; }
             const sectorAdj = getSectorTiltForStock(s.sector, sectorTilts);
             const divYieldNum = parseFloat(wl?.dividendYield ?? s.dividendYield ?? '0');
-            const factorAdj = getFactorTilt({ dividendYield: divYieldNum, ytdPerf: null, signalScore: rawScore, riskProfile, goal }, marktHubSignals.factors);
+            // Faktor-Tilt: ytdPerf korrekt übergeben (vorher: null → Momentum-Signal griff nie)
+            const factorAdj = getFactorTilt({ dividendYield: divYieldNum, ytdPerf: ytdPerf, signalScore: rawScore, riskProfile, goal }, marktHubSignals.factors);
             const combinedScore = Math.max(0, Math.min(100, rawScore + momentumAdj + goalAdj + fxAdj + sectorAdj + factorAdj));
             const scoreGrade = grade(combinedScore);
             return { stock: s, combinedScore, rawScore, ytdPerf, signal, scoreGrade, dividendYield: parseFloat(wl?.dividendYield ?? s.dividendYield ?? '0'), regime: 'normal' as const };
@@ -1468,8 +1469,12 @@ Antworte im JSON-Format.`,
           if (qualityTier !== 'kaufkandidaten') notes.push(qualityTier === 'erweitert' ? 'Zu wenige klare Kaufkandidaten (Score ≥ 55) — die Auswahl enthält auch neutrale Titel mit Score ≥ 45.' : 'Sehr wenige geeignete Kandidaten — die Auswahl umfasst alle Titel ohne Verkaufssignal, unabhängig vom Score.');
           const target = Math.min(rules.maxTitles, ranked.length);
           const maxPerSector = Math.max(1, Math.floor((rules.maxSectorPercent / 100) * target));
+          // Heimatmarkt-Korrelations-Cap: max. 3 Titel aus demselben Land+Sektor
+          // (verhindert z.B. 5x CH-Finanz mit hoher impliziter Korrelation)
+          const MAX_SAME_COUNTRY_SECTOR = 3;
           const selected: any[] = [];
           const sectorCount: Record<string, number> = {};
+          const countrySectorCount: Record<string, number> = {};
           let currentFxWeightPct = 0;
           for (const c of ranked) {
             if (selected.length >= rules.maxTitles) break;
@@ -1479,8 +1484,19 @@ Antworte im JSON-Format.`,
             if (isFx && currentFxWeightPct + estimatedWeight > maxFxExposurePct && selected.length >= rules.minTitles) continue;
             const sec = c.stock.sector || 'Andere';
             if ((sectorCount[sec] || 0) >= maxPerSector) continue;
+            // Heimatmarkt-Cap: Land aus Exchange ableiten
+            const exchange = (c.stock.exchange || '').toUpperCase();
+            const country = (exchange === 'US' || exchange === 'NASDAQ' || exchange === 'NYSE' || exchange === 'AMEX') ? 'US'
+              : (exchange === 'SW' || exchange === 'SWX' || exchange === 'VX') ? 'CH'
+              : (exchange === 'DE' || exchange === 'XETRA' || exchange === 'F') ? 'DE'
+              : (exchange === 'L' || exchange === 'LSE') ? 'GB'
+              : (exchange === 'PA' || exchange === 'NX') ? 'FR'
+              : exchange || 'OTHER';
+            const countrySectorKey = `${country}:${sec}`;
+            if ((countrySectorCount[countrySectorKey] || 0) >= MAX_SAME_COUNTRY_SECTOR) continue;
             selected.push(c);
             sectorCount[sec] = (sectorCount[sec] || 0) + 1;
+            countrySectorCount[countrySectorKey] = (countrySectorCount[countrySectorKey] || 0) + 1;
             if (isFx) currentFxWeightPct += estimatedWeight;
           }
           if (selected.length < 2) throw new Error('Zu wenige geeignete Kandidaten nach Anwendung der Diversifikationsregeln.');
@@ -1602,18 +1618,34 @@ Antworte im JSON-Format.`,
             job.progress.push('KI-Analyse: Challenger prüft Vorschlag...');
             const challengerResponse = await invokeKimi({
               messages: [
-                { role: 'system', content: 'Du bist ein kritischer Portfolio-Analyst ("Challenger"). Deine Aufgabe ist es, einen algorithmisch erstellten Portfolio-Vorschlag zu hinterfragen und Schwachstellen zu identifizieren. Antworte immer auf Deutsch. Sei präzise und konstruktiv kritisch. Fokussiere auf: Klumpenrisiken, fehlende Diversifikation, fragwürdige Einzeltitel, Widersprüche zum Anlegerprofil.' },
-                { role: 'user', content: `Analysiere diesen Portfolio-Vorschlag kritisch:\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen:\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen vorgeschlagen werden):\n${JSON.stringify(candidatePool, null, 2)}${marktHubContextBlock}\n\nIdentifiziere:\n1. Welche 1-3 Titel würdest du NICHT nehmen?\n2. Welche 1-3 Alternativen aus dem Kandidatenpool wären besser?\n3. Gibt es Klumpenrisiken?\n\nAntworte im JSON-Format.` },
+                { role: 'system', content: 'Du bist ein kritischer Portfolio-Analyst ("Challenger"). Du hinterfragst algorithmisch erstellte Portfolio-Vorschläge und lieferst IMMER konkrete, umsetzbare Optimierungsvorschläge. Antworte immer auf Deutsch. Sei präzise und konstruktiv. PFLICHT: Das Feld "swaps" muss mindestens 1 konkretes Tausch-Paar enthalten (remove + add aus dem Kandidatenpool). Ohne konkreten Swap ist deine Analyse unvollständig.' },
+                { role: 'user', content: `Analysiere diesen Portfolio-Vorschlag kritisch und liefere KONKRETE Optimierungsvorschläge:\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVeefügbare Alternativen (NUR diese Ticker dürfen als Ersatz vorgeschlagen werden):\n${JSON.stringify(candidatePool, null, 2)}${marktHubContextBlock}\n\nDeine Aufgabe:\n1. Identifiziere 1-3 Schwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub-Signalen, schlechte Diversifikation)\n2. Schlage für JEDE Schwachstelle einen konkreten Tausch vor: welcher Titel raus (aus den Positionen), welcher rein (aus dem Kandidatenpool)\n3. Gib für jeden Tausch an, ob das Gewicht angepasst werden soll (+/-5% oder beibehalten)\n\nWICHTIG: Das Feld "swaps" MUSS mindestens 1 Eintrag haben. Wähle nur Ticker aus dem Kandidatenpool als Ersatz.\n\nAntworte im JSON-Format.` },
               ],
               max_tokens: 4096,
-              response_format: { type: 'json_schema', json_schema: { name: 'challenger_analysis', strict: true, schema: { type: 'object', properties: { critique: { type: 'string' }, rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } }, alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } } }, required: ['critique', 'rejected', 'alternatives'], additionalProperties: false } } },
+              response_format: { type: 'json_schema', json_schema: { name: 'challenger_analysis', strict: true, schema: { type: 'object', properties: {
+                critique: { type: 'string', description: 'Gesamteinschätzung: Hauptschwachstellen in 2-3 Sätzen' },
+                rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
+                alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
+                swaps: { type: 'array', description: 'Konkrete Tausch-Paare: remove=raus, add=rein aus Kandidatenpool', items: { type: 'object', properties: {
+                  remove: { type: 'string', description: 'Ticker der zu entfernenden Position' },
+                  add: { type: 'string', description: 'Ticker des Ersatztitels aus dem Kandidatenpool' },
+                  weightAdjustment: { type: 'string', enum: ['+5%', '+3%', '0%', '-3%', '-5%'], description: 'Gewichtsänderung für den neuen Titel vs. alten' },
+                  rationale: { type: 'string', description: 'Begründung für diesen Tausch' }
+                }, required: ['remove', 'add', 'weightAdjustment', 'rationale'], additionalProperties: false } }
+              }, required: ['critique', 'rejected', 'alternatives', 'swaps'], additionalProperties: false } } },
             });
             const challengerContent = challengerResponse.choices[0]?.message?.content as string | undefined;
-            const challengerResult = challengerContent ? JSON.parse(challengerContent) : { critique: '', rejected: [], alternatives: [] };
+            const challengerResult = challengerContent ? JSON.parse(challengerContent) : { critique: '', rejected: [], alternatives: [], swaps: [] };
             const positionTickers = new Set(positions.map((p) => p.ticker.toUpperCase()));
             const poolTickers = new Set(candidatePool.map((c) => c.ticker.toUpperCase()));
             challengerResult.rejected = (challengerResult.rejected ?? []).filter((r: any) => r?.ticker && positionTickers.has(String(r.ticker).toUpperCase()));
             challengerResult.alternatives = (challengerResult.alternatives ?? []).filter((a: any) => a?.ticker && poolTickers.has(String(a.ticker).toUpperCase()));
+            // Validate swaps: remove must be in positions, add must be in candidate pool
+            challengerResult.swaps = (challengerResult.swaps ?? []).filter((s: any) => {
+              const removeOk = s?.remove && positionTickers.has(String(s.remove).toUpperCase());
+              const addOk = s?.add && poolTickers.has(String(s.add).toUpperCase());
+              return removeOk && addOk;
+            });
 
             // Admin feedback context for synthesizer
             let adminFeedbackContext = '';

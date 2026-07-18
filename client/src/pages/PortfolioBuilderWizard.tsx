@@ -958,8 +958,10 @@ export default function PortfolioBuilderWizard() {
                         const score = p.combinedScore ?? 0;
                         const signal = p.signal ?? 'HOLD';
                         const scoreGrade = score >= 75 ? 'A' : score >= 60 ? 'B' : score >= 45 ? 'C' : score >= 30 ? 'D' : 'F';
-                        const ytdNum = p.ytdPerformance ? parseFloat(p.ytdPerformance) : null;
+                        // ytdPerf is the field name in proposal result (not ytdPerformance)
+                        const ytdNum = p.ytdPerf != null ? parseFloat(String(p.ytdPerf)) : (p.ytdPerformance ? parseFloat(p.ytdPerformance) : null);
                         const divYield = p.dividendYield ? parseFloat(p.dividendYield) : null;
+                        const priceNum = p.currentPrice ? parseFloat(String(p.currentPrice)) : null;
 
                         // Build a readable 2-sentence explanation
                         const signalLabel = signal === 'BUY' || signal === 'STRONG_BUY' ? 'Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'Verkaufssignal' : 'Halte-Signal';
@@ -992,7 +994,7 @@ export default function PortfolioBuilderWizard() {
                         return (
                           <div key={p.ticker} className="px-4 py-3 bg-[#0f1420]">
                             <div className="flex items-start gap-4">
-                              {/* Left: ticker + company + sector */}
+                              {/* Left: ticker + company + sector + price */}
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
@@ -1003,7 +1005,14 @@ export default function PortfolioBuilderWizard() {
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-0.5">{p.sector}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className="text-xs text-gray-500">{p.sector}</p>
+                                  {priceNum != null && priceNum > 0 && (
+                                    <p className="text-xs text-slate-400">
+                                      {p.currency || 'CHF'} {priceNum.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Right: inline KI explanation */}

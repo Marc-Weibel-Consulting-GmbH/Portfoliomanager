@@ -398,3 +398,14 @@
 - [x] Backend: autoBackfillNewSymbols vor optimizePortfolio in startProposal eingebaut (Progress-Schritt "Kurshistorie prüfen und nachladen...")
 - [x] Backend: autoBackfillNewSymbols vor optimizePortfolio in buildProposal (Legacy) eingebaut
 - [x] Fehlermeldung "unvollständige Kurshistorie" wird durch automatisches Nachladen verhindert
+
+## Challenger + Wizard Fixes (Jul 2026)
+- [ ] Challenger-Prompt: muss immer konkrete Optimierungsvorschläge liefern (spezifische Ticker-Tausche + Gewichtsänderungen), nicht nur Kritik
+- [ ] Wizard-Ergebnis: Kurse (currentPrice) werden nicht angezeigt — Bug finden und beheben
+
+## Algorithmus + Challenger Verbesserungen (Jul 2026)
+- [ ] Sektor-Cap Default: maxSectorPercent 40% → 30% (balanced-Profil)
+- [ ] Heimatmarkt-Korrelations-Cap: max. 3 Titel aus demselben Land+Sektor (z.B. CH-Finanz)
+- [ ] Markt-Hub-Faktor-Tilt stärker ins Scoring: Value-Signal → Momentum-Titel abwerten, Momentum-Signal → Value-Titel abwerten
+- [ ] Challenger-Prompt: JSON-Schema um swaps-Feld erweitern (remove/add/weightAdjustment), konkrete Tausch-Paare erzwingen
+- [ ] Wizard-Ergebnis: currentPrice wird nicht angezeigt — Bug finden und beheben
