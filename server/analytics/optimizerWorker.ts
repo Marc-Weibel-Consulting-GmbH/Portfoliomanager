@@ -44,6 +44,9 @@ export interface OptimizerResult {
     inSampleCount: number;
     outOfSampleCount: number;
     overfitRatio: number; // inSample/outOfSample - closer to 1.0 = less overfit
+    // Promotion-Gate: der aktuell aktive Satz, auf DEMSELBEN OOS-Fenster bewertet
+    // (fairer Vergleich). null = kein Incumbent (Erstlauf) → Kandidat wird akzeptiert.
+    incumbentOutOfSampleHitRate?: number | null;
   };
   totalStocksProcessed?: number;
   batchInfo?: string;
@@ -384,7 +387,8 @@ export function releaseOptimizerLock(): void {
  * Uses setImmediate/setTimeout to yield to event loop regularly
  */
 export async function runOptimizerNonBlocking(
-  progressCallback?: (msg: string) => void
+  progressCallback?: (msg: string) => void,
+  incumbentWeights?: WeightConfig | null
 ): Promise<OptimizerResult> {
   const startTime = Date.now();
   const log: string[] = [];
@@ -565,6 +569,8 @@ export async function runOptimizerNonBlocking(
 
   let inSampleCorrect = 0, inSampleTotal = 0;
   let outOfSampleCorrect = 0, outOfSampleTotal = 0;
+  // Incumbent (aktuell aktive Gewichte) auf demselben OOS-Fenster — für das Gate.
+  let incumbentOosCorrect = 0, incumbentOosTotal = 0;
   let wfProcessed = 0;
   const wfEligible = stockData.filter(s => Math.floor(s.prices.length * 0.8) >= 80).length;
 
@@ -586,6 +592,13 @@ export async function runOptimizerNonBlocking(
     outOfSampleCorrect += outBt.correct;
     outOfSampleTotal += outBt.total;
 
+    // Incumbent auf demselben OOS-Slice (fairer Vergleich für das Gate)
+    if (incumbentWeights) {
+      const incBt = backtestStock(outOfSamplePrices, stock.volumes.slice(splitIdx - 60), incumbentWeights, stock.fundamentals, bestLookforward, bestThreshold);
+      incumbentOosCorrect += incBt.correct;
+      incumbentOosTotal += incBt.total;
+    }
+
     wfProcessed++;
     if (wfProcessed % 10 === 0 || wfProcessed === wfEligible) {
       logMsg(`Walk-Forward Fortschritt: ${wfProcessed}/${wfEligible} Titel validiert (${((wfProcessed / wfEligible) * 100).toFixed(0)}%)`);
@@ -597,6 +610,9 @@ export async function runOptimizerNonBlocking(
   const inSampleHitRate = inSampleTotal > 0 ? (inSampleCorrect / inSampleTotal) * 100 : 0;
   const outOfSampleHitRate = outOfSampleTotal > 0 ? (outOfSampleCorrect / outOfSampleTotal) * 100 : 0;
   const overfitRatio = outOfSampleHitRate > 0 ? inSampleHitRate / outOfSampleHitRate : 999;
+  const incumbentOutOfSampleHitRate = (incumbentWeights && incumbentOosTotal > 0)
+    ? (incumbentOosCorrect / incumbentOosTotal) * 100
+    : null;
 
   logMsg(`📊 Walk-Forward Ergebnis:`);
   logMsg(`   In-Sample:  ${inSampleHitRate.toFixed(1)}% (${inSampleCorrect}/${inSampleTotal})`);
@@ -631,18 +647,82 @@ export async function runOptimizerNonBlocking(
       inSampleCount: inSampleTotal,
       outOfSampleCount: outOfSampleTotal,
       overfitRatio,
+      incumbentOutOfSampleHitRate,
     },
     totalStocksProcessed: stockData.length,
     batchInfo: `${stockData.length}/${allStocks.length} Titel verarbeitet`,
   };
 }
 
+export interface SaveOptimizerOptions {
+  /** Herkunft des Laufs für den Audit-Trail (optimizerLog.gate.triggeredBy). */
+  triggeredBy?: "cron" | "admin";
+}
+
+export interface SaveOptimizerOutcome {
+  activated: boolean;
+  candidateOos: number | null;
+  incumbentOos: number | null;
+  reason: string;
+}
+
 /**
- * Save optimizer result to database
+ * Save optimizer result to database — mit Promotion-Gate (KIMI-Audit).
+ *
+ * Der monatliche Random-Search selektiert In-Sample; ohne Gate ersetzt ein
+ * zufällig guter Lauf ungeprüft eine bessere aktive Konfiguration. Deshalb:
+ * Der Kandidat wird nur aktiv, wenn er den aktuell aktiven Satz auf DEMSELBEN
+ * Out-of-Sample-Fenster erreicht/übertrifft (Toleranz 0.5 Pp). Sonst bleibt der
+ * Incumbent aktiv (Rollback) und der Kandidat wird nur als isActive=0 zur
+ * Nachvollziehbarkeit protokolliert. Erstlauf (kein Incumbent) → akzeptiert.
  */
-export async function saveOptimizerResult(result: OptimizerResult): Promise<void> {
+export async function saveOptimizerResult(
+  result: OptimizerResult,
+  opts: SaveOptimizerOptions = {},
+): Promise<SaveOptimizerOutcome> {
   const db = await getDb();
-  if (!db) return;
+  if (!db) return { activated: false, candidateOos: null, incumbentOos: null, reason: "no-db" };
+
+  const triggeredBy = opts.triggeredBy ?? "cron";
+  const candidateOos = result.walkForward?.outOfSampleHitRate ?? null;
+  const incumbentOos = result.walkForward?.incumbentOutOfSampleHitRate ?? null;
+  const TOLERANCE_PP = 0.5; // Kandidat darf max. 0.5 Pp schlechter sein → akzeptiert
+
+  const activated =
+    incumbentOos == null ||
+    candidateOos == null ||
+    candidateOos >= incumbentOos - TOLERANCE_PP;
+
+  const reason = activated
+    ? (incumbentOos == null ? "no-incumbent" : "candidate-oos-ok")
+    : "candidate-oos-below-incumbent";
+
+  const gate = { triggeredBy, candidateOos, incumbentOos, activated, reason, decidedAt: new Date().toISOString() };
+  const optimizerLog = JSON.stringify({
+    durationMs: result.durationMs,
+    topCombinations: result.topCombinations.slice(0, 5),
+    log: result.log.slice(-20),
+    walkForward: result.walkForward,
+    gate,
+    totalStocksProcessed: result.totalStocksProcessed,
+    batchInfo: result.batchInfo,
+  });
+
+  if (!activated) {
+    // Rollback/Hold: aktive Konfiguration NICHT anfassen, Kandidat nur als
+    // inaktive Zeile zur Nachvollziehbarkeit ablegen.
+    await db.insert(signalWeights).values({
+      name: `rejected_${new Date().toISOString().split('T')[0]}`,
+      weights: JSON.stringify(result.bestWeights),
+      hitRate: result.hitRate.toFixed(2),
+      totalBacktested: result.totalBacktested,
+      correctSignals: result.correctSignals,
+      lastRunAt: new Date(),
+      isActive: 0,
+      optimizerLog,
+    });
+    return { activated: false, candidateOos, incumbentOos, reason };
+  }
 
   // Deactivate all existing weights
   await db.update(signalWeights).set({ isActive: 0 });
@@ -656,15 +736,9 @@ export async function saveOptimizerResult(result: OptimizerResult): Promise<void
     correctSignals: result.correctSignals,
     lastRunAt: new Date(),
     isActive: 1,
-    optimizerLog: JSON.stringify({
-      durationMs: result.durationMs,
-      topCombinations: result.topCombinations.slice(0, 5),
-      log: result.log.slice(-20),
-      walkForward: result.walkForward,
-      totalStocksProcessed: result.totalStocksProcessed,
-      batchInfo: result.batchInfo,
-    }),
+    optimizerLog,
   });
+  return { activated: true, candidateOos, incumbentOos, reason };
 }
 
 /**
