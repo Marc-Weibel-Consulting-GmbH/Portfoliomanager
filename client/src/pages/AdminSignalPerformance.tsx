@@ -42,17 +42,19 @@ function fmtDate(v: unknown) {
   catch { return String(v); }
 }
 
+// Keys = DB-Werte (SignalEngineType / MarketRegime), nicht die Klassennamen.
 const ENGINE_LABELS: Record<string, string> = {
-  trendSignalEngine: "Trend",
-  meanReversionSignalEngine: "Mean Reversion",
-  breakoutSignalEngine: "Breakout",
-  ensembleSignalEngine: "Ensemble",
+  trend: "Trend",
+  mean_reversion: "Mean Reversion",
+  breakout: "Breakout",
+  ensemble: "Ensemble",
 };
 
 const REGIME_LABELS: Record<string, string> = {
   bull_trend: "Bullenmarkt",
   bear_trend: "Bärenmarkt",
-  sideways: "Seitwärts",
+  sideways_low_vol: "Seitwärts (ruhig)",
+  sideways_high_vol: "Seitwärts (volatil)",
   crisis: "Krise",
   recovery: "Erholung",
 };
