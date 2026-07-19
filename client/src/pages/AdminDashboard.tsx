@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical, AlertTriangle, Clock, Database } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -81,6 +82,15 @@ export default function AdminDashboard() {
       toast.error('Fehler beim Backfill', { description: err.message });
     },
   });
+  const backfillStatus = trpc.admin.getBackfillStatus.useQuery(undefined, { refetchInterval: 10_000 });
+  const clearPermanentlyFailed = trpc.admin.clearPermanentlyFailedBackfills.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      backfillStatus.refetch();
+    },
+    onError: (err) => toast.error('Fehler', { description: err.message }),
+  });
+
   const triggerRefresh = trpc.admin.triggerSignalScoreRefresh.useMutation({
     onSuccess: (data) => {
       setRefreshStatus({ success: data.success, message: data.message });
@@ -291,6 +301,84 @@ export default function AdminDashboard() {
               {triggerRefresh.isPending ? "Aktualisiert..." : "Scores jetzt aktualisieren"}
             </Button>
           </div>
+        </div>
+
+        {/* Backfill-Status */}
+        <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium flex items-center gap-2"><Database className="h-4 w-4 text-emerald-400" />Backfill-Status</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Kurshistorie-Nachlade-Status (aktualisiert alle 10s)</p>
+            </div>
+            {backfillStatus.data?.pendingCount != null && backfillStatus.data.pendingCount > 0 && (
+              <Badge variant="outline" className="text-amber-400 border-amber-500/50 gap-1">
+                <Clock className="h-3 w-3" />{backfillStatus.data.pendingCount} ausstehend
+              </Badge>
+            )}
+          </div>
+
+          {/* Pending */}
+          {backfillStatus.data?.pendingTickers && backfillStatus.data.pendingTickers.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-amber-400 mb-1">Wird gerade geladen:</p>
+              <div className="flex flex-wrap gap-1">
+                {backfillStatus.data.pendingTickers.map((t) => (
+                  <Badge key={t} variant="outline" className="text-xs text-amber-300 border-amber-500/30">{t}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recently Completed */}
+          {backfillStatus.data?.recentlyCompleted && backfillStatus.data.recentlyCompleted.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-emerald-400 mb-1">Zuletzt nachgeladen (letzte Stunde):</p>
+              <div className="flex flex-wrap gap-1">
+                {backfillStatus.data.recentlyCompleted.map((item) => (
+                  <Badge key={item.ticker} variant="outline" className="text-xs text-emerald-300 border-emerald-500/30 gap-1">
+                    <CheckCircle2 className="h-2.5 w-2.5" />{item.ticker}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Permanently Failed */}
+          {backfillStatus.data?.permanentlyFailed && backfillStatus.data.permanentlyFailed.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium text-red-400 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />Dauerhaft keine EODHD-Daten ({backfillStatus.data.permanentlyFailed.length} Ticker):
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 text-xs text-red-400 hover:text-red-300 px-1"
+                  onClick={() => clearPermanentlyFailed.mutate({})}
+                  disabled={clearPermanentlyFailed.isPending}
+                >
+                  Alle löschen
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {backfillStatus.data.permanentlyFailed.map((item) => (
+                  <Badge
+                    key={item.ticker}
+                    variant="outline"
+                    className="text-xs text-red-300 border-red-500/30 gap-1 cursor-pointer hover:border-red-400"
+                    onClick={() => clearPermanentlyFailed.mutate({ ticker: item.ticker })}
+                    title={`${item.reason} — ${new Date(item.failedAt).toLocaleString('de-CH')} — Klicken zum Entfernen`}
+                  >
+                    <XCircle className="h-2.5 w-2.5" />{item.ticker}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {backfillStatus.data?.pendingCount === 0 && backfillStatus.data?.recentlyCompleted?.length === 0 && backfillStatus.data?.permanentlyFailed?.length === 0 && (
+            <p className="text-xs text-muted-foreground">Keine ausstehenden oder kürzlich abgeschlossenen Backfills.</p>
+          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

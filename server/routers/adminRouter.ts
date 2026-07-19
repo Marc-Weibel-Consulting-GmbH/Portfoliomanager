@@ -10,7 +10,8 @@ import {
   ensureMaxBackfillForSymbols,
   autoBackfillNewSymbols,
   getBackfillQueueStatus,
-  clearBackfillCache 
+  clearBackfillCache,
+  clearPermanentlyFailedBackfills
 } from "../autoBackfill";
 
 export const adminRouter = router({
@@ -575,6 +576,20 @@ export const adminRouter = router({
 
         clearBackfillCache();
         return { success: true, message: 'Backfill cache cleared' };
+      }),
+
+    /**
+     * Clear permanently-failed backfills registry
+     * Useful when a ticker becomes available at EODHD after being absent
+     */
+    clearPermanentlyFailedBackfills: adminProcedure
+      .input(z.object({ ticker: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+        clearPermanentlyFailedBackfills(input.ticker);
+        return { success: true, message: input.ticker ? `Registry für ${input.ticker} geleert` : 'Alle permanently-failed Registries geleert' };
       }),
 
     // ─── ML Trainer ───────────────────────────────────────────────────────────

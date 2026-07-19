@@ -412,3 +412,9 @@
 
 ## Portfolio Aktivieren Bug (Jul 2026)
 - [x] Fix: "Fehler beim Aktivieren" — Deposit-Transaktion wird jetzt vor den Kauftransaktionen erstellt (Cash-Balance-Validierung erforderte positiven Saldo)
+
+## Backfill-Verbesserungen (Jul 2026)
+- [x] Backfill-Timeout: 60s pro Ticker in fetchHistoricalPricesFromAPI (AbortController, verhindert hängende Jobs bei TSE-404-Titeln)
+- [x] Fehlermeldung verbessern: konkrete Ticker nennen die ausgeschlossen wurden (backfillFailed-Ticker in weightingNote)
+- [x] Admin-Dashboard Backfill-Status-Panel: ausstehende Ticker (amber), zuletzt nachgeladen (grün), dauerhaft keine EODHD-Daten (rot, löschbar per Klick) — aktualisiert alle 10s
+- [x] Backend: permanentlyFailedBackfills-Registry in autoBackfill.ts + clearPermanentlyFailedBackfills-Prozedur in adminRouter

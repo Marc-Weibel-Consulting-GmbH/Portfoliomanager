@@ -55,8 +55,11 @@ async function fetchHistoricalPricesFromAPI(
 
   const url = `${EODHD_BASE_URL}/eod/${toEodhdSymbol(ticker)}?api_token=${apiKey}&fmt=json&from=${fromDate}&to=${toDate}`;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000); // 60s timeout per ticker
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     if (!response.ok) {
       console.error(`[backfillHistoricalPrices] Failed to fetch ${ticker}: ${response.status} ${response.statusText}`);
       return [];
@@ -65,7 +68,12 @@ async function fetchHistoricalPricesFromAPI(
     const data = await response.json();
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error(`[backfillHistoricalPrices] Error fetching ${ticker}:`, error);
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`[backfillHistoricalPrices] Timeout (60s) fetching ${ticker} — skipping`);
+    } else {
+      console.error(`[backfillHistoricalPrices] Error fetching ${ticker}:`, error);
+    }
     return [];
   }
 }
